@@ -55,6 +55,25 @@ struct ChangeEntry
     std::string   after_id;        // the conversation item it follows; empty before the first
 };
 
+// One piece of work the application ran outside the chat: a slice, an arrange,
+// an export. The entry is written when the work starts, which fixes its place
+// in the timeline: after the conversation item that was last at that moment,
+// so a message that arrives later reads below it. It is completed in place
+// when the work ends. Progress is not saved; an entry still "running" in a
+// document that was closed mid-run is shown as interrupted.
+struct WorkEntry
+{
+    std::uint64_t seq{0};
+    std::string   id;
+    std::string   started_at, ended_at;
+    std::string   kind;            // slice|job|export|upload|download
+    std::string   title;           // what is running, in the app's words
+    std::string   state;           // running|done|cancelled|failed
+    std::string   detail;          // why it failed; never a folder path
+    std::string   conversation_id; // the conversation active when it started
+    std::string   after_id;        // the conversation item it follows; empty before the first
+};
+
 // Metadata for one attachment. The blob lives under
 // <JusPrin data dir>/attachments/<id>/<stored_name>; this record is the
 // portable, saved description of it. `state` is "staged" while the attachment
@@ -285,6 +304,14 @@ public:
     // most recent item. Returns the entry as stored.
     ChangeEntry              add_change(ChangeEntry entry, const std::string& timestamp);
     std::vector<ChangeEntry> changes() const;
+
+    // Work the application ran outside the chat. `begin_work` assigns the id,
+    // the sequence number and the place in the timeline.
+    WorkEntry              begin_work(WorkEntry entry, const std::string& timestamp);
+    // Completes a running entry. Empty when no running entry has that id.
+    std::optional<WorkEntry> finish_work(const std::string& id, const std::string& state, const std::string& detail,
+                                         const std::string& timestamp);
+    std::vector<WorkEntry> work() const;
     // The conversation's most recent message or tool activity, by seq; empty
     // when it has none.
     std::string last_item_id(const std::string& conversation_id) const;

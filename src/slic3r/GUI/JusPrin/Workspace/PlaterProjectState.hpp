@@ -7,10 +7,26 @@
 
 #include "ProjectState.hpp"
 
+#include <wx/event.h>
+
 #include <optional>
 #include <utility>
 
+namespace Slic3r {
+class SlicingProcessCompletedEvent;
+}
+
 namespace Slic3r::GUI {
+
+// OrcaSlicer defines the event that ends a slice in Plater.cpp and declares
+// it in no header, so nothing outside that file could observe it, and the
+// event is the only place the reason for a failed slice exists. Plater.cpp
+// includes this header (through the ProjectState.hpp shim) ahead of that
+// definition, which gives the event external linkage without a line changed
+// in an OrcaSlicer file. If upstream renames or moves the event, this stops
+// compiling or linking; it cannot go quietly wrong. PrintIssueMonitor is the
+// one listener.
+wxDECLARE_EVENT(EVT_PROCESS_COMPLETED, Slic3r::SlicingProcessCompletedEvent);
 
 class PlaterProjectState
 {

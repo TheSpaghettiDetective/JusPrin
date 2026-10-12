@@ -144,6 +144,8 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.tool_panel.radius == 8);
     CHECK(m.tool_panel.min_width == 220);
     CHECK(m.tool_panel.title_text_role == TextRole::Section);
+    CHECK(m.print_issues.bubble_width == 288);
+    CHECK(m.print_issues.list_width == 320);
 
     // The axis colours name the same 3D handles in both modes.
     CHECK(theme.palette(false).axis_x == wxColour(0xFF, 0x3C, 0x5B));

@@ -110,6 +110,10 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry.erase("fileReport");
         entry.erase("fileReportCard");
     }
+    if (!message.issue_context.empty())
+        entry["issueContext"] = message.issue_context;
+    else
+        entry.erase("issueContext");
 }
 
 ConversationMessage read_message(const json& entry)
@@ -132,6 +136,7 @@ ConversationMessage read_message(const json& entry)
     message.swatch           = entry.value("swatch", "");
     message.file_report      = entry.value("fileReport", "");
     message.file_report_card = entry.value("fileReportCard", false);
+    message.issue_context    = entry.value("issueContext", "");
     return message;
 }
 
@@ -389,7 +394,24 @@ json fresh_document()
                 {"printIntent", json::array()},
                 {"plan", json::object()},
                 {"regions", json::array()},
-                {"changes", json::array()}};
+                {"changes", json::array()},
+                {"work", json::array()}};
+}
+
+WorkEntry read_work(const json& entry)
+{
+    WorkEntry work;
+    work.seq             = entry.value("seq", std::uint64_t(0));
+    work.id              = entry.value("id", "");
+    work.started_at      = entry.value("startedAt", "");
+    work.ended_at        = entry.value("endedAt", "");
+    work.kind            = entry.value("kind", "");
+    work.title           = entry.value("title", "");
+    work.state           = entry.value("state", "");
+    work.detail          = entry.value("detail", "");
+    work.conversation_id = entry.value("conversationId", "");
+    work.after_id        = entry.value("afterId", "");
+    return work;
 }
 
 ChangeEntry read_change(const json& entry)
@@ -1196,6 +1218,52 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
     m_doc["changes"].push_back(std::move(record));
     touch();
     return entry;
+}
+
+WorkEntry ProjectStateDocument::begin_work(WorkEntry entry, const std::string& timestamp)
+{
+    entry.conversation_id = active_conversation_id();
+    entry.after_id        = last_item_id(entry.conversation_id);
+    entry.seq             = next_seq();
+    entry.id              = "work-" + std::to_string(entry.seq);
+    entry.started_at      = timestamp;
+    entry.ended_at.clear();
+    entry.state           = "running";
+    m_doc["work"].push_back(json{{"seq", entry.seq},
+                                 {"id", entry.id},
+                                 {"startedAt", entry.started_at},
+                                 {"endedAt", ""},
+                                 {"kind", entry.kind},
+                                 {"title", entry.title},
+                                 {"state", entry.state},
+                                 {"detail", entry.detail},
+                                 {"conversationId", entry.conversation_id},
+                                 {"afterId", entry.after_id}});
+    touch();
+    return entry;
+}
+
+std::optional<WorkEntry> ProjectStateDocument::finish_work(const std::string& id, const std::string& state, const std::string& detail,
+                                                           const std::string& timestamp)
+{
+    for (json& entry : m_doc["work"]) {
+        if (entry.value("id", "") != id || entry.value("state", "") != "running")
+            continue;
+        entry["state"]   = state;
+        entry["detail"]  = detail;
+        entry["endedAt"] = timestamp;
+        touch();
+        return read_work(entry);
+    }
+    return std::nullopt;
+}
+
+std::vector<WorkEntry> ProjectStateDocument::work() const
+{
+    std::vector<WorkEntry> result;
+    for (const json& entry : m_doc["work"])
+        result.push_back(read_work(entry));
+    return result;
 }
 
 std::vector<ChangeEntry> ProjectStateDocument::changes() const

@@ -10,6 +10,7 @@ import {
   AttachmentInfo,
   BuildInfo,
   ChangeInfo,
+  WorkInfo,
   RestorePointInfo,
   ExportedCopyInfo,
   PhysicalPrintInfo,
@@ -22,6 +23,7 @@ import { ChangeRows } from './ChangeRows';
 import { FileNotesCard } from './FileNotesCard';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
+import { collapseWork, WorkCard } from './WorkCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 import { PrinterBlockView } from './PrinterPanel';
 import { splitChoices, withoutPartialChoices } from '../replyChoices';
@@ -35,6 +37,8 @@ interface Props {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[]; // already filtered to this conversation
+  work?: WorkInfo[]; // already filtered to this conversation
+  onWorkCancel?: (id: string) => void;
   restorePoints?: RestorePointInfo[];
   onRevert?: (versionId: string) => void;
   onRetry: (messageId: string) => void;
@@ -64,25 +68,31 @@ interface Props {
 // seq order. Consecutive changes form one block, which draws as one group.
 type TimelineBlock =
   | { kind: 'history'; seq: number; entry: ManufacturingHistoryEntry }
-  | { kind: 'changes'; seq: number; changes: ChangeInfo[] };
+  | { kind: 'changes'; seq: number; changes: ChangeInfo[] }
+  | { kind: 'work'; seq: number; work: WorkInfo[] };
 
-function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[]): TimelineBlock[] {
+function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[], work: WorkInfo[] = []): TimelineBlock[] {
   const items = [
-    ...history.map((entry) => ({ seq: entry.seq, history: entry, change: undefined })),
-    ...changes.map((change) => ({ seq: change.seq, history: undefined, change })),
+    ...history.map((entry) => ({ seq: entry.seq, history: entry, change: undefined, work: undefined })),
+    ...changes.map((change) => ({ seq: change.seq, history: undefined, change, work: undefined })),
+    ...work.map((entry) => ({ seq: entry.seq, history: undefined, change: undefined, work: entry })),
   ].sort((a, b) => a.seq - b.seq);
   const blocks: TimelineBlock[] = [];
   for (const item of items) {
     const previous = blocks[blocks.length - 1];
     if (item.change && previous?.kind === 'changes') previous.changes.push(item.change);
     else if (item.change) blocks.push({ kind: 'changes', seq: item.seq, changes: [item.change] });
+    else if (item.work && previous?.kind === 'work') previous.work.push(item.work);
+    else if (item.work) blocks.push({ kind: 'work', seq: item.seq, work: [item.work] });
     else blocks.push({ kind: 'history', seq: item.seq, entry: item.history! });
   }
   return blocks;
 }
 
-function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, discussDisabled }: {
+function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, discussDisabled, onWorkCancel, readOnly }: {
   blocks: TimelineBlock[];
+  onWorkCancel?: (id: string) => void;
+  readOnly?: boolean;
   restorePoints: RestorePointInfo[];
   onRevert?: (versionId: string) => void;
   onDiscussFailure: (print: PhysicalPrintInfo) => void;
@@ -94,6 +104,10 @@ function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, dis
         block.kind === 'history' ? (
           <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry}
             onDiscussFailure={onDiscussFailure} discussDisabled={discussDisabled} />
+        ) : block.kind === 'work' ? (
+          collapseWork(block.work).map(({ work, times }) => (
+            <WorkCard key={work.id} work={work} times={times} onCancel={onWorkCancel ?? (() => {})} readOnly={readOnly || !onWorkCancel} />
+          ))
         ) : (
           <ChangeRows key={`changes-${block.seq}`} changes={block.changes} restorePoints={restorePoints} onRevert={onRevert} />
         ),
@@ -111,6 +125,8 @@ export function MessageList({
   exportedCopies,
   physicalPrints,
   changes,
+  work = [],
+  onWorkCancel,
   restorePoints = [],
   onRevert,
   onRetry,
@@ -166,6 +182,10 @@ export function MessageList({
   }
   const changesAfter = (messageId: string) => changes.filter((change) => messageOfItem.get(change.afterId) === messageId);
   const leadingChanges = changes.filter((change) => !messageOfItem.has(change.afterId));
+  // Work keeps the place it started at: after the item that was last then,
+  // so a message that arrived later reads below it.
+  const workAfter = (messageId: string) => work.filter((entry) => messageOfItem.get(entry.afterId) === messageId);
+  const leadingWork = work.filter((entry) => !messageOfItem.has(entry.afterId));
   const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
   const printerBlockViews = (messageId: string) =>
     (printerBlocks ?? [])
@@ -181,7 +201,7 @@ export function MessageList({
   return (
     <div className="message-list" role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges)} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
+      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
         onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
       {messages.length === 0 && (
         <div className="notice">
@@ -320,7 +340,7 @@ export function MessageList({
               })}
             </div>
             {printerBlockViews(message.id)}
-            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id))} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
+            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id), workAfter(message.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
               onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
           </Fragment>
         );

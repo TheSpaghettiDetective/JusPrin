@@ -27,7 +27,12 @@ void CanvasPresentationController::attach(GLCanvas3D& canvas)
     if (!*m_previous_outline)
         wxGetApp().toggle_show_outline();
     m_tool_strip = std::make_unique<ViewportToolStrip>(canvas, *this);
-    canvas.set_overlay_renderer([strip = m_tool_strip.get()]() { strip->render(); });
+    canvas.set_overlay_renderer([this]() {
+        if (m_tool_strip)
+            m_tool_strip->render();
+        if (m_extra_overlay)
+            m_extra_overlay();
+    });
 }
 
 void CanvasPresentationController::detach()
@@ -39,6 +44,7 @@ void CanvasPresentationController::detach()
         if (m_previous_outline && *m_previous_outline != wxGetApp().show_outline())
             wxGetApp().toggle_show_outline();
     }
+    m_extra_overlay = nullptr;
     m_tool_strip.reset();
     m_previous_hidden.reset();
     m_previous_outline.reset();
@@ -47,6 +53,7 @@ void CanvasPresentationController::detach()
 
 void CanvasPresentationController::abandon()
 {
+    m_extra_overlay = nullptr;
     m_tool_strip.reset();
     m_previous_hidden.reset();
     m_previous_outline.reset();

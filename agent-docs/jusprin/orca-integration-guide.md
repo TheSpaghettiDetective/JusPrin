@@ -232,6 +232,70 @@ deletes the filament and process profiles made for it, so that case goes
 through Orca's own confirmation. Names that differ only in case are one file on
 Windows and macOS; never save one over the other and then delete the first.
 
+### OrcaSlicer's notifications are read back, not drawn
+
+OrcaSlicer reports print problems through three unrelated producers (print
+validation in `Plater`, slicing steps on the background thread, plate checks in
+`GLCanvas3D`), and results of actions from dozens of call sites. All of them
+end in `NotificationManager`. Inside the shell that list is the source of
+truth for what JusPrin draws (see "Print issues and OrcaSlicer's
+notifications" in the architecture guide). What was learned about it:
+
+- **Three additions to `NotificationManager`, 13 lines in all.**
+  `for_each_notification` visits the type, level and current text of every
+  notification that is shown. `update_notifications` calls
+  `report_notifications_updated()` on its first line. `render_notifications`
+  skips its drawing loop while the Prepare canvas has its legacy overlays
+  hidden.
+- **The observer call is first in `update_notifications`, not last.** That
+  function returns early while the application window is not the active one.
+  With the call after that return, nothing would be read while the person
+  types to an agent in another application. It runs on every idle turn of
+  every canvas, so the listener only compares, and rebuilds on a change
+  (343 comparisons to 11 rebuilds in one test run).
+- **Only the drawing loop is skipped, never the end of
+  `render_notifications`.** The end deletes a closed plate warning and records
+  the time of the draw. `PlaterWarningNotification::close()` only hides the
+  notification and relies on that deletion; a hidden one makes OrcaSlicer
+  refuse to push the same words again. An early return from the function left
+  such warnings stuck for the session. It asks the Prepare canvas rather than
+  the canvas being drawn: Check print is a second canvas whose own flag is
+  never set.
+- **Hidden means absent.** The accessor leaves out a hidden notification, as
+  `get_notification_count()` does. OrcaSlicer hides validation and plate
+  warnings while its preview is shown.
+- **A notification has no readable target.** The object is captured inside the
+  "Jump to" callback. So the object comes from asking the check again:
+  `Print::validate` (public, `const`, under a millisecond on small plates, one
+  error and one warning at most), `ModelInstance::print_volume_state`,
+  `GLCanvas3D::check_volumes_outside_state` with its `ObjectFilamentResults`,
+  and `step_state_with_warnings`. A warning's `type` is left uninitialised by
+  some producers, so never use it for identity.
+- **Slice-result problems are notified late.** `_set_warning_notification_if_needed`
+  runs when the preview canvas loads the G-code. Right after a slice the list
+  holds none of: path outside the plate, nozzle reach, plate surface. They are
+  in `PartPlate::get_slice_result()` at once, and
+  `is_slice_result_ready_for_print()` already refuses.
+- **A critical slicing failure leaves no notification.** `Plater` shows a
+  dialog instead. `EVT_PROCESS_COMPLETED`, which `Plater.cpp` defines and no
+  header declares, carries the reason and the object;
+  `Workspace/PlaterProjectState.hpp` declares it, and `Plater.cpp` includes
+  that header ahead of the definition, so no OrcaSlicer line changes. The
+  handler bound later runs first and must `Skip()`.
+- **The print lags the project by up to 500 ms.**
+  `Plater::is_background_process_update_scheduled()` is true until OrcaSlicer
+  applies an edit; until then neither the print nor the notifications describe
+  the project as it is. This is what separates "checking" from "no issues".
+- **A closed notification returns only with the next real edit.** OrcaSlicer
+  validates again when applying an edit changes the print, not when an update
+  is merely scheduled.
+- **Some plate checks are quieter than they look.** `check_tpu_printable_status`
+  returns true unconditionally. The PLA with PETG warning is skipped when the
+  printer has a tool change time above zero, which the Bambu Lab H2D profile
+  does. A brim is trimmed at the plate edge and at a nozzle's reach; a skirt is
+  what puts a path outside.
+- **OrcaSlicer validates only the active plate.**
+
 ### Application teardown can re-enter destroyed owners
 
 Quitting while model volumes are loaded can crash:

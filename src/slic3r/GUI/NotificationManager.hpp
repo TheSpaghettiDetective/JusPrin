@@ -339,6 +339,8 @@ public:
 	bool update_notifications(GLCanvas3D& canvas);
 	// returns number of all notifications shown
 	size_t get_notification_count() const;
+	// Calls the visitor with the type, level and current text of every notification that is shown.
+	void for_each_notification(const std::function<void(NotificationType, NotificationLevel, const std::string&)>& visitor) const;
 
 
 	//BBS Notice

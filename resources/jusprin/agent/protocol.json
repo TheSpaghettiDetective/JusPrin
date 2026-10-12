@@ -19,7 +19,8 @@
     "change_log",
     "printer_panel",
     "file_reports",
-    "setup_differences"
+    "setup_differences",
+    "work_log"
   ],
   "pageMessageTypes": [
     "hello",
@@ -28,6 +29,7 @@
     "stop_generation",
     "retry_message",
     "tool_cancel",
+    "work_cancel",
     "create_conversation",
     "switch_conversation",
     "restore_conversation",
@@ -71,6 +73,7 @@
     "mcp_preview",
     "mcp_status",
     "change_added",
+    "work_updated",
     "open_setup",
     "printer_session"
   ]

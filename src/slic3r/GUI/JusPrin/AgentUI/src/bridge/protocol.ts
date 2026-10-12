@@ -16,6 +16,7 @@ export type PageMessageType =
   | 'stop_generation'
   | 'retry_message'
   | 'tool_cancel'
+  | 'work_cancel'
   | 'create_conversation'
   | 'switch_conversation'
   | 'restore_conversation'
@@ -59,6 +60,7 @@ export type HostMessageType =
   | 'mcp_preview'
   | 'mcp_status'
   | 'change_added'
+  | 'work_updated'
   | 'open_setup'
   | 'printer_session';
 
@@ -104,6 +106,10 @@ export interface WireMessage {
   // could not speak about it (fileReportCard).
   fileReport?: FileReport;
   fileReportCard?: boolean;
+  // User messages sent from a print-issue bubble on the canvas: the issue,
+  // its target and the freshness of the evidence, for the model. The page
+  // draws the message's text and nothing from here.
+  issueContext?: unknown;
 }
 
 // Raw words shown or scheduled by Orca during opening, and the app's answer
@@ -370,6 +376,27 @@ export type ToolStateName =
 
 export type ActionClassName = 'read_only' | 'mutation' | 'destructive';
 
+// Work the application ran outside the chat: a slice, an arrange, an export.
+// Saved with the project at the place in the timeline where it started
+// (`afterId`), and completed in place. `interrupted` is an entry that was
+// still running when its project was closed.
+export type WorkStateName = 'running' | 'done' | 'cancelled' | 'failed' | 'interrupted';
+
+export interface WorkInfo {
+  seq: number;
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  kind: string; // slice | job | export | upload | download
+  title: string;
+  state: WorkStateName;
+  detail: string;
+  conversationId: string;
+  afterId: string; // the conversation item it follows; empty before the first
+  cancellable: boolean;
+  progress?: { current: number; total: number }; // only while running; total 0 = not known
+}
+
 export interface ToolActivityInfo {
   actionId: string;
   correlationId: string; // assistant message or external adapter request
@@ -633,6 +660,7 @@ export interface StatePayload {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes?: ChangeInfo[]; // absent from hosts without the change_log capability
+  work?: WorkInfo[]; // absent from hosts without the work_log capability
   restorePoints?: RestorePointInfo[]; // committed model versions with an exact change boundary
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments

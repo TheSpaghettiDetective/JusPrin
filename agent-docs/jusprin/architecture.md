@@ -118,6 +118,40 @@ This pane is native code owned by the fork (`Shell/LeftPane`). It sits to the le
 
 The ledger is the record of physical prints. It can have any number of subscribers, through `ProjectPersistence::subscribe_ledger`. The pane and the header's overflow menu each subscribe to it separately.
 
+### Print issues and OrcaSlicer's notifications
+
+Inside the shell OrcaSlicer's own notifications are held but not drawn. JusPrin reads the list back and draws what it holds: print problems as a status pill in the canvas's lower right corner, the list it opens, and a bubble beside the object the selected issue is about, with **Ask AI** and **Resolve with AI**; the outcome of an action (export finished, an arrange that was refused) as a short confirmation above the pill; and work that is still running (a slice, an arrange, an export) as an entry in the chat.
+
+**OrcaSlicer's notification list is the source of truth.** A notification carries a kind, a level and words. It does not carry the object it is about, so where OrcaSlicer lets its check be asked again, that check is asked once more for the object only.
+
+| Piece | Owns |
+|---|---|
+| `PrintIssues/NoticeKinds` | Where each of OrcaSlicer's notification kinds goes: the issue list, a confirmation, running work, application state, or nowhere. Every kind is named; a kind OrcaSlicer adds stops the build in this file until someone routes it. |
+| `PrintIssues/PrintIssueMonitor` | Reads the list on the notification manager's own turn, compares it with what it saw last, and rebuilds only on a change. Asks OrcaSlicer's checks for the object behind a validation, a copy over the plate's edge, an object out of a nozzle's reach and a slicing step warning. Holds no rule about what a problem is. |
+| `issues_from` in `PrintIssues/PrintIssue` | The rule, as plain data with its own tests: an object lookup's entry exists only while OrcaSlicer holds a notification of its kind; a print-problem notification no lookup answers for is a plate-wide issue in OrcaSlicer's words. |
+| `PrintIssues/IssueOverlayLayout`, `IssueOverlay` | Where the pieces go, how they are drawn and how they close, with ImGui inside the canvas's frame through the same overlay hook as the tool strip. The bubble never covers its object, the pill, a confirmation or the tool strip. |
+| `PrintIssues/WorkFeed` | Work as it starts, moves on and ends. A slice is followed through OrcaSlicer's own events, which carry a percentage and an outcome. Other work is read from the "still running" notifications, which carry neither. |
+| `AgentHost::begin_work`, `update_work`, `finish_work`; `WorkCard` in the page | The entry in the chat: saved with the project at the place in the timeline where the work started, so a later message reads below it; a progress bar and, where the work can be stopped, Cancel while it runs; completed in place. The chat panel opens when work starts. Repeats are folded by the page, never in what is saved, and an entry still "running" in a project that was closed mid-run reads as interrupted. |
+| `PrintIssues/IssueContext`, `AgentHost::submit_issue_message` | The chat message a button sends, and the one way a message enters the chat from outside the page. |
+
+Two things are read whether or not a notification exists, because OrcaSlicer's notifications do not cover them in time:
+
+- **The slice result.** A path outside the plate, a filament its nozzle cannot reach, and a filament that cannot print on the plate surface get their notifications only when OrcaSlicer's preview loads the slice, which here means opening Check print. OrcaSlicer refuses to print from the moment the slice ends.
+- **Why a slice failed.** A critical failure is shown in a dialog and leaves no notification, and no notification says which object the failure named. `EVT_PROCESS_COMPLETED` is the only place both exist.
+
+Rules that follow:
+
+- **No pill is the all-clear, and it is never given before a check.** The pill is drawn only while OrcaSlicer reports an issue, ignored ones included. While OrcaSlicer holds an unapplied edit the last issues are kept, the pill says it is checking and both buttons are off, so the pill does not go until OrcaSlicer has looked. An issue that was not in the list before is announced once by a ring that spreads from the pill twice; an edit that keeps an issue, and ignoring one or undoing that, announce nothing.
+- **Nothing is resolved by the fork.** An issue goes when OrcaSlicer lets go of its notification. An agent saying it fixed something changes nothing.
+- **"Blocks printing" is OrcaSlicer's answer.** An error-level notification blocks. For the slice result it is OrcaSlicer's own post-slice check, which allows a path 2 mm past the plate edge; the monitor does not apply a stricter test of its own.
+- **The object is never read out of the words.** Two messages of one kind are told apart by comparing OrcaSlicer's words now with its words before, as OrcaSlicer does itself. Which object a message is about always comes from a check's own ids.
+- **A press acts on what is true at the press**, and with no assistant set up it sends nothing and offers the chat panel's setup. **Ask AI may only read.**
+- **Operation failures are not print issues.** A failed download or a refused arrange is a confirmation, never an entry in the issue list.
+- **Closing hides, it never resolves.** The pill is always there and is the way back; the list and the bubble are opened and closed, one at a time, and closing either changes nothing about the issue or the count. The list closes on a pick, a second press of the pill, Escape, or a press outside it. The bubble belongs to the selection: opening it selects its object, and it closes when that object stops being selected, which is what a click on the empty plate, Escape and a click on another object already do in OrcaSlicer. Turning the view or dragging the object leaves it open. Its close button leaves the selection alone, and a press on **Ask AI** or **Resolve with AI** that reaches the chat closes it. With one issue the pill opens the bubble directly, and with several the bubble's pager walks them all. The overlay hears Escape and presses through handlers of its own on the canvas's window, bound after OrcaSlicer's and so called first; no OrcaSlicer file is involved.
+- **Ignoring a warning is the person's mark, not OrcaSlicer's.** **Ignore this warning** in the bubble leaves OrcaSlicer's notification alone: the warning stays in the list, marked, below the ones that count, and the pill stops counting it ("1 warning ignored" when nothing else is left, never "No print issues"). Only a warning can be ignored; a blocker cannot, because OrcaSlicer would still refuse to print. An ignore lasts while OrcaSlicer keeps reporting that warning on the active plate's own list, and is forgotten when OrcaSlicer stops, so a warning that comes back is shown again. It is not saved with the project. The rule is `mark_ignored` in `PrintIssues/PrintIssue`.
+
+Known limits: application and account notifications (update available, plug-in missing, preset sync conflict) are routed to `App` and drawn nowhere yet. A confirmation shows OrcaSlicer's words and a close button; the actions OrcaSlicer attached to its own notification (open folder, eject, cancel an upload) are not offered. Only a slice has a percentage and a known ending; other work shows a bar with no amount and is recorded as done unless its Cancel was pressed. Uploads and downloads have not been run. The tips and the object size card are not shown.
+
 ### Agent WebView
 
 The production Agent interface is a separate React/TypeScript package that runs locally inside a `wxWebView`. It needs:

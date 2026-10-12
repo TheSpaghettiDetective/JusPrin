@@ -227,6 +227,33 @@ public:
     // said something while loading it.
     void on_file_loaded(const Workspace::LoadReport& report);
 
+    // A message the person sends by pressing a button outside the page (the
+    // print-issue bubble on the canvas): the same durable user message a typed
+    // one becomes, answered by the same reply path, with `context_json`
+    // attached for the model. Unlike a typed message it leaves the composer's
+    // draft alone. `client_message_id` makes a repeated press one message.
+    // A context whose "intent" is "explain" makes the turn read-only: it is
+    // offered the read-only tools, and a call to any other is refused here.
+    // On Refused, `refusal` is the same code the page's own send would get.
+    enum class SubmitResult : std::uint8_t { Started, Queued, Duplicate, Refused };
+    SubmitResult submit_issue_message(const std::string& client_message_id, const std::string& text,
+                                      const std::string& context_json, std::string* refusal = nullptr);
+    // A reply is being written or a tool is running.
+    bool busy() const { return agent_busy(); }
+
+    // Work the application runs outside the chat: a slice, an arrange, an
+    // export. An entry is saved with the project at the place in the timeline
+    // where the work started, shown with its progress while it runs, and
+    // completed in place. `begin_work` returns the id the other calls take.
+    std::string begin_work(const std::string& kind, const std::string& title, bool cancellable);
+    // `total` zero means the amount is not known.
+    void        update_work(const std::string& id, int current, int total, const std::string& detail = {});
+    // `state` is done, cancelled or failed. Unknown ids are ignored: the
+    // project that owned the entry may have been replaced meanwhile.
+    void        finish_work(const std::string& id, const std::string& state, const std::string& detail = {});
+    // The page's cancel button on a running entry.
+    void        set_work_cancel_handler(std::function<void(const std::string& id)> handler) { m_work_cancel = std::move(handler); }
+
     // Diagnostics for the internal-connection error surface.
     std::uint64_t messages_sent() const { return m_messages_sent; }
     std::uint64_t messages_received() const { return m_messages_received; }
@@ -259,9 +286,29 @@ private:
 
     void handle_hello(const std::string& envelope_id, const std::string& payload_json);
     void handle_user_message(const std::string& envelope_id, const std::string& payload_json);
+    // Why no user message can be taken now, whoever sends it.
+    std::optional<AgentError> user_message_refusal() const;
+    // Makes `message` the next user message of the active chat and starts its
+    // reply, or queues it behind the one being written. Returns whether the
+    // reply started.
+    bool accept_user_message(ConversationMessage message, const std::string& correlation_id, bool from_composer);
+    // Whether the turn that answers this user message was asked only to explain.
+    bool explain_only_turn(const std::string& user_message_id) const;
     void handle_stop(const std::string& payload_json);
     void handle_retry(const std::string& envelope_id, const std::string& payload_json);
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
+    void handle_work_cancel(const std::string& envelope_id, const std::string& payload_json);
+    void send_work(const WorkEntry& work);
+
+    // What is known about a running entry and is not saved.
+    struct LiveWork
+    {
+        int         current{0}, total{0};
+        std::string detail;
+        bool        cancellable{false};
+    };
+    std::map<std::string, LiveWork>              m_live_work;
+    std::function<void(const std::string& id)>   m_work_cancel;
     void handle_create_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_restore_conversation(const std::string& envelope_id, const std::string& payload_json);

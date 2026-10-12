@@ -3032,11 +3032,14 @@ void NotificationManager::stop_delayed_notifications_of_type(const NotificationT
 void NotificationManager::render_notifications(GLCanvas3D &canvas, float overlay_width, float bottom_margin, float right_margin)
 {
 	sort_notifications();
+	const bool overlays_hidden = wxGetApp().plater()->get_view3D_canvas3D()->legacy_overlays_hidden();
 
 	float bottom_up_last_y = bottom_margin; // ORCA dont scale margins
 
 	int i = 0;
 	for (const auto& notification : m_pop_notifications) {
+		if (overlays_hidden)
+			break;
         if (notification->get_data().level == NotificationLevel::ErrorNotificationLevel || notification->get_data().level == NotificationLevel::SeriousWarningNotificationLevel) {
             notification->bbl_render_block_notification(canvas, bottom_up_last_y, m_move_from_overlay && !m_in_preview, overlay_width * m_scale, right_margin);  // ORCA dont scale margins
             if (notification->get_state() != PopNotification::EState::Finished) 
@@ -3065,6 +3068,7 @@ void NotificationManager::render_notifications(GLCanvas3D &canvas, float overlay
 
 bool NotificationManager::update_notifications(GLCanvas3D& canvas)
 {
+	report_notifications_updated();
 	// no update if not top window
 	wxWindow* p = dynamic_cast<wxWindow*>(wxGetApp().plater());
 	while (p->GetParent() != nullptr)
@@ -3236,6 +3240,13 @@ size_t NotificationManager::get_notification_count() const
 			ret++;
 	}
 	return ret;
+}
+
+void NotificationManager::for_each_notification(const std::function<void(NotificationType, NotificationLevel, const std::string&)>& visitor) const
+{
+	for (const std::unique_ptr<PopNotification>& notification : m_pop_notifications)
+		if (!notification->is_finished() && notification->get_state() != PopNotification::EState::Hidden)
+			visitor(notification->get_type(), notification->get_data().level, notification->get_text1());
 }
 
 void NotificationManager::bbl_show_plateinfo_notification(const std::string &text)

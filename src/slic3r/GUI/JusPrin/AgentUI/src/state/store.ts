@@ -10,6 +10,7 @@ import {
   AttachmentInfo,
   BuildInfo,
   ChangeInfo,
+  WorkInfo,
   RestorePointInfo,
   ConversationInfo,
   Envelope,
@@ -51,6 +52,7 @@ export interface AgentUiState {
   exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[];
+  work: WorkInfo[];
   restorePoints: RestorePointInfo[];
   draft: string;
   // Staged (composer) and sent (history) attachments, keyed by id in the UI.
@@ -94,6 +96,7 @@ export const initialState: AgentUiState = {
   exportedCopies: [],
   physicalPrints: [],
   changes: [],
+  work: [],
   restorePoints: [],
   draft: '',
   attachments: [],
@@ -176,6 +179,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         exportedCopies: full.exportedCopies ?? [],
         physicalPrints: full.physicalPrints ?? [],
         changes: full.changes ?? [],
+        work: full.work ?? [],
         restorePoints: full.restorePoints ?? [],
         draft: full.draft ?? '',
         attachments: full.attachments ?? [],
@@ -271,6 +275,13 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         messages: upsert(state.messages, { ...message, state: 'stopped' }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
       };
+    }
+    case 'work_updated': {
+      // One entry per piece of work: it is added when the work starts and
+      // replaced in place as it moves on and when it ends.
+      const work = payload.work as WorkInfo;
+      const known = state.work.some((entry) => entry.id === work.id);
+      return { ...state, work: known ? state.work.map((entry) => (entry.id === work.id ? work : entry)) : [...state.work, work] };
     }
     case 'change_added': {
       const change = payload.change as ChangeInfo;

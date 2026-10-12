@@ -16,7 +16,9 @@
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -556,6 +558,67 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // Add-model remains available through File > Import and drag-drop.
         if (GLCanvas3D* prepare_canvas = plater->get_view3D_canvas3D()) {
             m_prepare_canvas_presentation.attach(*prepare_canvas);
+            // Print issues: read from OrcaSlicer by the monitor and shown by
+            // the overlay on this canvas. OrcaSlicer's own notices are one of
+            // the legacy overlays the attach above hides; the notification
+            // manager keeps running underneath, and the detach that restores
+            // the overlays brings the notices straight back.
+            m_print_issues = std::make_unique<PrintIssues::PrintIssueMonitor>(*plater);
+            PrintIssues::IssueOverlay::Actions actions;
+            actions.highlight = [this](const PrintIssues::PrintIssue& issue) {
+                if (m_workspace == nullptr || m_print_issues == nullptr)
+                    return;
+                // The command's own result is not needed: an already selected
+                // copy is the outcome wanted, and a copy that has just gone
+                // takes its issue with it on the next read.
+                const Workspace::ProjectSessionId session(m_print_issues->snapshot().session);
+                if (issue.instance != 0)
+                    m_workspace->select_copy(Workspace::InstanceId(session, issue.instance));
+                else if (issue.object != 0)
+                    m_workspace->select_object(Workspace::ObjectId(session, issue.object));
+            };
+            actions.submit = [this](const std::string& id, PrintIssues::IssueIntent intent) {
+                const std::string outcome = submit_issue(id, intent).outcome;
+                if (outcome == "agent_not_set_up")
+                    offer_agent_setup();
+                // "duplicate": the same question about the same evidence is
+                // already in the chat.
+                return outcome == "started" || outcome == "queued" || outcome == "duplicate";
+            };
+            actions.chat_busy = [this] { return m_agent_pane != nullptr && m_agent_pane->web_view().host().busy(); };
+            m_issue_overlay = std::make_unique<PrintIssues::IssueOverlay>(*prepare_canvas, *m_print_issues, std::move(actions));
+            m_prepare_canvas_presentation.set_extra_overlay([this] {
+                if (m_issue_overlay)
+                    m_issue_overlay->render();
+            });
+            // Work that runs outside the chat is kept in the chat: an entry
+            // at the place it started, with its progress and its Cancel. The
+            // panel opens when work starts, or the entry would run unseen.
+            PrintIssues::WorkFeed::Sink sink;
+            sink.begin = [this](const std::string& kind, const std::string& title, bool cancellable) {
+                if (m_agent_pane == nullptr)
+                    return std::string();
+                set_agent_pane_collapsed(false);
+                return m_agent_pane->web_view().host().begin_work(kind, title, cancellable);
+            };
+            sink.update = [this](const std::string& id, int current, int total, const std::string& detail) {
+                if (m_agent_pane != nullptr)
+                    m_agent_pane->web_view().host().update_work(id, current, total, detail);
+            };
+            sink.finish = [this](const std::string& id, const std::string& state, const std::string& detail) {
+                if (m_agent_pane != nullptr)
+                    m_agent_pane->web_view().host().finish_work(id, state, detail);
+            };
+            m_work_feed = std::make_unique<PrintIssues::WorkFeed>(*plater, std::move(sink));
+            m_print_issues->set_work_callback([this] {
+                if (m_work_feed && m_print_issues)
+                    m_work_feed->sync(m_print_issues->snapshot());
+            });
+            if (m_agent_pane != nullptr)
+                m_agent_pane->web_view().host().set_work_cancel_handler([this](const std::string& id) {
+                    if (m_work_feed)
+                        m_work_feed->cancel(id);
+                });
         }
 
         // The frame may outlive a runtime detach, so use a tracked event sink
@@ -629,6 +692,9 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_plater->set_external_project_open_handler({});
         m_autosave.reset();
         m_persistence.reset();
+        m_work_feed.reset();
+        m_issue_overlay.reset();
+        m_print_issues.reset();
         m_workspace.reset();
     }
     event.Skip();
@@ -764,6 +830,77 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
         apply_agent_pane_width();
 }
 
+ShellController::IssueSubmission ShellController::submit_issue(const std::string& issue_id, PrintIssues::IssueIntent intent)
+{
+    using namespace PrintIssues;
+    IssueSubmission result;
+    if (m_print_issues == nullptr || m_workspace == nullptr || m_agent_pane == nullptr || m_persistence == nullptr) {
+        result.outcome = "unavailable";
+        return result;
+    }
+    // What OrcaSlicer says at the press, not what the bubble was drawn from.
+    m_print_issues->refresh_now();
+    const PrintIssueSnapshot& issues = m_print_issues->snapshot();
+    const PrintIssue*         issue  = issues.find(issue_id);
+    if (issue == nullptr) {
+        result.outcome = "expired";
+        return result;
+    }
+    if (!issues.checked || issue->stale) {
+        result.outcome = "unchecked";
+        return result;
+    }
+    Agent::AgentHost& host = m_agent_pane->web_view().host();
+    // With nobody to answer, a question in the chat would only fail there.
+    if (host.availability() != Agent::AgentAvailability::Ready) {
+        result.outcome = "agent_not_set_up";
+        return result;
+    }
+    if (host.busy()) {
+        result.outcome = "busy";
+        return result;
+    }
+
+    const Workspace::WorkspaceSnapshot workspace = m_workspace->snapshot();
+    IssueMessageRequest request;
+    request.intent             = intent;
+    request.request_sentence   = intent == IssueIntent::Explain ? _u8L("Explain this issue and my options.") : _u8L("Help fix this issue.");
+    request.workspace_session  = workspace.session.value();
+    request.workspace_revision = workspace.revision;
+    request.conversation_id    = m_persistence->document().active_conversation_id();
+    result.message = make_issue_message(*issue, issues, request);
+
+    // The reply has to be somewhere the person can see it.
+    if (m_agent_pane_collapsed) {
+        m_agent_pane_user_collapsed = false;
+        set_agent_pane_collapsed(false);
+    }
+    std::string refusal;
+    switch (host.submit_issue_message(result.message.client_message_id, result.message.text, result.message.context_json, &refusal)) {
+    case Agent::AgentHost::SubmitResult::Started:   result.outcome = "started"; break;
+    case Agent::AgentHost::SubmitResult::Queued:    result.outcome = "queued"; break;
+    case Agent::AgentHost::SubmitResult::Duplicate: result.outcome = "duplicate"; break;
+    case Agent::AgentHost::SubmitResult::Refused:   result.outcome = refusal; break;
+    }
+    return result;
+}
+
+bool ShellController::offer_agent_setup()
+{
+    // OrcaSlicer's own message dialog, so it looks like every other question
+    // the app asks rather than like a system alert.
+    MessageDialog dialog(m_frame,
+                         _L("The AI assistant isn't set up yet. Set it up in the chat panel, and it can explain this issue "
+                            "and help you fix it."),
+                         _L("Set up the AI assistant"), wxYES_NO | wxYES_DEFAULT | wxICON_INFORMATION);
+    dialog.SetButtonLabel(wxID_YES, _L("Set up now"));
+    dialog.SetButtonLabel(wxID_NO, _L("Not now"));
+    const bool accepted = dialog.ShowModal() == wxID_YES;
+    if (accepted)
+        open_agent_setup();
+    return accepted;
+}
+
 void ShellController::open_agent_setup()
 {
     m_agent_pane_user_collapsed = false;
@@ -872,6 +1009,9 @@ void ShellController::uninstall()
         m_plater->update_title_dirty_status();
     Slic3r::set_backup_suspended(false);
     m_persistence.reset();
+    m_work_feed.reset();
+    m_issue_overlay.reset();
+    m_print_issues.reset();
     m_workspace.reset();
 
     m_frame->Layout();

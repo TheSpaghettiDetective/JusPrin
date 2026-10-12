@@ -8,6 +8,10 @@
 //
 // GUI thread only. A load inside a load belongs to the outer one.
 
+// NotificationManager.cpp includes this header and no other of the fork's, so
+// the notification observer it calls comes through here.
+#include "NoticeObserver.hpp"
+
 #include <boost/filesystem/path.hpp>
 
 #include <string>

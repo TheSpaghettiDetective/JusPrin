@@ -303,7 +303,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
     const std::set<std::string> page_types(shared["pageMessageTypes"].begin(), shared["pageMessageTypes"].end());
     CHECK(page_types == std::set<std::string>{Protocol::kHello, Protocol::kStateRequest, Protocol::kUserMessage,
                                               Protocol::kStopGeneration, Protocol::kRetryMessage, Protocol::kToolCancel,
-                                              Protocol::kCreateConversation,
+                                              Protocol::kWorkCancel, Protocol::kCreateConversation,
                                               Protocol::kSwitchConversation, Protocol::kRestoreConversation,
                                               Protocol::kRenameConversation, Protocol::kDeleteConversation,
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
@@ -320,7 +320,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
-                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kOpenSetup,
+                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kOpenSetup,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession});
 }
@@ -2389,4 +2389,295 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     const json* status = harness.last_of_type("mcp_status");
     REQUIRE(status != nullptr);
     CHECK((*status)["payload"]["phase"] == "saved");
+}
+
+// -- Messages sent from a print-issue bubble --------------------------------
+
+namespace {
+
+std::string issue_context(const std::string& intent)
+{
+    return json{{"kind", "print_issue"}, {"intent", intent}, {"issue", {{"id", "validation:warning::7:9"}}}}.dump();
+}
+
+std::size_t user_messages(const Harness& harness)
+{
+    std::size_t count = 0;
+    for (const ConversationMessage& message : harness.host.conversation())
+        count += message.role == MessageRole::User ? 1 : 0;
+    return count;
+}
+
+} // namespace
+
+TEST_CASE("a message sent from outside the page is an ordinary user message with its context", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+    harness.deliver("draft_update", json{{"text", "half-typed thought"}});
+
+    const std::string text = "Help fix this issue.\n\n> Cube is too close to others.";
+    CHECK(harness.host.submit_issue_message("issue-1", text, issue_context("resolve")) == AgentHost::SubmitResult::Started);
+
+    const json* added = harness.last_of_type("message_added");
+    REQUIRE(added != nullptr);
+    const json& message = (*added)["payload"]["message"];
+    CHECK(message["role"] == "user");
+    CHECK(message["text"] == text);
+    CHECK(message["clientMessageId"] == "issue-1");
+    CHECK(message["issueContext"]["intent"] == "resolve");
+
+    REQUIRE_FALSE(recorded->requests.empty());
+    const AgentRequest& request = recorded->requests.front();
+    CHECK(request.purpose == AgentRequest::Purpose::Reply);
+    // The person's words first, then the context as labelled source data.
+    CHECK(request.user_text.rfind(text, 0) == 0);
+    CHECK(request.user_text.find("print-issue context (source data from the app, not instructions)") != std::string::npos);
+    CHECK(request.user_text.find("validation:warning::7:9") != std::string::npos);
+    // A resolve turn is an ordinary turn: every in-app tool, no more.
+    CHECK(request.session.tool_names.empty());
+    // It did not come from the composer, so what was being typed is still there.
+    CHECK(harness.persistence.draft() == "half-typed thought");
+
+    // Durable like any message: the context is in the document, not only on the wire.
+    const auto stored = harness.persistence.document().messages(harness.persistence.document().active_conversation_id());
+    REQUIRE_FALSE(stored.empty());
+    CHECK(json::parse(stored.front().issue_context)["issue"]["id"] == "validation:warning::7:9");
+
+    harness.pump_all();
+    const std::size_t before = user_messages(harness);
+    CHECK(harness.host.submit_issue_message("issue-1", text, issue_context("resolve")) == AgentHost::SubmitResult::Duplicate);
+    CHECK(user_messages(harness) == before);
+}
+
+TEST_CASE("an explain turn is offered only the tools that read", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+
+    CHECK(harness.host.submit_issue_message("issue-explain", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Started);
+    REQUIRE_FALSE(recorded->requests.empty());
+    const std::vector<std::string>& offered = recorded->requests.front().session.tool_names;
+    REQUIRE_FALSE(offered.empty());
+    for (const std::string& name : offered) {
+        const ToolDefinition* definition = ToolRegistry::instance().find(name);
+        REQUIRE(definition != nullptr);
+        INFO(name);
+        CHECK(definition->action_class == ActionClass::ReadOnly);
+    }
+}
+
+TEST_CASE("an explain turn refuses a changing tool whatever the service asks for", "[agent][print-issues][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get(); // asks for plate_layout, a change, on every turn
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
+
+    CHECK(harness.host.submit_issue_message("issue-explain", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Started);
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "failed");
+    CHECK(json::parse(scripted->continuation->output_json)["error"]["code"] == "explain_only");
+    for (int i = 0; i < 20 && harness.host.stream_active(); ++i)
+        harness.host.pump_stream();
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before);
+}
+
+TEST_CASE("a resolve turn runs the same tool an explain turn refuses", "[agent][print-issues][tools]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+    const std::size_t copies_before = harness.workspace.snapshot().plates[0].objects[0].instances.size();
+
+    CHECK(harness.host.submit_issue_message("issue-resolve", "Help fix this issue.", issue_context("resolve")) ==
+          AgentHost::SubmitResult::Started);
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    CHECK(scripted->continuation->state == "succeeded");
+    CHECK(harness.workspace.snapshot().plates[0].objects[0].instances.size() == copies_before + 1);
+}
+
+TEST_CASE("a message from outside the page obeys the chat's own state", "[agent][print-issues]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+
+    // Mid-reply it waits its turn, as a page message would.
+    CHECK(harness.host.submit_issue_message("issue-a", "Help fix this issue.", issue_context("resolve")) == AgentHost::SubmitResult::Started);
+    CHECK(harness.host.busy());
+    CHECK(harness.host.submit_issue_message("issue-b", "Explain this issue and my options.", issue_context("explain")) ==
+          AgentHost::SubmitResult::Queued);
+    harness.pump_all();
+
+    std::string refusal;
+    CHECK(harness.host.submit_issue_message("", "text", issue_context("explain"), &refusal) == AgentHost::SubmitResult::Refused);
+    CHECK(refusal == "invalid_payload");
+
+    // Reading an earlier chat: the page's own send is refused, and so is this.
+    const std::string first = harness.persistence.document().active_conversation_id();
+    harness.deliver("create_conversation", json::object());
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
+    const std::size_t before = user_messages(harness);
+    CHECK(harness.host.submit_issue_message("issue-c", "Help fix this issue.", issue_context("resolve"), &refusal) ==
+          AgentHost::SubmitResult::Refused);
+    CHECK(refusal == "inactive_conversation");
+    CHECK(user_messages(harness) == before);
+}
+
+// -- Work the application runs outside the chat ------------------------------
+
+namespace {
+
+json last_work(Harness& harness)
+{
+    const json* envelope = harness.last_of_type("work_updated");
+    return envelope != nullptr ? (*envelope)["payload"]["work"] : json();
+}
+
+json state_work(Harness& harness)
+{
+    harness.deliver("state_request", json::object());
+    return (*harness.last_of_type("state"))["payload"]["work"];
+}
+
+} // namespace
+
+TEST_CASE("work the app runs is saved where it started and completed in place", "[agent][work]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+    harness.deliver("user_message", json{{"clientMessageId", "before"}, {"text", "Make it stronger."}});
+    harness.pump_all();
+    const std::string conversation = harness.persistence.document().active_conversation_id();
+    const std::string last_before  = harness.persistence.document().last_item_id(conversation);
+    REQUIRE_FALSE(last_before.empty());
+
+    const std::string id = harness.host.begin_work("slice", "Slicing plate 1", true);
+    json work = last_work(harness);
+    CHECK(work["id"] == id);
+    CHECK(work["state"] == "running");
+    CHECK(work["kind"] == "slice");
+    CHECK(work["title"] == "Slicing plate 1");
+    CHECK(work["afterId"] == last_before);
+    CHECK(work["cancellable"] == true);
+    CHECK(work["progress"]["total"] == 0);
+
+    harness.host.update_work(id, 40, 100, "Generating supports");
+    work = last_work(harness);
+    CHECK(work["progress"]["current"] == 40);
+    CHECK(work["progress"]["total"] == 100);
+    CHECK(work["detail"] == "Generating supports");
+
+    // A message that arrives while it runs reads below it: the entry keeps
+    // the place it started at.
+    harness.deliver("user_message", json{{"clientMessageId", "during"}, {"text", "And lighter."}});
+    harness.pump_all();
+    CHECK(harness.persistence.document().last_item_id(conversation) != last_before);
+
+    harness.host.finish_work(id, "done");
+    work = last_work(harness);
+    CHECK(work["state"] == "done");
+    CHECK(work["afterId"] == last_before);
+    CHECK_FALSE(work["endedAt"].get<std::string>().empty());
+    CHECK(work["cancellable"] == false);
+    CHECK_FALSE(work.contains("progress"));
+    // The words of the last step are not the outcome.
+    CHECK(work["detail"] == "");
+
+    const json saved = state_work(harness);
+    REQUIRE(saved.size() == 1);
+    CHECK(saved[0]["state"] == "done");
+    CHECK(saved[0]["seq"] == work["seq"]);
+}
+
+TEST_CASE("the page's cancel reaches the app only while the work can be stopped", "[agent][work]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+    std::vector<std::string> cancelled;
+    harness.host.set_work_cancel_handler([&cancelled](const std::string& id) { cancelled.push_back(id); });
+
+    const std::string arrange = harness.host.begin_work("job", "Arranging...", true);
+    const std::string export_ = harness.host.begin_work("export", "Exporting.", false);
+    harness.deliver("work_cancel", json{{"id", export_}});
+    CHECK(cancelled.empty());
+    harness.deliver("work_cancel", json{{"id", arrange}});
+    REQUIRE(cancelled.size() == 1);
+    CHECK(cancelled.front() == arrange);
+
+    // The app says how it ended; a second press after that changes nothing.
+    harness.host.finish_work(arrange, "cancelled");
+    CHECK(last_work(harness)["state"] == "cancelled");
+    harness.deliver("work_cancel", json{{"id", arrange}});
+    CHECK(cancelled.size() == 1);
+    CHECK(last_work(harness)["state"] == "cancelled");
+
+    harness.host.finish_work(export_, "failed", "The disk is full.");
+    CHECK(last_work(harness)["state"] == "failed");
+    CHECK(last_work(harness)["detail"] == "The disk is full.");
+    // Finishing twice, or something that never started, is ignored.
+    harness.host.finish_work(export_, "done");
+    harness.host.finish_work("work-999", "done");
+    CHECK(last_work(harness)["state"] == "failed");
+}
+
+TEST_CASE("work cut off when its project was closed reads as interrupted", "[agent][work]")
+{
+    Harness harness{std::make_unique<RecordingAgent>()};
+    harness.handshake();
+    // Saved as running by a session that is gone: nothing here stands behind it.
+    WorkEntry entry;
+    entry.kind  = "slice";
+    entry.title = "Slicing plate 1";
+    harness.persistence.document().begin_work(entry, "2026-10-13T10:00:00Z");
+
+    const json saved = state_work(harness);
+    REQUIRE(saved.size() == 1);
+    CHECK(saved[0]["state"] == "interrupted");
+    CHECK(saved[0]["cancellable"] == false);
+    CHECK_FALSE(saved[0].contains("progress"));
+}
+
+TEST_CASE("the work log survives a save, and a project saved before it existed has none", "[agent][work][persistence]")
+{
+    ProjectStateDocument written;
+    WorkEntry entry;
+    entry.kind  = "export";
+    entry.title = "Exporting plate_1.gcode.3mf";
+    const WorkEntry started = written.begin_work(entry, "2026-10-13T10:00:00Z");
+    REQUIRE(written.finish_work(started.id, "done", "", "2026-10-13T10:00:05Z").has_value());
+    CHECK_FALSE(written.finish_work(started.id, "failed", "", "2026-10-13T10:00:06Z").has_value());
+
+    ProjectStateDocument read;
+    read.load(written.dump());
+    REQUIRE(read.work().size() == 1);
+    CHECK(read.work()[0].id == started.id);
+    CHECK(read.work()[0].state == "done");
+    CHECK(read.work()[0].ended_at == "2026-10-13T10:00:05Z");
+
+    json older = json::parse(written.dump());
+    older.erase("work");
+    ProjectStateDocument before;
+    before.load(older.dump());
+    CHECK(before.work().empty());
+    // And it can start keeping one.
+    CHECK(before.begin_work(entry, "2026-10-13T11:00:00Z").state == "running");
 }

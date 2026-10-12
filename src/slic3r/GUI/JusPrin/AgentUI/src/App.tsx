@@ -255,6 +255,10 @@ export function App({
     client.send('tool_cancel', { actionId });
   };
 
+  const sendWorkCancel = (id: string) => {
+    client.send('work_cancel', { id });
+  };
+
   const checkKey = (provider: string, apiKey: string) => {
     client.send('setup_check_key', { provider, apiKey });
   };
@@ -494,6 +498,8 @@ export function App({
           exportedCopies={historical ? state.exportedCopies.filter((record) => record.conversationId === viewedId) : state.exportedCopies}
           physicalPrints={historical ? state.physicalPrints.filter((record) => record.conversationId === viewedId) : state.physicalPrints}
           changes={state.changes.filter((change) => change.conversationId === viewedId)}
+          work={state.work.filter((entry) => entry.conversationId === viewedId)}
+          onWorkCancel={sendWorkCancel}
           restorePoints={historical ? [] : state.restorePoints}
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
           onRetry={(messageId) => client.send('retry_message', { messageId, conversationId: viewedId })}

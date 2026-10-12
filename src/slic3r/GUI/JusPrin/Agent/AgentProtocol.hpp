@@ -29,7 +29,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
-                                                 "printer_panel", "file_reports", "setup_differences"};
+                                                 "printer_panel", "file_reports", "setup_differences", "work_log"};
     return values;
 }
 
@@ -40,6 +40,7 @@ inline constexpr const char* kUserMessage        = "user_message";
 inline constexpr const char* kStopGeneration     = "stop_generation";
 inline constexpr const char* kRetryMessage       = "retry_message";
 inline constexpr const char* kToolCancel         = "tool_cancel";
+inline constexpr const char* kWorkCancel         = "work_cancel";
 inline constexpr const char* kCreateConversation = "create_conversation";
 inline constexpr const char* kSwitchConversation = "switch_conversation";
 inline constexpr const char* kRestoreConversation = "restore_conversation";
@@ -79,6 +80,8 @@ inline constexpr const char* kSetupStatus        = "setup_status";
 inline constexpr const char* kMcpStatus          = "mcp_status";
 // One new change log entry; the full list travels in `state`.
 inline constexpr const char* kChangeAdded        = "change_added";
+// Work the application runs outside the chat: started, moved on, or ended.
+inline constexpr const char* kWorkUpdated        = "work_updated";
 // Asks the page to open its own setup flow, as its "Set up the agent" button
 // does; sent when another JusPrin surface sends the person there.
 inline constexpr const char* kOpenSetup          = "open_setup";
@@ -135,6 +138,11 @@ struct ConversationMessage
     // draws it only as a card, when the Agent could not speak about it.
     std::string               file_report;
     bool                      file_report_card{false};
+    // User messages sent from a print-issue bubble: the issue, its target and
+    // the freshness of the evidence (JSON), which the model reads beside the
+    // text and the page does not draw. Its "intent" is "explain" or "resolve";
+    // an explain turn may only read.
+    std::string               issue_context;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent
