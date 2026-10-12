@@ -1,0 +1,1 @@
+switch yoru worktree to [$figma-agent-design](/Users/kenneth/Projects/JusPrin/.claude/skills/figma-agent-design/SKILL.md) . the print the status of your worktree
