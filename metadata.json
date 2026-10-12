@@ -1,10 +1,12 @@
 {
-  "cli_version": "0.10.5",
+  "cli_version": "0.11.0",
   "checkpoint_id": "01M4NWY787FAKR86PX0EKY9S13",
   "strategy": "manual-commit",
-  "branch": "codex/deferred-project-tools",
-  "checkpoints_count": 3,
-  "files_touched": null,
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/agent/test_openai_responses_agent.cpp"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -15,10 +17,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 535093,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 10095488,
-    "output_tokens": 42520,
-    "api_call_count": 36
+    "input_tokens": 72,
+    "cache_creation_tokens": 144996,
+    "cache_read_tokens": 4527444,
+    "output_tokens": 39567,
+    "api_call_count": 35
   }
 }
