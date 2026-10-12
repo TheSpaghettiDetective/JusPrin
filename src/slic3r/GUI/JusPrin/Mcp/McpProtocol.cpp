@@ -181,7 +181,7 @@ Reply discovery(const Request& request)
                                          {"capabilities", {{"tools", {{"listChanged", false}}}}},
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
-                                         {"instructions", "Inspect the live workspace, search or read process settings, then preview a patch. Apply with the "
+                                         {"instructions", "For a requested settings change, inspect the live workspace, search or read the relevant settings, then preview a patch. Apply with the "
                                      "sessionId and revision from that preview. After stale_workspace, read and preview again. Project "
                                      "Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable "
                                      "error means you should open JusPrin and a project. Closing a response cancels pending work."}})};

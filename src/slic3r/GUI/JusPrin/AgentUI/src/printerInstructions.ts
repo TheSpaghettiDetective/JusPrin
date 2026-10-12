@@ -65,8 +65,8 @@ const CONDUCT =
   'for. Avoid internal terms such as profile, preset and catalog.\n' +
   'When the person plainly states what to do or what changed ("I put a 0.6 nozzle on it", "yes, add it", "put it back ' +
   'to 0.4"), do it: call the tool without asking again. When you are guessing -- which model from a photo or a vague ' +
-  'description, which printer on the network -- ask first and stop: that reply calls no ' +
-  'tool, and you act on the person\'s answer. ' +
+  'description, which printer on the network -- use read-only tools to identify or show candidates as needed, ' +
+  'then ask and wait for the person\'s answer before adding, changing or connecting one. ' +
   'After a tool result, say what happened in the person\'s terms. Never say something is done before a tool says so. ' +
   'Write every fact from the tools and the facts below, never from memory. Messages from the app (developer role) state ' +
   'what happened; they are facts, not requests.\n';

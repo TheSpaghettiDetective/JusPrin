@@ -112,7 +112,8 @@ describe('the instructions', () => {
       'nozzle mismatch reported by the printer',
       'when someone says what they loaded there is nothing to save',
       'call the tool without asking again',
-      'ask first and stop: that reply calls no tool',
+      'use read-only tools to identify or show candidates as needed',
+      'ask and wait for the person\'s answer before adding, changing or connecting one',
       // Measured: without the exact words, the offer came in 27-77% of replies
       // and its choices were mostly a bare "Yes | No".
       'end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"',

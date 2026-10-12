@@ -95,6 +95,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
+    CHECK(body["instructions"].get<std::string>().find(kPrintJourneyGuidance) != std::string::npos);
     REQUIRE(body["tools"].size() == 28);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
@@ -204,6 +205,7 @@ TEST_CASE("automatic chat titles use the configured model without tools or works
     CHECK(body["input"].size() == 2);
     CHECK(body.dump().find("sessionId") == std::string::npos);
     CHECK(body.dump().find("notes.txt") == std::string::npos);
+    CHECK(body["instructions"].get<std::string>().find(kPrintJourneyGuidance) == std::string::npos);
     fake->data(sse(json{{"type", "response.output_text.delta"}, {"delta", "Backpack frame print"}}) +
                sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::TextDelta));
@@ -258,7 +260,20 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
-    REQUIRE(agent.start(request_fixture()));
+    auto request = request_fixture();
+    const bool panel = GENERATE(false, true);
+    CAPTURE(panel);
+    if (panel) {
+        request.session.instructions = "This panel has its own instructions.";
+        request.session.tool_names = {"plate_layout", "settings_get"};
+        request.session.include_workspace = false;
+    }
+    REQUIRE(agent.start(request));
+    const auto initial_body = json::parse(fake->requests.front().body);
+    if (panel)
+        CHECK(initial_body["instructions"] == request.session.instructions);
+    else
+        CHECK(initial_body["instructions"].get<std::string>().find(kPrintJourneyGuidance) != std::string::npos);
 
     const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
     const json call{{"type", "function_call"}, {"id", "item-1"}, {"call_id", "call-9"},
@@ -276,6 +291,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
 
     REQUIRE(agent.continue_after_tool({"call-9", "succeeded", R"({"state":"succeeded","result":{"objectId":"73"}})"}));
     REQUIRE(fake->requests.size() == 2);
+    CHECK(json::parse(fake->requests.back().body)["instructions"] == initial_body["instructions"]);
     CHECK(fake->requests.back().idempotency_key == "assistant-7-attempt-1-request-2");
     const json continuation = json::parse(fake->requests.back().body)["input"];
     const json initial = json::parse(fake->requests.front().body)["input"];
@@ -294,6 +310,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     REQUIRE(next_event->tool);
     CHECK(next_event->tool->call_id == "call-10");
     REQUIRE(agent.continue_after_tool({"call-10", "succeeded", R"({"items":[{"key":"wall_loops","value":"2"}]})"}));
+    CHECK(json::parse(fake->requests.back().body)["instructions"] == initial_body["instructions"]);
     const json third_input = json::parse(fake->requests.back().body)["input"];
     REQUIRE(third_input.size() == continuation.size() + 2);
     for (std::size_t i = 0; i < continuation.size(); ++i) CHECK(third_input[i] == continuation[i]);
