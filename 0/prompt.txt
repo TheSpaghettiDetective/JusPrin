@@ -140,3 +140,7 @@ The skill files you created seems  Just some general knowledge that the agent sh
 ---
 
 This means that troubleshoot print and tune print were not too good skill candidates, right?
+
+---
+
+Let's suspend this feature Until we have a c more clear need for skills. , updates the skill readme file  (craetea. new one if it doesn't exist) To state why we have arrived at the wrong place. Then commit.
