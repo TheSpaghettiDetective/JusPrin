@@ -11,3 +11,7 @@ The fix is simple: plainer verbs, fewer nouns standing in for ideas, and saying 
 </pasted_content id="4a73">
 
 This is what the agent who wrote the @agent-docs said. Go through the documents inside (commited only) To see if this is the case.
+
+---
+
+yes, rewrite the tool guide and architecture doc. In the commit message, make cl make it clear that the reason for the rewrite was to was that otherwise the agents is picking up the wrong way of talking and make them difficult to for me to work with.
