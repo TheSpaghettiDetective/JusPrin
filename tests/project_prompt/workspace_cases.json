@@ -1,0 +1,56 @@
+[
+  {
+    "name": "stronger-tee",
+    "query": "Make this part stronger without changing its dimensions or hole.",
+    "expectedSkills": [
+      "tune-print"
+    ]
+  },
+  {
+    "name": "less-material",
+    "query": "Reduce material use for this part, but keep the hole dimensions and a clean top surface.",
+    "expectedSkills": [
+      "tune-print"
+    ]
+  },
+  {
+    "name": "warped-print",
+    "query": "the corners lifted halfway through and the bottom is bent. why did this warp?",
+    "expectedSkills": [
+      "troubleshoot-print"
+    ],
+    "readOnly": true
+  },
+  {
+    "name": "late-shift",
+    "query": "The last print of this part shifted sideways partway up, but the base stayed stuck down. What should I check?",
+    "expectedSkills": [
+      "troubleshoot-print"
+    ],
+    "readOnly": true
+  },
+  {
+    "name": "general-petg",
+    "query": "What is PETG?",
+    "expectedSkills": [],
+    "noSkillNeeded": true,
+    "readOnly": true
+  },
+  {
+    "name": "petg-suitability",
+    "query": "Would PETG work for this part?",
+    "expectedSkills": [],
+    "readOnly": true
+  },
+  {
+    "name": "explicit-preset",
+    "query": "Use the 0.20 mm Standard preset for this printer.",
+    "expectedSkills": [],
+    "noSkillNeeded": true
+  },
+  {
+    "name": "prepare-existing-setup",
+    "query": "Print this part. Keep my custom settings if they work.",
+    "expectedSkills": []
+  }
+]

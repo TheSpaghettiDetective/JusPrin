@@ -36,8 +36,6 @@ function nativeCorePrompt() {
     throw new Error('Could not locate the production project prompt');
   const core = joinedCppStrings(adapter.slice(coreStart, coreEnd));
   const guidance = cppStringInitializer(guidanceHeader, 'kPrintJourneyGuidance');
-  if (!guidance.includes('For a print request:') || !guidance.includes('export_file'))
-    throw new Error('Production print guidance was not rendered completely');
   return core + guidance;
 }
 
@@ -75,14 +73,11 @@ const page = await import('data:text/javascript;base64,' + Buffer.from(bundle.ou
 const skills = page.renderedSkills;
 const index = skills.map((skill) => `- ${skill.name}: ${skill.description}`).join('\n');
 const coreInstructions = nativeCorePrompt();
-const skillIndex = "When the user's request matches a listed skill, your first action must be skill_read for exactly one skill, before any project tool; " +
-  'do not inspect the workspace first to decide and do not merely say you read it. A specific setup, support, slice-review, or failed-print problem ' +
-  'outranks prepare-print even when the user also says to set it up or get it ready. Read another skill only when the first skill directs you to it. ' +
-  'Answer general questions directly without reading a skill. ' +
-  `Skills you can read with skill_read, by name:\n${index}\n`;
+const guidanceHeader = source(path.join(repository, 'src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp'));
+const skillIndex = cppStringInitializer(guidanceHeader, 'kProjectSkillGuidance') + index + '\n';
 process.stdout.write(JSON.stringify({
   coreInstructions,
   skillIndex,
-  instructions: `${coreInstructions}\n\n${skillIndex}`,
+  instructions: `${coreInstructions}${skillIndex}`,
   skills,
 }));

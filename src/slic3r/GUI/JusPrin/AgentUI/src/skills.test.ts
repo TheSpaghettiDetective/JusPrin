@@ -4,11 +4,8 @@ import { loadSkills, parseSkill, skills } from './skills';
 describe('project skills', () => {
   it('loads every canonical SKILL.md in deterministic order', () => {
     expect(skills.map((skill) => skill.name)).toEqual([
-      'choose-support-strategy',
-      'diagnose-print-failure',
-      'prepare-print',
-      'review-slice',
-      'select-print-setup',
+      'troubleshoot-print',
+      'tune-print',
     ]);
     expect(skills.every((skill) => skill.text.startsWith(`# `))).toBe(true);
     expect(skills.every((skill) => !skill.text.startsWith('---'))).toBe(true);

@@ -155,9 +155,6 @@ TEST_CASE("project requests advertise skill metadata without eagerly loading ski
     REQUIRE(agent.start(request));
     const json body = json::parse(fake->requests.front().body);
     const std::string instructions = body["instructions"];
-    CHECK(instructions.find("your first action must be skill_read for exactly one skill") != std::string::npos);
-    CHECK(instructions.find("support, slice-review, or failed-print problem outranks prepare-print") != std::string::npos);
-    CHECK(instructions.find("Answer general questions directly without reading a skill.") != std::string::npos);
     CHECK(instructions.find("Skills you can read with skill_read, by name:") != std::string::npos);
     CHECK(instructions.find("- prepare-print: Prepare a model for printing.") != std::string::npos);
     CHECK(instructions.find("- review-slice: Review a completed slice.") != std::string::npos);

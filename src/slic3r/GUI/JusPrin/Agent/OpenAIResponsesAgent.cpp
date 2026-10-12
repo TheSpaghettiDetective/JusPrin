@@ -161,17 +161,12 @@ json OpenAIResponsesAgent::request_body(json input) const
         m_session.instructions.empty() ?
             "You are JusPrin, the 3D printing app. In app-generated messages, OrcaSlicer also refers to this same app. "
             "Speak in first person about the app's actions. Use only IDs from the authoritative workspace context. "
-            "Native tools are proposals: never claim a change succeeded until a function_call_output says it did. "
+            "Report a change as completed only when the tool result confirms it; a started action may still be running. "
             "When asked to make a supported change, call the matching tool. After its result, briefly explain the actual result. " +
                 std::string(kPrintJourneyGuidance) :
             m_session.instructions;
     if (m_session.instructions.empty() && !m_skills.empty()) {
-        instructions += "\n\nWhen the user's request matches a listed skill, your first action must be skill_read for exactly one skill, before any project tool; do not "
-                        "inspect the workspace first to decide and do not merely say you read it. A specific setup, support, slice-review, or failed-print "
-                        "problem outranks prepare-print even when the user also says to set it up or get it ready. Read another skill only when the first "
-                        "skill directs you to it. "
-                        "Answer general questions directly without reading a skill. "
-                        "Skills you can read with skill_read, by name:\n";
+        instructions += kProjectSkillGuidance;
         for (const AgentSkill& skill : m_skills)
             instructions += "- " + skill.name + ": " + skill.description + "\n";
     }

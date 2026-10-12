@@ -1,0 +1,201 @@
+{
+  "provenance": {
+    "capturedAt": "2026-10-12T13:51:59.946390+00:00",
+    "appVersion": "02.06.00.51",
+    "source": "Existing native JusPrinShellHarness --manual-mcp, isolated datadir",
+    "model": "tee_with_hole.stl",
+    "modelSha256": "2d5d4aed3169a56eeb1f60ebd26d073446e5f77e2879f2e7174f922eb1660c9e",
+    "continuationContext": "Omitted: MCP does not expose AgentHost full UI context"
+  },
+  "workspace": {
+    "sessionId": "4",
+    "revision": 28,
+    "projectName": "tee_with_hole",
+    "printerPreset": "Bambu Lab X1 Carbon 0.4 nozzle",
+    "filamentPreset": "Bambu PLA Basic @BBL X1C",
+    "selectedObjectIds": [
+      "135"
+    ],
+    "plates": [
+      {
+        "id": "115",
+        "name": "Plate 1",
+        "active": true,
+        "sliced": true,
+        "objects": [
+          {
+            "id": "135",
+            "name": "tee_with_hole.stl",
+            "instances": 1
+          }
+        ]
+      }
+    ]
+  },
+  "sections": {
+    "summary": {
+      "activePlateId": "115",
+      "filamentPreset": "Bambu PLA Basic @BBL X1C",
+      "history": {
+        "canRedo": true,
+        "canUndo": true
+      },
+      "objectCount": 1,
+      "plateCount": 1,
+      "plates": {
+        "items": [
+          {
+            "active": true,
+            "name": "Plate 1",
+            "objectCount": 1,
+            "objects": {
+              "items": [
+                {
+                  "instanceCount": 1,
+                  "name": "tee_with_hole.stl",
+                  "objectId": "135"
+                }
+              ],
+              "truncated": false
+            },
+            "plateId": "115",
+            "sliced": true
+          }
+        ],
+        "truncated": false
+      },
+      "printerPreset": "Bambu Lab X1 Carbon 0.4 nozzle",
+      "projectDirty": false,
+      "projectName": "tee_with_hole",
+      "revision": 28,
+      "selection": {
+        "items": [
+          "135"
+        ],
+        "status": "objects",
+        "truncated": false
+      },
+      "sessionId": "4",
+      "truncated": false
+    },
+    "project": {
+      "project": {
+        "attachments": {
+          "items": [],
+          "truncated": false
+        },
+        "backupCurrent": true,
+        "details": {},
+        "dirty": false,
+        "name": "tee_with_hole",
+        "path": "",
+        "presetsDirty": false,
+        "truncated": false
+      },
+      "revision": 28,
+      "sessionId": "4",
+      "truncated": false
+    },
+    "objects": {
+      "objects": {
+        "items": [
+          {
+            "extruder": 1,
+            "instanceCount": 1,
+            "modifierCount": 0,
+            "name": "tee_with_hole.stl",
+            "negativePartCount": 0,
+            "objectId": "135",
+            "overrideCount": 1,
+            "partCount": 1,
+            "plateIds": [
+              "115"
+            ],
+            "printable": true,
+            "sizeMm": [
+              50.0,
+              20.0,
+              36.0
+            ],
+            "supportVolumeCount": 0
+          }
+        ],
+        "truncated": false
+      },
+      "revision": 28,
+      "sessionId": "4",
+      "truncated": false
+    },
+    "intent": {
+      "intent": {
+        "fields": [],
+        "openQuestions": [],
+        "truncated": false
+      },
+      "revision": 28,
+      "sessionId": "4",
+      "truncated": false
+    },
+    "plan": {
+      "plan": {
+        "assumptions": [],
+        "decisions": [],
+        "headline": "",
+        "invalidatedBy": "",
+        "risks": [],
+        "truncated": false,
+        "updatedAt": "",
+        "validity": "current"
+      },
+      "revision": 28,
+      "sessionId": "4",
+      "truncated": false
+    },
+    "slicing": {
+      "revision": 28,
+      "sessionId": "4",
+      "slicing": {
+        "handle": "t-2",
+        "jobs": [],
+        "plates": [
+          {
+            "estimateStatus": "current",
+            "invalidatedBy": "",
+            "name": "Plate 1",
+            "plateId": "115",
+            "sliced": true
+          }
+        ],
+        "running": false,
+        "truncated": false
+      },
+      "truncated": false
+    },
+    "printer": {
+      "printer": {
+        "configured": {
+          "filaments": [
+            {
+              "material": "PLA",
+              "preset": "Bambu PLA Basic @BBL X1C"
+            }
+          ],
+          "model": "BL-P001",
+          "nozzleDiameters": [
+            0.4
+          ],
+          "plateType": "Smooth Cool Plate",
+          "preset": "Bambu Lab X1 Carbon 0.4 nozzle"
+        },
+        "confirmedFacts": [],
+        "factKey": "preset:Bambu Lab X1 Carbon 0.4 nozzle",
+        "mismatches": [],
+        "plateObservable": false,
+        "truncated": false
+      },
+      "revision": 28,
+      "sessionId": "4",
+      "truncated": false
+    }
+  }
+}
