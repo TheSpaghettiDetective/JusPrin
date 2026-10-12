@@ -1,87 +1,117 @@
 # Guide for adding JusPrin tools
 
-**Status:** Extension guide for the implemented shared registry, embedded MCP server, and stdio bridge. The MCP catalog includes workspace inspection, slice-review reporting, and the settings workflow over the process, one object, and filament and printer presets. A [candidate catalog](#candidate-catalog) derived from the product surfaces follows the implemented catalog record; nothing in it exists unless the catalog record says so.
+**Status:** This guide explains how to add a tool to JusPrin. The three things it builds on are already implemented: the shared tool registry, the MCP server embedded in the app, and the stdio bridge (a small helper program that connects external AI clients to that server). Over MCP, the tools currently cover inspecting the workspace, reporting on a slice for review, and the settings workflow. The settings workflow works on the process preset, on one object, and on filament and printer presets. Later in this guide there is a [candidate catalog](#candidate-catalog): a list of tools we might build, worked out from the product's screens. It follows the implemented catalog record. Nothing in the candidate catalog exists unless the catalog record says it does.
 
-JusPrin has one tool system with multiple adapters. New capabilities are added to the shared registry, executed by `ToolExecutionCoordinator`, and implemented through the typed live-workspace boundary; the OpenAI and MCP adapters only translate that contract to their wire formats. This guide keeps the catalog small, honest, safe to evolve, and driven by real printing tasks rather than an abstract feature inventory.
+JusPrin has one tool system. A new capability is defined once, in the shared registry. `ToolExecutionCoordinator` runs it. Its implementation reads and changes the open project through the typed workspace interface. Two adapters, one for OpenAI and one for MCP, only translate that single definition into the format each side expects. The aim of this guide is a tool catalog that stays small, does only what it claims to do, can change safely over time, and is shaped by real printing tasks. It should not be shaped by a list of every feature OrcaSlicer has.
 
-Use this guide as the base, then revise it when implementation evidence, real MCP clients, or evals show that a rule, contract, limit, or sequence should change. Do not preserve a planning assumption merely because it is written here. Keep revisions evidence-based, record substantive changes in the PR, and preserve the product's authoritative ownership and verification requirements.
+Treat this guide as the starting point. Change it when what you learn from implementing, from real MCP clients, or from evals shows that a rule, a contract, a limit, or a sequence here should change. Do not keep a planning assumption just because it is written here. Base every revision on evidence, and describe significant changes in the PR. Two things do not change: OrcaSlicer stays the owner of the state it owns, and the verification requirements stay.
 
-Start with [the production documentation](README.md), [production architecture](architecture.md), and [OrcaSlicer integration guide](orca-integration-guide.md) before touching a live Orca owner. Current contracts are defined in [`ToolRegistry.cpp`](../../src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp), execution in [`ToolExecutionCoordinator.cpp`](../../src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp), and MCP projection in [`McpProtocol.cpp`](../../src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp).
+Before you touch any OrcaSlicer class that holds live state, read [the production documentation](README.md), [production architecture](architecture.md), and [OrcaSlicer integration guide](orca-integration-guide.md). The current tool definitions are in [`ToolRegistry.cpp`](../../src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp). The code that runs them is in [`ToolExecutionCoordinator.cpp`](../../src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp). The code that presents them over MCP is in [`McpProtocol.cpp`](../../src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp).
 
-For local external clients, use the bundled `jusprin-mcp` stdio helper through **Connect AI tools...**. The helper and native server compile the same registry. Every new exposed tool must therefore have consistent live and offline catalog/schema behavior for the same build and negotiated protocol version; no new adapter-specific catalog is allowed. Direct HTTP is a developer route, not the default setup instruction.
+External clients on the same machine connect through the bundled `jusprin-mcp` stdio helper, which is set up from **Connect AI tools...**. The helper and the server inside the app are compiled from the same registry. So every new tool you offer must have the same catalog entry and the same schema whether the app is running (live) or not (offline), for the same build and the same negotiated protocol version. Do not add a catalog that exists in only one adapter. Connecting to the server directly over HTTP is a route for developers. It is not what the default setup instructions tell people to do.
+
+## Words this guide uses
+
+- **Registry.** The one list of tool definitions, compiled into the app (`ToolRegistry.cpp`).
+- **Catalog.** The list of tools as a caller sees it.
+- **Coordinator.** `ToolExecutionCoordinator`, the class that queues tool calls and runs them on the GUI thread.
+- **Workspace.** The typed C++ interface (`IWorkspace`) through which JusPrin reads and changes the open project. It has two implementations, called workspace adapters. The real one works on live OrcaSlicer. The fake one is for tests.
+- **Tool adapter.** Code that translates registry definitions and results for one kind of caller. There are two: the in-app adapter, which uses OpenAI's format and serves the Agent panel, and the MCP adapter, which serves external clients. "Both adapters" in this guide means these two.
+- **Projection.** The form in which one tool adapter presents a definition or a result.
+- **Exposure.** The registry setting that says which callers are offered a tool.
+- **Owner.** The OrcaSlicer class that holds the real copy of some state, or that already implements an operation.
+- **Seam.** A small addition to a file OrcaSlicer owns, which lets fork code call or observe OrcaSlicer's behavior.
+- **Session and revision.** `sessionId` identifies the project that is currently open. `revision` is a counter the workspace raises when its state changes. A call that was prepared against an older session or revision is called stale.
+- **Action class.** Whether a tool is read-only, a mutation (it changes something), or destructive.
+- **Dirty.** A preset is dirty when it has unsaved edits.
+- **Eval.** An automated test that gives a model a task and checks the transcript that results.
+- **M0 to M5.** The milestones in which the tool catalog was delivered.
 
 ## Current connection and execution boundary
 
-- The server starts automatically with the JusPrin Agent panel. There is no `JUSPRIN_MCP` enable switch or bearer token. It binds numeric loopback, prefers port 47301, and falls back to an ephemeral port only when that port is occupied.
-- The shell supplies `<data_dir>/jusprin/mcp.json`. The runtime atomically publishes the actual address, PID, unique runtime `instanceId`, build version and protocol versions. Removal checks the runtime identity under the discovery lock, so an older runtime cannot remove a newer runtime's record, even in the same process. POSIX files use mode `0600`.
-- The helper validates discovery and probes the endpoint. It follows later app starts/restarts; it never launches JusPrin. A last-writer-wins record supports one selected instance, not an instance chooser. `--discovery`, `JUSPRIN_MCP_DISCOVERY`, and `JUSPRIN_MCP_URL` are explicit path/address overrides, not enable switches; connection entries use `--discovery` for the actual app data directory.
-- Offline discovery and tool lists come from the compiled registry; offline tool calls return `workspace_unavailable`. With a reachable app, use its live catalog/results, including across version skew; do not substitute the helper's compiled tool list for a different live build. Version skew is logged.
-- The HTTP adapter accepts protocol `2026-07-28`. The helper additionally negotiates legacy `2025-03-26`, `2025-06-18`, and `2025-11-25`. It handles version projection; tool executors must not implement protocol-specific behavior.
-- **Connect** confirms the command or file edit before invoking Claude Code/Codex's CLI or merging the JusPrin JSON entry for Claude Desktop/local Cowork, Cursor or VS Code. JSON edits preserve unrelated settings, make a backup, and reject stale previews or symlink destinations. This is not a cross-process transaction against another editor writing at the exact replacement instant.
-- macOS bundles the helper beside the app executable; Windows has a matching install rule. Linux AppImage entries use the installed image path plus `--mcp-bridge`, dispatched before GUI startup. Do not use a temporary AppImage mount path as the saved command.
+- The server starts automatically with the JusPrin Agent panel. There is no `JUSPRIN_MCP` switch to enable it and no bearer token. The server listens only on the numeric loopback address. It prefers port 47301, and falls back to a port chosen by the operating system only when 47301 is taken.
+- The shell tells the server where its discovery file is: `<data_dir>/jusprin/mcp.json`. The running server writes its details there in one atomic step: the actual address, the PID, a unique `instanceId` for this run, the build version, and the protocol versions. Before a server removes the record, it checks, while holding the discovery lock, that the record is its own. An older server therefore cannot remove a newer server's record, even inside the same process. On POSIX systems the file has mode `0600`.
+- The helper checks that the discovery file is valid, and then tests that the address in it answers. When the app starts or restarts later, the helper follows the new record. The helper never launches JusPrin. The discovery file holds one record, and the last server to write it wins. So the helper works with one selected instance; there is no way to choose among several. `--discovery`, `JUSPRIN_MCP_DISCOVERY`, and `JUSPRIN_MCP_URL` override the file path or the address. They do not switch anything on. The connection entries that Connect writes use `--discovery` with the app's actual data directory.
+- When the app is not running, the helper answers discovery and tool-list requests from the registry compiled into the helper. Tool calls made while the app is not running return `workspace_unavailable`. When the app can be reached, the helper uses the app's live catalog and results, even when the app and the helper are different versions. Do not replace a live app's tool list with the helper's compiled one. A version difference between the two is logged.
+- The HTTP adapter accepts MCP protocol version `2026-07-28`. The helper can also negotiate the older versions `2025-03-26`, `2025-06-18`, and `2025-11-25`. The helper does all conversion between versions. Code that executes a tool must not behave differently for different protocol versions.
+- **Connect** shows the person the command or the file edit and asks for confirmation first. Then it either runs the Claude Code or Codex CLI, or merges the JusPrin entry into the JSON configuration of Claude Desktop/local Cowork, Cursor or VS Code. A JSON edit keeps unrelated settings and makes a backup. It is refused when the preview is out of date or when the destination is a symlink. It does not protect against another editor writing the same file at the exact moment of replacement.
+- On macOS the helper is bundled next to the app executable. Windows has a matching install rule. On Linux, the entry for an AppImage uses the installed image's path plus `--mcp-bridge`, and the app handles that flag before the GUI starts. Do not save a temporary AppImage mount path as the command.
 
-Native workspace commands run on the GUI thread through the shared coordinator. A shell-owned timer continues execution independently of the WebView handshake. No external client gets direct access to Orca objects.
+Workspace commands run on the GUI thread, through the shared coordinator. A timer owned by the shell keeps execution moving, so execution does not depend on the WebView's handshake. No external client ever gets direct access to OrcaSlicer objects.
 
-External calls preserve the trusted adapter-assigned `ToolSource::Mcp` for activity history and diagnostics. They execute through the same coordinator and workspace commands as in-app calls. The change log records the edits they make as it records every edit, and marks them `external`, so the thread shows them as rows that say "External tool" where an in-app change says "Agent".
+A call from an external client is tagged `ToolSource::Mcp`. The MCP adapter sets that tag, so it can be trusted, and it is kept for the activity history and for diagnostics. External calls run through the same coordinator and the same workspace commands as calls from the in-app Agent. The change log records the edits they make, as it records every edit, and marks them `external`. In the conversation thread those edits appear as rows that say "External tool", where a change made in the app says "Agent".
+
 ## Start with an eval failure
 
-Do not add a tool because Orca has a menu item or config key. Start with a transcript or automated eval where the Agent cannot complete a real user task, completes it unreliably, or consumes unreasonable steps or tokens.
+The fact that OrcaSlicer has a menu item or a config key is not a reason to add a tool. Start from a transcript or an automated eval in which the Agent cannot finish a real user task, finishes it only some of the time, or needs an unreasonable number of steps or tokens.
 
 Write down:
 
-- the user outcome;
-- the exact point where the current tools become insufficient;
-- the authoritative Orca state or operation that is missing;
-- the expected successful transcript;
-- unsafe or ambiguous cases that must fail; and
-- the evidence that will show the new contract fixed the problem.
+- what the user wanted to achieve;
+- the exact point where the current tools stop being enough;
+- which OrcaSlicer state or operation is missing;
+- what a successful transcript should look like;
+- the unsafe or ambiguous cases that must fail; and
+- the evidence that will show the new tool fixed the problem.
 
 If the failure can be fixed by a clearer description, a better result, or a more useful validation error, improve the existing definition instead of adding a tool.
 
-The candidate catalog later in this guide is a map, not a licence. A row there does not exempt a tool from this section; it records which product surface and eval family the tool would serve so the eval is easier to write, and it fixes the noun, class, and owner so two people do not build the same capability twice under different names.
+The candidate catalog later in this guide lists tools we might build. Being listed there does not approve a tool, and it does not excuse a tool from this section. A row in that catalog does two jobs. It records which product screen and which group of evals the tool would serve, which makes the eval easier to write. It also settles what the tool acts on, its action class, and its OrcaSlicer owner, so that two people do not build the same capability twice under different names.
 
 ## Decide whether this should be a tool
 
-Add or extend a tool when the Agent needs fresh authoritative state, deterministic computation owned by Orca, or a side effect in the live project.
+Add or extend a tool when the Agent needs one of three things: up-to-date state read straight from OrcaSlicer, a calculation that OrcaSlicer does and that always gives the same answer for the same input, or a change to the live project.
 
 Do not add a tool for:
 
-- one setting key; setting keys are records used by generic settings tools;
-- general printing advice the model can reason about from a skill;
-- a fixed bundle such as "make it stronger" whose right answer depends on the part and user priorities;
-- UI automation against a button, widget, or hidden panel;
-- data already present in a bounded existing result;
-- speculative future capability with no eval or user task; or
-- an operation the real adapter cannot perform honestly through an authoritative Orca owner.
+- a single setting key. Setting keys are records that the generic settings tools search and edit;
+- general printing advice that the model can work out from a skill;
+- a fixed bundle of changes such as "make it stronger", where the right answer depends on the part and on what the user cares about;
+- driving the UI, such as pressing a button or operating a widget or a hidden panel;
+- data that an existing tool already returns in a size-limited result;
+- a capability someone might want in the future, with no eval or user task behind it; or
+- an operation that the real workspace adapter cannot truly perform through the OrcaSlicer class that owns it.
 
-Deterministic workflow machinery can be a tool. Examples include generating Orca's calibration geometry or starting Orca's slice action. Advice should remain a skill until there is a separately specified deterministic operation behind it.
+A fixed, mechanical step of a workflow can be a tool. Examples are generating OrcaSlicer's calibration geometry and starting OrcaSlicer's slice action. Advice should stay a skill until there is a separately specified operation behind it that always behaves the same way.
 
 ## Skills versus tools
 
-A skill is text the model reads. A tool is something the app executes. A candidate is one or the other by one question: does it have to execute (read state the model does not have, compute what only Orca can, change the project), or does it only have to be read (judgement, sequencing, domain facts, how to read a tool's result, which question to ask first)? The section above gives the tool side. This section gives the skill side and rules on the cases that fall between.
+A skill is text the model reads. A tool is something the app executes. To decide which one a candidate is, ask one question: does it have to run, or does it only have to be read?
 
-A skill holds what the model could do with the right knowledge and nothing that executes: judgement over evidence (telling an adhesion failure from wet filament in a photo), the order of a sequence of tool calls and the reasons for it ("make it stronger": read the settings, move walls and infill, slice, read the report), domain facts (what PETG tolerates), and which question to ask when the answer would change the plan. The file-load instructions (`AgentUI/src/fileReportInstructions.ts`) are a skill the app injects for one turn: the first message after a load is judgement over the report, not an operation, so it is text. That is the only kind of skill built so far. A skill the model opens by name, from an index of one line each, has no loader yet; until it does, a skill is text the app injects for the turn whose situation the app knows.
+- It has to run if it reads state the model does not have, computes something only OrcaSlicer can compute, or changes the project. That makes it a tool.
+- It only has to be read if it is judgement, the order to do things in, facts about printing, how to interpret a tool's result, or which question to ask first. That makes it a skill.
 
-The cases between:
+The section above covers tools. This section covers skills, and decides the cases that fall in between.
 
-- **A procedure over existing tools** is a skill while the sequence takes judgement. It becomes a tool only when the sequence is fixed and the person wants it as one undoable action; many such sequences go in one workflow registry (see [When resources or skills are appropriate](#when-resources-or-skills-are-appropriate)).
-- **An analysis** is a tool when Orca computes it deterministically (overhang angles from geometry) and a skill when it is judgement over evidence, paired with the tool that supplies the evidence (`view_render`, `slice_report`).
-- **Large reference data** is a tool that returns the part an argument selects (`settings_search`) when the model needs one part of it, and text when the model needs all of it to use any of it. The printer list under [Input design](#input-design) is the measured case where the search tool lost to the whole list in the instructions.
-- **A tool description** says when to call that one tool, in the words a person would use. **A skill** says how several tools fit together and what to conclude from their results. A description that has grown into a procedure is a skill that has not been split out.
+A skill contains things the model could do by itself if it had the right knowledge. It contains nothing that executes. Examples:
 
-When unsure, start as a skill. A skill is a text file the page ships; a tool is the implementation sequence below, with fakes, tests and rebase evidence. Promote a skill to a tool on the evidence every tool starts from (see [Start with an eval failure](#start-with-an-eval-failure)): transcripts show the model getting the sequence wrong in ways text does not fix, or the action needs atomicity, validation or undo only the app can give. The signal from the other side: a skill that has become exact values and ordered calls with no judgement between them is a tool that has not been written yet.
+- judging evidence, such as telling an adhesion failure from wet filament in a photo;
+- the order of a series of tool calls, and the reasons for that order. For "make it stronger": read the settings, change walls and infill, slice, read the report;
+- facts about printing, such as what PETG tolerates;
+- which question to ask when the answer would change the plan.
 
-Loading does not decide the question. Today a skill costs its line in the instructions and a tool costs its definition on the first request of a conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). Under platform deferral both are an index line and a load on demand, and a skill may then be a deferred read-only tool whose description is its index line and whose result is its text, so tools and skills share one discovery mechanism and one eval.
+The file-load instructions (`AgentUI/src/fileReportInstructions.ts`) are a skill that the app inserts into the conversation for one turn. The first message after a file loads is a judgement about the load report. It is not an operation, so it is text. This is the only kind of skill built so far. The other kind would be a skill the model opens by name, after picking it from an index that has one line per skill. Nothing loads skills that way yet. Until something does, a skill is text that the app inserts on a turn where the app already knows the situation.
+
+The cases in between:
+
+- **A procedure made of existing tool calls.** It is a skill for as long as carrying it out takes judgement. It becomes a tool only when the steps are fixed and the person wants the whole thing as one action that can be undone. If there are many such fixed sequences, they go in one workflow registry (see [When resources or skills are appropriate](#when-resources-or-skills-are-appropriate)).
+- **An analysis.** It is a tool when OrcaSlicer computes it and always gets the same answer, such as overhang angles from geometry. It is a skill when it is a judgement about evidence. Pair that skill with the tool that supplies the evidence (`view_render`, `slice_report`).
+- **Large reference data.** When the model needs only one part of the data, make it a tool that returns the part an argument selects, as `settings_search` does. When the model needs to see all of the data before it can use any of it, make it text. The printer list described under [Input design](#input-design) is the case we measured: putting the whole list in the instructions worked better than the search tool.
+- **A tool description versus a skill.** A tool description says when to call that one tool, in the words a person would use. A skill says how several tools fit together and what to conclude from their results. If a tool description has grown into a step-by-step procedure, move the procedure out into a skill.
+
+When you are not sure, start with a skill. A skill is a text file that ships with the page. A tool costs the whole implementation sequence described below, including fakes, tests, and rebase evidence. Turn a skill into a tool only on the kind of evidence every tool starts from (see [Start with an eval failure](#start-with-an-eval-failure)). Either transcripts show the model getting the sequence wrong in ways that better text does not fix, or the action needs something only the app can give: all-or-nothing application, validation, or undo. The opposite sign exists too. If a skill has turned into exact values and calls in a fixed order, with no judgement between them, it should be written as a tool.
+
+How something gets loaded into the model's context does not decide whether it is a skill or a tool. Today a skill costs its one line in the instructions, and a tool costs its definition on the first request of a conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). If we later use the model platform's deferred loading, both will cost one index line plus a load when needed. A skill could then be a deferred read-only tool: the tool's description is the skill's index line, and the tool's result is the skill's text. Tools and skills would then be found the same way and covered by the same eval.
 
 ## Prefer extending nouns over multiplying verbs
 
-The settings workflow uses four stable operations over searchable data, regardless of which preset layer owns the values:
+The settings workflow has four operations that do not change. They work on searchable data, whichever preset layer the values belong to:
 
 ```text
 settings_search → settings_get → settings_preview_patch → settings_apply_patch
 ```
 
-Do not create:
+Do not create one tool per setting:
 
 ```text
 set_layer_height
@@ -90,51 +120,104 @@ set_infill_density
 set_support_angle
 ```
 
-The same rule applies to presets, project objects, plates, warnings, and slice reports. Extend their typed record formats and bounded query tools before creating dozens of special-purpose actions.
+The same rule applies to presets, project objects, plates, warnings, and slice reports. Extend the typed records that describe them, and the size-limited tools that query them, before you create dozens of special-purpose actions.
 
-A new verb is justified when it has meaningfully different authorization, atomicity, lifecycle, or result semantics. `slice_start` is not just another settings mutation: it starts asynchronous Orca work and has a different completion contract. That distinction deserves a tool.
+A new operation deserves its own tool when it really differs from the existing ones in at least one of these ways: how it is authorized, whether it applies completely or not at all, how it starts, runs, and ends, or what its result means. `slice_start` is an example. It is not one more way to change settings. It starts OrcaSlicer work that runs in the background, and it completes in a different way from a settings change. That difference justifies a separate tool.
 
-Use a preview/apply pair only where Orca rewrites, substitutes, or refuses what the caller asked for, so the caller must see the real consequence before proposing it: settings (the normalizer), preset selection (compatibility substitution and lost dirty edits), topology changes (resulting pieces), and preflight (mapping and readiness). Everywhere else the coordinator computes and validates the after-state as part of the call. A preview that would only echo its input is not a tool.
+Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before proposing the change. There are four such cases:
 
-Prefer typed reads with fixed schemas over one polymorphic record search. Sections of `workspace_inspect` each keep their own fixed shape; a generic `records_search` whose result shape depends on a `kind` argument makes the model guess.
+- settings, because OrcaSlicer's normalizer (the code that adjusts dependent settings after an edit) can rewrite values;
+- preset selection, because OrcaSlicer may substitute a compatible preset, and dirty edits may be lost;
+- topology changes such as cutting, splitting, or merging, because the caller needs to see the resulting pieces;
+- preflight (the check before a print is sent), because of filament mapping and printer readiness.
+
+Everywhere else, the coordinator computes and validates the resulting state as part of the call. If a preview would only repeat its input back, do not make it a tool.
+
+Prefer read tools whose results have a fixed, typed shape. Avoid one general record search whose result changes shape. Each section of `workspace_inspect` keeps its own fixed shape. A generic `records_search` whose result shape depends on a `kind` argument would make the model guess what comes back.
 
 ## Tool budget and tool shape
 
-Tool count is bounded by what a turn loads, not by what the app can do. The evidence behind these rules: OpenAI's function-calling guidance keeps fewer than 20 functions available at the start of a turn and defers the rest; Anthropic's [tool-writing guidance](https://www.anthropic.com/engineering/writing-tools-for-agents) asks for a few tools targeting high-impact workflows and names "tools that merely wrap existing software functionality or API endpoints" as the common error; a [domain-oriented MCP study](https://arxiv.org/html/2608.22063v1) measured a generic thin-tool interface below raw SQL and domain-shaped tools far above both; and the "god tool" that dispatches many unrelated actions through one `action` parameter is a documented anti-pattern. The current five-tool MCP catalog measures about 1.9 KB per definition, two thirds of it output schema.
+The limit on the number of tools comes from how much the model has to load on each turn. It does not come from how much the app can do. The rules in this section rest on this evidence:
 
-- **Loading, for now.** Every registered tool loads on every turn in both adapters: the in-app adapter sends the full function list with each request, and MCP `tools/list` returns the whole catalog. This is the simplest correct behaviour and it keeps the tools array byte-identical across a chat, which is what OpenAI's prompt cache keys on. The budget of 20 definitions per turn is a measured trigger, not a gate: the live regression records definition bytes, input tokens, and cached tokens per request, and the journey catalog below will exceed 20 definitions from its first milestone. That is accepted until those measurements show selection errors or context pressure.
-- **The baseline, measured on Windows against the live app.** After M5: in-app 25 definitions and 29,148 bytes, MCP 26 and 33,013 over two `tools/list` pages. After M4: in-app 20 definitions and 21,594 bytes, MCP 21 and 24,923 (24,901 through the offline helper recipe). After M3: in-app 20 definitions and 19,331 bytes, MCP 21 and 22,661 (22,639 through the offline helper recipe). After M2: in-app 18 definitions and 12,721 bytes, MCP 16 and 13,911 (13,894 through the offline helper recipe). After M1: in-app 11 definitions and 6,482 bytes, MCP 9 and 6,915. At M0 it was in-app 7 and 3,145 bytes, MCP 5 and 3,147.
+- OpenAI's function-calling guidance keeps fewer than 20 functions available at the start of a turn and defers the rest.
+- Anthropic's [tool-writing guidance](https://www.anthropic.com/engineering/writing-tools-for-agents) asks for a few tools aimed at high-impact workflows. It names "tools that merely wrap existing software functionality or API endpoints" as the common error.
+- A [domain-oriented MCP study](https://arxiv.org/html/2608.22063v1) measured three interfaces. A generic interface of thin tools scored below raw SQL. Tools shaped around the domain scored far above both.
+- The "god tool", one tool that dispatches many unrelated actions through a single `action` parameter, is a documented anti-pattern.
 
-  The `--live-agent` regression at both points says what that costs. The first request of a conversation caches nothing and pays for the whole catalog: 803 tokens at M0, 1,733 at M1, so four more definitions cost about 930 tokens, once. Every later request in the same conversation came back 77 to 92 per cent cached (5,864 in, 5,376 cached at M1), because the tools array is byte-identical across a chat and that is what the cache keys on. At M2 the same regression's eleven requests took 2,875 to 6,763 input tokens with 42 to 91 per cent cached; none started cold, because an earlier run of the same day had warmed the cache for the shared prefix, so the M2 cold cost is not measured by that run.
+The current five-tool MCP catalog measures about 1.9 KB per definition, and two thirds of that is output schema.
 
-  So the cost of a definition is what it adds to the *first* request of each conversation, not to every turn, and the budget stays a trigger rather than a gate. What would change that reading: a catalog large enough to make the first request of every conversation expensive on its own, or transcripts showing the model choosing the wrong tool. Watch both; neither has appeared yet.
-- **The printer panel follows the same rule with its own set.** Home's printer panel runs its own conversation (`PrinterConversation`), offered the five printer tools and the four settings tools, the same list in every mode, so the list stays byte-identical across a conversation and across conversations of the same mode. What a call may do depends on the conversation, and `PrinterConversation::preflight_tool` refuses the rest before any card, with an error that says where to go instead: finding and adding a printer (`printer_identify`, `printer_add`) only in an Add conversation, since a Change or Connect conversation is about a printer the person already has and an add there would save another printer and move the conversation onto it; `printer_change` only on the printer the conversation is about, once there is one; the connection tools only once there is a saved printer; the settings tools only with `scope: "printer"` on the printer the conversation is about. A Change conversation may be about the stock profile the project has selected (the header's Printer settings… on a project that uses one); its nozzle and connection are refused with `stock_profile`, and its settings are saved as a copy that the conversation then follows (`PrinterConversation::tool_settled`). A Change conversation is never turned into an Add one: its opener checks that the printer is there and shows Orca's error dialog when it is not. The header's filament chat (the same panel, `PrinterPanel::open_filament`) is offered the four settings tools and nothing else, with no project state, and its own instructions, which the page writes (`AgentUI/src/filamentInstructions.ts`, sent with `filament_instructions`) from the facts the app sends as the state's session (`PrinterPanel::filament_session_json`: the preset by name, its slot and material, and for a stock filament the copy a change is saved as). Its preflight holds the settings tools to `scope: "filament"` on that preset and refuses an apply without `persistAs` (`not_saved`), since the chat is gone when it closes; a copy saved in the preset's place is the preset it is about from then on, and the page writes the instructions again for it. Until 2026-09-29 it ran on the project assistant's instructions and tools, which read "make the nozzle 5 degrees hotter" as a print request, and in another run set 205 °C from 220 °C without reading it. A list that differs by mode is not used: the conversation's own refusal is needed whatever the model is shown, and a restricted-but-stable list (`tool_choice` with `allowed_tools`) exists only on some providers. What would change that: transcripts of the model reaching for a refused tool and not recovering, which `tests/printer_prompt` measures (`change-add-another`). Until 2026-09-23 the panel offered one tool per mode (7f66e75b07), to keep a lookup from clearing the pinned card of the printer a Change session was about; that card is gone (4d4f9e466b), and one tool per step left an Add conversation with no tool to connect the printer it had just added (8334b3395b). On 2026-09-28 the three tools that opened a window or closed the panel -- `printer_manual_setup`, `printer_manual_connection` and `printer_setup_finish` -- were removed (b60fc2d8e6): OrcaSlicer's full printer list and a printer's settings stay reachable from the panel's own buttons, and the person closes the panel. The app decides the tools; the words are the page's (`AgentUI/src/printerInstructions.ts` for the instructions, `AgentUI/src/printerWords.ts` for the notes the model reads after a tap), and a turn the page has not yet written them for is refused rather than sent with the project assistant's prompt. The Add instructions carry the whole printer list, about 28 KB, which caches as a fixed prefix. No printer conversation carries the project: no workspace in the turn, none in a tool result.
-- **Deferral, when the measurements say so.** Use the platform's own deferral, never a hand-rolled switcher. On the in-app side that is OpenAI's `tool_search` with `defer_loading: true` on the Responses API, documented for `gpt-5.4` and later; support on the pinned `gpt-5.4-mini` is unverified. On the MCP side clients defer on their own, as Claude Code does. Toolsets are the deferral unit, and OpenAI recommends fewer than ten functions per namespace. An enable-toolset tool that rewrites the tools array breaks the prompt cache on every switch and is not to be built.
-- **Shape each tool as a domain operation.** A tool does one thing a slicer user would name: place an object, lay out the plates, mark a region, set up the printer. Not a wrapper per Orca function, and not an interpreter for a list of unrelated commands. Optional facets of one operation are fine when each is independently typed and conflicting facets are rejected.
-- **Batch only where items share a shape.** A list of setting changes, a list of intent fields, a list of annotations, a list of per-object layout rows. A list that mixes transforms, imports, and deletes is the god tool and is refused.
-- **Fold reads into sections and detail levels** before adding a read tool. A new read tool is justified only by a different input contract (a search over a large catalog, a per-object analysis, a sliced-plate report) or an image result.
-- **Let call logs decide consolidation.** Two tools that transcripts show always called together are candidates to merge; two facets never used together are candidates to split. Consolidation follows evidence from evals, not the whiteboard.
-- **Output schemas are not advertised over MCP.** No client was shown to use them, and they were two thirds of the catalog. `tools/list` stopped carrying `outputSchema`; `validate_output` still checks every MCP success, so a result that violates its contract still fails loudly. Measured on the same build with the recipe below: five tools, 9,723 bytes before, 3,141 after, about 2,430 tokens down to 785. The saving is MCP-side only: the in-app adapter has always sent `input_schema` as `parameters` and nothing else, so an in-app turn was never carrying them. Restore the field only for a client that is shown to read it.
+**How tools are loaded for now.** Both adapters load every registered tool on every turn. The in-app adapter sends the full function list with each request, and MCP `tools/list` returns the whole catalog. This is the simplest behaviour that is correct. It also keeps the tools array byte-identical through a chat, and OpenAI's prompt cache depends on exactly that. The budget is 20 definitions per turn. Going over 20 does not block anything. It is the point at which we start watching the measurements. The live regression test records definition bytes, input tokens, and cached tokens for each request. The journey catalog below goes over 20 definitions from its first milestone. We accept that until those measurements show the model selecting wrong tools or running short of context.
+
+**The baseline, measured on Windows against the live app.**
+
+| After milestone | In-app definitions | In-app bytes | MCP definitions | MCP bytes | MCP bytes through the offline helper recipe |
+|---|---:|---:|---:|---:|---:|
+| M0 | 7 | 3,145 | 5 | 3,147 | |
+| M1 | 11 | 6,482 | 9 | 6,915 | |
+| M2 | 18 | 12,721 | 16 | 13,911 | 13,894 |
+| M3 | 20 | 19,331 | 21 | 22,661 | 22,639 |
+| M4 | 20 | 21,594 | 21 | 24,923 | 24,901 |
+| M5 | 25 | 29,148 | 26 | 33,013 | |
+
+The M5 figure for MCP was read over two `tools/list` pages.
+
+The `--live-agent` regression test, run at M0 and at M1, shows what those definitions cost in tokens. The first request of a conversation gets nothing from the cache and pays for the whole catalog: 803 tokens at M0 and 1,733 at M1. So four more definitions cost about 930 tokens, paid once. Every later request in the same conversation came back 77 to 92 per cent cached (at M1, 5,864 input tokens, of which 5,376 were cached). That is because the tools array is byte-identical through a chat, and the cache depends on that. At M2, the same test made eleven requests that took 2,875 to 6,763 input tokens, with 42 to 91 per cent cached. None of the eleven started with an empty cache, because an earlier run on the same day had already cached the shared beginning of the prompt. So that run did not measure the uncached cost at M2.
+
+The conclusion is that a definition adds cost to the *first* request of each conversation, not to every turn. That is why going over the budget only makes us look at the measurements and does not block a tool. Two things would change this conclusion: a catalog so large that the first request of every conversation is expensive by itself, or transcripts that show the model choosing the wrong tool. Watch for both. Neither has appeared yet.
+
+**The printer panel follows the same rule with its own set of tools.** The printer panel on Home runs its own conversation, `PrinterConversation`. That conversation is offered the five printer tools and the four settings tools. The list is the same in every mode (Add, Change, or Connect), so it stays byte-identical through a conversation and between conversations of the same mode.
+
+What a call may do depends on the conversation. `PrinterConversation::preflight_tool` refuses every call that is not allowed, before any card is shown, with an error that says where to go instead. The rules are:
+
+- Finding and adding a printer (`printer_identify`, `printer_add`) is allowed only in an Add conversation. A Change or Connect conversation is about a printer the person already has. An add there would save another printer and move the conversation onto it.
+- `printer_change` is allowed only on the printer the conversation is about, once there is one.
+- The connection tools are allowed only once there is a saved printer.
+- The settings tools are allowed only with `scope: "printer"`, on the printer the conversation is about.
+
+A Change conversation may be about a stock profile (one that ships with OrcaSlicer) that the project has selected. That happens when the person chooses Printer settings… in the header on a project that uses a stock profile. In that case, changes to the nozzle and to the connection are refused with `stock_profile`. Changes to settings are saved as a copy of the profile, and the conversation follows that copy from then on (`PrinterConversation::tool_settled`). A Change conversation is never turned into an Add conversation. The code that opens a Change conversation checks that the printer is there, and shows OrcaSlicer's error dialog when it is not.
+
+The header's filament chat uses the same panel (`PrinterPanel::open_filament`). It is offered the four settings tools and nothing else, and it gets no project state. It has its own instructions. The page writes them in `AgentUI/src/filamentInstructions.ts` and sends them with `filament_instructions`. The page writes them from the facts the app sends as the session part of the panel's state (`PrinterPanel::filament_session_json`): the preset's name, its slot and material, and, for a stock filament, the copy that a change is saved as. The preflight check for this chat allows the settings tools only with `scope: "filament"` on that preset. It refuses an apply that has no `persistAs`, with `not_saved`, because the chat is gone when it closes. When a copy is saved in the preset's place, the chat is about that copy from then on, and the page writes the instructions again for the copy. Until 2026-09-29 the filament chat ran on the project assistant's instructions and tools. With those, the model read "make the nozzle 5 degrees hotter" as a request to print. In another run it set 205 °C when the value was 220 °C, without reading the value first.
+
+We do not give each mode a different tool list, for two reasons. The conversation has to refuse disallowed calls anyway, whatever list the model is shown. And the way to restrict tools while keeping the list stable (`tool_choice` with `allowed_tools`) exists only on some providers. We would reconsider if transcripts showed the model reaching for a refused tool and then failing to recover. `tests/printer_prompt` measures this with the `change-add-another` case.
+
+Two past changes explain the current design:
+
+- Until 2026-09-23 the panel offered one tool per mode (7f66e75b07). The reason was to keep a printer lookup from clearing the pinned card of the printer a Change session was about. That card is gone (4d4f9e466b). Offering one tool per step also left an Add conversation with no tool to connect the printer it had just added (8334b3395b).
+- On 2026-09-28 three tools were removed (b60fc2d8e6): `printer_manual_setup`, `printer_manual_connection` and `printer_setup_finish`. These were the tools that opened a window or closed the panel. OrcaSlicer's full printer list and a printer's settings are still reachable from the panel's own buttons, and the person closes the panel.
+
+The app decides which tools are offered. The page writes the text: `AgentUI/src/printerInstructions.ts` holds the instructions, and `AgentUI/src/printerWords.ts` holds the notes the model reads after a tap. If a turn arrives before the page has written its instructions, the app refuses the turn. It does not send the turn with the project assistant's prompt. The instructions for an Add conversation carry the whole printer list, about 28 KB. That text is always the same and sits at the start of the instructions, so it is cached. No printer conversation carries the project: no workspace state goes into the turn, and none goes into a tool result.
+
+**Deferral, when the measurements say so.** Deferral means the model first sees only a short index and loads a tool's full definition when it needs it. Use the deferral feature that the model platform provides. Never write our own mechanism for switching tools in and out. For the in-app Agent, the platform feature is OpenAI's `tool_search` with `defer_loading: true` on the Responses API. It is documented for `gpt-5.4` and later. Whether it works on the pinned `gpt-5.4-mini` has not been verified. On the MCP side, clients defer by themselves, as Claude Code does. Tools would be deferred one toolset at a time (toolsets are the named groups in the candidate catalog), and OpenAI recommends fewer than ten functions per namespace. Do not build a tool that enables a toolset by rewriting the tools array. Every switch would break the prompt cache.
+
+**Shape each tool as a domain operation.** A tool does one thing that a slicer user has a name for: place an object, lay out the plates, mark a region, set up the printer. Do not wrap each OrcaSlicer function in its own tool. Do not build a tool that interprets a list of unrelated commands. One operation may have several optional facets, as long as each facet has its own type and the tool rejects facets that conflict.
+
+**Batch only where items share a shape.** Good examples are a list of setting changes, a list of intent fields, a list of annotations, and a list of layout rows with one row per object. A list that mixes transforms, imports, and deletes is the god tool described above. It is refused.
+
+**Fold reads into sections and detail levels before adding a read tool.** A new read tool is justified in only two cases. Either its inputs are of a different kind (a search over a large catalog, an analysis of one object, a report on a sliced plate), or its result is an image.
+
+**Let call logs decide consolidation.** If transcripts show that two tools are always called together, consider merging them. If two facets of one tool are never used together, consider splitting them. Make these decisions from eval evidence, not from a design discussion.
+
+**Output schemas are not advertised over MCP.** No client was shown to use them, and they were two thirds of the catalog. `tools/list` no longer carries `outputSchema`. `validate_output` still checks every successful MCP result, so a result that breaks its contract still fails with a visible error. We measured the effect on one build, with the recipe near the end of this guide. With five tools, the catalog went from 9,723 bytes to 3,141, which is from about 2,430 tokens to 785. Only the MCP side saves anything. The in-app adapter has always sent `input_schema` as `parameters` and nothing else, so an in-app turn never carried output schemas. Restore the field only for a client that is shown to read it.
 
 ## Choose the narrowest honest scope
 
-Never put an enum value such as `printer | filament | process | object` in a schema unless every advertised value works in the fake and real adapter and has the documented inheritance behavior.
+Do not put an enum value in a schema, such as one of `printer | filament | process | object`, unless every advertised value works in both the fake and the real workspace adapter and inherits values the way the documentation says.
 
 For each proposed capability, answer:
 
-1. Which Orca owner contains the authoritative state or operation?
+1. Which OrcaSlicer owner holds the real state or performs the operation?
 2. Is the command valid for the whole project, one plate, one object, one instance, or one preset layer?
 3. What stable ID identifies the target, and when does that ID expire?
-4. What revision must still match when the command executes?
-5. What existing Orca snapshot and undo/reset/revert behavior encloses it, or does ordinary project Undo not apply?
-6. Which workspace change reasons announce that readers must refresh?
-7. What happens if the user edits the GUI while the call is queued or running?
+4. Which revision must still be current when the command executes?
+5. Which existing OrcaSlicer undo snapshot covers the change, and how is the change undone, reset, or reverted? Or does ordinary project Undo not apply?
+6. Which workspace change reasons tell readers that they must read again?
+7. What happens if the user edits something in the GUI while the call is queued or running?
 
-If these answers are unclear, the tool contract is not ready.
+If any of these answers is unclear, the tool's contract is not ready.
 
 ## Reuse the one authority path
 
-Every mutation must follow this route:
+Every change to the project must take this route:
 
 ```text
 adapter call
@@ -148,176 +231,202 @@ adapter call
 → fresh snapshot/result
 ```
 
-Do not let an adapter call `Plater`, `Model`, `PresetBundle`, wxWidgets, or slicing objects directly. Do not copy an Orca operation into JusPrin. When a required operation is trapped in presentation code, add the smallest behavior-oriented, product-neutral seam at its current owner.
+A tool adapter must not call `Plater`, `Model`, `PresetBundle`, wxWidgets, or slicing objects directly. Do not copy an OrcaSlicer operation into JusPrin. If the operation you need exists only inside OrcaSlicer's UI code, add the smallest possible seam to the class that currently owns the operation. Name the seam for what it does, and put nothing JusPrin-specific in it.
 
-Changes in OrcaSlicer-owned files must satisfy [fork stewardship](fork-stewardship.md): keep the diff small and additive, record why the seam belongs there, identify upstream lines touched, and include rebase evidence.
+Any change to a file OrcaSlicer owns must follow [fork stewardship](fork-stewardship.md). Keep the diff small, and add lines instead of rewriting existing ones. Record why the seam belongs where you put it, identify the upstream lines you touched, and include the rebase evidence.
 
 ## JusPrin-owned project state
 
-Some product state has no Orca owner: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring policy that authorizes automatic pausing. For these the "current Orca owner" step of the authority path is a JusPrin store; every other step stays. The rules:
+Some product state is not held anywhere in OrcaSlicer: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring policy that authorizes automatic pausing. For this state, the "current Orca owner" step in the route above is a JusPrin store instead. Every other step stays the same. The rules are:
 
-- **Storage.** Project-scoped state (intent, plan, regions, conversation, and attachments) lives in the local project store under a stable project ID. The current `ProjectStateDocument` is saved independently of model checkpoints; imported legacy `Auxiliaries/JusPrin/state.json` and its recovery mirror are read for migration only. The print intent (`printIntent`, upserted by field name, each with provenance), the plan (`plan`, replaced whole) and the region annotations (`regions`, replaced whole, each record stamped with a seq when it changes) remain fields of that document. Printer-scoped state (confirmed facts, monitoring policy) stays in app data keyed by printer identity, as `PrinterFactsStore` keeps it; confirmed facts carry an expiry because the physical world changes without telling the app. See [Local autosave and version history](autosave-version-history.md).
-- **Revision.** Every write announces itself so readers refresh. Which announcement, and whether it invalidates queued actions, is **open** and belongs to the milestone that lands the first writer. The obvious reading — publish a `WorkspaceChangeReasons` bit and add it to `kInvalidatingReasons` — is not implementable as stated: `settings_apply_patch` compares its caller's `expectedRevision` against the current revision for exact equality, so any revision advance between a client's preview and its apply fails as `stale_workspace`. An agent that records its plan between previewing and applying would break its own call. The edit feed (`WorkspaceEditHub`) is the precedent for a feed that reports a change without advancing the revision. Decide per kind: a region annotation generates Orca artifacts and is a real project change; an intent answer or a plan statement is not. As built, a region record's own write announces nothing; the artifacts it generates are Orca edits and advance the revision the ordinary way, so an action queued before an annotation goes stale exactly as it would after any other model edit.
-- **Undo.** None of this state is in Orca's undo stack. Results say `projectUndo: false`. Region annotations generate Orca artifacts (modifier volumes, enforcers, blockers, paint) that *are* in the undo stack, so project Undo can strand an annotation without its artifacts or an artifact without its annotation. the `regions` section of `object_analyze` reports both conditions and `region_annotate` regenerates; a place, divide, or repair result lists the regions whose binding it broke.
-- **Provenance.** Any field that records a fact about the world or the user's wishes carries where it came from: `file` (read from the project or profile), `observed` (a sensor or printer report, with a timestamp), `agent_inferred`, or `user_confirmed`. A tool marks a value `user_confirmed` only when the call is grounded in an explicit user statement; inferred values stay `agent_inferred`. Printer reads distinguish `configured` from `observed` for the same fact and compute `mismatches` between them rather than leaving that to the model.
+- **Storage.** State that belongs to a project (intent, plan, regions, conversation, and attachments) lives in the local project store, under a project ID that does not change. The current `ProjectStateDocument` is saved separately from model checkpoints. An imported project may contain the older `Auxiliaries/JusPrin/state.json` and its recovery mirror. Those are read only to migrate them. Three things remain fields of that document:
+  - the print intent, `printIntent`. A write inserts or updates one field by name, and each field carries its provenance;
+  - the plan, `plan`. A write replaces the whole plan;
+  - the region annotations, `regions`. A write replaces the whole list, and each record is stamped with a seq when it changes.
+
+  State that belongs to a printer (confirmed facts, monitoring policy) stays in app data, stored per printer identity, the way `PrinterFactsStore` keeps it. Confirmed facts carry an expiry, because the physical world changes without telling the app. See [Local autosave and version history](autosave-version-history.md).
+- **Revision.** Every write has to signal that it happened, so that readers read again. Two questions are still **open**: which signal to use, and whether the signal invalidates actions that are already queued. They belong to the milestone that adds the first writer. The obvious answer would be to publish a `WorkspaceChangeReasons` bit and add that bit to `kInvalidatingReasons`. That cannot be built as described. `settings_apply_patch` requires its caller's `expectedRevision` to equal the current revision exactly. So if the revision goes up at any point between a client's preview and its apply, the apply fails as `stale_workspace`. An agent that recorded its plan between previewing and applying would make its own call fail. There is an existing example of the alternative: the edit feed (`WorkspaceEditHub`) reports a change without raising the revision. Decide separately for each kind of state. A region annotation generates OrcaSlicer artifacts, so it is a real change to the project. An answer about intent, or a statement of the plan, is not. In the code as built, writing a region record signals nothing by itself. The artifacts it generates are ordinary OrcaSlicer edits, and they raise the revision in the usual way. So an action that was queued before an annotation goes stale, exactly as it would after any other edit to the model.
+- **Undo.** None of this state is in OrcaSlicer's undo stack. Results say `projectUndo: false`. Region annotations are the awkward case. They generate OrcaSlicer artifacts (modifier volumes, enforcers, blockers, paint), and those artifacts *are* in the undo stack. So project Undo can leave an annotation without its artifacts, or leave an artifact without its annotation. The `regions` section of `object_analyze` reports both situations, and `region_annotate` generates the artifacts again. The result of a place, divide, or repair lists the regions whose link to the geometry that operation broke.
+- **Provenance (where a value came from).** Any field that records a fact about the world or about what the user wants also records its source: `file` (read from the project or a profile), `observed` (reported by a sensor or the printer, with a timestamp), `agent_inferred`, or `user_confirmed`. A tool marks a value `user_confirmed` only when the call is based on something the user explicitly said. Values the agent inferred stay `agent_inferred`. When a tool reads printer state, it reports the `configured` value and the `observed` value of the same fact separately, and it computes the `mismatches` between them itself. That comparison is not left to the model.
 
 ## Define the contract before the implementation
 
-Every new tool's registry entry and accompanying contract/tests must specify:
+For every new tool, the registry entry, together with its contract and tests, must specify:
 
-- stable lowercase underscore name;
-- concise title shown in activity UI;
-- compact description that says when to use the tool;
-- strict input JSON Schema with `additionalProperties: false` where practical;
-- output JSON Schema;
-- trusted `ActionClass`;
-- exposure to the in-app Agent, MCP, or both;
-- availability requirements, such as an open FFF project or selected object;
-- whether an action is revision-sensitive;
-- atomicity and the real undo, reset, or revert behavior (including an explicit statement when normal project Undo does not apply);
-- cancellation behavior;
-- bounded output and pagination limits; and
-- structured domain errors.
+- a name that will not change, in lowercase with underscores;
+- a short title, shown in the activity UI;
+- a short description that says when to use the tool;
+- a strict JSON Schema for the input, with `additionalProperties: false` where practical;
+- a JSON Schema for the output;
+- its `ActionClass`, which is trusted because it is set in the registry;
+- whether it is offered to the in-app Agent, to MCP, or to both;
+- what must be true for it to be available, such as an open FFF project (FFF is ordinary filament printing) or a selected object;
+- whether the action is revision-sensitive, meaning it must fail when the workspace has changed since it was requested;
+- whether it applies completely or not at all, and how it is really undone, reset, or reverted. Say so explicitly when normal project Undo does not apply;
+- what happens when it is cancelled;
+- the size limits on its output and how results are paged; and
+- its errors, as structured codes that are specific to the task.
 
-The registry is immutable and deterministically ordered. Adapters may filter by declared static exposure, but they must not rewrite action class, validation, or behavior. Keep the MCP-visible list stable unless the server also implements and tests the current protocol's tool-list change notification contract; report unmet live preconditions from `tools/call` instead.
+The registry cannot change while the app runs, and its entries always come in the same order. A tool adapter may leave tools out, based on the exposure each tool declares. An adapter must not change a tool's action class, validation, or behavior. Keep the list that MCP clients see stable. The only exception would be a server that also implements and tests the current protocol's notification for a changed tool list. When a tool cannot run because of the app's current state, report that from `tools/call` instead of removing the tool from the list.
 
-`ToolDefinition` currently stores name, title, description, input/output schemas, action class, exposure, availability and handler. Revision sensitivity, atomicity, cancellation and history semantics live in the coordinator/workspace implementation and tests, not in additional registry fields. `ToolAvailability` currently describes request context (`Always` or `ImportableAttachment`), not a dynamic project-state filter.
+`ToolDefinition` currently stores the name, title, description, input and output schemas, action class, exposure, availability, and handler. The other properties are not registry fields. Whether a tool is revision-sensitive, whether it is all-or-nothing, how it cancels, and how it appears in history are all determined by the coordinator and workspace code, and checked by their tests. `ToolAvailability` currently describes the request a tool is called from (`Always` or `ImportableAttachment`). It does not filter tools by the current state of the project.
 
-Input validation uses the registry's handler-specific `valid_arguments` decoder; changing only JSON Schema does not change accepted calls. MCP success output is checked by `validate_output`, whose schema vocabulary is deliberately limited. Extend that validator with tests before adding unsupported schema keywords. Do not assume it implements all of JSON Schema or that every adapter automatically validates output.
+Inputs are validated by the `valid_arguments` decoder that the registry has for each handler. Changing only the JSON Schema does not change which calls are accepted. Successful MCP output is checked by `validate_output`, which deliberately understands only a small set of schema keywords. Before you use a keyword it does not support, extend the validator and add tests. Do not assume that `validate_output` implements all of JSON Schema, or that every adapter validates output automatically.
 
 ### Naming and compatibility
 
 - Prefer names such as `slice_start` and `presets_compare`.
-- Do not rename a released tool casually. Treat names and schemas as public APIs.
-- Add optional fields compatibly. Do not change the meaning or type of an existing field.
-- When a breaking contract is unavoidable, add a versioned replacement, stop advertising the old definition after a documented migration window, and keep a focused compatibility test while both exist.
-- Keep one canonical name across adapters. Do not maintain OpenAI and MCP aliases unless a client defect is documented and tested.
+- Do not rename a released tool without a strong reason. Treat names and schemas as public APIs.
+- Add optional fields in a way that keeps existing callers working. Do not change the meaning or the type of an existing field.
+- When a breaking change to a contract cannot be avoided, add a versioned replacement. Stop advertising the old definition after a documented migration period, and keep a targeted compatibility test for as long as both exist.
+- Use one canonical name for a tool in every adapter. Do not keep separate OpenAI and MCP aliases unless a defect in a client is documented and tested.
 
 ## Input design
 
-Inputs should express intent and identity, not transport or UI mechanics.
+A tool's inputs should say what the caller wants and which thing it wants it done to. They should not describe how the request is transported or how the UI works.
 
-- Send Orca IDs as JSON strings to preserve native width.
-- Use canonical setting keys and normalized values.
-- The three in-app fixtures of the first catalog (`duplicate_object`, `import_model`, `inspect_selection`) are retired: `plate_layout` replaced the first, `object_import` the second, and the selection ids in `workspace_inspect`'s summary the third. The coordinator captures session/revision when it queues an action, invalidates queued actions on relevant workspace events, and rechecks before executing. Selection-only changes do not redirect or invalidate a pinned object target.
-- For a new read-modify-write operation that must detect changes since the caller's earlier read, design and test explicit expected-session/revision inputs in its own schema and decoder. Proposal-time checks alone do not prove the caller's earlier read is current; do not retrofit required arguments onto existing tools silently.
-- Batch changes that must be atomic.
-- Prefer explicit selectors over magic defaults, except when the name clearly promises the current selection or active plate.
-- Reject unknown fields and conflicting selectors.
-- A filesystem path may cross the boundary only through a tool that validates the exact absolute path, constrains its kind and location, and documents whether it reads, creates, or overwrites. The candidate catalog has three such tools: `object_import_file`, `project_open`, and `export_file`. No read-only tool accepts a path. In-app clients keep the attachment route, which needs no path.
-- Do not make the model repeat data the server can read authoritatively at execution time.
-- Do not encode a large catalog as a schema enum; use bounded search and detail retrieval.
-- **One exception, with its evidence: the printer list.** Identifying a printer from what someone says is the model's understanding, not a lookup, and a search tool in front of it did it badly: `printer_catalog_search` required every word of the query in a model's name and returned the first few in file order, so "voron 2.4 350mm" came back unsupported, "x1c" matched another manufacturer's printer and "prusa" showed three of thirteen. The Add session's instructions instead carry every printer the panel offers, one line each (`<catalogId> | <brand> <model> | <build volume>`, 383 lines from `PrinterCatalog::panel_printers`, sent to the page as the session's `context` and written into the instructions by `AgentUI/src/printerInstructions.ts`), and `printer_identify` checks the ids the model copies from it. Measured 2026-09-18 through the app's own request and tool results on `gpt-5.4-mini`, three runs of each case: the word test set 138/150, the photo test set 29/45, the handoff's own cases (those four queries among them) 21/21. The model tried to show more than three printers 33 times; each was refused with `too_many` and it then asked a narrowing question, so no answer ever showed three of many. The weak spots are a query that equals one model name and begins others ("bambu a1": 0/3) and photos with no readable name. The test sets and the runner are in `agent-docs/jusprin/spikes/printer-identify/` (uncommitted, beside the earlier spikes). The list is a fixed prefix of the instructions, so it caches; it is the right shape only while it stays a few hundred lines.
+- Send OrcaSlicer IDs as JSON strings, so that the full width of the native ID is preserved.
+- Use canonical setting keys, and values in their normalized form.
+- The first catalog had three in-app fixtures: `duplicate_object`, `import_model`, and `inspect_selection`. All three are retired. `plate_layout` replaced the first, `object_import` replaced the second, and the selection ids in the summary of `workspace_inspect` replaced the third. When the coordinator queues an action, it records the session and the revision. It invalidates queued actions when a relevant workspace event arrives, and it checks again before executing. A change to the selection alone does not invalidate an action that is aimed at a specific object, and does not redirect it.
+- Some new operations read a value, change it, and write it back, and must detect anything that changed since the caller's earlier read. For such an operation, design explicit inputs for the expected session and revision in its own schema and decoder, and test them. A check made when the call is proposed does not prove that the caller's earlier read is still current. Do not quietly add required arguments to tools that already exist.
+- Put changes that must succeed or fail together into one call.
+- Make the caller say which thing it means. Do not fall back to a hidden default. The exception is a tool whose name clearly promises the current selection or the active plate.
+- Reject unknown fields. Reject inputs that select the target in conflicting ways.
+- A caller may pass a filesystem path only to a tool that does three things: it validates the exact absolute path, it restricts what kind of file the path may be and where, and it documents whether it reads, creates, or overwrites. The candidate catalog has three such tools: `object_import_file`, `project_open`, and `export_file`. No read-only tool accepts a path. In-app clients keep using attachments, which need no path.
+- Do not make the model repeat data that the server can read for itself, from the real source, when the call executes.
+- Do not put a large catalog into a schema as an enum. Offer a size-limited search and a way to fetch details instead.
 
-The coordinator resolves the action class and handler from the name. Never accept either from call arguments.
+**One exception, with its evidence: the printer list.** Working out which printer someone means from what they say takes the model's understanding. It is not a lookup. A search tool placed in front of the model did the job badly. `printer_catalog_search` required every word of the query to appear in a model's name, and it returned the first few matches in file order. As a result "voron 2.4 350mm" came back unsupported, "x1c" matched another manufacturer's printer, and "prusa" showed three of thirteen.
+
+So the instructions for an Add session now carry every printer the panel offers, one per line, in the form `<catalogId> | <brand> <model> | <build volume>`. There are 383 lines. They come from `PrinterCatalog::panel_printers`, are sent to the page as the session's `context`, and are written into the instructions by `AgentUI/src/printerInstructions.ts`. `printer_identify` checks the ids that the model copies from the list.
+
+This was measured on 2026-09-18, through the app's own request and tool results, on `gpt-5.4-mini`, with three runs of each case:
+
+- the word test set: 138/150;
+- the photo test set: 29/45;
+- the handoff's own cases, with those four queries among them: 21/21.
+
+The model tried 33 times to show more than three printers. Each attempt was refused with `too_many`, and the model then asked a question to narrow the choice. So no answer ever showed three of many. Two weak spots remain. One is a query that equals one model's name and is also the beginning of other models' names ("bambu a1": 0/3). The other is a photo with no readable name. The test sets and the runner are in `agent-docs/jusprin/spikes/printer-identify/`, which is uncommitted and sits beside the earlier spikes.
+
+The list is always the same text at the start of the instructions, so it is cached. This approach is right only while the list stays at a few hundred lines.
+
+The coordinator looks up the action class and the handler from the tool's name. Never accept either one from the call's arguments.
 
 ## Output design
 
-Design response size before adding fields. A full project tree, all setting definitions, per-layer G-code statistics, or unbounded warnings can consume more context than the entire tool catalog.
+Decide how large a response may be before you add fields to it. A full project tree, every setting definition, G-code statistics for every layer, or an unlimited list of warnings can each use more of the model's context than the entire tool catalog.
 
 Every read tool should use one or more of:
 
-- a concise/default/detail level;
+- a level of detail (concise, default, or detail);
 - explicit field selection;
-- pagination with deterministic order;
-- a hard item limit;
-- aggregate summaries followed by targeted detail calls; or
-- an explicit `truncated` flag and continuation cursor.
+- paging, with results always in the same order;
+- a fixed maximum number of items;
+- a summary first, followed by separate calls for the details the caller wants; or
+- an explicit `truncated` flag and a cursor for fetching the rest.
 
-For new live-state contracts, include `sessionId` and `revision` when needed to identify and validate later calls. `workspace_inspect` returns both, with the selection as ids. Internal history-record results have their own schemas. MCP activity results also carry action ID, current session and revision in `_meta["io.jusprin/activity"]`. If an event says state changed, fetch a fresh snapshot; never treat the event itself as the new state.
+A new tool that returns live state should include `sessionId` and `revision` when later calls need them to identify the project and to check that nothing has changed. `workspace_inspect` returns both, and returns the selection as ids. Results that are internal history records have their own schemas. MCP activity results also carry the action ID, the current session, and the current revision in `_meta["io.jusprin/activity"]`. When an event says that state changed, fetch a fresh snapshot. Never treat the event itself as the new state.
 
-For MCP success, produce schema-valid `structuredContent` and a serialized text block describing the same result. Errors use the shared `{error: {code, message, details}}` envelope with `isError: true`, not the success output schema. The bridge removes modern-only result/cache fields for legacy clients. For `2025-03-26` it also omits `structuredContent` and catalog `outputSchema`/`title`, preserving the serialized text result; later supported revisions retain `structuredContent` and `title`. No negotiated version advertises `outputSchema` any more (see [tool budget and tool shape](#tool-budget-and-tool-shape)); the bridge's own stripping stays because it also projects catalogs forwarded from a live app of another version. These are intentional compatibility projections, not conflicting tool definitions.
+A successful MCP result contains `structuredContent` that is valid against the output schema, plus a text block that holds the same result serialized as text. An error uses the shared `{error: {code, message, details}}` envelope with `isError: true`. It does not use the success schema.
+
+The bridge adjusts results for older clients:
+
+- For legacy clients, it removes the result and cache fields that exist only in the modern protocol.
+- For `2025-03-26`, it also leaves out `structuredContent`, and leaves `outputSchema` and `title` out of the catalog. The serialized text result is kept.
+- For the later supported revisions, `structuredContent` and `title` are kept.
+
+No negotiated version advertises `outputSchema` any more (see [tool budget and tool shape](#tool-budget-and-tool-shape)). The bridge still has its own code that strips the field, because the bridge also forwards catalogs from a live app of another version. These adjustments are deliberate, for compatibility. They are not conflicting definitions of the same tool.
 
 ### Image results
 
-Three candidate reads return a picture: `project_attachment_read` (a reference image), `view_render` (the prepared or sliced scene), and `printer_camera_snapshot`. The registry result carries the encoded image plus a structured block describing it (dimensions, camera or layer range, capture time), and each adapter projects that one result:
+Three read tools in the candidate catalog return a picture: `project_attachment_read` (a reference image), `view_render` (the prepared or sliced scene), and `printer_camera_snapshot`. The result that the registry produces holds the encoded image and a structured block that describes it (dimensions, camera or layer range, capture time). Each adapter then presents that one result in its own format:
 
-- MCP: an `image` content block beside the text and structured result; on `2025-03-26` the same block, since image content predates structured content.
-- OpenAI: the text and structured block as the function result, and the image appended as an image input in the continuation, since function results are text-only.
+- MCP: an `image` content block next to the text and the structured result. `2025-03-26` gets the same block, because image content is older than structured content.
+- OpenAI: the text and the structured block are the function result. The image is appended as an image input in the continuation, because a function result can only be text.
 
-This is an adapter projection, not forked behavior. Both projections must be tested before the first image-returning tool ships. Cap every image (1280 pixels on the long edge, 2 MB) so one frame never dominates the context window, and never return an image the user has not allowed: camera frames require the privacy grant in Printer Configuration and otherwise fail with `camera_disabled`.
+The two adapters present the same result in different formats. The tool itself does not behave differently. Both projections must be tested before the first tool that returns an image ships. Limit every image to 1280 pixels on the long edge and to 2 MB, so that one frame never takes up most of the context window. Never return an image the user has not allowed. A camera frame requires the privacy grant in Printer Configuration. Without it, the call fails with `camera_disabled`.
 
 ## Errors should teach the next valid call
 
-Expected invalid states use structured control flow, not thrown exceptions. An error should identify the problem and provide only the correction data the Agent needs.
+When an invalid state is expected, handle it with ordinary control flow and return a structured error. Do not throw an exception. An error should say what the problem is and include only the data the Agent needs to correct the call.
 
-Current MCP errors include `invalid_arguments`, `cancelled`, `workspace_unavailable` and `stale_workspace`. The MCP adapter normalizes native `stale_revision`/`stale_id` to `stale_workspace` with expected/current session and revision details, and `unavailable_operation` to `workspace_unavailable`. Transport-level protocol errors are separate JSON-RPC errors. Do not require identical spelling across the native and MCP error boundaries.
+The MCP errors today include `invalid_arguments`, `cancelled`, `workspace_unavailable` and `stale_workspace`. The MCP adapter converts the app's native `stale_revision` and `stale_id` into `stale_workspace`, with the expected and the current session and revision in the details. It converts `unavailable_operation` into `workspace_unavailable`. Protocol errors at the transport level are separate JSON-RPC errors. Native error codes and MCP error codes do not have to be spelled the same.
 
-The settings tools implement the following bounded correction details:
+The settings tools return these correction details, each limited in size:
 
-- unknown setting: canonical `unknown_setting`, original key, and a short `suggestions` list;
-- invalid enum: key, diagnostic message, and valid values in `allowed`;
-- out of range: key, diagnostic message, and `min`/`max` bounds; units are available from setting metadata;
-- incompatible settings: conflicting keys and Orca's reason;
-- stale call: expected and current session/revision, plus instruction to read again;
-- unavailable operation: the requested scope has no active preset or target;
+- unknown setting: the canonical code `unknown_setting`, the original key, and a short `suggestions` list;
+- invalid enum value: the key, a diagnostic message, and the valid values in `allowed`;
+- value out of range: the key, a diagnostic message, and the `min`/`max` bounds. Units are available from the setting's metadata;
+- incompatible settings: the keys that conflict, and OrcaSlicer's reason;
+- stale call: the expected and the current session/revision, plus an instruction to read again;
+- unavailable operation: the requested scope has no active preset or target.
 
-Unexpected invariant failures must remain visible to diagnostics and Sentry. Catch at an abstraction boundary only to recover, translate a known error, or add essential context.
+A failure that should be impossible (a broken invariant) must stay visible to diagnostics and to Sentry. Catch an error at the boundary between two layers only to recover from it, to translate a known error, or to add context that is essential.
 
 ## Read, mutation, and destructive policy
 
-Use the registry's action class, not naming conventions:
+Decide what a tool may do from its action class in the registry, not from its name:
 
-- **Read-only:** cannot alter project, preset, disk, printer, or durable product state.
-- **Mutation:** changes project, preset, or durable product state.
+- **Read-only:** cannot change the project, a preset, anything on disk, the printer, or any product state that is saved.
+- **Mutation:** changes the project, a preset, or saved product state.
 - **Destructive:** may delete, overwrite, discard, print, export, or restore history.
 
-Action class remains metadata for UI wording, MCP annotations, staleness checks, and audit history. Valid tool calls start immediately after validation. A tool that previews changes is read-only only if fake and real tests prove it does not dirty presets, advance the workspace revision, create history, cancel slicing, or write files.
+The action class is information used for UI wording, MCP annotations, staleness checks, and the audit history. A valid tool call starts as soon as it has been validated. A tool that previews changes counts as read-only only if tests against both the fake and the real workspace adapter prove that it does none of these: make a preset dirty, raise the workspace revision, create history, cancel slicing, or write a file.
 
 ## Asynchronous operations
 
-Use asynchronous behavior only when Orca's real operation is asynchronous. Do not invent a second job engine.
+Make a tool asynchronous only when the real OrcaSlicer operation is asynchronous. Do not build a second engine for running jobs.
 
-For slicing and later long-running actions:
+Slicing, and any long-running action added later, works like this:
 
-1. the workspace command starts work through Orca's current owner and returns a stable action handle;
-2. `ToolActivity` records running and terminal state with bounded progress;
-3. Orca completion or failure advances/invalidates authoritative workspace state;
-4. the consumer fetches the authoritative slice report or error after the event; and
-5. cancellation calls Orca's real cancellation path and reports whether cancellation won the race.
+1. The workspace command starts the work through its current OrcaSlicer owner and returns a stable action handle.
+2. `ToolActivity` records that the action is running, and then its final state, with a limited amount of progress information.
+3. When OrcaSlicer completes or fails, the workspace state advances or is invalidated.
+4. After that event, the caller fetches the real slice report or the error.
+5. Cancelling calls OrcaSlicer's real cancellation path, and reports whether the cancellation took effect before the work finished.
 
-MCP progress notifications are optional request-scoped presentation. They must be monotonic and must not be the only way to learn the terminal result. Add the MCP Tasks extension only when a real client/eval needs durable calls that outlive one request; do not add it merely because an operation takes several seconds.
+MCP progress notifications are optional. They belong to one request and exist only to show progress. The progress value must never go backwards, and a client must always have another way to learn the final result. Add the MCP Tasks extension only when a real client or eval needs durable calls that outlive one request. An operation taking several seconds is not enough reason.
 
-The current coordinator stages execution through GUI ticks; it does not provide durable asynchronous jobs. The bridge accepts `notifications/cancelled` in both protocol eras, closes the forwarded connection, and suppresses subsequent output for that request. EOF ends the bridge session. A lost connection before the final response produces `connection_lost` with an **unknown outcome** warning, not proof the mutation was cancelled. Never automatically retry a mutation after such a loss; inspect authoritative state first.
+The current coordinator runs an action in steps, on GUI ticks. It does not provide durable asynchronous jobs. The bridge accepts `notifications/cancelled` in both the legacy and the modern protocol versions. On receiving one, it closes the connection it was forwarding and suppresses any further output for that request. End of input (EOF) ends the bridge session. If the connection is lost before the final response, the client gets `connection_lost` with an **unknown outcome** warning. That is not proof that the mutation was cancelled. Never retry a mutation automatically after such a loss. Read the real state first.
 
 ## Tool exposure
 
-Default to both adapters when both can satisfy the same input contract. A deliberate filter is appropriate when context is supplied differently:
+By default, offer a tool through both adapters when both can supply the same inputs. Offer it through only one when the two sides get their context in different ways. The current cases:
 
-- `workspace_inspect` is exposed to both adapters so either can obtain a fresh completed slice identity after slicing, independently of the initial turn context;
-- attachment-based import (`object_import`) is in-app-only, and path-based `object_import_file` is MCP-only, because a file reaches the app through the conversation in one case and through an explicit path in the other; that is two honest definitions over one workspace command, not one tool with forked behavior; and
-- `intent_update` and `plan_set` are in-app-only: the intent record and the pinned plan are the chat's own, and an external agent keeps what its user said, and its plan, in its own conversation. MCP still reads both through `workspace_inspect` and `slice_report`. For the same reason the in-app assistant's print guidance (`kPrintJourneyGuidance`), which names these tools, is not part of MCP's server instructions;
-- a future MCP diagnostics tool may be MCP-only if it exists to establish the external connection; and
-- the printer panel's five own tools carry only the `Printer` exposure: neither adapter lists them, and the panel's conversation offers all of them in every mode and refuses what does not fit it (see "Tool budget and tool shape"). and what the model reads back from them is the tool's own result, not the host's workspace envelope.
+- `workspace_inspect` is offered through both adapters. Either side can then get the identity of a newly completed slice after slicing, without relying on the context it was given at the start of the turn.
+- Import from an attachment (`object_import`) is in-app only, and import from a path (`object_import_file`) is MCP only. In the first case the file reaches the app through the conversation. In the second it arrives as an explicit path. These are two separate definitions that each say exactly what they do, both built on one workspace command. They are not one tool that behaves differently for different callers.
+- `intent_update` and `plan_set` are in-app only. The intent record and the pinned plan belong to the in-app chat. An external agent keeps what its user said, and its own plan, in its own conversation. MCP clients can still read both through `workspace_inspect` and `slice_report`. For the same reason, the in-app assistant's print guidance (`kPrintJourneyGuidance`), which names these tools, is not part of the MCP server's instructions.
+- A future MCP diagnostics tool may be MCP only, if its purpose is to establish the external connection.
+- The printer panel's five own tools carry only the `Printer` exposure. Neither adapter lists them. The panel's conversation offers all of them in every mode and refuses the calls that do not fit the conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). What the model reads back from one of these tools is the tool's own result. It is not wrapped in the host's workspace envelope.
 
-Document the reason beside the registry definition and test it. Exposure is not a place to fork behavior: if two adapters need different semantics, they need a better shared command or honestly separate definitions.
+Write the reason for a restricted exposure next to the registry definition, and test it. Do not use exposure to make one tool behave differently for different callers. If two adapters need different behavior, either improve the shared command or create two separate definitions that each say what they really do.
 
 ## When resources or skills are appropriate
 
-Do not make MCP resources load-bearing until intended clients prove that model-driven resource retrieval is reliable. A bounded data-returning tool is the compatibility baseline. Resources may be added as an optional alternate projection of large, readable, stable data.
+Do not make anything depend on MCP resources until the clients we intend to support have shown that their models fetch resources reliably. A tool that returns a size-limited amount of data is what every client can be expected to handle. Resources may be added as an optional second way to get data that is large, readable, and stable.
 
-Keep printing playbooks—reducing stringing, improving strength, choosing support strategy—as skills the model can read (see [Skills versus tools](#skills-versus-tools)). Convert a workflow into an executable tool only when it maps to a named, deterministic Orca operation with defined inputs, outputs, validation, and undo/reset/cancellation behavior. If many procedural workflows eventually qualify, prefer one discoverable workflow registry over dozens of nearly identical tool definitions.
+Keep printing playbooks as skills the model can read (see [Skills versus tools](#skills-versus-tools)). Examples are reducing stringing, improving strength, and choosing a support strategy. Turn a workflow into an executable tool only when it corresponds to a named OrcaSlicer operation that always behaves the same way and has defined inputs, outputs, validation, and behavior for undo, reset, and cancellation. If many step-by-step workflows eventually qualify, build one workflow registry that the model can search, in preference to dozens of nearly identical tool definitions.
 
 ## Required implementation sequence for one new tool
 
-1. Add or update the failing eval and expected transcript.
-2. Trace the real Orca owner and record lifecycle, threading, history, and event behavior.
-3. Define the typed workspace input, output, and error contract.
-4. Implement the fake adapter and workspace contract tests.
-5. Implement the real adapter through the smallest owner seam.
-6. Prove direct GUI edits and tool edits produce equivalent observable state.
-7. Add the registry definition, decoder/validator, executor association, and output schema.
-8. Add coordinator tests for action class, staleness, atomicity, cancellation, and terminal activity.
-9. Add projection tests for every exposed adapter.
+1. Add or update the failing eval and the expected transcript.
+2. Find the real OrcaSlicer owner. Record how it behaves: object lifetimes, threading, undo history, and events.
+3. Define the typed inputs, outputs, and errors of the workspace command.
+4. Implement the command in the fake workspace adapter, and write the workspace contract tests.
+5. Implement the command in the real workspace adapter, through the smallest possible seam in the owner.
+6. Prove that making the edit directly in the GUI and making it through the tool leave the same observable state.
+7. Add the registry definition, the decoder and validator, the link to the code that executes the tool, and the output schema.
+8. Add coordinator tests for action class, staleness, all-or-nothing behavior, cancellation, and the final activity state.
+9. Add projection tests for every adapter that offers the tool.
 10. Add protocol fixtures and output-limit tests.
-11. Run a real-app harness and one end-to-end external-client transcript.
-12. Update the catalog below and attach verification/rebase evidence to the PR.
+11. Run a harness against the real app, and record one end-to-end transcript with an external client.
+12. Update the catalog below, and attach the verification and rebase evidence to the PR.
 
-Do not merge a registry entry backed only by the fake workspace.
+Do not merge a registry entry that is backed only by the fake workspace.
 
 ## Test matrix
 
-Every added capability needs tests at the layers it crosses:
+Every new capability needs tests at each layer it passes through:
 
 | Layer | Evidence |
 |---|---|
@@ -330,13 +439,22 @@ Every added capability needs tests at the layers it crosses:
 | MCP adapter | canonical schema/output projection, bounded response, protocol errors, disconnect behavior |
 | Shell/eval | real project and intended client complete the user task |
 
-If a layer does not apply, say why in the PR. "Not testable" is a visible limitation, not permission to omit evidence silently.
+If a layer does not apply, say why in the PR. If something cannot be tested, state that openly as a limitation. It is not permission to leave out evidence without saying so.
 
 ## Candidate catalog
 
-This is the end-state catalog derived surface by surface from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), shaped by the [tool budget and tool shape](#tool-budget-and-tool-shape) rules. Nothing in it is implemented unless the catalog record above says so, and every row still owes the eval failure, owner trace, and test matrix this guide requires. The count that matters is the number of definitions loaded per turn, not the total. The total here is 36. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral; the toolsets below are the deferral units for that day and, until then, a naming and delivery grouping.
+This catalog lists the tools the finished product would have. It was worked out one product screen at a time from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), and shaped by the rules under [tool budget and tool shape](#tool-budget-and-tool-shape). Nothing in it is implemented unless the catalog record above says so. Every row still needs what this guide requires of any tool: the eval failure, the trace of its owner, and the test matrix. The number that matters is how many definitions load per turn, not the total. The total here is 36. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral. The toolsets below are the groups that would be deferred together when that day comes. Until then they only group tools for naming and for delivery.
 
-Conventions every row inherits: every read returns `sessionId` and `revision`; every revision-sensitive write takes `expectedRevision`; handles for detected faces and holes carry the revision they were computed at and fail with `feature_expired` after it moves; facts carry provenance as defined under [JusPrin-owned project state](#jusprin-owned-project-state); long-running rows follow [Asynchronous operations](#asynchronous-operations) and return an action handle whose state is read from the `slicing` section of `workspace_inspect`; every read states a hard cap and a truncation flag. Classes: **R** read-only, **M** mutation, **D** destructive.
+These conventions apply to every row:
+
+- Every read returns `sessionId` and `revision`.
+- Every write that is revision-sensitive takes `expectedRevision`.
+- A handle for a detected face or hole carries the revision it was computed at. After the revision moves, using the handle fails with `feature_expired`.
+- Facts carry provenance, as defined under [JusPrin-owned project state](#jusprin-owned-project-state).
+- Long-running rows follow [Asynchronous operations](#asynchronous-operations). They return an action handle, and the handle's state is read from the `slicing` section of `workspace_inspect`.
+- Every read states a fixed maximum size and has a flag that says when the result was cut short.
+
+In the Class column, **R** means read-only, **M** means mutation, and **D** means destructive.
 
 ### Toolsets and loading
 
@@ -353,7 +471,7 @@ Conventions every row inherits: every read returns `sessionId` and `revision`; e
 | `machine` | 3 | Other printers, camera, pause and stop. |
 | `calibration` | 2 | Calibration tests. |
 
-Both adapters load every registered tool on every turn. MCP `tools/list` returns the whole catalog and stays stable per build. The in-app adapter sends the whole function list with each request and keeps it byte-identical across a chat. The projection tests record the loaded bytes per adapter and the live regression records input and cached tokens per request; those numbers, not the toolset table, decide when deferral is adopted.
+Both adapters load every registered tool on every turn. MCP `tools/list` returns the whole catalog, and the catalog stays the same for a given build. The in-app adapter sends the whole function list with each request and keeps it byte-identical through a chat. The projection tests record how many bytes each adapter loads. The live regression test records input tokens and cached tokens for each request. Those numbers decide when deferral is adopted. The toolset table does not.
 
 ### `core`
 
@@ -405,7 +523,7 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 | `object_merge` | M | Merge listed objects into one. | `ModelObject` merge | 16 ids |
 | `object_repair` | M | Repair a mesh; result carries the repair statistics. | `TriangleMesh` repair | |
 
-Text embossing stays out until an eval needs it; when it does, it is its own tool on `EmbossJob`, not a facet of `object_divide`.
+Text embossing is left out until an eval needs it. When one does, embossing gets its own tool built on `EmbossJob`. It does not become a facet of `object_divide`.
 
 ### `regions`
 
@@ -446,44 +564,78 @@ Text embossing stays out until an eval needs it; when it does, it is its own too
 
 ### Retired and folded
 
-Reads folded into `workspace_inspect` sections: project details, intent, printer state and mismatches, confirmed facts, monitoring policy, object manifest, plan, activity state, versions. Reads folded into `object_analyze`: region list, orientation scoring. Writes folded: `printer_facts_confirm` into `printer_setup`; `presets_save` into `settings_apply_patch` `persistAs`; transform, arrange, object edits, and plate edits into `object_place` and `plate_layout`; `slice_layers` and `slice_gcode_read` into `slice_inspect`. Not tools until an eval demands them: editing project details (a Project details drawer action), writing the monitoring policy (a Printer Configuration action), text embossing, and everything under "Deliberately not tools".
+Some reads and writes that were once planned as separate tools are now part of another tool.
+
+Reads that became sections of `workspace_inspect`: project details, intent, printer state and mismatches, confirmed facts, monitoring policy, object manifest, plan, activity state, versions.
+
+Reads that became part of `object_analyze`: region list, orientation scoring.
+
+Writes that became part of another tool:
+
+- `printer_facts_confirm` is now part of `printer_setup`;
+- `presets_save` is now the `persistAs` option of `settings_apply_patch`;
+- transform, arrange, object edits, and plate edits are now in `object_place` and `plate_layout`;
+- `slice_layers` and `slice_gcode_read` are now in `slice_inspect`.
+
+These are not tools until an eval demands them: editing project details (an action in the Project details drawer), writing the monitoring policy (an action in Printer Configuration), text embossing, and everything under "Deliberately not tools".
 
 ### Deliberately not tools
 
-One tool per setting or per "make it stronger" bundle; printing advice; preferences, cloud, firmware, plugins, sync, and update installation (user-owned per surface 2.12); manual axis movement, homing, fan and light detail, printer file storage (expert layer of Monitor); painting by stroke and the measure gizmo as UI (reached through regions and analysis handles); asking the user a question (the conversation); a second job engine or the MCP Tasks extension; a single write tool that interprets a list of unrelated commands.
+These will not be tools:
+
+- one tool per setting, or one per bundle such as "make it stronger";
+- printing advice;
+- preferences, cloud, firmware, plugins, sync, and installing updates. These belong to the user, according to surface 2.12 of the product definition;
+- manual axis movement, homing, detailed fan and light control, and printer file storage. These belong to the expert layer of Monitor;
+- painting stroke by stroke, and the measure gizmo as a UI. The model reaches the same results through regions and through the handles that analysis returns;
+- asking the user a question. The conversation does that;
+- a second engine for running jobs, or the MCP Tasks extension;
+- a single write tool that interprets a list of unrelated commands.
 
 ### Prerequisites the catalog imposes on the machinery
 
-- `validate_output` has `enum` (provenance, action state, region kind, section names) and `maxLength`, so a row may use them. Input unions such as the facets of `object_place` are the decoder's job, not the schema validator's.
-- Neither adapter needs new loading machinery. The projection tests need to record definition bytes per adapter, and the live regression needs to record input and cached tokens per request, so the deferral decision is evidence-based.
-- Three owners are trapped in presentation code and need a product-neutral seam first: mapping and readiness logic in `SelectMachineDialog` for `preflight_check`; plane and circle detection in the Measure gizmo for `object_analyze`; offscreen preview rendering for `view_render` preview mode. Import and open need the dialog choices (`loadProjectSettings`, `unitConversion`, `oversized`) reachable without the dialogs, the same hazard class as the settings normalizer.
-- The JusPrin stores for intent and plan exist in `ProjectStateDocument`; regions, confirmed facts, and monitoring policy do not, and land with the tools that write them. How a write announces itself is still open. Rules under [JusPrin-owned project state](#jusprin-owned-project-state).
-- The image projections under [Image results](#image-results) in both adapters before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
-- The Tier 1 security review under [Proportional security growth](#proportional-security-growth).
+The catalog needs the following to be in place:
+
+- `validate_output` supports `enum` (used for provenance, action state, region kind, and section names) and `maxLength`, so a row may use them. Inputs that allow several alternative forms, such as the facets of `object_place`, are checked by the decoder, not by the schema validator.
+- Neither adapter needs new code for loading tools. The projection tests need to record definition bytes for each adapter, and the live regression test needs to record input and cached tokens for each request. With those numbers the deferral decision can rest on evidence.
+- Three owners exist only inside OrcaSlicer's UI code. Each needs a seam with nothing JusPrin-specific in it before its tool can be built:
+  - the mapping and readiness logic in `SelectMachineDialog`, needed by `preflight_check`;
+  - the plane and circle detection in the Measure gizmo, needed by `object_analyze`;
+  - offscreen rendering of the preview, needed by the preview mode of `view_render`.
+
+  Import and open also need a way to make the choices that OrcaSlicer's dialogs ask for (`loadProjectSettings`, `unitConversion`, `oversized`) without showing the dialogs. This is the same kind of hazard as the settings normalizer.
+- The JusPrin stores for intent and plan exist, in `ProjectStateDocument`. The stores for regions, confirmed facts, and monitoring policy do not. Each one is added together with the tool that writes to it. How a write signals that it happened is still open. The rules are under [JusPrin-owned project state](#jusprin-owned-project-state).
+- Both adapters must be able to present images as described under [Image results](#image-results) before `project_attachment_read`, `view_render`, or `printer_camera_snapshot` ships.
+- The Tier 1 security review described under [Proportional security growth](#proportional-security-growth).
 
 ### Evals that gate delivery
 
-1. Open a one-object STL, state "decorative, front face visible, under five hours, PLA", and reach a sent job with no manual setting edits. Needs `core`, `project`, `setup`, `geometry`, `output`. Its transcript is also the first call log for consolidation: any two tools always called together are candidates to merge.
-2. A model with a precision hole and a support-heavy overhang: find the hole, annotate it as protected, show that supports no longer enter it after re-slicing, and place the seam on a hidden face. Needs `regions` and `check`.
-3. Stringing reported on a Bambu printer: list tests, generate a temperature tower, read the user's photo, propose a filament temperature, preview and apply it with `persistAs`. Needs `calibration` and the filament scope.
-4. Concurrent edit: the user changes a setting in the GUI before an external agent's apply executes. The apply fails as stale and the agent recovers with one preview and one apply. Every toolset.
-5. Load measurement: the live regression reports, per request, definition bytes, input tokens, and cached tokens for the full catalog, and the transcript is reviewed for wrong-tool selections. These numbers decide whether deferral is adopted.
+These evals must pass before the tools they need are delivered:
+
+1. Open an STL with one object, state "decorative, front face visible, under five hours, PLA", and reach a sent job without editing any setting by hand. Needs `core`, `project`, `setup`, `geometry`, `output`. The transcript of this eval is also the first call log to use for consolidation: any two tools that are always called together are candidates to merge.
+2. Take a model that has a precision hole and an overhang that needs a lot of support. Find the hole, annotate it as protected, show that supports no longer enter it after slicing again, and place the seam on a hidden face. Needs `regions` and `check`.
+3. The user reports stringing on a Bambu printer. List the tests, generate a temperature tower, read the user's photo, propose a filament temperature, then preview it and apply it with `persistAs`. Needs `calibration` and the filament scope.
+4. An edit at the same time: the user changes a setting in the GUI before an external agent's apply executes. The apply fails as stale, and the agent recovers with one preview and one apply. Applies to every toolset.
+5. Measuring the load: for the full catalog, the live regression test reports definition bytes, input tokens, and cached tokens for each request, and the transcript is reviewed for cases where the model selected the wrong tool. These numbers decide whether deferral is adopted.
 
 ## Settings tools: contract and hazards
 
-The settings tools are the reference implementation of this guide. What
-follows is the part of their design that stays true after the work is done;
-the implementation handoff that produced it is retired. Re-read this section
-before expanding the write allowlist or adding a tool that changes a preset.
+The settings tools are the worked example of everything in this guide. This
+section records the parts of their design that stay true now that the work is
+done. The implementation handoff that produced them is retired. Read this
+section again before you add keys to a write allowlist (the list of settings
+a tool may change), and before you add any tool that changes a preset.
 
 ### Standing decisions
 
-1. Settings are data: four generic tools over searchable records, never one
-   tool per setting.
-2. Every settings call requires `scope`, whose enum is exactly `process`,
-   `object`, `filament`, or `printer`. Missing scope is `invalid_arguments`.
-   There is no default, inference from `target`, alias, or compatibility mode.
-3. `target` is scope-dependent and closed:
+1. Settings are data. There are four generic tools that work on searchable
+   records. There is never one tool per setting.
+2. Every settings call requires `scope`. Its enum is exactly `process`,
+   `object`, `filament`, or `printer`. A call without `scope` fails with
+   `invalid_arguments`. There is no default, the scope is never inferred from
+   `target`, and there is no alias and no compatibility mode.
+3. What `target` must be depends on the scope, and no other forms are
+   accepted:
 
    | `scope` | `target` | Meaning |
    |---|---|---|
@@ -493,130 +645,168 @@ before expanding the write allowlist or adding a tool that changes a preset.
    | `printer` | required `{preset}` | that printer preset, by name |
 
    These rules apply to `settings_search`, `settings_get`,
-   `settings_preview_patch`, and `settings_apply_patch`. Reject an extra,
-   missing, empty, or wrong-shaped target as `invalid_arguments`.
-   A preset is named the way Orca keys it: by its name, unique within its
-   own collection (`Preset.hpp`: "The preset name shall be unique across a
-   single PresetCollection"). Never by the label a menu shows -- the header
-   shows a stock printer's model, and `Preset::label` puts `"* "` in front of
-   a preset with unsaved edits -- and never by an alias. A name no visible
-   preset has is `unknown_preset`, whose suggestions are the project's
-   filaments or the printer in use. (The first draft of this contract named a
-   filament by its 1-based project slot and edited only the selected printer;
-   on 2026-09-29 Kenneth chose the preset's name for both, so a chat opened
-   for one preset, and a saved printer the project does not use, can be
-   changed without selecting anything first.)
-4. Scope identifies the settings owner; `printer_setup` remains the only tool
-   that picks the project's printer, process, or filament. A settings call
-   never discards dirty edits, changes nozzle topology, or substitutes a
-   compatible profile. It selects a preset only where Orca's own Save or edit
-   path does: a copy saved with `persistAs` takes the original's place, and a
-   filament that is not the one open in its tab is opened there the way the
-   sidebar's edit button opens it (`PlaterPresetComboBox::switch_to_tab`).
-5. Metadata, parsing, and serialization come from Orca's own
-   `print_config_def` and config option machinery. There is no parallel table
-   of types, enum values, ranges, units, or aliases.
-6. Search and read cover every definition applicable to the requested scope;
-   mutation has a separate reviewed allowlist per scope. Every search and read
-   record says whether the key is writable; other keys return
-   `unsupported_setting_mutation`. Expand an allowlist only after real-adapter
-   tests cover the option type, dependency behavior, visible UI update, dirty
-   state, persistence and undo/revert behavior for that scope.
-7. A batch applies whole or not at all, through `Tab::load_config` or the
-   scope's existing owner path. Never mutate a config behind the visible
-   preset UI and imitate the notifications.
-8. Process, filament, and printer preset edits are not in project Undo.
-   Results say `projectUndo: false` and return previous values so a caller can
-   propose an inverse. Object overrides use one Orca snapshot and return
-   `projectUndo: true`.
-9. Every result echoes the validated `scope`, the owning `presetName` (the
-   process preset for an object), `sessionId`, and `revision`. An apply also
-   returns `savedAs`, the name it saved under or empty, and `presetDirty`.
-10. A preview that finds invalid settings is a successful call with
-   `valid: false`. Malformed input is a tool error.
-11. All values cross JSON as strings in their canonical Orca serialization;
-   callers may send numbers or booleans and the decoder converts them. All
-   Orca ids cross JSON as strings.
+   `settings_preview_patch`, and `settings_apply_patch`. A target that is
+   extra, missing, empty, or of the wrong shape fails with
+   `invalid_arguments`.
 
-The schema change is intentionally breaking. This interface does not need a
-backward-compatibility period: update the in-app adapter, MCP projection,
-deterministic agent, fixtures, and eval prompts in the same change. Do not add
-a protocol-version branch, feature flag, alias, fallback, or migration path
-for the old missing-scope or implicit-object forms. After the change, every
-caller must send the new contract.
+   A preset is named the way OrcaSlicer keys it: by its name, which is unique
+   within its own collection. `Preset.hpp` says: "The preset name shall be
+   unique across a single PresetCollection". Never name a preset by the label
+   a menu shows. The header shows a stock printer's model, and
+   `Preset::label` puts `"* "` in front of a preset with unsaved edits. Never
+   name a preset by an alias either. If no visible preset has the given name,
+   the call fails with `unknown_preset`, and the suggestions are the
+   project's filaments or the printer in use.
+
+   History: the first draft of this contract named a filament by its 1-based
+   project slot, and edited only the selected printer. On 2026-09-29 Kenneth
+   chose the preset's name for both. With names, a chat opened for one preset
+   can change that preset, and a saved printer the project does not use can
+   be changed, without selecting anything first.
+4. The scope says which preset or object the settings belong to. It does not
+   select anything. `printer_setup` remains the only tool that picks the
+   project's printer, process, or filament. A settings call never discards
+   dirty edits, never changes nozzle topology (how many nozzles there are and
+   of what kind), and never substitutes a compatible profile. A settings call
+   selects a preset only in the two places where OrcaSlicer's own Save or
+   edit code does. First, a copy saved with `persistAs` takes the original's
+   place. Second, a filament that is not the one open in its tab is opened
+   there, the way the sidebar's edit button opens it
+   (`PlaterPresetComboBox::switch_to_tab`).
+5. Metadata, parsing, and serialization all come from OrcaSlicer's own
+   `print_config_def` and its config option classes. JusPrin keeps no second
+   table of types, enum values, ranges, units, or aliases.
+6. Search and read cover every setting definition that applies to the
+   requested scope. Writing is narrower: each scope has its own reviewed
+   allowlist of keys that may be changed. Every record returned by search or
+   read says whether the key is writable. Trying to change any other key
+   returns `unsupported_setting_mutation`. Add a key to an allowlist only
+   after tests against the real workspace adapter cover, for that scope: the
+   option type, how dependent settings behave, the visible update in the UI,
+   the dirty state, saving, and undo or revert.
+7. A batch is applied completely or not at all. It goes through
+   `Tab::load_config`, or through the code that already owns that scope.
+   Never change a config behind the visible preset UI and then imitate the
+   notifications the UI would have sent.
+8. Edits to process, filament, and printer presets are not in project Undo.
+   Their results say `projectUndo: false` and return the previous values, so
+   that a caller can propose a change that reverses the edit. Object
+   overrides use one OrcaSlicer snapshot, and their results say
+   `projectUndo: true`.
+9. Every result repeats the validated `scope`, and gives the `presetName` of
+   the preset the settings belong to (for an object, the process preset),
+   the `sessionId`, and the `revision`. An apply also returns `savedAs`,
+   which is the name it saved under or empty, and `presetDirty`.
+10. When a preview finds invalid settings, the call still succeeds, with
+   `valid: false`. Malformed input is a tool error.
+11. In JSON, every value is a string in OrcaSlicer's canonical serialization.
+   Callers may send numbers or booleans, and the decoder converts them.
+   Every OrcaSlicer id is also a string in JSON.
+
+This schema change breaks old callers on purpose. The interface does not need
+a backward-compatibility period. Update the in-app adapter, the MCP
+projection, the deterministic agent, the fixtures, and the eval prompts in
+the same change. Do not add a protocol-version branch, a feature flag, an
+alias, a fallback, or a migration path for the old forms, in which the scope
+was missing or the object was implicit. After the change, every caller must
+send the new contract.
 
 ### Scope-specific ownership
 
-- **Process:** the active `prints.get_edited_preset()` and
-  `Tab(Preset::TYPE_PRINT)`. The implemented normalizer, validation, dirty
-  state, preview binding, and inverse-patch rules below continue to apply.
-- **Object:** the selected `ModelObject`'s `ModelConfig`, identified only by
-  `target.objectId`. The implemented project-Undo behavior below continues to
-  apply.
-- **Filament and printer, the preset being edited** (the one selected in its
-  collection): its edited copy and its `Tab`, as for the process. Reads
-  include its unsaved edits.
-- **Filament, another preset:** must be in one of the project's slots
-  (`not_in_project`), and changes only by being saved (`not_selected` without
-  `persistAs`). Apply opens it in the filament tab as the sidebar's edit
-  button does -- `Tab::select_preset`, then `set_filament_idx` for its slot --
-  then loads and saves through the tab. If the filament open in the tab has
-  unsaved edits, that switch would discard or prompt, so preview refuses with
+- **Process.** The settings belong to the active
+  `prints.get_edited_preset()` and are changed through
+  `Tab(Preset::TYPE_PRINT)`. The rules below continue to apply as
+  implemented: the normalizer, validation, dirty state, binding an apply to
+  its preview, and reversing a change with an inverse patch.
+- **Object.** The settings are the `ModelConfig` of the selected
+  `ModelObject`. The object is identified only by `target.objectId`. The
+  project Undo behavior described below continues to apply as implemented.
+- **Filament or printer, when the target is the preset being edited** (the
+  one selected in its collection). The tool works on the preset's edited
+  copy, through its `Tab`, as for the process. Reads include the preset's
+  unsaved edits.
+- **Filament, when the target is another preset.** The preset must be in one
+  of the project's slots; otherwise the call fails with `not_in_project`. It
+  can be changed only by saving, so a call without `persistAs` fails with
+  `not_selected`. Apply opens the preset in the filament tab the way the
+  sidebar's edit button does: `Tab::select_preset`, then `set_filament_idx`
+  for its slot. Apply then loads the change and saves it through the tab. If
+  the filament that is open in the tab has unsaved edits, that switch would
+  either discard them or show a prompt. So preview refuses with
   `unsaved_edits`.
-- **Printer, another preset:** a saved printer the project does not use,
-  saved in place only (`Printers::write_unselected_printer`, the write
-  `change_named_printer_nozzle` already makes: the difference from its parent,
-  queued for the cloud). A copy of it would be a second printer made behind
-  the project's back, so a different `persistAs` is `not_selected`.
-- The printer allowlist (`writable_printer_setting`) is custom g-code,
+- **Printer, when the target is another preset.** This is a saved printer
+  that the project does not use. It can only be saved in place. The write
+  goes through `Printers::write_unselected_printer`, which is the write
+  `change_named_printer_nozzle` already makes: it stores the difference from
+  the parent preset and queues the change for the cloud. Saving a copy of it
+  would quietly create a second printer that the project does not know
+  about. So a different `persistAs` fails with `not_selected`.
+- The printer allowlist (`writable_printer_setting`) contains custom g-code,
   printable height, layer-height limits, Z offset, retraction and machine
-  limits. It excludes the keys that decide which filament and process fit, or
-  how many extruders there are -- bed shape, nozzle size and type, extruder
-  count, printer model -- which change with `printer_setup` or
-  `printer_change`. The filament allowlist (`writable_filament_setting`) is
-  temperatures, cooling, flow, pressure advance, volumetric speed, density,
-  cost and custom g-code.
-- A setting that holds one value per extruder or per nozzle kind keeps its
-  length: a patch with a different number of values is
-  `invalid_setting_value`, since a shorter list would drop the rest.
+  limits. It leaves out the keys that decide which filament and process fit,
+  or how many extruders there are: bed shape, nozzle size and type, extruder
+  count, and printer model. Those change with `printer_setup` or
+  `printer_change`. The filament allowlist (`writable_filament_setting`)
+  contains temperatures, cooling, flow, pressure advance, volumetric speed,
+  density, cost and custom g-code.
+- Some settings hold one value per extruder or per nozzle kind. Such a
+  setting keeps its length. A patch with a different number of values fails
+  with `invalid_setting_value`, because a shorter list would drop the rest.
 
-`persistAs` is invalid for `object`. It is Orca's Save with the name typed
-in: the preset's own name overwrites it (`read_only_preset` for one Orca
-ships, with `"<name> - Copy"`, the name SavePresetDialog offers, as the
-suggestion); another name that no preset has saves a copy that takes the
-original's place, in every project slot that used it for a filament
-(`Sidebar::update_presets_from_to`); a name another preset has is
-`name_taken`; a name SavePresetDialog would refuse is `invalid_preset_name`.
-Saving the preset being edited also saves its other unsaved edits, as Save
-does; preview warns with `saves_unsaved_edits` and lists them. The card's
-title says where it saves ("; save it", or "; save as \"<name>\""). Without
-`persistAs`, the tool changes only the edited preset and leaves it dirty.
+`persistAs` is not valid for `object`. For the preset scopes it works like
+OrcaSlicer's Save with the name typed in:
 
-Dialogs the filament and printer tabs would open are refused in preview:
-a max volumetric speed below 0.5 (`ConfigManipulation::
-check_filament_max_volumetric_speed`), a first-layer temperature further
-from the other layers' than `Tab::validate_filament_temperature_pairs`
-allows when saving, and firmware retraction with a wipe that retracts less
-than 100% first (`TabPrinter::toggle_options`).
+- The preset's own name overwrites the preset. If OrcaSlicer ships that
+  preset, the call fails with `read_only_preset`, and the suggestion is
+  `"<name> - Copy"`, the name SavePresetDialog offers.
+- Another name that no preset has saves a copy, and the copy takes the
+  original's place. For a filament, that happens in every project slot that
+  used the original (`Sidebar::update_presets_from_to`).
+- A name that another preset has fails with `name_taken`.
+- A name that SavePresetDialog would refuse fails with
+  `invalid_preset_name`.
+
+Saving the preset that is being edited also saves its other unsaved edits, as
+Save does. Preview warns about this with `saves_unsaved_edits` and lists
+those edits. The card's title says where the change is saved ("; save it", or
+"; save as \"<name>\""). Without `persistAs`, the tool changes only the
+edited preset and leaves it dirty.
+
+In three cases the filament or printer tab would open a dialog. Preview
+refuses these cases:
+
+- a max volumetric speed below 0.5
+  (`ConfigManipulation::check_filament_max_volumetric_speed`);
+- a first-layer temperature that is further from the other layers'
+  temperature than `Tab::validate_filament_temperature_pairs` allows when
+  saving;
+- firmware retraction with a wipe that retracts less than 100% first
+  (`TabPrinter::toggle_options`).
 
 ### Scope expansion acceptance criteria
 
-- The registry exposes the same required `scope` enum and target shape through
-  the in-app and MCP adapters; catalog tests pin both projections.
-- Argument tests reject omitted or unknown scopes and every missing, extra,
-  zero-based, mixed, or malformed target. No test accepts the old call shape.
-- Search, get, preview, and apply each have fake- and real-adapter coverage for
-  all four scopes, including a readable but unwritable key.
-- Filament tests cover a preset in a slot that is not open in its tab, a copy
-  taking its slot, and a dirty preset that cannot be changed without an
-  implicit switch or discard.
-- Printer tests prove that a normal writable value updates the native field,
-  dirty marker, slice invalidation, and read-back value, while topology and
-  compatibility keys remain unwritable.
-- Apply tests prove atomic failure, scope-specific activity text, preset revert
-  or inverse-patch behavior, and project Undo only for object overrides.
-- Evals and deterministic-agent fixtures use explicit scopes before the old
-  schema is removed; there is no dual-schema phase.
+- The registry offers the same required `scope` enum and the same target
+  shape through the in-app adapter and the MCP adapter. Catalog tests pin
+  both projections.
+- Argument tests reject an omitted or unknown scope, and every target that is
+  missing, extra, zero-based, mixed, or malformed. No test accepts the old
+  call shape.
+- Search, get, preview, and apply are each covered against the fake and the
+  real workspace adapter, for all four scopes, including a key that can be
+  read but not written.
+- Filament tests cover three cases: a preset in a slot that is not open in
+  its tab, a copy taking the original's slot, and a dirty preset that cannot
+  be changed without an implicit switch or discard.
+- Printer tests prove that changing a normal writable value updates the
+  native field, the dirty marker, the slice invalidation, and the value read
+  back. They also prove that the topology keys and the compatibility keys
+  stay unwritable.
+- Apply tests prove four things: a failed apply changes nothing, the activity
+  text is right for each scope, a preset change can be reverted or reversed
+  with an inverse patch, and project Undo applies only to object overrides.
+- Evals and the deterministic agent's fixtures use explicit scopes before the
+  old schema is removed. There is no phase in which both schemas are
+  accepted.
 
 ### Error codes
 
@@ -640,58 +830,78 @@ than 100% first (`TabPrinter::toggle_options`).
 | client cancelled or the app closed | `cancelled` |
 | the batch call failed after validation | `execution_failed` |
 
-Preview never fails for content reasons. Apply fails with the first blocking
-code and mutates nothing. Never convert an invariant failure into success.
+Preview never fails because of what the patch contains. It reports the
+problem in its result. Apply fails with the first blocking code and changes
+nothing. Never turn an invariant failure into a success.
 
 ### Orca entry points the tools use
 
-- **Process atomic batch:** `Tab::load_config(const DynamicPrintConfig&)` in
-  `src/slic3r/GUI/Tab.cpp` diffs against the edited preset, sets every changed
-  key, then runs `update_dirty()`, `reload_config()`, and `update()` once.
-  `TabPrint::update()` runs the FFF normalizer and reaches
-  `Plater::on_config_change`, which invalidates slicing as a sidebar edit
-  would. Apply is therefore: build a config holding only the changed keys and
-  call `wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff)`.
-- **Filament and printer batches:** use the same `Tab::load_config` owner on
-  `Preset::TYPE_FILAMENT` or `Preset::TYPE_PRINTER`, but only after preview
-  models that tab's dependencies, compatibility consequences and dialog
-  predicates. A scope is not complete until a real-adapter test proves the
-  native fields, dirty marker, slicing invalidation and read-back values.
-- **Parsing:** clone the scoped config and `set_deserialize(key, text)` per
-  key; Orca throws for unknown keys and unparseable values. Canonical value is
+- **Applying a batch of process changes atomically.**
+  `Tab::load_config(const DynamicPrintConfig&)` in `src/slic3r/GUI/Tab.cpp`
+  compares the given config with the edited preset and sets every key that
+  changed. It then runs `update_dirty()`, `reload_config()`, and `update()`
+  once. `TabPrint::update()` runs the FFF normalizer and reaches
+  `Plater::on_config_change`, which invalidates slicing the way a sidebar
+  edit would. So an apply does this: build a config that holds only the
+  changed keys, then call
+  `wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(diff)`.
+- **Batches of filament and printer changes.** These use the same
+  `Tab::load_config`, on `Preset::TYPE_FILAMENT` or `Preset::TYPE_PRINTER`.
+  Before that, preview must model that tab's dependencies, its consequences
+  for compatibility, and the conditions under which it would open a dialog.
+  A scope is not complete until a test against the real workspace adapter
+  proves the native fields, the dirty marker, the slicing invalidation, and
+  the values read back.
+- **Parsing.** Clone the config for the scope and call
+  `set_deserialize(key, text)` for each key. OrcaSlicer throws for an unknown
+  key and for a value it cannot parse. The canonical value is
   `option->serialize()` after parsing.
-- **Bounds and enums:** `ConfigOptionDef` in `src/libslic3r/Config.hpp`
-  (`type`, `label`, `category`, `tooltip`, `sidetext`, `min`, `max`, `mode`,
-  `readonly`, `enum_values`, `enum_labels`). Treat `min` and `max` as absent
-  when they are the float limits.
-- **Validation:** build the full effective configuration with the scoped clone
-  installed, then run the validator appropriate to that owner. Process and
-  object continue to use `Slic3r::validate(const FullPrintConfig&)`. Do not
-  assume that process normalization covers filament or printer dependencies.
-- **Dirty state:** use the owning `PresetCollection`'s dirty and
-  different-from-parent APIs. The result must name the owning preset and
-  whether it is dirty after the call.
+- **Bounds and enums.** These come from `ConfigOptionDef` in
+  `src/libslic3r/Config.hpp` (`type`, `label`, `category`, `tooltip`,
+  `sidetext`, `min`, `max`, `mode`, `readonly`, `enum_values`,
+  `enum_labels`). Treat `min` and `max` as absent when they are the float
+  limits.
+- **Validation.** Build the full configuration that would be in effect, with
+  the cloned config for the scope put in place. Then run the validator that
+  belongs to that owner. Process and object continue to use
+  `Slic3r::validate(const FullPrintConfig&)`. Do not assume that process
+  normalization covers the dependencies of filament or printer settings.
+- **Dirty state.** Use the APIs of the `PresetCollection` that holds the
+  preset: the one for dirty state and the one for the difference from the
+  parent. The result must name the preset and say whether it is dirty after
+  the call.
 
 ### The process normalizer can open dialogs and rewrite values
 
-`update_print_fff_config` and `toggle_print_fff_options` in
-`src/slic3r/GUI/ConfigManipulation.cpp` run inside `TabPrint::update()` after
-every batch and evaluate every rule against the whole post-batch config, not
-only the changed keys. Some rules open a modal dialog and then rewrite a
-value; others rewrite silently. A modal opened from inside a tool execution
-blocks the GUI thread while the request waits, and a silent rewrite makes the
-result lie unless it is reported.
+The normalizer is two functions in
+`src/slic3r/GUI/ConfigManipulation.cpp`: `update_print_fff_config` and
+`toggle_print_fff_options`. They run inside `TabPrint::update()` after every
+batch. They evaluate every rule against the whole config as it stands after
+the batch, not only against the keys that changed. Some rules open a modal
+dialog and then rewrite a value. Other rules rewrite a value without telling
+anyone. Both are a problem for a tool. A modal dialog opened while a tool is
+executing blocks the GUI thread while the request waits. A silent rewrite
+makes the tool's result wrong unless the rewrite is reported.
 
-Two rules follow. Preview evaluates the same rule set against a clone, using
-the printer preset and filament count the adapter can read, so a rule that
-fires because of a pre-existing value is reported too. Dialog rules are
-blocking issues; silent rules are warnings that name the dependent key and
-its predicted value (`normalized_dependency`), and apply lists the actual
-rewrite under `normalized`. Preview reuses Orca's `ConfigManipulation` on the
-clone with no presentation callbacks rather than copying its option tables.
+The tools deal with this in two ways.
 
-Rules reachable through the current allowlist, as audited when the tools
-were built. Line numbers drift; search for the condition text.
+First, preview evaluates the same rules against a clone of the config, using
+the printer preset and the filament count that the adapter can read. A rule
+that fires because of a value that was already there is therefore reported
+too.
+
+Second, the two kinds of rule are reported differently. A rule that would
+open a dialog is a blocking issue. A rule that rewrites silently is a warning
+that names the dependent key and its predicted value
+(`normalized_dependency`). Apply then lists the actual rewrite under
+`normalized`.
+
+Preview does not copy OrcaSlicer's option tables. It runs OrcaSlicer's own
+`ConfigManipulation` on the clone, with no presentation callbacks.
+
+The table lists the rules that the current allowlist can reach, as audited
+when the tools were built. Line numbers drift, so search for the condition
+text.
 
 | Rule in Orca | Reached by | Effect | Preview must |
 |---|---|---|---|
@@ -708,95 +918,145 @@ were built. Line numbers drift; search for the condition text.
 | `Tab::on_value_change` for `support_type` in simple mode (style reset) and for the support filaments (dialogs) | none: `Tab::load_config` never calls `on_value_change`, and the filament keys are not writable | inactive for tools | nothing |
 | `toggle_print_fff_options` writes (`enable_arc_fitting`, the slope segment length, `fill_multiline`, `overhang_reverse_threshold`) | none of the new keys directly; the prediction runs the real pass on the clone | silent | report whatever the clone shows |
 
-The brim, skirt, seam, speed, surface-pattern, interface, contact-distance, threshold and shell-thickness keys are read by no rule in either function beyond enabling or disabling their own fields; the audit covered both functions and `Tab.cpp`'s `on_value_change` on 2026-09-16. Open-enum keys (the interface layer counts) carry no `allowed` list: their enum values are shortcuts, and any number in bounds is accepted. A boolean has no numeric bounds.
+No rule in either function reads the brim, skirt, seam, speed, surface-pattern, interface, contact-distance, threshold or shell-thickness keys, except to enable or disable those keys' own fields. The audit covered both functions and `on_value_change` in `Tab.cpp`, on 2026-09-16. Open-enum keys (the interface layer counts) carry no `allowed` list. Their enum values are shortcuts, and any number in bounds is accepted. A boolean has no numeric bounds.
 
-Every active dialog predicate must be checked, including pre-existing
-invalid ironing spacing, first-layer height, XY and elephant-foot
-compensation, alternate-extra-wall, infill-lock depth, and fuzzy-skin
-settings; spiral mode also checks support, enforced support layers, thin
-walls, overhang reversal, timelapse, and wrapping detection. The real-adapter
-test asserts that no top-level dialog appears during apply for any
-allowlisted key under every row above (the support, brim and style checks apply a tree-support patch with the support page shown and read the native fields back), and that every predicted silent
-rewrite appears in the result with its actual value. A rule found later that
-a tool can trigger is a defect in the preview, not accepted behavior. Adding
-a key to the allowlist means re-reading both functions for every place that
-key is read and extending this table.
+Preview must check every condition that can currently open a dialog. That
+includes values that were already invalid before the patch: ironing spacing,
+first-layer height, XY and elephant-foot compensation, alternate-extra-wall,
+infill-lock depth, and fuzzy-skin settings. Spiral mode also checks support,
+enforced support layers, thin walls, overhang reversal, timelapse, and
+wrapping detection.
+
+The test against the real workspace adapter asserts two things. First, no
+top-level dialog appears during apply, for any allowlisted key, under any row
+above. For the support, brim and style checks, the test applies a
+tree-support patch with the support page shown and reads the native fields
+back. Second, every silent rewrite that preview predicted appears in the
+result with its actual value.
+
+If someone later finds a rule that a tool can trigger, that is a defect in
+the preview. It is not behavior to accept. Adding a key to the allowlist
+means reading both functions again for every place that reads the key, and
+extending this table.
 
 ### Apply binds the previewed values
 
-Apply is previewed three times. The client previews and sees before and
-after values. When queuing the action the coordinator previews again on the GUI
-thread, so an invalid patch fails at once, and stores that result as the
-previewed set. The activity title names the keys from it. At execution the adapter previews a third time
-against the then-current config and compares every before value against the
-confirmed set: a moved value is `stale_workspace`, a blocking issue is
-`invalid_settings`, and neither mutates. Client-supplied values are never
-trusted as before values. Where Orca normalized a value differently from the
-preview, the actual value is returned and the key is listed under
-`normalized`; the mutation happened, so that is a success with an honest
-report.
+A settings change is previewed three times.
+
+1. The client previews and sees the values before and after.
+2. When the coordinator queues the action, it previews again on the GUI
+   thread. An invalid patch therefore fails at once. The coordinator stores
+   that result as the previewed set, and the activity title names the keys
+   from it.
+3. At execution, the adapter previews a third time, against the config as it
+   is at that moment. It compares every "before" value with the previewed
+   set. A value that has moved is `stale_workspace`. A blocking issue is
+   `invalid_settings`. In both cases nothing is changed.
+
+"Before" values supplied by the client are never trusted. Sometimes
+OrcaSlicer normalizes a value differently from the preview. In that case the
+result returns the actual value and lists the key under `normalized`. The
+change did happen, so the call is a success, and the result says truthfully
+what happened.
 
 ### Per-object overrides
 
-`scope: "object"` with `target: {"objectId": "..."}` reads the value the
-object prints with: its own override where `ModelConfig` has one
-(`overridden: true`), otherwise the process value.
-A patch is checked against the process config with the object's overrides and
-the patch applied, with the same parsing, bounds, dialog predicates, support
-style rule, and `Slic3r::validate` as a process patch. Keys that are neither
-`PrintRegionConfig` nor `PrintObjectConfig` options (ObjectList's own list
-for a whole object) are refused with `unsupported_scope`. No dependencies are
-predicted: Orca runs the normalizer only on the process preset and on edits
-made in the object settings panel, so an override is stored as written.
+A read with `scope: "object"` and `target: {"objectId": "..."}` returns the
+value the object prints with. That is the object's own override where its
+`ModelConfig` has one (`overridden: true`), and the process value otherwise.
 
-Apply takes one `Plater::TakeSnapshot` ("Change object settings"), writes each
-key with `ModelConfig::set_key_value`, calls
-`ObjectList::object_config_options_changed` so the list shows the settings
-item, and `Plater::changed_object` so that object's slicing is invalidated.
-The result says `projectUndo: true`; project Undo removes the override. The activity names the object. The coordinator looks the object up in the
-current snapshot when queued and at execution and fails with `missing_object`
-when it is gone; the adapter treats a missing target as a broken precondition.
-No patch value removes an override; Undo, or the object settings panel,
-does.
+A patch is checked against the process config with the object's overrides and
+the patch applied on top. The checks are the same as for a process patch:
+parsing, bounds, the conditions that would open a dialog, the support style
+rule, and `Slic3r::validate`. A key that is neither a `PrintRegionConfig`
+option nor a `PrintObjectConfig` option is refused with `unsupported_scope`.
+That is ObjectList's own list for a whole object. No dependencies are
+predicted. OrcaSlicer runs the normalizer only on the process preset and on
+edits made in the object settings panel, so an override is stored as written.
+
+Apply does the following:
+
+1. takes one `Plater::TakeSnapshot` ("Change object settings");
+2. writes each key with `ModelConfig::set_key_value`;
+3. calls `ObjectList::object_config_options_changed`, so that the list shows
+   the settings item;
+4. calls `Plater::changed_object`, so that the slicing of that object is
+   invalidated.
+
+The result says `projectUndo: true`, and project Undo removes the override.
+The activity names the object. The coordinator looks the object up in the
+current snapshot twice, when the action is queued and when it executes, and
+fails with `missing_object` when the object is gone. The adapter treats a
+missing target as a broken precondition. No value in a patch removes an
+override. Only Undo, or the object settings panel, does.
 
 ### Registry facts worth knowing
 
-- `ToolExecutionCoordinator::execute` dispatches on `ToolHandler` with
-  explicit blocks; add a block per tool, not a generic dispatch table.
-- `kInvalidatingReasons` is the mask for most queued actions and includes
-  `Settings`, so a queued action fails with `stale_revision` when the user
-  edits a setting in the GUI. `settings_apply_patch` has its own mask,
-  `Settings | Project`: the M5 live eval showed an agent annotating a region
-  between its settings preview and its apply, and the model edit (and the
-  slicing events after it) made every apply stale. A settings patch is bound
-  to the before values it previewed, which the apply checks again, so its
-  `expectedRevision` only has to be no older than the last settings or project
-  change; model edits do not matter.
-- `ToolRegistry::validate_output` accepts a closed schema vocabulary: `type`,
+- `ToolExecutionCoordinator::execute` dispatches on `ToolHandler`, with one
+  explicit block of code per tool. Add a block for each new tool. Do not
+  replace the blocks with a generic dispatch table.
+- `kInvalidatingReasons` is the mask of change reasons that make most queued
+  actions stale. It includes `Settings`, so a queued action fails with
+  `stale_revision` when the user edits a setting in the GUI.
+  `settings_apply_patch` has its own mask, `Settings | Project`. The reason
+  is something the M5 live eval showed: an agent annotated a region between
+  its settings preview and its apply, and that model edit (and the slicing
+  events after it) made every apply stale. A settings patch is already bound
+  to the "before" values it previewed, and the apply checks those values
+  again. So its `expectedRevision` only has to be no older than the last
+  settings or project change. Model edits do not matter.
+- `ToolRegistry::validate_output` accepts only these schema keywords: `type`,
   `properties`, `required`, `additionalProperties`, `items`, `minimum`,
-  `maxItems`, `enum`, `maxLength`. Any other keyword throws; extend the
-  validator with a test before using a new keyword. `enum` is checked whatever
-  the value's type; `maxLength` counts UTF-8 bytes, matching the byte bounds
-  this registry states everywhere else.
+  `maxItems`, `enum`, `maxLength`. Any other keyword throws. Before using a
+  new keyword, extend the validator and add a test. `enum` is checked
+  whatever the value's type. `maxLength` counts UTF-8 bytes, which matches
+  the byte bounds this registry states everywhere else.
 
 ### Upstream seams the tool system owns
 
-Two added lines in `src/CMakeLists.txt`, eight in
-`src/dev-utils/platform/unix/build_linux_image.sh.in`, and one additive
-`notify_project_state_changed(ProjectStateChangeReason::Settings)` call at
-the end of `Plater::on_config_change`. `GUI_Utils.hpp` gains one declaration and two lines at the top of `DPIAware::ShowModal` (`answer_modal`, defined in fork code); if upstream changes that function, keep both. `Plater::priv::load_files` gains a first-line `FileLoadScope` and a call after `load_config_model` to mark settings actually applied. The file-open entry points gain `FileOpenScope` to include choices before loading begins. The two model metadata resets at the start of `Plater::load_project` were moved below its cancelable checks so an aborted open leaves the project intact; carry those resets to that later point on rebase. `FileLoads.hpp` is reached through the neutral `ProjectState.hpp` forwarding header. `libslic3r/Orient.hpp` and `.cpp` gain `score_orientations`, additive beside `orient()`; it reuses `AutoOrienter` and duplicates the five lines of `process()` that build Orca's candidate set. Current upstream (72774e5398) reworks `Orient.cpp` for cooling-fan orientation and removes `OrientParamsArea`, which the adapter copies from today's `OrientJob`: the text merges cleanly, but at that rebase `score_orientations` must be rechecked against the new `AutoOrienter` and the adapter must build its parameters the way the new `OrientJob` does. `Plater.cpp` is the fork's busiest
-file; when that function changes upstream, the natural resolution is "keep
-both". No line in `Tab.cpp`, `ConfigManipulation.cpp`, or `PrintConfig.cpp`
-changes; the normalizer hazards are handled by refusing the inputs in
-fork-owned code.
+The tool system has made these changes to files OrcaSlicer owns:
+
+- `src/CMakeLists.txt`: two added lines.
+- `src/dev-utils/platform/unix/build_linux_image.sh.in`: eight added lines.
+- `Plater::on_config_change`: one additive call at the end,
+  `notify_project_state_changed(ProjectStateChangeReason::Settings)`.
+- `GUI_Utils.hpp`: one added declaration, and two lines at the top of
+  `DPIAware::ShowModal` (`answer_modal`, which is defined in fork code). If
+  upstream changes that function, keep both.
+- `Plater::priv::load_files`: a `FileLoadScope` as its first line, and a call
+  after `load_config_model` that marks the settings that were actually
+  applied.
+- The file-open entry points: a `FileOpenScope`, so that choices made before
+  loading begins are included.
+- `Plater::load_project`: the two model metadata resets at its start were
+  moved below its cancelable checks, so that an aborted open leaves the
+  project intact. On a rebase, carry those resets to that later point.
+- `FileLoads.hpp` is reached through `ProjectState.hpp`, a neutral
+  forwarding header.
+- `libslic3r/Orient.hpp` and `.cpp`: a new function `score_orientations`,
+  added beside `orient()`. It reuses `AutoOrienter` and duplicates the five
+  lines of `process()` that build OrcaSlicer's candidate set.
+
+A warning about `Orient.cpp`. Current upstream (72774e5398) reworks it for
+cooling-fan orientation and removes `OrientParamsArea`, which the adapter
+copies from today's `OrientJob`. The text merges cleanly. But at that rebase,
+`score_orientations` must be checked again against the new `AutoOrienter`,
+and the adapter must build its parameters the way the new `OrientJob` does.
+
+`Plater.cpp` is the fork's busiest file. When `Plater::on_config_change`
+changes upstream, the natural resolution is "keep both". No line in
+`Tab.cpp`, `ConfigManipulation.cpp`, or `PrintConfig.cpp` changes. The
+normalizer hazards are handled in fork-owned code, by refusing the inputs
+that would trigger them.
 
 ## Proportional security growth
 
-The server starts automatically, binds numeric loopback, validates browser origins, and enforces request limits. It has no bearer authentication or per-call confirmation. Any local process that can reach the socket can execute exposed tools, including mutations and validated file operations. Origin validation protects the browser boundary; it does not identify local processes. Never expose this endpoint beyond loopback.
+Security measures should grow as the server is allowed to do more. Today the server starts automatically, listens only on the numeric loopback address, validates browser origins, and enforces request limits. It has no bearer authentication and no confirmation for each call. Any local process that can reach the socket can execute the offered tools, including mutations and the validated file operations. Origin validation protects against web pages in a browser. It does not identify local processes. Never make this endpoint reachable beyond loopback.
 
-Revisit the security design before adding remote access, cross-restart grants, multiple permission levels, camera data, printer upload, or physical print start. At that point evaluate authenticated pairing, durable credential storage, per-client scopes, revocation, rate controls, privacy review, and a dedicated audit log.
+Review the security design again before adding any of these: remote access, grants that last across restarts, more than one permission level, camera data, upload to a printer, or starting a physical print. At that point, evaluate authenticated pairing, durable credential storage, scopes per client, revocation, rate controls, a privacy review, and a dedicated audit log.
 
-Caller-supplied paths remain narrowly constrained. `project_open` and `object_import_file` accept absolute readable paths; `export_file` requires the expected extension, an existing parent directory, an explicit `overwrite` flag for replacement, and refuses OrcaSlicer's data and temporary project directories. `project_attachment_read` resolves only an attachment ID inside the project attachment directory. These constraints reduce accidental scope; they are not a substitute for authenticating local clients.
+Paths supplied by a caller stay tightly restricted. `project_open` and `object_import_file` accept absolute paths that can be read. `export_file` requires the expected extension, a parent directory that already exists, and an explicit `overwrite` flag to replace a file. It refuses OrcaSlicer's data directory and its temporary project directories. `project_attachment_read` accepts only an attachment ID, which it resolves inside the project attachment directory. These restrictions limit accidental damage. They do not replace authenticating local clients.
+
 ## Verification commands and limits of current evidence
 
 From the repository root on the existing macOS development build:
@@ -818,7 +1078,7 @@ npm --prefix src/slic3r/GUI/JusPrin/AgentUI test
 build/tests/shell/Release/shell_integration_harness.exe --mcp-bridge
 ```
 
-The workspace adapter harness runs there too, and passes (617 checks, exit 0, as of 2026-09-17). Put the app's `src\Release` on `PATH`, or the exe cannot load the `api-ms-win-crt` DLLs, and read the exit code with `$LASTEXITCODE` in PowerShell:
+The workspace adapter harness also runs on that Windows machine, and passes (617 checks, exit 0, as of 2026-09-17). Put the app's `src\Release` on `PATH` first; otherwise the exe cannot load the `api-ms-win-crt` DLLs. In PowerShell, read the exit code with `$LASTEXITCODE`:
 
 ```powershell
 $env:PATH = "$PWD\build\src\Release;$env:PATH"
@@ -856,25 +1116,46 @@ $H = "build\src\Release\jusprin-mcp.exe"; $D = New-Item -ItemType Directory -Pat
                    if ($m.id -eq 2) { $m.result.tools | ForEach-Object { "{0,6}  {1}" -f ($_ | ConvertTo-Json -Depth 40 -Compress).Length, $_.name } } }
 ```
 
-Also run the shell harness with `--mcp` for direct HTTP, `--mcp-setup` for the isolated setup-command fixtures, no argument for normal shell regression, and `--stock` for stock behavior. `--manual-mcp <dedicated-temporary-directory>` provides a disposable two-plate fixture for real clients; do not use the user's normal data directory. Linux helper/launcher checks are documented in [the test README](../../tests/mcp/linux/README.md).
+Also run the shell harness in these modes:
 
-Executed evidence includes native reads, mutations, Undo, staleness, cancellation and shutdown checks; real Claude Code and Codex CLI reads, writes, changed-port restart and offline errors using session-only configuration; and Linux ARM64 container tests of the production helper and a compressed AppImage transport fixture. Those Linux tests are not a full GUI release image. A macOS Quit attempt during a setup fixture retained the monitor and later reaped the timed-out children; that does not prove forced OS shutdown behavior.
+- `--mcp` for direct HTTP;
+- `--mcp-setup` for the isolated setup-command fixtures;
+- no argument for the normal shell regression;
+- `--stock` for stock behavior.
 
-Still unverified: persistent one-click writes against real client installations; desktop-client read/write/restart/offline workflows (including local Cowork availability); complete Windows/Linux release packages; macOS universal signing/notarization; and remaining DPI/live-theme checks. The development macOS bundle failed strict signature verification, and the existing CI signing step is restricted to the upstream OrcaSlicer repository. Do not equate a successful local CLI test, a packaging rule, or the presence of signing identities with passing these gates.
+`--manual-mcp <dedicated-temporary-directory>` provides a disposable two-plate fixture for testing with real clients. Do not use the user's normal data directory. The checks for the Linux helper and launcher are documented in [the test README](../../tests/mcp/linux/README.md).
+
+What has actually been run:
+
+- native checks of reads, mutations, Undo, staleness, cancellation and shutdown;
+- real Claude Code and Codex CLI sessions covering reads, writes, a restart on a changed port, and offline errors, using session-only configuration;
+- Linux ARM64 container tests of the production helper, and of a compressed AppImage transport fixture. Those Linux tests are not a full GUI release image.
+
+In one macOS test, Quit was attempted during a setup fixture. The app retained the monitor and later reaped the child processes that had timed out. That does not prove how the app behaves when the operating system forces a shutdown.
+
+Still unverified:
+
+- persistent one-click writes against real client installations;
+- read, write, restart, and offline workflows with desktop clients, including whether local Cowork is available;
+- complete Windows and Linux release packages;
+- macOS universal signing and notarization;
+- the remaining DPI and live-theme checks.
+
+The development macOS bundle failed strict signature verification, and the existing CI signing step is restricted to the upstream OrcaSlicer repository. A successful local CLI test, a packaging rule, or the presence of signing identities does not mean that any of these gates has passed.
 
 ## Definition of done
 
 A new tool is done when:
 
 - it fixes a named eval failure;
-- its scope and authority are honest;
-- the registry is the only definition source;
-- the coordinator owns policy and lifecycle;
-- the real operation uses Orca's current owner on the GUI thread;
-- results and errors are structured and bounded;
+- its stated scope is true, and it really acts through the OrcaSlicer owner of the state;
+- the registry is the only place where it is defined;
+- the coordinator owns its policy and its lifecycle (queuing, staleness, cancellation, completion);
+- the real operation runs on the GUI thread, through OrcaSlicer's current owner;
+- its results and errors are structured and limited in size;
 - mutation history, staleness, events, and cancellation behave as documented;
-- fake, real-adapter, adapter, protocol, and shell evidence pass as applicable;
-- no unrelated Orca behavior changes when the JusPrin feature is disabled; and
+- the evidence that applies passes: fake workspace, real workspace adapter, tool adapters, protocol, and shell;
+- no unrelated OrcaSlicer behavior changes when the JusPrin feature is disabled; and
 - the PR records any upstream seam and its rebase evidence.
 
-Tool count is not the success metric. A compact catalog that reliably completes real printing tasks is.
+Success is not measured by the number of tools. It is measured by whether a compact catalog reliably completes real printing tasks.
