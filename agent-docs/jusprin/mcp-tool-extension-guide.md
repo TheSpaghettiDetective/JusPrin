@@ -146,7 +146,19 @@ The limit on the number of tools comes from how much the model has to load on ea
 
 The current five-tool MCP catalog measures about 1.9 KB per definition, and two thirds of that is output schema.
 
-**How tools are loaded for now.** Both adapters load every registered tool on every turn. The in-app adapter sends the full function list with each request, and MCP `tools/list` returns the whole catalog. This is the simplest behaviour that is correct. It also keeps the tools array byte-identical through a chat, and OpenAI's prompt cache depends on exactly that. The budget is 20 definitions per turn. Going over 20 does not block anything. It is the point at which we start watching the measurements. The live regression test records definition bytes, input tokens, and cached tokens for each request. The journey catalog below goes over 20 definitions from its first milestone. We accept that until those measurements show the model selecting wrong tools or running short of context.
+**How tools are loaded.** Tool search is a capability of the configured provider and model. We declare it in configuration. The code never guesses it from a model name or an endpoint URL. `OpenAIResponsesConfig::tool_search` takes one of three values:
+
+- `None` gives the model the full catalog from the start, as ordinary function calling. It is also how to turn deferral off.
+- `Functions` turns on hosted search over functions that are deferred one by one.
+- `Namespaces` turns on hosted search over deferred toolsets.
+
+Deferral is on by default for the route the app ships with. When nothing is declared, `resolve_tool_search` gives the built-in model on the built-in endpoint `Namespaces`. That pair was checked live (see Deferral below). A different model or a different endpoint gets `None` until its own capability is declared, because nothing has been checked for it.
+
+Any model on any compatible endpoint can use any mode it supports, without a code change. For a model or endpoint other than the built-in pair, declaring no capability keeps ordinary function calling. It does not make the model unavailable. When deferral is on, three reads stay loaded from the start: `workspace_inspect`, `settings_search`, and `settings_get`. This is a starting policy. It is not a measured ranking of how often each tool is called. Printer and filament sessions keep their small catalogs fully loaded. MCP is unchanged, because MCP clients do their own deferral.
+
+The app reads `tool_search` from the `jusprin_agent` section of AppConfig. The value is `none`, `functions`, or `namespaces`. The environment variable `JUSPRIN_AGENT_TOOL_SEARCH` overrides it. An empty value means the default for the route. An invalid value is a configuration error. Keep this setting with the model and endpoint settings, and update it when you change provider. There is no allowlist of models or endpoints. The app does not probe the provider at run time, and it does not retry a request with a rewritten catalog. This capability only selects the shape of the Responses request. Support for a different API protocol still belongs in that provider's adapter.
+
+Every request still sends the complete catalog, in the same order. That includes `object_import` even when there is no attachment. Running an import without an importable attachment is still refused. A search never rewrites the `tools` array, so the bytes sent do not shrink. What is saved is the definitions that the provider holds back from the model's context at the start. The input tokens and cached tokens that the provider reports remain the authority on actual usage. The budget is 20 definitions per turn. Going over 20 does not block anything. It is the point at which we start watching the measurements.
 
 **The baseline, measured on Windows against the live app.**
 
@@ -163,7 +175,7 @@ The M5 figure for MCP was read over two `tools/list` pages.
 
 The `--live-agent` regression test, run at M0 and at M1, shows what those definitions cost in tokens. The first request of a conversation gets nothing from the cache and pays for the whole catalog: 803 tokens at M0 and 1,733 at M1. So four more definitions cost about 930 tokens, paid once. Every later request in the same conversation came back 77 to 92 per cent cached (at M1, 5,864 input tokens, of which 5,376 were cached). That is because the tools array is byte-identical through a chat, and the cache depends on that. At M2, the same test made eleven requests that took 2,875 to 6,763 input tokens, with 42 to 91 per cent cached. None of the eleven started with an empty cache, because an earlier run on the same day had already cached the shared beginning of the prompt. So that run did not measure the uncached cost at M2.
 
-The conclusion is that a definition adds cost to the *first* request of each conversation, not to every turn. That is why going over the budget only makes us look at the measurements and does not block a tool. Two things would change this conclusion: a catalog so large that the first request of every conversation is expensive by itself, or transcripts that show the model choosing the wrong tool. Watch for both. Neither has appeared yet.
+Those cache hits are history. They lower the billed input cost. They do not remove definitions from the model's context, and they do not guarantee a hit on another request. The current catalog is over the 20-definition budget. Deferral targets the catalog's cost in the initial context while keeping the catalog stable. The live check under Deferral below gives the first figures for actual usage. Selection accuracy and latency across real tasks still need an approved live comparison.
 
 **The printer panel follows the same rule with its own set of tools.** The printer panel on Home runs its own conversation, `PrinterConversation`. That conversation is offered the five printer tools and the four settings tools. The list is the same in every mode (Add, Change, or Connect), so it stays byte-identical through a conversation and between conversations of the same mode.
 
@@ -187,7 +199,39 @@ Two past changes explain the current design:
 
 The app decides which tools are offered. The page writes the text: `AgentUI/src/printerInstructions.ts` holds the instructions, and `AgentUI/src/printerWords.ts` holds the notes the model reads after a tap. If a turn arrives before the page has written its instructions, the app refuses the turn. It does not send the turn with the project assistant's prompt. The instructions for an Add conversation carry the whole printer list, about 28 KB. That text is always the same and sits at the start of the instructions, so it is cached. No printer conversation carries the project: no workspace state goes into the turn, and none goes into a tool result.
 
-**Deferral, when the measurements say so.** Deferral means the model first sees only a short index and loads a tool's full definition when it needs it. Use the deferral feature that the model platform provides. Never write our own mechanism for switching tools in and out. For the in-app Agent, the platform feature is OpenAI's `tool_search` with `defer_loading: true` on the Responses API. It is documented for `gpt-5.4` and later. Whether it works on the pinned `gpt-5.4-mini` has not been verified. On the MCP side, clients defer by themselves, as Claude Code does. Tools would be deferred one toolset at a time (toolsets are the named groups in the candidate catalog), and OpenAI recommends fewer than ten functions per namespace. Do not build a tool that enables a toolset by rewriting the tools array. Every switch would break the prompt cache.
+**Deferral.** Deferral means the model first sees only a short index and loads a tool's full definition when it needs it. Use the hosted mechanism that the model platform provides. Never write our own mechanism for switching tools in and out. We checked the documentation on 2026-10-10:
+
+- [GPT-5.4 mini's model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini) lists tool search.
+- [OpenAI's Responses guide](https://developers.openai.com/api/docs/guides/tools-tool-search) documents `tool_search`, `defer_loading: true` on a single function, and namespace discovery. It also says that loaded definitions are appended at the end of the context, which preserves the cache.
+- [OpenRouter's hosted tool search](https://openrouter.ai/docs/guides/features/server-tools/tool-search) documents `tool_search` on the Responses API as an alias of `openrouter:tool_search`, with `defer_loading`, across models and providers. At the level of documentation, this covers the DeepSeek V4 Flash route that the prompt tests use. That documentation does not establish namespace discovery, so `functions` is the documented setting for this route. It also says that this hosted search does not support Chat Completions.
+
+These are examples of configurations that the documentation supports. They are not a complete list of supported models or endpoints. Choose the capability from the provider's documentation. Do not infer it from the name of a model or a vendor.
+
+With the `namespaces` capability, JusPrin advertises eight namespaces, and each has fewer than ten deferred functions. A deferred namespace shows its name and description at the start. A function that is deferred individually still shows its own name and description.
+
+The provider's `tool_search_call` and `tool_search_output` items are kept exactly as received, next to the namespaced function calls, while a turn continues over stateless requests. They are not app tools and they never reach the coordinator. Across user turns, the app replays its own history of calls and results, and gives each function its current namespace. It does not keep the provider's search history, so a later turn may discover the same tool again. The tools array stays byte-identical. There is no tool that enables a toolset, no rewriting of schemas after discovery, and no change to the MCP server.
+
+**The live check behind the default.** On 2026-10-12 the `--live-agent` scenario ran against `gpt-5.4-mini` on OpenAI's endpoint, once with the full catalog and twice with `namespaces` (once declared, once left to the default). Each run makes four requests: a question answered from context, a request to copy an object with `plate_layout`, the continuation after that tool call, and a later user turn. All three runs passed every check.
+
+| Request | Full catalog, input tokens | `namespaces`, input tokens |
+|---|---:|---:|
+| First request, nothing cached | 7,115 | 2,175 |
+| Request that calls `plate_layout` | 7,141 | 3,377 |
+| Continuation after the tool call | 7,683 | 3,919 |
+| Later user turn | 7,418 | 2,475 |
+| Total | 29,357 | 11,946 |
+
+What the runs show:
+
+- OpenAI accepts the request shape: namespaces, `tool_search`, and `defer_loading`, with `store: false`.
+- The model found a deferred tool. Its response held a `tool_search_call`, a `tool_search_output`, and then a `function_call` to `plate_layout` in the `geometry` namespace. The search and the call came back in one response, so there was no extra request.
+- The continuation that passes the search items back was accepted. So was the later user turn, which replays the namespaced call from the app's own history without the search items.
+- The first request was 4,940 tokens smaller. The estimate from bytes, at four bytes per token, was about 7,191. Trust the provider's count, not the estimate.
+- Later requests were still served partly from the cache (1,792 to 3,328 cached tokens with `namespaces`).
+
+What they do not show: this is one short scenario with one tool call, run once or twice. It says nothing yet about how often the model picks the right tool across real tasks, about latency, or about any other model or provider. `functions` mode and OpenRouter have not been run live at all.
+
+The native tests use a fake transport. They verify the shape of the request, that schemas are preserved, replay, and that the catalog is stable. They do not verify that a provider accepts the request or that the model selects the right tool. The offline test commands do not authorize any live request. Before any live batch, Kenneth must approve the number of runs and the token estimate. Log `usage` on every response and report the total, including judge requests and continuations.
 
 **Shape each tool as a domain operation.** A tool does one thing that a slicer user has a name for: place an object, lay out the plates, mark a region, set up the printer. Do not wrap each OrcaSlicer function in its own tool. Do not build a tool that interprets a list of unrelated commands. One operation may have several optional facets, as long as each facet has its own type and the tool rejects facets that conflict.
 
@@ -443,7 +487,7 @@ If a layer does not apply, say why in the PR. If something cannot be tested, sta
 
 ## Candidate catalog
 
-This catalog lists the tools the finished product would have. It was worked out one product screen at a time from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), and shaped by the rules under [tool budget and tool shape](#tool-budget-and-tool-shape). Nothing in it is implemented unless the catalog record above says so. Every row still needs what this guide requires of any tool: the eval failure, the trace of its owner, and the test matrix. The number that matters is how many definitions load per turn, not the total. The total here is 36. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral. The toolsets below are the groups that would be deferred together when that day comes. Until then they only group tools for naming and for delivery.
+This catalog lists the tools the finished product would have. It was worked out one product screen at a time from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), and shaped by the rules under [tool budget and tool shape](#tool-budget-and-tool-shape). Nothing in it is implemented unless the catalog record above says so. Every row still needs what this guide requires of any tool: the eval failure, the trace of its owner, and the test matrix. The number that matters is how many definitions load per turn, not the total. The total here is 36. The tools that are implemented follow the loading policy under [tool budget and tool shape](#tool-budget-and-tool-shape). The toolsets below also include future capabilities. Those are not advertised until they are implemented.
 
 These conventions apply to every row:
 
@@ -471,7 +515,24 @@ In the Class column, **R** means read-only, **M** means mutation, and **D** mean
 | `machine` | 3 | Other printers, camera, pause and stop. |
 | `calibration` | 2 | Calibration tests. |
 
-Both adapters load every registered tool on every turn. MCP `tools/list` returns the whole catalog, and the catalog stays the same for a given build. The in-app adapter sends the whole function list with each request and keeps it byte-identical through a chat. The projection tests record how many bytes each adapter loads. The live regression test records input tokens and cached tokens for each request. Those numbers decide when deferral is adopted. The toolset table does not.
+MCP still lists its whole catalog. A project conversation that is configured for deferral keeps three reads loaded and defers the implemented groups below. Each size is the sum of the compact UTF-8 JSON of the group's functions, before array separators.
+
+| Toolset | Deferred functions | Full bytes |
+|---|---|---:|
+| `core` | `object_analyze`, `settings_preview_patch`, `settings_apply_patch`, `intent_update`, `plan_set`, `slice_start`, `slice_report` | 10,112 |
+| `project` | `project_open`, `project_attachment_read` | 1,922 |
+| `setup` | `presets_list`, `printer_list`, `printer_setup_preview`, `printer_setup` | 3,200 |
+| `geometry` | `object_place`, `plate_layout`, `object_import`, `project_delete_items` | 5,456 |
+| `reshape` | `object_divide_preview`, `object_divide`, `object_merge`, `object_repair` | 3,189 |
+| `regions` | `region_annotate` | 2,759 |
+| `check` | `view_render`, `slice_inspect`, `activity_cancel` | 2,045 |
+| `output` | `export_file` | 1,162 |
+
+`machine` and `calibration` have no implemented project functions yet. The three reads that stay loaded keep their full canonical schemas. Together they are 4,040 bytes before separators.
+
+These figures were measured offline on 2026-10-12 from the registry. Before import was always advertised, the catalog without an attachment was 28 functions and 33,058 bytes. The stable full catalog is 29 functions and 33,915 bytes, because import is now always advertised. With `namespaces`, the catalog on the wire is 35,648 bytes. Its projection into the initial context is 5,151 bytes. That is 28,764 bytes less than the full stable catalog (85%, about 7,191 tokens at four bytes per token). Against the earlier catalog without an attachment, the reduction is 27,907 bytes (about 6,977 tokens).
+
+The native `[budget]` test computes that projection from the registry: the loaded functions, the namespace names and descriptions, and the tool search entry. A conservative projection for OpenRouter keeps the name and description of every deferred function. It is 20,503 bytes, a reduction of 13,412 bytes (about 3,353 tokens). OpenRouter's documentation says deferred tools are hidden entirely, so what the model actually sees and how tokens are counted may differ. All of these figures estimate the initial context. They are not counts from a model's tokenizer, and they are not billed savings per request. Discovered schemas, search steps, history, and the provider's own serialization can add tokens later.
 
 ### `core`
 

@@ -57,6 +57,15 @@ AgentRuntime load_agent_runtime(AppConfig* config)
         openai.model = config->get(kSection, "model");
     if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
         openai.endpoint = endpoint;
+    std::string search_setting = config == nullptr ? std::string() : config->get(kSection, "tool_search");
+    if (const char* search = std::getenv("JUSPRIN_AGENT_TOOL_SEARCH"); search != nullptr)
+        search_setting = search;
+    const auto search = resolve_tool_search(search_setting, openai);
+    if (!search) {
+        runtime.unavailable_reason = "Unknown tool search capability. Use none, functions, or namespaces.";
+        return runtime;
+    }
+    openai.tool_search = *search;
     // Refused tool calls never reach a card or the activity list; the log is
     // where a wrong call can be read afterwards.
     openai.refusal_listener = [](const std::string& tool, const std::string& arguments, const std::string& code) {

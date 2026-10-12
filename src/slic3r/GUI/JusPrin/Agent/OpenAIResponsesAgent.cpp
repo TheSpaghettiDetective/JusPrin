@@ -66,25 +66,103 @@ bool has_closed_required_objects(const json& schema)
     return !schema.contains("items") || has_closed_required_objects(schema["items"]);
 }
 
-json tools_for(bool allow_import, const std::vector<std::string>& session_tools)
+struct DeferredToolset
+{
+    const char* name;
+    const char* description;
+    std::vector<ToolHandler> handlers;
+};
+
+const std::vector<DeferredToolset>& deferred_toolsets()
+{
+    // The guide's toolsets, with four frequent reads left eager. Empty future
+    // toolsets (machine and calibration) are not advertised.
+    static const std::vector<DeferredToolset> sets{
+        {"core", "Analyze object geometry, preview and apply settings, record print intent and plans, start slicing, and read slice reports.",
+         {ToolHandler::ObjectAnalyze, ToolHandler::SettingsPreviewPatch, ToolHandler::SettingsApplyPatch,
+          ToolHandler::IntentUpdate, ToolHandler::PlanSet, ToolHandler::SliceStart, ToolHandler::SliceReportRead}},
+        {"project", "Open or create a project and read its attachments.",
+         {ToolHandler::ProjectOpen, ToolHandler::AttachmentRead}},
+        {"setup", "Find presets and printers, preview and change the project's printer and filament setup.",
+         {ToolHandler::PresetsList, ToolHandler::PrinterList, ToolHandler::PrinterSetupPreview, ToolHandler::PrinterSetup}},
+        {"geometry", "Place objects, arrange plates, import attached models, and delete project items.",
+         {ToolHandler::ObjectPlace, ToolHandler::PlateLayout, ToolHandler::ObjectImport, ToolHandler::ProjectDeleteItems}},
+        {"reshape", "Preview cuts, cut or split objects, merge objects, and repair meshes.",
+         {ToolHandler::ObjectDividePreview, ToolHandler::ObjectDivide, ToolHandler::ObjectMerge, ToolHandler::ObjectRepair}},
+        {"regions", "Annotate local object regions with printing requirements such as support, strength or surface finish.",
+         {ToolHandler::RegionAnnotate}},
+        {"check", "Render a view, inspect sliced layers or G-code, and cancel an activity.",
+         {ToolHandler::ViewRender, ToolHandler::SliceInspect, ToolHandler::ActivityCancel}},
+        {"output", "Export G-code, sliced or project 3MF, STL, or preset bundles to a file.",
+         {ToolHandler::ExportFile}}
+    };
+    return sets;
+}
+
+const DeferredToolset* deferred_toolset(ToolHandler handler)
+{
+    for (const auto& set : deferred_toolsets())
+        if (std::find(set.handlers.begin(), set.handlers.end(), handler) != set.handlers.end())
+            return &set;
+    return nullptr;
+}
+
+json tools_for(ToolSearch search, const std::vector<std::string>& session_tools)
 {
     json tools = json::array();
+    json namespaces = json::object();
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
-        if (!available_in_app(definition, allow_import, session_tools))
+        // Availability still gates execution. Advertising import consistently
+        // avoids changing the cached tools prefix when an attachment is added.
+        if (!available_in_app(definition, true, session_tools))
             continue;
-        tools.push_back(json{{"type", "function"},
+        json tool{{"type", "function"},
                              {"name", definition.name},
                              {"description", definition.description},
                              // OpenAI strict mode cannot express optional
                              // fields or dynamic maps. Preserve the registry
                              // schema; native validation still owns acceptance.
                              {"strict", has_closed_required_objects(definition.input_schema)},
-                             {"parameters", definition.input_schema}});
+                             {"parameters", definition.input_schema}};
+        const auto* set = deferred_toolset(definition.handler);
+        if (search != ToolSearch::None && set != nullptr)
+            tool["defer_loading"] = true;
+        if (search == ToolSearch::Namespaces && set != nullptr) {
+            if (!namespaces.contains(set->name))
+                namespaces[set->name] = json{{"type", "namespace"}, {"name", set->name},
+                                            {"description", set->description}, {"tools", json::array()}};
+            namespaces[set->name]["tools"].push_back(std::move(tool));
+        } else {
+            tools.push_back(std::move(tool));
+        }
     }
+    for (const auto& entry : namespaces.items())
+        tools.push_back(entry.value());
+    if (search != ToolSearch::None)
+        tools.push_back(json{{"type", "tool_search"}});
     return tools;
 }
 
 } // namespace
+
+std::optional<ToolSearch> parse_tool_search(const std::string& value)
+{
+    if (value.empty() || value == "none")
+        return ToolSearch::None;
+    if (value == "functions")
+        return ToolSearch::Functions;
+    if (value == "namespaces")
+        return ToolSearch::Namespaces;
+    return std::nullopt;
+}
+
+std::optional<ToolSearch> resolve_tool_search(const std::string& setting, const OpenAIResponsesConfig& route)
+{
+    if (!setting.empty())
+        return parse_tool_search(setting);
+    const OpenAIResponsesConfig builtin;
+    return route.model == builtin.model && route.endpoint == builtin.endpoint ? ToolSearch::Namespaces : ToolSearch::None;
+}
 
 OpenAIResponsesAgent::OpenAIResponsesAgent(OpenAIResponsesConfig config,
                                            std::unique_ptr<IAgentHttpTransport> transport)
@@ -111,8 +189,15 @@ json OpenAIResponsesAgent::initial_input(const AgentRequest& request) const
         // A call from an earlier turn, replayed for this stateless request.
         // Its call_id pairs it with its output. The item id the service gave
         // the call is not sent: with store:false it names nothing kept.
-        input.push_back(json{{"type", "function_call"}, {"call_id", message.call_id}, {"name", message.tool},
-                             {"arguments", message.arguments_json}});
+        json call{{"type", "function_call"}, {"call_id", message.call_id}, {"name", message.tool},
+                  {"arguments", message.arguments_json}};
+        if (!m_title_request && m_session.tool_names.empty() && m_config.tool_search == ToolSearch::Namespaces) {
+            const auto* definition = ToolRegistry::instance().find(message.tool);
+            const auto* set = definition == nullptr ? nullptr : deferred_toolset(definition->handler);
+            if (set != nullptr)
+                call["namespace"] = set->name;
+        }
+        input.push_back(std::move(call));
         input.push_back(json{{"type", "function_call_output"}, {"call_id", message.call_id}, {"output", message.output_json}});
     }
     if (request.purpose == AgentRequest::Purpose::ConversationTitle)
@@ -171,7 +256,8 @@ json OpenAIResponsesAgent::request_body(json input) const
             m_session.instructions;
     return json{{"model", m_config.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", false},
                 {"instructions", instructions},
-                {"tools", tools_for(m_allow_import, m_session.tool_names)}, {"input", std::move(input)}};
+                {"tools", tools_for(m_session.tool_names.empty() ? m_config.tool_search : ToolSearch::None,
+                                    m_session.tool_names)}, {"input", std::move(input)}};
 }
 
 bool OpenAIResponsesAgent::start(const AgentRequest& request)

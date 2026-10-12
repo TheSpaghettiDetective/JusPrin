@@ -29,7 +29,9 @@
 //              manual settings escape, and saved-chat isolation
 //   --live-agent
 //              uses OPENAI_API_KEY and verifies live context/attachment use,
-//              reload recovery, native mutation, and the model follow-ups
+//              reload recovery, native mutation, and the model follow-ups;
+//              JUSPRIN_AGENT_TOOL_SEARCH picks the tool-loading mode, and
+//              every request's usage and response items go to stderr
 //   --mcp     real TCP discovery/read and mutation using the shared runtime
 //   --mcp-bridge  same native scenario through a persistent stdio subprocess
 //   --mcp-setup   native setup-command lifetime, output and argument checks;
@@ -290,6 +292,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <mutex>
 #include <optional>
 #include <regex>
@@ -7294,8 +7297,31 @@ private:
               nlohmann::json::parse(inspected->result_json)["selection"]["items"].size() == 1, "live_agent_shared_selection_result");
         check(installed_shell()->workspace()->undo().succeeded(), "live_agent_native_undo_executes");
         check(copy_count() == m_live_copies_before, "live_agent_native_undo_restores_object_count");
-        check(m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
-        finish();
+        live_agent_send_after_tool();
+    }
+
+    // A later user turn replays the finished tool call from the app's own
+    // history, without the provider's search items that led to it. A provider
+    // with hosted tool search has to accept that request too.
+    void live_agent_send_after_tool()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        const std::size_t messages_before = web_view.host().conversation().size();
+        WebView::RunScript(web_view.webview(),
+                           "window.__jusprinTest && window.__jusprinTest.send('Reply exactly: DONE. Do not call a tool.')");
+        wait_until(
+            [&web_view, messages_before] {
+                const auto conversation = web_view.host().conversation();
+                return conversation.size() >= messages_before + 2 && conversation.back().role == Agent::MessageRole::Assistant &&
+                       (conversation.back().state == Agent::MessageState::Complete ||
+                        conversation.back().state == Agent::MessageState::Failed);
+            },
+            "live_agent_later_turn_terminal", [self = shared_from_this()] {
+                const auto conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                self->check(conversation.back().state == Agent::MessageState::Complete, "live_agent_later_turn_accepts_tool_history");
+                self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "live_agent_teardown_project");
+                self->finish();
+            });
     }
 
     void mcp_wait(std::function<void()> next)
@@ -9411,6 +9437,67 @@ private:
     bool                  m_idle_seen{false};
 };
 
+// The kinds of item in a finished streamed response, with each function call's
+// namespace and name: whether the model searched for a tool, and what it called.
+std::string live_response_items(const std::string& stream)
+{
+    std::string        items;
+    std::istringstream lines(stream);
+    for (std::string line; std::getline(lines, line);) {
+        if (line.rfind("data:", 0) != 0)
+            continue;
+        const auto event = nlohmann::json::parse(line.substr(5), nullptr, false);
+        if (!event.is_object() || event.value("type", "") != "response.completed")
+            continue;
+        for (const auto& item : event.value("response", nlohmann::json::object()).value("output", nlohmann::json::array())) {
+            items += (items.empty() ? "" : ",") + item.value("type", "?");
+            if (item.value("type", "") == "function_call")
+                items += ":" + item.value("namespace", "") + "/" + item.value("name", "");
+        }
+    }
+    return items;
+}
+
+// Reports how each live request ended. The adapter keeps neither the
+// provider's own words for a refused request nor the items of a finished one,
+// and a comparison of tool-loading modes needs both.
+class LiveTransportLog final : public Agent::IAgentHttpTransport
+{
+public:
+    explicit LiveTransportLog(std::unique_ptr<Agent::IAgentHttpTransport> inner) : m_inner(std::move(inner)) {}
+
+    bool post(Agent::AgentHttpRequest request, EventFn event) override
+    {
+        auto       stream   = std::make_shared<std::string>();
+        auto       reported = std::make_shared<bool>(false);
+        const auto started  = std::chrono::steady_clock::now();
+        return m_inner->post(std::move(request), [stream, reported, started, event = std::move(event)](Agent::AgentHttpEvent received) {
+            const bool data   = received.kind == Agent::AgentHttpEvent::Kind::Data;
+            const bool failed = received.kind == Agent::AgentHttpEvent::Kind::Error;
+            if (data)
+                *stream += received.data;
+            // Reported as soon as the response is whole: a tool call starts
+            // the next request, which cancels this one before it completes.
+            const bool        whole = !failed && stream->find("response.completed") != std::string::npos;
+            const std::string items = whole ? live_response_items(*stream) : std::string();
+            if (!*reported && (!data || !items.empty())) {
+                *reported = true;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+                std::cerr << "JUSPRIN LIVE REQUEST ms=" + std::to_string(elapsed.count()) +
+                                 (failed ? " status=" + std::to_string(received.status) + " error=" + received.error + " body=" +
+                                               stream->substr(0, 800) :
+                                           " items=" + items) + "\n";
+            }
+            event(std::move(received));
+        });
+    }
+
+    void cancel() override { m_inner->cancel(); }
+
+private:
+    std::unique_ptr<Agent::IAgentHttpTransport> m_inner;
+};
+
 // The app ships no stand-in Agent, so each mode's Agent is installed here
 // through the host's own set_agent, the call setup uses when a key verifies.
 void install_harness_agent(HarnessState::Mode mode)
@@ -9437,6 +9524,13 @@ void install_harness_agent(HarnessState::Mode mode)
             wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(key));
         Agent::OpenAIResponsesConfig config;
         config.api_key = key;
+        // The app's own rule and the override it reads, so a run with nothing
+        // set loads tools as the app does, and one scenario can compare modes.
+        const char* search     = std::getenv("JUSPRIN_AGENT_TOOL_SEARCH");
+        const auto  capability = Agent::resolve_tool_search(search == nullptr ? "" : search, config);
+        if (!capability)
+            return; // as a missing key: the live checks report the missing service
+        config.tool_search = *capability;
         config.usage_listener = [](const Agent::AgentUsage& usage) {
             // cached_input_tokens is the evidence the tool-loading decision
             // rests on; report it on every request, not only when it is
@@ -9445,7 +9539,8 @@ void install_harness_agent(HarnessState::Mode mode)
                       << " cached_input_tokens=" << usage.cached_input << " output_tokens=" << usage.output
                       << " total_tokens=" << usage.total << '\n';
         };
-        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
+        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(
+                           std::move(config), std::make_unique<LiveTransportLog>(Agent::make_openai_http_transport())),
                        Agent::AgentAvailability::Ready);
         return;
     }

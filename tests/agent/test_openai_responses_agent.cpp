@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
@@ -75,6 +76,27 @@ std::optional<AgentEvent> poll_until(OpenAIResponsesAgent& agent, AgentEventKind
     return std::nullopt;
 }
 
+OpenAIResponsesConfig namespaced_config()
+{
+    OpenAIResponsesConfig config{"key"};
+    config.tool_search = ToolSearch::Namespaces;
+    return config;
+}
+
+// Inspect canonical functions independently of the provider's loading wrapper.
+json functions_in(const json& tools)
+{
+    json functions = json::array();
+    for (const auto& tool : tools) {
+        if (tool.at("type") == "namespace")
+            functions.insert(functions.end(), tool.at("tools").begin(), tool.at("tools").end());
+        else if (tool.at("type") == "function")
+            functions.push_back(tool);
+    }
+    std::sort(functions.begin(), functions.end(), [](const json& a, const json& b) { return a.at("name") < b.at("name"); });
+    return functions;
+}
+
 } // namespace
 
 TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
@@ -96,9 +118,9 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
     CHECK(body["instructions"].get<std::string>().find(kPrintJourneyGuidance) != std::string::npos);
-    REQUIRE(body["tools"].size() == 28);
+    REQUIRE(functions_in(body["tools"]).size() == 29);
     std::vector<std::string> emitted_names;
-    for (const json& tool : body["tools"]) {
+    for (const json& tool : functions_in(body["tools"])) {
         const std::string name = tool["name"];
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
@@ -108,7 +130,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     const std::string serialized = body["input"].dump();
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
@@ -225,7 +247,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
 
     const json tools = json::parse(fake->requests.front().body)["tools"];
     std::vector<std::string> names;
-    for (const json& tool : tools)
+    for (const json& tool : functions_in(tools))
         names.push_back(tool["name"].get<std::string>());
     CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
@@ -488,7 +510,7 @@ TEST_CASE("the in-app catalog's per-turn size is recorded", "[agent][openai][bud
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
-    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    OpenAIResponsesAgent agent(namespaced_config(), std::move(transport));
     REQUIRE(agent.start(request_fixture()));
     REQUIRE(fake->requests.size() == 1);
 
@@ -496,10 +518,130 @@ TEST_CASE("the in-app catalog's per-turn size is recorded", "[agent][openai][bud
     // share the live regression logs. Printed on every run; the bounds are an
     // alarm for runaway growth, not a target to grow into.
     const json  body  = json::parse(fake->requests.front().body);
-    const auto  bytes = body["tools"].dump().size();
-    WARN("in-app tool definitions: " << body["tools"].size() << ", " << bytes << " bytes");
-    CHECK(body["tools"].size() <= 40);
-    CHECK(bytes <= 48 * 1024); // a tripwire, as the MCP catalog's
+    const json& tools = body["tools"];
+    json initial = json::array();
+    json eager = json::array();
+    auto flat = functions_in(tools);
+    for (auto& tool : flat)
+        tool.erase("defer_loading");
+    for (auto tool : tools) {
+        if (tool["type"] == "namespace") {
+            REQUIRE(tool["tools"].size() < 10);
+            for (const auto& function : tool["tools"])
+                CHECK(function["defer_loading"] == true);
+            tool.erase("tools");
+        } else if (tool["type"] == "function") {
+            eager.push_back(tool["name"]);
+            CHECK_FALSE(tool.contains("defer_loading"));
+        }
+        initial.push_back(std::move(tool));
+    }
+    CHECK(eager == json::array({"settings_get", "settings_search", "workspace_inspect"}));
+    REQUIRE(flat.size() == 29); // includes import even without an attachment
+    const auto saved = flat.dump().size() - initial.dump().size();
+    WARN("in-app catalog: " << flat.size() << " functions; full " << flat.dump().size()
+         << " bytes; deferred wire " << tools.dump().size() << " bytes; initial context projection "
+         << initial.dump().size() << " bytes; estimated saving " << saved << " bytes (~"
+         << saved / 4 << " tokens at 4 bytes/token, NOT provider usage)");
+    CHECK(tools.dump().size() <= 48 * 1024);
+    CHECK(initial.dump().size() < 8 * 1024);
+}
+
+TEST_CASE("tool search follows configured capabilities independently of model and endpoint", "[agent][openai][tools]")
+{
+    const auto capability = GENERATE(ToolSearch::None, ToolSearch::Functions, ToolSearch::Namespaces);
+    const auto [model, endpoint] = GENERATE(table<std::string, std::string>({
+        {"arbitrary-model", "https://gateway.example/custom-responses"},
+        {"gpt-5.4-mini", "https://api.openai.com/v1/responses"},
+        {"deepseek/deepseek-v4-flash", "https://openrouter.ai/api/v1/responses"}}));
+    OpenAIResponsesConfig config{"key", model, endpoint};
+    config.tool_search = capability;
+    const bool search = capability != ToolSearch::None;
+    const bool namespaces = capability == ToolSearch::Namespaces;
+    auto transport = std::make_unique<FakeTransport>();
+    auto* fake = transport.get();
+    OpenAIResponsesAgent agent(config, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json tools = json::parse(fake->requests.back().body)["tools"];
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& t) { return t["type"] == "tool_search"; }) == search);
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& t) { return t["type"] == "namespace"; }) == namespaces);
+    const auto functions = functions_in(tools);
+    REQUIRE(functions.size() == 29);
+    CHECK(std::count_if(functions.begin(), functions.end(), [](const json& t) { return t.value("defer_loading", false); }) ==
+          (search ? 26 : 0));
+    agent.cancel();
+    auto request = request_fixture();
+    request.session.tool_names = {"settings_get", "settings_preview_patch", "settings_apply_patch", "settings_search"};
+    REQUIRE(agent.start(request));
+    const json small = json::parse(fake->requests.back().body)["tools"];
+    REQUIRE(small.size() == 4);
+    for (const auto& tool : small) {
+        CHECK(tool["type"] == "function");
+        CHECK_FALSE(tool.contains("defer_loading"));
+    }
+}
+
+TEST_CASE("tools stay byte-identical across attachment changes and user turns", "[agent][openai][tools][loading]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    auto* fake = transport.get();
+    OpenAIResponsesConfig config{"key"};
+    config.tool_search = GENERATE(ToolSearch::Namespaces, ToolSearch::Functions, ToolSearch::None);
+    OpenAIResponsesAgent agent(config, std::move(transport));
+    auto request = request_fixture();
+    REQUIRE(agent.start(request));
+    const auto original = json::parse(fake->requests.back().body)["tools"].dump();
+    agent.cancel();
+    request.attachments.push_back({"model-1", "part.stl", "model", "model/stl", "", "", "", true});
+    REQUIRE(agent.start(request));
+    CHECK(json::parse(fake->requests.back().body)["tools"].dump() == original);
+    agent.cancel();
+    request.attachments.clear();
+    REQUIRE(agent.start(request));
+    CHECK(json::parse(fake->requests.back().body)["tools"].dump() == original);
+    // Advertising import does not authorize an import without an attachment.
+    const json call{{"type", "function_call"}, {"call_id", "import-absent"}, {"name", "object_import"},
+                    {"arguments", R"({"sessionId":"41","attachmentId":"model-1"})"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", {{"output", json::array({call})}}}}));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    const json refusal = json::parse(fake->requests.back().body)["input"].back();
+    CHECK(json::parse(refusal["output"].get<std::string>())["error"]["code"] == "unknown_tool");
+    CHECK(json::parse(fake->requests.back().body)["tools"].dump() == original);
+}
+
+TEST_CASE("hosted search items and namespaced calls survive stateless continuations", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    auto* fake = transport.get();
+    OpenAIResponsesAgent agent(namespaced_config(), std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const auto tools = json::parse(fake->requests.back().body)["tools"];
+    const auto found = std::find_if(tools.begin(), tools.end(), [](const json& tool) { return tool.value("name", "") == "setup"; });
+    REQUIRE(found != tools.end());
+    const json output = json::array({
+        {{"type", "tool_search_call"}, {"execution", "server"}, {"call_id", nullptr}, {"status", "completed"},
+         {"arguments", {{"paths", json::array({"setup"})}}}},
+        {{"type", "tool_search_output"}, {"execution", "server"}, {"call_id", nullptr}, {"status", "completed"},
+         {"tools", json::array({*found})}},
+        {{"type", "function_call"}, {"namespace", "setup"}, {"name", "printer_list"}, {"call_id", "list-1"}, {"arguments", "{}"}}
+    });
+    fake->data(sse(json{{"type", "response.completed"}, {"response", {{"output", output}}}}));
+    const auto event = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(event);
+    CHECK(event->tool->request.tool == "printer_list");
+    REQUIRE(agent.continue_after_tool({"list-1", "succeeded", R"({"state":"succeeded","result":{"printers":[]}})"}));
+    const auto next = json::parse(fake->requests.back().body);
+    CHECK(next["tools"].dump() == tools.dump());
+    const auto& input = next["input"];
+    for (std::size_t i = 0; i < output.size(); ++i)
+        CHECK(input[input.size() - 4 + i] == output[i]);
+    agent.cancel();
+    auto request = request_fixture();
+    request.conversation.push_back({"", "", "list-1", "printer_list", "{}", R"({"state":"succeeded"})"});
+    REQUIRE(agent.start(request));
+    const auto replay = json::parse(fake->requests.back().body);
+    CHECK(replay["input"][1]["namespace"] == "setup");
+    CHECK(replay["tools"].dump() == tools.dump());
 }
 
 TEST_CASE("an image result follows its function output as an image input", "[agent][openai][image]")
@@ -519,4 +661,35 @@ TEST_CASE("an image result follows its function output as an image input", "[age
     CHECK(input[input.size() - 2]["type"] == "function_call_output");
     CHECK(input.back()["role"] == "user");
     CHECK(input.back()["content"][1] == json{{"type", "input_image"}, {"image_url", "data:image/png;base64,iVBORw0KGgo="}});
+}
+
+TEST_CASE("tool search configuration defaults to ordinary calling and rejects invalid capabilities", "[agent][openai][tools]")
+{
+    CHECK(OpenAIResponsesConfig{}.tool_search == ToolSearch::None);
+    CHECK(parse_tool_search("") == ToolSearch::None);
+    CHECK(parse_tool_search("none") == ToolSearch::None);
+    CHECK(parse_tool_search("functions") == ToolSearch::Functions);
+    CHECK(parse_tool_search("namespaces") == ToolSearch::Namespaces);
+    CHECK_FALSE(parse_tool_search("automatic"));
+    CHECK_FALSE(parse_tool_search("function"));
+}
+
+TEST_CASE("tool search defaults to namespaces only for the built-in model and endpoint", "[agent][openai][tools]")
+{
+    const OpenAIResponsesConfig builtin;
+    CHECK(resolve_tool_search("", builtin) == ToolSearch::Namespaces);
+    // A declared setting wins on every route, and "none" is the way to turn deferral off.
+    CHECK(resolve_tool_search("none", builtin) == ToolSearch::None);
+    CHECK(resolve_tool_search("functions", builtin) == ToolSearch::Functions);
+    CHECK_FALSE(resolve_tool_search("automatic", builtin));
+
+    OpenAIResponsesConfig other_endpoint;
+    other_endpoint.endpoint = "https://openrouter.ai/api/v1/responses";
+    CHECK(resolve_tool_search("", other_endpoint) == ToolSearch::None);
+    CHECK(resolve_tool_search("functions", other_endpoint) == ToolSearch::Functions);
+
+    OpenAIResponsesConfig other_model;
+    other_model.model = "another-model";
+    CHECK(resolve_tool_search("", other_model) == ToolSearch::None);
+    CHECK(resolve_tool_search("namespaces", other_model) == ToolSearch::Namespaces);
 }

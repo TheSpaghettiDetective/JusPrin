@@ -41,9 +41,9 @@ public:
 
 // What one request cost, as the provider reported it. `cached_input` is the
 // part of `input` the provider served from its prompt cache, and it is the
-// number the tool-loading decision rests on: a tools array that stays
-// byte-identical across a chat should be cached from the second request on,
-// and a catalog that is not being cached is paid for in full every turn.
+// evidence for the loading policy. Stable definitions permit cache reuse;
+// actual cache hits and the savings from hosted tool search must be measured,
+// not inferred from the serialized request size.
 struct AgentUsage
 {
     std::uint64_t input{0};
@@ -51,6 +51,12 @@ struct AgentUsage
     std::uint64_t output{0};
     std::uint64_t total{0};
 };
+
+// A capability of the configured model/endpoint pair, not a model-name rule.
+// Unspecified providers use ordinary function calling. Select hosted search
+// only when the provider supports the corresponding Responses wire format.
+enum class ToolSearch { None, Functions, Namespaces };
+std::optional<ToolSearch> parse_tool_search(const std::string& value);
 
 struct OpenAIResponsesConfig
 {
@@ -61,7 +67,14 @@ struct OpenAIResponsesConfig
     // A tool call the adapter refused before it reached a card: the tool
     // name, the arguments as the model sent them, and why.
     std::function<void(const std::string&, const std::string&, const std::string&)> refusal_listener;
+    ToolSearch tool_search{ToolSearch::None};
 };
+
+// The loading mode for a route. A declared setting always wins. With none
+// declared, the built-in model on the built-in endpoint defers by namespace,
+// the mode verified live for that pair. Any other model or endpoint keeps
+// ordinary function calling until its own capability is declared.
+std::optional<ToolSearch> resolve_tool_search(const std::string& setting, const OpenAIResponsesConfig& route);
 
 // Responses API adapter. Network callbacks only append protected input; all
 // parsing and AgentEvent delivery happens from poll() on the GUI thread.
