@@ -1,0 +1,71 @@
+<task-notification>
+<task-id>bth6nz3ej</task-id>
+<tool-use-id>toolu_0161JJMkGYMCLL7jJmVHFPer</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e87e308a-9197-43e1-9521-2cf2394d8772/tasks/bth6nz3ej.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the second build to finish or hit an error" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<bash-input>/Users/kenneth/Projects/JusPrin/.claude/worktrees/print-issue-dismissal/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --manual-print-issues</bash-input><bash-stdout>e/worktrees/print-issue-dismissal/build/ar/Users/kenneth/Projects/JusPrin/.claude/worktrees/print-issue-dismissal/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness
+HARNESS CHECK application_ready PASS
+HARNESS CHECK notebook_found PASS
+UNSUPPORTED (log once): POSSIBLE ISSUE: unit 0 GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero texture because texture unloadable
+HARNESS CHECK startup_post_init_complete PASS
+HARNESS CHECK shell_installed PASS
+HARNESS CHECK shell_starts_on_home PASS
+HARNESS CHECK status_row_hidden_on_home PASS
+HARNESS CHECK overflow_summary_is_the_project_name_alone PASS
+HARNESS CHECK shell_theme_loaded PASS
+HARNESS CHECK font_body_em_is_14_dip PASS
+HARNESS CHECK font_label_em_is_12_dip PASS
+HARNESS CHECK font_metadata_em_is_10_dip PASS
+HARNESS CHECK agent_pane_collapsed_on_home PASS
+HARNESS CHECK shell_starts_mcp_automatically PASS
+HARNESS CHECK tab_strip_hidden PASS
+HARNESS CHECK sidebar_marked_unavailable PASS
+HARNESS CHECK prepare_legacy_overlays_hidden PASS
+HARNESS CHECK sidebar_stays_hidden_after_reenable_attempt PASS
+HARNESS CHECK second_install_rejected PASS
+HARNESS CHECK shell_survives_rejected_install PASS
+HARNESS CHECK agent_pane_prepare_first_visit PASS
+HARNESS CHECK status_row_shown_on_prepare PASS
+HARNESS CHECK header_has_all_five_controls PASS
+HARNESS CHECK header_matches_56_dip_design PASS
+HARNESS CHECK header_home_follows_optional_left_pane_toggle PASS
+HARNESS CHECK header_home_setup_actions_order_without_overlap PASS
+HARNESS CHECK header_lone_action_precedes_overflow PASS
+HARNESS CHECK header_action_height PASS
+HARNESS CHECK header_overflow_right_aligned PASS
+HARNESS CHECK header_setup_compact_no_plate_or_raw_suffix PASS
+HARNESS CHECK header_has_no_standalone_print_count PASS
+HARNESS CHECK left_pane_defaults_closed_on_prepare PASS
+HARNESS CHECK agent_pane_shown_on_prepare PASS
+HARNESS CHECK agent_pane_user_collapses_on_prepare PASS
+HARNESS CHECK agent_pane_home_after_user_collapse PASS
+HARNESS CHECK status_row_hidden_on_return_to_home PASS
+HARNESS CHECK agent_pane_collapsed_on_home_after_user_collapse PASS
+HARNESS CHECK agent_pane_prepare_after_user_collapse PASS
+HARNESS CHECK agent_pane_user_collapse_restored_on_prepare PASS
+HARNESS CHECK agent_pane_user_expands_on_prepare PASS
+HARNESS CHECK agent_pane_home_after_user_expand PASS
+HARNESS CHECK agent_pane_collapsed_on_home_after_user_expand PASS
+HARNESS CHECK agent_pane_prepare_after_user_expand PASS
+HARNESS CHECK agent_pane_user_expand_restored_on_prepare PASS
+HARNESS CHECK agent_pane_returns_home PASS
+HARNESS CHECK fixture_new_project PASS
+HARNESS CHECK fixture_cube_loaded PASS
+HARNESS CHECK fixture_second_object PASS
+HARNESS CHECK fixture_second_plate PASS
+HARNESS CHECK fixture_object_on_second_plate PASS
+HARNESS CHECK fixture_object_centered_on_first_plate PASS
+HARNESS CHECK fixture_new_project PASS
+HARNESS CHECK fixture_cube_loaded PASS
+HARNESS CHECK fixture_second_object PASS
+HARNESS CHECK fixture_second_plate PASS
+HARNESS CHECK fixture_object_on_second_plate PASS
+HARNESS CHECK fixture_object_centered_on_first_plate PASS
+HARNESS CHECK manual_print_issues_ready PASS
+HARNESS MANUAL READY print-issues failures=0
+[This command was still running in the terminal pane (tab 0) when its output was captured; it keeps running there, where the user can see and interact with it. Use read_terminal with tab_id "0" to check on it.]</bash-stdout><bash-stderr></bash-stderr>
