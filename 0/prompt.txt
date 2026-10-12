@@ -51,3 +51,7 @@ Try again
 ---
 
 list all the commits on this branch, but not on junsprin-newui and what they are for
+
+---
+
+squash Two commits are on feature-popup-message-handling. then merge it to jusprin-newui. build and test
