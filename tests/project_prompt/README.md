@@ -73,7 +73,7 @@ registry description or schema. The native projection test checks exact parity.
 
 ## Lessons carried forward
 
-Source: commit `e7c9a59511`, *docs: record lessons from the project prompt review
+Source: commit `7d65455175`, *docs: record lessons from the project prompt review
 in the test README*. The critical lessons for this small revision are:
 
 - Agree the spend before a live run; record every response's usage. Stop on a
@@ -221,3 +221,81 @@ reported $0.020843405752 total cost. Local full results and usage log are
 `/tmp/jusprin-captured-workspace-batch-20261012.json` and the adjacent `.log`.
 Eight offline harness tests passed, and the capture's combined-response parity
 check passed against the native app. The isolated capture process was stopped.
+
+## Preserved lessons from the original branch
+
+Historical observations from commit `7d65455175`; numerical examples describe
+that earlier experiment, not the current two drafts.
+
+
+Written after a week of reviewing and rewriting the project assistant's prompt
+and skills in October 2026. They apply to any change to a prompt, a skill or a
+tool description in this repository, and to any test that calls a live model.
+
+### Measuring
+
+- **Agree the spend before a live run.** Every request carries roughly 10,000
+  input tokens of instructions and tool definitions, and each tool call resends
+  them with the history. State the number of runs and a token estimate, get the
+  batch approved, log `usage` from every response, and report the actual total.
+  A provider error about a key limit means stop; do not switch keys.
+- **Never lengthen a conversation on canned tool replies.** A reply that does
+  not answer what the model asked makes it wander until the request cap. About
+  1,300 such runs cost roughly 200 million tokens and used a key's monthly
+  limit. They also measured the wrong thing: most of the unrequested changes
+  they counted came after a dozen empty reads, so the test provoked the
+  behaviour it was counting. For whole conversations, use a stateful stand-in
+  whose replies answer the call.
+- **Small samples flip.** At rates of a few per cent, five or ten runs say
+  nothing: one conclusion reversed between 10 runs and 50. Model hosts also
+  vary by the hour, so run the old and the new text side by side in the same
+  batch. One control, one round. When a result is unclear, report the
+  uncertainty instead of buying another round.
+- **Grade what a run produced, and say which kind of number you are quoting.**
+  What changed, the final state and the answer are outcomes. Which skill was
+  opened and which tool came first are the path. Path checks reward the wording
+  they were tuned on: a rewrite scored lower on this corpus while doing no
+  worse on outcomes.
+- **Test both directions.** Pair each request that should act with one that
+  should only answer, so a fix for one cannot quietly break the other.
+- **A number in a comment or a document needs a test behind it.** Name the test
+  it came from, and take the number out when that test turns out to be flawed.
+- **Check a finding on a second run before stating it,** and correct an earlier
+  statement plainly when a later run contradicts it.
+
+### Writing prompts, skills and tool descriptions
+
+- **Read everything the model receives before changing one part:** the prompt,
+  every tool description, the skill list, the skill bodies and the app's own
+  messages. Conflicts live between parts, not inside one.
+- **One home per rule.** Standing rules go in the prompt. A tool description
+  says how that tool works. A skill holds judgement for one situation, and its
+  description says what it covers and when to use it. A rule stated twice
+  drifts, and the model is left to reconcile the copies.
+- **Look for two instructions that each claim the first move.** A "look at the
+  project first" step and a "read the skill first" rule in one prompt cost the
+  skill read in 5 runs of 50.
+- **The most specific, most recent text wins.** A skill loaded in the middle of
+  a conversation can outweigh a general rule far above it. Write skill steps as
+  judgement, and mark any step that changes the project as applying only when
+  the change was asked for. Test a prompt rule with the skills loaded, not only
+  without them.
+- **Stating a rule once is weaker than stating it three times.** When removing
+  repetition, measure the case the repetition was guarding: one such case went
+  from 5 of 5 to 0 of 5.
+- **Be explicit, give the reason, and give a way out.** Name the action ("do
+  not start a new slice"), say why, and say what to do when the evidence is
+  missing; otherwise the model acts to obtain it. Use plain wording, without
+  capitals for emphasis.
+- **Keep the person's own words in skill descriptions.** The description is
+  what the model matches a request against.
+- **Tool definitions dominate the context.** Here they are about ten times the
+  size of the prompt, so a sentence saved in the prompt matters less than a
+  tool that need not be loaded.
+
+### Working alongside other sessions
+
+- **Check the base before building on a branch.** A shared branch may have been
+  amended since you branched from it; compare the merge base with its tip.
+- **Do not work in another session's checkout,** and treat its uncommitted
+  files as someone else's.
