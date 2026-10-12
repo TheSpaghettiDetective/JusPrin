@@ -1,0 +1,1 @@
+swtich your worektree to [$figma-agent-design](/Users/kenneth/Projects/JusPrin/.claude/skills/figma-agent-design/SKILL.md)
