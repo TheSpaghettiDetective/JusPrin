@@ -32,11 +32,11 @@ inline std::string setting_type(ConfigOptionType type)
     return std::string(name) + (vector ? "[]" : "");
 }
 
-inline SettingDefinition setting_definition(const std::string& key, SettingsScope scope = SettingsScope::Process)
+inline SettingDefinition setting_definition(const std::string& key)
 {
     const auto& def = *print_config_def.get(key);
     SettingDefinition result{key, setting_type(def.type), def.full_label.empty() ? def.label : def.full_label,
-        def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key, scope) && !def.readonly};
+        def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key) && !def.readonly};
     // An open enum (the interface layer counts) takes any number; its list is
     // a set of shortcuts, not the allowed values.
     if (def.gui_type == ConfigOptionDef::GUIType::i_enum_open || def.gui_type == ConfigOptionDef::GUIType::f_enum_open) {
@@ -76,7 +76,7 @@ inline std::vector<SettingDefinition> scope_definitions(SettingsScope scope)
 {
     std::vector<SettingDefinition> result;
     for (const auto& key : scope_options(scope))
-        if (has_scope_setting(key, scope)) result.push_back(setting_definition(key, scope));
+        if (has_scope_setting(key, scope)) result.push_back(setting_definition(key));
     return result;
 }
 

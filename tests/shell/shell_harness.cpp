@@ -7387,9 +7387,34 @@ private:
                 self->mcp_wait([self] {
                     const auto result = self->mcp_result()["structuredContent"];
                     self->check(result["plateCount"] == 2 && result["objectCount"] == self->m_objects_before_tool, "mcp_real_workspace_snapshot");
-                    self->mcp_settings_reads();
+                    self->mcp_host_connection_withheld();
                 });
             });
+        });
+    }
+
+    // A print host's key in the printer preset does not reach an MCP client:
+    // the whole reply is searched for a dummy one.
+    void mcp_host_connection_withheld()
+    {
+        auto&             printers = wxGetApp().preset_bundle->printers;
+        const std::string before   = printers.get_edited_preset().config.opt_string("printhost_apikey");
+        printers.get_edited_preset().config.set_key_value("printhost_apikey", new ConfigOptionString("harness-host-key-not-real"));
+        mcp_request(JusPrinTest::request("tools/call", {{"name", "settings_get"},
+            {"arguments", {{"scope", "printer"}, {"target", {{"preset", printers.get_selected_preset_name()}}},
+                           {"keys", {"printhost_apikey", "printhost_password", "print_host", "machine_start_gcode"}}}}}));
+        mcp_wait([self = shared_from_this(), before] {
+            const auto reply  = self->mcp_result();
+            const auto result = reply["structuredContent"];
+            bool withheld = result["unknownKeys"].size() == 3;
+            for (const auto& issue : result["unknownKeys"])
+                withheld = withheld && issue["code"] == "withheld_setting";
+            self->check(reply["isError"] == false && withheld && result["items"].size() == 1 &&
+                            result["items"][0]["key"] == "machine_start_gcode" &&
+                            reply.dump().find("harness-host-key-not-real") == std::string::npos,
+                        "mcp_settings_get_withholds_host_connection");
+            wxGetApp().preset_bundle->printers.get_edited_preset().config.set_key_value("printhost_apikey", new ConfigOptionString(before));
+            self->mcp_settings_reads();
         });
     }
 
@@ -7697,6 +7722,7 @@ private:
                 self->verify_project_open_answers_dialogs();
                 self->verify_step_import();
                 self->verify_support_settings_patch();
+                self->verify_spiral_vase_patch();
                 self->verify_regions();
                 self->verify_reshape();
                 self->verify_slice_checks([self] {
@@ -8116,6 +8142,73 @@ private:
         m_plater->undo();
         check(!object->config.has("wall_loops"), "settings_object_undo_removes_override");
         tab->load_config(original);
+    }
+
+    // Spiral vase through the real adapter. Ticked by itself OrcaSlicer asks
+    // whether to change the settings it needs, so the patch is refused with
+    // those values named; sent with them it turns on with the Others page
+    // showing it, nothing is asked, and the inverse patch puts every value back.
+    void verify_spiral_vase_patch()
+    {
+        auto* workspace = installed_shell()->workspace();
+        auto* tab       = wxGetApp().get_tab(Preset::TYPE_PRINT);
+        auto& prints    = wxGetApp().preset_bundle->prints;
+        const DynamicPrintConfig original = prints.get_edited_preset().config;
+        const auto& config = prints.get_edited_preset().config;
+        const bool  dirty  = workspace->snapshot().setup.process_preset_dirty;
+        const bool  undo   = workspace->snapshot().can_undo;
+        tab->activate_option("spiral_mode", "Others");
+        DialogCounter counter;
+        const auto read = workspace->read_settings({"spiral_mode"});
+        check(read.items.size() == 1 && read.items[0].definition.writable && read.items[0].value == "0", "settings_spiral_mode_writable");
+
+        Workspace::SettingsPreview applied;
+        const Workspace::SettingsPatch alone{{{"spiral_mode", "1"}}};
+        const auto refused = workspace->preview_settings(alone);
+        if (!refused.issues.empty()) std::cout << "spiral alone: " << refused.issues.front().code << " " << refused.issues.front().message << std::endl;
+        check(!refused.valid && refused.issues.size() == 1 && refused.issues.front().key == "spiral_mode" &&
+                  refused.issues.front().code == "incompatible_settings" &&
+                  refused.issues.front().message.find("wall_loops=1") != std::string::npos &&
+                  refused.issues.front().message.find("sparse_infill_density=0%") != std::string::npos,
+              "settings_spiral_alone_refused_with_needed_values");
+        check(workspace->apply_settings(alone, {}, applied).error == Workspace::WorkspaceError::InvalidSettings &&
+                  config.equals(original), "settings_spiral_alone_changes_nothing");
+
+        const Workspace::SettingsPatch vase{{{"spiral_mode", "1"}, {"wall_loops", "1"}, {"top_shell_layers", "0"},
+                                             {"sparse_infill_density", "0%"}, {"enable_support", "0"}, {"detect_thin_wall", "0"}}};
+        // A value it needs that the preset has moved is named too, and the
+        // patch that sends it passes.
+        prints.get_edited_preset().config.set_deserialize_strict("overhang_reverse", "1");
+        const auto moved = workspace->preview_settings(vase);
+        check(!moved.valid && moved.issues.size() == 1 && moved.issues.front().code == "incompatible_settings" &&
+                  moved.issues.front().message.find("needs overhang_reverse=0 in the same patch") != std::string::npos,
+              "settings_spiral_names_every_value_that_differs");
+        auto with_reversal = vase;
+        with_reversal.changes["overhang_reverse"] = "0";
+        check(workspace->preview_settings(with_reversal).valid, "settings_spiral_accepts_the_named_value");
+        prints.get_edited_preset().config.set_deserialize_strict("overhang_reverse", "0");
+        const auto preview = workspace->preview_settings(vase);
+        for (const auto& issue : preview.issues) std::cout << "spiral patch issue: " << issue.key << " " << issue.message << std::endl;
+        check(preview.valid && preview.dependencies.empty(), "settings_spiral_patch_valid");
+        check(workspace->apply_settings(vase, Workspace::previewed_changes(preview), applied).succeeded(), "settings_spiral_patch_applies");
+        for (const auto& [key, value] : vase.changes)
+            check(config.option(key)->serialize() == value, "settings_spiral_value_" + key);
+        Field* shown = tab->get_field("spiral_mode");
+        check(shown != nullptr && boost::any_cast<bool>(shown->get_value()), "settings_spiral_field_shows_it");
+        const auto after = workspace->snapshot();
+        check(after.applied_setup && after.applied_setup->spiral_mode, "settings_spiral_applied_setup_reports_it");
+        check(after.setup.process_preset_dirty && tab->current_preset_is_dirty(), "settings_spiral_preset_dirty");
+        check(after.can_undo == undo, "settings_spiral_outside_project_undo");
+
+        // Once on, a value it needs moves only with spiral vase turned off.
+        check(!workspace->preview_settings({{{"wall_loops", "3"}}}).valid, "settings_spiral_on_refuses_more_walls");
+        Workspace::SettingsPatch inverse;
+        for (const auto& change : applied.changes) inverse.changes[change.key] = change.before;
+        check(workspace->apply_settings(inverse, Workspace::previewed_changes(workspace->preview_settings(inverse)), applied).succeeded(),
+              "settings_spiral_inverse_applies");
+        check(config.equals(original) && workspace->snapshot().setup.process_preset_dirty == dirty, "settings_spiral_inverse_restores_every_key");
+        for (const auto& title : counter.titles) std::cout << "spiral dialog shown: " << title << std::endl;
+        check(counter.shown == 0, "settings_spiral_shows_no_dialog");
     }
 
     // A STEP file through the real adapter: Orca asks how finely to mesh it,

@@ -192,7 +192,7 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& presets, const
         const ConfigOption*    after      = edited.option(key);
         if (definition == nullptr || before == nullptr || after == nullptr) continue;
         const std::string& label = definition->full_label.empty() ? definition->label : definition->full_label;
-        const SettingDefinition display_definition = setting_definition(key, scope);
+        const SettingDefinition display_definition = setting_definition(key);
         PresetDelta delta{key, label.empty() ? key : label, before->serialize(), after->serialize(),
                           preset_type_name(type), presets.get_edited_preset().name,
                           display_change(display_definition, before->serialize(), after->serialize())};
@@ -238,7 +238,7 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
                     result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
                                                       "Filament slot", option->serialize()});
             } else if (definition != nullptr) {
-                const SettingDefinition display_definition = setting_definition(key, SettingsScope::Object);
+                const SettingDefinition display_definition = setting_definition(key);
                 result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
                                                   display_definition.label,
                                                   display_value(display_definition, option->serialize())});
@@ -310,9 +310,8 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
                                          const PresetCollection& collection)
 {
     const std::string& preset = collection.get_edited_preset().name;
-    const SettingsScope scope = settings_scope(collection.type());
     const auto edit = [&](const PresetDelta& delta, const std::string& was, const std::string& now) {
-        const SettingDefinition definition = setting_definition(delta.key, scope);
+        const SettingDefinition definition = setting_definition(delta.key);
         return WorkspaceEdit{EditKind::Setting, EditActor::Person, delta.label, display_value(definition, was),
                              display_value(definition, now), preset, delta.key};
     };
@@ -2709,11 +2708,16 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
             result.issues.push_back(missing_scope_setting(key, scope));
             continue;
         }
+        if (withheld_setting(key)) {
+            result.unknown_keys.push_back(key);
+            result.issues.push_back(withheld_setting_issue(key));
+            continue;
+        }
         const bool overridden = object && object->config.has(key);
         const auto* value = overridden ? object->config.option(key) : config.option(key);
         if (!value) throw std::logic_error("A preset is missing its defined option: " + key);
         result.items.push_back({key, value->serialize(), std::find(dirty.begin(), dirty.end(), key) != dirty.end(),
-            std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key, target.scope)});
+            std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key)});
         if (object)
             result.items.back().overridden = overridden;
     }
@@ -2750,7 +2754,7 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
             result.issues.push_back(missing_scope_setting(key, scope));
             continue;
         }
-        const auto def = setting_definition(key, scope);
+        const auto def = setting_definition(key);
         if (!def.writable) {
             result.issues.push_back({key, "unsupported_setting_mutation", std::string("This ") + scope_name(scope) + " setting is read-only."});
             continue;

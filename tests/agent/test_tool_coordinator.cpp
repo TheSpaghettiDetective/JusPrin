@@ -1221,9 +1221,44 @@ TEST_CASE("settings search can keep only writable or unsaved settings", "[tools]
     };
     CHECK(search(json{{"scope", "process"}, {"query", ""}, {"changedOnly", true}}) == std::vector<std::string>{"brim_width"});
     const auto writable = search(json{{"scope", "process"}, {"query", ""}, {"writable", true}, {"limit", 25}});
-    CHECK(std::find(writable.begin(), writable.end(), "notes") == writable.end());
+    CHECK(std::find(writable.begin(), writable.end(), "post_process") == writable.end());
     CHECK(std::find(writable.begin(), writable.end(), "layer_height") != writable.end());
     CHECK_FALSE(registry.validate_call(*registry.find("settings_search"), R"({"scope":"process","query":"","writable":"yes"})").valid());
+}
+
+TEST_CASE("the settings tools turn spiral vase on with the values it needs", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    auto run = [&h](const std::string& tool, const json& arguments) {
+        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        h.coordinator.pump();
+        return json::parse(h.coordinator.find(id)->result_json);
+    };
+    const auto found = run("settings_search", json{{"scope", "process"}, {"query", "spiral vase"}, {"writable", true}});
+    REQUIRE(found["items"].size() == 1);
+    CHECK(found["items"][0]["key"] == "spiral_mode");
+
+    // Alone it is refused, and the refusal says what to send with it.
+    const auto alone = run("settings_preview_patch", json{{"scope", "process"}, {"changes", {{"spiral_mode", true}}}});
+    CHECK(registry.validate_output(*registry.find("settings_preview_patch"), alone));
+    CHECK_FALSE(alone["valid"].get<bool>());
+    CHECK(alone["issues"][0]["code"] == "incompatible_settings");
+    CHECK(alone["issues"][0]["message"].get<std::string>().find("wall_loops=1") != std::string::npos);
+
+    const json vase{{"spiral_mode", true}, {"wall_loops", 1}, {"top_shell_layers", 0}, {"sparse_infill_density", 0}};
+    const auto preview = run("settings_preview_patch", json{{"scope", "process"}, {"changes", vase}});
+    REQUIRE(preview["valid"].get<bool>());
+    const ToolActivity pending = h.coordinator.propose(
+        {"settings_apply_patch", json{{"scope", "process"}, {"changes", vase}, {"expectedSessionId", preview["sessionId"]},
+                                      {"expectedRevision", preview["revision"]}}.dump()}, "m-2");
+    REQUIRE(pending.state == ToolState::Running);
+    h.pump_to_completion(pending.action_id);
+    const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
+    CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
+    CHECK(applied["applied"] == true);
+    CHECK(applied["projectUndo"] == false);
+    CHECK(run("settings_get", json{{"scope", "process"}, {"keys", {"spiral_mode"}}})["items"][0]["value"] == "1");
 }
 
 TEST_CASE("settings tools read and write one object's overrides", "[tools][settings]")
@@ -1353,7 +1388,7 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
     const auto unsaved = preview(json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", hotter}});
     CHECK(unsaved["valid"] == true);
     CHECK(unsaved["changes"][0] == json{{"key", "nozzle_temperature"}, {"before", "210"}, {"after", "250"}});
-    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"filament_type", "PLA"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"compatible_printers", "Any"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
           "unsupported_setting_mutation");
 
     const std::string id = h.coordinator.propose({"settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Nope"}}},
@@ -1361,6 +1396,33 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
     h.coordinator.pump();
     CHECK(h.coordinator.find(id)->state == ToolState::Failed);
     CHECK(h.coordinator.find(id)->error->code == "unknown_preset");
+}
+
+TEST_CASE("settings_get never returns a printer's connection credentials", "[tools][settings]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const json arguments{{"scope", "printer"}, {"target", {{"preset", "Garage printer"}}}, {"keys", {"machine_start_gcode", "printhost_apikey"}}};
+    const std::string id = h.coordinator.propose({"settings_get", arguments.dump()}, "m-1").action_id;
+    h.coordinator.pump();
+    const ToolActivity read = *h.coordinator.find(id);
+    REQUIRE(read.state == ToolState::Succeeded);
+    CHECK(read.result_json.find(Workspace::FakeSettings::kFakeHostKey) == std::string::npos);
+    const json result = json::parse(read.result_json);
+    CHECK(registry.validate_output(*registry.find("settings_get"), result));
+    REQUIRE(result["items"].size() == 1);
+    CHECK(result["items"][0]["key"] == "machine_start_gcode");
+    REQUIRE(result["unknownKeys"].size() == 1);
+    CHECK(result["unknownKeys"][0]["key"] == "printhost_apikey");
+    CHECK(result["unknownKeys"][0]["code"] == "withheld_setting");
+
+    const std::string search = h.coordinator.propose({"settings_search", json{{"scope", "printer"}, {"target", {{"preset", "Garage printer"}}},
+                                                                             {"query", "printhost_apikey"}}.dump()}, "m-1").action_id;
+    h.coordinator.pump();
+    const ToolActivity found = *h.coordinator.find(search);
+    REQUIRE(found.state == ToolState::Succeeded);
+    CHECK(json::parse(found.result_json)["items"][0]["key"] == "printhost_apikey");
+    CHECK(found.result_json.find(Workspace::FakeSettings::kFakeHostKey) == std::string::npos);
 }
 
 TEST_CASE("saving a copy of a project filament puts the copy in its slot", "[tools][settings]")

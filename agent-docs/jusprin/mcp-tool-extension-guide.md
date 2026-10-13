@@ -481,7 +481,7 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 | `object_analyze` | R | Geometry facts for one object. `include` any of: `mesh` (dimensions, volume, health, units suspicion); `features` (planar face groups and cylindrical holes with revision-scoped handles); `orientations` (score each entry of `candidates`, or Orca's auto-orient candidates, for overhang area, support volume, bed contact, and which handles face down); `fit` (plate fit, overlaps, likely duplicates); `regions` (annotations and their `bindingLost` or `artifactsMissing` flags); `measure` (distances between two handles). | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` evaluation; `PartPlate` checks; JusPrin annotation store | 32 faces and holes by area; 8 candidates; 16 overlaps, duplicates, measurements; 32 regions |
 | `settings_search` | R | Required `scope`; required `target` for `object`, `filament` and `printer`, forbidden for `process`; `writable` and `changedOnly` filters. `changedOnly` answers what differs from the owning preset or inherited value. | `print_config_def`; scoped edited preset or `ModelConfig`; dirty options | 25 per page |
 | `settings_get` | R | Required `scope` and its exact target; origin reported as system, user preset, project edit, filament preset, printer preset, or object override. | scoped edited presets; `PresetBundle::filament_presets`; `ModelConfig` | 32 keys |
-| `settings_preview_patch` | R | Required `scope` and its exact target; applies the scope-specific writable allowlist, dependencies, validation, persistence and undo semantics. | scope-specific config clone; `ConfigManipulation` where applicable; `Slic3r::validate` | 32 keys |
+| `settings_preview_patch` | R | Required `scope` and its exact target; applies the write blacklist, dependencies, validation, persistence and undo semantics. | scope-specific config clone; `ConfigManipulation` where applicable; `Slic3r::validate` | 32 keys |
 | `settings_apply_patch` | M | Required `scope` and the same target as preview. Optional `persistAs` is valid only for preset scopes and saves the result as a named user preset. | owning `Tab` and `PresetCollection`; `ModelConfig` for object | 32 keys |
 | `intent_update` | M | Record what the user said about the print: a same-shape list of `{field, value}` over the intent record. Use `assumed` for agent inferences; only values grounded in the user's statement become `user_confirmed`. In-app only. `setupTitle` is the user's stated purpose as the chat-owned title of the setup card, with or without fields; it applies no setting. | JusPrin intent store | 32 fields, 120-character title |
 | `plan_set` | M | In-app only. The agent's own statement: orientation rationale, strategy per concern, unverified assumptions, compromises and risks, confidence per decision, alternatives. | JusPrin plan store | 2 KB per field, 16 decisions |
@@ -623,8 +623,8 @@ These evals must pass before the tools they need are delivered:
 The settings tools are the worked example of everything in this guide. This
 section records the parts of their design that stay true now that the work is
 done. The implementation handoff that produced them is retired. Read this
-section again before you add keys to a write allowlist (the list of settings
-a tool may change), and before you add any tool that changes a preset.
+section again before you change the write blacklist (the list of settings no
+tool may change), and before you add any tool that changes a preset.
 
 ### Standing decisions
 
@@ -677,13 +677,48 @@ a tool may change), and before you add any tool that changes a preset.
    `print_config_def` and its config option classes. JusPrin keeps no second
    table of types, enum values, ranges, units, or aliases.
 6. Search and read cover every setting definition that applies to the
-   requested scope. Writing is narrower: each scope has its own reviewed
-   allowlist of keys that may be changed. Every record returned by search or
-   read says whether the key is writable. Trying to change any other key
-   returns `unsupported_setting_mutation`. Add a key to an allowlist only
-   after tests against the real workspace adapter cover, for that scope: the
-   option type, how dependent settings behave, the visible update in the UI,
-   the dirty state, saving, and undo or revert.
+   requested scope, and every one of them is writable except the keys on
+   one blacklist (`blocked_setting` in `SettingsSupport.hpp`). Every record
+   returned by search or read says whether the key is writable. Trying to
+   change a blocked key returns `unsupported_setting_mutation`. A key goes
+   on the blacklist for what a wrong value does outside the print:
+   - it runs a program on the computer (`post_process`);
+   - it says where a printer is on the network, or how to sign in to it;
+   - it records which preset this is, what it inherits from and what it
+     fits, so that a different value breaks the preset;
+   - it is the printer's hardware (model, bed, nozzles, extruders), which
+     decides which filaments and processes fit and how many values a
+     per-extruder setting holds. Those change with `printer_setup` or
+     `printer_change`.
+
+   A setting does not go on the blacklist because OrcaSlicer asks about it
+   or rewrites it. Those are handled for every key by the guards and the
+   sweep described under
+   [the process normalizer](#the-process-normalizer-can-open-dialogs-and-rewrite-values).
+
+   History: until 2026-10-12 each scope had a reviewed allowlist (40 of 356
+   process settings, 34 filament, 35 printer), and a key was added only
+   after an audit of its own. The audit guarded against five things: a
+   dialog, a silent rewrite, slicing and dirty state, Undo, and edits made
+   at the same time. All five are now guarded for any key, so Kenneth
+   replaced the allowlists with the blacklist.
+
+   One exception to "read covers every definition": the seven printer keys
+   that say where a print host is and how to sign in to it (`print_host`,
+   `print_host_webui`, `printhost_apikey`, `printhost_cafile`,
+   `printhost_user`, `printhost_password`, `printhost_port`). Search lists
+   them, because a definition holds no value. `settings_get` never returns
+   their values: each comes back under `unknownKeys` with the code
+   `withheld_setting`. A tool result is sent to a model provider and saved
+   with the conversation, and JusPrin's own connect flow collects the
+   credential in a local form so that the model never sees it, then stores it
+   in `printhost_apikey`. The list is `kWithheldSettings` in
+   `SettingsSupport.hpp`, applied in `read_settings` of both workspace
+   adapters, so the in-app and MCP tool adapters cannot differ. It is the
+   list OrcaSlicer itself strips from G-code, project files and exported
+   presets; the addresses are on it because a host URL may carry
+   `user:password@`. All seven are on the write blacklist and must stay
+   there: a patch returns the old value as `before`.
 7. A batch is applied completely or not at all. It goes through
    `Tab::load_config`, or through the code that already owns that scope.
    Never change a config behind the visible preset UI and then imitate the
@@ -741,14 +776,11 @@ send the new contract.
   the parent preset and queues the change for the cloud. Saving a copy of it
   would quietly create a second printer that the project does not know
   about. So a different `persistAs` fails with `not_selected`.
-- The printer allowlist (`writable_printer_setting`) contains custom g-code,
-  printable height, layer-height limits, Z offset, retraction and machine
-  limits. It leaves out the keys that decide which filament and process fit,
-  or how many extruders there are: bed shape, nozzle size and type, extruder
-  count, and printer model. Those change with `printer_setup` or
-  `printer_change`. The filament allowlist (`writable_filament_setting`)
-  contains temperatures, cooling, flow, pressure advance, volumetric speed,
-  density, cost and custom g-code.
+- A printer's blocked keys are the ones that decide which filament and
+  process fit, or how many extruders there are (bed shape, nozzle size and
+  type, extruder count, printer model), its network address and sign-in,
+  and its identity as a preset. Those are 43 of its 160 settings. Custom
+  g-code stays writable for a printer and a filament, as it was.
 - Some settings hold one value per extruder or per nozzle kind. Such a
   setting keeps its length. A patch with a different number of values fails
   with `invalid_setting_value`, because a shorter list would drop the rest.
@@ -821,7 +853,8 @@ refuses these cases:
 | `persistAs` SavePresetDialog would refuse | `invalid_preset_name` |
 | key not in the definition table | `unknown_setting` with suggestions |
 | known key not applicable to the requested scope | `unsupported_scope` |
-| readable key outside that scope's allowlist | `unsupported_setting_mutation` |
+| key on the write blacklist | `unsupported_setting_mutation` |
+| read of a print host address or credential key | `withheld_setting`, per key under `unknownKeys`; the other keys are still read |
 | requested object is gone, or no FFF printer or process is selected | `workspace_unavailable` |
 | opening a filament in its tab would discard another dirty edited preset | `unsaved_edits` |
 | parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
@@ -899,24 +932,26 @@ that names the dependent key and its predicted value
 Preview does not copy OrcaSlicer's option tables. It runs OrcaSlicer's own
 `ConfigManipulation` on the clone, with no presentation callbacks.
 
-The table lists the rules that the current allowlist can reach, as audited
-when the tools were built. Line numbers drift, so search for the condition
-text.
+The table lists the rules a process patch can reach, as audited when the
+tools were built and again on 2026-10-12. Line numbers drift, so search for
+the condition text.
 
 | Rule in Orca | Reached by | Effect | Preview must |
 |---|---|---|---|
 | `layer_height` at or below epsilon | `layer_height` | modal, reset to 0.2 | refuse with `invalid_setting_value` and the minimum |
 | `layer_height` above the printer's `max_layer_height` when that exceeds 0.2 | `layer_height` | modal, clamp | refuse with `invalid_setting_value` and the printer's maximum |
 | `seam_slope_type` not `None` and absolute `seam_slope_start_height` at or above `layer_height` | lowering `layer_height` | modal, start height reset to 0 | refuse with `incompatible_settings`; evaluate percent values through `get_abs_value`, 100% or above also trips it |
-| `spiral_mode` on and not all of `wall_loops` 1, `top_shell_layers` 0, `sparse_infill_density` 0 | those three keys | yes/no dialog, several keys rewritten either way | refuse with `incompatible_settings` naming `spiral_mode` |
+| `spiral_mode` on and not all of `wall_loops` 1, `top_shell_layers` 0, `sparse_infill_density` 0 | `spiral_mode` and those three keys | yes/no dialog. Yes rewrites nine keys: these three, `enable_support`, `enforce_support_layers`, `detect_thin_wall`, `overhang_reverse`, `timelapse_type`, `enable_wrapping_detection`. No turns `spiral_mode` off | refuse with `incompatible_settings` on `spiral_mode`; the message lists each key that differs with the value it needs |
 | `sparse_infill_pattern` without multiline support while `fill_multiline` is above 1 | `sparse_infill_pattern` | silent: `fill_multiline` reset to 1 | predict and report as `normalized_dependency` |
 | support-gap rounding block | none; it is inside `#if 0` | inactive | do not predict a change that does not happen |
 | `support_style` not in the set for the support type (normal: default, grid, snug; tree: default, tree_slim, tree_strong, tree_hybrid, organic) | `enable_support`, `support_type`, `support_style` | silent: style reset to default | refuse with `invalid_setting_value` and the fitting styles in `allowed`; the patch is fixed by the caller, not rewritten |
 | global `enable_support` while `detect_overhang_wall` is off | `enable_support` | silent: `detect_overhang_wall` turned on, once per query state | predict and report as `normalized_dependency` |
-| `spiral_mode` on with support or thin walls | `enable_support`, `detect_thin_wall` | yes/no dialog | refuse with `incompatible_settings` (the spiral row above) |
+| `spiral_mode` on with support or thin walls | `spiral_mode`, `enable_support`, `detect_thin_wall` | yes/no dialog | refuse with `incompatible_settings` (the spiral row above) |
 | fuzzy skin in an Extrusion or Combined mode without Arachne | `wall_generator` set to classic | yes/no dialog | refuse with `incompatible_settings` naming `fuzzy_skin_mode` |
 | `Tab::on_value_change` for `support_type` in simple mode (style reset) and for the support filaments (dialogs) | none: `Tab::load_config` never calls `on_value_change`, and the filament keys are not writable | inactive for tools | nothing |
 | `toggle_print_fff_options` writes (`enable_arc_fitting`, the slope segment length, `fill_multiline`, `overhang_reverse_threshold`) | none of the new keys directly; the prediction runs the real pass on the clone | silent | report whatever the clone shows |
+
+`spiral_mode` is writable. A patch turns spiral vase on by sending it together with the values it needs, which is what answering Yes does; alone it is refused, because the tools never answer the dialog, and the refusal names each value that differs. Apart from that rule, `toggle_print_fff_options` reads `spiral_mode` only to show, hide, enable or disable fields. A plate that carries its own spiral setting (Plate Settings) overrides the process value when it is sliced; no tool writes that one, and `PartPlate::set_spiral_vase_mode` opens the same dialog.
 
 No rule in either function reads the brim, skirt, seam, speed, surface-pattern, interface, contact-distance, threshold or shell-thickness keys, except to enable or disable those keys' own fields. The audit covered both functions and `on_value_change` in `Tab.cpp`, on 2026-09-16. Open-enum keys (the interface layer counts) carry no `allowed` list. Their enum values are shortcuts, and any number in bounds is accepted. A boolean has no numeric bounds.
 
@@ -927,17 +962,42 @@ infill-lock depth, and fuzzy-skin settings. Spiral mode also checks support,
 enforced support layers, thin walls, overhang reversal, timelapse, and
 wrapping detection.
 
-The test against the real workspace adapter asserts two things. First, no
-top-level dialog appears during apply, for any allowlisted key, under any row
-above. For the support, brim and style checks, the test applies a
-tree-support patch with the support page shown and reads the native fields
-back. Second, every silent rewrite that preview predicted appears in the
-result with its actual value.
+The tests against the real workspace adapter assert three things. First, no
+top-level dialog appears during apply under any row above. For the support,
+brim and style checks, the test applies a tree-support patch with the
+support page shown and reads the native fields back. Second, every silent
+rewrite that preview predicted appears in the result with its actual value.
+Third, a sweep (`verify_every_writable_setting` in
+`tests/workspace/real_adapter_harness.cpp`) takes every setting of the
+process, filament and printer scopes, one at a time, through preview, apply
+and the inverse patch. A blocked key must be refused. Any other must either
+be refused by a guard with a reason, or apply with no dialog, read back as
+reported, mark the preset changed, and be put back by the inverse patch.
+The sweep prints which settings it could not give another value (free-form
+strings, points, and lists that hold no value). As of 2026-10-12 it applies
+and restores 340 process, 92 filament and 112 printer settings with no
+dialog and no failure.
+
+The guards work on the whole configuration, not on the keys of the patch.
+The 13 live dialog sites in `update_print_fff_config` each have a refusal in
+`check_process_dialogs`. The filament tab has two on this route (max
+volumetric speed on every update, the temperature pairs on save), both in
+`check_filament_dialogs`, and the unsaved-changes prompt on switching
+filament, refused as `unsaved_edits`. The printer tab has one (firmware
+retraction with wipe), in `check_printer_dialogs`.
 
 If someone later finds a rule that a tool can trigger, that is a defect in
-the preview. It is not behavior to accept. Adding a key to the allowlist
-means reading both functions again for every place that reads the key, and
-extending this table.
+the preview. It is not behavior to accept. After an upstream update, read
+both functions and the three tabs' `update` and `toggle_options` again for
+new dialog sites, extend the guards and this table, and run the sweep.
+
+Not covered by any guard: the questions OrcaSlicer asks only when a person
+edits a field (`Tab::on_value_change`), which `Tab::load_config` does not
+run. About ten process settings have one: the prime tower with smooth
+timelapse, clumping detection or precise Z height; print sequence by
+object; the support filaments; `make_overhang_printable`;
+`sparse_infill_rotate_template`. A tool change to one of them applies
+without the question. How the tools should treat them is undecided.
 
 ### Apply binds the previewed values
 
@@ -1052,6 +1112,8 @@ that would trigger them.
 ## Proportional security growth
 
 Security measures should grow as the server is allowed to do more. Today the server starts automatically, listens only on the numeric loopback address, validates browser origins, and enforces request limits. It has no bearer authentication and no confirmation for each call. Any local process that can reach the socket can execute the offered tools, including mutations and the validated file operations. Origin validation protects against web pages in a browser. It does not identify local processes. Never make this endpoint reachable beyond loopback.
+
+Because any local process can call the read tools, and because the in-app assistant sends tool results to its model provider, a read tool must not return a credential. The settings tools withhold the print host keys (see standing decision 6 under [Settings tools](#settings-tools-contract-and-hazards)). Before a new read tool returns a value taken from a preset, the app configuration, or a device record, check whether it can hold a secret.
 
 Review the security design again before adding any of these: remote access, grants that last across restarts, more than one permission level, camera data, upload to a printer, or starting a physical print. At that point, evaluate authenticated pairing, durable credential storage, scopes per client, revocation, rate controls, a privacy review, and a dedicated audit log.
 

@@ -129,11 +129,25 @@ inline void check_process_dialogs(const DynamicPrintConfig& config, SettingsPrev
     for (const auto* key : {"xy_hole_compensation", "xy_contour_compensation"})
         block(std::abs(config.opt_float(key)) > 2, key, "XY compensation would open Orca's correction dialog.");
     block(config.opt_float("elefant_foot_compensation") > 1, "elefant_foot_compensation", "Elephant foot compensation would open Orca's correction dialog.");
-    block(config.opt_bool("spiral_mode") && !(config.opt_int("wall_loops") == 1 && config.opt_int("top_shell_layers") == 0 &&
-        config.option<ConfigOptionPercent>("sparse_infill_density")->value == 0 && !config.opt_bool("enable_support") &&
-        config.opt_int("enforce_support_layers") == 0 && !config.opt_bool("detect_thin_wall") && !config.opt_bool("overhang_reverse") &&
-        config.opt_enum<TimelapseType>("timelapse_type") == tlTraditional && !config.opt_bool("enable_wrapping_detection")),
-        "spiral_mode", "Spiral mode conflicts with wall_loops, top_shell_layers, infill, support, thin walls, overhang reversal, timelapse, or wrapping detection.");
+    if (config.opt_bool("spiral_mode")) {
+        // The values Orca's spiral dialog sets when answered Yes. The refusal
+        // names the ones that differ, for a patch to send with it.
+        std::string needed;
+        const auto need = [&](bool met, const char* key, const char* value) {
+            if (!met) needed += (needed.empty() ? "" : ", ") + std::string(key) + "=" + value;
+        };
+        need(config.opt_int("wall_loops") == 1, "wall_loops", "1");
+        need(config.opt_int("top_shell_layers") == 0, "top_shell_layers", "0");
+        need(config.option<ConfigOptionPercent>("sparse_infill_density")->value == 0, "sparse_infill_density", "0%");
+        need(!config.opt_bool("enable_support"), "enable_support", "0");
+        need(config.opt_int("enforce_support_layers") == 0, "enforce_support_layers", "0");
+        need(!config.opt_bool("detect_thin_wall"), "detect_thin_wall", "0");
+        need(!config.opt_bool("overhang_reverse"), "overhang_reverse", "0");
+        need(config.opt_enum<TimelapseType>("timelapse_type") == tlTraditional, "timelapse_type", "0");
+        need(!config.opt_bool("enable_wrapping_detection"), "enable_wrapping_detection", "0");
+        block(!needed.empty(), "spiral_mode",
+              "Spiral vase (spiral_mode=1) needs " + needed + " in the same patch. Otherwise spiral_mode must be 0.");
+    }
     block(config.opt_bool("alternate_extra_wall") && config.opt_enum<EnsureVerticalShellThickness>("ensure_vertical_shell_thickness") == evstAll,
         "alternate_extra_wall", "Alternate extra wall conflicts with ensure_vertical_shell_thickness=all.");
     block(config.opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None && config.get_abs_value("seam_slope_start_height") >= height,

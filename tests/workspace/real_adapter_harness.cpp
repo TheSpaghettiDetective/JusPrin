@@ -14,6 +14,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/Tab.hpp"
@@ -588,6 +589,34 @@ private:
         const auto label = m_workspace->read_settings({"machine_start_gcode"}, {SettingsScope::Printer, {}, printer + " (label)"});
         check(label.error && label.error->code == "unknown_preset", "preset_settings_label_is_not_a_name");
 
+        // Where the print host is and its credentials: listed, never read and
+        // never patched. A dummy key put into the printer being edited does
+        // not come back, and neither does any other connection key.
+        {
+            DynamicPrintConfig&      edited = printers.get_edited_preset().config;
+            const std::string        before = edited.opt_string("printhost_apikey"), dummy = "harness-host-key-not-real";
+            std::vector<std::string> keys(std::begin(kWithheldSettings), std::end(kWithheldSettings));
+            edited.set_key_value("printhost_apikey", new ConfigOptionString(dummy));
+            keys.push_back("machine_start_gcode");
+            const auto host = m_workspace->read_settings(keys, in_use);
+            check(!host.error && host.items.size() == 1 && host.items[0].key == "machine_start_gcode" &&
+                      host.issues.size() == std::size(kWithheldSettings) &&
+                      std::all_of(host.issues.begin(), host.issues.end(), [](const SettingIssue& issue) {
+                          return issue.code == "withheld_setting" && withheld_setting(issue.key);
+                      }),
+                  "preset_settings_host_connection_withheld");
+            SettingsQuery query{"printhost_apikey"};
+            query.target = in_use;
+            const auto listed = m_workspace->search_settings(query);
+            check(!listed.error && !listed.items.empty() && listed.items.front().key == "printhost_apikey" && !listed.items.front().writable,
+                  "preset_settings_host_connection_listed_not_writable");
+            const auto patched = m_workspace->preview_settings({{{"printhost_apikey", "other"}}, in_use});
+            check(patched.changes.empty() && !patched.issues.empty() && patched.issues.front().code == "unsupported_setting_mutation",
+                  "preset_settings_host_connection_not_patched");
+            edited.set_key_value("printhost_apikey", new ConfigOptionString(before));
+            check(!printers.current_is_dirty(), "preset_settings_host_connection_fixture_restored");
+        }
+
         // The gcode goes through Tab::load_config, unsaved, as a process edit does.
         const std::string gcode = "G28 ; jusprin harness";
         SettingsPatch unsaved{{{"machine_start_gcode", gcode}}, in_use};
@@ -665,6 +694,168 @@ private:
         check(dialogs.count == 0, "preset_settings_no_modal_dialog_reached");
     }
 
+    // A different value of a setting's own type: the other state of a switch,
+    // the next choice of a list, a number one step away inside its bounds,
+    // one more comment line of g-code. Nothing for the types and free-form
+    // strings a generic step cannot change meaningfully.
+    static std::optional<std::string> another_value(const SettingDefinition& def, const std::string& current)
+    {
+        const bool        list = def.type.size() > 2 && def.type.compare(def.type.size() - 2, 2, "[]") == 0;
+        const std::string type = list ? def.type.substr(0, def.type.size() - 2) : def.type;
+        if (type == "string")
+            return !list && (def.key.find("gcode") != std::string::npos || def.key.find("notes") != std::string::npos) ?
+                       std::optional<std::string>(current + "\n; sweep") : std::nullopt;
+        const auto step = [&](const std::string& value) -> std::optional<std::string> {
+            if (value == "nil") return value;
+            if (type == "boolean") return std::string(value == "1" ? "0" : "1");
+            if (type == "enum") {
+                const auto found = std::find(def.enum_values.begin(), def.enum_values.end(), value);
+                if (def.enum_values.size() < 2 || found == def.enum_values.end()) return std::nullopt;
+                return found + 1 == def.enum_values.end() ? def.enum_values.front() : *(found + 1);
+            }
+            const bool percent = !value.empty() && value.back() == '%';
+            if (type != "integer" && type != "float" && type != "percent" && type != "float_or_percent") return std::nullopt;
+            double number;
+            std::istringstream input(percent ? value.substr(0, value.size() - 1) : value);
+            input.imbue(std::locale::classic());
+            if (!(input >> number)) return std::nullopt;
+            // Orca prints six significant digits: a hundredth of a large
+            // number would read back unchanged.
+            const double delta = (type == "float" || (type == "float_or_percent" && !percent)) && std::abs(number) < 100 ? 0.01 : 1;
+            double       next  = number + delta;
+            if (def.max && next > *def.max) next = number - delta;
+            if (def.min && next < *def.min) return std::nullopt;
+            std::ostringstream output;
+            output.imbue(std::locale::classic());
+            output.precision(12);
+            output << next << (percent ? "%" : "");
+            return output.str();
+        };
+        if (!list) return step(current);
+        std::string result;
+        for (std::size_t start = 0; start <= current.size();) {
+            const std::size_t end = std::min(current.find(',', start), current.size());
+            const auto        next = step(current.substr(start, end - start));
+            if (!next) return std::nullopt;
+            result += (start == 0 ? "" : ",") + *next;
+            start = end + 1;
+        }
+        return result;
+    }
+
+    // Every setting a scope holds, one at a time, through the same preview and
+    // apply a tool call makes: a blocked one is refused, and any other either
+    // is refused by a guard with a reason or applies with no dialog, reads
+    // back as reported, and is put back by the inverse patch. What the write
+    // blacklist leaves open is proven here, not key by key in a document.
+    void verify_every_writable_setting()
+    {
+        struct DialogProbe : wxModalDialogHook {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
+        } dialogs;
+        dialogs.Register();
+        PresetBundle& bundle = *m_app.preset_bundle;
+        for (const SettingsScope scope : {SettingsScope::Process, SettingsScope::Filament, SettingsScope::Printer}) {
+            PresetCollection& collection = scope == SettingsScope::Filament ? static_cast<PresetCollection&>(bundle.filaments) :
+                                           scope == SettingsScope::Printer  ? static_cast<PresetCollection&>(bundle.printers) :
+                                                                              static_cast<PresetCollection&>(bundle.prints);
+            Tab* tab = m_app.get_tab(collection.type());
+            SettingsTarget target{scope, {}, scope == SettingsScope::Process ? std::string() : collection.get_selected_preset_name()};
+            const DynamicPrintConfig& config   = collection.get_edited_preset().config;
+            const DynamicPrintConfig  original = config;
+            const bool                dirty    = collection.current_is_dirty();
+            std::size_t defined = 0, blocked = 0, applied_count = 0;
+            std::vector<std::string> unswept, unchanged, refused, rewrote, inexact, failed;
+            for (const SettingDefinition& def : scope_definitions(scope)) {
+                ++defined;
+                const std::string& key  = def.key;
+                const auto         read = m_workspace->read_settings({key}, target);
+                if (withheld_setting(key)) {
+                    // Neither read nor written: its value never leaves the app.
+                    if (!read.items.empty() || read.issues.size() != 1 || read.issues.front().code != "withheld_setting" || def.writable)
+                        failed.push_back(key + " (withheld, but read or writable)");
+                    ++blocked;
+                    continue;
+                }
+                if (read.items.size() != 1) { failed.push_back(key + " (not readable)"); continue; }
+                const std::string current = read.items.front().value;
+                if (!def.writable) {
+                    const auto issues = m_workspace->preview_settings({{{key, current}}, target}).issues;
+                    if (issues.empty() || issues.front().code != "unsupported_setting_mutation") failed.push_back(key + " (blocked, not refused)");
+                    ++blocked;
+                    continue;
+                }
+                const auto candidate = another_value(def, current);
+                if (!candidate) { unswept.push_back(key); continue; }
+                const SettingsPatch patch{{{key, *candidate}}, target};
+                const auto preview = m_workspace->preview_settings(patch);
+                if (!preview.valid) {
+                    refused.push_back(key + "=" + *candidate + " (" + (preview.issues.empty() ? "?" : preview.issues.front().code + " on " + preview.issues.front().key) + ")");
+                    continue;
+                }
+                if (preview.changes.empty()) { unchanged.push_back(key + "=" + *candidate); continue; }
+                std::cerr << "SWEEP " << scope_name(scope) << ' ' << key << '=' << preview.changes.front().after << std::endl;
+                const int       before_dialogs = dialogs.count;
+                SettingsPreview applied;
+                const auto result = m_workspace->apply_settings(patch, previewed_changes(preview), applied);
+                std::string fault;
+                if (!result.succeeded()) fault = "apply failed: " + result.message;
+                else if (dialogs.count != before_dialogs) fault = "opened a dialog";
+                else if (config.option(key)->serialize() != applied.changes.front().after) fault = "value is not the one reported";
+                else if (!collection.current_is_dirty()) fault = "preset not marked changed";
+                if (result.succeeded() && !applied.dependencies.empty()) {
+                    std::string others;
+                    for (const auto& change : applied.dependencies) others += (others.empty() ? "" : ",") + change.key;
+                    rewrote.push_back(key + " -> " + others);
+                }
+                if (result.succeeded()) {
+                    ++applied_count;
+                    SettingsPatch inverse{{}, target};
+                    for (const auto& change : previewed_changes(applied)) inverse.changes[change.key] = change.before;
+                    const auto back = m_workspace->preview_settings(inverse);
+                    // A value Orca holds more exactly than it prints (a default
+                    // written as 0.01f) comes back as its printed value: the
+                    // same text, a preset still marked changed, as when a
+                    // person retypes it.
+                    const auto same_text = [&] {
+                        const auto keys = config.diff(original);
+                        return std::all_of(keys.begin(), keys.end(), [&](const std::string& other) {
+                            return config.option(other)->serialize() == original.option(other)->serialize();
+                        });
+                    };
+                    if (!back.valid || !m_workspace->apply_settings(inverse, previewed_changes(back), applied).succeeded() || !same_text())
+                        fault += std::string(fault.empty() ? "" : "; ") + "inverse patch did not restore it";
+                    else if (!config.diff(original).empty())
+                        inexact.push_back(key);
+                    else if (collection.current_is_dirty() != dirty)
+                        fault += std::string(fault.empty() ? "" : "; ") + "preset still marked changed after the inverse patch";
+                }
+                if (!fault.empty()) failed.push_back(key + " (" + fault + ")");
+                if (!config.diff(original).empty()) tab->load_config(original);
+            }
+            const auto list = [](const std::vector<std::string>& items) {
+                std::string text;
+                for (const auto& item : items) text += (text.empty() ? "" : "; ") + item;
+                return text;
+            };
+            const std::string name = scope_name(scope);
+            std::cerr << "SWEEP SUMMARY " << name << ": " << defined << " settings, " << blocked << " blocked, " << applied_count
+                      << " applied and restored, " << refused.size() << " refused by a guard, " << unchanged.size()
+                      << " left as they were by Orca, " << unswept.size() << " with no generic other value, " << failed.size() << " failed\n";
+            std::cerr << "SWEEP REFUSED " << name << ": " << list(refused) << '\n';
+            std::cerr << "SWEEP REWROTE " << name << ": " << list(rewrote) << '\n';
+            std::cerr << "SWEEP UNCHANGED " << name << ": " << list(unchanged) << '\n';
+            std::cerr << "SWEEP RESTORED AS PRINTED " << name << ": " << list(inexact) << '\n';
+            std::cerr << "SWEEP NOT SWEPT " << name << ": " << list(unswept) << '\n';
+            std::cerr << "SWEEP FAILED " << name << ": " << list(failed) << '\n';
+            check(failed.empty(), "settings_sweep_" + name + "_every_setting_applies_and_restores");
+            check(applied_count > defined / 2, "settings_sweep_" + name + "_covers_most_settings");
+            check(config.diff(original).empty(), "settings_sweep_" + name + "_leaves_the_preset_as_it_was");
+        }
+        check(dialogs.count == 0, "settings_sweep_no_modal_dialog_reached");
+    }
+
     static bool current_values_equal(const DynamicPrintConfig& a, const DynamicPrintConfig& b) { return a.diff(b).empty(); }
 
     void check(bool condition, const std::string& name)
@@ -736,6 +927,7 @@ private:
                   return edit.kind == EditKind::Setting && !edit.label.empty() && edit.before != edit.after;
               }),
               "change_log_records_setting_edits");
+        verify_every_writable_setting();
         verify_preset_settings();
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");

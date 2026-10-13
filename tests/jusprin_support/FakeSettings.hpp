@@ -13,6 +13,10 @@ namespace Slic3r::GUI::JusPrin::Workspace {
 class FakeSettings
 {
 public:
+    // Not a credential: what the saved fixture printer holds where a real one
+    // holds its print host's key.
+    static constexpr const char* kFakeHostKey = "fixture-host-key";
+
     FakeSettings()
     {
         add("layer_height", "float", "Layer height", "0.2", 0.001, 0.3, "mm");
@@ -25,20 +29,23 @@ public:
         add("bottom_shell_layers", "integer", "Bottom shell layers", "3", 0, 1000);
         add("brim_width", "float", "Brim width", "5", 0, 100, "mm");
         add("spiral_mode", "boolean", "Spiral vase", "0");
-        add("notes", "string", "Notes", "Fixture process");
+        add("post_process", "string", "Post-processing Scripts", "");
         add("fill_multiline", "integer", "Multiline infill", "1", 1, 10);
         add("support_top_z_distance", "float", "Top support gap", "0.25", 0, 10, "mm");
         add("skirt_loops", "integer", "Skirt loops", "0", 0, 10);
         preset_values = values;
 
         filament_definitions = {definition_of("nozzle_temperature", "integer", "Nozzle temperature", SettingsScope::Filament, 0, 500, "°C"),
-                                definition_of("filament_type", "string", "Type", SettingsScope::Filament)};
+                                definition_of("filament_type", "string", "Type", SettingsScope::Filament),
+                                definition_of("compatible_printers", "string", "Compatible printers", SettingsScope::Filament)};
         printer_definitions  = {definition_of("machine_start_gcode", "string", "Start G-code", SettingsScope::Printer),
-                                definition_of("nozzle_diameter", "float", "Nozzle diameter", SettingsScope::Printer, 0, 10, "mm")};
-        filaments["Fixture PLA"]  = preset_of({{"nozzle_temperature", "210"}, {"filament_type", "PLA"}}, false);
-        filaments["Fixture PETG"] = preset_of({{"nozzle_temperature", "240"}, {"filament_type", "PETG"}}, true);
-        printers["Fixture printer"] = preset_of({{"machine_start_gcode", "G28"}, {"nozzle_diameter", "0.4"}}, true);
-        printers["Garage printer"]  = preset_of({{"machine_start_gcode", "G28 ; garage"}, {"nozzle_diameter", "0.4"}}, false);
+                                definition_of("nozzle_diameter", "float", "Nozzle diameter", SettingsScope::Printer, 0, 10, "mm"),
+                                definition_of("printhost_apikey", "string", "API Key / Password", SettingsScope::Printer)};
+        filaments["Fixture PLA"]  = preset_of({{"nozzle_temperature", "210"}, {"filament_type", "PLA"}, {"compatible_printers", ""}}, false);
+        filaments["Fixture PETG"] = preset_of({{"nozzle_temperature", "240"}, {"filament_type", "PETG"}, {"compatible_printers", ""}}, true);
+        printers["Fixture printer"] = preset_of({{"machine_start_gcode", "G28"}, {"nozzle_diameter", "0.4"}, {"printhost_apikey", ""}}, true);
+        printers["Garage printer"]  = preset_of({{"machine_start_gcode", "G28 ; garage"}, {"nozzle_diameter", "0.4"},
+                                                 {"printhost_apikey", kFakeHostKey}}, false);
     }
 
     // A filament or printer preset. `values` are what Orca's tab holds for
@@ -127,6 +134,11 @@ public:
                 if (def == nullptr) {
                     result.unknown_keys.push_back(key);
                     result.issues.push_back(unknown(key, target.scope));
+                    continue;
+                }
+                if (withheld_setting(key)) {
+                    result.unknown_keys.push_back(key);
+                    result.issues.push_back(withheld_setting_issue(key));
                     continue;
                 }
                 const auto& values = selected(target) ? found->values : found->saved;
@@ -218,9 +230,15 @@ public:
             }
             next[key] = canonical;
         }
-        if (next.at("spiral_mode") == "1" &&
-            (next.at("wall_loops") != "1" || next.at("top_shell_layers") != "0" || next.at("sparse_infill_density") != "0%"))
-            result.issues.push_back({"spiral_mode", "incompatible_settings", "Spiral mode requires one wall, no top layers, and no infill."});
+        if (next.at("spiral_mode") == "1") {
+            std::string needed;
+            for (const auto& [key, value] : {std::pair{"wall_loops", "1"}, std::pair{"top_shell_layers", "0"}, std::pair{"sparse_infill_density", "0%"}})
+                if (next.at(key) != value)
+                    needed += (needed.empty() ? "" : ", ") + std::string(key) + "=" + value;
+            if (!needed.empty())
+                result.issues.push_back({"spiral_mode", "incompatible_settings",
+                                         "Spiral vase (spiral_mode=1) needs " + needed + " in the same patch. Otherwise spiral_mode must be 0."});
+        }
 
         // Active Orca normalization: with infill, line does not support multiline.
         // Support-gap rounding is compiled out in Orca; do not simulate a write
@@ -287,7 +305,7 @@ private:
     static SettingDefinition definition_of(std::string key, std::string type, std::string label, SettingsScope scope,
                                            std::optional<double> min = {}, std::optional<double> max = {}, std::string unit = {})
     {
-        const bool writable = writable_setting(key, scope);
+        const bool writable = writable_setting(key);
         return {std::move(key), std::move(type), label, scope_name(scope), label, std::move(unit), min, max, {}, {}, writable};
     }
 

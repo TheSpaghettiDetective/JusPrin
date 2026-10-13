@@ -12,78 +12,61 @@
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
-// The process keys the tools may write. Each one was traced through
-// ConfigManipulation's normalizer and toggles and Tab's handlers; the hazard
-// table in the tool extension guide says what each can rewrite or ask.
-inline bool writable_setting(const std::string& key)
+// The settings no tool changes, in any scope. Every other setting a scope
+// holds is writable: OrcaSettings refuses, for any key, the values that
+// would make Orca ask or that it would not print, and apply reports whatever
+// Orca rewrote. A key belongs here for what a wrong value does outside the
+// print, not because nobody has needed it yet.
+inline bool blocked_setting(const std::string& key)
 {
     constexpr std::string_view keys[] = {
-        // Layers, walls, shells, infill.
-        "layer_height", "wall_loops", "sparse_infill_density", "sparse_infill_pattern", "top_shell_layers",
-        "bottom_shell_layers", "top_shell_thickness", "bottom_shell_thickness", "wall_generator", "detect_thin_wall",
-        "only_one_wall_top", "top_surface_pattern", "bottom_surface_pattern", "internal_solid_infill_pattern",
-        "infill_direction",
-        // Supports.
-        "enable_support", "support_type", "support_style", "support_threshold_angle", "support_on_build_plate_only",
-        "support_interface_top_layers", "support_interface_bottom_layers", "support_interface_pattern",
-        "support_top_z_distance", "support_bottom_z_distance",
-        // Adhesion and seam.
-        "brim_type", "brim_width", "skirt_loops", "skirt_distance", "seam_position",
-        // Speeds.
-        "outer_wall_speed", "inner_wall_speed", "sparse_infill_speed", "internal_solid_infill_speed", "top_surface_speed",
-        "initial_layer_speed", "travel_speed", "bridge_speed", "gap_infill_speed", "support_speed"};
+        // Runs a program on this computer when G-code is exported.
+        "post_process",
+        // Where a printer is on the network, and how to sign in to it.
+        "host_type", "print_host", "print_host_webui", "printhost_port", "printhost_apikey", "printhost_user",
+        "printhost_password", "printhost_authorization_type", "printhost_cafile", "printhost_ssl_ignore_revoke",
+        "bbl_use_printhost", "printer_agent", "flashforge_serial_number",
+        // Which preset this is, what it inherits from and what it fits. A
+        // different value breaks the preset rather than tuning it.
+        "inherits", "compatible_printers", "compatible_printers_condition", "compatible_prints",
+        "compatible_prints_condition", "print_extruder_id", "print_extruder_variant", "filament_extruder_variant",
+        "printer_extruder_id", "printer_extruder_variant", "extruder_variant_list", "default_print_profile",
+        "default_filament_profile", "upward_compatible_machine", "printer_technology",
+        // The printer's hardware: its model, bed, nozzles and extruders.
+        // These decide which filaments and processes fit and how many values
+        // a per-extruder setting holds; they change with a different printer
+        // or nozzle, through printer_setup or printer_change.
+        "printer_model", "printer_variant", "printer_structure", "printable_area", "extruder_printable_area",
+        "bed_exclude_area", "bed_custom_texture", "bed_custom_model", "nozzle_diameter", "nozzle_type",
+        "nozzle_volume", "default_nozzle_volume_type", "nozzle_flush_dataset", "extruder_type", "extruder_offset",
+        "single_extruder_multi_material", "support_parallel_printheads", "parallel_printheads_count",
+        "parallel_printheads_bed_exclude_areas", "master_extruder_id", "physical_extruder_map", "pellet_modded_printer"};
     return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
 }
 
-// The filament keys the tools may write: temperatures, cooling, flow and
-// custom g-code. Tab::load_config on the filament tab opens no dialog for
-// them except the two OrcaSettings refuses first (volumetric speed below 0.5,
-// and a first-layer temperature too far from the other layers' at save).
-inline bool writable_filament_setting(const std::string& key)
+// The caller checks that the key is one its scope holds.
+inline bool writable_setting(const std::string& key) { return !blocked_setting(key); }
+
+// The printer keys whose values no tool returns: where a print host is and the
+// credentials for it. A tool result goes to a model provider and into the
+// saved conversation. These are the keys OrcaSlicer itself keeps out of
+// everything that leaves the machine -- G-code (banned_keys in GCode.cpp),
+// project files (PresetBundle::full_config_secure) and exported presets
+// (ExportPresetBundleDialog) -- and the addresses are among them because a
+// host URL may carry "user:password@". Search still lists the settings, which
+// tells a caller they exist and holds no value. None of them may be writable.
+inline constexpr std::string_view kWithheldSettings[] = {"print_host", "print_host_webui", "printhost_apikey", "printhost_cafile",
+                                                         "printhost_user", "printhost_password", "printhost_port"};
+
+inline bool withheld_setting(const std::string& key)
 {
-    constexpr std::string_view keys[] = {
-        "nozzle_temperature", "nozzle_temperature_initial_layer", "nozzle_temperature_range_low",
-        "nozzle_temperature_range_high", "cool_plate_temp", "cool_plate_temp_initial_layer", "eng_plate_temp",
-        "eng_plate_temp_initial_layer", "hot_plate_temp", "hot_plate_temp_initial_layer", "textured_plate_temp",
-        "textured_plate_temp_initial_layer", "supertack_plate_temp", "supertack_plate_temp_initial_layer",
-        "textured_cool_plate_temp", "textured_cool_plate_temp_initial_layer", "fan_min_speed", "fan_max_speed",
-        "fan_cooling_layer_time", "slow_down_layer_time", "slow_down_min_speed", "close_fan_the_first_x_layers",
-        "overhang_fan_speed", "overhang_fan_threshold", "additional_cooling_fan_speed", "filament_flow_ratio",
-        "enable_pressure_advance", "pressure_advance", "filament_max_volumetric_speed", "filament_density",
-        "filament_cost", "filament_start_gcode", "filament_end_gcode", "filament_notes"};
-    return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
+    return std::find(std::begin(kWithheldSettings), std::end(kWithheldSettings), key) != std::end(kWithheldSettings);
 }
 
-// The printer keys the tools may write: custom g-code, height, layer-height
-// limits, retraction and machine limits. Not the keys that decide which
-// filament and process fit the printer or how many extruders it has -- bed
-// shape, nozzle size and type, extruder count, printer model -- which change
-// with a different printer or nozzle, through printer_setup or printer_change.
-inline bool writable_printer_setting(const std::string& key)
+inline SettingIssue withheld_setting_issue(const std::string& key)
 {
-    constexpr std::string_view keys[] = {
-        "machine_start_gcode", "machine_end_gcode", "before_layer_change_gcode", "layer_change_gcode",
-        "change_filament_gcode", "machine_pause_gcode", "printable_height", "max_layer_height", "min_layer_height",
-        "z_offset", "printer_notes", "retraction_length", "retraction_speed", "deretraction_speed", "z_hop",
-        "retract_restart_extra", "wipe", "retract_before_wipe", "wipe_distance", "use_firmware_retraction",
-        "machine_max_acceleration_x", "machine_max_acceleration_y", "machine_max_acceleration_z",
-        "machine_max_acceleration_e", "machine_max_acceleration_extruding", "machine_max_acceleration_retracting",
-        "machine_max_acceleration_travel", "machine_max_speed_x", "machine_max_speed_y", "machine_max_speed_z",
-        "machine_max_speed_e", "machine_max_jerk_x", "machine_max_jerk_y", "machine_max_jerk_z", "machine_max_jerk_e"};
-    return std::find(std::begin(keys), std::end(keys), key) != std::end(keys);
-}
-
-// An object's writable keys are the process ones it may override; the caller
-// checks that the key is one an object can hold.
-inline bool writable_setting(const std::string& key, SettingsScope scope)
-{
-    switch (scope) {
-    case SettingsScope::Process:
-    case SettingsScope::Object: return writable_setting(key);
-    case SettingsScope::Filament: return writable_filament_setting(key);
-    case SettingsScope::Printer: return writable_printer_setting(key);
-    }
-    return false;
+    return {key, "withheld_setting", "This holds a printer's connection address or credentials, which the tools never return. "
+                                     "The person sees and changes it in the printer's connection settings."};
 }
 
 inline const char* scope_name(SettingsScope scope)

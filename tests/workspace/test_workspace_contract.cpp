@@ -142,7 +142,7 @@ TEST_CASE("Process settings search is bounded, deterministic, and supplies corre
     REQUIRE(workspace.search_settings({"", 1, "offset:-1"}).error->code == "invalid_arguments");
     REQUIRE(workspace.search_settings({"", 1, "offset:9999999999999999999999"}).error->code == "invalid_arguments");
     REQUIRE(workspace.search_settings({"", 1, "offset:1x"}).error->code == "invalid_arguments");
-    const auto read = workspace.read_settings({"layer_heigt", "nozzle_diameter", "spiral_mode"});
+    const auto read = workspace.read_settings({"layer_heigt", "nozzle_diameter", "post_process"});
     REQUIRE(read.issues[0].code == "unknown_setting");
     REQUIRE(read.issues[0].suggestions.front() == "layer_height");
     REQUIRE(read.issues[1].code == "unsupported_scope");
@@ -157,7 +157,7 @@ TEST_CASE("Process settings validate whole patches without changing the workspac
     const auto before = workspace.snapshot();
     for (const auto& patch : std::vector<SettingsPatch>{
              {{{"layer_height", "NaN"}}}, {{{"layer_height", "0.4"}}}, {{{"wall_loops", "1.5"}}},
-             {{{"sparse_infill_pattern", "invalid"}}}, {{{"notes", "no"}}},
+             {{{"sparse_infill_pattern", "invalid"}}}, {{{"post_process", "/bin/true"}}},
              {{{"wall_loops", "4"}, {"brim_width", "-1"}}}}) {
         const auto preview = workspace.preview_settings(patch);
         REQUIRE_FALSE(preview.valid);
@@ -235,6 +235,50 @@ TEST_CASE("Settings apply enforces previewed values and reports dependent normal
     REQUIRE(workspace.apply_settings(multiline, previewed_changes(preview), applied).succeeded());
     REQUIRE(workspace.read_settings({"fill_multiline"}).items.front().value == "1");
     REQUIRE(applied.warnings.back().code == "normalized");
+}
+
+TEST_CASE("Spiral vase turns on only together with the values it needs", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    SettingsQuery query{"spiral vase"};
+    query.writable_only = true;
+    const auto found = workspace.search_settings(query);
+    REQUIRE(found.items.size() == 1);
+    REQUIRE(found.items.front().key == "spiral_mode");
+
+    // Alone, OrcaSlicer would ask whether to change the other settings. The
+    // refusal names the values to send with it.
+    const auto alone = workspace.preview_settings({{{"spiral_mode", "1"}}});
+    REQUIRE_FALSE(alone.valid);
+    REQUIRE(alone.issues.front().key == "spiral_mode");
+    REQUIRE(alone.issues.front().code == "incompatible_settings");
+    for (const char* needed : {"wall_loops=1", "top_shell_layers=0", "sparse_infill_density=0%"})
+        REQUIRE(alone.issues.front().message.find(needed) != std::string::npos);
+    SettingsPreview applied;
+    REQUIRE(workspace.apply_settings({{{"spiral_mode", "1"}}}, {}, applied).error == WorkspaceError::InvalidSettings);
+    REQUIRE(workspace.read_settings({"spiral_mode"}).items.front().value == "0");
+
+    const SettingsPatch vase{{{"spiral_mode", "1"}, {"wall_loops", "1"}, {"top_shell_layers", "0"}, {"sparse_infill_density", "0"}}};
+    const auto preview = workspace.preview_settings(vase);
+    REQUIRE(preview.valid);
+    REQUIRE(preview.changes.size() == 4);
+    REQUIRE(workspace.apply_settings(vase, previewed_changes(preview), applied).succeeded());
+    REQUIRE(workspace.read_settings({"spiral_mode"}).items.front().value == "1");
+
+    // Once on, a value it needs moves only with spiral vase turned off.
+    const auto walls = workspace.preview_settings({{{"wall_loops", "3"}}});
+    REQUIRE_FALSE(walls.valid);
+    REQUIRE(walls.issues.front().message.find("wall_loops=1") != std::string::npos);
+    SettingsPatch inverse;
+    for (const auto& change : applied.changes)
+        inverse.changes[change.key] = change.before;
+    REQUIRE(workspace.apply_settings(inverse, previewed_changes(workspace.preview_settings(inverse)), applied).succeeded());
+    const auto restored = workspace.read_settings({"spiral_mode", "wall_loops", "top_shell_layers", "sparse_infill_density"});
+    REQUIRE(restored.items[0].value == "0");
+    REQUIRE(restored.items[1].value == "2");
+    REQUIRE(restored.items[2].value == "5");
+    REQUIRE(restored.items[3].value == "15%");
+    REQUIRE_FALSE(workspace.snapshot().setup.process_preset_dirty);
 }
 
 TEST_CASE("Workspace identifiers are strong, ordered, and session scoped", "[workspace]")
@@ -548,6 +592,39 @@ TEST_CASE("Unknown setting names suggest the settings they guessed at", "[worksp
     CHECK(std::set<std::string>(brim.begin(), brim.begin() + 2) == std::set<std::string>{"brim_type", "brim_width"});
     CHECK(brim[2] == "brim_object_gap");
     CHECK(setting_suggestions("enable_suport", definitions).front() == "enable_support");
+}
+
+TEST_CASE("A printer's connection address and credentials are listed but never read", "[workspace][settings]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const SettingsTarget garage{SettingsScope::Printer, {}, "Garage printer"};
+    REQUIRE(workspace.settings_for_testing().printers.at("Garage printer").saved.at("printhost_apikey") == FakeSettings::kFakeHostKey);
+
+    const auto read = workspace.read_settings({"machine_start_gcode", "printhost_apikey"}, garage);
+    REQUIRE(read.items.size() == 1);
+    CHECK(read.items[0].key == "machine_start_gcode");
+    CHECK(read.unknown_keys == std::vector<std::string>{"printhost_apikey"});
+    REQUIRE(read.issues.size() == 1);
+    CHECK(read.issues[0].key == "printhost_apikey");
+    CHECK(read.issues[0].code == "withheld_setting");
+
+    // Search says the setting exists; a definition holds no value.
+    SettingsQuery query{"printhost_apikey"};
+    query.target = garage;
+    const auto found = workspace.search_settings(query);
+    REQUIRE(found.items.size() == 1);
+    CHECK(found.items[0].key == "printhost_apikey");
+    CHECK_FALSE(found.items[0].writable);
+
+    // A patch would return the value as its "before"; none of these keys can be patched.
+    const auto preview = workspace.preview_settings({{{"printhost_apikey", "other"}}, garage, std::string("Garage printer")});
+    CHECK(preview.changes.empty());
+    REQUIRE(preview.issues.size() == 1);
+    CHECK(preview.issues[0].code == "unsupported_setting_mutation");
+    for (const std::string_view key : kWithheldSettings) {
+        CAPTURE(key);
+        CHECK_FALSE(writable_setting(std::string(key)));
+    }
 }
 
 TEST_CASE("A settings search with several terms finds each of them", "[workspace][settings]")
