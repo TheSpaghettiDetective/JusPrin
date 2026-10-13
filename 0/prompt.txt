@@ -102,3 +102,7 @@ agreed. we probably want to maintain a small blacklist for genueinly dangerous o
 ---
 
 change whitelist to blacklist with the small blacklist you recommended. spin up a task chip for discussing how we can deal with the edit time questions
+
+---
+
+commit this with enough details about why we reverse the earlier white list design. and merge to jusprin-newui
