@@ -948,7 +948,7 @@ the condition text.
 | global `enable_support` while `detect_overhang_wall` is off | `enable_support` | silent: `detect_overhang_wall` turned on, once per query state | predict and report as `normalized_dependency` |
 | `spiral_mode` on with support or thin walls | `spiral_mode`, `enable_support`, `detect_thin_wall` | yes/no dialog | refuse with `incompatible_settings` (the spiral row above) |
 | fuzzy skin in an Extrusion or Combined mode without Arachne | `wall_generator` set to classic | yes/no dialog | refuse with `incompatible_settings` naming `fuzzy_skin_mode` |
-| `Tab::on_value_change` for `support_type` in simple mode (style reset) and for the support filaments (dialogs) | none: `Tab::load_config` never calls `on_value_change`, and the filament keys are not writable | inactive for tools | nothing |
+| `Tab::on_value_change` for `support_type` in simple mode (style reset) | none: `Tab::load_config` never calls `on_value_change` | inactive for tools | nothing. Its questions are [forwarded to the caller](#questions-orcaslicer-asks-a-person-who-edits-a-field) |
 | `toggle_print_fff_options` writes (`enable_arc_fitting`, the slope segment length, `fill_multiline`, `overhang_reverse_threshold`) | none of the new keys directly; the prediction runs the real pass on the clone | silent | report whatever the clone shows |
 
 `spiral_mode` is writable. A patch turns spiral vase on by sending it together with the values it needs, which is what answering Yes does; alone it is refused, because the tools never answer the dialog, and the refusal names each value that differs. Apart from that rule, `toggle_print_fff_options` reads `spiral_mode` only to show, hide, enable or disable fields. A plate that carries its own spiral setting (Plate Settings) overrides the process value when it is sliced; no tool writes that one, and `PartPlate::set_spiral_vase_mode` opens the same dialog.
@@ -991,13 +991,84 @@ the preview. It is not behavior to accept. After an upstream update, read
 both functions and the three tabs' `update` and `toggle_options` again for
 new dialog sites, extend the guards and this table, and run the sweep.
 
-Not covered by any guard: the questions OrcaSlicer asks only when a person
-edits a field (`Tab::on_value_change`), which `Tab::load_config` does not
-run. About ten process settings have one: the prime tower with smooth
-timelapse, clumping detection or precise Z height; print sequence by
-object; the support filaments; `make_overhang_printable`;
-`sparse_infill_rotate_template`. A tool change to one of them applies
-without the question. How the tools should treat them is undecided.
+### Questions OrcaSlicer asks a person who edits a field
+
+`Tab::on_value_change` in `Tab.cpp` runs when a person changes one field. For
+some settings it shows a question first. `Tab::load_config` never runs it, so
+a patch changes those settings and nobody is asked. The question goes to the
+caller instead.
+
+Kenneth decided this on 2026-10-12. The caller is an agent, and it settles
+the question itself, one of three ways: go ahead; go ahead and tell the user;
+or ask the user first, when the answer is theirs to give (it depends on what
+the object is for, or it accepts a risk to their printer). No tool refuses
+these changes, holds them for approval, or records that a person agreed. The
+description of `settings_preview_patch` tells the caller this.
+
+Preview adds one warning per question, with code `orca_question`:
+
+- `key` is the setting the question is about.
+- `message` is the question as the person would read it, whole. It comes
+  from the translation catalog, so it is in the interface language.
+- `suggestions` are the values OrcaSlicer's Yes would set, as `key=value`,
+  leaving out any that already hold. A caller accepts by adding them to the
+  patch.
+- `min` and `max`, for layer height, are the nozzles' limits.
+
+The warning leaves the patch valid, and the patch applies as sent. The apply
+result does not repeat it.
+
+The rules are `forward_edit_questions` in `OrcaEditQuestions.hpp`. They are a
+copy of the conditions in `Tab.cpp`, and they look each message up in the
+catalog piece by piece, as `Tab.cpp` does. Three things follow from how
+OrcaSlicer asks:
+
+- A question is about a setting the patch really changes. A value the
+  normalizer puts straight back (clumping detection on a printer without it)
+  raises nothing.
+- The condition is read from the values the patch leaves. A patch that sends
+  the companion value with the change (smooth timelapse together with the
+  prime tower) raises nothing.
+- A state a person chose earlier by answering "do it anyway" raises nothing
+  on a later patch that leaves those settings alone.
+
+An object override raises the same questions as the process setting, because
+OrcaSlicer's object panel runs the same handler.
+
+| Setting | OrcaSlicer asks when the change leaves | Yes sets |
+|---|---|---|
+| `enable_prime_tower` off | smooth `timelapse_type`; and then a second question if `enable_wrapping_detection` is on. Clumping detection alone raises nothing | nothing (No turns the tower back on) |
+| `enable_prime_tower` on | `precise_z_height` on | nothing |
+| `enable_wrapping_detection` on | the prime tower off | nothing |
+| `precise_z_height` on | the prime tower on | nothing |
+| `timelapse_type` smooth | the prime tower off | `enable_prime_tower=1` |
+| `print_sequence` by object | a printer whose `printer_structure` is `i3` | nothing |
+| `support_filament` | a filament OrcaSlicer counts as support material (`is_support_filament`, not strict) that is not soluble, in a project where no object uses TPU | nothing (No sets it back to 0) |
+| `support_interface_filament` | a support material without all of top Z distance 0, interface spacing 0 and the interlaced rectilinear pattern; or a soluble interface over a base that is not | those three values, `independent_support_layer_height=0`, and sometimes `support_filament` |
+| `make_overhang_printable` on | always | nothing |
+| `sparse_infill_rotate_template` given where there was none | a pattern other than rectilinear, line, zigzag, cross zag or locked zag | nothing |
+| `layer_height` | a height below the lowest `min_layer_height` or above the highest `max_layer_height` of the printer's nozzles | the nearer limit |
+| `long_retractions_when_cut` (printer) or `filament_long_retractions_when_cut` (filament) on for an extruder | always. This one has only an OK button: OrcaSlicer informs, it does not ask | nothing |
+
+The copy is held to the original by the workspace adapter harness. It makes
+each change the way a field does (the value into the tab's config, then
+OrcaSlicer's own `on_value_change`), with every dialog the handler opens
+answered and written down, and compares those dialogs with the questions
+preview forwarded. `verify_edit_questions` does this for a case per row and
+for the cases that must raise nothing. `verify_every_writable_setting` does
+it for every setting it applies, so a question upstream adds, drops or
+rewords fails the sweep with `Orca asks ..., preview forwarded ...` and the
+setting's name. After an upstream update, run the harness and bring the
+rules and this table back in line with `Tab.cpp`.
+
+`on_value_change` also does a few things without asking, which a patch skips
+and no tool does in its place. After a long retraction switch changes, it
+recalculates the flush volumes when the "auto calculate flush" preference is
+"all". It keeps `filament_diameter` and `pellet_flow_coefficient` in step
+with each other. On a Bambu printer with several extruders it copies a
+changed `min_layer_height` or `max_layer_height` to every extruder. The
+printer tab's own field handler updates `thumbnails_format` from
+`thumbnails`. Whether a patch should do any of these is undecided.
 
 ### Apply binds the previewed values
 

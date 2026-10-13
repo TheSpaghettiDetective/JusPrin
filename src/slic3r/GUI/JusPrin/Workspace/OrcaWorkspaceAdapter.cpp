@@ -1,6 +1,7 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "SliceBounds.hpp"
 #include "DialogListeners.hpp"
+#include "OrcaEditQuestions.hpp"
 #include "OrcaSettings.hpp"
 #include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
@@ -2805,6 +2806,8 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         if (before != after) result.changes.push_back({key, before, after});
         else result.warnings.push_back({key, "unchanged", "The setting already has this value."});
     }
+    // What OrcaSlicer would ask a person who made these changes by hand.
+    forward_edit_questions(scope, result.changes, current, requested, result.warnings);
     // With no explicit change Tab::load_config does not run its normalizer.
     if (result.changes.empty()) {
         result.dependencies.clear();

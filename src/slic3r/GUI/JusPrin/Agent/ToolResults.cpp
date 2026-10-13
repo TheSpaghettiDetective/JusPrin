@@ -70,7 +70,8 @@ json issues_result(const std::vector<Workspace::SettingIssue>& issues, bool& tru
 json setting_issue_result(const Workspace::SettingIssue& issue)
 {
     bool truncated = false;
-    json result{{"key", label(issue.key, truncated)}, {"code", issue.code}, {"message", label(issue.message, truncated)},
+    // A message can be a whole question of OrcaSlicer's (orca_question).
+    json result{{"key", label(issue.key, truncated)}, {"code", issue.code}, {"message", text(issue.message, truncated)},
                 {"allowed", strings(issue.allowed, truncated)}, {"suggestions", strings(issue.suggestions, truncated)}};
     if (issue.min) result["min"] = *issue.min;
     if (issue.max) result["max"] = *issue.max;

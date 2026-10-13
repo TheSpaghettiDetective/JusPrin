@@ -10,6 +10,8 @@
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/OrcaEditQuestions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
@@ -26,11 +28,13 @@
 #include <wx/app.h>
 #include <wx/modalhook.h>
 
+#include <boost/any.hpp>
 #include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -748,6 +752,245 @@ private:
     // is refused by a guard with a reason or applies with no dialog, reads
     // back as reported, and is put back by the inverse patch. What the write
     // blacklist leaves open is proven here, not key by key in a document.
+    // Words with every run of spaces and line breaks as one space: a dialog
+    // lays its message out again.
+    static std::string squashed(const std::string& text)
+    {
+        std::string result;
+        bool        gap = false;
+        for (const unsigned char c : text) {
+            if (std::isspace(c)) {
+                gap = !result.empty();
+                continue;
+            }
+            if (gap) result += ' ';
+            gap = false;
+            result += static_cast<char>(c);
+        }
+        return result;
+    }
+
+    // The questions a preview forwards (OrcaEditQuestions.hpp).
+    static std::vector<std::string> forwarded_questions(const SettingsPreview& preview)
+    {
+        std::vector<std::string> words;
+        for (const auto& warning : preview.warnings)
+            if (warning.code == kEditQuestion) words.push_back(squashed(warning.message));
+        std::sort(words.begin(), words.end());
+        return words;
+    }
+
+    // The same changes made by hand: each value is put in the tab's config as
+    // a field puts it, then OrcaSlicer's own handler runs for it. Every dialog
+    // the handler opens is written down and answered Yes, so that a question
+    // asked only after another is reached too. The caller restores the config.
+    std::vector<std::string> asked_by_hand(Tab& tab, SettingsScope scope, const std::vector<SettingChange>& changes, std::string& fault)
+    {
+        std::vector<std::string> words;
+        ScopedDialogListener     listener([&words](wxWindow&, const DialogFacts& facts) -> std::optional<int> {
+            words.push_back(squashed(facts.text));
+            return facts.yes ? wxID_YES : wxID_OK;
+        });
+        DynamicPrintConfig& config = *tab.get_config();
+        for (const auto& change : changes) config.set_deserialize_strict(change.key, change.after);
+        for (const auto& change : changes) {
+            // The value a field of this type hands the handler.
+            const ConfigOption* option = config.option(change.key);
+            boost::any          value;
+            switch (option->type()) {
+            case coBool: value = config.opt_bool(change.key); break;
+            case coInt: value = config.opt_int(change.key); break;
+            case coEnum: value = option->getInt(); break;
+            case coFloat: value = config.opt_float(change.key); break;
+            case coString: value = config.opt_string(change.key); break;
+            case coBools:
+                if (const auto& flags = static_cast<const ConfigOptionVector<unsigned char>*>(option)->values; !flags.empty())
+                    value = flags.front();
+                break;
+            case coFloats:
+                if (const auto& numbers = static_cast<const ConfigOptionVector<double>*>(option)->values; !numbers.empty())
+                    value = numbers.front();
+                break;
+            default: break;
+            }
+            // The printer tab names a per-extruder field with its index.
+            const bool indexed = scope == SettingsScope::Printer && option->is_vector();
+            try {
+                tab.on_value_change(indexed ? change.key + "#0" : change.key, value);
+            } catch (const std::exception& error) {
+                fault = "Orca's handler threw on " + change.key + ": " + error.what();
+            }
+        }
+        std::sort(words.begin(), words.end());
+        return words;
+    }
+
+    static std::string listed(const std::vector<std::string>& items)
+    {
+        std::string text;
+        for (const auto& item : items) text += (text.empty() ? "" : " | ") + item;
+        return text.empty() ? "nothing" : text;
+    }
+
+    // OrcaSlicer asks a person about some changes (Tab::on_value_change). A
+    // patch is not asked: preview forwards the question, and it has to be the
+    // one OrcaSlicer asks, when it asks it. Each case is a state, a patch, and
+    // how many questions that patch raises.
+    void verify_edit_questions()
+    {
+        struct DialogProbe : wxModalDialogHook {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
+        } dialogs;
+        dialogs.Register();
+        PresetBundle& bundle       = *m_app.preset_bundle;
+        Tab*          process_tab  = m_app.get_tab(Preset::TYPE_PRINT);
+        Tab*          filament_tab = m_app.get_tab(Preset::TYPE_FILAMENT);
+        Tab*          printer_tab  = m_app.get_tab(Preset::TYPE_PRINTER);
+        DynamicPrintConfig&      process  = bundle.prints.get_edited_preset().config;
+        DynamicPrintConfig&      filament = bundle.filaments.get_edited_preset().config;
+        DynamicPrintConfig&      printer  = bundle.printers.get_edited_preset().config;
+        const DynamicPrintConfig original_process = process, original_filament = filament, original_printer = printer;
+        const SettingsTarget     filament_target{SettingsScope::Filament, {}, bundle.filaments.get_selected_preset_name()};
+        const SettingsTarget     printer_target{SettingsScope::Printer, {}, bundle.printers.get_selected_preset_name()};
+        using Values = std::map<std::string, std::string>;
+
+        // A switch held once per extruder, with every extruder set alike.
+        const auto every = [](const DynamicPrintConfig& config, const std::string& key, const char* value) {
+            std::string text;
+            for (std::size_t index = 0; index < static_cast<const ConfigOptionVectorBase*>(config.option(key))->size(); ++index)
+                text += (index ? "," : "") + std::string(value);
+            return text;
+        };
+
+        std::vector<SettingIssue> seen; // the questions of the case just run
+        const auto run = [&](const std::string& name, const SettingsTarget& target, const Values& given, const Values& changes,
+                             std::size_t expected) {
+            Tab* tab = target.scope == SettingsScope::Filament ? filament_tab : target.scope == SettingsScope::Printer ? printer_tab : process_tab;
+            DynamicPrintConfig&       config   = *tab->get_config();
+            const DynamicPrintConfig& original = target.scope == SettingsScope::Filament ? original_filament :
+                                                 target.scope == SettingsScope::Printer  ? original_printer : original_process;
+            DynamicPrintConfig state = config;
+            for (const auto& [key, value] : given) state.set_deserialize_strict(key, value);
+            tab->load_config(state);
+            const DynamicPrintConfig arranged = config;
+
+            const SettingsPatch patch{changes, target};
+            const auto          preview = m_workspace->preview_settings(patch);
+            seen.clear();
+            for (const auto& warning : preview.warnings)
+                if (warning.code == kEditQuestion) seen.push_back(warning);
+            for (const auto& issue : preview.issues) std::cerr << "QUESTION " << name << " issue: " << issue.key << ' ' << issue.code << ' ' << issue.message << '\n';
+            check(preview.valid, "edit_question_" + name + "_patch_is_valid");
+            check(seen.size() == expected, "edit_question_" + name + "_forwards_" + std::to_string(expected));
+            if (!preview.valid) {
+                tab->load_config(original);
+                return;
+            }
+
+            std::string fault;
+            const auto  asked = asked_by_hand(*tab, target.scope, preview.changes, fault);
+            std::cerr << "QUESTION " << name << " Orca asks: " << listed(asked) << '\n';
+            if (asked != forwarded_questions(preview)) std::cerr << "QUESTION " << name << " forwarded: " << listed(forwarded_questions(preview)) << '\n';
+            if (!fault.empty()) std::cerr << "QUESTION " << name << " fault: " << fault << '\n';
+            check(fault.empty() && asked == forwarded_questions(preview), "edit_question_" + name + "_is_what_orca_asks");
+            tab->load_config(arranged);
+
+            // The patch itself applies as sent, and nobody is asked.
+            const int       before = dialogs.count;
+            SettingsPreview applied;
+            const bool      ok = m_workspace->apply_settings(patch, previewed_changes(preview), applied).succeeded();
+            bool            as_sent = ok;
+            for (const auto& [key, value] : changes) {
+                DynamicPrintConfig sent = config;
+                sent.set_deserialize_strict(key, value);
+                as_sent = as_sent && config.option(key)->serialize() == sent.option(key)->serialize();
+            }
+            check(as_sent && dialogs.count == before, "edit_question_" + name + "_applies_as_sent_unasked");
+            tab->load_config(original);
+        };
+        const SettingsTarget print{};
+
+        // The prime tower and what needs it.
+        run("tower_off_under_smooth_timelapse", print, {{"timelapse_type", "1"}, {"enable_prime_tower", "1"}}, {{"enable_prime_tower", "0"}}, 1);
+        run("tower_on_with_precise_z", print, {{"enable_prime_tower", "0"}, {"precise_z_height", "1"}}, {{"enable_prime_tower", "1"}}, 1);
+        // OrcaSlicer turns clumping detection back off on a printer without
+        // it, as this one is: a change that does not take raises nothing.
+        const auto no_change = m_workspace->preview_settings({{{"enable_wrapping_detection", "1"}}});
+        check(no_change.valid && no_change.changes.empty() && forwarded_questions(no_change).empty(),
+              "edit_question_a_change_that_does_not_take_forwards_0");
+        // A printer that has it.
+        printer.set_deserialize_strict("printer_model", "Bambu Lab P2S");
+        run("tower_off_under_timelapse_and_clumping", print,
+            {{"timelapse_type", "1"}, {"enable_prime_tower", "1"}, {"enable_wrapping_detection", "1"}}, {{"enable_prime_tower", "0"}}, 2);
+        run("tower_off_under_clumping_alone", print, {{"enable_prime_tower", "1"}, {"enable_wrapping_detection", "1"}},
+            {{"enable_prime_tower", "0"}}, 0);
+        run("clumping_on_without_tower", print, {{"enable_prime_tower", "0"}}, {{"enable_wrapping_detection", "1"}}, 1);
+        printer = original_printer;
+        run("precise_z_on_with_tower", print, {{"enable_prime_tower", "1"}}, {{"precise_z_height", "1"}}, 1);
+        run("smooth_timelapse_without_tower", print, {{"enable_prime_tower", "0"}}, {{"timelapse_type", "1"}}, 1);
+        check(seen.size() == 1 && seen.front().key == "timelapse_type" && seen.front().suggestions == std::vector<std::string>{"enable_prime_tower=1"},
+              "edit_question_smooth_timelapse_names_what_yes_sets");
+        run("smooth_timelapse_with_the_tower", print, {{"enable_prime_tower", "0"}}, {{"timelapse_type", "1"}, {"enable_prime_tower", "1"}}, 0);
+
+        // Printing by object, on a printer whose bed moves.
+        run("by_object_on_this_printer", print, {}, {{"print_sequence", "by object"}}, 0);
+        printer.set_deserialize_strict("printer_structure", "i3");
+        run("by_object_on_a_bed_slinger", print, {}, {{"print_sequence", "by object"}}, 1);
+        printer = original_printer;
+
+        run("overhangs_made_printable", print, {}, {{"make_overhang_printable", "1"}}, 1);
+        run("overhangs_left_alone", print, {{"make_overhang_printable", "1"}}, {{"make_overhang_printable", "0"}}, 0);
+
+        // A rotation template, on a pattern that rotates itself.
+        run("rotate_template_on_gyroid", print, {{"sparse_infill_pattern", "gyroid"}}, {{"sparse_infill_rotate_template", "0,90"}}, 1);
+        run("rotate_template_on_rectilinear", print, {{"sparse_infill_pattern", "rectilinear"}}, {{"sparse_infill_rotate_template", "0,90"}}, 0);
+        run("rotate_template_edited", print, {{"sparse_infill_pattern", "gyroid"}, {"sparse_infill_rotate_template", "0,90"}},
+            {{"sparse_infill_rotate_template", "0,45"}}, 0);
+
+        // Support printed in a support material that does not dissolve.
+        run("support_in_an_ordinary_filament", print, {}, {{"support_filament", "1"}}, 0);
+        filament.set_deserialize_strict("filament_is_support", every(filament, "filament_is_support", "1"));
+        run("support_base_in_support_material", print, {}, {{"support_filament", "1"}}, 1);
+        run("support_interface_in_support_material", print, {}, {{"support_interface_filament", "1"}}, 1);
+        Values with_the_rest{{"support_interface_filament", "1"}};
+        for (const auto& pair : seen.empty() ? std::vector<std::string>{} : seen.front().suggestions)
+            with_the_rest[pair.substr(0, pair.find('='))] = pair.substr(pair.find('=') + 1);
+        std::cerr << "QUESTION support interface, Yes sets: " << listed(seen.empty() ? std::vector<std::string>{} : seen.front().suggestions) << '\n';
+        check(with_the_rest.size() == 5 && with_the_rest.count("support_top_z_distance") && with_the_rest.count("support_interface_spacing") &&
+                  with_the_rest.count("support_interface_pattern") && with_the_rest.count("independent_support_layer_height"),
+              "edit_question_support_interface_names_what_yes_sets");
+        run("support_interface_with_what_yes_sets", print, {}, with_the_rest, 0);
+        filament = original_filament;
+
+        // A layer height the nozzle's limits do not cover.
+        run("layer_height_below_the_nozzle_minimum", print, {}, {{"layer_height", "0.04"}}, 1);
+        check(seen.size() == 1 && seen.front().min && seen.front().max &&
+                  *seen.front().min == printer.opt_float("min_layer_height", 0) && *seen.front().max == printer.opt_float("max_layer_height", 0),
+              "edit_question_layer_height_gives_the_limits");
+        printer.set_deserialize_strict("max_layer_height", every(printer, "max_layer_height", "0.14"));
+        run("layer_height_above_a_fine_nozzle_maximum", print, {}, {{"layer_height", "0.16"}}, 1);
+        printer = original_printer;
+
+        // An override on one object is asked about as the process is.
+        const SettingsTarget object{SettingsScope::Object, m_workspace->snapshot().plates.front().objects.front().id, {}};
+        const auto           overridden = m_workspace->preview_settings({{{"make_overhang_printable", "1"}}, object});
+        check(overridden.valid && forwarded_questions(overridden).size() == 1, "edit_question_object_override_forwards_1");
+
+        // The long retraction switches, of the printer and of a filament.
+        run("printer_long_retraction_on", printer_target, {{"long_retractions_when_cut", every(printer, "long_retractions_when_cut", "0")}},
+            {{"long_retractions_when_cut", every(printer, "long_retractions_when_cut", "1")}}, 1);
+        run("printer_long_retraction_off", printer_target, {{"long_retractions_when_cut", every(printer, "long_retractions_when_cut", "1")}},
+            {{"long_retractions_when_cut", every(printer, "long_retractions_when_cut", "0")}}, 0);
+        run("filament_long_retraction_on", filament_target,
+            {{"filament_long_retractions_when_cut", every(filament, "filament_long_retractions_when_cut", "0")}},
+            {{"filament_long_retractions_when_cut", every(filament, "filament_long_retractions_when_cut", "1")}}, 1);
+
+        check(process.diff(original_process).empty() && filament.diff(original_filament).empty() && printer.diff(original_printer).empty(),
+              "edit_questions_leave_the_presets_as_they_were");
+        check(dialogs.count == 0, "edit_questions_no_modal_dialog_reached");
+    }
+
     void verify_every_writable_setting()
     {
         struct DialogProbe : wxModalDialogHook {
@@ -766,7 +1009,7 @@ private:
             const DynamicPrintConfig  original = config;
             const bool                dirty    = collection.current_is_dirty();
             std::size_t defined = 0, blocked = 0, applied_count = 0;
-            std::vector<std::string> unswept, unchanged, refused, rewrote, inexact, failed;
+            std::vector<std::string> unswept, unchanged, refused, rewrote, inexact, questioned, failed;
             for (const SettingDefinition& def : scope_definitions(scope)) {
                 ++defined;
                 const std::string& key  = def.key;
@@ -831,6 +1074,18 @@ private:
                     else if (collection.current_is_dirty() != dirty)
                         fault += std::string(fault.empty() ? "" : "; ") + "preset still marked changed after the inverse patch";
                 }
+                // The same change by hand: what OrcaSlicer asks then is
+                // what preview forwarded, and nothing else. A question
+                // upstream adds, drops or rewords fails here.
+                if (result.succeeded()) {
+                    if (!config.diff(original).empty()) tab->load_config(original);
+                    std::string threw;
+                    const auto  asked = asked_by_hand(*tab, scope, preview.changes, threw);
+                    if (!asked.empty()) questioned.push_back(key);
+                    if (!threw.empty() || asked != forwarded_questions(preview))
+                        fault += std::string(fault.empty() ? "" : "; ") + (threw.empty() ? "" : threw + "; ") + "Orca asks " + listed(asked) +
+                                 ", preview forwarded " + listed(forwarded_questions(preview));
+                }
                 if (!fault.empty()) failed.push_back(key + " (" + fault + ")");
                 if (!config.diff(original).empty()) tab->load_config(original);
             }
@@ -846,6 +1101,7 @@ private:
             std::cerr << "SWEEP REFUSED " << name << ": " << list(refused) << '\n';
             std::cerr << "SWEEP REWROTE " << name << ": " << list(rewrote) << '\n';
             std::cerr << "SWEEP UNCHANGED " << name << ": " << list(unchanged) << '\n';
+            std::cerr << "SWEEP ASKED BY ORCA " << name << ": " << list(questioned) << '\n';
             std::cerr << "SWEEP RESTORED AS PRINTED " << name << ": " << list(inexact) << '\n';
             std::cerr << "SWEEP NOT SWEPT " << name << ": " << list(unswept) << '\n';
             std::cerr << "SWEEP FAILED " << name << ": " << list(failed) << '\n';
@@ -928,6 +1184,7 @@ private:
               }),
               "change_log_records_setting_edits");
         verify_every_writable_setting();
+        verify_edit_questions();
         verify_preset_settings();
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");

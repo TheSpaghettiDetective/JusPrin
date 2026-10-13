@@ -108,6 +108,18 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
         CHECK(registry.validate_output(*registry.find("settings_preview_patch"), settings_preview_result(preview, SettingsScope::Process, snapshot)));
         CHECK(registry.validate_output(*registry.find("settings_apply_patch"), settings_apply_result(preview, SettingsScope::Process, snapshot, false)));
     }
+    // A question of OrcaSlicer's is forwarded whole, with what its Yes sets,
+    // and leaves the patch valid.
+    auto asked = workspace.preview_settings({{{"layer_height", "0.25"}}});
+    const std::string question(600, 'q');
+    asked.warnings.push_back({"layer_height", "orca_question", question, {}, {"enable_prime_tower=1"}});
+    const auto asked_result = settings_preview_result(asked, SettingsScope::Process, snapshot);
+    CHECK(registry.validate_output(*registry.find("settings_preview_patch"), asked_result));
+    CHECK(asked_result["valid"] == true);
+    CHECK(asked_result["warnings"].back()["code"] == "orca_question");
+    CHECK(asked_result["warnings"].back()["message"] == question);
+    CHECK(asked_result["warnings"].back()["suggestions"] == json::array({"enable_prime_tower=1"}));
+    CHECK(asked_result["truncated"] == false);
     const SettingsTarget printer{SettingsScope::Printer, {}, "Fixture printer"};
     const auto printer_read = settings_read_result(workspace.read_settings({"machine_start_gcode"}, printer), SettingsScope::Printer, snapshot);
     CHECK(registry.validate_output(*registry.find("settings_get"), printer_read));
