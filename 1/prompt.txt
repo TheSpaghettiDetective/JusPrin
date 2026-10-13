@@ -1,0 +1,33 @@
+This is a design discussion with Kenneth, not an implementation task. Produce a short proposal with options and a recommendation, then stop and discuss. Do not change code until Kenneth picks a direction. Do not run tests that call a live model.
+
+Repository /Users/kenneth/Projects/JusPrin, branch jusprin-newui. Read agent-docs/jusprin/README.md, agent-docs/jusprin/product-definition.md (who owns which decisions: the user owns physical facts, object meaning and desired outcomes; the agent chooses the technical strategy) and agent-docs/jusprin/mcp-tool-extension-guide.md, section "Settings tools: contract and hazards".
+
+Background. On 2026-10-12 the settings tools' write policy changed from per-scope allow-lists to one blacklist (blocked_setting in src/slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp). That change is UNCOMMITTED in another session's worktree at /Users/kenneth/Projects/JusPrin/.claude/worktrees/spiral-vase-writable (branch claude/spiral-vase-writable). You may read files there; do not edit or build there. Check first whether it has since been committed or merged into jusprin-newui. In that worktree the guide's hazard section ends with a paragraph "Not covered by any guard" that names this open question.
+
+The problem. Tool changes go through Tab::load_config, which does not run Tab::on_value_change (src/slic3r/GUI/Tab.cpp, roughly lines 1495 to 1960). on_value_change is where OrcaSlicer asks a person a question when they edit certain fields. So a tool change to these settings applies silently where the app would have asked. Verified on the real app over MCP: a patch setting timelapse_type=1 and make_overhang_printable=1 applied with no question and no warning.
+
+The questions, as read from the code on 2026-10-12, with a first classification:
+- support_interface_filament: "apply the recommended companion settings?" (0 top Z distance, 0 interface spacing, interlaced rectilinear, independent support layer height off, sometimes support_filament too). Technical; the agent could send them together.
+- enable_prime_tower turned off while timelapse_type is smooth, or while enable_wrapping_detection is on: "are you sure". Technical dependency.
+- enable_prime_tower on with precise_z_height, and precise_z_height on with the prime tower: "may cause slicing errors". Technical.
+- enable_wrapping_detection on without a prime tower. Technical.
+- timelapse_type smooth without a prime tower: "enable the prime tower?". Technical once a timelapse is wanted.
+- sparse_infill_rotate_template on a pattern not designed for rotation. Technical.
+- layer_height outside the nozzle's limits: "adjust automatically?". Already refused by the existing guard for the maximum; check the minimum.
+- support_filament set to a non-soluble support material: "not recommended for support base". Mostly technical, but depends on which spools are really loaded.
+- print_sequence by object on a bed-slinger (printer_structure i3): timelapse in traditional mode is lost. Mildly a user preference.
+- make_overhang_printable: "will modify the model's shape"; matters when dimensions or fit matter. The user's decision.
+- long_retractions_when_cut and filament_long_retractions_when_cut: experimental, may raise the risk of clogs. Accepting a risk to the printer; the user's decision.
+Re-read on_value_change to confirm this list is complete for the process, filament and printer tabs, and note each condition exactly.
+
+Existing pattern to build on. Spiral vase is handled by the preview: check_process_dialogs in src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp refuses spiral_mode alone and names the companion values to send in the same patch. Preview results already have "issues" (blocking) and "warnings" (non-blocking, e.g. normalized_dependency). The fork also has ScopedDialogListener (src/slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp), which can intercept and answer OrcaSlicer dialogs.
+
+Options to weigh, per question rather than one rule for all:
+1. Preview warning that states the condition and names the companion settings; the agent decides.
+2. Blocking issue until the companion settings are in the same patch (the spiral vase treatment).
+3. Blocking issue that tells the agent to ask the person first, for the questions that belong to the user; decide how the tool learns the person agreed.
+4. Put the setting on the blacklist.
+5. Call OrcaSlicer's own handler with a dialog listener answering, so OrcaSlicer applies its own companion changes.
+Consider how each keeps the tool honest (the result must say what really changed), how it survives an upstream rebase (the conditions live in Tab.cpp, which upstream edits), and how each would be tested against the real workspace adapter (tests/workspace/real_adapter_harness.cpp has a sweep, verify_every_writable_setting, and tests/shell/shell_harness.cpp has per-feature checks).
+
+Deliver: a table of the questions with the recommended treatment and wording for each, the one or two cross-cutting decisions Kenneth has to make, and what you would build first. Plain English, under 600 words, then discuss.
