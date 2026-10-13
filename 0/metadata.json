@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4VBJP90C9YP1J5NDSFBQG21",
+  "session_id": "01a11940-de59-7092-8b85-c1b9bb845437",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-13T19:24:39.902128Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [
+    "resources/JusPrin.icns"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "db404d954a01",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2081066,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 89145472,
+    "output_tokens": 259841,
+    "api_call_count": 44
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}
