@@ -1,0 +1,13 @@
+<pasted_content id="4a73">
+Somehow I don't feel like you're speaking normal English. You're using English words, but the way you phrase it is not how normal people talk in daily lives. Are you trying to sound sophisticated or something?
+
+No, I’m not trying to sound sophisticated. But you’re right that it reads oddly, and I can tell you why.
+
+I’ve been writing in a clipped, compressed style: short declarative sentences, nouns doing the work of whole clauses (“the home,” “the trigger,” “the nudge”), and a habit of naming a thing once and then referring back to it as if it were a defined term. That’s a style that reads fine to me while I’m writing it, because each sentence is technically precise. But stacked together it comes out sounding like a spec or a legal brief, not like a person explaining something across a table. “The check does not add a second model decision” is correct, but a normal person would say “this doesn’t make the model do anything extra.”
+
+Part of it is also that I’ve been imitating the voice of your own docs. The tool guide and architecture doc in this repo are written in a very particular dense style, and I slid into matching it in conversation, where it doesn’t belong.
+
+The fix is simple: plainer verbs, fewer nouns standing in for ideas, and saying “the model” and “the app” instead of inventing shorthand. I’d rather you call it out, as you just did, than have you decode every paragraph.
+</pasted_content id="4a73">
+
+This is what the agent who wrote the @agent-docs said. Go through the documents inside (commited only) To see if this is the case.
