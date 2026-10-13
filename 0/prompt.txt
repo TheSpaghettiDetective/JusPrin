@@ -1,0 +1,104 @@
+Investigate why the JusPrin in-app assistant cannot enable OrcaSlicer's spiral vase mode, and propose a fix. Repository: /Users/kenneth/Projects/JusPrin, branch jusprin-newui. Create your own git worktree for any code work; do not reuse another session's worktree.
+
+## What was observed (2026-10-12, live test on jusprin-newui d0bce03db3, model gpt-5.4-mini)
+
+A Thingiverse model named Spiral_Vase1_SOLID.STL (85 x 85 x 150 mm, a solid meant for vase mode) was loaded with a Bambu Lab X1 Carbon 0.4 nozzle, "Bambu PLA Basic @BBL X1C" and "0.20mm Standard @BBL X1C". After the user said "It's a vase. It only needs to hold dried flowers.", the assistant made two tool calls:
+
+1. settings_search {"limit":10,"query":"spiral vase","scope":"process","writable":true} returned {"items":[] ...}: no writable setting matched.
+2. settings_get {"keys":["spiral_mode","wall_loops","top_shell_layers","bottom_shell_layers","infill_density","sparse_infill_density"],"scope":"process"} returned spiral_mode with "label":"Spiral vase","value":"0","writable":false.
+
+The assistant then told the user it had not changed the setting "because I need to avoid guessing on the exact print style without your confirmation" and offered to enable it. It never said the setting is read-only for it. Earlier in the same conversation it had sliced the vase as a solid block (5 h 22 min, 153 g).
+
+## What is already known from reading the code (verify it, do not take it on trust)
+
+- src/slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp: writable_setting(key) is an allow-list of process keys the tools may write. "spiral_mode" is not in it. The comment above it says each allowed key "was traced through ConfigManipulation's normalizer and toggles and Tab's handlers; the hazard table in the tool extension guide says what each can rewrite or ask."
+- src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp around line 132 already has a validation rule that blocks a configuration where spiral_mode is on but wall_loops, top_shell_layers, infill, support, thin walls and others are not in their vase-mode values. So part of the code already expects spiral_mode to be reachable.
+- There is also a per-plate spiral mode: OrcaWorkspaceAdapter.cpp line 226 reads plate.get_spiral_vase_mode(), OrcaOutline.cpp line 134 checks plate->has_spiral_mode_config(), and AgentHost.cpp line 520 reports "spiralMode" in the applied setup.
+- My hypothesis, not verified: spiral_mode was left off the allow-list because OrcaSlicer's own UI (ConfigManipulation) opens a dialog offering to change the dependent settings automatically when spiral vase is switched on, and a tool call cannot answer a dialog.
+
+## Questions to answer
+
+1. Why is spiral_mode not writable: a deliberate decision (find the commit, the hazard table entry in agent-docs/jusprin/mcp-tool-extension-guide.md, or any other record) or an omission?
+2. What exactly does OrcaSlicer do when a user ticks "Spiral vase" in the process settings: which other settings does it change, and through which dialog? Trace the real owner (ConfigManipulation and Tab handlers).
+3. What is the smallest correct way to let the assistant print a vase in spiral mode? Candidates: add spiral_mode to the allow-list and apply the dependent settings in the same patch (the existing validation rule suggests a patch containing all of them would be accepted), or use the per-plate spiral mode. Say which Orca owner each goes through and what undo does.
+4. Separately from the capability: when a setting the assistant needs is read-only, its reply should say so. Decide whether that belongs in the settings tools' descriptions or results (for example a reason next to writable:false) rather than the core prompt, and propose wording.
+
+## Rules for this work
+
+- Read agent-docs/jusprin/README.md, agent-docs/jusprin/mcp-tool-extension-guide.md (it defines how a tool capability is added and tested) and, before editing any file outside src/slic3r/GUI/JusPrin/, agent-docs/jusprin/fork-stewardship.md.
+- Reproduce first. The tool behaviour can be reproduced without a live model: the native tests under tests/agent and tests/workspace, or the shell harness started with --manual-mcp <dedicated-dir> and driven through tests/mcp/probe.py, exercise settings_search / settings_get / settings_preview_patch / settings_apply_patch directly. Show the read-only result and a refused patch before proposing a change.
+- Do not run tests that call a live model without Kenneth approving a specific batch first.
+- Start with a short written finding (problem, proposed solution, what you tested, remaining issues, plain English, under 500 words). Implement only if the finding shows a small, clearly correct change; otherwise stop at the finding and the options.
+- Working documents stay untracked; do not commit them and do not add them to .gitignore.
+
+---
+
+<task-notification>
+<task-id>bra1kgf3k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-relaxed-mirzakhani-378de3/0b03c379-ea3d-491e-a0b3-9b5bf2a6240f/tasks/bra1kgf3k.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the background build to finish and report its exit status" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+Tell me in plain English what this issue was all about, and what did you find out, and what remained to be resolved, and why you were proposing another task.
+
+---
+
+Check in the docs or git log to see if there is some justification for why we define such a small set of permitted chat settings. If you can't find any, try to make a guess. For example, what are the settings or actually can be considered "dangerous"?
+
+---
+
+use entire to find if these 2 commits were claude or codex, and their session titles
+
+---
+
+<pasted_content id="757f">
+The agent could search and read every applicable setting. Writing was initially limited because changing an Orca setting can:
+
+* Open a modal dialog and block the GUI thread.
+* Silently rewrite dependent settings.
+* Affect slicing, dirty state, saving, and revert behavior.
+* Have different Undo semantics.
+* Conflict with simultaneous GUI edits.
+
+Each writable key therefore had to be traced through Orca’s normalizers and handlers, then tested for native UI updates, dependencies, atomic application, stale-state protection, and undo/revert behavior. See [mcp-tool-extension-guide.md (line 679)](/Users/kenneth/Projects/JusPrin/agent-docs/jusprin/mcp-tool-extension-guide.md:679).
+The policy was: start with a small proven write surface, then expand key by key after real-adapter tests. This prevented the tool from hanging on dialogs or claiming one result while Orca silently produced another. The hazard audit explains those risks in [mcp-tool-extension-guide.md (line 880)](/Users/kenneth/Projects/JusPrin/agent-docs/jusprin/mcp-tool-extension-guide.md:880).
+</pasted_content id="757f">
+
+This is the initial justification for this permitted set. 
+
+Check to see if any of these are still relevant today.
+
+---
+
+<!-- reply 5 -->
+> Filament and printer settings: less certain. Their guards were written only for the settings on their lists. I confirmed the filament tab has one pop-up path on this route and it is covered. I did not go through the printer tab exhaustively.
+
+can you look at the code to be certain?
+
+<!-- reply -->
+> A general safety net now exists but is not used here. Since the allow-list was written, the fork gained a way to intercept any OrcaSlicer pop-up and answer it automatically (it is used when opening files). The settings apply step does not use it. If it did, a missed pop-up would no longer freeze the app.
+
+any risk for using this for the settings?
+
+<!-- reply -->
+> Warnings the app gives only when a person edits the field. About ten process settings have their own pop-up in the settings tab’s edit handler, which a tool change skips. Examples: turning off the prime tower with smooth timelapse on, choosing “by object” print order, precise Z height with a prime tower, support filament choices. A tool change would not freeze, but it would quietly skip a question the app considers worth asking.
+
+are these the warnings/qeustions agent can automatically handle with a reasonable guess, or are they the questions that only user can anser?
+
+<!-- reply -->
+> Settings a plate can override. Eight settings (print order, bed type, spiral vase and others) can be set per plate, in which case changing the process value has no effect on that plate.
+
+did you say this as a fact, or problem, or a question?
+
+<!-- reply -->
+> Post-processing scripts. The process setting post_process names a program that runs on the computer when G-code is exported. I confirmed it is currently refused. It should stay refused whatever else is opened up, because the tool endpoint has no login.
+
+agreed. we probably want to maintain a small blacklist for genueinly dangerous ops like this
+
+---
+
+change whitelist to blacklist with the small blacklist you recommended. spin up a task chip for discussing how we can deal with the edit time questions
