@@ -102,3 +102,60 @@ agreed. we probably want to maintain a small blacklist for genueinly dangerous o
 ---
 
 change whitelist to blacklist with the small blacklist you recommended. spin up a task chip for discussing how we can deal with the edit time questions
+
+---
+
+commit this with enough details about why we reverse the earlier white list design. and merge to jusprin-newui
+
+---
+
+rebase onto the remote commit, rerun the tests, and push
+
+---
+
+<pasted_content id="757f">
+No, commit 6d01606f0d does not solve this problem. It stops the tools from changing a printer’s connection settings, but the read tool `settings_get` still returns their values.
+How I checked. I built the test app from 6d01606f0d unmodified and ran the same reproduction as before, with dummy values in a throwaway printer profile. `settings_get` returned all seven:
+
+```
+value  print_host             = 'http://192.0.2.10'
+value  print_host_webui       = 'http://192.0.2.10/ui'
+value  printhost_apikey       = 'DUMMY-APIKEY-NOT-REAL-7f3a'
+value  printhost_user         = 'dummyuser'
+value  printhost_password     = 'DUMMY-PASSWORD-NOT-REAL'
+value  printhost_cafile       = '/tmp/dummy-ca.pem'
+value  printhost_port         = 'dummy-port'
+```
+
+This is the same output as before that commit. Search and preview still return no values, as before.
+What the commit does do. It replaces the three lists of settings the tools may change with one list of 51 settings they may not change (`blocked_setting` in `SettingsSupport.hpp`). That list includes the connection settings and `post_process`, so none of them can be written. The function that reads values has no matching check.
+What this means for my fix. My fix is still needed, and it is still uncommitted on a branch based on the commit before 6d01606f0d. A trial apply on top of 6d01606f0d merged six of the eight files cleanly. Two conflict and need a hand merge:
+
+* the tool guide, agent-docs/jusprin/mcp-tool-extension-guide.md
+* the test fake, tests/jusprin_support/FakeSettings.hpp
+
+One of my new tests also calls a function whose signature that commit changed, so it needs a one-line update. I have not done that merge or rerun the tests on top of 6d01606f0d.
+A new decision. The new blacklist groups 13 settings under “where a printer is on the network, and how to sign in to it”. My read block covers 7 of them. The other six are the host type, the authorisation type, two on/off flags, the printer agent name and the Flashforge serial number. I would keep the read block at 7, because those six hold no address or credential, but using the same 13 for both would be simpler to explain.
+</pasted_content id="757f">
+
+is it going to be small fix on top of your change? if so, can you amend your commit to add it?
+
+---
+
+<task-notification>
+<task-id>bk62xhgbw</task-id>
+<tool-use-id>toolu_01UaJnzBEkuU1jo1RbvDsQj6</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-relaxed-mirzakhani-378de3/0b03c379-ea3d-491e-a0b3-9b5bf2a6240f/tasks/bk62xhgbw.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the unit tests, the workspace harness with the sweep, and the shell harness regression on the rebased build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdkcyex2o</task-id>
+<tool-use-id>toolu_01EUyfQpqSMQKfWikeGfQxEK</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-relaxed-mirzakhani-378de3/0b03c379-ea3d-491e-a0b3-9b5bf2a6240f/tasks/bdkcyex2o.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the shell harness run on the rebased build to finish and show its result" completed (exit code 0)</summary>
+</task-notification>
