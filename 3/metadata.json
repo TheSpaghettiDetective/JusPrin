@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4XY5PY6TW7YCS3KQEGGTHWN",
+  "session_id": "1eb4b8a6-879e-4041-8549-4333035c562f",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-14T20:22:51.780572Z",
+  "branch": "claude/rename-propose-to-submit",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "6b5f00b692e4",
+  "checkpoint_transcript_start": 816,
+  "transcript_lines_at_start": 816,
+  "compact_transcript_start": 100,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 17643,
+    "cache_read_tokens": 2988664,
+    "output_tokens": 10161,
+    "api_call_count": 11
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
