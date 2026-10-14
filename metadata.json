@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4Y0RJ01WDJGPYPQ5TC7XRHV",
+  "strategy": "manual-commit",
+  "branch": "claude/no-save-prompts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/fileReportInstructions.ts",
+    "src/slic3r/GUI/JusPrin/Workspace/FileLoads.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/FileLoads.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaEditQuestions.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "src/slic3r/GUI/Plater.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/jusprin_support/FakeSettings.hpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1978,
+    "cache_read_tokens": 261298,
+    "output_tokens": 2382,
+    "api_call_count": 1
+  }
+}
