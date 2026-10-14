@@ -1507,7 +1507,7 @@ namespace {
 
 // Drives printer_connect to its local input form in a Connect session about a
 // Bambu Lab printer on the network.
-Agent::ToolActivity propose_connect(PrinterHost& harness)
+Agent::ToolActivity submit_connect(PrinterHost& harness)
 {
     harness.backend.connection_info = bambu_on_network();
     harness.agent->call = Agent::ToolRequest{"printer_connect", json{{"deviceId", "01P00A3B"}}.dump()};
@@ -1526,7 +1526,7 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
 {
     const std::string secret = "S3cretCode";
     PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity request = propose_connect(harness);
+    const Agent::ToolActivity request = submit_connect(harness);
     CHECK(request.title == "Connect to Workshop");
 
     harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", secret}});
@@ -1558,7 +1558,7 @@ TEST_CASE("a message sent while connecting is answered first, and the outcome's 
           "[printer-conversation][host]")
 {
     PrinterHost harness(ConversationMode::Connect);
-    const Agent::ToolActivity request = propose_connect(harness);
+    const Agent::ToolActivity request = submit_connect(harness);
     harness.page("printer_action", {{"action", "connect"}, {"actionId", request.action_id}, {"credential", "1234"}});
     harness.pump();
     const std::size_t before = harness.agent->requests.size();

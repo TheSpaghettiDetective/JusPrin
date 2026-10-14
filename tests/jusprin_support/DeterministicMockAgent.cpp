@@ -263,7 +263,7 @@ DeterministicMockAgent::Reply DeterministicMockAgent::reply_for(const std::strin
         return reply;
     }
     // A sent model attachment is imported through Orca's own importer. This
-    // mirrors what a future MCP agent would propose; the host resolves the
+    // mirrors what a future MCP agent would submit; the host resolves the
     // opaque attachment ID to a file path.
     for (const AttachmentContext& attachment : attachments) {
         if (!attachment.importable)

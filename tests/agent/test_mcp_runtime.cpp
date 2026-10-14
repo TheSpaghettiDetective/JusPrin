@@ -239,7 +239,7 @@ TEST_CASE("the change log says which edits an external tool made", "[mcp][host][
     workspace.set_setting_for_testing("wall_loops", "3");
     Client client(host.mcp()->server(), request("tools/call", {{"name", "settings_apply_patch"}, {"arguments", patch("4")}}));
     REQUIRE(wait_for([&] { return client.done(); }, [&] { host.pump_tools(); }));
-    const std::string action = host.tools().propose({"settings_apply_patch", patch("5").dump()}, "m-1").action_id;
+    const std::string action = host.tools().submit({"settings_apply_patch", patch("5").dump()}, "m-1").action_id;
     REQUIRE(wait_for([&] { return Agent::tool_state_terminal(host.tools().find(action)->state); }, [&] { host.pump_tools(); }));
 
     Agent::ProjectStateDocument reloaded;

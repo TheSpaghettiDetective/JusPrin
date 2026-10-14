@@ -124,7 +124,7 @@ The same rule applies to presets, project objects, plates, warnings, and slice r
 
 A new operation deserves its own tool when it really differs from the existing ones in at least one of these ways: how it is authorized, whether it applies completely or not at all, how it starts, runs, and ends, or what its result means. `slice_start` is an example. It is not one more way to change settings. It starts OrcaSlicer work that runs in the background, and it completes in a different way from a settings change. That difference justifies a separate tool.
 
-Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before proposing the change. There are four such cases:
+Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before submitting the change. There are four such cases:
 
 - settings, because OrcaSlicer's normalizer (the code that adjusts dependent settings after an edit) can rewrite values;
 - preset selection, because OrcaSlicer may substitute a compatible preset, and dirty edits may be lost;
@@ -288,7 +288,7 @@ A tool's inputs should say what the caller wants and which thing it wants it don
 - Send OrcaSlicer IDs as JSON strings, so that the full width of the native ID is preserved.
 - Use canonical setting keys, and values in their normalized form.
 - The first catalog had three in-app fixtures: `duplicate_object`, `import_model`, and `inspect_selection`. All three are retired. `plate_layout` replaced the first, `object_import` replaced the second, and the selection ids in the summary of `workspace_inspect` replaced the third. When the coordinator queues an action, it records the session and the revision. It invalidates queued actions when a relevant workspace event arrives, and it checks again before executing. A change to the selection alone does not invalidate an action that is aimed at a specific object, and does not redirect it.
-- Some new operations read a value, change it, and write it back, and must detect anything that changed since the caller's earlier read. For such an operation, design explicit inputs for the expected session and revision in its own schema and decoder, and test them. A check made when the call is proposed does not prove that the caller's earlier read is still current. Do not quietly add required arguments to tools that already exist.
+- Some new operations read a value, change it, and write it back, and must detect anything that changed since the caller's earlier read. For such an operation, design explicit inputs for the expected session and revision in its own schema and decoder, and test them. A check made when the call is submitted does not prove that the caller's earlier read is still current. Do not quietly add required arguments to tools that already exist.
 - Put changes that must succeed or fail together into one call.
 - Make the caller say which thing it means. Do not fall back to a hidden default. The exception is a tool whose name clearly promises the current selection or the active plate.
 - Reject unknown fields. Reject inputs that select the target in conflicting ways.
@@ -545,7 +545,7 @@ Text embossing is left out until an eval needs it. When one does, embossing gets
 |---|---|---|---|---|
 | `preflight_check` | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
 | `print_send` | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. The card is the explicit Send. | `PrintJob`, `SendJob` | |
-| `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Proposal-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
+| `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Submission-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
 
 ### `machine`
 
@@ -725,7 +725,7 @@ tool may change), and before you add any tool that changes a preset.
    notifications the UI would have sent.
 8. Edits to process, filament, and printer presets are not in project Undo.
    Their results say `projectUndo: false` and return the previous values, so
-   that a caller can propose a change that reverses the edit. Object
+   that a caller can submit a change that reverses the edit. Object
    overrides use one OrcaSlicer snapshot, and their results say
    `projectUndo: true`.
 9. Every result repeats the validated `scope`, and gives the `presetName` of

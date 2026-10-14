@@ -6062,7 +6062,7 @@ private:
         check(!message_id.empty(), "setup_differences_user_message_recorded");
 
         const auto run = [&host, &message_id, this](const char* tool, const nlohmann::json& arguments, const std::string& name) {
-            const std::string action = host.tools().propose({tool, arguments.dump()}, message_id).action_id;
+            const std::string action = host.tools().submit({tool, arguments.dump()}, message_id).action_id;
             for (int tick = 0; tick < 200 && !Agent::tool_state_terminal(host.tools().find(action)->state); ++tick)
                 host.pump_tools();
             const Agent::ToolActivity* done = host.tools().find(action);
@@ -7287,7 +7287,7 @@ private:
         const auto selected = installed_shell()->workspace()->snapshot().plates[0].objects[0].id;
         const auto selection = installed_shell()->workspace()->select_object(selected);
         check(selection.succeeded() || selection.error == Workspace::WorkspaceError::NoChange, "live_agent_native_selection");
-        const auto inspect_id = web_view.host().tools().propose({"workspace_inspect", "{}"}, "live-selection-proof").action_id;
+        const auto inspect_id = web_view.host().tools().submit({"workspace_inspect", "{}"}, "live-selection-proof").action_id;
         web_view.host().pump_tools();
         const auto* inspected = web_view.host().tools().find(inspect_id);
         check(inspected && inspected->state == Agent::ToolState::Succeeded &&
@@ -7574,7 +7574,7 @@ private:
                        self->check(web_view.host().conversation().size() == conversation_size,
                                    "agent_reload_preserves_native_conversation");
                        self->check(!web_view.bridge_error_shown(), "agent_reload_clears_bridge_error");
-                       self->agent_tool_propose();
+                       self->agent_tool_submit();
                    });
     }
 
@@ -7589,7 +7589,7 @@ private:
         return count;
     }
 
-    void agent_tool_propose()
+    void agent_tool_submit()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         check(m_plater->select_object(0), "tool_target_selected");
@@ -8710,11 +8710,11 @@ private:
                         PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
                         return plate != nullptr && plate->is_slice_result_valid();
                     },
-                    "phase6_active_plate_sliced", [self] { self->phase6_propose_build(); });
+                    "phase6_active_plate_sliced", [self] { self->phase6_submit_build(); });
             });
     }
 
-    void phase6_propose_build()
+    void phase6_submit_build()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         const std::size_t activities_before = web_view.host().tools().activities().size();
@@ -8734,11 +8734,11 @@ private:
                         return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
                                self->persistence().document().builds().size() == 1;
                     },
-                    "phase6_build_recorded", [self] { self->phase6_propose_export(); });
+                    "phase6_build_recorded", [self] { self->phase6_submit_export(); });
             });
     }
 
-    void phase6_propose_export()
+    void phase6_submit_export()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         const std::size_t activities_before = web_view.host().tools().activities().size();
@@ -8758,11 +8758,11 @@ private:
                         return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
                                self->persistence().document().exported_copies().size() == 1;
                     },
-                    "phase6_export_recorded", [self] { self->phase6_propose_print(); });
+                    "phase6_export_recorded", [self] { self->phase6_submit_print(); });
             });
     }
 
-    void phase6_propose_print()
+    void phase6_submit_print()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         const std::size_t activities_before = web_view.host().tools().activities().size();

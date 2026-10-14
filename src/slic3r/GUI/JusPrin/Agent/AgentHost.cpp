@@ -2202,18 +2202,18 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     m_persistence.flush();
     send_envelope(Protocol::kAssistantCompleted, json{{"messageId", stream.message.id}}.dump());
 
-    const ToolActivity& proposed = m_tools.propose(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks},
+    const ToolActivity& submitted = m_tools.submit(call.request, stream.message.id, ToolExecutionPacing{call.test_run_ticks},
                                                    ToolSource::Agent, call.call_id);
     if (call.await_result) {
         PendingToolContinuation continuation;
         continuation.call_id            = std::move(call.call_id);
         continuation.conversation_id     = stream.conversation_id;
         continuation.user_message_id     = stream.message.in_reply_to;
-        m_tool_continuations[proposed.action_id] = std::move(continuation);
+        m_tool_continuations[submitted.action_id] = std::move(continuation);
         // A call refused while being queued was already terminal when the coordinator
         // announced it, before this continuation existed; hand the agent its result now.
-        if (tool_state_terminal(proposed.state)) {
-            const ToolActivity answered = proposed;
+        if (tool_state_terminal(submitted.state)) {
+            const ToolActivity answered = submitted;
             continue_after_tool(answered);
         }
     } else {

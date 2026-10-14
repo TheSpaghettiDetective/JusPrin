@@ -402,9 +402,9 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
     });
 }
 
-const ToolActivity& ToolExecutionCoordinator::propose(const ToolRequest& request, const std::string& correlation_id,
-                                                      ToolExecutionPacing pacing, ToolSource source,
-                                                      const std::string& call_id)
+const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request, const std::string& correlation_id,
+                                                     ToolExecutionPacing pacing, ToolSource source,
+                                                     const std::string& call_id)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);

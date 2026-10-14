@@ -180,7 +180,7 @@
     "type": "function"
   },
   {
-    "description": "Read current values and their preset origin; read before proposing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
+    "description": "Read current values and their preset origin; read before previewing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
     "name": "settings_get",
     "parameters": {
       "additionalProperties": false,

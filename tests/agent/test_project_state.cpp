@@ -825,7 +825,7 @@ TEST_CASE("the change log records each edit after the conversation item it follo
     const std::string message = document.allocate_message_id();
     document.append_message(conversation, user_message(message, "hello", "c-1"), kT);
     REQUIRE(workspace.rename_object(cube, "second").succeeded());
-    // After the tool activity that message proposed, by the Agent.
+    // After the tool activity that message submitted, by the Agent.
     ToolActivity activity;
     activity.action_id      = document.allocate_action_id();
     activity.correlation_id = message;

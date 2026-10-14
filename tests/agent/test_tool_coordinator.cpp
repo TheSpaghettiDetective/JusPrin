@@ -114,7 +114,7 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
     harness.coordinator.set_document_boundary_callback([](const ToolActivity&) {
         FAIL("model edits must use version callbacks instead of the document-only boundary");
     });
-    const std::string id = harness.coordinator.propose(harness.duplicate_cube_request(), "versioned").action_id;
+    const std::string id = harness.coordinator.submit(harness.duplicate_cube_request(), "versioned").action_id;
     harness.pump_to_completion(id);
     CHECK(harness.coordinator.find(id)->state == ToolState::Succeeded);
     const std::vector<std::string> expected{"before:" + id, "after:v-before:succeeded"};
@@ -125,7 +125,7 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
     refused.coordinator.set_version_callbacks(
         [](const ToolActivity&) -> std::string { throw std::runtime_error("disk full"); },
         [](const ToolActivity&, const std::string&) { FAIL("no after-version follows a refused before-version"); });
-    const std::string refused_id = refused.coordinator.propose(refused.duplicate_cube_request(), "version-refused").action_id;
+    const std::string refused_id = refused.coordinator.submit(refused.duplicate_cube_request(), "version-refused").action_id;
     refused.pump_to_completion(refused_id);
     CHECK(refused.coordinator.find(refused_id)->state == ToolState::Failed);
     CHECK(refused.object_count() == 1);
@@ -137,10 +137,10 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     std::vector<ToolActivity> external;
     auto sub = h.coordinator.subscribe([&](const auto& a) { if (tool_state_terminal(a.state)) external.push_back(a); });
     const auto initial = h.workspace.snapshot();
-    const auto read_id = h.coordinator.propose({"settings_get", R"({"scope":"process","keys":["wall_loops","sparse_infill_density"]})"}, "read").action_id;
+    const auto read_id = h.coordinator.submit({"settings_get", R"({"scope":"process","keys":["wall_loops","sparse_infill_density"]})"}, "read").action_id;
     h.pump_to_completion(read_id);
     REQUIRE(h.coordinator.find(read_id)->state == ToolState::Succeeded);
-    const auto apply_id = h.coordinator.propose({"settings_apply_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
+    const auto apply_id = h.coordinator.submit({"settings_apply_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", 4}, {"sparse_infill_density", "25%"}}},
         {"expectedSessionId", std::to_string(initial.session.value())}, {"expectedRevision", initial.revision}}.dump()}, "mcp", {}, ToolSource::Mcp).action_id;
     h.pump_to_completion(apply_id);
     const auto activity = *h.coordinator.find(apply_id);
@@ -161,15 +161,15 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
 TEST_CASE("coordinator policy comes from the registry", "[tools][policy][registry]")
 {
     Harness harness;
-    const ToolActivity& duplicate = harness.coordinator.propose(harness.duplicate_cube_request(), "hostile-caller");
+    const ToolActivity& duplicate = harness.coordinator.submit(harness.duplicate_cube_request(), "hostile-caller");
     CHECK(duplicate.action_class == ActionClass::Mutation);
     CHECK(duplicate.title == "Lay out: cube-a x2");
 
-    const ToolActivity& inspect = harness.coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "read-caller");
+    const ToolActivity& inspect = harness.coordinator.submit(ToolRequest{"workspace_inspect", "{}"}, "read-caller");
     CHECK(inspect.action_class == ActionClass::ReadOnly);
 }
 
-TEST_CASE("coordinator rejects hostile call metadata before proposal execution", "[tools][policy][registry]")
+TEST_CASE("coordinator rejects hostile call metadata before a submitted call runs", "[tools][policy][registry]")
 {
     Harness harness;
     ToolRequest request = harness.duplicate_cube_request();
@@ -177,7 +177,7 @@ TEST_CASE("coordinator rejects hostile call metadata before proposal execution",
     arguments["actionClass"] = "read_only";
     request.arguments_json = arguments.dump();
 
-    const ToolActivity& rejected = harness.coordinator.propose(request, "hostile-caller");
+    const ToolActivity& rejected = harness.coordinator.submit(request, "hostile-caller");
     CHECK(rejected.action_class == ActionClass::Mutation);
     CHECK(rejected.state == ToolState::Failed);
     REQUIRE(rejected.error);
@@ -202,8 +202,8 @@ TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tool
         self_subscription.reset();
     });
 
-    const ToolActivity& proposed = coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "m-1");
-    const std::string action_id = proposed.action_id;
+    const ToolActivity& submitted = coordinator.submit(ToolRequest{"workspace_inspect", "{}"}, "m-1");
+    const std::string action_id = submitted.action_id;
     while (!tool_state_terminal(coordinator.find(action_id)->state))
         coordinator.pump();
     CHECK(first == second);
@@ -212,7 +212,7 @@ TEST_CASE("activity subscriptions coexist and unsubscribe independently", "[tool
 
     const std::size_t first_before = first.size();
     first_subscription.reset();
-    const ToolActivity& next = coordinator.propose(ToolRequest{"workspace_inspect", "{}"}, "m-2");
+    const ToolActivity& next = coordinator.submit(ToolRequest{"workspace_inspect", "{}"}, "m-2");
     const std::string next_id = next.action_id;
     while (!tool_state_terminal(coordinator.find(next_id)->state))
         coordinator.pump();
@@ -226,14 +226,14 @@ TEST_CASE("cancellation stops an action before anything durable happens", "[tool
     const std::size_t objects_before = harness.object_count();
 
     SECTION("before the execution tick") {
-        const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+        const std::string action_id = harness.coordinator.submit(harness.duplicate_cube_request(), "m-2").action_id;
         REQUIRE(harness.coordinator.cancel(action_id));
         CHECK(harness.coordinator.find(action_id)->state == ToolState::Cancelled);
     }
 
     SECTION("while running, before the execution tick") {
         const std::string action_id =
-            harness.coordinator.propose(harness.duplicate_cube_request(), "m-2", ToolExecutionPacing{10}).action_id;
+            harness.coordinator.submit(harness.duplicate_cube_request(), "m-2", ToolExecutionPacing{10}).action_id;
         harness.coordinator.pump();
         harness.coordinator.pump();
         REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Running);
@@ -257,7 +257,7 @@ TEST_CASE("an execution failure is reported and changes nothing", "[tools][failu
     request.arguments_json =
         json{{"sessionId", std::to_string(harness.workspace.snapshot().session.value())},
              {"objects", json::array({json{{"objectId", "999999999"}, {"quantity", 2}}})}}.dump();
-    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    const std::string action_id = harness.coordinator.submit(request, "m-2").action_id;
     harness.pump_to_completion(action_id);
 
     const ToolActivity* failed = harness.coordinator.find(action_id);
@@ -278,7 +278,7 @@ TEST_CASE("a read-only action runs", "[tools][policy]")
     request.tool           = "workspace_inspect";
     request.arguments_json = "{}";
 
-    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    const std::string action_id = harness.coordinator.submit(request, "m-2").action_id;
     const ToolActivity* started = harness.coordinator.find(action_id);
     CHECK(started->state == ToolState::Running);
 
@@ -295,7 +295,7 @@ TEST_CASE("the executed change participates in the authoritative history", "[too
     Harness harness;
     const std::size_t objects_before = harness.object_count();
 
-    const std::string action_id = harness.coordinator.propose(harness.duplicate_cube_request(), "m-2").action_id;
+    const std::string action_id = harness.coordinator.submit(harness.duplicate_cube_request(), "m-2").action_id;
     harness.pump_to_completion(action_id);
     REQUIRE(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
     REQUIRE(harness.object_count() == objects_before + 1);
@@ -313,7 +313,7 @@ TEST_CASE("an unknown tool fails cleanly", "[tools][failure]")
     request.tool           = "launch_missiles";
     request.arguments_json = "{}";
 
-    const std::string action_id = harness.coordinator.propose(request, "m-2").action_id;
+    const std::string action_id = harness.coordinator.submit(request, "m-2").action_id;
     harness.pump_to_completion(action_id);
     const ToolActivity* failed = harness.coordinator.find(action_id);
     REQUIRE(failed->state == ToolState::Failed);
@@ -338,12 +338,12 @@ TEST_CASE("object_import resolves an attachment ID and adds an object", "[tools]
                                  .dump();
 
     const std::size_t   before   = harness.object_count();
-    const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
-    harness.pump_to_completion(proposed.action_id);
+    const ToolActivity& submitted = harness.coordinator.submit(request, "m-1");
+    harness.pump_to_completion(submitted.action_id);
 
-    CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Succeeded);
+    CHECK(harness.coordinator.find(submitted.action_id)->state == ToolState::Succeeded);
     CHECK(harness.object_count() == before + 1);
-    const json result = json::parse(harness.coordinator.find(proposed.action_id)->result_json);
+    const json result = json::parse(harness.coordinator.find(submitted.action_id)->result_json);
     CHECK(result["objectIds"].size() == 1);
 
     std::filesystem::remove(model);
@@ -361,21 +361,21 @@ TEST_CASE("object_import fails when the attachment can no longer be resolved", "
                                  .dump();
 
     const std::size_t   before   = harness.object_count();
-    const ToolActivity& proposed = harness.coordinator.propose(request, "m-1");
-    harness.pump_to_completion(proposed.action_id);
+    const ToolActivity& submitted = harness.coordinator.submit(request, "m-1");
+    harness.pump_to_completion(submitted.action_id);
 
-    CHECK(harness.coordinator.find(proposed.action_id)->state == ToolState::Failed);
-    CHECK(harness.coordinator.find(proposed.action_id)->error->code == "unavailable_operation");
+    CHECK(harness.coordinator.find(submitted.action_id)->state == ToolState::Failed);
+    CHECK(harness.coordinator.find(submitted.action_id)->error->code == "unavailable_operation");
     CHECK(harness.object_count() == before);
 }
 
 TEST_CASE("chat deletion forgets only terminal activities", "[tools][conversations]")
 {
     Harness harness;
-    const auto first = harness.coordinator.propose(harness.duplicate_cube_request(), "chat-message").action_id;
+    const auto first = harness.coordinator.submit(harness.duplicate_cube_request(), "chat-message").action_id;
     CHECK_THROWS_AS(harness.coordinator.forget_terminal_activities({"chat-message"}), std::logic_error);
     harness.pump_to_completion(first);
-    const auto other = harness.coordinator.propose(harness.duplicate_cube_request(), "other-chat").action_id;
+    const auto other = harness.coordinator.submit(harness.duplicate_cube_request(), "other-chat").action_id;
     harness.coordinator.forget_terminal_activities({"chat-message"});
     CHECK(harness.coordinator.find(first) == nullptr);
     REQUIRE(harness.coordinator.find(other));
@@ -402,7 +402,7 @@ TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]"
     const auto& registry = ToolRegistry::instance();
 
     auto call = [&h](const char* tool, json arguments) -> const ToolActivity& {
-        return h.coordinator.propose({tool, arguments.dump()}, "m-1");
+        return h.coordinator.submit({tool, arguments.dump()}, "m-1");
     };
 
     // The plan is the agent's own words, and one pump takes it to a result.
@@ -466,7 +466,7 @@ TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]"
 TEST_CASE("workspace_inspect without sections is what it always was", "[tools][inspect]")
 {
     Harness h;
-    const std::string action = h.coordinator.propose({"workspace_inspect", "{}"}, "m-1").action_id;
+    const std::string action = h.coordinator.submit({"workspace_inspect", "{}"}, "m-1").action_id;
     h.coordinator.pump();
     const auto result = json::parse(h.coordinator.find(action)->result_json);
     CHECK(result.contains("projectName"));
@@ -477,7 +477,7 @@ TEST_CASE("workspace_inspect without sections is what it always was", "[tools][i
 
     // Without a store those sections fail rather than reporting an empty
     // record that would read as "the user wants nothing".
-    const std::string missing = h.coordinator.propose({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2").action_id;
+    const std::string missing = h.coordinator.submit({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2").action_id;
     h.coordinator.pump();
     REQUIRE(h.coordinator.find(missing)->state == ToolState::Failed);
     CHECK(h.coordinator.find(missing)->error->code == "unavailable_operation");
@@ -492,7 +492,7 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     const auto plate = h.workspace.snapshot().plates.at(0).id;
 
     // Slicing replaces a computed result and nothing else.
-    const auto& started = h.coordinator.propose({"slice_start", json{{"plateId", std::to_string(plate.value())}}.dump()}, "m-1");
+    const auto& started = h.coordinator.submit({"slice_start", json{{"plateId", std::to_string(plate.value())}}.dump()}, "m-1");
     const std::string handle = started.action_id;
     h.pump_to_completion(handle);
     REQUIRE(h.coordinator.find(handle)->state == ToolState::Succeeded);
@@ -507,7 +507,7 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     // The call returned; the run has not finished. That is what the section is
     // for, and the handle says which run the reader is watching.
     const auto read = [&h](const char* correlation) {
-        const std::string action = h.coordinator.propose({"workspace_inspect", R"({"sections":["slicing"]})"}, correlation).action_id;
+        const std::string action = h.coordinator.submit({"workspace_inspect", R"({"sections":["slicing"]})"}, correlation).action_id;
         h.pump_to_completion(action);
         return json::parse(h.coordinator.find(action)->result_json)["slicing"];
     };
@@ -518,14 +518,14 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
 
     // A second run while one is in flight is refused: nothing in Orca records
     // who started the first, so it may be the user's.
-    const auto& refused = h.coordinator.propose({"slice_start", "{}"}, "m-3");
+    const auto& refused = h.coordinator.submit({"slice_start", "{}"}, "m-3");
     h.pump_to_completion(refused.action_id);
     REQUIRE(h.coordinator.find(refused.action_id)->state == ToolState::Failed);
     CHECK(h.coordinator.find(refused.action_id)->error->code == "unavailable_operation");
     CHECK(h.workspace.slice_starts == 1);
 
     // Taking over an existing slice is explicit in the call.
-    const auto& preempting = h.coordinator.propose({"slice_start", R"({"preempt":true})"}, "m-4");
+    const auto& preempting = h.coordinator.submit({"slice_start", R"({"preempt":true})"}, "m-4");
     CHECK(preempting.state == ToolState::Running);
     const std::string preempt_action = preempting.action_id;
     h.pump_to_completion(preempt_action);
@@ -545,7 +545,7 @@ TEST_CASE("the slice report says what the plate holds, or that it holds nothing"
     const auto& registry = ToolRegistry::instance();
     const auto plate = h.workspace.snapshot().plates.at(0).id;
     const auto read = [&h](const char* correlation, json arguments) {
-        const std::string action = h.coordinator.propose({"slice_report", arguments.dump()}, correlation).action_id;
+        const std::string action = h.coordinator.submit({"slice_report", arguments.dump()}, correlation).action_id;
         h.pump_to_completion(action);
         return json::parse(h.coordinator.find(action)->result_json);
     };
@@ -613,7 +613,7 @@ TEST_CASE("presets are listed by kind, filtered, and paged", "[tools][presets]")
                                          {"My PLA tuned", "My PLA tuned", "", false, false, true},
                                          {"Generic ABS @Other", "Generic ABS", "Other", true, false, false}});
     const auto list = [&h](const char* correlation, json arguments) {
-        const std::string action = h.coordinator.propose({"presets_list", arguments.dump()}, correlation).action_id;
+        const std::string action = h.coordinator.submit({"presets_list", arguments.dump()}, correlation).action_id;
         h.pump_to_completion(action);
         return json::parse(h.coordinator.find(action)->result_json);
     };
@@ -670,7 +670,7 @@ TEST_CASE("printers are listed with what they reported and when", "[tools][print
     const Workspace::PrinterDevice silent{"OLD002", "Shelf printer", "X1", "cloud", "offline"};
     h.workspace.set_printers_for_testing({busy, silent});
 
-    const std::string action = h.coordinator.propose({"printer_list", "{}"}, "m-1").action_id;
+    const std::string action = h.coordinator.submit({"printer_list", "{}"}, "m-1").action_id;
     h.pump_to_completion(action);
     const auto result = json::parse(h.coordinator.find(action)->result_json);
     CHECK(registry.validate_output(*registry.find("printer_list"), result));
@@ -696,7 +696,7 @@ TEST_CASE("the printer section sets what is configured beside what the machine s
     h.coordinator.set_product_state(&store);
     const auto& registry = ToolRegistry::instance();
     auto inspect = [&h, &registry]() {
-        const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["printer"]})"}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({"workspace_inspect", R"({"sections":["printer"]})"}, "m-1").action_id;
         h.coordinator.pump();
         REQUIRE(h.coordinator.find(id)->state == ToolState::Succeeded);
         const auto result = json::parse(h.coordinator.find(id)->result_json);
@@ -776,7 +776,7 @@ TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][print
     h.workspace.set_printers_for_testing({device});
 
     auto run = [&h](const char* tool, const json& arguments) {
-        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
         h.pump_to_completion(id);
         return *h.coordinator.find(id);
     };
@@ -805,7 +805,7 @@ TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][print
     h.workspace.m_process_incompatible_after_printer = true;
     CHECK(run("printer_setup", json{{"printerPreset", "A1 mini 0.2"}}).error->code == "unsaved_edits");
     CHECK(h.workspace.setup_applies == 0);
-    const ToolActivity card = h.coordinator.propose(
+    const ToolActivity card = h.coordinator.submit(
         {"printer_setup", json{{"printerPreset", "A1 mini 0.2"}, {"plateType", "Cool Plate"}, {"unsavedEdits", "discard"},
                                {"confirmFacts", {{{"fact", "plate"}, {"value", "Cool Plate"}, {"hours", 8}}}}}.dump()}, "m-2");
     REQUIRE(card.state == ToolState::Running);
@@ -825,8 +825,8 @@ TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][print
     CHECK(result["printer"]["mismatches"].empty());
     CHECK(h.workspace.setup_applies == 1);
 
-    // A setup proposed against presets that have since changed does not apply.
-    const ToolActivity stale = h.coordinator.propose({"printer_setup", json{{"printerPreset", "A1 mini 0.4"}}.dump()}, "m-3");
+    // A setup submitted against presets that have since changed does not apply.
+    const ToolActivity stale = h.coordinator.submit({"printer_setup", json{{"printerPreset", "A1 mini 0.4"}}.dump()}, "m-3");
     REQUIRE(stale.state == ToolState::Running);
     h.workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate"}, {});
     h.workspace.m_process_incompatible_after_printer = false;
@@ -858,23 +858,23 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     std::filesystem::create_directories(folder);
     const std::string model = (folder / "bracket.stl").u8string();
     std::ofstream(folder / "bracket.stl") << "solid bracket\nendsolid bracket\n";
-    auto propose = [&h](const json& arguments) {
-        return ToolActivity(h.coordinator.propose({"project_open", arguments.dump()}, "m-1"));
+    auto submit = [&h](const json& arguments) {
+        return ToolActivity(h.coordinator.submit({"project_open", arguments.dump()}, "m-1"));
     };
 
-    CHECK(propose(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_argument");
-    CHECK(propose(json{{"path", "bracket.stl"}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", "bracket.stl"}}).error->code == "invalid_argument");
 
     // A dirty project is not replaced without the user's word.
     auto setup = h.workspace.snapshot().setup;
     setup.project_dirty = true;
     setup.project_name  = "Backpack";
     h.workspace.set_setup(setup);
-    CHECK(propose(json{{"path", model}}).error->code == "unsaved_work");
+    CHECK(submit(json{{"path", model}}).error->code == "unsaved_work");
 
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "The object from file bracket.stl is too small.",
                                     {"yes", "no"}, "no", true}};
-    const ToolActivity opening = propose(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
+    const ToolActivity opening = submit(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
     CHECK(opening.title == "Open " + model + ", discarding unsaved changes to Backpack");
     for (int tick = 0; tick < 10 && h.coordinator.find(opening.action_id) != nullptr; ++tick)
         h.coordinator.pump();
@@ -904,7 +904,7 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     CHECK(h.workspace.last_open.discard_unsaved);
     CHECK(store.flushes == 1);
 
-    const ToolActivity fresh = propose(json{{"new", true}});
+    const ToolActivity fresh = submit(json{{"new", true}});
     REQUIRE(fresh.state == ToolState::Running);
     CHECK(fresh.title == "Start a new project");
 
@@ -916,9 +916,9 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     // The dialog answers are no longer inputs: OrcaSlicer asks nothing.
     CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"oversized", "scaleToFit"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"unitConversion", "convertIfTiny"}}.dump()).valid());
-    CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_argument");
     std::ofstream(folder / "x.3mf") << "x";
-    CHECK(propose(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_argument");
     std::filesystem::remove_all(folder);
 }
 
@@ -931,7 +931,7 @@ TEST_CASE("the project section reports the file's own words with their source", 
     h.workspace.m_details.license     = "CC-BY-NC-4.0";
     h.workspace.m_details.attachments = {{"Model Pictures/front.png", "Model Pictures", 2048}};
     h.workspace.m_details.backup_current = false;
-    const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["project"]})"}, "m-1").action_id;
+    const std::string id = h.coordinator.submit({"workspace_inspect", R"({"sections":["project"]})"}, "m-1").action_id;
     h.coordinator.pump();
     REQUIRE(h.coordinator.find(id)->state == ToolState::Succeeded);
     const auto result = json::parse(h.coordinator.find(id)->result_json);
@@ -974,7 +974,7 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
     h.workspace.set_analysis_for_testing(h.cube_id(), analysis);
 
     auto run = [&h](const json& arguments) {
-        const std::string id = h.coordinator.propose({"object_analyze", arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({"object_analyze", arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return *h.coordinator.find(id);
     };
@@ -1004,7 +1004,7 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
                                                         {"measure", {{"from", "a"}, {"to", "b"}}}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions", "regions"}}}.dump()).valid());
 
-    const std::string inspect = h.coordinator.propose({"workspace_inspect", R"({"sections":["objects"]})"}, "m-2").action_id;
+    const std::string inspect = h.coordinator.submit({"workspace_inspect", R"({"sections":["objects"]})"}, "m-2").action_id;
     h.coordinator.pump();
     const auto objects = json::parse(h.coordinator.find(inspect)->result_json);
     CHECK(registry.validate_output(*registry.find("workspace_inspect"), objects));
@@ -1023,7 +1023,7 @@ TEST_CASE("orientation candidates are scored as given, or as Orca proposes", "[t
                                                                       {{1, 0, 0}, 9.25, 120.5, 20, {}}};
     h.workspace.set_analysis_for_testing(h.cube_id(), analysis);
     auto run = [&h](const json& arguments) {
-        const std::string id = h.coordinator.propose({"object_analyze", arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({"object_analyze", arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return *h.coordinator.find(id);
     };
@@ -1056,10 +1056,10 @@ TEST_CASE("a placement names mirror and scale, and auto-orient reports through t
     const auto& registry = ToolRegistry::instance();
     const std::string session = std::to_string(h.workspace.snapshot().session.value());
     const std::string cube    = std::to_string(h.cube_id().value());
-    auto propose = [&h](const json& arguments) { return ToolActivity(h.coordinator.propose({"object_place", arguments.dump()}, "m-1")); };
+    auto submit = [&h](const json& arguments) { return ToolActivity(h.coordinator.submit({"object_place", arguments.dump()}, "m-1")); };
 
-    const ToolActivity card = propose(json{{"sessionId", session}, {"objectId", cube}, {"scale", {2, 2, 2}},
-                                           {"mirrorAxis", "x"}, {"rotateDegrees", {0, 0, 90}}, {"position", {100, 90}}});
+    const ToolActivity card = submit(json{{"sessionId", session}, {"objectId", cube}, {"scale", {2, 2, 2}},
+                                          {"mirrorAxis", "x"}, {"rotateDegrees", {0, 0, 90}}, {"position", {100, 90}}});
     REQUIRE(card.state == ToolState::Running);
     CHECK(card.title == "Place cube-a: scale x2 y2 z2, mirror in x, rotate 0/0/90 degrees, move to 100, 90");
     h.pump_to_completion(card.action_id);
@@ -1073,12 +1073,12 @@ TEST_CASE("a placement names mirror and scale, and auto-orient reports through t
     CHECK((*h.workspace.last_placement.scale)[1] == 2);
 
     // Auto-orient returns a handle; its end is read from the slicing section.
-    const ToolActivity orient = propose(json{{"sessionId", session}, {"objectId", cube}, {"autoOrient", true}});
+    const ToolActivity orient = submit(json{{"sessionId", session}, {"objectId", cube}, {"autoOrient", true}});
     h.pump_to_completion(orient.action_id);
     const auto oriented = json::parse(h.coordinator.find(orient.action_id)->result_json);
     REQUIRE(oriented["handle"] == orient.action_id);
     auto jobs = [&h]() {
-        const std::string id = h.coordinator.propose({"workspace_inspect", R"({"sections":["slicing"]})"}, "m-2").action_id;
+        const std::string id = h.coordinator.submit({"workspace_inspect", R"({"sections":["slicing"]})"}, "m-2").action_id;
         h.coordinator.pump();
         const auto inspected = json::parse(h.coordinator.find(id)->result_json);
         CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("workspace_inspect"), inspected));
@@ -1113,7 +1113,7 @@ TEST_CASE("a layout names every change and arranges as a job", "[tools][layout]"
     const std::string session = std::to_string(snapshot.session.value());
     const std::string cube    = std::to_string(h.cube_id().value());
     const std::string plate   = std::to_string(snapshot.plates[0].id.value());
-    const ToolActivity card = h.coordinator.propose(
+    const ToolActivity card = h.coordinator.submit(
         {"plate_layout", json{{"sessionId", session},
                               {"objects", {{{"objectId", cube}, {"quantity", 3}, {"name", "leg"}}}},
                               {"plates", {{{"name", "Second"}, {"bedType", "Cool Plate"}}}},
@@ -1162,10 +1162,10 @@ TEST_CASE("a file import names its path and a delete names what goes", "[tools][
     const std::string model = (folder / "bracket.stl").u8string();
     std::ofstream(folder / "bracket.stl") << "solid bracket\nendsolid bracket\n";
 
-    CHECK(h.coordinator.propose({"object_import_file", json{{"sessionId", session}, {"path", (folder / "none.stl").u8string()}}.dump()}, "m-1")
+    CHECK(h.coordinator.submit({"object_import_file", json{{"sessionId", session}, {"path", (folder / "none.stl").u8string()}}.dump()}, "m-1")
               .error->code == "invalid_argument");
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "maybe in meters or inches", {"yes", "no"}, "no", true}};
-    const ToolActivity import_action = h.coordinator.propose(
+    const ToolActivity import_action = h.coordinator.submit(
         {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-2");
     CHECK(import_action.title == "Import " + model);
     h.pump_to_completion(import_action.action_id);
@@ -1180,7 +1180,7 @@ TEST_CASE("a file import names its path and a delete names what goes", "[tools][
     CHECK(h.workspace.last_import.units == Workspace::UnitChoice::Inches);
     const std::string bracket = result["objectIds"][0];
 
-    const ToolActivity removal = h.coordinator.propose(
+    const ToolActivity removal = h.coordinator.submit(
         {"project_delete_items", json{{"sessionId", session},
                                       {"items", {{{"objectId", bracket}}, {{"objectId", cube}, {"instance", 0}},
                                                  {{"plateId", std::to_string(h.workspace.snapshot().plates[0].id.value())}}}}}.dump()}, "m-3");
@@ -1211,7 +1211,7 @@ TEST_CASE("settings search can keep only writable or unsaved settings", "[tools]
     const auto& registry = ToolRegistry::instance();
     h.workspace.set_setting_for_testing("brim_width", "8");
     auto search = [&h](const json& arguments) {
-        const std::string id = h.coordinator.propose({"settings_search", arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({"settings_search", arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         const auto result = json::parse(h.coordinator.find(id)->result_json);
         CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("settings_search"), result));
@@ -1231,7 +1231,7 @@ TEST_CASE("the settings tools turn spiral vase on with the values it needs", "[t
     Harness h;
     const auto& registry = ToolRegistry::instance();
     auto run = [&h](const std::string& tool, const json& arguments) {
-        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return json::parse(h.coordinator.find(id)->result_json);
     };
@@ -1249,7 +1249,7 @@ TEST_CASE("the settings tools turn spiral vase on with the values it needs", "[t
     const json vase{{"spiral_mode", true}, {"wall_loops", 1}, {"top_shell_layers", 0}, {"sparse_infill_density", 0}};
     const auto preview = run("settings_preview_patch", json{{"scope", "process"}, {"changes", vase}});
     REQUIRE(preview["valid"].get<bool>());
-    const ToolActivity pending = h.coordinator.propose(
+    const ToolActivity pending = h.coordinator.submit(
         {"settings_apply_patch", json{{"scope", "process"}, {"changes", vase}, {"expectedSessionId", preview["sessionId"]},
                                       {"expectedRevision", preview["revision"]}}.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
@@ -1268,7 +1268,7 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
     const std::string cube = std::to_string(h.cube_id().value());
     const json target{{"objectId", cube}};
     auto run = [&h](const std::string& tool, const json& arguments) {
-        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return *h.coordinator.find(id);
     };
@@ -1289,7 +1289,7 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
     const auto snapshot = h.workspace.snapshot();
     json apply{{"scope", "object"}, {"changes", {{"wall_loops", 4}}}, {"target", target},
                {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
-    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
+    const ToolActivity pending = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title == "Change 1 settings of " + snapshot.plates[0].objects[0].name + ": wall_loops");
     h.pump_to_completion(pending.action_id);
@@ -1319,7 +1319,7 @@ TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used i
     Harness h;
     const auto& registry = ToolRegistry::instance();
     auto run = [&h](const std::string& tool, const json& arguments) {
-        const std::string id = h.coordinator.propose({tool, arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return *h.coordinator.find(id);
     };
@@ -1339,7 +1339,7 @@ TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used i
     const auto snapshot = h.workspace.snapshot();
     const json apply{{"scope", "printer"}, {"target", printer}, {"changes", changes}, {"persistAs", "Fixture printer - Copy"},
                      {"expectedSessionId", std::to_string(snapshot.session.value())}, {"expectedRevision", snapshot.revision}};
-    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-2");
+    const ToolActivity pending = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title == "Change 1 settings of \"Fixture printer\": machine_start_gcode; save as \"Fixture printer - Copy\"");
     h.pump_to_completion(pending.action_id);
@@ -1359,7 +1359,7 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
 {
     Harness h;
     auto preview = [&h](const json& arguments) {
-        const std::string id = h.coordinator.propose({"settings_preview_patch", arguments.dump()}, "m-1").action_id;
+        const std::string id = h.coordinator.submit({"settings_preview_patch", arguments.dump()}, "m-1").action_id;
         h.coordinator.pump();
         return json::parse(h.coordinator.find(id)->result_json);
     };
@@ -1391,8 +1391,8 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
     CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"compatible_printers", "Any"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
           "unsupported_setting_mutation");
 
-    const std::string id = h.coordinator.propose({"settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Nope"}}},
-                                                                      {"keys", {"machine_start_gcode"}}}.dump()}, "m-2").action_id;
+    const std::string id = h.coordinator.submit({"settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Nope"}}},
+                                                                     {"keys", {"machine_start_gcode"}}}.dump()}, "m-2").action_id;
     h.coordinator.pump();
     CHECK(h.coordinator.find(id)->state == ToolState::Failed);
     CHECK(h.coordinator.find(id)->error->code == "unknown_preset");
@@ -1403,7 +1403,7 @@ TEST_CASE("settings_get never returns a printer's connection credentials", "[too
     Harness h;
     const auto& registry = ToolRegistry::instance();
     const json arguments{{"scope", "printer"}, {"target", {{"preset", "Garage printer"}}}, {"keys", {"machine_start_gcode", "printhost_apikey"}}};
-    const std::string id = h.coordinator.propose({"settings_get", arguments.dump()}, "m-1").action_id;
+    const std::string id = h.coordinator.submit({"settings_get", arguments.dump()}, "m-1").action_id;
     h.coordinator.pump();
     const ToolActivity read = *h.coordinator.find(id);
     REQUIRE(read.state == ToolState::Succeeded);
@@ -1416,8 +1416,8 @@ TEST_CASE("settings_get never returns a printer's connection credentials", "[too
     CHECK(result["unknownKeys"][0]["key"] == "printhost_apikey");
     CHECK(result["unknownKeys"][0]["code"] == "withheld_setting");
 
-    const std::string search = h.coordinator.propose({"settings_search", json{{"scope", "printer"}, {"target", {{"preset", "Garage printer"}}},
-                                                                             {"query", "printhost_apikey"}}.dump()}, "m-1").action_id;
+    const std::string search = h.coordinator.submit({"settings_search", json{{"scope", "printer"}, {"target", {{"preset", "Garage printer"}}},
+                                                                            {"query", "printhost_apikey"}}.dump()}, "m-1").action_id;
     h.coordinator.pump();
     const ToolActivity found = *h.coordinator.find(search);
     REQUIRE(found.state == ToolState::Succeeded);
@@ -1432,7 +1432,7 @@ TEST_CASE("saving a copy of a project filament puts the copy in its slot", "[too
     const json apply{{"scope", "filament"}, {"target", {{"preset", "Fixture PETG"}}}, {"changes", {{"nozzle_temperature", "250"}}},
                      {"persistAs", "Fixture PETG - Copy"}, {"expectedSessionId", std::to_string(snapshot.session.value())},
                      {"expectedRevision", snapshot.revision}};
-    const ToolActivity pending = h.coordinator.propose({"settings_apply_patch", apply.dump()}, "m-1");
+    const ToolActivity pending = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-1");
     REQUIRE(pending.state == ToolState::Running);
     h.pump_to_completion(pending.action_id);
     REQUIRE(h.coordinator.find(pending.action_id)->state == ToolState::Succeeded);
@@ -1454,9 +1454,9 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     const std::string cube    = std::to_string(h.cube_id().value());
     h.workspace.set_analysis_for_testing(h.cube_id(), {});
     auto run = [&h](const std::string& tool, const json& arguments) {
-        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        h.pump_to_completion(proposed.action_id);
-        return *h.coordinator.find(proposed.action_id);
+        const ToolActivity submitted = h.coordinator.submit({tool, arguments.dump()}, "m-1");
+        h.pump_to_completion(submitted.action_id);
+        return *h.coordinator.find(submitted.action_id);
     };
     auto regions = [&]() {
         const auto done = run("object_analyze", json{{"sessionId", session}, {"objectId", cube}, {"include", {"regions"}}});
@@ -1469,7 +1469,7 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     const json annotate{{"sessionId", session},
                         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "hole"}, {"handle", "f1-21-0-1-0"}}}},
                                      {{"objectId", cube}, {"kind", "hidden"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}};
-    const ToolActivity pending = h.coordinator.propose({"region_annotate", annotate.dump()}, "m-2");
+    const ToolActivity pending = h.coordinator.submit({"region_annotate", annotate.dump()}, "m-2");
     REQUIRE(pending.state == ToolState::Running);
     CHECK(pending.title.find("r1 precision hole, hole of 5 mm on") != std::string::npos);
     CHECK(pending.title.find("support blocker volume") != std::string::npos);
@@ -1502,11 +1502,11 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     CHECK(regions()[0]["artifactsMissing"] == false);
     CHECK(store.regions().size() == 2);
 
-    const auto refused = h.coordinator.propose({"region_annotate", json{{"sessionId", session},
+    const auto refused = h.coordinator.submit({"region_annotate", json{{"sessionId", session},
         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}}.dump()}, "m-3");
     CHECK(refused.state == ToolState::Failed);
     CHECK(refused.error->code == "invalid_argument");
-    CHECK(h.coordinator.propose({"region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
+    CHECK(h.coordinator.submit({"region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
               .error->code == "invalid_argument");
     for (const json& bad : {json{{"sessionId", session}, {"regions", json::array()}},
                             json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"}}}}},
@@ -1520,7 +1520,7 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
                                                                            {"geometry", {{"type", "box"}, {"center", {0, 0, 0}}, {"sizeMm", {5, 5, 5}}}}}}}}.dump())
               .arguments_json.find("\"wall_loops\":\"6\"") != std::string::npos);
 
-    const ToolActivity removal = h.coordinator.propose({"project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}.dump()}, "m-5");
+    const ToolActivity removal = h.coordinator.submit({"project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}.dump()}, "m-5");
     CHECK(removal.title.find("region r2 (hidden") != std::string::npos);
     h.pump_to_completion(removal.action_id);
     const auto removed = json::parse(h.coordinator.find(removal.action_id)->result_json);
@@ -1569,12 +1569,12 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
     const std::string session = std::to_string(h.workspace.snapshot().session.value());
     const std::string cube    = std::to_string(h.cube_id().value());
     auto run = [&h, &registry](const std::string& tool, const json& arguments) {
-        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        h.pump_to_completion(proposed.action_id);
-        const ToolActivity done = *h.coordinator.find(proposed.action_id);
+        const ToolActivity submitted = h.coordinator.submit({tool, arguments.dump()}, "m-1");
+        h.pump_to_completion(submitted.action_id);
+        const ToolActivity done = *h.coordinator.find(submitted.action_id);
         if (done.state == ToolState::Succeeded)
             CHECK(registry.validate_output(*registry.find(tool), json::parse(done.result_json)));
-        return std::make_pair(proposed, done);
+        return std::make_pair(submitted, done);
     };
     const json plane{{"sessionId", session}, {"objectId", cube},
                      {"plane", {{"point", {0, 0, 10}}, {"normal", {0, 0, 1}}}}};
@@ -1586,8 +1586,8 @@ TEST_CASE("objects are divided after a preview, merged and repaired, and unbound
     CHECK(previewed_result["overhangAreaAfterMm2"] == 25);
     CHECK(h.workspace.snapshot().plates[0].objects.size() == 1);
 
-    const auto [proposed, divided] = run("object_divide", plane);
-    CHECK(proposed.title == "Cut " + h.workspace.snapshot().plates[0].objects[0].name +
+    const auto [submitted, divided] = run("object_divide", plane);
+    CHECK(submitted.title == "Cut " + h.workspace.snapshot().plates[0].objects[0].name +
                                 " by the plane through (0, 0, 10) facing (0, 0, 1), keeping both pieces: 20 x 20 x 10 mm, 20 x 20 x 10 mm");
     const auto divided_result = json::parse(divided.result_json);
     REQUIRE(divided_result["pieces"].size() == 2);
@@ -1650,7 +1650,7 @@ TEST_CASE("the slice report checks supports, seams, the first layer and islands 
     h.workspace.set_plate_sliced(plate, true);
 
     const auto read = [&h](json arguments) {
-        const std::string action = h.coordinator.propose({"slice_report", arguments.dump()}, "m-1").action_id;
+        const std::string action = h.coordinator.submit({"slice_report", arguments.dump()}, "m-1").action_id;
         h.pump_to_completion(action);
         return json::parse(h.coordinator.find(action)->result_json);
     };
@@ -1682,11 +1682,11 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     const auto preview = h.workspace.snapshot();
     const json patch{{"scope", "process"}, {"changes", {{"wall_loops", 4}}}, {"expectedSessionId", std::to_string(preview.session.value())},
                      {"expectedRevision", preview.revision}};
-    // A copy is added after the preview; the patch still proposes and applies.
-    const ToolActivity copy = h.coordinator.propose(h.duplicate_cube_request(), "m-1");
+    // A copy is added after the preview; the patch still submits and applies.
+    const ToolActivity copy = h.coordinator.submit(h.duplicate_cube_request(), "m-1");
     h.pump_to_completion(copy.action_id);
     REQUIRE(h.workspace.snapshot().revision > preview.revision);
-    const ToolActivity applying = h.coordinator.propose({"settings_apply_patch", patch.dump()}, "m-2");
+    const ToolActivity applying = h.coordinator.submit({"settings_apply_patch", patch.dump()}, "m-2");
     h.pump_to_completion(applying.action_id);
     CHECK(h.coordinator.find(applying.action_id)->state == ToolState::Succeeded);
 
@@ -1695,7 +1695,7 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     const json again{{"scope", "process"}, {"changes", {{"wall_loops", 5}}}, {"expectedSessionId", std::to_string(second.session.value())},
                      {"expectedRevision", second.revision}};
     h.workspace.set_setting_for_testing("brim_width", "7");
-    CHECK(h.coordinator.propose({"settings_apply_patch", again.dump()}, "m-4").error->code == "stale_workspace");
+    CHECK(h.coordinator.submit({"settings_apply_patch", again.dump()}, "m-4").error->code == "stale_workspace");
 
     // A refused call says what is wrong with it.
     const auto refused = registry.validate_call(*registry.find("settings_preview_patch"), json{{"scope", "process"}, {"changes", {{"wall_loops", 3}}}, {"intent", "x"}}.dump());
@@ -1712,14 +1712,14 @@ TEST_CASE("a slice started with wait returns when the run ends, without holding 
     Harness h;
     const auto& registry = ToolRegistry::instance();
     const auto plate = h.workspace.snapshot().plates.at(0).id;
-    const ToolActivity started = h.coordinator.propose({"slice_start", json{{"plateId", std::to_string(plate.value())}, {"wait", true}}.dump()}, "m-1");
+    const ToolActivity started = h.coordinator.submit({"slice_start", json{{"plateId", std::to_string(plate.value())}, {"wait", true}}.dump()}, "m-1");
     for (int i = 0; i < 20; ++i)
         h.coordinator.pump();
     CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
     CHECK(h.workspace.slice_starts == 1);
 
-    // A read proposed meanwhile still runs.
-    const ToolActivity read = h.coordinator.propose({"workspace_inspect", "{}"}, "m-2");
+    // A read submitted meanwhile still runs.
+    const ToolActivity read = h.coordinator.submit({"workspace_inspect", "{}"}, "m-2");
     h.pump_to_completion(read.action_id);
     CHECK(h.coordinator.find(read.action_id)->state == ToolState::Succeeded);
     CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
@@ -1767,7 +1767,7 @@ TEST_CASE("the slice report measures the slice against the print intent", "[tool
     report.total_grams        = 23.5;
     h.workspace.set_slice_report_for_testing(plate, report);
     h.workspace.set_plate_sliced(plate, true);
-    const std::string action = h.coordinator.propose({"slice_report", json{{"sections", {"summary", "intent"}}}.dump()}, "m-1").action_id;
+    const std::string action = h.coordinator.submit({"slice_report", json{{"sections", {"summary", "intent"}}}.dump()}, "m-1").action_id;
     h.pump_to_completion(action);
     const auto result = json::parse(h.coordinator.find(action)->result_json);
     CHECK(registry.validate_output(*registry.find("slice_report"), result));
@@ -1786,12 +1786,12 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     const std::string session = std::to_string(snapshot.session.value());
     const auto plate = snapshot.plates.at(0).id;
     auto run = [&h, &registry](const std::string& tool, const json& arguments) {
-        const ToolActivity proposed = h.coordinator.propose({tool, arguments.dump()}, "m-1");
-        h.pump_to_completion(proposed.action_id);
-        const ToolActivity done = *h.coordinator.find(proposed.action_id);
+        const ToolActivity submitted = h.coordinator.submit({tool, arguments.dump()}, "m-1");
+        h.pump_to_completion(submitted.action_id);
+        const ToolActivity done = *h.coordinator.find(submitted.action_id);
         if (done.state == ToolState::Succeeded)
             CHECK(registry.validate_output(*registry.find(tool), json::parse(done.result_json)));
-        return std::make_pair(proposed, done);
+        return std::make_pair(submitted, done);
     };
 
     // A picture comes back beside its result.
@@ -1850,7 +1850,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     h.workspace.set_plate_sliced(plate, true);
     std::ofstream(std::filesystem::u8path(target)) << "old";
     const json exporting{{"sessionId", session}, {"kind", "gcode"}, {"path", target}};
-    CHECK(h.coordinator.propose({"export_file", exporting.dump()}, "m-3").error->code == "invalid_argument");
+    CHECK(h.coordinator.submit({"export_file", exporting.dump()}, "m-3").error->code == "invalid_argument");
     json replacing = exporting;
     replacing["overwrite"] = true;
     const auto contents = [&target] {
@@ -1858,7 +1858,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
         return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     };
     h.workspace.m_details.license = "CC BY-NC-SA 4.0";
-    const ToolActivity licensed = h.coordinator.propose({"export_file", replacing.dump()}, "m-5");
+    const ToolActivity licensed = h.coordinator.submit({"export_file", replacing.dump()}, "m-5");
     CHECK(licensed.title.find("Export the G-code to " + target + ", replacing it") == 0);
     CHECK(licensed.title.find("the project's license is CC BY-NC-SA 4.0") != std::string::npos);
     h.pump_to_completion(licensed.action_id);
@@ -1876,7 +1876,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
                        {"10018003", "Traditional timelapse may mark the surface", false, "", "timelapse"}};
     warned.conflict = "Conflicts of G-code paths at Z = 4.20mm";
     h.workspace.set_slice_report_for_testing(plate, warned);
-    const ToolActivity warning_card = h.coordinator.propose({"export_file", replacing.dump()}, "m-6");
+    const ToolActivity warning_card = h.coordinator.submit({"export_file", replacing.dump()}, "m-6");
     CHECK(warning_card.title.find("the slice has 2 warnings, first: It seems object cube-a has floating cantilever.") != std::string::npos);
     h.pump_to_completion(warning_card.action_id);
     const auto warned_result = json::parse(h.coordinator.find(warning_card.action_id)->result_json);

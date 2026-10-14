@@ -115,7 +115,7 @@ function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityIn
 }
 
 // A completed exchange whose assistant reply called the tool action.
-function proposalConversation() {
+function toolCallConversation() {
   return [
     { id: 'm-1', role: 'user', state: 'complete', text: 'duplicate the selected object', attempt: 1 },
     { id: 'm-2', role: 'assistant', state: 'complete', text: 'I can duplicate cube-a for you.', attempt: 1, inReplyTo: 'm-1' },
@@ -495,7 +495,7 @@ describe('App', () => {
     connect(
       host,
       emptyState({
-        conversation: proposalConversation(),
+        conversation: toolCallConversation(),
         toolActivities: [
           toolActivity({
             state: 'failed',
@@ -513,7 +513,7 @@ describe('App', () => {
     connect(
       host,
       emptyState({
-        conversation: proposalConversation(),
+        conversation: toolCallConversation(),
         toolActivities: [toolActivity({ state: 'running', progress: { current: 2, total: 3 } })],
       }),
     );
@@ -557,7 +557,7 @@ describe('App', () => {
       ],
       activeConversationId: 'conv-b', viewedConversationId: 'conv-a', docRevision: 23,
       chatResume: { status: 'changed', savedAt: '2026-10-03T12:00:00Z', versionId: 'v-a', summary: earlier },
-      conversation: proposalConversation(),
+      conversation: toolCallConversation(),
       toolActivities: [toolActivity()],
       draft: 'Keep my current draft',
       context: { ...context, setupIntent: 'Strong print' },
@@ -763,7 +763,7 @@ describe('App', () => {
 
   it('offers Rename above Delete and preserves messages when a title changes', async () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ conversation: proposalConversation() }));
+    connect(host, emptyState({ conversation: toolCallConversation() }));
     await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Rename', 'Delete']);
     expect(screen.getByRole('menuitem', { name: 'Rename' })).toHaveFocus();

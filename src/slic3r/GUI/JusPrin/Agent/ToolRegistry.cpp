@@ -983,7 +983,7 @@ std::vector<ToolDefinition> make_definitions()
          settings_output({{"items", array_schema(setting_def, 25)}, {"nextCursor", id}}, {"items", "nextCursor"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsSearch},
         {"settings_get", "Read settings",
-         "Read current values and their preset origin; read before proposing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
+         "Read current values and their preset origin; read before previewing a patch. process reads the values every object prints with. object reads the values that one object prints with: its own override where it has one (overridden: true), otherwise the process value. filament and printer read that preset: with its unsaved changes when it is the one being edited (differsFromPreset), otherwise as saved.",
          object_schema({{"scope", settings_scope}, {"target", settings_target},
                         {"keys", {{"type", "array"}, {"items", id}, {"minItems", 1}, {"maxItems", 32}}}}, {"scope", "keys"}),
          settings_output({{"items", array_schema(object_schema({{"key", id}, {"value", id}, {"type", id}, {"label", id},

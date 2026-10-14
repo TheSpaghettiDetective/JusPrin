@@ -1,7 +1,7 @@
 #pragma once
 
 // Native coordinator for Agent tool execution. Any Agent — the deterministic
-// mock today, an MCP adapter later — proposes typed tool requests here; the
+// mock today, an MCP adapter later — submits typed tool requests here; the
 // coordinator holds the authoritative activity records and executes actions
 // exclusively through the IWorkspace
 // contract, so Orca's own commands, history, and events stay in charge.
@@ -143,9 +143,9 @@ public:
 
     // Creates a record stamped with the current workspace session and revision,
     // validates it, and starts it immediately.
-    const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
-                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
-                                const std::string& call_id = {});
+    const ToolActivity& submit(const ToolRequest& request, const std::string& correlation_id,
+                               ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
+                               const std::string& call_id = {});
 
     bool cancel(const std::string& action_id);
 

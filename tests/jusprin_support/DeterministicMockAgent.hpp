@@ -32,7 +32,7 @@ public:
         // Streamed in order; on error the stream fails after the chunks.
         std::vector<std::string>  chunks;
         std::optional<AgentError> error;
-        // Proposed to the ToolExecutionCoordinator when the stream completes
+        // Submitted to the ToolExecutionCoordinator when the stream completes
         // successfully. The coordinator executes it through the workspace
         // contract.
         std::optional<ToolRequest> tool;
@@ -43,10 +43,10 @@ public:
     //   text starting with "/fail"     -> fails on every attempt (retryable);
     //   text starting with "/flaky"    -> fails on attempt 1, succeeds after;
     //   text starting with "/slow"     -> long streamed reply;
-    //   text starting with "/toolfail" -> proposes duplicating an object that
+    //   text starting with "/toolfail" -> submits a call to duplicate an object that
     //                                     does not exist, so the run fails
     //                                     deterministically;
-    //   text starting with "/toolslow" -> proposes the duplicate with a long
+    //   text starting with "/toolslow" -> submits the duplicate with a long
     //                                     progress run for cancellation tests;
     //   text starting with "/inspect"  -> read-only selection inspection;
     //   text starting with "/build"    -> records the sliced active plate;
@@ -54,7 +54,7 @@ public:
     //                                     the latest build;
     //   text starting with "/print"    -> records a completed physical print
     //                                     in the ledger;
-    //   text containing "duplicate"    -> proposes duplicating the selected
+    //   text containing "duplicate"    -> submits a call to duplicate the selected
     //                                     object;
     //   anything else                  -> a streamed summary of the workspace
     //                                     context and the selected objects.

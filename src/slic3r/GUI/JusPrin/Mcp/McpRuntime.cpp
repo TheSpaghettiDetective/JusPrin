@@ -65,11 +65,11 @@ void McpRuntime::poll()
         }
         const auto& params = pending->request.params;
         const auto correlation = "mcp-" + std::to_string(pending->connection_id);
-        // Insert before propose: validation failure and initial states notify
+        // Insert before submit: validation failure and initial states notify
         // synchronously, and must not be lost before the action ID is known.
         m_calls.emplace(correlation, Call{pending, {}, -1});
-        m_coordinator.propose({params["name"].get<std::string>(), params.value("arguments", json::object()).dump()},
-                              correlation, {}, Agent::ToolSource::Mcp);
+        m_coordinator.submit({params["name"].get<std::string>(), params.value("arguments", json::object()).dump()},
+                             correlation, {}, Agent::ToolSource::Mcp);
     }
 }
 
