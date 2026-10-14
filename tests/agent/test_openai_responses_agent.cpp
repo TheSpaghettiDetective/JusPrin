@@ -42,10 +42,16 @@ public:
 
 std::string sse(const json& event) { return "event: message\ndata: " + event.dump() + "\n\n"; }
 
+// What the Agent page sends with project_instructions (its real text is in
+// AgentUI/src/projectInstructions.ts); the app stores it in the session.
+constexpr const char* kPageProjectInstructions =
+    "You are the project assistant, as the page wrote it. \n\nSecond paragraph.";
+
 AgentRequest request_fixture()
 {
     AgentRequest request;
     request.request_id = "assistant-7-attempt-1";
+    request.session.instructions = kPageProjectInstructions;
     request.user_text = "Duplicate the selected cube.";
     request.workspace.session = Workspace::ProjectSessionId(41);
     request.workspace.revision = 9;
@@ -95,7 +101,8 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
     CHECK(body["parallel_tool_calls"] == false);
-    CHECK(body["instructions"].get<std::string>().find(kPrintJourneyGuidance) != std::string::npos);
+    // Exactly what the page sent, with no words of the app's own.
+    CHECK(body["instructions"] == kPageProjectInstructions);
     REQUIRE(body["tools"].size() == 28);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
@@ -113,6 +120,19 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(serialized.find("sessionId") != std::string::npos);
     CHECK(serialized.find("72") != std::string::npos);
     CHECK(serialized.find("do not scale") != std::string::npos);
+}
+
+TEST_CASE("the adapter has no prompt of its own to fall back on", "[agent][openai][instructions]")
+{
+    // The host never starts a turn without the page's instructions; if one
+    // reached the adapter anyway, it must not quietly supply a different text.
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.session.instructions.clear();
+    REQUIRE(agent.start(request));
+    CHECK(json::parse(fake->requests.front().body)["instructions"] == "");
 }
 
 TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with no item id", "[agent][openai]")
@@ -205,7 +225,7 @@ TEST_CASE("automatic chat titles use the configured model without tools or works
     CHECK(body["input"].size() == 2);
     CHECK(body.dump().find("sessionId") == std::string::npos);
     CHECK(body.dump().find("notes.txt") == std::string::npos);
-    CHECK(body["instructions"].get<std::string>().find(kPrintJourneyGuidance) == std::string::npos);
+    CHECK(body["instructions"].get<std::string>().find(kPageProjectInstructions) == std::string::npos);
     fake->data(sse(json{{"type", "response.output_text.delta"}, {"delta", "Backpack frame print"}}) +
                sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::TextDelta));
@@ -273,7 +293,7 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     if (panel)
         CHECK(initial_body["instructions"] == request.session.instructions);
     else
-        CHECK(initial_body["instructions"].get<std::string>().find(kPrintJourneyGuidance) != std::string::npos);
+        CHECK(initial_body["instructions"] == kPageProjectInstructions);
 
     const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
     const json call{{"type", "function_call"}, {"id", "item-1"}, {"call_id", "call-9"},

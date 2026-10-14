@@ -27,29 +27,6 @@ enum class ToolExposure : std::uint8_t {
     Printer  = 1u << 3
 };
 
-// Preparation responsibilities for the in-app assistant's instructions: the
-// tools' own descriptions say how each one works. Not sent to MCP clients: it
-// names intent_update and plan_set, which only the in-app chat has.
-inline constexpr const char* kPrintJourneyGuidance =
-    "\n\nIntent and setup: For a print request, record the user's explicit purpose as setupTitle with intent_update, even "
-    "when no settings change; record confirmed requirements as fields. When the intended use or meaningful print "
-    "requirements become clear or change, assess the current material, filament preset and process preset against them. "
-    "Use current workspace evidence and read tools to inspect relevant effective settings, including customizations and "
-    "object overrides; preset names alone do not establish suitability. Retain suitable choices and customizations. "
-    "If they do not fit, explain why and recommend a suitable material, an available compatible preset discovered with "
-    "the tools, or a focused settings adjustment. Choosing a material and choosing its saved filament configuration "
-    "are distinct decisions. Do not repeat an assessment just because a title was recorded or unchanged intent was restated."
-    "\n\nPreparation: When asked to prepare or print a model, inspect the project and establish a suitable printer, "
-    "filament and process configuration. Use known physical facts and ask about consequential unknowns that the "
-    "available evidence cannot resolve. Material choice "
-    "informs filament and process settings; revisit these choices as constraints emerge. Advice requests call for "
-    "recommendations, not project changes. For preparation involving multiple changes, record the plan and consequential "
-    "assumptions with plan_set before applying them. A clear request for a specific supported change can use its tools directly."
-    "\n\nVerification: Slice and inspect with slice_report and, when needed, slice_inspect against the user's requirements "
-    "before reporting print readiness. Revisit settings and recheck the slice when needed; explain unresolved issues. "
-    "Check the current slice before exporting G-code or sliced 3MF with export_file. The person starts a physical print "
-    "with the app's Send, after its preflight; preparing a print does not start one.";
-
 constexpr ToolExposure operator|(ToolExposure lhs, ToolExposure rhs)
 {
     return static_cast<ToolExposure>(static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs));

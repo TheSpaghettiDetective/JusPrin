@@ -287,6 +287,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -618,6 +619,42 @@ private:
 // The recording agent the project chat was given in the print-issues modes,
 // for the scenario to read.
 RecordingAgent* g_issue_agent = nullptr;
+
+// The default modes' Agent: it answers as the deterministic mock does, and
+// also has the real OpenAI adapter write the body it would send for each
+// reply, into a transport that never touches the network. The scenario reads
+// that body to see what a provider would actually be told.
+class BodyRecordingMockAgent final : public Agent::DeterministicMockAgent
+{
+public:
+    bool start(const Agent::AgentRequest& request) override
+    {
+        if (request.purpose == Agent::AgentRequest::Purpose::Reply) {
+            auto transport = std::make_unique<CapturingTransport>();
+            CapturingTransport* capture = transport.get();
+            Agent::OpenAIResponsesAgent adapter({"sk-harness-not-a-real-key"}, std::move(transport));
+            if (adapter.start(request))
+                reply_bodies.push_back(capture->body);
+            adapter.cancel();
+        }
+        return DeterministicMockAgent::start(request);
+    }
+
+    std::vector<std::string> reply_bodies;
+
+private:
+    struct CapturingTransport final : Agent::IAgentHttpTransport
+    {
+        bool post(Agent::AgentHttpRequest request, EventFn) override
+        {
+            body = std::move(request.body);
+            return true;
+        }
+        void cancel() override {}
+        std::string body;
+    };
+};
+BodyRecordingMockAgent* g_body_agent = nullptr;
 // --manual-print-issues-no-agent: the same fixture with no Agent service, to
 // see what a press of either button does before the assistant is set up.
 bool g_issue_no_agent = false;
@@ -7510,6 +7547,29 @@ private:
             "agent_reply_streams_to_completion", [self = shared_from_this()] { self->agent_verify_reply_and_context(); });
     }
 
+    // The prompt the packaged page sent with project_instructions is exactly
+    // what the real adapter puts in the request body: the page's text, byte
+    // for byte, with nothing of the app's own.
+    void verify_project_request_instructions()
+    {
+        check(g_body_agent != nullptr && !g_body_agent->reply_bodies.empty(), "project_request_body_recorded");
+        if (g_body_agent == nullptr || g_body_agent->reply_bodies.empty())
+            return;
+        const std::string body = g_body_agent->reply_bodies.back();
+        const nlohmann::json parsed = nlohmann::json::parse(body, nullptr, false);
+        const std::string instructions = parsed.is_object() ? parsed.value("instructions", std::string()) : std::string();
+        std::ifstream fixture_file(std::string(JUSPRIN_SOURCE_DIR) + "/src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+                                   std::ios::binary);
+        const std::string fixture((std::istreambuf_iterator<char>(fixture_file)), std::istreambuf_iterator<char>());
+        check(!fixture.empty(), "project_instructions_fixture_read");
+        check(instructions == fixture, "project_request_carries_the_page_instructions");
+        std::cerr << "HARNESS DETAIL project request instructions bytes=" << instructions.size()
+                  << " fixture bytes=" << fixture.size() << '\n';
+        // JUSPRIN_HARNESS_REQUEST_OUT=<file> keeps the whole body to read.
+        if (const char* out = std::getenv("JUSPRIN_HARNESS_REQUEST_OUT"); out != nullptr && *out != '\0')
+            std::ofstream(out, std::ios::binary) << body;
+    }
+
     void agent_verify_reply_and_context()
     {
         AgentWebView&     web_view = installed_shell()->agent_pane()->web_view();
@@ -7523,6 +7583,7 @@ private:
             (message.role == Agent::MessageRole::Note ? notes : turns).push_back(message);
 
         check(turns.size() == 2, "agent_conversation_has_exchange");
+        verify_project_request_instructions();
         check(!turns.empty() && turns.front().role == Agent::MessageRole::User, "agent_user_message_recorded");
         check(!turns.empty() && turns.back().role == Agent::MessageRole::Assistant, "agent_reply_recorded");
         if (turns.empty()) return;
@@ -9551,9 +9612,12 @@ void install_harness_agent(HarnessState::Mode mode)
         host.set_agent(std::move(agent), Agent::AgentAvailability::Ready);
         return;
     }
-    default:
-        host.set_agent(std::make_unique<Agent::DeterministicMockAgent>(), Agent::AgentAvailability::Ready);
+    default: {
+        auto agent   = std::make_unique<BodyRecordingMockAgent>();
+        g_body_agent = agent.get();
+        host.set_agent(std::move(agent), Agent::AgentAvailability::Ready);
         return;
+    }
     }
 }
 

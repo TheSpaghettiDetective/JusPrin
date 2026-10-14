@@ -184,10 +184,12 @@ The app's part:
 - It decides which tools the model gets: the five printer tools and the four settings tools, the same list in every mode.
 - It checks every tool call.
 - It refuses a call that does not fit the conversation. Examples are adding a printer outside an Add conversation, changing a printer other than the one the conversation is about, and changing a setting on anything other than that printer.
-- It refuses a turn that arrives with no instructions. It does not fall back to the project assistant's prompt.
+- It refuses a turn that arrives with no instructions. The app has no prompt of its own to fall back on.
 - It posts the opening line once per session.
 - It posts the note for a tap only when the tap goes through, and limits the note to 2 KB.
 - It still writes the notes for things only the app can find out when the tap arrives: the network printer has gone, the printer's model id is not on the list, or a save or an undo failed.
+
+The project assistant works the same way. Its whole system prompt is written in `AgentUI/src/projectInstructions.ts`, and `projectInstructions.test.ts` pins it to a fixture so that a change to it is always deliberate. The page sends it with `project_instructions` on every connection. The app keeps it in the project session's profile and sends it, unchanged, as the instructions of every project request; the provider's prompt cache depends on the text staying byte-identical. The app has no default text. A turn the app starts itself before the page has sent the prompt (the first message after a file opens, or Ask AI on a print issue, while the page is still loading) waits in the reply queue and starts when the prompt arrives. The prompt lived in C++ until 2026-10-14 so that the MCP server's instructions could share part of it; they stopped sharing it on 2026-10-10. The MCP server's own instructions (`Mcp/McpProtocol.cpp`) and the request that names a conversation stay in C++: MCP has no page, and the title request is the app's own.
 
 Windows uses WebView2, macOS uses WKWebView, and Linux uses WebKitGTK. The way the page's files are packaged must work on all three. The prototype packed the whole page into a single local file, because WKWebView failed to load additional files referenced through `file:` URLs. Production keeps the single-file approach, and CMake now builds that file from the TypeScript/React sources.
 

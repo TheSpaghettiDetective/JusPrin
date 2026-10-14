@@ -29,7 +29,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "conversations", "attachments",
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
-                                                 "printer_panel", "file_reports", "setup_differences", "work_log"};
+                                                 "printer_panel", "file_reports", "setup_differences", "work_log",
+                                                 "project_instructions"};
     return values;
 }
 
@@ -100,6 +101,9 @@ inline constexpr const char* kShellAction          = "shell_action";
 // What the model is told when a file report opens a turn, which the page
 // writes.
 inline constexpr const char* kFileReportInstructions = "file_report_instructions";
+// The project assistant's whole prompt, which the page writes
+// (projectInstructions.ts); the app has no default text.
+inline constexpr const char* kProjectInstructions    = "project_instructions";
 
 } // namespace Protocol
 

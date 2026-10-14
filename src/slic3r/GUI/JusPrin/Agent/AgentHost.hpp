@@ -442,6 +442,9 @@ private:
     bool m_chat_transition_blocked{false};
     std::function<void()> m_setup_completed_listener;
 
+    // The project chat's instructions arrive from its page with
+    // project_instructions; until then, an app-started turn waits in
+    // m_queued_user_message_ids.
     AgentSessionProfile             m_session_profile;
     // What the model is told about a file report, written by the page
     // (fileReportInstructions.ts) and sent with file_report_instructions.

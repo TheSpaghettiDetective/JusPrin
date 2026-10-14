@@ -49,6 +49,7 @@ describe('protocol constants', () => {
       'filament_instructions',
       'shell_action',
       'file_report_instructions',
+      'project_instructions',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

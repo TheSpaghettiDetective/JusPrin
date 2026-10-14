@@ -92,6 +92,10 @@ ProjectPersistence::Config test_persistence_config()
     return config;
 }
 
+// What the Agent page sends with project_instructions; its real text is in
+// AgentUI/src/projectInstructions.ts.
+constexpr const char* kTestProjectInstructions = "You are the project assistant under test.";
+
 struct Harness
 {
     Workspace::FakeWorkspace workspace;
@@ -147,10 +151,14 @@ struct Harness
         host.on_page_message(page_envelope(type, std::move(payload), version).dump());
     }
 
-    void handshake()
+    // As the project page does on every connection: the hello, then the
+    // project assistant's instructions, without which no project turn starts.
+    void handshake(bool with_instructions = true)
     {
         deliver("hello", json{{"protocolVersions", json::array({Protocol::kVersion})},
                               {"capabilities", json::array({"streaming"})}});
+        if (with_instructions)
+            deliver("project_instructions", json{{"text", kTestProjectInstructions}});
     }
 
     std::vector<json> of_type(const std::string& type) const
@@ -311,7 +319,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
-                                              Protocol::kShellAction, Protocol::kFileReportInstructions});
+                                              Protocol::kShellAction, Protocol::kFileReportInstructions,
+                                              Protocol::kProjectInstructions});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -1076,6 +1085,108 @@ TEST_CASE("a file loaded during another reply keeps its own report turn", "[agen
     const std::vector<json> started = harness.of_type("assistant_started");
     CHECK(std::any_of(started.begin(), started.end(),
                       [&](const json& event) { return event["payload"]["inReplyTo"] == note_id; }));
+}
+
+TEST_CASE("a project request carries the page's instructions, unchanged on every request", "[agent][instructions]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const auto replies = [agent] {
+        std::vector<AgentRequest> found;
+        for (const AgentRequest& request : agent->requests)
+            if (request.purpose == AgentRequest::Purpose::Reply)
+                found.push_back(request);
+        return found;
+    };
+
+    harness.send_user_message("Do I need supports?", "c-first");
+    harness.pump_all();
+    // A reload of the page sends the same words again.
+    harness.deliver("project_instructions", json{{"text", kTestProjectInstructions}});
+    harness.send_user_message("And a brim?", "c-second");
+    harness.pump_all();
+
+    // Neither empty nor too long replaces what the page sent before.
+    harness.deliver("project_instructions", json{{"text", ""}});
+    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    harness.deliver("project_instructions", json{{"text", std::string(32 * 1024 + 1, 'x')}});
+    CHECK(harness.of_type("bridge_error").size() == 2);
+    harness.send_user_message("Thanks.", "c-third");
+    harness.pump_all();
+
+    // The provider's prompt cache depends on every request of a conversation
+    // carrying byte-identical instructions.
+    REQUIRE(replies().size() == 3);
+    for (const AgentRequest& request : replies())
+        CHECK(request.session.instructions == kTestProjectInstructions);
+}
+
+TEST_CASE("a turn the app starts before the page has sent the project instructions waits for them",
+          "[agent][instructions][file-report]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    // The page has connected and sent the file report's words, but not yet
+    // the project assistant's, when a file finishes opening.
+    harness.handshake(/*with_instructions=*/false);
+    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
+    harness.host.on_file_loaded(prusa_open());
+
+    REQUIRE(file_report_notes(harness) == 1);
+    const std::string note_id = (*harness.last_of_type("message_added"))["payload"]["message"]["id"].get<std::string>();
+    // Neither sent with no rules nor dropped: nothing has started or failed.
+    CHECK(agent->requests.empty());
+    CHECK(harness.last_of_type("assistant_started") == nullptr);
+    CHECK(harness.last_of_type("assistant_failed") == nullptr);
+
+    // Ask AI from a print issue, in the same moment, waits behind it.
+    CHECK(harness.host.submit_issue_message("c-issue", "Why is this failing?", "{}") != AgentHost::SubmitResult::Refused);
+    CHECK(agent->requests.empty());
+
+    harness.deliver("project_instructions", json{{"text", kTestProjectInstructions}});
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().session.instructions == kTestProjectInstructions);
+    CHECK(agent->requests.front().user_text.find("\"settingsOutcome\":\"geometry_only\"") != std::string::npos);
+    REQUIRE(harness.last_of_type("assistant_started") != nullptr);
+    CHECK((*harness.last_of_type("assistant_started"))["payload"]["inReplyTo"] == note_id);
+
+    harness.pump_all();
+    std::vector<AgentRequest> replies;
+    for (const AgentRequest& request : agent->requests)
+        if (request.purpose == AgentRequest::Purpose::Reply)
+            replies.push_back(request);
+    REQUIRE(replies.size() == 2);
+    CHECK(replies[1].user_text.find("Why is this failing?") == 0);
+    CHECK(replies[1].session.instructions == kTestProjectInstructions);
+    CHECK(harness.last_of_type("assistant_failed") == nullptr);
+}
+
+TEST_CASE("a session with tools of its own keeps its instructions over the project's", "[agent][instructions]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    AgentSessionProfile panel;
+    panel.instructions = "You are the printer panel.";
+    panel.tool_names   = {"printer_list"};
+    harness.host.set_session_profile(panel);
+    harness.handshake();
+    harness.send_user_message("Add my printer", "c-panel");
+    REQUIRE_FALSE(agent->requests.empty());
+    CHECK(agent->requests.front().session.instructions == "You are the printer panel.");
+
+    // Without its own, such a session's turn fails where the person can retry
+    // it; it never borrows the project assistant's.
+    harness.pump_all();
+    panel.instructions.clear();
+    harness.host.set_session_profile(panel);
+    harness.send_user_message("Again", "c-panel-empty");
+    REQUIRE(harness.last_of_type("assistant_failed") != nullptr);
+    CHECK((*harness.last_of_type("assistant_failed"))["payload"]["error"]["code"] == "instructions_missing");
 }
 
 TEST_CASE("without the Agent, what Orca said becomes a card", "[agent][file-report]")

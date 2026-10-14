@@ -44,13 +44,16 @@ struct AgentConversationContext
     std::string output_json;
 };
 
-// What one conversation is for. The project conversation leaves this at its
-// defaults and gets the app's own assistant, the project workspace and every
-// in-app tool; a session with its own subject (the temporary printer task chat)
-// states its instructions and names the tools that belong to it.
+// What one conversation is for. The project conversation leaves the tools and
+// workspace at their defaults (every in-app tool, the project workspace) and
+// takes its instructions from its page; a session with its own subject (the
+// temporary printer task chat) states its instructions and names the tools
+// that belong to it.
 struct AgentSessionProfile
 {
-    std::string              instructions;             // empty: the app's assistant
+    // The whole system prompt, written by the session's page; the project
+    // assistant's comes from AgentUI/src/projectInstructions.ts.
+    std::string              instructions;
     std::vector<std::string> tool_names;               // empty: every in-app tool
     bool                     include_workspace{true};  // the open project's state
     // The thread's notes reach the model as the app's own statements. Off

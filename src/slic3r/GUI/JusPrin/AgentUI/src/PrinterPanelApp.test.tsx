@@ -89,6 +89,8 @@ describe('the printer panel page', () => {
     const sent = () => host.received.filter((envelope) => envelope.type === 'printer_instructions');
     expect(sent()).toHaveLength(1);
     expect((sent()[0].payload as { text: string }).text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm');
+    // The panel has its own assistant; the project's prompt is not sent here.
+    expect(host.received.some((envelope) => envelope.type === 'project_instructions')).toBe(false);
 
     // A new card changes nothing the model is told.
     host.deliver('printer_session', session({ blocks: [{ id: 'b1', seq: 1, afterMessageId: 'm-1', kind: 'tip' }],

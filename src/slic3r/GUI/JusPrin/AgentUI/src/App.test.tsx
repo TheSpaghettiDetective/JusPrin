@@ -6,6 +6,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
+import { projectInstructions } from './projectInstructions';
 import {
   Envelope,
   PROTOCOL_NAME,
@@ -320,6 +321,17 @@ describe('App', () => {
     objects: { items: [], truncated: false },
     truncated: false,
   };
+
+  it('gives the app the project assistant\'s whole prompt once per connection, before the file report\'s', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    connect(host, emptyState({}));
+    const types = host.received.map((envelope) => envelope.type);
+    const sent = host.received.filter((envelope) => envelope.type === 'project_instructions');
+    expect(sent).toHaveLength(1);
+    expect((sent[0].payload as { text: string }).text).toBe(projectInstructions());
+    expect(types.indexOf('project_instructions')).toBeLessThan(types.indexOf('file_report_instructions'));
+  });
 
   it('tells the project Agent what to say about a file, once per connection', () => {
     render(<App getTransport={() => host.transport} />);

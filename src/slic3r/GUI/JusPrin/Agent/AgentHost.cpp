@@ -983,6 +983,23 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         else
             send_bridge_error("invalid_payload", "The file report instructions are too long.", envelope_id);
     }
+    else if (type == Protocol::kProjectInstructions) {
+        // The project assistant's whole prompt, written by the page
+        // (projectInstructions.ts) and kept in the project session's profile;
+        // the app has no text of its own to fall back on. A session with
+        // tools of its own (the printer panel) keeps the instructions it has.
+        constexpr std::size_t kProjectInstructionsLimit = 32 * 1024;
+        const json parsed = json::parse(payload, nullptr, false);
+        const std::string text = parsed.is_object() ? parsed.value("text", std::string()) : std::string();
+        if (text.empty() || text.size() > kProjectInstructionsLimit)
+            send_bridge_error("invalid_payload", "The project instructions are missing or too long.", envelope_id);
+        else if (m_session_profile.tool_names.empty()) {
+            m_session_profile.instructions = text;
+            // A turn the app started before the page had sent them waited
+            // in the queue; see begin_reply.
+            start_next_queued_reply();
+        }
+    }
     else if (!(m_page_message_handler && m_page_message_handler(type, json::parse(payload, nullptr, false))))
         send_bridge_error("unknown_type", "The message type \"" + type + "\" is not part of this protocol version.", envelope_id);
 }
@@ -1962,10 +1979,19 @@ void AgentHost::begin_reply(const std::string& user_message_id)
     if (conversation_id.empty())
         conversation_id = document.active_conversation_id();
 
-    // A session with tools of its own brings its own instructions, from its
-    // page; without them the model would be told it is the project's
-    // assistant while holding the session's tools.
-    const bool instructions_missing = !m_session_profile.tool_names.empty() && m_session_profile.instructions.empty();
+    // Every session's instructions come from its page, and the app has none
+    // of its own. The project chat's arrive with project_instructions as the
+    // page loads, before anyone can type; a turn the app starts sooner (the
+    // note after a file opens, Ask AI from a print issue) waits in the queue
+    // until they arrive, and the handler for them starts it.
+    if (m_availability == AgentAvailability::Ready && m_session_profile.tool_names.empty() &&
+        m_session_profile.instructions.empty()) {
+        m_queued_user_message_ids.push_back(user_message_id);
+        return;
+    }
+    // A session with tools of its own sends its instructions when its panel
+    // opens; a turn without them fails where the person can retry it.
+    const bool instructions_missing = m_session_profile.instructions.empty();
     if (m_availability != AgentAvailability::Ready || instructions_missing) {
         ConversationMessage failed;
         failed.id          = document.allocate_message_id();

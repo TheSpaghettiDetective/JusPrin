@@ -12,6 +12,7 @@ import { PrinterCredentialForm } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { fileReportInstructions } from './fileReportInstructions';
+import { projectInstructions } from './projectInstructions';
 import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
@@ -163,6 +164,24 @@ export function App({
     sentInstructions.current = text;
     client.send('printer_instructions', { text });
   }, [printerPanel, state.session, state.connection, client]);
+
+  // The project assistant's whole prompt; the app holds it in the project
+  // session and sends it with every request, and starts no project turn
+  // without it. Sent on every connection (a reload reconnects) and again
+  // only if the words change. Sent before the file report's words: the app
+  // speaks about an opened file only once it has those, so by then it has
+  // these too.
+  const sentProjectInstructions = useRef<string | null>(null);
+  useEffect(() => {
+    if (printerPanel || embedded || state.connection !== 'connected') {
+      if (state.connection !== 'connected') sentProjectInstructions.current = null;
+      return;
+    }
+    const text = projectInstructions();
+    if (text === sentProjectInstructions.current) return;
+    sentProjectInstructions.current = text;
+    client.send('project_instructions', { text });
+  }, [printerPanel, embedded, state.connection, client]);
 
   // What the project Agent is told about a file the person brings in; the app
   // holds it for the turn a file report opens. Once per connection: a reload
