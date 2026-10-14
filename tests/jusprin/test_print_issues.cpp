@@ -65,11 +65,13 @@ PrintIssueSnapshot snapshot_with(const PrintIssue& issue)
     return snapshot;
 }
 
-IssueMessageRequest message_request(IssueIntent intent)
+const std::string kAsk     = "Explain this issue and my options.";
+const std::string kResolve = "Help fix this issue.";
+
+IssueMessageRequest message_request(const std::string& sentence)
 {
     IssueMessageRequest request;
-    request.intent             = intent;
-    request.request_sentence   = intent == IssueIntent::Explain ? "Explain this issue and my options." : "Help fix this issue.";
+    request.request_sentence   = sentence;
     request.workspace_session  = 4;
     request.workspace_revision = 29;
     request.conversation_id    = "c-1";
@@ -174,12 +176,11 @@ TEST_CASE("an issue message says what was asked and carries the issue as data", 
     const PrintIssue         issue    = overlap_warning();
     const PrintIssueSnapshot snapshot = snapshot_with(issue);
 
-    const IssueMessage ask = make_issue_message(issue, snapshot, message_request(IssueIntent::Explain));
+    const IssueMessage ask = make_issue_message(issue, snapshot, message_request(kAsk));
     // The person's request, then OrcaSlicer's own words, quoted and trimmed.
     CHECK(ask.text == "Explain this issue and my options.\n\n> Cube is too close to others, and collisions may be caused.");
     const json context = json::parse(ask.context_json);
     CHECK(context["kind"] == "print_issue");
-    CHECK(context["intent"] == "explain");
     CHECK(context["issue"]["id"] == issue.id);
     CHECK(context["issue"]["source"] == "validation");
     CHECK(context["issue"]["severity"] == "warning");
@@ -194,9 +195,10 @@ TEST_CASE("an issue message says what was asked and carries the issue as data", 
     CHECK(context["workspace"]["sessionId"] == "4");
     CHECK(context["workspace"]["revision"] == 29);
 
-    const IssueMessage resolve = make_issue_message(issue, snapshot, message_request(IssueIntent::Resolve));
+    const IssueMessage resolve = make_issue_message(issue, snapshot, message_request(kResolve));
     CHECK(resolve.text.rfind("Help fix this issue.", 0) == 0);
-    CHECK(json::parse(resolve.context_json)["intent"] == "resolve");
+    // The two buttons differ only in the sentence.
+    CHECK(resolve.context_json == ask.context_json);
 }
 
 TEST_CASE("a plate-wide issue names no object and a several-line message stays one quotation", "[print-issues][context]")
@@ -206,7 +208,7 @@ TEST_CASE("a plate-wide issue names no object and a several-line message stays o
     issue.object_name.clear();
     issue.setting = "spiral_mode";
     issue.message = "First line.\nSecond line.";
-    const IssueMessage message = make_issue_message(issue, snapshot_with(issue), message_request(IssueIntent::Resolve));
+    const IssueMessage message = make_issue_message(issue, snapshot_with(issue), message_request(kResolve));
     const json context = json::parse(message.context_json);
     CHECK(context["target"]["scope"] == "plate");
     CHECK_FALSE(context["target"].contains("objectId"));
@@ -219,19 +221,19 @@ TEST_CASE("a repeated press is one message until something changes", "[print-iss
 {
     const PrintIssue   issue    = overlap_warning();
     PrintIssueSnapshot snapshot = snapshot_with(issue);
-    const std::string  first    = make_issue_message(issue, snapshot, message_request(IssueIntent::Explain)).client_message_id;
+    const std::string  first    = make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id;
 
-    CHECK(make_issue_message(issue, snapshot, message_request(IssueIntent::Explain)).client_message_id == first);
+    CHECK(make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id == first);
     // The other button, new evidence, another chat or another project is a new message.
-    CHECK(make_issue_message(issue, snapshot, message_request(IssueIntent::Resolve)).client_message_id != first);
-    IssueMessageRequest other_chat = message_request(IssueIntent::Explain);
+    CHECK(make_issue_message(issue, snapshot, message_request(kResolve)).client_message_id != first);
+    IssueMessageRequest other_chat = message_request(kAsk);
     other_chat.conversation_id = "c-2";
     CHECK(make_issue_message(issue, snapshot, other_chat).client_message_id != first);
     ++snapshot.generation;
-    CHECK(make_issue_message(issue, snapshot, message_request(IssueIntent::Explain)).client_message_id != first);
+    CHECK(make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id != first);
     --snapshot.generation;
     ++snapshot.session;
-    CHECK(make_issue_message(issue, snapshot, message_request(IssueIntent::Explain)).client_message_id != first);
+    CHECK(make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id != first);
 }
 
 TEST_CASE("snapshots compare by what a person would see", "[print-issues]")

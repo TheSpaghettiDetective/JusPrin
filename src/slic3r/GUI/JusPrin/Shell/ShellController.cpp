@@ -577,8 +577,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 else if (issue.object != 0)
                     m_workspace->select_object(Workspace::ObjectId(session, issue.object));
             };
-            actions.submit = [this](const std::string& id, PrintIssues::IssueIntent intent) {
-                const std::string outcome = submit_issue(id, intent).outcome;
+            actions.submit = [this](const std::string& id, const std::string& request) {
+                const std::string outcome = submit_issue(id, request).outcome;
                 if (outcome == "agent_not_set_up")
                     offer_agent_setup();
                 // "duplicate": the same question about the same evidence is
@@ -830,7 +830,7 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
         apply_agent_pane_width();
 }
 
-ShellController::IssueSubmission ShellController::submit_issue(const std::string& issue_id, PrintIssues::IssueIntent intent)
+ShellController::IssueSubmission ShellController::submit_issue(const std::string& issue_id, const std::string& request_sentence)
 {
     using namespace PrintIssues;
     IssueSubmission result;
@@ -863,8 +863,7 @@ ShellController::IssueSubmission ShellController::submit_issue(const std::string
 
     const Workspace::WorkspaceSnapshot workspace = m_workspace->snapshot();
     IssueMessageRequest request;
-    request.intent             = intent;
-    request.request_sentence   = intent == IssueIntent::Explain ? _u8L("Explain this issue and my options.") : _u8L("Help fix this issue.");
+    request.request_sentence   = request_sentence;
     request.workspace_session  = workspace.session.value();
     request.workspace_revision = workspace.revision;
     request.conversation_id    = m_persistence->document().active_conversation_id();

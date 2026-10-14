@@ -748,18 +748,18 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
     m_frame.ask     = ask;
     m_frame.resolve = resolve;
     // A press that reached the chat closes the bubble: the answer is there.
-    const auto submit = [this, id = issue.id](IssueIntent intent) {
-        after_frame([id, intent](IssueOverlay& self) {
-            if (self.m_actions.submit && self.m_actions.submit(id, intent) && self.m_selected == id)
+    const auto submit = [this, id = issue.id](std::string request) {
+        after_frame([id, request](IssueOverlay& self) {
+            if (self.m_actions.submit && self.m_actions.submit(id, request) && self.m_selected == id)
                 self.close_bubble();
         });
     };
     if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.action_secondary,
                s.p.action_secondary_hover, s.p.action_secondary_text, &s.p.action_secondary_border, s.p))
-        submit(IssueIntent::Explain);
+        submit(_u8L("Explain this issue and my options."));
     if (button(draw, "##resolve", resolve, _u8L("Resolve with AI"), std::round(resolve_recipe.radius * s.scale), enabled, s.p.action_primary,
                s.p.action_primary_hover, s.p.text_on_action, nullptr, s.p))
-        submit(IssueIntent::Resolve);
+        submit(_u8L("Help fix this issue."));
     y += button_h + s.gap;
 
     if (!ignore.empty()) {

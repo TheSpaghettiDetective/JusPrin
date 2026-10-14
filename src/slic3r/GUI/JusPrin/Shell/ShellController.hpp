@@ -3,6 +3,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/PrintIssues/IssueContext.hpp"
 #include "slic3r/GUI/JusPrin/PrintIssues/IssueOverlay.hpp"
 #include "slic3r/GUI/JusPrin/PrintIssues/PrintIssueMonitor.hpp"
 #include "slic3r/GUI/JusPrin/PrintIssues/WorkFeed.hpp"
@@ -91,7 +92,7 @@ public:
     // Sends the issue to the project chat as the person's own message and
     // opens the chat pane. The issue is looked up again at the moment of the
     // press, so one that has cleared or gone stale since it was drawn is not sent.
-    IssueSubmission submit_issue(const std::string& issue_id, PrintIssues::IssueIntent intent);
+    IssueSubmission submit_issue(const std::string& issue_id, const std::string& request_sentence);
     // What a press of either button does with no assistant set up: says so
     // and offers to open the chat panel's setup. Returns whether the person
     // took the offer.

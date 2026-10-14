@@ -143,12 +143,9 @@ public:
 
     // Creates a record stamped with the current workspace session and revision,
     // validates it, and starts it immediately.
-    // `refusal`, when given, is why the caller will not let this call run:
-    // the call is recorded and answered as failed with it, like any other
-    // call refused before it starts.
     const ToolActivity& propose(const ToolRequest& request, const std::string& correlation_id,
                                 ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
-                                const std::string& call_id = {}, std::optional<ToolError> refusal = std::nullopt);
+                                const std::string& call_id = {});
 
     bool cancel(const std::string& action_id);
 

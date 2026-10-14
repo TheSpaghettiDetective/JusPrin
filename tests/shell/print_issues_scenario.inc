@@ -720,7 +720,6 @@
             self->check(message->text.rfind("Explain this issue and my options.", 0) == 0, "ask_message_is_visible_and_says_explain");
             const nlohmann::json context = nlohmann::json::parse(message->issue_context, nullptr, false);
             const auto workspace = installed_shell()->workspace()->snapshot();
-            self->check(context.is_object() && context.value("intent", "") == "explain", "ask_context_says_explain");
             self->check(context.is_object() && context["issue"].value("id", "") == self->m_warning_id &&
                             context["target"].value("copyId", std::uint64_t(0)) == self->m_warning_copy,
                         "ask_context_names_the_issue_and_the_copy_by_id");
@@ -733,13 +732,7 @@
                 self->check(request.user_text.find("print-issue context") != std::string::npos &&
                                 request.user_text.find(self->m_warning_id) != std::string::npos,
                             "ask_request_gives_the_model_the_structured_context");
-                bool read_only = !request.session.tool_names.empty();
-                for (const std::string& name : request.session.tool_names) {
-                    const Agent::ToolDefinition* tool = Agent::ToolRegistry::instance().find(name);
-                    read_only = read_only && tool != nullptr && tool->action_class == Agent::ActionClass::ReadOnly;
-                }
-                std::cerr << "HARNESS CHAT ask tools=" << request.session.tool_names.size() << '\n';
-                self->check(read_only, "ask_turn_is_offered_read_only_tools_only");
+                self->check(request.session.tool_names.empty(), "ask_turn_keeps_the_ordinary_tool_set");
                 self->check(request.workspace.revision == workspace.revision, "ask_request_carries_the_workspace_snapshot");
             }
             self->check(self->persistence().draft() == "half-typed question", "ask_leaves_the_composer_draft_alone");
@@ -752,7 +745,7 @@
 
         steps.push_back({"ask_again_unchanged", [self] {
             self->m_user_messages_before = self->user_message_count();
-            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Explain).outcome;
+            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.").outcome;
         }, {}, [self] {
             std::cerr << "HARNESS CHAT ask_again outcome=" << self->m_last_outcome << '\n';
             self->check(self->m_last_outcome == "duplicate" && self->user_message_count() == self->m_user_messages_before,
@@ -773,8 +766,6 @@
             if (!message) { self->check(false, "resolve_added_a_user_message"); return; }
             std::cerr << "HARNESS CHAT resolve text='" << message->text << "'\n";
             self->check(message->text.rfind("Help fix this issue.", 0) == 0, "resolve_message_is_visible_and_says_fix");
-            const nlohmann::json context = nlohmann::json::parse(message->issue_context, nullptr, false);
-            self->check(context.is_object() && context.value("intent", "") == "resolve", "resolve_context_says_resolve");
             self->check(self->m_issue_agent->requests.size() == self->m_requests_before + 1 &&
                             self->m_issue_agent->requests.back().session.tool_names.empty(),
                         "resolve_turn_keeps_the_ordinary_tool_set_and_no_more");
@@ -786,7 +777,7 @@
             const PrintIssues::IssueOverlayFrame busy_frame = self->issue_frame();
             self->check(busy_frame.bubble && !busy_frame.actions_enabled, "buttons_are_disabled_while_a_reply_is_running");
             const std::size_t before = self->user_message_count();
-            self->check(installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Explain).outcome == "busy" &&
+            self->check(installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.").outcome == "busy" &&
                             self->user_message_count() == before,
                         "a_press_during_a_reply_sends_nothing");
             // The host itself queues a message that arrives mid-reply, as it
@@ -902,7 +893,7 @@
         }, {}, [self] {
             self->check(self->issues().checked && self->issues().find(self->m_warning_id) != nullptr,
                         "issue_status_works_with_no_agent");
-            const auto submission = installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Explain);
+            const auto submission = installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.");
             std::cerr << "HARNESS CHAT unavailable outcome=" << submission.outcome << '\n';
             self->check(submission.outcome == "agent_not_set_up" && self->user_message_count() == self->m_user_messages_before,
                         "with_no_agent_nothing_is_sent_to_the_chat");
@@ -947,7 +938,7 @@
             // Orca has the edit and has not validated it: a press now.
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->m_buttons_right_after = frame.bubble && frame.actions_enabled;
-            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Resolve).outcome;
+            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, "Help fix this issue.").outcome;
             self->m_checked_right_after = self->issues().checked;
             const Issue* warning = self->issues().find(self->m_warning_id);
             self->m_stale_right_after = warning != nullptr && warning->stale;
@@ -962,7 +953,7 @@
             self->check(self->issues().checked && self->issues().issues.empty(), "native_revalidation_clears_the_issue");
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(!frame.bubble && self->issue_overlay().selected().empty(), "bubble_is_removed_when_the_issue_clears");
-            self->check(installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Resolve).outcome == "expired",
+            self->check(installed_shell()->submit_issue(self->m_warning_id, "Help fix this issue.").outcome == "expired",
                         "a_cleared_issue_cannot_be_submitted");
             self->capture_issues("10-cleared");
         }, [self] {
@@ -1273,7 +1264,7 @@
                 any = any || issue.object == self->m_deleted_object;
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(!any && !frame.bubble, "no_issue_or_bubble_survives_its_object");
-            self->check(installed_shell()->submit_issue(self->m_deleted_issue, PrintIssues::IssueIntent::Resolve).outcome == "expired",
+            self->check(installed_shell()->submit_issue(self->m_deleted_issue, "Help fix this issue.").outcome == "expired",
                         "an_issue_on_a_deleted_object_cannot_be_submitted");
             self->capture_issues("21-after-delete");
         }, [self] {
@@ -1292,7 +1283,7 @@
             const Issue* step = self->issues().find(self->m_step_issue);
             std::cerr << "HARNESS SLICE supports_on step_issue=" << (step == nullptr ? "gone" : step->stale ? "stale" : "current") << '\n';
             self->check(step == nullptr || step->stale, "changing_the_setting_its_step_depends_on_stops_vouching_for_the_warning");
-            self->check(installed_shell()->submit_issue(self->m_step_issue, PrintIssues::IssueIntent::Resolve).outcome !=  "started",
+            self->check(installed_shell()->submit_issue(self->m_step_issue, "Help fix this issue.").outcome !=  "started",
                         "a_stale_slice_warning_cannot_be_submitted");
             self->capture_issues("22-remedy-applied-not-yet-resliced");
         }});
@@ -1385,7 +1376,7 @@
         }, {}, [self] {
             self->check(self->issues().session != self->m_old_session && self->issues().issues.empty(),
                         "a_new_project_has_a_new_session_and_no_inherited_issues");
-            self->check(installed_shell()->submit_issue(self->m_warning_id, PrintIssues::IssueIntent::Explain).outcome == "expired",
+            self->check(installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.").outcome == "expired",
                         "an_issue_from_the_old_project_cannot_be_submitted");
             std::cerr << "HARNESS MONITOR validate_runs=" << self->issue_monitor().validate_runs() << '\n';
         }});

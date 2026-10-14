@@ -6,13 +6,10 @@
 
 namespace Slic3r::GUI::JusPrin::PrintIssues {
 
-const char* intent_name(IssueIntent intent) { return intent == IssueIntent::Explain ? "explain" : "resolve"; }
-
 IssueMessage make_issue_message(const PrintIssue& issue, const PrintIssueSnapshot& snapshot, const IssueMessageRequest& request)
 {
     nlohmann::json context{
         {"kind", "print_issue"},
-        {"intent", intent_name(request.intent)},
         {"issue", {{"id", issue.id}, {"source", source_name(issue.source)}, {"severity", severity_name(issue.severity)},
                    {"code", issue.code}, {"setting", issue.setting}, {"message", issue.message}}},
         {"target", {{"scope", issue.instance != 0 ? "copy" : issue.object != 0 ? "object" : "plate"}, {"plateId", issue.plate}}},
@@ -43,10 +40,10 @@ IssueMessage make_issue_message(const PrintIssue& issue, const PrintIssueSnapsho
     IssueMessage message;
     message.text         = request.request_sentence + "\n\n" + quoted;
     message.context_json = context.dump();
-    // One message per issue, intent, evidence and chat: a second press while
-    // nothing has changed is the same question.
-    message.client_message_id = std::string("issue-") + intent_name(request.intent) + "-" +
-                                std::to_string(std::hash<std::string>{}(issue.id)) + "-s" + std::to_string(snapshot.session) + "-g" +
+    // One message per issue, request, evidence and chat: a second press of the
+    // same button while nothing has changed is the same question.
+    message.client_message_id = "issue-" + std::to_string(std::hash<std::string>{}(request.request_sentence + '\n' + issue.id)) +
+                                "-s" + std::to_string(snapshot.session) + "-g" +
                                 std::to_string(snapshot.generation) + "-c" + request.conversation_id;
     return message;
 }

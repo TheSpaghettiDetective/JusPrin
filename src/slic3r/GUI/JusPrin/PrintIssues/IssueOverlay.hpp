@@ -31,7 +31,6 @@
 // the camera and the scene every frame; nothing about position is kept.
 // Where each piece goes is decided in IssueOverlayLayout.
 
-#include "IssueContext.hpp"
 #include "IssueOverlayLayout.hpp"
 #include "PrintIssueMonitor.hpp"
 
@@ -97,9 +96,9 @@ public:
     {
         // Highlight the issue's object through OrcaSlicer's own selection.
         std::function<void(const PrintIssue&)> highlight;
-        // True when the message reached the chat, which is where the person
-        // looks next.
-        std::function<bool(const std::string& issue_id, IssueIntent intent)> submit;
+        // Sends the issue with the pressed button's request sentence. True
+        // when the message reached the chat, which is where the person looks next.
+        std::function<bool(const std::string& issue_id, const std::string& request)> submit;
         // A reply is being written; the page disables its own send the same way.
         std::function<bool()> chat_busy;
     };

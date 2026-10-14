@@ -12,12 +12,6 @@
 
 namespace Slic3r::GUI::JusPrin::PrintIssues {
 
-// Explain asks for an explanation and nothing else; the host offers that turn
-// only the tools that read. Resolve is an ordinary turn.
-enum class IssueIntent : std::uint8_t { Explain, Resolve };
-
-const char* intent_name(IssueIntent intent);
-
 struct IssueMessage
 {
     std::string client_message_id;
@@ -27,9 +21,9 @@ struct IssueMessage
 
 struct IssueMessageRequest
 {
-    IssueIntent   intent{IssueIntent::Explain};
     // The request in the person's language ("Explain this issue and my
-    // options."); OrcaSlicer's own words for the issue are quoted beneath it.
+    // options."), the only difference between the bubble's two buttons;
+    // OrcaSlicer's own words for the issue are quoted beneath it.
     std::string   request_sentence;
     // What the tools call the workspace the issue belongs to.
     std::uint64_t workspace_session{0};
