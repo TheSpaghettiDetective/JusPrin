@@ -1,0 +1,30 @@
+<!-- reply 5 -->
+> In short, autosave fixed Orca’s dialogs and nobody swept the three fork paths and the prompt text that had been built on the old assumption. Those “Ask the user” strings in tool results are also approval vocabulary my sweep missed, because I only looked at prompts and descriptions. The filament temperature check is a different Orca question (a save-time “the first-layer temperature is far from the others, continue?”), not save-or-discard, so it belongs with the orca_question decision rather than this one. I’ve added all of it as item 9 in the tracker in core-prompt-critique.md; say the word and I’ll turn it into a chip.
+
+So in short, there are a lot of inconsistencies introduced across different commits and sessions?  Yipso spin up a task chip to find a way to consolidate them.  add enough context to the task chip so that the coding agent has the full picture for what happened
+
+<!-- reply -->
+> Options: I run it now; or you run it yourself. I recommend the first, and I’d re-run the agent tests afterwards.
+
+you run it if what you will run is the  equivalent of this:
+Commands for the main checkout at /Users/kenneth/Projects/JusPrin, which still has the old local tip and uncommitted prompt-wording edits that must survive. Run in order:
+
+git stash
+git fetch origin
+git reset --hard origin/jusprin-newui
+git stash pop
+
+<!-- reply -->
+> Where the restructured prompt should live so the eval can read it. Today it is two C++ string literals, and the eval harness scraped them with a regex that already broke once when a sentence changed. Option A: keep it in C++ as named section constants and have a native test dump the assembled prompt to a fixture file, with a drift test; every edit then needs a rebuild and a fixture update. Option B: move it to the page as a TypeScript module, exactly like the printer and filament prompts, sent to the app over the bridge; the harness then renders it from source at any git revision with no build, which is how the printer suite already works, and it follows your “logic goes in the page” rule. The cost is that the app must refuse a project turn that arrives before the page has sent its instructions, as the printer panel already does. Option C: keep scraping. I recommend B.
+
+Any reason why prompt shouldn't be completely constructed in TypeScript and send it as a whole over through the bridge?  Make sure you check git log to use session records for the original rationale of distributing prompt across two sides of the bridge.
+
+<!-- reply -->
+> Which answer the eval should reward for the three orca_question cases. The tool description allows three outcomes, and the eval must pick one per case. The chip’s reading: enabling a soluble support interface, go ahead and include Orca’s suggested companion settings; enabling smooth timelapse, go ahead with the prime tower and say so in the reply; making overhangs printable, which changes the model’s shape, ask first with exactly one question. The decision is whether that mapping matches what you want, for instance whether timelapse should also ask. I recommend the chip’s mapping.
+
+I don't want to see why this is relevant here.   We are trying to fix system prompt, rught?  whether or not the agent will make the right choice is not part of the system prompt right?  You know we're not evaluating the quality of the LM models.  Am I missing anything here?
+
+<!-- reply -->
+> The first live batch, once the harness is ported. Thirteen cases at three runs each is about 120 requests of roughly 9,000 input tokens, so about 1.3M input tokens plus judge calls, on DeepSeek V4 Flash through OpenRouter, the eval model you chose on 2026-09-28. Running it paired against the pre-restructure prompt doubles that, and pairing is the only way to tell a real effect from noise. Your standing rule is that no live batch runs without your approval of the count and the estimate. I recommend approving the paired run, about 240 requests and 2.6M input tokens, after checking OpenRouter’s current price for that model, which I don’t have. This one is not needed until the port is done.
+
+Let's make sure these test cases still make sense for us.  they were built for testing skills.  I would be really surprised that all of them are still relevant and we should add no more.  Our first life batch should be the ones that we use to check the core prompt or solid, right?

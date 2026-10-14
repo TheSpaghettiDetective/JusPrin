@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4XY5PY6TW7YCS3KQEGGTHWN",
   "strategy": "manual-commit",
   "branch": "claude/rename-propose-to-submit",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
     "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp"
@@ -22,13 +22,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 6749,
-    "cache_read_tokens": 1694739,
-    "output_tokens": 6027,
-    "api_call_count": 9
+    "input_tokens": 84,
+    "cache_creation_tokens": 15498,
+    "cache_read_tokens": 2952274,
+    "output_tokens": 13926,
+    "api_call_count": 12
   }
 }
