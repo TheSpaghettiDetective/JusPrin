@@ -2101,7 +2101,7 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     if (request.new_project) {
         loaded = m_plater.new_project(true, true) != wxID_CANCEL;
     } else if (extension == ".3mf") {
-        // The person agreed to drop the unsaved work: Orca's own new project
+        // The caller passed discard for the unsaved work: Orca's own new project
         // without confirmation drops it, so the open that follows finds
         // nothing to ask about (and a remembered "save" choice can't save).
         if (unsaved)

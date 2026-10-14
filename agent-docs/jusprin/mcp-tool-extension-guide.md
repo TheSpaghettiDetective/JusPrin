@@ -56,7 +56,7 @@ Write down:
 
 If the failure can be fixed by a clearer description, a better result, or a more useful validation error, improve the existing definition instead of adding a tool.
 
-The candidate catalog later in this guide lists tools we might build. Being listed there does not approve a tool, and it does not excuse a tool from this section. A row in that catalog does two jobs. It records which product screen and which group of evals the tool would serve, which makes the eval easier to write. It also settles what the tool acts on, its action class, and its OrcaSlicer owner, so that two people do not build the same capability twice under different names.
+The candidate catalog later in this guide lists tools we might build. Being listed there does not accept a tool, and it does not excuse a tool from this section. A row in that catalog does two jobs. It records which product screen and which group of evals the tool would serve, which makes the eval easier to write. It also settles what the tool acts on, its action class, and its OrcaSlicer owner, so that two people do not build the same capability twice under different names.
 
 ## Decide whether this should be a tool
 
@@ -122,7 +122,7 @@ set_support_angle
 
 The same rule applies to presets, project objects, plates, warnings, and slice reports. Extend the typed records that describe them, and the size-limited tools that query them, before you create dozens of special-purpose actions.
 
-A new operation deserves its own tool when it really differs from the existing ones in at least one of these ways: how it is authorized, whether it applies completely or not at all, how it starts, runs, and ends, or what its result means. `slice_start` is an example. It is not one more way to change settings. It starts OrcaSlicer work that runs in the background, and it completes in a different way from a settings change. That difference justifies a separate tool.
+A new operation deserves its own tool when it really differs from the existing ones in at least one of these ways: which action class it belongs to (read-only, mutation or destructive), whether it applies completely or not at all, how it starts, runs, and ends, or what its result means. `slice_start` is an example. It is not one more way to change settings. It starts OrcaSlicer work that runs in the background, and it completes in a different way from a settings change. That difference justifies a separate tool.
 
 Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before submitting the change. There are four such cases:
 
@@ -237,7 +237,7 @@ Any change to a file OrcaSlicer owns must follow [fork stewardship](fork-steward
 
 ## JusPrin-owned project state
 
-Some product state is not held anywhere in OrcaSlicer: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring policy that authorizes automatic pausing. For this state, the "current Orca owner" step in the route above is a JusPrin store instead. Every other step stays the same. The rules are:
+Some product state is not held anywhere in OrcaSlicer: the print intent, the pinned agent plan, semantic region annotations, physical facts the user confirmed about a printer, and the monitoring rules the user sets for automatic pausing. For this state, the "current Orca owner" step in the route above is a JusPrin store instead. Every other step stays the same. The rules are:
 
 - **Storage.** State that belongs to a project (intent, plan, regions, conversation, and attachments) lives in the local project store, under a project ID that does not change. The current `ProjectStateDocument` is saved separately from model checkpoints. An imported project may contain the older `Auxiliaries/JusPrin/state.json` and its recovery mirror. Those are read only to migrate them. Three things remain fields of that document:
   - the print intent, `printIntent`. A write inserts or updates one field by name, and each field carries its provenance;
@@ -544,8 +544,8 @@ Text embossing is left out until an eval needs it. When one does, embossing gets
 | Tool | Class | Contract | Owner | Bound |
 |---|---|---|---|---|
 | `preflight_check` | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
-| `print_send` | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. The card is the explicit Send. | `PrintJob`, `SendJob` | |
-| `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Submission-time check surfaces license restrictions from project details on the card and in the result. | `Plater` export functions | |
+| `print_send` | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. Runs only on the person's request to send; preparing a print never sends. | `PrintJob`, `SendJob` | |
+| `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Validation surfaces license restrictions from project details in the result and on the activity card. | `Plater` export functions | |
 
 ### `machine`
 
@@ -1002,7 +1002,7 @@ Kenneth decided this on 2026-10-12. The caller is an agent, and it settles
 the question itself, one of three ways: go ahead; go ahead and tell the user;
 or ask the user first, when the answer is theirs to give (it depends on what
 the object is for, or it accepts a risk to their printer). No tool refuses
-these changes, holds them for approval, or records that a person agreed. The
+these changes, waits for the person to agree, or records that they did. The
 description of `settings_preview_patch` tells the caller this.
 
 Preview adds one warning per question, with code `orca_question`:

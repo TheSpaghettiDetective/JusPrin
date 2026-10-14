@@ -111,7 +111,7 @@ ParsedRequest parse_request(const HttpRequest& http, const std::string& origin)
         return ParsedRequest{std::nullopt, {status, rpc_error(id, code, message, std::move(data))}};
     };
     if (http.headers.count("origin") && header(http, "origin") != origin)
-        return error(403, -32600, "Origin is not approved for this local endpoint.");
+        return error(403, -32600, "Origin is not allowed for this local endpoint.");
     if (http.target != "/mcp") return error(404, -32600, "MCP endpoint not found.");
     if (http.method != "POST") return error(405, -32600, "Use POST. Supported protocol: 2026-07-28.");
     if (lowercase(trim(header(http, "content-type").substr(0, header(http, "content-type").find(';')))) != "application/json")

@@ -47,8 +47,8 @@ inline constexpr const char* kPrintJourneyGuidance =
     "assumptions with plan_set before applying them. A clear request for a specific supported change can use its tools directly."
     "\n\nVerification: Slice and inspect with slice_report and, when needed, slice_inspect against the user's requirements "
     "before reporting print readiness. Revisit settings and recheck the slice when needed; explain unresolved issues. "
-    "Check the current slice before exporting G-code or sliced 3MF with export_file. Starting a physical print follows "
-    "the app's Send preflight and authorization boundary; preparing a print does not bypass it.";
+    "Check the current slice before exporting G-code or sliced 3MF with export_file. The person starts a physical print "
+    "with the app's Send, after its preflight; preparing a print does not start one.";
 
 constexpr ToolExposure operator|(ToolExposure lhs, ToolExposure rhs)
 {

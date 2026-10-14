@@ -577,7 +577,7 @@ Some monitoring options also involve privacy, camera use, false-positive toleran
 
 ### What the agent should do
 
-Perform the preflight, recommend safe defaults, and block obviously inconsistent jobs. The user should see a concise checklist and authorize sending.
+Perform the preflight, recommend safe defaults, and block obviously inconsistent jobs. The user should see a concise checklist and start the send themselves.
 
 ---
 
@@ -610,7 +610,7 @@ Pause and stop are human override mechanisms. They should never be hidden inside
 
 ### What the agent should do
 
-Monitor the job, explain anomalies, recommend intervention, and automatically pause only under rules the user has authorized in advance. It should clearly report why an automatic intervention occurred.
+Monitor the job, explain anomalies, recommend intervention, and automatically pause only under rules the user set in advance. It should clearly report why an automatic intervention occurred.
 
 ---
 
@@ -655,7 +655,7 @@ The agent should:
 5. Explain what to observe.
 6. Analyze sensor data or photographs.
 7. Recommend a result.
-8. Ask the user to confirm before updating a persistent printer or filament profile.
+8. Say what was saved to the printer or filament profile and that it can be changed back.
 
 The user should not be presented with every calibration parameter unless manual control is requested.
 
@@ -838,7 +838,7 @@ For every OrcaSlicer control, ask four questions:
 2. **Does this depend on the object’s purpose, meaning, or the user’s taste?**
    Keep an intent, annotation, or direct-editing surface.
 
-3. **Does this authorize a consequential, legal, private, or physical action?**
+3. **Does this start a consequential, legal, private, or physical action?**
    Keep explicit user control.
 
 4. **Is this merely a technical method for achieving an already-understood goal?**

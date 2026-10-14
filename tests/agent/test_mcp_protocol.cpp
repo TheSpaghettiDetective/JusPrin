@@ -31,7 +31,7 @@ TEST_CASE("MCP validates HTTP security before dispatch", "[mcp][protocol]")
     SECTION("no authentication required") { CHECK_FALSE(http.headers.count("authorization")); CHECK(parse(http).request.has_value()); }
     SECTION("foreign origin") { http.headers["origin"] = "https://evil.example"; CHECK(parse(http).error.status == 403); }
     SECTION("null origin") { http.headers["origin"] = "null"; CHECK(parse(http).error.status == 403); }
-    SECTION("approved origin") { http.headers["origin"] = "http://127.0.0.1:12345"; CHECK(parse(http).request.has_value()); }
+    SECTION("allowed origin") { http.headers["origin"] = "http://127.0.0.1:12345"; CHECK(parse(http).request.has_value()); }
     SECTION("GET") { http.method = "GET"; CHECK(parse(http).error.status == 405); }
     SECTION("DELETE") { http.method = "DELETE"; CHECK(parse(http).error.status == 405); }
     SECTION("wrong path") { http.target = "/other"; CHECK(parse(http).error.status == 404); }
