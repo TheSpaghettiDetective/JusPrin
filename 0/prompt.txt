@@ -79,3 +79,10 @@ Commit on a branch in your worktree with a plain-English message naming the old 
 <status>failed</status>
 <summary>Background command "until ! pgrep -f "cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/focused-kirch-094dae/build/arm64" &gt;/dev/null; do sleep 30; done; grep -o '\[[0-9]*/[0-9]*\]' /Users/kenneth/Projects/JusPrin/.claude/worktrees/rename-build-baseline.log | tail -1" failed with exit code 144</summary>
 </task-notification>
+
+---
+
+<!-- reply 1 -->
+> Tool descriptions the model reads (ToolRegistry.cpp, “read before proposing a patch”, and its copy in printer_tools.json). Changing them changes prompt text, so it isn’t a pure rename.
+
+If we no longer have this proposed thing as a concept,  Any reason why we should leave that concept in a prompt?
