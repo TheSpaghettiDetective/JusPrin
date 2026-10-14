@@ -1,0 +1,105 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4XY5PY6TW7YCS3KQEGGTHWN",
+  "session_id": "741515ce-2424-44f9-9532-cdc7f62d22a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-14T19:28:07.500917Z",
+  "branch": "claude/rename-propose-to-submit",
+  "checkpoints_count": 1,
+  "save_step_count": 4,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "e53b716b4a46",
+  "checkpoint_transcript_start": 472,
+  "transcript_lines_at_start": 472,
+  "compact_transcript_start": 82,
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 1628,
+    "cache_read_tokens": 621744,
+    "output_tokens": 1511,
+    "api_call_count": 3
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-14T19:28:07.41145Z",
+    "agent_lines": 0,
+    "agent_removed": 5,
+    "human_added": 0,
+    "human_modified": 177,
+    "human_removed": 29,
+    "total_committed": 8,
+    "total_lines_changed": 376,
+    "agent_percentage": 1.3297872340425532,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 1040,
+      "user_lines_removed": 469,
+      "agent_lines_added": 704,
+      "agent_lines_removed": 1023,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 40,
+        "src/slic3r/GUI/GLCanvas3D.cpp": 10,
+        "src/slic3r/GUI/GLCanvas3D.hpp": 2,
+        "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp": 2,
+        "src/slic3r/GUI/JusPrin/Workspace/OrcaEditQuestions.hpp": 181,
+        "src/slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp": 3,
+        "src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp": 19,
+        "src/slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp": 45,
+        "tests/agent/test_openai_responses_agent.cpp": 9,
+        "tests/agent/test_tool_coordinator.cpp": 64,
+        "tests/agent/test_tool_registry.cpp": 12,
+        "tests/jusprin_support/FakeSettings.hpp": 29,
+        "tests/printer_prompt/printer_tools.json": 1,
+        "tests/shell/shell_harness.cpp": 95,
+        "tests/workspace/real_adapter_harness.cpp": 449,
+        "tests/workspace/test_workspace_contract.cpp": 79
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1,
+        "src/slic3r/GUI/GLCanvas3D.hpp": 1,
+        "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp": 7,
+        "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp": 1,
+        "src/slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp": 3,
+        "src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp": 5,
+        "src/slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp": 62,
+        "tests/agent/test_openai_responses_agent.cpp": 182,
+        "tests/agent/test_tool_coordinator.cpp": 2,
+        "tests/jusprin_support/FakeSettings.hpp": 11,
+        "tests/printer_prompt/printer_tools.json": 1,
+        "tests/shell/shell_harness.cpp": 191,
+        "tests/workspace/test_workspace_contract.cpp": 2
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
