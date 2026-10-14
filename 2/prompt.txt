@@ -44,3 +44,7 @@ Can I shorten your answer as we should just consolidate them in TypeScript?  If 
 > On the set as a whole: the thirteen cases in the chip’s report are new, written for the core prompt; the skills-era cases were left behind. But your bar is the right one, and I had not applied it: a case belongs in the first batch only if we can name the prompt sentence it tests. Measured that way, eight stand (advice without changes, prepare-and-report, no repeated assessment, resolve only the named issue, no claim after a failed apply, a direct change done directly, a question answered from context, and “loaded” not inferred from the selected preset); one needs rewriting once the Ask AI chip lands (Ask AI with the same tools, still no change); one is borderline (re-calling a tool after a replayed result was omitted, which tests the host’s omission text as much as the prompt); and three are out. Missing, and worth adding: answering in the user’s language, speaking in first person for the app rather than “OrcaSlicer warned”, …
 
 Another agent is already working on this.  Create a handover text for that agent to know what considerations it needs to take into account,  based on what we are trying to achieve here.
+
+---
+
+commit the sweep
