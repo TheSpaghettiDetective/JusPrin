@@ -1,0 +1,43 @@
+Fix a bug in the JusPrin project assistant's `slice_start` tool. Repository: C:\src\JusPrin, branch jusprin-newui. Read AGENTS.md first (especially "Error handling discipline"), and write to the user (Kenneth) in plain English.
+
+## The bug
+
+When a plate cannot be sliced as configured, `slice_start` with `wait: true` returns success with no explanation, and a second call with `preempt: true, wait: true` never returns.
+
+Seen repeatedly on 2026-10-13/14 in live "journey" runs of the in-app assistant (real app, real OrcaSlicer workspace, tool calls answered by the app). The setup each time: printer preset "Bambu Lab X1 Carbon 0.4 nozzle", plate type "Smooth Cool Plate" (the harness default), one small object (tests/data/jusprin/tee_with_hole.stl), filament switched by the assistant from "Bambu PLA Basic @BBL X1C" to "Bambu PETG HF @BBL X1C" with `printer_setup`. Then:
+
+1. `slice_start {"wait": true}` returned state succeeded with
+   `{"finished":false,"handle":"t-15","started":true,"slicing":{"jobs":[],"plates":[{"estimateStatus":"none","sliced":false,...}],"running":false}}`.
+   So it claims the slice started, but nothing is running and nothing was sliced, and no reason is given.
+2. `workspace_inspect {"sections":["slicing"]}` confirmed: not running, not sliced.
+3. `slice_start {"preempt": true, "wait": true}` stayed in state `running` and never returned. The harness waited over 20 minutes before its deadline ended the run.
+
+In a different run of the same setup, `slice_start` instead failed twice with the message "That plate cannot be sliced as it stands", and the assistant worked out that `cool_plate_temp` is 0 for PETG HF, switched the plate type to Engineering Plate, and then sliced successfully. So OrcaSlicer does know why the plate cannot be sliced (most likely the bed temperature for that plate type is 0 for this filament); the tool sometimes surfaces it and sometimes does not. When the person's plate was set to a textured PEI plate before slicing, the same PETG setup sliced fine.
+
+## What to do
+
+- Reproduce it. The tool is implemented in src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp (search for SliceStart) with the slicing run in src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp. The tool's contract is described in ToolRegistry.cpp under `slice_start`.
+- Find why the first call reports `started: true` when OrcaSlicer refused or silently dropped the slice, and why the `wait` path of the second call never completes. Trace how upstream OrcaSlicer validates a plate before slicing (for example the bed-temperature / plate-type check and the notification it raises) and reuse its predicate rather than writing a copy.
+- Fix it at the layer that owns the decision: a plate that cannot be sliced must come back as a failed call that says why in words the model can act on (which setting, which plate type), never as success, and a waiting call must always end. Do not paper over it with a timeout alone.
+- Add tests: a unit or workspace-contract test for the refused-slice case, and if practical a shell harness check. tests/CLAUDE.md has the Catch2 rules.
+
+## Evidence on disk (may be cleaned up later)
+
+Journey records with the full call arguments and results:
+C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\scratchpad\exp\reversed\committed-prompt\outdoor-fitting-3.json and ...\reversed\multicall-all-loaded\outdoor-fitting-3.json (both ended with `"stopped": "deadline"`; look at the last turn's calls).
+
+## Notes
+
+- As of 2026-10-14 the journey harness (`shell_integration_harness --journey`, documented in tests/project_journey/README.md) is an UNCOMMITTED change in the main checkout C:\src\JusPrin, along with other uncommitted edits. Ask Kenneth whether it has been committed before relying on it; do not discard those changes. The bug can also be reproduced without it, through the MCP tools or a workspace-contract test.
+- Any live model run needs Kenneth's approval of the run count and token estimate first. Reproducing this bug should not need a live model.
+- Build notes for this Windows machine are in the memory file windows-build-machine.md.
+
+---
+
+<task-notification>
+<task-id>bhbm1ev5h</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-bold-germain-59b598\6e5f9b56-1da1-495b-b071-4b0769a95c60\tasks\bhbm1ev5h.output</output-file>
+<status>completed</status>
+<summary>Background command "Configure and build test targets in own build tree" completed (exit code 0)</summary>
+</task-notification>
