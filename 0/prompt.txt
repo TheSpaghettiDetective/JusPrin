@@ -1,0 +1,45 @@
+On the Windows verification machine (see memory windows-build-machine.md: no GPU, Mesa software GL), the default mode of the JusPrin shell harness (tests/shell/shell_harness.cpp, `shell_integration_harness.exe` with no arguments) crashes with an access violation (0xC0000005, faulting module ucrtbase.dll, offset 0x2a341) on jusprin-newui at commit 491b56d26b, with no source changes. The last check printed is `slice_completion_updates_rendered_button` (around shell_harness.cpp line 4648). The next step opens the "Check Print" modal (row->request_action(PrintAction::CheckPrint)), which holds a second Preview canvas. It crashed identically 3 times: twice with the default d3d12 Mesa driver and once with GALLIUM_DRIVER=llvmpipe. Repro: build shell_integration_harness in your own tree (e.g. C:\b\<short>, configured as described in windows-build-machine.md), provision Mesa with src/slic3r/GUI/JusPrin/Testing/windows-gl/provision-mesa-windows.ps1, set WEBVIEW2_USER_DATA_FOLDER to a private folder, and run the exe with no arguments; the exit code is -1073741819. Suspects: commit 4eff22c5bd "Add Check Print modal to Prepare" or d0bce03db3 (OrcaSlicer notifications shown in JusPrin). Find the cause (llvm-symbolizer on the event-log offset after relinking with a map file, as the memory describes) and fix it at its owner. Because of this crash, every later default-mode check never runs on this machine, including slice checks, outputs and phase 6 history.
+
+---
+
+<task-notification>
+<task-id>bgv1j9rrz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-keen-lamport-bc80e5\c04fbdd1-d707-42dc-922c-7911bb1d35e0\tasks\bgv1j9rrz.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the Agent and Home page bundles" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bp1nyw1ho</task-id>
+<tool-use-id>toolu_01FFfsG4jsmHxJam3TFE69L4</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-keen-lamport-bc80e5\c04fbdd1-d707-42dc-922c-7911bb1d35e0\tasks\bp1nyw1ho.output</output-file>
+<status>failed</status>
+<summary>Background command "Configure and build the harness in a new build tree" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdx8yjl3b</task-id>
+<tool-use-id>toolu_01RPtwxrz55rH8pwqoCDboHw</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-keen-lamport-bc80e5\c04fbdd1-d707-42dc-922c-7911bb1d35e0\tasks\bdx8yjl3b.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the harness with the dynamic runtime" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8bt6uf1y</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-keen-lamport-bc80e5\c04fbdd1-d707-42dc-922c-7911bb1d35e0\tasks\b8bt6uf1y.output</output-file>
+<status>failed</status>
+<summary>Background command "Rebuild with the fix and run default harness mode" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+say what happened in plain eng under 100 word
