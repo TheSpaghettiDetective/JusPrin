@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4XVDY4R4T5X2HC5T1B8GAFF",
+  "strategy": "manual-commit",
+  "branch": "claude/rename-propose-to-submit",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 132,
+    "cache_creation_tokens": 157778,
+    "cache_read_tokens": 9944018,
+    "output_tokens": 28479,
+    "api_call_count": 66
+  }
+}
