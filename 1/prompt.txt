@@ -1,0 +1,966 @@
+<!-- reply 1 -->
+> Only then consider a planner/executor split (bigger model for the preparation turn, mini for chat)
+
+i'm quite confident this is the wrong direction. we haven't had a lot of luck with solving problems with a more complicated solution when the problem is not well understoodl
+
+
+> Put the facts in the context.
+
+Those facts are retrievable through tools, right? And those tools are discoverable, right? Somehow I don't feel comfortable using this as a solution. Because we can't keep on adding things to the contest just because some low percentage of the use cases may need it.
+
+> Set reasoning.effort explicitly
+
+We can run a quick check for this, but I feel like if we have some fundamental issues with the core prompt. Those should be resolved first.
+
+> Make the journey a workflow.
+
+Workflow is the same as skills? Check the remote branch for a scale branch that we have already done but have decided not to use, and why. Based on that experiment, trying to complicate things usually don't solve the problem. It'll probably backfire.
+
+> Rewrite the base prompt to the minimal set.
+
+Do take a sweep at how the base prompt are being constructed today. It's been a piecemeal work in over many iterations, so it may be very fragmented and contrary and conflicting. with each other
+
+> Build a journey eval like tests/printer_prompt,
+
+Do this before it changing the base prompt. However, take a look at the lesson learned in the remote branch where we experimented with the skills to so that you won't make the same mistakes in testing.
+
+---
+
+<task-notification>
+<task-id>burtj4xzk</task-id>
+<tool-use-id>toolu_01DdZVSSRwtM2NsReuvjJMk2</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\burtj4xzk.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the shell harness with the new journey mode" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<!-- reply 3 -->
+> I recommend the app’s model for journeys, because the deferred tool list exists only there; this machine also has only the OpenAI key.
+
+An agent previously told me that open Router also supports different tools. If this is true, use deepseek.
+
+<!-- reply -->
+> this machine also has only the OpenAI key.
+
+Press open router key as well. Check the other prompt testing suite for how to retrieve it.
+
+<!-- reply -->
+> may I run one pass of the four scenarios?
+
+Okay, but stop if you cannot make deepseek on openrouter work
+
+---
+
+done. check again
+
+---
+
+Tell me what your goal of this task is.  I am afraid that you are deviating from far from it.
+
+---
+
+Your understanding is correct.  and you didn't drift too far.  So good job so far.  Based on the test result, do we have a good guess on what part of the prompt need to be fixed first?   the problems that you observed earlier that seems to have high likelihood of causing some of the failures that you observed in the first in the baseline test
+
+---
+
+Okay, then you'll know what to do to test them, right? Tell me your plan so that we know we're on the same page.
+
+---
+
+Okay, sounds good. You can write a draft and proceed directly into running them. You don't have to get my approval on the draft.
+
+---
+
+<task-notification>
+<task-id>bdes92kth</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bdes92kth.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the harness and the agent tests with the rewritten paragraph" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpx1jttor</task-id>
+<tool-use-id>toolu_01K6CD7izPzFuv6UoeioiPSo</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bpx1jttor.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the rewrite arm: three runs of each journey on the rewritten paragraph" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjpkmpe27</task-id>
+<tool-use-id>toolu_013gJGhUXPftANnT4UwPF8U8</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bjpkmpe27.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the baseline arm: three runs of each journey on the current prompt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<pasted_content id="a3dc">
+Based on what worked, what did not, and what worked was, you should be able to figure out what part of your rewrite actually helped, and what part didn't matter, and what actually hurts, right?
+Mostly yes, with one honest limit: I changed four things at once and ran three samples each, so this is attribution by mechanism (which sentence plausibly produced which behaviour), not something the batch isolated.
+What helped
+
+* The new “The object” paragraph. This is the clearest one. Reading the shape before guessing went from 0 of 3 to 3 of 3, and the guesses cited real geometry. The old prompt had no text for this at all.
+* “When the person has stated nothing yet, there is nothing to record.” Invented purpose or material on the first turn went from 2 of 3 to 0 of 3. The old trigger (“for a print request, record…”) demanded a record when there was nothing to record.
+* Naming `presets_list`. Refused `settings_search` calls hunting for a filament fell from 16 to 2, and the preset tool was reached on the second or third call instead of the seventh or never.
+* “Do this in any turn, including one that only asks a question.” Recording the stated purpose in `what-is-this` went from 1 of 3 to 3 of 3.
+
+What didn’t matter
+
+* “…or mark them assumed.” No run used it; every recorded field still came out as user-confirmed.
+* The rewritten `intent_update` description. Probably invisible: the tool is hidden until searched, and the model mostly called it without searching. I can’t confirm that from here.
+* Anything about finishing the preparation. Ending on PETG (1 of 3) and ending sliced (0 of 3) were identical in both arms.
+
+What hurt
+
+* Naming hidden tools without their parameters. `object_analyze` and `presets_list` were called blind with guessed arguments (6 refusals). This is the same sentence that helped: the name fixed “wrong tool” and created “right tool, wrong arguments”.
+* The `intent_update` refusals (7, up from 0). The model sent `requirements` or a map for `fields`. My wording “each requirement as a field” is the likely cause, but I’m less sure of this one; the old arm may simply have searched first more often.
+* “When it matters what an object is” was too loose. It triggered geometry reads when the person had already said what the part was (`desk-ornament`, 2 of 3), and one of those extra calls helped kill the control that failed.
+* The “any turn, including a question” clause, again. It also recorded “Considering PETG instead of PLA” as an intent once. The clause needs to distinguish a stated purpose from a question.
+
+So two of the helpful sentences are also the harmful ones. The fix is to tighten those two, not drop them, and to deal with the blind-call problem separately since no prompt wording changed it.
+
+ This is from our side chat.  And I believe this is the way for us to test our hypotheses.  we don't need a huge number of task cases to be statistically significant.  Most of the times the effect will be very obvious, based on attribution by mechanism.   Now spin up a few sub-agents to run different  experiment for  each of the hypotheses that you had about how our core prompt doesn't work and how to improve it.  make sure you prompt your sub agents to follow the same methodology for evaluating the result.
+
+ I have upped the spend quota to $8.  So, I guess you can  allocate $1 to each of the sub-agents, unless there's a good reason why some of the hypotheses need a lot more tokens.
+</pasted_content id="a3dc">
+
+---
+
+Based on what worked, what did not, and what worked was, you should be able to figure out what part of your rewrite actually helped, and what part didn't matter, and what actually hurts, right?
+Mostly yes, with one honest limit: I changed four things at once and ran three samples each, so this is attribution by mechanism (which sentence plausibly produced which behaviour), not something the batch isolated.
+What helped
+
+* The new “The object” paragraph. This is the clearest one. Reading the shape before guessing went from 0 of 3 to 3 of 3, and the guesses cited real geometry. The old prompt had no text for this at all.
+* “When the person has stated nothing yet, there is nothing to record.” Invented purpose or material on the first turn went from 2 of 3 to 0 of 3. The old trigger (“for a print request, record…”) demanded a record when there was nothing to record.
+* Naming `presets_list`. Refused `settings_search` calls hunting for a filament fell from 16 to 2, and the preset tool was reached on the second or third call instead of the seventh or never.
+* “Do this in any turn, including one that only asks a question.” Recording the stated purpose in `what-is-this` went from 1 of 3 to 3 of 3.
+
+What didn’t matter
+
+* “…or mark them assumed.” No run used it; every recorded field still came out as user-confirmed.
+* The rewritten `intent_update` description. Probably invisible: the tool is hidden until searched, and the model mostly called it without searching. I can’t confirm that from here.
+* Anything about finishing the preparation. Ending on PETG (1 of 3) and ending sliced (0 of 3) were identical in both arms.
+
+What hurt
+
+* Naming hidden tools without their parameters. `object_analyze` and `presets_list` were called blind with guessed arguments (6 refusals). This is the same sentence that helped: the name fixed “wrong tool” and created “right tool, wrong arguments”.
+* The `intent_update` refusals (7, up from 0). The model sent `requirements` or a map for `fields`. My wording “each requirement as a field” is the likely cause, but I’m less sure of this one; the old arm may simply have searched first more often.
+* “When it matters what an object is” was too loose. It triggered geometry reads when the person had already said what the part was (`desk-ornament`, 2 of 3), and one of those extra calls helped kill the control that failed.
+* The “any turn, including a question” clause, again. It also recorded “Considering PETG instead of PLA” as an intent once. The clause needs to distinguish a stated purpose from a question.
+
+So two of the helpful sentences are also the harmful ones. The fix is to tighten those two, not drop them, and to deal with the blind-call problem separately since no prompt wording changed it.
+
+ This is from our side chat.  And I believe this is the way for us to test our hypotheses.  we don't need a huge number of task cases to be statistically significant.  Most of the times the effect will be very obvious, based on attribution by mechanism.   Now spin up a few sub-agents to run different  experiment for  each of the hypotheses that you had about how our core prompt doesn't work and how to improve it.  make sure you prompt your sub agents to follow the same methodology for evaluating the result.
+
+ I have upped the spend quota to $8.  So, I guess you can  allocate $1 to each of the sub-agents, unless there's a good reason why some of the hypotheses need a lot more tokens.
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>b74oxlh4m</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\b74oxlh4m.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the shared control arm: 12 journeys on the unchanged control" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a067f90514e0cb1cc</task-id>
+<tool-use-id>toolu_01MHNMzg3BRQ5v4tYqF4f9tz</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\a067f90514e0cb1cc.output</output-file>
+<status>completed</status>
+<summary>Agent "Experiment: is the prompt too heavy" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># prompt-weight: what is lost when instruction text is taken away
+
+`REPORT.md` was not written: the harness refused the file ("subagents should return findings as text"), so this message is the report and needs saving to `exp\prompt-weight\REPORT.md`. Everything else is in that folder: `bare.json`, `once.json`, `PREDICTIONS.md`, the records in `bare\` and `once\`, and three small readers (`len.mjs`, `last.mjs`, `check.mjs`).
+
+## 1. Hypothesis
+
+Much of the control's instructions does no work: the model would behave the same without it, or it repeats or contradicts another sentence. A much smaller prompt should then lose little, and what it does lose shows which sentences are needed.
+
+**Result:** half right. Repetition and conflict cost nothing measurable and can go. But five sentences do real work, and none of the three prompts gets `outdoor-fitting` sliced, because that failure comes from refused tool calls, not from the amount of text.
+
+## 2. The arms
+
+Control: `exp\control-instructions.txt`, 3,441 characters, 526 words. Both arms replace the whole text.
+
+**`bare`** (351 characters, 10% of the control):
+
+```
+You are JusPrin, the 3D printing app. In app-generated messages, OrcaSlicer also refers to this same app. You act on the open project by calling the app's tools. Never claim a change succeeded until a function_call_output says it did. Use only IDs from the current workspace context or tool results. A question does not authorize changing the project.
+```
+
+**`once`** (2,616 characters, 76%). Every rule is stated once, tool names are kept, and conflicts are resolved toward the specific sentence. Stating everything once removed only a quarter of the text: the control is long mostly because it asks for many different things.
+
+```
+You are JusPrin, the 3D printing app; app-generated messages also call it OrcaSlicer. Help users answer questions, prepare prints, adjust projects and troubleshoot, speaking in first person about the app's actions. Use only IDs from current workspace context or tool results. Questions and troubleshooting call for answers and recommendations, not project changes or a preparation sequence. Make a requested change by calling its tool. Say it succeeded only after a function_call_output says so (a call that starts an action has not finished it), then briefly report the actual result. A selected filament preset does not prove which spool is loaded: use the physical facts the person gives and ask about consequential unknowns the evidence cannot resolve.
+
+Intent: When the person says what a print is for, or states a requirement, record it with intent_update: the purpose as setupTitle, each requirement as a field. Do this in any turn, questions included; it changes no print setting. Record only what they said: leave out or mark assumed a file name, a selected preset or material, and your own conclusions.
+
+The object: When it matters what an object is and the person has not said, read its shape with object_analyze before you judge (a file name says little) and offer your idea as a guess to confirm.
+
+Setup: When the intended use or a requirement becomes clear or changes, not when it is only restated or a title is recorded, assess the current material, filament preset and process preset against it. Read the effective settings, including customizations and object overrides; preset names alone do not establish suitability. Keep what suits. Otherwise explain why and recommend a material, a compatible preset (presets_list lists the filament and process presets this printer can use) or a focused settings adjustment. Material and saved filament preset are separate decisions, and the material informs process settings.
+
+Preparation: When asked to prepare or print a model, inspect the project, keep what suits and change what does not, so that printer, filament and process fit the print. If that takes several changes, first record the plan and consequential assumptions with plan_set.
+
+Verification: Before reporting a print ready, slice and inspect with slice_report and, when needed, slice_inspect against the user's requirements; revisit settings and recheck as needed, and explain unresolved issues. Check the current slice before exporting G-code or sliced 3MF with export_file. Starting a physical print follows the app's Send preflight and authorization boundary; preparing does not bypass it.
+```
+
+## 3. Predictions, as written before the first run
+
+They are kept unedited in `PREDICTIONS.md`. In short:
+
+- **`bare`, held:** shape read 0 or 1 of 3; purpose recorded 0 of 3 in `what-is-this` and `outdoor-fitting`; PLA warning 3 of 3; setup kept and `petg-question` unchanged 3 of 3; slice read before "ready" 0 or 1 of 3.
+- **`bare`, wrong:** `outdoor-fitting` sliced in 1 of 3 or more; refused calls several-fold fewer (under 8); failed turns 2 of 12 or fewer. The reason is the most useful thing `bare` showed (section 5).
+- **`bare`, partly wrong:** purpose recorded 0 of 3 in `desk-ornament` (it was 1), and input tokens about half (they were 64%).
+- **`once`:** no outcome moves by a large amount; refused calls and failed turns unchanged.
+
+## 4. Results
+
+Control is `shared-control\control`, run in the same hours. Counts are out of 3 unless a total is shown.
+
+| Outcome | Control | `bare` | `once` |
+|---|---|---|---|
+| `what-is-this`: read the shape before guessing | 3 | **0** | 3 |
+| `what-is-this`: recorded the stated purpose | 3 | **0** | 3 |
+| `what-is-this`: project unchanged | 3 | 3 | 3 |
+| `outdoor-fitting`: nothing invented on turn one | 2 (one title built from the file name) | 3 (recorded nothing) | 3 |
+| `outdoor-fitting`: asked what the print is for before preparing | 3 | **0** (one sliced the PLA setup at once) | 3 |
+| `outdoor-fitting`: recorded the stated purpose | 2 | **0** | 2 |
+| `outdoor-fitting`: said PLA does not suit, with a reason | 2 | 3 (one with no reason) | 2 |
+| `outdoor-fitting`: ended on a PETG filament | 1 | 1 | 0 |
+| `outdoor-fitting`: ended sliced on that filament | 0 | 0 | 0 |
+| `outdoor-fitting`: ended on a third refused call | 3 | 3 | 3 |
+| `desk-ornament`: setup kept | 3 | 3 | 3 |
+| `desk-ornament`: recorded the purpose | 3 | 1 | 3 |
+| `desk-ornament`: ended sliced | 3 | 2 | 2 |
+| `desk-ornament`: read the slice after slicing, before saying ready | 3 | **0** | 1 |
+| `petg-question`: presets and settings unchanged, no slice | 3 | 3 | 3 |
+| `petg-question`: gave an answer | 3 | 2 | 2 |
+| Runs with a failed turn | 3 of 12 | 4 of 12 | 6 of 12 |
+| Refused calls | 25 | 15 | 25 |
+| Refused: deferred tools, wrong arguments | 20 | **0** | 24 |
+| Refused: `settings_search`, looking for a filament | 0 | **13** | 0 |
+| Refused: tool names that do not exist | 3 | 2 | 1 |
+| Runs that used tool search at all | 11 of 12 | **4 of 12** | 11 of 12 |
+| Requests | 142 | 122 | 116 |
+| Input tokens | 1,048,234 | 668,461 | 805,274 |
+
+Refused calls by tool:
+
+- **Control:** `intent_update` 10, `presets_list` 4, `plan_set` 3, `object_analyze` 2, three invented names, and one each of `settings_search`, `settings_get`, `slice_inspect`.
+- **`bare`:** `settings_search` 13, `printer_setup_apply` 1, `settings_patch` 1.
+- **`once`:** `intent_update` 12, `presets_list` 4, `plan_set` 2, `slice_report` 2, `slice_inspect` 2, `object_analyze` 2, `preset_select` 1.
+
+## 5. What each behaviour needed
+
+**Survived in `bare`: the prompt is not needed for it.**
+
+- **The printing knowledge.** `bare` `outdoor-fitting-3`: "PLA softens and degrades in direct sunlight/UV and isn't ideal for continuous outdoor use. A better choice would be **PETG**". Two of three `bare` `what-is-this` runs also warned against PLA for a pressure part, unprompted.
+- **Keeping a suitable setup and respecting a question.** Setup kept 3 of 3; project left alone on a question 6 of 6.
+- **Reading the real settings before advising.** Every `bare` advice turn called `settings_get` and quoted actual values ("Wall loops 2 ... Recommend 4-5").
+- **Saying a guess is a guess.** "Judging by the name" appeared in 3 of 3. It asked the person to confirm in only 1 of 3.
+- **Not claiming success early.** No false claim appeared in any arm, with one statement of that rule or three.
+
+**Disappeared in `bare`, back in `once`: the sentence is needed, its repetition is not.**
+
+- **Read the shape with `object_analyze`:** 3, 0, 3. `bare` guessed from the file name and size every time.
+- **Record what the print is for with `intent_update`:** 8 of 9, 1 of 9, 8 of 9 across the three scenarios. The one `bare` run that recorded it found the tool by searching after `workspace_inspect` showed an intent section.
+- **Ask about unknowns before preparing:** on "I want to print this on my X1 Carbon", control and `once` asked what it is for in 6 of 6. `bare` offered to slice (2) or sliced the PLA setup immediately and said "ready to go" (1).
+- **Read the slice before reporting readiness:** 3, 0, 1. `bare` reported from the slice call's own result.
+- **`presets_list` lists the presets:** without it, `bare` used `settings_search` to look for a filament (13 refusals, and one `petg-question` that never answered). It also named presets from memory: "Bambu PETG Basic @BBL X1C" and "Generic PETG @BBL X1C", both answered `unknown_preset`.
+
+**Changed in `once`: nothing I can tie to a sentence.**
+
+- All tracked outcomes are within one run of the control, except "read the slice" on `desk-ornament` (3 against 1) and failed turns (3 against 6).
+- Both exceptions come from two `desk-ornament` runs that hit a third refused call, on tools the control names in the same words (`slice_report` with `revision`, `slice_inspect` with no `view`).
+- The same control text scored 1 of 3 on that row earlier today (`earlier\rewrite`), so this is inside the control's own spread.
+- The three-way "do not invent" rule, the doubled scope rule and the doubled "call the tool" rule each went to one statement with no loss: nothing was invented on turn one (3 of 3) and `petg-question` stayed unchanged (3 of 3).
+
+**The failure no arm touched.** `outdoor-fitting` ended on a third refused call in 9 of 9 runs. The prompts that name tools produce one kind of refusal; the prompt that names none produces another.
+
+- **Control and `once`** call a tool they know only by name, with guessed parameters. `once` `outdoor-fitting-1`: three `intent_update` calls, the first two with `fields: [{"name": ..., "value": ...}]`; the turn ended and nothing was recorded.
+- **`bare`** never guessed a deferred tool's parameters (0 such refusals against 20 and 24), because it only reached those tools through a search that returns them. But it searched in only 4 of 12 runs, and only once it had decided to act ("Let me look for the slice tool"). To look something up it stayed with the three loaded tools and bent `settings_search` to the job: `{"query": "PETG", "scope": "filament"}`, refused 13 times.
+
+So with no tool names the model does not explore; it works with what it can see. A name in the instructions is what gets a deferred tool used, and a name without parameters is what gets it refused.
+
+## 6. Verdict
+
+These journeys do not show a prompt that is too complicated. Cutting it to a tenth lost five behaviours the product wants and fixed nothing; cutting the repetition lost nothing and fixed nothing. The cause of the failures here is that the text points at tools whose parameters the model cannot see.
+
+Wording I would keep: the `once` text. It is a safe replacement, a quarter shorter, with one statement per rule.
+
+- **Shown to be needed:** the first sentence of Intent, The object, "ask about consequential unknowns", the `presets_list` clause, and the first sentence of Verification.
+- **Shown not to be needed on these journeys:** the role sentence, first person, "call the matching tool", every repeat, and the assess, read-settings, keep and recommend sentences of Setup (the model did all four unasked).
+
+## 7. Cost and caveats
+
+`bare` used 668,461 input and 39,102 output tokens; `once` used 805,274 and 43,755. The total is 1,473,735 input and 82,857 output, about **$0.15** at list price.
+
+- **The instructions are a small part of a request.** A first request is 4,214 tokens with the control and 3,630 with `bare`. `bare`'s lower total comes from doing less, not from being shorter.
+- **Three runs, one batch.** The control's own spread on `desk-ornament` is as large as the `once` difference.
+- **`outdoor-fitting` cannot separate the arms** on its PETG and sliced rows, because it hits the refusal limit in every arm.
+- **Untested, not shown unneeded:** export, Send, object overrides, "do not repeat an assessment", and plan recording (no tracked outcome depends on a plan).
+- **Spool-versus-preset rule:** control and `once` asked what is loaded in 3 of 6 `outdoor-fitting` runs, `bare` in 0 of 3. That is too few to call.
+- **`once` edits many sentences at once,** so a loss could not have been pinned on one of them. None appeared.
+
+## Inventory of the control, sentence by sentence
+
+Result column: **needed** = gone in `bare`, back in `once`; **not needed** = survived in `bare`; **kept** = also in `bare`, so not tested; **untested** = the journeys never reach it.
+
+| # | Sentence (shortened) | Says again / pulls against | Result |
+|---|---|---|---|
+| 1 | You are JusPrin, the 3D printing app. | | kept |
+| 2 | OrcaSlicer also refers to this same app. | | kept |
+| 3 | Help users answer questions, prepare prints, adjust, troubleshoot. | | not needed |
+| 4 | Follow the requested scope; questions do not authorize changes or a full preparation sequence. | said again by 28; pulls against 13 and 18 | kept (short form) |
+| 5 | Speak in first person about the app's actions. | | not needed |
+| 6 | Use only IDs from workspace context or tool results. | | kept |
+| 7 | A selected filament preset does not prove which spool is loaded. | said again by 14 and 26 | too few to call |
+| 8 | Never claim a change succeeded until a function_call_output says so. | first of three: 8, 9, 11 (31 is the slicing case) | kept |
+| 9 | An action starting is not evidence that it finished. | second statement of 8 | not needed |
+| 10 | When asked to make a supported change, call the matching tool. | said again by 30 | not needed |
+| 11 | After its result, briefly explain the actual result. | third statement of 8 | not needed |
+| 12 | Record purpose and requirements with intent_update (setupTitle, fields). | repeats the tool's own description | **needed** |
+| 13 | Do this in any turn, including one that only asks a question. | exception to 4 and 28 | needed with 12 |
+| 14 | Record their words, not your inferences; leave out or mark assumed. | overlaps 7 | one statement is enough |
+| 15 | When nothing has been stated, there is nothing to record. | restates 14 | not needed |
+| 16 | Read the shape with object_analyze before you judge. | | **needed** |
+| 17 | Offer it as a guess for the person to confirm. | | half: guess marked unasked, confirmation asked 1 of 3 |
+| 18 | When use or requirements become clear or change, assess material, filament and process. | said again by 25 and 27; pulls against 4 and 24 | not needed |
+| 19 | Read effective settings; preset names alone do not establish suitability. | | not needed |
+| 20 | Retain suitable choices and customizations. | pulls against 25 ("establish") | not needed |
+| 21 | If they do not fit, explain why and recommend. | "recommend" here, "establish" in 25 | not needed |
+| 22 | presets_list lists the filament and process presets. | repeats the tool's own description | **needed**, and a source of blind calls |
+| 23 | Choosing a material and its saved filament configuration are distinct decisions. | overlaps 27 | not shown |
+| 24 | Do not repeat an assessment because a title was recorded. | a patch on 18 | untested |
+| 25 | When asked to prepare, inspect and establish a suitable configuration. | second statement of 18 | not needed |
+| 26 | Use known physical facts; ask about consequential unknowns. | overlaps 7 | **needed** (the asking) |
+| 27 | Material choice informs filament and process; revisit as constraints emerge. | third "revisit": 18, 27, 32 | not shown |
+| 28 | Advice requests call for recommendations, not project changes. | second statement of 4 | not needed |
+| 29 | For several changes, record the plan with plan_set first. | pulls against 10 and 30 | gone in `bare`; no outcome depends on it |
+| 30 | A clear request for a specific change can use its tools directly. | second statement of 10 | not needed |
+| 31 | Slice and inspect with slice_report before reporting readiness. | | **needed** |
+| 32 | Revisit settings and recheck the slice; explain unresolved issues. | overlaps 27 | untested |
+| 33 | Check the current slice before exporting. | repeats export_file's description | untested |
+| 34 | Starting a physical print follows the Send preflight. | | untested |
+
+Counts asked for in the brief:
+
+- "Do not claim success before a result" is said three times in general (8, 9, 11) and once for slicing (31).
+- "Advice does not authorize changes" is said twice (4, 28), with 13 as a stated exception.
+- "Make the setup suit the use" is said twice (18, 25), and "revisit" three times (18, 27, 32).
+
+Conflicts, and how `once` resolved each:
+
+- **4 and 28 against 13:** a question authorizes nothing, yet intent is recorded in any turn. Kept 13 as the named exception.
+- **4 ("no full preparation sequence") against 18 and 19** (assess with read tools whenever the use becomes clear). Kept the assessment; the ban now covers changes and preparation only.
+- **18 against 24:** assess whenever the use becomes clear, but not again. Folded 24 into 18's condition.
+- **20 and 21 against 25:** keep and recommend, or establish. Preparation now says keep what suits and change what does not.
+- **10 and 30 against 29:** call the tool directly, or plan first. Kept the plan for several changes only.</result>
+<usage><subagent_tokens>211776</subagent_tokens><tool_uses>39</tool_uses><duration_ms>2221252</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a42c9d6bc2dd0a4bf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\a42c9d6bc2dd0a4bf.output</output-file>
+<status>completed</status>
+<summary>Agent "Experiment: plan gate and ordering" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># plan-gate
+
+`REPORT.md` was not written: the Write tool refuses report files from a subagent, and I did not work around it. This message is the report. Everything else is in `C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\scratchpad\exp\plan-gate\`: `no-gate.json`, `ordered.json`, `PREDICTIONS.md`, `last.mjs`, and the records under `no-gate\` and `ordered\`.
+
+## 1. Hypothesis
+
+The Preparation paragraph makes a preparation fail in two ways. It gives several first moves with no order, and it makes `plan_set` a required call before any change, which adds one more refusable call between deciding and doing.
+
+## 2. Arms (each a `replace` on the control)
+
+**`no-gate`**
+- Before: "For preparation involving multiple changes, record the plan and consequential assumptions with plan_set before applying them."
+- After: "For preparation involving multiple changes, the person should be able to see what was decided and assumed: state the decisions and consequential assumptions in your reply, or record them with plan_set once the changes are made. A recorded plan is not needed before applying them."
+
+**`ordered`**
+- Before: the Preparation paragraph's body, from "When asked to prepare or print a model, inspect the project…" to "…can use its tools directly."
+- After: "When asked to prepare or print a model, work in this order. First inspect the project: its objects and the selected printer, filament and process. Next establish what suits the print from known physical facts: the printer, then the material, then the filament preset and process settings the material calls for; go back a step when a constraint emerges. If a consequential unknown remains that the available evidence cannot resolve, ask about it before changing anything. Then, for preparation involving multiple changes, record the plan and consequential assumptions with plan_set before applying them; a clear request for a specific supported change can use its tools directly. When the configuration is in place, go on to Verification. Advice requests call for recommendations, not project changes."
+
+## 3. Predictions (written before running; full text in `PREDICTIONS.md`)
+
+- **`no-gate`, `outdoor-fitting`:** `plan_set` before the first change in 0 or 1 of 3, with no `plan_set` refusals. PETG in 2 of 3. Sliced in 0 or 1 of 3, because the gate is one of three refusals, not the only one.
+- **`ordered`, `outdoor-fitting`:** the preparation turn opens with a read in 3 of 3. `plan_set` is refused as often as control. No visible effect on PETG or sliced.
+- **Both arms:** `desk-ornament` keeps its setup and slices 3 of 3; the answer-only scenarios stay unchanged.
+
+## 4. Results (counts out of 3)
+
+| | control | `no-gate` | `ordered` |
+|---|---|---|---|
+| **Outcomes** | | | |
+| `outdoor-fitting` ends on a PETG filament found with `presets_list` | 1 | 3 | 0 |
+| `outdoor-fitting` ends sliced | 0 | 0 | 0 |
+| `outdoor-fitting` last reply claims ready while unsliced | 0 | 0 | 0 |
+| `desk-ornament` setup kept, sliced, reply matches | 3 | 3 | 3 |
+| `petg-question` / `what-is-this` project unchanged | 3 / 3 | 3 / 3 | 3 / 3 |
+| **Path** | | | |
+| `outdoor-fitting` reached the preparation turn | 2 | 3 | 2 |
+| …called `plan_set` before any change | 2 | 1 | 2 |
+| …a refused `plan_set` was one of the three refusals that ended it | 2 | 1 | 2 |
+| …first setup change, at which answered call of the turn | never, 3rd | 3rd, 1st, 6th | never, never |
+| …reached `settings_preview_patch` | 0 | 3 | 0 |
+| `plan_set` refusals, all 12 runs | 3 | 1 | 4 |
+| Failed turns / refused calls, all 12 runs | 3 / 25 | 3 / 25 | 3 / 21 |
+
+Every `outdoor-fitting` run in every arm ended on a third refusal, so none made a closing claim at all.
+
+## 5. What helped, did not matter, hurt
+
+**Helped a little: dropping "before applying them".**
+- Two of three `no-gate` runs made no `plan_set` call and went straight to the setup.
+- All three switched the filament and previewed the settings patch; no control run got past the filament switch.
+- Control `outdoor-fitting-2` opened the turn with `plan_set {"intent": …, "plan": "Switch filament preset…"}`, was refused, and died two refusals later with nothing applied.
+
+**The gate was not what stopped it.** To handle the confound, I read the three refusals that ended each run.
+- With the gate gone, the runs died one step later, on the apply call.
+- All three `no-gate` runs end with a reply like "Preview is valid and clean. Let me apply it." followed by a guess.
+- The guesses were `settings_patch` (four times; no such tool), `settings_patch_confirm`, and `settings_apply_patch {"changes": …, "scope": "process"}` without the revision and previewed changes it needs.
+- Eight of the nine fatal refusals were guessed apply-tool names or arguments, including `printer_setup_confirm` and `preset_change`. The ninth was `plan_set`, which run 3 still called first.
+
+**PETG 3 against 1 is weaker than it looks.** One control run died in turn 2 on three `intent_update` refusals, where this sentence does not act. Among runs that reached the preparation turn it is 3 of 3 against 1 of 2.
+
+**Did not matter: the order.**
+- `ordered` did not produce a single first move, so my prediction that the turn would open with a read was wrong.
+- Run 1 opened with "First, let me record my plan", had `plan_set` refused twice, then called `filament_preset_apply`. It died with no call answered.
+- Run 2 opened with `intent_update {"field":"Material","value":"PETG"}`.
+- PETG 0 of 3 against 1 of 3 is no visible effect.
+
+**Did not matter: the partners.** `desk-ornament` and both answer-only scenarios are identical across arms.
+
+**Possible harm, not established.**
+- Two `no-gate` runs also changed the process preset (0.16mm Optimal, 0.20mm Strength) without saying so. The one control run that changed anything kept Standard.
+- With no plan and no closing reply, nothing told the person what had been decided. The "state it in your reply" half was never exercised.
+
+## 6. Verdict
+
+- **Gate half:** supported as a cost, not as the cause. `plan_set` before changes spends one of three refusals, and removing it is safe for the partners, but 0 of 3 still slice.
+- **Ordering half:** not supported.
+- **Wording to keep:** the `no-gate` sentence.
+- **Next thing to test:** the apply step. The model previews with a tool it searched for, then calls the apply tool by a guessed name without searching.
+
+## 7. Cost and trust
+
+2,396,684 input and 105,451 output tokens, about $0.24 at list price (`no-gate` 1.53M input, `ordered` 0.86M). No third arm was run.
+
+- Three runs per cell. Only the `settings_preview_patch` row (3 against 0) is a clean large difference.
+- The `ordered` paragraph came out at 124 words against 85, so it is not a pure reordering.
+- Seen once each, unrelated to either sentence: `no-gate` run 3 sent `confirmFacts: bed_clear=true`, which nobody said, and run 2's `printer_setup` succeeded with a `previewedSetup` it had never previewed.</result>
+<usage><subagent_tokens>162997</subagent_tokens><tool_uses>33</tool_uses><duration_ms>2577378</duration_ms></usage>
+</task-notification>
+
+---
+
+check if subagents are progressing well
+
+---
+
+<task-notification>
+<task-id>acdaf2ff35a18063c</task-id>
+<tool-use-id>toolu_01Uze1GqaCfjfdRuCRekzGMJ</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\acdaf2ff35a18063c.output</output-file>
+<status>completed</status>
+<summary>Agent "Experiment: tighten two triggers" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The harness refused to let me write `REPORT.md` (sub-agents may not write report files), so the report exists only as this message. `PREDICTIONS.md`, the three arm files and all 36 records are in `C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\scratchpad\exp\triggers\`.
+
+# triggers: do two loose triggers cause the rewrite's side effects?
+
+## 1. Hypothesis
+
+"The object" and "Intent ... any turn" fire too widely. Tightening each trigger should remove its side effect (`object_analyze` in `desk-ornament`; a question recorded as intent in `petg-question`) without losing what it fixed. Third check: the Intent wording suggests the wrong `intent_update` shape.
+
+## 2. Arms (one `replace` each)
+
+**object-trigger**
+- Before: "When it matters what an object is and the person has not said, read its shape with object_analyze before you judge; a file name says little. Offer what you think it is as a guess for the person to confirm."
+- After: "When the person asks what an object is, or when you would otherwise have to guess what it is in order to prepare it, read its shape with object_analyze before you judge; a file name says little. Offer what you think it is as a guess for the person to confirm. Once the person has said what the part is, take their word for it: there is nothing left to guess, so do not read the shape to find out what it is."
+
+**intent-trigger**
+- Before: "Do this in any turn, including one that only asks a question, because it keeps what they said and changes no print setting."
+- After: "Do this in whatever kind of turn they say it, including one that otherwise only asks a question, because it keeps what they said and changes no print setting. What counts is a purpose or requirement the person states as theirs. A question about an option is not one: asking about a material or a setting does not make it something they want."
+
+**intent-shape**
+- Before: "record that with intent_update: the purpose as setupTitle and each requirement as a field."
+- After: "record that with intent_update: setupTitle is the purpose in a few words, and fields is a list with one entry per requirement, each entry giving field (a short name for the requirement) and value (what they said)."
+
+## 3. Predictions (written before any run; full text in `PREDICTIONS.md`, unedited)
+
+- **object-trigger:**
+  - `desk-ornament` runs calling `object_analyze` fall from 2/3 to 0/3.
+  - `petg-question` runs calling `object_analyze` fall to 0–1/3.
+  - `what-is-this` is unchanged.
+  - `outdoor-fitting` turn 1 still reads the shape.
+  - No slicing effect expected.
+- **intent-trigger:**
+  - `petg-question` records an intent 0/3, which a 1/3 base rate cannot prove.
+  - `what-is-this` still records 3/3; this was the named risk.
+  - `intent_update` refusals are unchanged.
+- **intent-shape:**
+  - `intent_update` refusals fall from about 7 to 0–2.
+  - `outdoor-fitting` turn 2 records 3/3.
+  - Risk: a blind call adds `sessionId`.
+
+## 4. Results (counts of 3 unless stated; control is `shared-control\control`)
+
+| | control | object-trigger | intent-trigger | intent-shape |
+|---|---|---|---|---|
+| **Outcomes** | | | | |
+| `what-is-this`: read shape before guessing | 3 | 3 | 3 | 3 |
+| `what-is-this`: guess given, citing geometry | 3 | 2 | 3 | 3 |
+| `what-is-this`: purpose recorded once stated | 3 | 3 | 2 | 3 |
+| `what-is-this`: no failed turn | 3 | 3 | 1 | 3 |
+| `desk-ornament`: setup kept | 3 | 3 | 3 | 3 |
+| `desk-ornament`: sliced | 3 | 3 | 2 | 3 |
+| `desk-ornament`: ended with a readiness report | 3 | 2 | 2 | 3 |
+| `petg-question`: an intent recorded | 1 | 0 | 0 | 0 |
+| `petg-question`: project unchanged | 3 | 3 | 3 | 3 |
+| `outdoor-fitting`: anything recorded on turn 1 | 1 (title only) | 0 | 0 | 0 |
+| `outdoor-fitting`: purpose recorded on turn 2 | 2 | 3 | 2 | 3 |
+| `outdoor-fitting`: ended on PETG / sliced | 1 / 0 | 2 / 0 | 0 / 0 | 2 / 0 |
+| **Path** | | | | |
+| `desk-ornament`: runs calling `object_analyze` | 2 | 0 | 2 | 0 |
+| `petg-question`: runs calling `object_analyze` | 2 | 2 | 2 | 3 |
+| `outdoor-fitting` turn 1: runs calling `object_analyze` | 1 | 0 | 1 | 0 |
+| `intent_update` refused / attempted (12 runs) | 10 / 20 | 6 / 15 | 8 / 16 | 1 / 10 |
+| `intent_update` called with no search: accepted / made | 1 / 11 | 0 / 6 | 0 / 8 | 4 / 5 |
+| Refused calls, all tools / runs with a failed turn (of 12) | 25 / 3 | 21 / 4 | 25 / 6 | 16 / 2 |
+
+## 5. What helped, what did not matter, what hurt
+
+**Helped: intent-shape.** This is the one large effect.
+- Control sent `"requirements": [{"description": ..., "name": ...}]`, `"fields": {"Water pressure resistance": "Must hold water pressure"}`, `"fields": [{"key": ..., "description": ...}]`, `[{"name": ..., "value": ...}]`, and a title with no `fields`. One `outdoor-fitting` run lost its turn to three of these.
+- With the new sentence, calls made with no search were accepted, e.g. `{"fields":[{"field":"Purpose","value":"A tee fitting for a garden hose"},{"field":"Requirement","value":"Must hold water pressure"}],"setupTitle":"Garden hose tee fitting"}`.
+- The single refusal was the right shape plus `"sessionId": "3"`.
+- No recording outcome moved the wrong way.
+- `outdoor-fitting` still fails later on `plan_set` and invented tools (`preset_apply`, `slice`).
+
+**No visible effect: object-trigger.**
+- `desk-ornament` went from 2/3 to 0/3 as predicted, but intent-shape, which left that paragraph alone, also gave 0/3. This is within chance.
+- The wanted behaviour held: 3/3 read the shape in `what-is-this`.
+- Removing the call did not improve the ending. The one failed run lost its turn to `plan_set`, `slice_report` (`"slice": true`) and `slice_inspect`.
+- In control, both extra calls asked for `orientations`, and one was narrated as a printability check: "Let me check the geometry to make sure it'll print cleanly". All three control runs completed.
+- Two predictions were wrong:
+  - `petg-question` still read the shape 2/3 ("let me first take a look at the shape to see what this part is").
+  - `outdoor-fitting` turn 1 read it 0/3. Control was 1/3 and intent-shape 0/3, so the base rate had already dropped from this morning's 3/3.
+- One `what-is-this` run read the shape and then replied with empty text. I cannot tie that to the sentence.
+
+**Cannot be judged: intent-trigger.**
+- It scored 0/3 against 1/3, and both arms that left the sentence alone also gave 0/3.
+- The control's one case was `{"field":"material_question","question":"Considering PETG"}`.
+- The trigger survived: all three `what-is-this` runs tried to record.
+
+**Hurt, unattributed (intent-trigger arm).**
+- Two `what-is-this` turns failed and one lost the record. All were map-shaped `fields` or `requirements`, the same refusal class as control, landing worse.
+- One `outdoor-fitting` run said "Good, I've recorded what you told me" on turn 2 with no `intent_update` call.
+
+## 6. Verdict
+
+The trigger hypothesis is not supported at this sample size. Both side effects are too rare (2/3 and 1/3 in control) for three runs to show their removal, and neither arm improved an ending. The third suspicion is confirmed.
+
+Keep the intent-shape sentence. I would not ship either trigger wording on this evidence. If they are tried again, run them on top of intent-shape so shape refusals stop masking the result. Untested: saying `intent_update` takes no `sessionId` (one refusal).
+
+## 7. Cost and trust
+
+- **Spend:** 36 runs, 2,727,689 input and 132,819 output tokens, about $0.27 at list price. That overstates it, because cached input is not discounted.
+- **Runs:** no extra arm, no reruns.
+- **Limits:**
+  - There are three runs per cell.
+  - `object_analyze` base rates drifted between this morning's records and the shared control.
+  - The arms ran one after another, and the shared control finished during the first.
+  - One of the four accepted no-search calls followed a search for another tool earlier in its turn.</result>
+<usage><subagent_tokens>180682</subagent_tokens><tool_uses>46</tool_uses><duration_ms>3918066</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2abeda6dcd9ce7bd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\a2abeda6dcd9ce7bd.output</output-file>
+<status>completed</status>
+<summary>Agent "Experiment: blind tool calls" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># blind-calls: report
+
+`REPORT.md` was not written: the Write tool refuses report files from a subagent, so this message is the report, ready to save as `&lt;exp&gt;\blind-calls\REPORT.md`. The predictions were saved before the first run as `&lt;exp&gt;\blind-calls\predictions.txt`.
+
+## 1. Hypothesis
+The instructions name deferred tools, so the model calls them by name without searching, guesses the parameters, and is refused; three refusals end the turn.
+
+## 2. Arms
+- **`search-first`**: one `replace`, inserted before `Intent:`. Before: nothing. After:
+  &gt; Tools: Only a few tools are loaded when a turn starts. The app has many more, including every tool named below, but a tool that is not loaded has no parameters you can see until you find it with tool search, and what one turn found is not kept for the next. So before the first call to such a tool in a turn, search for it by name; its parameters then arrive and the call can match them. A call with guessed parameters is refused, and the app ends the turn after a few refusals, before anything is done for the person. If a call is refused for its arguments, search for that tool and read its parameters instead of guessing again.
+- **`no-names`**: six replacements, naming only.
+  - "record that with intent_update:" became "record that in the app's record of what the print is for:"
+  - "read its shape with object_analyze" became "read its shape from the app, which can report an object's geometry,"
+  - "presets_list lists" became "The app can list"
+  - "with plan_set" became "in the app's plan record"
+  - "inspect with slice_report and, when needed, slice_inspect" became "inspect the app's report of the slice and, when needed, its layer and G-code detail,"
+  - " with export_file" was removed.
+- **`loaded`**: control text, with `"loaded": ["intent_update","object_analyze","presets_list","plan_set","slice_report","slice_start"]`.
+
+## 3. Predictions (written before running)
+- **`search-first`**: blind refusals fall several-fold and failed turns fall to 0–2. `outdoor-fitting` ends on PETG in at least 2 of 3 and sliced in 1–2 of 3. Partner scenarios do not move. Input tokens rise by up to a third.
+- **`no-names`**: blind refusals near zero. The risk is that the model stops looking for the capability or invents tool names; a drop to 0–1 of 3 on "read the shape" would be this arm's cost.
+- **`loaded`**: no blind refusals of the six tools and 0–3 contract refusals. `outdoor-fitting` fails later, on still-deferred tools, with PETG in at least 2 of 3 and sliced in 1–3 of 3. Tokens within a quarter of the control.
+
+## 4. Results (control is `shared-control\control`)
+
+| | control | search-first | no-names | loaded |
+|---|---|---|---|---|
+| **Outcomes** | | | | |
+| `outdoor-fitting`: ended on a PETG filament | 1/3 | 2/3 | 0/3 | 2/3 |
+| `outdoor-fitting`: ended sliced | 0/3 | 0/3 | 0/3 | 1/3 (a) |
+| `outdoor-fitting`: purpose recorded once stated | 2/3 | 3/3 | 3/3 | 3/3 |
+| `what-is-this`: read the shape before guessing | 3/3 | 3/3 | **0/3** | 3/3 |
+| `what-is-this`: recorded the stated purpose | 3/3 | 3/3 | 3/3 | 3/3 |
+| `desk-ornament`: setup kept and sliced | 3/3 | 3/3 | 3/3 | 3/3 |
+| `desk-ornament`: slice read after slicing | 3/3 | 3/3 | **0/3** | 3/3 |
+| `petg-question`: project unchanged | 3/3 | 3/3 | 3/3 (b) | 3/3 |
+| Runs with a failed turn, of 12 | 3 | 3 | 4 | 3 (c) |
+| Runs ended by a third refusal | 3 | 3 | 4 | 1 |
+| **Path** | | | | |
+| Refused calls | 25 | 21 | 17 | **5** |
+| Blind: no search earlier in the turn | 11 | 8 | 2 | 0 |
+| Probably blind: no search in that response | 9 | 7 | 0 | 0 |
+| Parameters in view (just searched, or loaded) | 2 | 2 | 11 | 3 |
+| Invented tool name | 3 | 4 | 4 | 2 |
+| The six named tools: refused / attempted | 19/59 | 16/61 | 2/24 | **0/61** |
+| After a refusal: searched / guessed again | 14 / 5 | 16 / 1 | 0 / 2 | 1 / 0 |
+| Tool searches | 40 | 58 | 42 | 22 |
+| Input tokens | 1,048k | 1,189k | 974k | 1,891k |
+| Input tokens without `outdoor-fitting` | 656k | 665k | 506k | 460k |
+| Opening request, tokens | 4.2k | 4.3k | 4.2k | 6.0k |
+
+- (a) Run 2's last `slice_start` returned `"sliced":true` and `slice_report` was read; the request cap then cut the turn, so the end state was never recorded.
+- (b) One of these turns failed with no answer.
+- (c) Two hit the request cap; one ended on a third refusal.
+
+## 5. What helped, what did not matter, what hurt
+
+**Helped: `loaded`.**
+- Calls to the six named tools went from 19 of 59 refused to 0 of 61, and nine runs had no refusal at all.
+- `outdoor-fitting` got further and met the next obstacle. In run 2, `slice_start` failed twice with `"That plate cannot be sliced as it stands"`; the model found `cool_plate_temp` = 0 for PETG HF, switched to Engineering Plate, sliced and read the report, then hit the 20-request cap.
+- Run 1 stalled on the same error. Run 3 ended on invented names for still-deferred tools (`filament_select`, `patches_apply` in run 1).
+- Cost: 1.8k more tokens on every request, yet the three scenarios that finish used fewer tokens (460k against 656k) because searches and retries went. The total rose 80% only because `outdoor-fitting` ran 90 requests instead of 51.
+
+**Did not matter: `search-first`.**
+- Blind refusals went from 20 to 15, and failed turns stayed at 3. With the paragraph in place the model still opened turn 2 with `call:intent_update` and `{"setupTitle":…, "requirements":[…]}` in all three `what-is-this` runs.
+- Only the last sentence showed anything. After a refusal the model guessed again 1 time instead of 5; in the control's `outdoor-fitting-1` it sent three `intent_update` guesses in a row and the turn ended. That is suggestive but a small count.
+
+**Hurt: `no-names`.**
+- Blind refusals went, and so did the behaviours. `object_analyze`, `plan_set` and `slice_report` were never called.
+- All three `what-is-this` runs guessed from the file: "Based on the name **tee_with_hole.stl** and its dimensions…".
+- The filament hunt went back to `settings_search {"query":"PETG","scope":"filament"}`, refused 11 times; PETG ended 0 of 3.
+- Names were still invented: `plan_create`, `plan_update`, `slice_plate`, `slice`.
+
+**Two kinds of refusal.**
+- In the control, 20 of 25 were blind, 2 were contract refusals of loaded tools, and 3 were invented names. None came after a search for that tool.
+- Contract refusals with parameters in view are few everywhere except one case: `settings_search` with scope filament or printer and no `target`. It appears in three of the four arms.
+- Others seen once each: `plan_set` with `assumptions:[{"string":…}]`, `intent_update` with `name` for `field`, `object_place` with `dropToBed:"true"`, `presets_list` with `limit:30`.
+
+## 6. Verdict
+The mechanism is real: most refusals are calls made without the parameters, and they vanish when the parameters are sent. The proposed prompt fixes do not work. Explaining the search rule did not stop the first blind call, and removing the names removed the behaviours the names were producing.
+
+- **Wording:** keep the control's names. I would not add the `search-first` paragraph.
+- **Tools:** load the named tools. `slice_report` and `slice_start` were never refused while deferred (0/8 and 0/3 in the control), so loading `intent_update`, `object_analyze`, `presets_list` and `plan_set` may be enough; I only ran all six.
+- **Not tested:** the refusal text ("Check the arguments against this tool's parameters and call it again") invites a re-guess for a tool whose parameters are not in view.
+
+## 7. Spend and trust
+The three arms used 4,053,558 input and 172,038 output tokens, about $0.40 at list price.
+
+- **Three runs per cell.** PETG at 1, 2, 0 and 2 of 3 is not an effect.
+- **"Probably blind" is an inference.** The log does not say what a search returned.
+- **Refusal placement is partly heuristic.** Placing refused against executed calls within a turn is ambiguous in places.
+- **Parallel calls are dropped.** The app acts only on the first function call of a response; in `no-names` `what-is-this-1` the model sent `intent_update, object_analyze` four times and `object_analyze` never ran.
+- **Missing end states.** The two capped `loaded` runs recorded no end state.
+
+Files are in `C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\scratchpad\exp\blind-calls\`:
+- `search-first.json`, `no-names.json`, `loaded.json` (the arms; records are in the folder of the same name)
+- `predictions.txt`
+- `classify.mjs`, `attempts.mjs`, `tokens.mjs` (the scripts behind the path rows)</result>
+<usage><subagent_tokens>221949</subagent_tokens><tool_uses>58</tool_uses><duration_ms>4436689</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6daa6c56a711de15</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\a6daa6c56a711de15.output</output-file>
+<status>completed</status>
+<summary>Agent "Experiment: verification wording" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result># Verification paragraph: order of the check, and the mention of `slice_inspect`
+
+`REPORT.md` was not written: the Write tool refuses report files from a subagent, so this message is the only copy. The predictions below were composed before the first run (in the refused write) and are unchanged.
+
+## 1. Hypothesis
+The Verification sentence gives no order, so the model reads `slice_report` before slicing. It also invites `slice_inspect`, which gets refused, and after those refusals the model claims readiness from `slice_start`'s result without reading the report.
+
+## 2. Arms
+The control sentence is: "Slice and inspect with slice_report and, when needed, slice_inspect against the user's requirements before reporting print readiness."
+
+- **`ordered-check`** replaces that sentence with: "Readiness is a claim about the slice, so check in order: slice with slice_start, using its wait option so it returns when the slice has finished; then read slice_report, which has nothing to show for a plate that is not sliced; then tell the person what it shows against what they asked for."
+- **`no-inspect`** changes "slice_report and, when needed, slice_inspect against" to "slice_report against".
+- **`ordered-loaded`** (added) is `ordered-check`'s text plus `"loaded": ["slice_report"]`. I added it because `ordered-check` runs said "Let me check the slice report" and then called a different, loaded tool.
+- **`slice-estimate`** (my scenario) has one line: "The setup is already right for my Bambu Lab X1 Carbon with PLA, so leave it as it is. Slice the plate and tell me how long it will take and how much filament it uses."
+
+## 3. Predictions
+- **`ordered-check`:** early `slice_report` reads fall to 0 or 1 of 3; no `slice_inspect`; the reply follows a valid report read in 3 of 3 on both checking scenarios.
+- **`no-inspect`:** `slice_inspect` goes to 0; early reads and the outcome do not change.
+- **`ordered-loaded`:** `desk-ornament` report-read goes from 1 of 3 to 3 of 3.
+- **Must not move:** plate sliced, presets kept, answer-only scenarios start no slice, `outdoor-fitting` still fails before slicing.
+
+## 4. Results
+
+| | control | ordered-check | no-inspect | ordered-loaded |
+|---|---|---|---|---|
+| **Outcomes** | | | | |
+| `desk-ornament`: sliced at end | 3/3 | 3/3 | 2/3 | 2/3 |
+| `desk-ornament`: reply follows a valid `slice_report` read after the slice | 2/3 | 1/3 | 0/2 | 2/2 |
+| `desk-ornament`: says ready without that read | 1/3 | 2/3 | 2/2 | 0/2 |
+| `slice-estimate`: sliced, setup untouched | 3/3 | 3/3 | 3/3 | 3/3 |
+| `slice-estimate`: reply follows a valid report read | 0/3 | 3/3 | 0/3 | 3/3 |
+| `slice-estimate`: says ready or all good without that read | 2/3 | 0/3 | 2/3 | 0/3 |
+| Both: reply passes on the slicer's "floating cantilever" warning | 0/6 | 0/6 | 0/5 | 5/5 |
+| Time and filament figures correct (sliced runs) | 6/6 | 6/6 | 5/5 | 5/5 |
+| Answer-only scenarios: slice started | 0/6 | 0/6 | 0/6 | 0/6 |
+| `outdoor-fitting`: sliced | 0/3 | 0/3 | 0/3 | 0/3 |
+| **Path** | | | | |
+| `desk-ornament`: `slice_report` tried before `slice_start` | 3/3 | 0/3 | 3/3 | 0/2 |
+| `slice-estimate`: same | 1/3 | 0/3 | 0/3 | 0/3 |
+| `slice_inspect` calls (refused) | 2 (1) | 0 | 0 | 0 |
+| `slice_report` refused | 0 | 0 | 3 | 0 |
+| Valid report reads that asked for `findings` | 0/2 | 0/4 | none | 5/5 |
+| Failed turns, standard 12 | 3 | 3 | 4 | 4 |
+
+The control column is the shared control for the standard four scenarios and my own three control runs for `slice-estimate`.
+
+## 5. What helped, what did not matter, what hurt
+
+**Helped: stating the order.** "slice with slice_start … then read slice_report, which has nothing to show for a plate that is not sliced" removed every early read. The control's `desk-ornament-1` ran `slice_report &gt; slice_report &gt; slice_report &gt; slice_start`, each early read answering `valid:false`.
+
+**Helped only partly: the same sentence on reading the report afterwards.**
+- `slice-estimate` went from 0/3 to 3/3, and the replies show filament length ("9.6 g (≈3.2 m)"), which only the report holds.
+- `desk-ornament` did not move (1/3). Two runs said "Slice complete! Let me check the report" and then called `workspace_inspect {"sections":["slicing"]}`.
+- In those two runs `slice_start` was called by name with no search in that response, so I infer `slice_report` was never loaded. In `slice-estimate` every run searched before slicing. The logs show only that a search happened, not what it returned.
+
+**Helped most: loading `slice_report` with the ordered text.**
+- The report was read after the slice in 5 of 5 runs that got there.
+- All five asked for `["summary","findings",…]` and reported the warning the tool returned: "It seems object tee_with_hole.stl has floating cantilever. Please re-orient the object or enable support generation."
+- No other arm ever asked for `findings`. The control's `desk-ornament-1` read the default report and told the person "✅ No overhang issues, no supports required".
+
+**Did not matter: removing the `slice_inspect` words.**
+- Early reads stayed at 3/3 on `desk-ornament` and the report was never read after the slice.
+- The control had only one `slice_inspect` refusal (`{"plateId":"51"}`), so 1 against 0 is no visible effect.
+- The three `slice_report` refusals in this arm were guessed arguments after a bare `valid:false`: `{"plateId":"51","sessionId":"3"}` twice and `{"slice":true,"plateId":"51"}` once. I cannot tie them to the edit.
+
+**Hurt: nothing visible.** No answer-only run sliced, presets were kept everywhere, and `outdoor-fitting` did not change.
+
+## 6. Verdict
+- **Missing order causes the early read:** supported (3/3 against 0/3), but it is a path cost. The early read is answered, not refused.
+- **The `slice_inspect` mention causes refusals:** not shown today.
+- **Refusals cause readiness claims without the report:** wrong cause. Control `slice-estimate` runs 2 and 3 had no refusal and still went `SEARCH, slice_start, message`.
+- **What actually lets it skip the report:** `slice_start`'s result already carries time, grams and cost. The app attaches a workspace block with each plate's `estimate` to every tool result (`AgentHost.cpp:2371`). And `slice_report` is hidden until searched.
+
+Keep the `ordered-check` sentence and send `slice_report` loaded. The next arm to run is the control text with `slice_report` loaded, which I did not run, so I cannot say whether loading alone is enough.
+
+## 7. Spend and caveats
+- **Spend:** 48 runs, 2,998,976 input and 157,010 output tokens, about $0.30 at list price.
+- **Lost runs:** `no-inspect` `desk-ornament-2` died on a 120-second provider timeout, and `ordered-loaded` `desk-ornament-3` on three `intent_update` refusals before slicing. Those columns have two informative `desk-ornament` runs.
+- **`ordered-loaded` is confounded against the control:** it changes two things, so it is attributable only against `ordered-check`.
+- **`desk-ornament` alone is weak for `ordered-loaded`:** 1/3 against 2/2 is not a large effect by the three-run rule. The `findings` and warning rows are.
+- **Records omit the workspace block:** "figures correct" cannot show where they came from.
+- **Timing:** my `slice-estimate` control ran about an hour before the last arm.
+
+Everything is in `C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\scratchpad\exp\verification\`: the arm files (`ordered-check.json`, `no-inspect.json`, `ordered-loaded.json`), `scenarios\slice-estimate.json`, a helper `slices.mjs`, and one record folder per arm.</result>
+<usage><subagent_tokens>212172</subagent_tokens><tool_uses>72</tool_uses><duration_ms>4426623</duration_ms></usage>
+</task-notification>
+
+---
+
+<!-- reply 2 -->
+> because that tool is still hidden.
+
+Does it mean that if we turn off tool deferral, this will be fine?
+
+<!-- reply -->
+> App behaviour: only the first call in a response is acted on, and the refusal message tells the model to check parameters it cannot see.
+
+Why does the app have that behavior? It's the app buggy.
+
+
+Would you mind explaining to me what each of those hypotheses you're validating and why you think some of them worked and some of them didn't?  remember one critical thing we previously said that we cannot just look at the numbers because we have a small test set  we need to use common sense to see if the attribution makes sense.  I hope that you told the sub-agents about these important principles,  which is really effective in real world.  I know you live in a virtual world, but sometimes the rubber has to meet the road, if you know what I'm talking about.
+
+---
+
+<task-notification>
+<task-id>brmzc8x8t</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\brmzc8x8t.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the current rewrite with tool deferral turned off (every tool loaded)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0mcoa8qe</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\b0mcoa8qe.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the committed prompt with tool deferral turned off, as the app was before deferral" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+I hit my usage limit while you were working, but it has reset now. Please continue from where you left off.
+
+---
+
+I hit my usage limit while you were working, but it has reset now. Please continue from where you left off.
+
+---
+
+<!-- reply 2 -->
+> Dropped calls. The app asks the model for one tool call per response and the adapter is written for exactly one: it acts on the first and returns (OpenAIResponsesAgent.cpp:419). OpenAI honours that request. DeepSeek through OpenRouter does not: 11 of 96 tool-calling responses in the control held more than one call. The extras are silently ignored, which is the “silent no-op” your own AGENTS.md forbids.
+> Stale refusal message. “Check the arguments against this tool’s parameters” was written in September, when every tool was loaded. Deferral made it wrong a month later and nobody revisited it. The two-refusal limit comes from the same September change; before it, one bad call ended the turn.
+
+Find out why we had a limit of one to a call per response, if there's no legitimate reason, remove that limitation. Also, fix the stale refusal message
+
+<!-- reply -->
+> . The prompt is too heavy. We cut it to six sentences. The model kept its printing knowledge but stopped reading the shape, recording the purpose, and checking the slice. That makes sense: nothing told it those things were wanted or possible. A person handed three tools and no instructions would do the same. Stating each rule once changed nothing, which is believable at 3,400 characters but proves nothing about a much larger prompt.
+
+I am surprised you actually tested it this way. Basically you test it in a way that guarantee its failure. Good thinking.
+
+
+You have to restate everything in plain English, it's very difficult to read your text.
+
+---
+
+<!-- reply 3 -->
+> No turn died on refused calls. Refusals fell from 25 to 5 across the 12 runs, and no run ended on a third refusal (3 of 12 did in the control).
+
+This sounds like the tool deferral was implemented incorrectly. If you agree, spin up a task chip to investigate the issue and correct and implement tool differral correctly.
+
+<!-- reply -->
+> A new wall: the picture tool. With every tool visible, the model called view_render in 4 of 12 runs. The app sends the picture back, DeepSeek V4 Flash is text-only, OpenRouter answers “No endpoints found that support image input”, and the turn dies as a network error. That killed two desk-ornament runs, one what-is-this and one outdoor-fitting.
+
+It's not the wall, right? What I need to evaluate is is that the agent should be aware of the tool, and call it when necessary. Why did you let it stop you?
+
+<!-- reply -->
+> Using common sense on all of it together: the model is capable of the whole job under either prompt when it can see its tools.
+
+Are you sure? This includes calling the appropriate tools to get to render the object, as well as ch calling the tools to search for the correct material and presets to use.
+
+---
+
+<!-- reply 1 -->
+> It did: when asked what the part is, it read the geometry and then asked for a picture. The
+
+You know we expected more, right? We expected the agents to know it should read it should get the View render to guide the user about how to slice the objects based on what the agent guess about what the object is.
+
+
+Build and test What you have written. Create a task chip for investigating tool deferral. For yourself, reverse the tool deferral commit and retest to make sure that your conclusion is solid.
+
+---
+
+<task-notification>
+<task-id>bh6j6qmuo</task-id>
+<tool-use-id>toolu_01X16im96ZBCzfzhJXYyEJPC</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bh6j6qmuo.output</output-file>
+<status>completed</status>
+<summary>Background command "Retest with the deferral commit reversed, on the rewritten prompt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bixghtfku</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bixghtfku.output</output-file>
+<status>completed</status>
+<summary>Background command "Live-check the multi-call change with every tool loaded, on the rewritten prompt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bwxylmfso</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bwxylmfso.output</output-file>
+<status>completed</status>
+<summary>Background command "Retest with the deferral commit reversed, on the committed prompt" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bkys1q938</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bkys1q938.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun only the provider-interrupted conversations, one set after another" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhvdemfnm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bhvdemfnm.output</output-file>
+<status>completed</status>
+<summary>Background command "Rerun the three committed-prompt conversations the provider interrupted again" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Can you make the tool deferral revert into a separate commit?   And commit to whatever other things that you changed yourself into a clear commit with clear message about what they are about.
+
+---
+
+<task-notification>
+<task-id>bh3g4o91y</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\bh3g4o91y.output</output-file>
+<status>completed</status>
+<summary>Background command "Build and test the branch with only the revert applied" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>buwknujyx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\71e3bd46-c856-4b36-b7cc-979fe94e0bdf\tasks\buwknujyx.output</output-file>
+<status>completed</status>
+<summary>Background command "Build and test everything on top of the revert" completed (exit code 0)</summary>
+</task-notification>

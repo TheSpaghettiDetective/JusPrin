@@ -3,8 +3,13 @@
   "checkpoint_id": "01M4X9FD7C638W9WN13R9F5BJB",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 2,
+  "checkpoints_count": 31,
   "files_touched": [
+    "tests/project_journey/README.md",
+    "tests/project_journey/scenarios/desk-ornament.json",
+    "tests/project_journey/scenarios/outdoor-fitting.json",
+    "tests/project_journey/scenarios/petg-question.json",
+    "tests/project_journey/scenarios/what-is-this.json",
     "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
@@ -14,13 +19,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 264,
-    "cache_creation_tokens": 290763,
-    "cache_read_tokens": 28466622,
-    "output_tokens": 90304,
-    "api_call_count": 131
+    "input_tokens": 963,
+    "cache_creation_tokens": 3354064,
+    "cache_read_tokens": 119310544,
+    "output_tokens": 368033,
+    "api_call_count": 361
   }
 }
