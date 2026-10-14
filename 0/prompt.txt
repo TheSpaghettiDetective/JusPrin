@@ -90,3 +90,15 @@ If we no longer have this proposed thing as a concept,  Any reason why we should
 ---
 
 squash the two commits into one
+
+---
+
+yes
+
+---
+
+note that the jusprin-newui has been force-pushed.  update your base and merge your commit to  jusprin-newui
+
+---
+
+I want you to make sure you only make one commit to jusprin-newui, and use the updated base of jusprin-newui.  If you know exactly what to do, don't check with me. Otherwise, ask your question in plain English.
