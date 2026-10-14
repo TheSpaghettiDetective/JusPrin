@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M4XY9Q70WYYMHABX36MS16CC",
+  "session_id": "835042f8-ed43-4045-b138-bd272abdd518",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-14T19:30:21.57726Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/README.md",
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "agent-docs/jusprin/orca-feature-discovery.md",
+    "agent-docs/jusprin/product-definition.md",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp",
+    "src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "tests/agent/test_mcp_protocol.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "7d53125f4b42",
+  "checkpoint_transcript_start": 966,
+  "transcript_lines_at_start": 966,
+  "compact_transcript_start": 129,
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 4517,
+    "cache_read_tokens": 1279684,
+    "output_tokens": 2427,
+    "api_call_count": 3
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-14T19:30:20.92262Z",
+    "agent_lines": 35,
+    "agent_removed": 182,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "total_lines_changed": 217,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
