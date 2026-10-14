@@ -1,0 +1,17 @@
+note that the jusprin-newui has been force-pushed. check to see if you should stop the work and update your base first. it may not make sense to continue  voting your current change if your current change will result in a lot of conflict with the updated base branch.
+
+---
+
+note that the jusprin-newui has been force-pushed. check to see if you should stop the work and update your base first. it may not make sense to continue  voting your current change if your current change will result in a lot of conflict with the updated base branch.
+
+---
+
+Did your work result in a smaller code base?
+
+---
+
+push it
+
+---
+
+push it to jusprin-newui
