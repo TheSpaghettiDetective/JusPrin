@@ -1,0 +1,52 @@
+Repository: /Users/kenneth/Projects/JusPrin (OrcaSlicer fork "JusPrin"). Work in the worktree this session gives you; do not touch the main checkout. First run `git fetch origin` and move your worktree's branch to origin/jusprin-newui (20de313d92 or later; a rewritten history from 2026-10-14).
+
+Goal. The project assistant's system prompt moves, verbatim, from C++ into the Agent page's TypeScript, is sent whole to the app over the bridge, and the app keeps no default prompt text. Kenneth's words: "we should just consolidate them in TypeScript." Do not restructure, shorten or improve the prompt's content; a later task does that, and it must start from text identical to today's so the eval can compare before and after.
+
+Where the text is today. Two C++ literals assembled in OpenAIResponsesAgent::request_body (src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp, the `instructions` string, about 850 bytes) followed by `kPrintJourneyGuidance` (src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp, about 1,950 bytes, three paragraphs headed "Intent and setup", "Preparation", "Verification"). The main checkout holds two uncommitted wording edits from an authorization-wording sweep that are not on origin yet; carry them so the moved text matches the main checkout: the scope sentence must read "Follow the user's requested scope; a question or a troubleshooting request is not by itself a request to change the project or to run the full preparation sequence." and the last journey sentence must read "Check the current slice before exporting G-code or sliced 3MF with export_file. The person starts a physical print with the app's Send, after its preflight; preparing a print does not start one." Everything else is moved byte for byte, including the two blank-line paragraph separators.
+
+Why it is in C++ now, so you do not undo something deliberate: the first prompt went into C++ on 2026-09-17 (0e55c4f9be) and the journey guidance into the registry header the same day (ad2bccbee8) so the MCP server's instructions could share it. That sharing ended on 2026-10-10 (decf94b262). agent-docs/jusprin/architecture.md, section "Where logic goes: the page first", already states that the text the model reads belongs on the page and holds up the printer prompt as the model. Read that section first.
+
+The pattern to follow is the printer panel's: src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts and filamentInstructions.ts write the text; the page sends it with `printer_instructions` / `filament_instructions`; the app stores it in the session profile (AgentSessionProfile::instructions in Agent/AgentService.hpp) and sends it with every request; AgentHost::begin_reply refuses a turn that arrives with no instructions for those sessions and never falls back. A prototype of exactly this move exists, uncommitted, in the worktree at /Users/kenneth/Projects/JusPrin/.claude/worktrees/action-intent-skills-routing-2136c5 (file src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts, a `project_instructions` bridge message, and the app-side refusal). Read it for the mechanism only; do not copy its prompt text, which belongs to an abandoned skills experiment, and do not bring any skill index or skill_read tool.
+
+What to build.
+- `AgentUI/src/projectInstructions.ts` exporting a function that returns today's prompt text (the two edits above applied), and a vitest that pins the rendered text to a fixture so an accidental change fails. The page sends it once on load and again if it changes, with a new bridge message (add it to protocol.json, AgentProtocol.hpp and protocol.ts together; the bridge version does not change, per the project's rule that additive changes go in the capabilities list).
+- The app stores it in the project session's profile and sends it as `instructions`. Delete the C++ literals and `kPrintJourneyGuidance`; update the unit test in tests/agent/test_openai_responses_agent.cpp that pins the guidance substring to instead check that the request carries exactly what the page sent. The MCP server's own four-sentence instructions in Mcp/McpProtocol.cpp and the conversation-title prompt stay in C++ (MCP has no page; the title request is the app's own).
+- A project turn that arrives before the page has sent instructions must not be sent with empty or default text. A typed turn comes from the page, so it cannot arrive first. An app-started turn can: the note after a file opens (AgentHost::on_file_loaded) starts a turn, and the app may open a file before the page has loaded. Queue that turn until the instructions arrive rather than dropping it; say in the report how you verified the race. The file-report skill (fileReportInstructions.ts, sent as `file_report_instructions`) is separate and stays as it is.
+- Update the docs: the architecture.md table row for the project prompt if there is one, and agent-docs/jusprin/mcp-tool-extension-guide.md where it names `kPrintJourneyGuidance` (grep for it; near "intent_update and plan_set are in-app only").
+- Keep the instructions byte-identical across requests of a conversation; the provider cache depends on it.
+
+Other tasks in flight on the same base also edit AgentHost.cpp (one removes the explain-only tool switch in make_agent_request and handle_agent_tool_call; one renames ToolExecutionCoordinator::propose to submit; one removes the unsaved-work refusals in the coordinator). Keep your AgentHost changes to begin_reply, the new bridge message handler and the session profile, so the merges stay small.
+
+Verification. Build and run agent_bridge_tests (recipe: /Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/jusprin-worktree-build.md; CMake from /Applications/CMake.app; reuse existing deps; BUILD_TESTS=ON; run long builds with nohup and a log, never as a background Bash command), run the AgentUI vitest suite, and build `jusprin_web` so the page bundle carries the new message (a stale bundle silently sends nothing). Run the shell harness default scenario so a real page sends the instructions and a live request body shows them, with no model call. Do not call any live model.
+
+Commit on a branch in your worktree with a plain-English message that says the text moved unchanged and why; do not push. Write a short untracked report in the worktree root (never commit it, never add it to .gitignore) for an engineer who did not see this session: where the text lives now, how the app behaves before the page has sent it, and the diff of the prompt text itself, which should be empty apart from the two sentences above.
+
+---
+
+<task-notification>
+<task-id>b8d5wkgha</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-hypatia-cab89e/1eb4b8a6-879e-4041-8549-4333035c562f/tasks/b8d5wkgha.output</output-file>
+<status>completed</status>
+<summary>Background command "L=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-hypatia-cab89e/1eb4b8a6-879e-4041-8549-4333035c562f/scratchpad/build1.log; until grep -q "^exit=" $L; do sleep 15; done; grep -E "error:|FAILED|^exit=" $L | head -20; tail -2 $L" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5a7r4u0k</task-id>
+<tool-use-id>toolu_01EvNigf4Ap3QPit3KM14FWg</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-hypatia-cab89e/1eb4b8a6-879e-4041-8549-4333035c562f/tasks/b5a7r4u0k.output</output-file>
+<status>completed</status>
+<summary>Monitor "first C++ build (agent_bridge_tests + harness) finishing or failing" stream ended</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+Why did you add lines on both C++ and TypeScript side?  I thought you were just moving things from one place to another, right?
+
+---
+
+merge it into jusprin-newui
