@@ -69,3 +69,7 @@ Do you think this mechanism will work? We have some stop responses for the commo
 ---
 
 yes, build it and do one run per case. direct-change Should be automatically fixed this way without counting it as unobserved, right?
+
+---
+
+go with A, then do one run per case
