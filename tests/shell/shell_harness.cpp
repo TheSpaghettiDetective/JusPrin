@@ -2207,6 +2207,7 @@ private:
               "panel_states_the_printer_by_name");
         check(change["context"]["printer"].value("nozzle", 0.) == 0.4, "panel_states_the_nozzle_it_is_set_up_with");
         verify_nozzle_change_leaves_the_project(named);
+        verify_panel_changes_in_two_openings_are_both_saved(named);
 
         // Back gives Home back.
         panel->close();
@@ -2361,6 +2362,29 @@ private:
         SetupCommands::select_printer_preset(*m_plater, named);
         check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+    }
+
+    // Every opening of the panel is a new session, but its versioned changes
+    // all go to the same project's history, where each needs an id of its
+    // own: a change made in a later opening is saved like the first, and
+    // neither takes the id the project's own agent hands out next.
+    void verify_panel_changes_in_two_openings_are_both_saved(const std::string& named)
+    {
+        std::vector<std::string> ids;
+        for (const double nozzle : {0.6, 0.4}) {
+            const std::string name = ids.empty() ? "panel_ids_first_opening" : "panel_ids_second_opening";
+            // The call belongs to this opening's host; read it before the next.
+            const Agent::ToolActivity* call =
+                call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", nozzle}}, name);
+            if (call != nullptr && call->error)
+                std::cerr << "HARNESS NOTE " << name << " " << call->action_id << " " << call->error->code << ": "
+                          << call->error->message << '\n';
+            check(call != nullptr && call->state == Agent::ToolState::Succeeded, name + "_change_is_saved");
+            ids.push_back(call == nullptr ? std::string() : call->action_id);
+        }
+        check(ids[0] != ids[1], "panel_ids_differ_between_openings");
+        const std::string project_next = installed_shell()->persistence()->document().allocate_action_id();
+        check(project_next != ids[0] && project_next != ids[1], "panel_ids_are_not_the_project_agents_next");
     }
 
     // --- The worked examples, live (--printer-live) ------------------------

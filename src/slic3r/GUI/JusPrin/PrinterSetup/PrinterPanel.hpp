@@ -45,6 +45,11 @@ public:
         std::function<void(const Agent::ToolActivity&, const std::string&)> version_after;
         // Saves the project, unsaved preset edits included, to its history.
         std::function<bool()> keep_unsaved_edits;
+        // Hands out the ids those versions are filed under. The project's
+        // history outlives every opening of this panel and is shared with the
+        // project's own agent pane, so an id must be unique there, not just
+        // within one opening.
+        std::function<std::string()> allocate_action_id;
     };
 
     PrinterPanel(wxWindow*              parent,

@@ -100,6 +100,10 @@ void PrinterPanel::build_runtime()
         });
         host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
         host.tools().set_version_callbacks(m_callbacks.version_before, m_callbacks.version_after);
+        // Ids from this panel's own document would start again at the
+        // first one each opening and be refused by the project's history.
+        if (m_callbacks.allocate_action_id)
+            host.tools().set_action_id_allocator(m_callbacks.allocate_action_id);
         m_settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) { m_conversation->tool_settled(activity); });
         m_web_view->set_error_fallback_actions(
             _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
