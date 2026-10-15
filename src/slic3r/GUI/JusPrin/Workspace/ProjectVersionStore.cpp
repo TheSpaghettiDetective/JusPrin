@@ -338,7 +338,8 @@ json version_json(const ProjectVersionStore::Version& version)
     return {{"schema", 1}, {"id", version.id}, {"revision", version.revision},
             {"changeSeq", version.change_seq},
             {"createdAt", version.created_at}, {"sourcePath", version.source_path},
-            {"projectName", version.project_name}, {"objects", std::move(objects)}};
+            {"projectName", version.project_name}, {"openedFrom", version.opened_from},
+            {"openedDigest", version.opened_digest}, {"objects", std::move(objects)}};
 }
 
 ProjectVersionStore::Version parse_version(const std::string& text)
@@ -353,6 +354,8 @@ ProjectVersionStore::Version parse_version(const std::string& text)
     version.created_at = value.at("createdAt").get<std::string>();
     version.source_path = value.value("sourcePath", "");
     version.project_name = value.value("projectName", "");
+    version.opened_from = value.value("openedFrom", "");
+    version.opened_digest = value.value("openedDigest", "");
     require(safe_component(version.id), "invalid version id");
     for (const json& item : value["objects"]) {
         ProjectVersionStore::ObjectResource object;

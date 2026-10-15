@@ -340,8 +340,9 @@ public:
     // Optional owner of the current project's durable state may guard a
     // replacement or close. An empty callback keeps stock save prompts.
     void set_before_project_release(std::function<bool()> callback) { m_before_project_release = std::move(callback); }
-    // An optional GUI owner may handle an external 3MF project open before
-    // Orca replaces the current project. true means the request was handled.
+    // An optional GUI owner may handle a 3MF project open (load_project, from
+    // any menu, drop or command line) before Orca replaces the current
+    // project. true means the request was handled.
     void set_external_project_open_handler(std::function<bool(const fs::path&)> callback)
         { m_external_project_open_handler = std::move(callback); }
 

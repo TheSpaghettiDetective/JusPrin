@@ -529,6 +529,32 @@ settings" test is bed type, print sequence, first-layer and other-layers
 sequences, or a spiral-mode setting; the pane uses the same one.
 
 
+### A system alert looked foreign next to OrcaSlicer's own questions
+
+**Observed problem:** The "Previously opened file" question was a
+`wxMessageDialog`, which on macOS is a system `NSAlert`: a narrow column with
+the app icon above wrapped text and stacked buttons. Kenneth reviewed the
+screenshots on 2026-10-14 and found it ugly next to every other question the
+app asks. An earlier change had made the same mistake and fixed it the same
+way (`ShellController::offer_agent_setup`, d0bce03db3). Other JusPrin
+`wxMessageBox` and `wxMessageDialog` calls remain.
+
+**Resolution:** The question uses OrcaSlicer's `MessageDialog` (`MsgDialog.hpp`),
+with `SetButtonLabel` for its buttons. That dialog highlights Yes as the
+primary button, so the suggested choice is put on Yes. Every `DPIAware`
+dialog first passes through `answer_modal` (`DialogListeners.hpp`), and a
+person's file open answers each one on its own. A dialog that asks the person
+something during an open therefore needs a listener that returns
+`kShowToPerson` for that one dialog.
+
+**Lesson for future agents:** Ask the person through OrcaSlicer's
+`MessageDialog`, never `wxMessageDialog` or `wxMessageBox`. Then check whether
+the call can run while a file open or a tool call is answering dialogs, and if
+it can, let that one dialog through on purpose. Review a new dialog from a
+picture, not only from its text: the shell harness can draw a modal window to
+a PNG with no screen permission (`snapshot_native_window`, used by
+`--reopen-prompt`).
+
 ## 4. Testing and verification lessons
 
 ### Printer UI without a physical machine

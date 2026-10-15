@@ -240,7 +240,6 @@ Workspace::PrinterSetupRequest setup_request(const json& arguments)
     if (arguments.contains("plateType")) request.plate_type = arguments["plateType"].get<std::string>();
     if (arguments.contains("processPreset")) request.process_preset = arguments["processPreset"].get<std::string>();
     if (arguments.contains("filamentPresets")) request.filament_presets = arguments["filamentPresets"].get<std::vector<std::string>>();
-    request.discard_unsaved_edits = arguments.value("unsavedEdits", "") == "discard";
     return request;
 }
 
@@ -260,6 +259,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::ObjectDivide:
     case ToolHandler::ObjectMerge:
     case ToolHandler::ObjectRepair:
+    case ToolHandler::PrinterChange: // drops unsaved edits of the printer in use
         return true;
     case ToolHandler::PrinterSetup:
         return !setup_request(json::parse(activity.arguments_json)).empty();
@@ -287,7 +287,6 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::RecordPhysicalPrint:
     case ToolHandler::PrinterIdentify:
     case ToolHandler::PrinterAdd:
-    case ToolHandler::PrinterChange:
     case ToolHandler::PrinterConnectionStatus:
     case ToolHandler::PrinterConnect:
         return false;
@@ -674,12 +673,6 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
                      printer_setup_preview_result(preview, json::array(), snapshot).dump());
                 return stored;
             }
-            if (!preview.unsaved_edits.empty() && !request.discard_unsaved_edits) {
-                fail(stored, "unsaved_edits",
-                     "This would drop unsaved preset edits. Ask the user, then call again with unsavedEdits \"discard\".",
-                     printer_setup_preview_result(preview, json::array(), snapshot).dump());
-                return stored;
-            }
             // Store the previewed outcome, compared again before anything is applied.
             arguments["previewedSetup"] = setup_outcome(preview);
             stored.title = "Set up " + preview.resulting.preset;
@@ -709,12 +702,6 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
 
     if (definition->handler == ToolHandler::ProjectOpen) {
         const auto arguments = json::parse(stored.arguments_json);
-        const bool unsaved   = snapshot.setup.project_dirty || snapshot.setup.presets_dirty;
-        if (unsaved && arguments.value("unsavedWork", "") != "discard") {
-            fail(stored, "unsaved_work",
-                 "The open project has unsaved changes. Ask the user; save it first, or call again with unsavedWork \"discard\".");
-            return stored;
-        }
         if (arguments.contains("path")) {
             // Validate the name before the file is read during execution.
             const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
@@ -727,13 +714,27 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
                 fail(stored, "invalid_argument", "A project keeps its own units; inches applies to model files.");
                 return stored;
             }
-            stored.title = "Open " + arguments["path"].get<std::string>();
+            // A file opened before: whether to continue its project is the
+            // person's to say, through the caller.
+            const auto earlier = m_find_earlier ? m_find_earlier(path.u8string()) : std::nullopt;
+            if (earlier && !arguments.contains("openedBefore")) {
+                const std::string changed = !earlier->changed ? "" : *earlier->changed ? " The file has changed since." :
+                                                                                         " The file has not changed since.";
+                const std::string details = json{{"project", earlier->name}, {"current", earlier->current},
+                                                 {"fileChanged", earlier->changed ? json(*earlier->changed) : json()}}.dump();
+                fail(stored, "opened_before",
+                     (earlier->current ? "The open project, \"" + earlier->name + "\", was made from this file." :
+                                         "\"" + earlier->name + "\" was made from this file before.") + changed +
+                         " Ask the person whether to continue that project or start a new one from the file, then call again "
+                         "with openedBefore \"existing\" or \"new\".",
+                     details);
+                return stored;
+            }
+            stored.title = earlier && arguments["openedBefore"] == "existing" ? "Continue " + earlier->name :
+                                                                                "Open " + arguments["path"].get<std::string>();
         } else {
             stored.title = "Start a new project";
         }
-        if (unsaved)
-            stored.title += ", discarding unsaved changes" +
-                            (snapshot.setup.project_name.empty() ? std::string() : " to " + snapshot.setup.project_name);
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
@@ -1023,14 +1024,25 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         request.load_project_settings = arguments.value("loadProjectSettings", "project") == "project";
         request.units                 = arguments.value("unitConversion", "keep") == "inches" ? Workspace::UnitChoice::Inches :
                                                                                                Workspace::UnitChoice::Keep;
-        request.discard_unsaved       = arguments.value("unsavedWork", "") == "discard";
         // The conversation belongs to the project being closed; it goes to
         // its recovery state before the project does.
         if (m_product_state != nullptr)
             m_product_state->flush_to_project();
         Workspace::LoadReport report;
         const std::string action_id = activity.action_id;
-        const auto opened = m_workspace.open_project(request, report);
+        const auto earlier = arguments.value("openedBefore", "") == "existing" && m_find_earlier ? m_find_earlier(request.path) :
+                                                                                                std::nullopt;
+        auto opened = Workspace::CommandResult::success();
+        if (earlier) {
+            report.project_opened = true;
+            if (!m_open_earlier || !m_open_earlier(earlier->id))
+                opened = Workspace::CommandResult::failure(Workspace::WorkspaceError::UnavailableOperation,
+                                                           "The saved project could not be opened");
+        } else {
+            opened = m_workspace.open_project(request, report);
+            if (opened.succeeded() && !request.new_project && m_opened_from)
+                m_opened_from(request.path);
+        }
         // Replacing the project clears the other activities, which may move
         // this one: find it again rather than trust the reference.
         ToolActivity& current = *find_mutable(action_id);

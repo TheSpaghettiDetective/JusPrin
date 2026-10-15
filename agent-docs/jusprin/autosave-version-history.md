@@ -86,12 +86,20 @@ recovery mirror. On first adoption, JusPrin reads that state and copies its
 attachments to the managed store; it does not delete the old source. Once a
 managed version exists, local state is authoritative. Reopening a copied
 external 3MF with an already managed identity forks a new project identity.
-When an external 3MF's source path matches a saved project, JusPrin asks
-whether to create another project or open the existing one directly. If several
+When a file opened as a project matches a saved project, JusPrin asks whether
+to create another project or open the existing one directly. A project
+remembers the file it was opened from (`openedFrom`) and that file's MD5 then
+(`openedDigest`) in each version manifest: a .3mf from its project path, a model
+file the agent's `project_open` opened as a new project from the path it gave.
+Every way a person opens a .3mf asks, because the check sits in
+`Plater::load_project` (File > Open Project, recent files, Finder, drops); the
+agent's `project_open` returns the question as `opened_before` and takes the
+answer as `openedBefore`. A file whose MD5 differs is a likely new export, so
+the question says so and defaults to a new project; otherwise it defaults to
+the saved one. Versions saved before 2026-10-14 have no digest and are asked
+about as unchanged. Importing a file into a project never asks. If several
 projects match, it continues the current one when it came from that file;
-otherwise it opens the most recently updated match. The path
-match is a reminder, not a content identity check: a changed file at the same
-path still offers the choice.
+otherwise it opens the most recently updated match.
 Earlier local versions with `state.json` and a model-bound document sidecar
 remain readable; the first new document write upgrades them to the independent
 current-document format without rewriting historical versions.

@@ -60,9 +60,24 @@ public:
                       const std::string& conversation_id);
     bool resume_latest();
     std::vector<ManagedProject> projects();
+    // A saved project made from `source`, matched by the file's path: the open
+    // project first when it came from that file, then the most recently
+    // updated. `changed` says whether the file now differs from the one the
+    // project was opened from; it is empty when that is not known.
+    struct SourceMatch
+    {
+        std::string id;
+        std::string name;
+        bool current{false};
+        std::optional<bool> changed;
+    };
     // Read-only lookup also works when another app instance owns the store lock.
     bool has_local_project_for_source(const std::filesystem::path& source) const;
-    std::vector<std::string> projects_for_source(const std::filesystem::path& source) const;
+    std::vector<SourceMatch> projects_for_source(const std::filesystem::path& source) const;
+    // The file the open project was opened from, kept with its MD5 from now
+    // on, unless one is kept already. A .3mf is recorded on its own: it is
+    // the project's file.
+    void record_opened_from(const std::filesystem::path& source);
     bool open_managed_project(const std::string& project_id);
     bool export_copy(const std::filesystem::path& destination);
 
@@ -105,6 +120,8 @@ private:
     std::string m_inflight_capture_input;
     std::string m_committed_head;
     std::string m_project_name;
+    std::string m_opened_from;
+    std::string m_opened_digest;
     State m_state{State::Saving};
     std::string m_error;
     std::string m_warning;

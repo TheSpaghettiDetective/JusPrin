@@ -213,36 +213,14 @@ inline void predict_process_normalization(DynamicPrintConfig& config)
         normalizer.toggle_print_fff_options(&config, true);
 }
 
-// The filament tab's dialogs, refused before they could open.
+// The filament tab's dialog, refused before it could open.
 // ConfigManipulation::check_filament_max_volumetric_speed resets a speed
-// below 0.5 behind a warning on every load; Tab::save_preset asks to continue
-// when a first-layer temperature is further than Tab::
-// validate_filament_temperature_pairs allows from the other layers' (30 °C
-// on the nozzle, 15 °C on a plate), both above zero.
-inline void check_filament_dialogs(const DynamicPrintConfig& config, bool saving, SettingsPreview& result)
+// below 0.5 behind a warning on every load.
+inline void check_filament_dialogs(const DynamicPrintConfig& config, SettingsPreview& result)
 {
     if (config.has("filament_max_volumetric_speed") && config.opt_float("filament_max_volumetric_speed", 0) < 0.5)
         result.issues.push_back({"filament_max_volumetric_speed", "invalid_setting_value",
                                  "Orca resets a max volumetric speed below 0.5 to 0.5.", {}, {}, 0.5, {}});
-    if (!saving)
-        return;
-    std::vector<std::tuple<std::string, std::string, int>> pairs{{"nozzle_temperature_initial_layer", "nozzle_temperature", 30}};
-    for (int bed = int(btPC); bed < int(btCount); ++bed) {
-        const std::string first = get_bed_temp_1st_layer_key(BedType(bed)), other = get_bed_temp_key(BedType(bed));
-        if (!first.empty() && !other.empty())
-            pairs.emplace_back(first, other, 15);
-    }
-    for (const auto& [first_key, other_key, limit] : pairs) {
-        const auto* first = config.option<ConfigOptionInts>(first_key);
-        const auto* other = config.option<ConfigOptionInts>(other_key);
-        if (first == nullptr || other == nullptr || first->values.empty() || other->values.empty())
-            continue;
-        const int a = first->get_at(0), b = other->get_at(0);
-        if (a > 0 && b > 0 && std::abs(a - b) > limit)
-            result.issues.push_back({first_key, "incompatible_settings",
-                                     first_key + " and " + other_key + " may differ by at most " + std::to_string(limit) +
-                                         " °C; Orca asks before saving a larger difference."});
-    }
 }
 
 // TabPrinter::toggle_options asks to turn wipe off, or firmware retraction

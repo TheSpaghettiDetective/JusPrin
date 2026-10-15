@@ -1,7 +1,7 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "SliceBounds.hpp"
 #include "DialogListeners.hpp"
-#include "OrcaEditQuestions.hpp"
+#include "SkippedConfirmations.hpp"
 #include "OrcaSettings.hpp"
 #include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
@@ -340,6 +340,15 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
     return edits;
 }
 
+// Orca's Discard for the preset a tab edits: nothing asks about it after.
+void drop_unsaved_edits(Tab* tab)
+{
+    if (tab != nullptr && tab->get_presets()->current_is_dirty()) {
+        tab->get_presets()->discard_current_changes();
+        tab->load_current_preset();
+    }
+}
+
 } // namespace
 
 OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
@@ -513,14 +522,6 @@ bool OrcaWorkspaceAdapter::file_load_message(const std::string& text, const char
     else
         m_open_answers->add_message(std::move(message));
     return true;
-}
-
-bool OrcaWorkspaceAdapter::file_open_can_replace_project()
-{
-    if (m_tool_loads != 0 || m_plater.up_to_date(false, false))
-        return true;
-    file_load_message("The current project has unsaved changes. Opening another project was stopped; save or discard the current changes first.", "app");
-    return false;
 }
 
 void OrcaWorkspaceAdapter::schedule_load_report()
@@ -1018,21 +1019,14 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
     const PrinterSetupPreview preview = preview_printer_setup(request);
     if (!preview.valid)
         return CommandResult::failure(WorkspaceError::InvalidArgument, preview.issues.front().message);
-    if (!preview.unsaved_edits.empty() && !request.discard_unsaved_edits)
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "Unsaved preset edits would be lost.");
     PresetBundle* bundle = wxGetApp().preset_bundle;
     const auto tab = [](Preset::Type type) { return wxGetApp().get_tab(type); };
 
-    // Tab::select_preset asks about unsaved edits in a modal. The caller has
-    // already said to drop them, so they are dropped first and nothing asks.
-    for (const UnsavedEdits& edits : preview.unsaved_edits) {
-        const Preset::Type type = edits.kind == "printer" ? Preset::TYPE_PRINTER :
-                                  edits.kind == "process" ? Preset::TYPE_PRINT : Preset::TYPE_FILAMENT;
-        if (Tab* owner = tab(type)) {
-            owner->get_presets()->discard_current_changes();
-            owner->load_current_preset();
-        }
-    }
+    // Tab::select_preset asks about unsaved edits in a modal. They are
+    // dropped first, so nothing asks; the result lists them.
+    for (const UnsavedEdits& edits : preview.unsaved_edits)
+        drop_unsaved_edits(tab(edits.kind == "printer" ? Preset::TYPE_PRINTER :
+                               edits.kind == "process" ? Preset::TYPE_PRINT : Preset::TYPE_FILAMENT));
 
     const std::string previous_process = current_process_preset();
     const std::string previous_plate   = configured_printer().plate_type;
@@ -2078,34 +2072,22 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         if (openable.count(extension) == 0)
             return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step, .amf and .drc files");
     }
-    const bool unsaved = m_plater.is_project_dirty() || m_plater.is_presets_dirty();
-    if (unsaved && !request.discard_unsaved)
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
-
-    // Orca asks about edited presets in UnsavedChangesDialog, whose answer is
-    // read from the dialog afterwards; dropping the edits first means it is
-    // never asked.
-    if (request.discard_unsaved)
-        for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
-            if (Tab* tab = wxGetApp().get_tab(type); tab != nullptr && tab->get_presets()->current_is_dirty()) {
-                tab->get_presets()->discard_current_changes();
-                tab->load_current_preset();
-            }
-
     const ToolLoad tool_load(m_tool_loads);
     // Inside the load, the file listener answers and records; this catches
     // anything Orca asks around it.
     ScopedLeastChangeAnswers outside;
 
-    bool loaded = true;
-    if (request.new_project) {
-        loaded = m_plater.new_project(true, true) != wxID_CANCEL;
-    } else if (extension == ".3mf") {
-        // The caller passed discard for the unsaved work: Orca's own new project
-        // without confirmation drops it, so the open that follows finds
-        // nothing to ask about (and a remembered "save" choice can't save).
-        if (unsaved)
-            m_plater.new_project(true, true);
+    // Orca's new project releases the open one through the autosave hook,
+    // which saves it, edited presets included, or cancels when it cannot. A
+    // model file opens as a new project named after it, as New and Import do.
+    const bool model_file = !request.new_project && extension != ".3mf";
+    const bool released   = m_plater.new_project(true, true, model_file ? from_u8(path.stem().string()) : wxString()) != wxID_CANCEL;
+    bool       loaded     = released;
+    // Orca asks about edited presets in UnsavedChangesDialog; once saved
+    // they are dropped, so it is never asked.
+    for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
+        if (released) drop_unsaved_edits(wxGetApp().get_tab(type));
+    if (released && extension == ".3mf") {
         // "<loadall>" is Orca's own way to open a project with its settings
         // without asking how ("<silence>" would also leave the project
         // without its file name); geometry only is the answer the person
@@ -2121,26 +2103,21 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         }
         boost::system::error_code error;
         loaded = boost::filesystem::equivalent(into_path(m_plater.get_project_filename(".3mf")), path, error);
-    } else {
-        // A model file opens as a new project named after it, the way File >
-        // New followed by Import leaves it.
-        loaded = m_plater.new_project(true, true, from_u8(path.stem().string())) != wxID_CANCEL;
-        if (loaded) {
-            LoadStrategy strategy = LoadStrategy::LoadModel;
-            if (request.units == UnitChoice::Inches)
-                strategy = strategy | LoadStrategy::ImperialUnits;
-            loaded = !m_plater.load_files(std::vector<boost::filesystem::path>{path}, strategy).empty();
-        }
+    } else if (released && model_file) {
+        LoadStrategy strategy = LoadStrategy::LoadModel;
+        if (request.units == UnitChoice::Inches)
+            strategy = strategy | LoadStrategy::ImperialUnits;
+        loaded = !m_plater.load_files(std::vector<boost::filesystem::path>{path}, strategy).empty();
     }
 
     report = take_load_report(/*started_by_agent=*/true);
     // A model file opens into the new project made just before its load.
     report.project_opened = true;
     add_outside_messages(report, outside.take_messages());
+    if (!released)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The open project could not be saved, so it stays open");
     if (!loaded)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
-                                      request.new_project ? "OrcaSlicer did not start a new project" :
-                                                            "OrcaSlicer did not open that file");
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not open that file");
     return CommandResult::success();
 }
 
@@ -2615,13 +2592,14 @@ void check_persist(const SettingsPatch& patch, const PresetOwner& owner, Setting
             result.issues.push_back({"", "not_selected", "A copy is saved only of the printer in use; save \"" + preset.name +
                                                              "\" under its own name."});
         // Another filament is edited where the sidebar's edit button edits
-        // it, in its slot, which must not throw away unsaved edits.
+        // it, in its slot, which drops the unsaved edits of the one edited.
         if (scope == SettingsScope::Filament) {
             if (!filament_slot(preset.name))
                 result.issues.push_back({"", "not_in_project", "\"" + preset.name + "\" is not one of the project's filaments."});
             else if (collection.current_is_dirty())
-                result.issues.push_back({"", "unsaved_edits", "The filament being edited, \"" + collection.get_selected_preset_name() +
-                                                                  "\", has unsaved changes. Save or discard them in its settings first."});
+                result.warnings.push_back({"", "discards_unsaved_edits", "Saving drops the unsaved changes to \"" +
+                                               collection.get_selected_preset_name() + "\"; the project's version history keeps them.",
+                                           collection.current_dirty_options()});
         }
     }
     if (owner.selected && result.issues.empty()) {
@@ -2767,7 +2745,7 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
     if (!object)
         check_persist(patch, owner, result);
     if (scope == SettingsScope::Filament)
-        check_filament_dialogs(next, patch.persist_as.has_value(), result);
+        check_filament_dialogs(next, result);
     else if (scope == SettingsScope::Printer)
         check_printer_dialogs(next, result);
     else {
@@ -2806,8 +2784,11 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         if (before != after) result.changes.push_back({key, before, after});
         else result.warnings.push_back({key, "unchanged", "The setting already has this value."});
     }
-    // What OrcaSlicer would ask a person who made these changes by hand.
-    forward_edit_questions(scope, result.changes, current, requested, result.warnings);
+    // The confirmations OrcaSlicer asks of a person who makes these changes,
+    // or saves them, by hand, which the patch skips.
+    skipped_edit_confirmations(scope, result.changes, current, requested, result.warnings);
+    if (patch.persist_as)
+        skipped_save_confirmations(next, result.warnings);
     // With no explicit change Tab::load_config does not run its normalizer.
     if (result.changes.empty()) {
         result.dependencies.clear();
@@ -2881,8 +2862,10 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
     Tab* tab = wxGetApp().get_tab(owner.preset->type);
     if (!owner.selected) {
         // PlaterPresetComboBox::switch_to_tab: the filament tab loads the
-        // slot's preset and remembers the slot, so a save lands on it. Preview
-        // checked that nothing unsaved is dropped on the way.
+        // slot's preset and remembers the slot, so a save lands on it.
+        // Tab::select_preset would ask about the unsaved edits it drops, which
+        // preview listed; they are dropped first, so nothing asks.
+        drop_unsaved_edits(tab);
         const std::size_t slot = *filament_slot(name);
         if (!tab->select_preset(name) || collection.get_selected_preset_name() != name)
             throw std::runtime_error("Orca did not open filament preset " + name + " for editing");
@@ -2912,7 +2895,14 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         }
     if (patch.persist_as) {
         // Orca's Save with the name typed in: a copy is selected in place of
-        // the preset it was made from, as the dialog's save does.
+        // the preset it was made from, as the dialog's save does. Its first
+        // dialog is the skipped confirmation preview reported; the save goes
+        // ahead as sent.
+        std::vector<SettingIssue> asked;
+        skipped_save_confirmations(config, asked);
+        ScopedDialogListener go_on([unanswered = !asked.empty()](wxWindow&, const DialogFacts& facts) mutable -> std::optional<int> {
+            return std::exchange(unanswered, false) && facts.yes ? std::optional<int>(wxID_YES) : std::nullopt;
+        });
         tab->save_preset(*patch.persist_as);
         if (collection.get_selected_preset_name() != *patch.persist_as || collection.current_is_dirty())
             throw std::runtime_error("Orca did not save " + name + " as " + *patch.persist_as);

@@ -46,6 +46,10 @@ public:
         std::string source_path;
         std::vector<ObjectResource> objects;
         std::string project_name;
+        // The file the project was opened from, and its MD5 then; empty for
+        // a project started empty, and for versions saved before 2026-10-14.
+        std::string opened_from;
+        std::string opened_digest;
     };
 
     struct Capture

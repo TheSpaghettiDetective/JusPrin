@@ -70,6 +70,9 @@ public:
     CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                  std::vector<ObjectId>& added) override;
     void set_load_report_listener(std::function<void(const LoadReport&)> listener) override;
+    // A tool's own open or import is running; it settles what the person
+    // would otherwise be asked about the file.
+    bool tool_load_active() const { return m_tool_loads != 0; }
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
     CommandResult render_view(const RenderRequest& request, RenderedImage& image) override;
     CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override;
@@ -120,7 +123,6 @@ private:
     void file_open_started() override;
     void file_open_finished() override;
     bool file_load_message(const std::string& text, const char* source) override;
-    bool file_open_can_replace_project() override;
     LoadSelectedSetup selected_load_setup() const;
     LoadReport take_load_report(bool started_by_agent);
     void deliver_load_report();

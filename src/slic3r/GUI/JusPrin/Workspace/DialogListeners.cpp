@@ -106,6 +106,8 @@ bool dispatch_dialog(wxWindow& dialog, int& answer)
     const DialogFacts facts = read_dialog(dialog);
     for (ScopedDialogListener* listener = g_innermost; listener != nullptr; listener = listener->m_outer)
         if (const std::optional<int> decided = listener->m_listener(dialog, facts)) {
+            if (*decided == kShowToPerson)
+                return false;
             answer = *decided;
             return true;
         }

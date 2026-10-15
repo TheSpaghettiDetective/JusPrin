@@ -41,3 +41,14 @@ bool snapshot_web_view(void* native_web_view, const char* path)
     [image release];
     return written;
 }
+
+// A window as its own views draw it, to a PNG: `native_view` is any view in
+// it. Needs no Screen Recording grant.
+bool snapshot_native_window(void* native_view, const char* path)
+{
+    NSView*           view  = ((NSView*)native_view).window.contentView;
+    NSBitmapImageRep* image = [view bitmapImageRepForCachingDisplayInRect:view.bounds];
+    [view cacheDisplayInRect:view.bounds toBitmapImageRep:image];
+    return [[image representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:[NSString stringWithUTF8String:path]
+                                                                                    atomically:YES];
+}

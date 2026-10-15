@@ -48,7 +48,7 @@ PrinterPanel::PrinterPanel(wxWindow*              parent,
     , m_dark(dark)
     , m_workspace(workspace)
     , m_callbacks(std::move(callbacks))
-    , m_backend(std::make_unique<OrcaPrinterBackend>(plater, PrinterCatalog::load(Slic3r::resources_dir())))
+    , m_backend(std::make_unique<OrcaPrinterBackend>(plater, PrinterCatalog::load(Slic3r::resources_dir()), m_callbacks.keep_unsaved_edits))
     // The cast is made here, inside the class, because this panel keeps its
     // conversation-host side private.
     , m_conversation(new PrinterConversation(*m_backend, static_cast<IConversationHost&>(*this)))
@@ -99,6 +99,7 @@ void PrinterPanel::build_runtime()
             return m_conversation->preflight_tool(handler, activity);
         });
         host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
+        host.tools().set_version_callbacks(m_callbacks.version_before, m_callbacks.version_after);
         m_settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) { m_conversation->tool_settled(activity); });
         m_web_view->set_error_fallback_actions(
             _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),

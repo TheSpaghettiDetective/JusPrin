@@ -11,7 +11,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
-#include "slic3r/GUI/JusPrin/Workspace/OrcaEditQuestions.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SkippedConfirmations.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
@@ -695,6 +695,62 @@ private:
                   filaments.find_preset(filament_name, false)->config.opt_serialize("nozzle_temperature") == hotter &&
                   !filaments.current_is_dirty(),
               "preset_settings_filament_in_its_slot");
+
+        // Tab::save_preset asks before saving a first-layer temperature far
+        // from the other layers'. Preview forwards it as OrcaSlicer asks it,
+        // with the values it accepts, and the save goes ahead unasked.
+        Tab*        filament_tab = m_app.get_tab(Preset::TYPE_FILAMENT);
+        const std::vector<int> saved_temperatures = filaments.find_preset(filament_name, false)->config.option<ConfigOptionInts>("nozzle_temperature")->values;
+        const auto  plus = [](const std::vector<int>& values, int by) {
+            std::string text;
+            for (const int value : values) text += (text.empty() ? "" : ",") + std::to_string(value + by);
+            return text;
+        };
+        const std::string far = plus(saved_temperatures, 40);
+        const SettingsPatch far_save{{{"nozzle_temperature_initial_layer", far}}, {SettingsScope::Filament, {}, filament_name}, filament_name};
+        const auto          far_preview = m_workspace->preview_settings(far_save);
+        const auto          question    = std::find_if(far_preview.warnings.begin(), far_preview.warnings.end(),
+                                                       [](const SettingIssue& issue) { return issue.code == kSkippedConfirmation; });
+        check(far_preview.valid && question != far_preview.warnings.end() && question->key == "nozzle_temperature_initial_layer" &&
+                  question->min == saved_temperatures.front() - 30 && question->max == saved_temperatures.front() + 30,
+              "skipped_save_confirmation_forwarded_with_the_values_orca_accepts");
+        std::vector<std::string> asked;
+        {
+            ScopedDialogListener listener([&asked](wxWindow&, const DialogFacts& facts) -> std::optional<int> { asked.push_back(squashed(facts.text)); return wxID_NO; });
+            DynamicPrintConfig by_hand = filaments.get_edited_preset().config;
+            by_hand.set_deserialize_strict("nozzle_temperature_initial_layer", far);
+            filament_tab->load_config(by_hand);
+            filament_tab->validate_filament_temperature_pairs();
+            filaments.discard_current_changes();
+            filament_tab->load_current_preset();
+        }
+        // The dialog's words are the question, then its "don't warn again" box.
+        const auto forwarded = skipped_confirmations_of(far_preview);
+        std::cerr << "CONFIRMATION save Orca asks: " << listed(asked) << '\n';
+        check(forwarded.size() == 1 && asked.size() == 1 && asked[0].rfind(forwarded[0], 0) == 0, "skipped_save_confirmation_is_what_orca_asks");
+        const auto saved_first_layer = [&] { return filaments.find_preset(filament_name, false)->config.opt_serialize("nozzle_temperature_initial_layer"); };
+        check(m_workspace->apply_settings(far_save, previewed_changes(far_preview), applied).succeeded() && saved_first_layer() == far,
+              "skipped_save_confirmation_applies_as_sent_unasked");
+
+        // Saving another of the project's filaments opens it in the tab, which
+        // drops the unsaved edits of the one open there; preview lists them.
+        filaments.get_edited_preset().config.set_deserialize_strict("nozzle_temperature_initial_layer", hotter);
+        m_plater->sidebar().add_filament();
+        const auto other = std::find_if(filaments.begin(), filaments.end(), [&](const Preset& preset) {
+            return preset.is_visible && preset.is_compatible && preset.name != filament_name;
+        });
+        bundle.set_filament_preset(1, other->name);
+        const SettingsPatch elsewhere{{{"nozzle_temperature", plus(other->config.option<ConfigOptionInts>("nozzle_temperature")->values, 5)}},
+                                      {SettingsScope::Filament, {}, other->name}, other->name + " - Harness"};
+        const auto elsewhere_preview = m_workspace->preview_settings(elsewhere);
+        check(elsewhere_preview.valid && std::any_of(elsewhere_preview.warnings.begin(), elsewhere_preview.warnings.end(), [](const SettingIssue& issue) {
+                  return issue.code == "discards_unsaved_edits" && issue.allowed == std::vector<std::string>{"nozzle_temperature_initial_layer"};
+              }), "drop_edits_preview_lists_them");
+        check(m_workspace->apply_settings(elsewhere, previewed_changes(elsewhere_preview), applied).succeeded() &&
+                  bundle.filament_presets[1] == elsewhere.persist_as && !filaments.current_is_dirty() && saved_first_layer() == far,
+              "drop_edits_saves_the_other_filament_unasked");
+        m_plater->sidebar().delete_filament(1, 0);
+        check(filament_tab->select_preset(filament_name) && bundle.filament_presets.size() == 1, "drop_edits_fixture_restored");
         check(dialogs.count == 0, "preset_settings_no_modal_dialog_reached");
     }
 
@@ -770,12 +826,12 @@ private:
         return result;
     }
 
-    // The questions a preview forwards (OrcaEditQuestions.hpp).
-    static std::vector<std::string> forwarded_questions(const SettingsPreview& preview)
+    // The questions a preview forwards (SkippedConfirmations.hpp).
+    static std::vector<std::string> skipped_confirmations_of(const SettingsPreview& preview)
     {
         std::vector<std::string> words;
         for (const auto& warning : preview.warnings)
-            if (warning.code == kEditQuestion) words.push_back(squashed(warning.message));
+            if (warning.code == kSkippedConfirmation) words.push_back(squashed(warning.message));
         std::sort(words.begin(), words.end());
         return words;
     }
@@ -836,7 +892,7 @@ private:
     // patch is not asked: preview forwards the question, and it has to be the
     // one OrcaSlicer asks, when it asks it. Each case is a state, a patch, and
     // how many questions that patch raises.
-    void verify_edit_questions()
+    void verify_skipped_confirmations()
     {
         struct DialogProbe : wxModalDialogHook {
             int count{0};
@@ -879,10 +935,10 @@ private:
             const auto          preview = m_workspace->preview_settings(patch);
             seen.clear();
             for (const auto& warning : preview.warnings)
-                if (warning.code == kEditQuestion) seen.push_back(warning);
-            for (const auto& issue : preview.issues) std::cerr << "QUESTION " << name << " issue: " << issue.key << ' ' << issue.code << ' ' << issue.message << '\n';
-            check(preview.valid, "edit_question_" + name + "_patch_is_valid");
-            check(seen.size() == expected, "edit_question_" + name + "_forwards_" + std::to_string(expected));
+                if (warning.code == kSkippedConfirmation) seen.push_back(warning);
+            for (const auto& issue : preview.issues) std::cerr << "CONFIRMATION " << name << " issue: " << issue.key << ' ' << issue.code << ' ' << issue.message << '\n';
+            check(preview.valid, "skipped_confirmation_" + name + "_patch_is_valid");
+            check(seen.size() == expected, "skipped_confirmation_" + name + "_forwards_" + std::to_string(expected));
             if (!preview.valid) {
                 tab->load_config(original);
                 return;
@@ -890,10 +946,10 @@ private:
 
             std::string fault;
             const auto  asked = asked_by_hand(*tab, target.scope, preview.changes, fault);
-            std::cerr << "QUESTION " << name << " Orca asks: " << listed(asked) << '\n';
-            if (asked != forwarded_questions(preview)) std::cerr << "QUESTION " << name << " forwarded: " << listed(forwarded_questions(preview)) << '\n';
-            if (!fault.empty()) std::cerr << "QUESTION " << name << " fault: " << fault << '\n';
-            check(fault.empty() && asked == forwarded_questions(preview), "edit_question_" + name + "_is_what_orca_asks");
+            std::cerr << "CONFIRMATION " << name << " Orca asks: " << listed(asked) << '\n';
+            if (asked != skipped_confirmations_of(preview)) std::cerr << "CONFIRMATION " << name << " forwarded: " << listed(skipped_confirmations_of(preview)) << '\n';
+            if (!fault.empty()) std::cerr << "CONFIRMATION " << name << " fault: " << fault << '\n';
+            check(fault.empty() && asked == skipped_confirmations_of(preview), "skipped_confirmation_" + name + "_is_what_orca_asks");
             tab->load_config(arranged);
 
             // The patch itself applies as sent, and nobody is asked.
@@ -906,7 +962,7 @@ private:
                 sent.set_deserialize_strict(key, value);
                 as_sent = as_sent && config.option(key)->serialize() == sent.option(key)->serialize();
             }
-            check(as_sent && dialogs.count == before, "edit_question_" + name + "_applies_as_sent_unasked");
+            check(as_sent && dialogs.count == before, "skipped_confirmation_" + name + "_applies_as_sent_unasked");
             tab->load_config(original);
         };
         const SettingsTarget print{};
@@ -917,8 +973,8 @@ private:
         // OrcaSlicer turns clumping detection back off on a printer without
         // it, as this one is: a change that does not take raises nothing.
         const auto no_change = m_workspace->preview_settings({{{"enable_wrapping_detection", "1"}}});
-        check(no_change.valid && no_change.changes.empty() && forwarded_questions(no_change).empty(),
-              "edit_question_a_change_that_does_not_take_forwards_0");
+        check(no_change.valid && no_change.changes.empty() && skipped_confirmations_of(no_change).empty(),
+              "skipped_confirmation_a_change_that_does_not_take_forwards_0");
         // A printer that has it.
         printer.set_deserialize_strict("printer_model", "Bambu Lab P2S");
         run("tower_off_under_timelapse_and_clumping", print,
@@ -930,7 +986,7 @@ private:
         run("precise_z_on_with_tower", print, {{"enable_prime_tower", "1"}}, {{"precise_z_height", "1"}}, 1);
         run("smooth_timelapse_without_tower", print, {{"enable_prime_tower", "0"}}, {{"timelapse_type", "1"}}, 1);
         check(seen.size() == 1 && seen.front().key == "timelapse_type" && seen.front().suggestions == std::vector<std::string>{"enable_prime_tower=1"},
-              "edit_question_smooth_timelapse_names_what_yes_sets");
+              "skipped_confirmation_smooth_timelapse_names_what_yes_sets");
         run("smooth_timelapse_with_the_tower", print, {{"enable_prime_tower", "0"}}, {{"timelapse_type", "1"}, {"enable_prime_tower", "1"}}, 0);
 
         // Printing by object, on a printer whose bed moves.
@@ -956,10 +1012,10 @@ private:
         Values with_the_rest{{"support_interface_filament", "1"}};
         for (const auto& pair : seen.empty() ? std::vector<std::string>{} : seen.front().suggestions)
             with_the_rest[pair.substr(0, pair.find('='))] = pair.substr(pair.find('=') + 1);
-        std::cerr << "QUESTION support interface, Yes sets: " << listed(seen.empty() ? std::vector<std::string>{} : seen.front().suggestions) << '\n';
+        std::cerr << "CONFIRMATION support interface, Yes sets: " << listed(seen.empty() ? std::vector<std::string>{} : seen.front().suggestions) << '\n';
         check(with_the_rest.size() == 5 && with_the_rest.count("support_top_z_distance") && with_the_rest.count("support_interface_spacing") &&
                   with_the_rest.count("support_interface_pattern") && with_the_rest.count("independent_support_layer_height"),
-              "edit_question_support_interface_names_what_yes_sets");
+              "skipped_confirmation_support_interface_names_what_yes_sets");
         run("support_interface_with_what_yes_sets", print, {}, with_the_rest, 0);
         filament = original_filament;
 
@@ -967,7 +1023,7 @@ private:
         run("layer_height_below_the_nozzle_minimum", print, {}, {{"layer_height", "0.04"}}, 1);
         check(seen.size() == 1 && seen.front().min && seen.front().max &&
                   *seen.front().min == printer.opt_float("min_layer_height", 0) && *seen.front().max == printer.opt_float("max_layer_height", 0),
-              "edit_question_layer_height_gives_the_limits");
+              "skipped_confirmation_layer_height_gives_the_limits");
         printer.set_deserialize_strict("max_layer_height", every(printer, "max_layer_height", "0.14"));
         run("layer_height_above_a_fine_nozzle_maximum", print, {}, {{"layer_height", "0.16"}}, 1);
         printer = original_printer;
@@ -975,7 +1031,7 @@ private:
         // An override on one object is asked about as the process is.
         const SettingsTarget object{SettingsScope::Object, m_workspace->snapshot().plates.front().objects.front().id, {}};
         const auto           overridden = m_workspace->preview_settings({{{"make_overhang_printable", "1"}}, object});
-        check(overridden.valid && forwarded_questions(overridden).size() == 1, "edit_question_object_override_forwards_1");
+        check(overridden.valid && skipped_confirmations_of(overridden).size() == 1, "skipped_confirmation_object_override_forwards_1");
 
         // The long retraction switches, of the printer and of a filament.
         run("printer_long_retraction_on", printer_target, {{"long_retractions_when_cut", every(printer, "long_retractions_when_cut", "0")}},
@@ -987,8 +1043,8 @@ private:
             {{"filament_long_retractions_when_cut", every(filament, "filament_long_retractions_when_cut", "1")}}, 1);
 
         check(process.diff(original_process).empty() && filament.diff(original_filament).empty() && printer.diff(original_printer).empty(),
-              "edit_questions_leave_the_presets_as_they_were");
-        check(dialogs.count == 0, "edit_questions_no_modal_dialog_reached");
+              "skipped_confirmations_leave_the_presets_as_they_were");
+        check(dialogs.count == 0, "skipped_confirmations_no_modal_dialog_reached");
     }
 
     void verify_every_writable_setting()
@@ -1082,9 +1138,9 @@ private:
                     std::string threw;
                     const auto  asked = asked_by_hand(*tab, scope, preview.changes, threw);
                     if (!asked.empty()) questioned.push_back(key);
-                    if (!threw.empty() || asked != forwarded_questions(preview))
+                    if (!threw.empty() || asked != skipped_confirmations_of(preview))
                         fault += std::string(fault.empty() ? "" : "; ") + (threw.empty() ? "" : threw + "; ") + "Orca asks " + listed(asked) +
-                                 ", preview forwarded " + listed(forwarded_questions(preview));
+                                 ", preview forwarded " + listed(skipped_confirmations_of(preview));
                 }
                 if (!fault.empty()) failed.push_back(key + " (" + fault + ")");
                 if (!config.diff(original).empty()) tab->load_config(original);
@@ -1184,7 +1240,7 @@ private:
               }),
               "change_log_records_setting_edits");
         verify_every_writable_setting();
-        verify_edit_questions();
+        verify_skipped_confirmations();
         verify_preset_settings();
         check(initial.plates.size() >= 2, "initial_snapshot_has_multiple_plates");
         check(initial.active_plate.has_value(), "initial_snapshot_has_active_plate");

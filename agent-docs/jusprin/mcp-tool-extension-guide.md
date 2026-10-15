@@ -170,7 +170,7 @@ The conclusion is that a definition adds cost to the *first* request of each con
 What a call may do depends on the conversation. `PrinterConversation::preflight_tool` refuses every call that is not allowed, before any card is shown, with an error that says where to go instead. The rules are:
 
 - Finding and adding a printer (`printer_identify`, `printer_add`) is allowed only in an Add conversation. A Change or Connect conversation is about a printer the person already has. An add there would save another printer and move the conversation onto it.
-- `printer_change` is allowed only on the printer the conversation is about, once there is one.
+- `printer_change` is allowed only on the printer the conversation is about, once there is one. When the project uses that printer and it has unsaved edits, the nozzle changes only after those edits are saved to the project's version history (`change_named_printer_nozzle` takes the step that saves them, and refuses without it); they are then dropped and listed in `discarded`. The panel's coordinator also saves a version before the call, as the project's agent pane does for any change to the project.
 - The connection tools are allowed only once there is a saved printer.
 - The settings tools are allowed only with `scope: "printer"`, on the printer the conversation is about.
 
@@ -492,7 +492,7 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 
 | Tool | Class | Contract | Owner | Bound |
 |---|---|---|---|---|
-| `project_open` | D | Exactly one of `path`, `new: true`, or `versionId`. Explicit inputs for the choices Orca otherwise asks in dialogs: `loadProjectSettings` (project or keep), `unitConversion` (none, inches to millimetres); every dialog Orca raises while loading is answered with the least change and returned in the load report. Replaces the document; the activity names the path or version and any unsaved work. | `Plater` load_project and load_files; backup restore | 32 import warnings |
+| `project_open` | D | Exactly one of `path`, `new: true`, or `versionId`. Explicit inputs for the choices Orca otherwise asks in dialogs: `loadProjectSettings` (project or keep), `unitConversion` (none, inches to millimetres); every dialog Orca raises while loading is answered with the least change and returned in the load report. Replaces the document once the autosave hook has saved the open one; unsaved preset edits are then dropped. A file opened as a project before returns `opened_before` (the project, and whether the file changed) until `openedBefore` says `existing` or `new`. | `Plater` load_project and load_files; backup restore | 32 import warnings |
 | `project_attachment_read` | R | One attachment by id; image or text result per [Image results](#image-results). | 3mf auxiliary directory | 2 MB image, 32 KB text |
 
 ### `setup`
@@ -665,9 +665,8 @@ tool may change), and before you add any tool that changes a preset.
    be changed, without selecting anything first.
 4. The scope says which preset or object the settings belong to. It does not
    select anything. `printer_setup` remains the only tool that picks the
-   project's printer, process, or filament. A settings call never discards
-   dirty edits, never changes nozzle topology (how many nozzles there are and
-   of what kind), and never substitutes a compatible profile. A settings call
+   project's printer, process, or filament. A settings call never changes
+   nozzle topology (how many nozzles there are and of what kind), and never substitutes a compatible profile. A settings call
    selects a preset only in the two places where OrcaSlicer's own Save or
    edit code does. First, a copy saved with `persistAs` takes the original's
    place. Second, a filament that is not the one open in its tab is opened
@@ -767,8 +766,9 @@ send the new contract.
   sidebar's edit button does: `Tab::select_preset`, then `set_filament_idx`
   for its slot. Apply then loads the change and saves it through the tab. If
   the filament that is open in the tab has unsaved edits, that switch would
-  either discard them or show a prompt. So preview refuses with
-  `unsaved_edits`.
+  ask about them. Apply drops them first, as `printer_setup` does, and
+  preview lists them in a `discards_unsaved_edits` warning. The version
+  history keeps them.
 - **Printer, when the target is another preset.** This is a saved printer
   that the project does not use. It can only be saved in place. The write
   goes through `Printers::write_unselected_printer`, which is the write
@@ -804,14 +804,11 @@ those edits. The card's title says where the change is saved ("; save it", or
 "; save as \"<name>\""). Without `persistAs`, the tool changes only the
 edited preset and leaves it dirty.
 
-In three cases the filament or printer tab would open a dialog. Preview
+In two cases the filament or printer tab would open a dialog. Preview
 refuses these cases:
 
 - a max volumetric speed below 0.5
   (`ConfigManipulation::check_filament_max_volumetric_speed`);
-- a first-layer temperature that is further from the other layers'
-  temperature than `Tab::validate_filament_temperature_pairs` allows when
-  saving;
 - firmware retraction with a wipe that retracts less than 100% first
   (`TabPrinter::toggle_options`).
 
@@ -827,8 +824,8 @@ refuses these cases:
   real workspace adapter, for all four scopes, including a key that can be
   read but not written.
 - Filament tests cover three cases: a preset in a slot that is not open in
-  its tab, a copy taking the original's slot, and a dirty preset that cannot
-  be changed without an implicit switch or discard.
+  its tab, a copy taking the original's slot, and a save that drops the
+  unsaved edits of the filament open in the tab.
 - Printer tests prove that changing a normal writable value updates the
   native field, the dirty marker, the slice invalidation, and the value read
   back. They also prove that the topology keys and the compatibility keys
@@ -856,7 +853,6 @@ refuses these cases:
 | key on the write blacklist | `unsupported_setting_mutation` |
 | read of a print host address or credential key | `withheld_setting`, per key under `unknownKeys`; the other keys are still read |
 | requested object is gone, or no FFF printer or process is selected | `workspace_unavailable` |
-| opening a filament in its tab would discard another dirty edited preset | `unsaved_edits` |
 | parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
 | a scope-specific dependency or validator rule conflicts | `incompatible_settings` with the conflicting keys |
 | session, revision, target mapping, preset, or before value changed since preview | `stale_workspace` with expected and current |
@@ -948,7 +944,7 @@ the condition text.
 | global `enable_support` while `detect_overhang_wall` is off | `enable_support` | silent: `detect_overhang_wall` turned on, once per query state | predict and report as `normalized_dependency` |
 | `spiral_mode` on with support or thin walls | `spiral_mode`, `enable_support`, `detect_thin_wall` | yes/no dialog | refuse with `incompatible_settings` (the spiral row above) |
 | fuzzy skin in an Extrusion or Combined mode without Arachne | `wall_generator` set to classic | yes/no dialog | refuse with `incompatible_settings` naming `fuzzy_skin_mode` |
-| `Tab::on_value_change` for `support_type` in simple mode (style reset) | none: `Tab::load_config` never calls `on_value_change` | inactive for tools | nothing. Its questions are [forwarded to the caller](#questions-orcaslicer-asks-a-person-who-edits-a-field) |
+| `Tab::on_value_change` for `support_type` in simple mode (style reset) | none: `Tab::load_config` never calls `on_value_change` | inactive for tools | nothing. Its confirmations are [handed to the caller as skipped confirmations](#skipped-confirmations) |
 | `toggle_print_fff_options` writes (`enable_arc_fitting`, the slope segment length, `fill_multiline`, `overhang_reverse_threshold`) | none of the new keys directly; the prediction runs the real pass on the clone | silent | report whatever the clone shows |
 
 `spiral_mode` is writable. A patch turns spiral vase on by sending it together with the values it needs, which is what answering Yes does; alone it is refused, because the tools never answer the dialog, and the refusal names each value that differs. Apart from that rule, `toggle_print_fff_options` reads `spiral_mode` only to show, hide, enable or disable fields. A plate that carries its own spiral setting (Plate Settings) overrides the process value when it is sliced; no tool writes that one, and `PartPlate::set_spiral_vase_mode` opens the same dialog.
@@ -980,10 +976,10 @@ dialog and no failure.
 
 The guards work on the whole configuration, not on the keys of the patch.
 The 13 live dialog sites in `update_print_fff_config` each have a refusal in
-`check_process_dialogs`. The filament tab has two on this route (max
-volumetric speed on every update, the temperature pairs on save), both in
-`check_filament_dialogs`, and the unsaved-changes prompt on switching
-filament, refused as `unsaved_edits`. The printer tab has one (firmware
+`check_process_dialogs`. The filament tab has one on this route (max
+volumetric speed on every update), in `check_filament_dialogs`; the
+unsaved-changes prompt on switching filament is avoided by dropping the edits
+first. The printer tab has one (firmware
 retraction with wipe), in `check_printer_dialogs`.
 
 If someone later finds a rule that a tool can trigger, that is a defect in
@@ -991,39 +987,54 @@ the preview. It is not behavior to accept. After an upstream update, read
 both functions and the three tabs' `update` and `toggle_options` again for
 new dialog sites, extend the guards and this table, and run the sweep.
 
-### Questions OrcaSlicer asks a person who edits a field
+### Skipped confirmations
+
+A **skipped confirmation** is a confirmation OrcaSlicer asks of a person who
+makes a change by hand, which a settings patch skips. It is not a refusal:
+the patch is valid and applies as sent. Preview hands it to the caller as a
+warning with code `skipped_confirmation`, and the caller settles it. (Until
+2026-10-14 the code was `orca_question`; Kenneth asked for a name that says
+what it is.) The refusals in the table above are the other kind: a change
+OrcaSlicer would reset or block is refused, and nothing is applied.
 
 `Tab::on_value_change` in `Tab.cpp` runs when a person changes one field. For
-some settings it shows a question first. `Tab::load_config` never runs it, so
-a patch changes those settings and nobody is asked. The question goes to the
-caller instead.
+some settings it asks for confirmation first. `Tab::load_config` never runs
+it, so a patch changes those settings and nobody is asked. `Tab::save_preset`
+asks once more before it saves a filament whose first-layer temperature is
+too far from the other layers' (`Tab::validate_filament_temperature_pairs`).
 
 Kenneth decided this on 2026-10-12. The caller is an agent, and it settles
-the question itself, one of three ways: go ahead; go ahead and tell the user;
+each skipped confirmation itself, one of three ways: go ahead; go ahead and tell the user;
 or ask the user first, when the answer is theirs to give (it depends on what
 the object is for, or it accepts a risk to their printer). No tool refuses
 these changes, waits for the person to agree, or records that they did. The
 description of `settings_preview_patch` tells the caller this.
 
-Preview adds one warning per question, with code `orca_question`:
+Preview adds one warning per skipped confirmation, with code
+`skipped_confirmation`:
 
-- `key` is the setting the question is about.
-- `message` is the question as the person would read it, whole. It comes
+- `key` is the setting the confirmation is about.
+- `message` is the confirmation as the person would read it, whole. It comes
   from the translation catalog, so it is in the interface language.
 - `suggestions` are the values OrcaSlicer's Yes would set, as `key=value`,
   leaving out any that already hold. A caller accepts by adding them to the
   patch.
-- `min` and `max`, for layer height, are the nozzles' limits.
+- `min` and `max`, for layer height, are the nozzles' limits; for a
+  first-layer temperature, the values OrcaSlicer saves without asking.
+
+With `persistAs`, preview adds the save-time one too, one warning per
+temperature pair, keyed by the first-layer setting
+(`skipped_save_confirmations`); apply answers Continue for the save.
 
 The warning leaves the patch valid, and the patch applies as sent. The apply
 result does not repeat it.
 
-The rules are `forward_edit_questions` in `OrcaEditQuestions.hpp`. They are a
+The rules are `skipped_edit_confirmations` in `SkippedConfirmations.hpp`. They are a
 copy of the conditions in `Tab.cpp`, and they look each message up in the
 catalog piece by piece, as `Tab.cpp` does. Three things follow from how
 OrcaSlicer asks:
 
-- A question is about a setting the patch really changes. A value the
+- A confirmation is about a setting the patch really changes. A value the
   normalizer puts straight back (clumping detection on a printer without it)
   raises nothing.
 - The condition is read from the values the patch leaves. A patch that sends
@@ -1032,12 +1043,12 @@ OrcaSlicer asks:
 - A state a person chose earlier by answering "do it anyway" raises nothing
   on a later patch that leaves those settings alone.
 
-An object override raises the same questions as the process setting, because
+An object override raises the same confirmations as the process setting, because
 OrcaSlicer's object panel runs the same handler.
 
 | Setting | OrcaSlicer asks when the change leaves | Yes sets |
 |---|---|---|
-| `enable_prime_tower` off | smooth `timelapse_type`; and then a second question if `enable_wrapping_detection` is on. Clumping detection alone raises nothing | nothing (No turns the tower back on) |
+| `enable_prime_tower` off | smooth `timelapse_type`; and then a second confirmation if `enable_wrapping_detection` is on. Clumping detection alone raises nothing | nothing (No turns the tower back on) |
 | `enable_prime_tower` on | `precise_z_height` on | nothing |
 | `enable_wrapping_detection` on | the prime tower off | nothing |
 | `precise_z_height` on | the prime tower on | nothing |
@@ -1053,10 +1064,10 @@ OrcaSlicer's object panel runs the same handler.
 The copy is held to the original by the workspace adapter harness. It makes
 each change the way a field does (the value into the tab's config, then
 OrcaSlicer's own `on_value_change`), with every dialog the handler opens
-answered and written down, and compares those dialogs with the questions
-preview forwarded. `verify_edit_questions` does this for a case per row and
+answered and written down, and compares those dialogs with the skipped
+confirmations preview reported. `verify_skipped_confirmations` does this for a case per row and
 for the cases that must raise nothing. `verify_every_writable_setting` does
-it for every setting it applies, so a question upstream adds, drops or
+it for every setting it applies, so a confirmation upstream adds, drops or
 rewords fails the sweep with `Orca asks ..., preview forwarded ...` and the
 setting's name. After an upstream update, run the harness and bring the
 rules and this table back in line with `Tab.cpp`.

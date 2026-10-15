@@ -1078,8 +1078,6 @@ public:
         applied = preview_printer_setup(request);
         if (!applied.valid)
             return CommandResult::failure(WorkspaceError::InvalidArgument, applied.issues.front().message);
-        if (!applied.unsaved_edits.empty() && !request.discard_unsaved_edits)
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "Unsaved preset edits would be lost");
         ++setup_applies;
         m_process_dirty = false;
         m_configured_printer = applied.resulting;
@@ -1111,8 +1109,6 @@ public:
         const std::filesystem::path target = std::filesystem::u8path(request.path);
         if (!request.new_project && (!target.is_absolute() || !std::filesystem::is_regular_file(target)))
             return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
-        if ((m_snapshot.setup.project_dirty || m_snapshot.setup.presets_dirty) && !request.discard_unsaved)
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "The open project has unsaved changes");
         ++opens;
         last_open = request;
         WorkspaceSnapshot next;

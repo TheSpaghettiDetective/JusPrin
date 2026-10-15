@@ -1,13 +1,16 @@
 #pragma once
 
-// The questions OrcaSlicer asks a person who changes a setting by hand.
+// Skipped confirmations: the confirmations OrcaSlicer asks of a person who
+// changes a setting by hand, or saves a filament, which a settings patch
+// skips. A skipped confirmation is not a refusal: the patch is valid and
+// applies as sent. Preview hands each one to the caller as a warning with
+// code skipped_confirmation, so the caller settles it: go ahead, go ahead and
+// tell the user, or ask the user first when the answer is theirs.
 //
-// Tab::on_value_change (Tab.cpp) asks them, one field at a time. A settings
-// patch goes through Tab::load_config, which never runs it, so preview hands
-// each question to the caller as a warning: the words the person would read
-// as the message and, under `suggestions`, the values OrcaSlicer's Yes would
-// set. The patch applies as sent. What to do about the question is the
-// caller's decision.
+// Tab::on_value_change (Tab.cpp) asks while a field is edited, one field at a
+// time; a patch goes through Tab::load_config, which never runs it. Each
+// warning carries the words the person would read as its message and, under
+// `suggestions`, the values OrcaSlicer's Yes would set.
 //
 // The conditions and the message ids are copied from Tab.cpp, which upstream
 // changes. Each id is looked up in the catalog as Tab.cpp looks it up, piece
@@ -15,7 +18,7 @@
 // adapter harness holds the copy to the original: it makes each change the
 // way a field does, lets OrcaSlicer's handler run, and compares the dialogs
 // it opens with the questions here, for the cases below and for every
-// writable setting (verify_edit_questions and verify_every_writable_setting
+// writable setting (verify_skipped_confirmations and verify_every_writable_setting
 // in tests/workspace/real_adapter_harness.cpp).
 
 #include "OrcaSettingDefinitions.hpp"
@@ -27,15 +30,15 @@
 
 namespace Slic3r::GUI::JusPrin::Workspace {
 
-inline constexpr const char* kEditQuestion = "orca_question";
+inline constexpr const char* kSkippedConfirmation = "skipped_confirmation";
 
 // `changes` are the patch's settings that take another value; `before` and
 // `after` are the scope's whole configuration around the patch as written
 // (for an object, the process with the object's overrides). OrcaSlicer asks
 // about the field being changed, and reads its condition from the values the
 // change leaves, before it normalizes any of them.
-inline void forward_edit_questions(SettingsScope scope, const std::vector<SettingChange>& changes, const DynamicPrintConfig& before,
-                                   const DynamicPrintConfig& after, std::vector<SettingIssue>& warnings)
+inline void skipped_edit_confirmations(SettingsScope scope, const std::vector<SettingChange>& changes, const DynamicPrintConfig& before,
+                                       const DynamicPrintConfig& after, std::vector<SettingIssue>& warnings)
 {
     const auto changed = [&](const char* key) {
         return std::any_of(changes.begin(), changes.end(), [key](const SettingChange& change) { return change.key == key; });
@@ -52,7 +55,7 @@ inline void forward_edit_questions(SettingsScope scope, const std::vector<Settin
         return false;
     };
     const auto ask = [&](const char* key, std::string words, std::vector<std::string> yes = {}) {
-        warnings.push_back({key, kEditQuestion, std::move(words), {}, std::move(yes)});
+        warnings.push_back({key, kSkippedConfirmation, std::move(words), {}, std::move(yes)});
     };
 
     if (scope == SettingsScope::Filament) {
@@ -169,13 +172,40 @@ inline void forward_edit_questions(SettingsScope scope, const std::vector<Settin
             const double floor = *std::min_element(lowest->values.begin(), lowest->values.end());
             const double ceil  = *std::max_element(highest->values.begin(), highest->values.end());
             if (height < floor || height > ceil)
-                warnings.push_back({"layer_height", kEditQuestion,
+                warnings.push_back({"layer_height", kSkippedConfirmation,
                                     _u8L("Layer height exceeds the limit in Printer Settings -> Extruder -> Layer height limits, "
                                          "this may cause printing quality issues.") +
                                         "\n\n" + _u8L("Adjust to the set range automatically?\n"),
                                     {}, {}, floor, ceil});
         }
     }
+}
+
+// Tab::validate_filament_temperature_pairs, which Tab::save_preset asks
+// before saving a filament: a first-layer temperature more than 30 °C from
+// the other layers' on the nozzle, or 15 °C on a plate, both above zero. Each
+// pair comes back as the dialog words it when that pair is the only one, with
+// the first-layer values it accepts. `config` is the filament as saved.
+inline void skipped_save_confirmations(const DynamicPrintConfig& config, std::vector<SettingIssue>& warnings)
+{
+    const auto ask = [&](const wxString& label, const std::string& first_key, const std::string& other_key, int limit) {
+        const auto* first = config.option<ConfigOptionInts>(first_key);
+        const auto* other = config.option<ConfigOptionInts>(other_key);
+        const int   a = first && !first->values.empty() ? first->get_at(0) : 0, b = other && !other->values.empty() ? other->get_at(0) : 0;
+        if (a <= 0 || b <= 0 || std::abs(a - b) <= limit)
+            return;
+        const wxString degrees = wxString::FromUTF8("°C"), bullet = wxString::FromUTF8("•");
+        const wxString words = _L("Some first-layer and other-layer temperature pairs exceed safety limits.\n") + _L("\nInvalid pairs:\n") +
+            wxString::Format(_L(" - %s:\n    %s first layer %d %s, other layers %d %s\n    %s max delta %d %s, current delta %d %s\n"),
+                             label, bullet, a, degrees, b, degrees, bullet, limit, degrees, std::abs(a - b), degrees) +
+            _L("\nYou can go back to edit values, or continue if this is intentional.") + _L("\n\nContinue anyway?");
+        warnings.push_back({first_key, kSkippedConfirmation, words.ToUTF8().data(), {}, {}, double(b - limit), double(b + limit)});
+    };
+    ask(_L("Nozzle"), "nozzle_temperature_initial_layer", "nozzle_temperature", 30);
+    const ConfigOptionDef* beds = print_config_def.get("curr_bed_type");
+    for (int bed = int(btPC); beds != nullptr && bed < int(btCount); ++bed)
+        if (const std::string first = get_bed_temp_1st_layer_key(BedType(bed)), other = get_bed_temp_key(BedType(bed)); !first.empty() && !other.empty())
+            ask(_(beds->enum_labels[bed - int(btPC)]), first, other, 15);
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

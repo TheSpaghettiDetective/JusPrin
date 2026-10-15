@@ -72,9 +72,4 @@ FileOpenScope::~FileOpenScope()
         m_observer->file_open_finished();
 }
 
-bool FileOpenScope::can_replace_project() const
-{
-    return !m_enabled || g_observer == nullptr || g_observer->file_open_can_replace_project();
-}
-
 } // namespace Slic3r::GUI

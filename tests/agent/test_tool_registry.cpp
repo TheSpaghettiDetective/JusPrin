@@ -112,11 +112,11 @@ TEST_CASE("Settings schemas validate canonical results and argument decoding is 
     // and leaves the patch valid.
     auto asked = workspace.preview_settings({{{"layer_height", "0.25"}}});
     const std::string question(600, 'q');
-    asked.warnings.push_back({"layer_height", "orca_question", question, {}, {"enable_prime_tower=1"}});
+    asked.warnings.push_back({"layer_height", "skipped_confirmation", question, {}, {"enable_prime_tower=1"}});
     const auto asked_result = settings_preview_result(asked, SettingsScope::Process, snapshot);
     CHECK(registry.validate_output(*registry.find("settings_preview_patch"), asked_result));
     CHECK(asked_result["valid"] == true);
-    CHECK(asked_result["warnings"].back()["code"] == "orca_question");
+    CHECK(asked_result["warnings"].back()["code"] == "skipped_confirmation");
     CHECK(asked_result["warnings"].back()["message"] == question);
     CHECK(asked_result["warnings"].back()["suggestions"] == json::array({"enable_prime_tower=1"}));
     CHECK(asked_result["truncated"] == false);

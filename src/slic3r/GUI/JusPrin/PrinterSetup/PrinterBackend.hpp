@@ -144,9 +144,11 @@ public:
     virtual SavedPrinter                  stock_printer(const std::string& name) const = 0;
 
     // Writes. Each returns an empty string on success, or a message written
-    // for the person explaining what stopped it.
+    // for the person explaining what stopped it. A change lists the keys of
+    // the unsaved edits it dropped from the project's copy in `discarded`.
     virtual std::string add_printer(const AddPrinterRequest& request, SavedPrinter& added) = 0;
-    virtual std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& changed) = 0;
+    virtual std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& changed,
+                                       std::vector<std::string>& discarded) = 0;
     // Deletes a saved printer the way Home's "Remove printer…" does.
     virtual std::string remove_printer(const std::string& name) = 0;
 

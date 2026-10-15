@@ -12142,7 +12142,6 @@ void Plater::load_project(wxString const& filename2,
     wxString const& originfile)
 {
     const FileOpenScope file_open(originfile != "<silence>"); // Include pre-load choices in the file report.
-    if (!file_open.can_replace_project()) return;
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "filename is: " << filename2 << "and originfile is: " << originfile;
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__;
     auto filename = filename2;
@@ -12161,6 +12160,9 @@ void Plater::load_project(wxString const& filename2,
     int result;
     if (m_before_project_release && filename.empty())
         wxGetApp().load_project(this, filename);
+    if (m_external_project_open_handler && !filename.empty() && (originfile == "-" || originfile == "<loadall>") &&
+        m_external_project_open_handler(into_path(filename)))
+        return;
     if ((m_before_project_release && (filename.empty() || close_with_confirm() == wxID_CANCEL)) ||
         (!m_before_project_release && (result = close_with_confirm(check)) == wxID_CANCEL)) {
         return;
@@ -14412,8 +14414,6 @@ bool Plater::open_3mf_file(const fs::path &file_path)
 
     switch (load_type) {
         case LoadType::OpenProject: {
-            if (m_external_project_open_handler && m_external_project_open_handler(file_path))
-                break;
             if (wxGetApp().can_load_project())
                 load_project(from_path(file_path), "<loadall>");
             break;

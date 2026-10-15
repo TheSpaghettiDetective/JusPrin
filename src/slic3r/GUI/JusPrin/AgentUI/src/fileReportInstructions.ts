@@ -26,7 +26,6 @@ The notice guide below is for *you* to read. Its left column gives examples of w
 | Multiple parts or files become one object | Mention grouping only if it changes how the person can print or edit the model. |
 | A suggestion to simplify a very detailed model | Usually omit from the first message unless a current performance or editing problem exists. |
 | A refusal to mix G-code with models, open multiple G-code files, or add models in preview mode | If the requested file did not open, explain that directly and give the next useful step. |
-| Opening stopped because the current project has unsaved changes | Explain that the existing work was kept and ask whether to save it or discard it before trying again. Never claim either action has happened. |
 | “File contains no geometry” or a loading error | Lead with what failed and what, if anything, was added. Give the actual reason when available; do not invent one. |
 
 An alarming notice does not override the final outcome. An automatic “No”, “Yes” or “OK” is JusPrin's action, not the person's preference. If several issues matter, address the most important decision first and briefly flag another consequential issue for later. If selectedSetupChange.printerPreset exists, name both its from and to selections in plain language, then ask which printer the person intends to use. Do not describe a selected printer as the person's physical machine. If a tiny model was left unscaled, give its final size and ask the intended size. Do not turn an already completed change into a fresh action item.

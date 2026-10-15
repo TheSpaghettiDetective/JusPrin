@@ -154,15 +154,6 @@ bool select(Plater& plater, const std::string& name)
     return is_selected(name);
 }
 
-// Orca's own prompt before the selected printer profile is saved or replaced.
-// True when nothing is unsaved, or once the person has saved or discarded it.
-bool settle_unsaved_changes(const std::string& name)
-{
-    if (!bundle().printers.current_is_dirty())
-        return true;
-    return printer_tab().may_discard_current_dirty_preset(nullptr, name, /*no_transfer=*/true);
-}
-
 } // namespace
 
 bool is_named_printer(const Preset& preset) { return preset.type == Preset::TYPE_PRINTER && preset.is_user() && preset.is_visible; }
@@ -233,21 +224,25 @@ wxString rename_named_printer(Plater& plater, const std::string& from, const std
     // Orca has no rename: a profile is saved under the new name and the old
     // one deleted, which is what a person does by hand in the settings tab.
     // Saving works on the selected profile, so an unselected printer is
-    // selected for the duration.
-    const std::string previous = bundle().printers.get_selected_preset_name();
-    if (previous == from) {
-        if (!settle_unsaved_changes(from))
-            return {};
-    } else if (!select(plater, from)) {
-        return {};
+    // selected for the duration. Orca saves the selected profile with its
+    // unsaved edits and asks about them before selecting another, so they are
+    // set aside and loaded again, still unsaved, on the printer they belong to.
+    PresetCollection&  printers = bundle().printers;
+    const std::string  previous = printers.get_selected_preset_name();
+    DynamicPrintConfig edits;
+    for (const std::string& key : printers.current_dirty_options())
+        edits.set_key_value(key, printers.get_edited_preset().config.option(key)->clone());
+    printers.discard_current_changes();
+    if (previous == from || select(plater, from)) {
+        printer_tab().save_preset(to);
+        if (!is_selected(to))
+            throw std::runtime_error("Orca did not save printer profile " + from + " as " + to);
+        delete_unselected(from);
+        relink_device(from, to);
+        if (previous != from)
+            select(plater, previous);
     }
-    printer_tab().save_preset(to);
-    if (!is_selected(to))
-        throw std::runtime_error("Orca did not save printer profile " + from + " as " + to);
-    delete_unselected(from);
-    relink_device(from, to);
-    if (previous != from)
-        select(plater, previous);
+    printer_tab().load_config(edits);
     return {};
 }
 
@@ -359,10 +354,9 @@ wxString configure_named_printer_host(const std::string& name, PrintHostType typ
     Preset* saved = saved_preset(name);
     if (!saved || !is_named_printer(*saved))
         return gone();
-    if (is_selected(name) && printers.current_is_dirty())
-        return _L("The open project has unsaved printer changes. Save or discard them in Printer settings, then connect again.");
     // Same persistence boundary as changing a named printer's nozzle. Patch
-    // only connection options; never select another project's printer.
+    // only connection options, which the project's copy then takes over; its
+    // other unsaved edits stay as they are. Never select another printer.
     saved->config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
     saved->config.set_key_value("print_host", new ConfigOptionString(address));
     saved->config.set_key_value("printhost_apikey", new ConfigOptionString(api_key));
@@ -380,7 +374,8 @@ wxString configure_named_printer_host(const std::string& name, PrintHostType typ
     return {};
 }
 
-wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset)
+wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset,
+                                     const std::function<bool()>& keep_unsaved_edits, std::vector<std::string>& discarded)
 {
     PresetCollection& printers = bundle().printers;
     Preset*           saved    = saved_preset(name);
@@ -398,13 +393,16 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     // The open project keeps the printer it has selected, and nothing asks
     // the person anything: Orca's save and its unsaved-changes prompt both go
     // through the selection, so the profile is written here directly. When
-    // the project uses this printer its copy follows the saved profile,
-    // which would throw away edits nobody has saved yet; those are the
-    // person's to settle first.
+    // the project uses this printer its copy follows the saved profile and
+    // drops edits nobody has saved yet. Never while they exist nowhere else:
+    // they go to the project's version history first, or nothing changes.
     const bool in_use = is_selected(name);
-    if (in_use && printers.current_is_dirty())
-        return _L("The open project has unsaved changes to this printer. Save or discard them in Printer settings, then try "
-                  "again.");
+    if (in_use && printers.current_is_dirty()) {
+        if (!keep_unsaved_edits || !keep_unsaved_edits())
+            return _L("The unsaved changes to this printer couldn't be saved to the project's history, so the nozzle was not "
+                      "changed.");
+        discarded = printers.current_dirty_options();
+    }
 
     // The new nozzle's profile, plus every setting the person changed on this
     // printer -- except the ones the two nozzle profiles themselves disagree

@@ -540,15 +540,16 @@ Result PrinterConversation::change(const json& arguments)
     if (!request.nozzle)
         return refuse("nothing_to_change", "That is already how " + name + " is set up.");
 
-    SavedPrinter changed;
-    if (const std::string problem = m_backend.change_printer(request, changed); !problem.empty())
+    SavedPrinter             changed;
+    std::vector<std::string> discarded;
+    if (const std::string problem = m_backend.change_printer(request, changed, discarded); !problem.empty())
         return refuse("change_failed", problem);
     const SavedPrinter after = saved(name);
     json               what  = json::array();
     what.push_back(json{{"field", "nozzle"}, {"before", now.nozzle}, {"after", after.nozzle}});
     m_host.printers_changed();
     m_host.session_changed();
-    return ok(json{{"changed", std::move(what)}, {"printer", printer_json(after)}});
+    return ok(json{{"changed", std::move(what)}, {"discarded", discarded}, {"printer", printer_json(after)}});
 }
 
 Result PrinterConversation::connection_status(const std::string& name, const std::string& message_id)

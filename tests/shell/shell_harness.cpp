@@ -90,6 +90,11 @@
 //   --external-project-history [--external-project-history-capture <output-directory>]
 //              checks the repeated external 3MF choice and explicit,
 //              confirmed version restore; optionally captures a history row
+//   --reopen-prompt <output-directory>
+//              shows the question asked when a file opened before is opened
+//              again, in its four variants (the open project or an earlier
+//              one; the file unchanged or changed), draws each to a PNG and
+//              answers it Cancel
 //   --chat-restoration
 //              checks historical viewing and explicit chat/model/planning
 //              restoration in an isolated managed project
@@ -302,6 +307,7 @@ namespace fs = boost::filesystem;
 
 #ifdef __APPLE__
 void set_harness_appearance(bool dark);
+bool snapshot_native_window(void* native_view, const char* path);
 bool snapshot_web_view(void* native_web_view, const char* path);
 #endif
 
@@ -698,6 +704,7 @@ struct HarnessState
         AutosaveReopen,
         PresetClose,
         ExternalProjectHistory,
+        ReopenPrompt,
         ChatRestoration,
         FileCorpus,
         LeftPane,
@@ -827,6 +834,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
                 verify_external_project_history();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ReopenPrompt) {
+                show_reopen_prompts();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ChatRestoration) {
@@ -2263,12 +2274,14 @@ private:
     {
         PresetCollection&              printers = wxGetApp().preset_bundle->printers;
         PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        std::vector<std::string> dropped;
         const auto change = [&](double nozzle) {
             PrinterSetup::ChangePrinterRequest request;
             request.name   = named;
             request.nozzle = nozzle;
             PrinterSetup::SavedPrinter changed;
-            return backend.change_printer(request, changed);
+            dropped.clear();
+            return backend.change_printer(request, changed, dropped);
         };
         const auto parent = [&] {
             const Preset* profile = printer_profile(named);
@@ -2313,13 +2326,39 @@ private:
         check(m_plater->is_project_dirty() == (dirty_on_it || repicked),
               "nozzle_change_of_the_projects_printer_changes_the_project_only_by_what_it_repicked");
 
-        // Unsaved edits to it are the person's: refused in words, with no
-        // prompt, and nothing moved.
+        // Unsaved edits to it are never dropped while they exist nowhere
+        // else: with nothing to keep them, or when keeping them fails, the
+        // nozzle stays, with no prompt.
         printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
         check(printers.current_is_dirty(), "nozzle_fixture_has_unsaved_printer_edits");
-        check(!change(0.4).empty() && parent() == "Bambu Lab X1 Carbon 0.6 nozzle",
-              "nozzle_change_refuses_over_unsaved_edits_without_a_prompt");
+        const auto kept_as_it_was = [&] {
+            return parent() == "Bambu Lab X1 Carbon 0.6 nozzle" && printers.get_edited_preset().config.opt_string("printer_notes") == "unsaved";
+        };
+        check(!change(0.4).empty() && kept_as_it_was(), "nozzle_change_without_a_keeper_leaves_unsaved_edits");
+        PrinterSetup::OrcaPrinterBackend failing(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), [] { return false; });
+        PrinterSetup::ChangePrinterRequest back{named, 0.4};
+        PrinterSetup::SavedPrinter         unused;
+        check(!failing.change_printer(back, unused, dropped).empty() && kept_as_it_was() && dropped.empty(),
+              "nozzle_change_whose_keeper_fails_leaves_unsaved_edits");
+
+        // Through the panel, the edits go to the project's history first, so
+        // restoring the version saved before the change brings them back.
+        auto* autosave = installed_shell()->autosave();
+        std::set<std::string> known;
+        for (const auto& version : autosave->history()) known.insert(version.id);
+        const Agent::ToolActivity* call = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}}, "nozzle_panel");
+        check(call != nullptr && call->state == Agent::ToolState::Succeeded &&
+                  nlohmann::json::parse(call->result_json).at("discarded") == nlohmann::json::array({"printer_notes"}),
+              "nozzle_panel_change_lists_what_it_dropped");
+        const Workspace::ProjectVersionStore::Version* before = nullptr;
+        const auto versions = autosave->history();
+        for (const auto& version : versions)
+            if (!known.count(version.id) && (before == nullptr || version.revision < before->revision)) before = &version;
+        check(before != nullptr && autosave->restore(before->id) &&
+                  printers.get_edited_preset().config.opt_string("printer_notes") == "unsaved",
+              "nozzle_panel_change_keeps_the_dropped_edit_in_history");
         printers.discard_current_changes();
+        SetupCommands::select_printer_preset(*m_plater, named);
         check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
     }
@@ -3889,12 +3928,14 @@ private:
                   printer_presets.get_edited_preset().config.opt_string("print_host") == "http://127.0.0.1:1" &&
                   !printer_presets.current_is_dirty() && m_plater->is_project_dirty() == dirty_on_selected,
               "named_host_settings_update_selected_printer_without_changing_project_edits");
+        // Connecting over unsaved edits saves the connection; the project's
+        // copy takes it over and keeps its other edits, unsaved.
         printer_presets.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
-        check(!Printers::configure_named_printer_host(second, htMoonraker, "http://127.0.0.1:2", "").empty() &&
+        check(Printers::configure_named_printer_host(second, htMoonraker, "http://127.0.0.1:2", "").empty() &&
                   printer_presets.get_edited_preset().config.opt_string("printer_notes") == "unsaved" &&
-                  printer_profile(second)->config.opt_string("print_host") == "http://127.0.0.1:1",
-              "named_connect_refuses_to_overwrite_unsaved_printer_edits");
-        printer_presets.discard_current_changes();
+                  printer_presets.get_edited_preset().config.opt_string("print_host") == "http://127.0.0.1:2" &&
+                  printer_profile(second)->config.opt_string("print_host") == "http://127.0.0.1:2",
+              "named_connect_over_unsaved_edits_keeps_them");
         check(Printers::link_named_printer(kAddedPrinter, "harness-device").empty() &&
                   !Printers::link_named_printer(second, "harness-device").empty(),
               "named_device_link_refuses_a_second_owner");
@@ -3904,12 +3945,21 @@ private:
               "named_rename_refuses_a_taken_name");
         check(!Printers::rename_named_printer(*m_plater, second, "Shed/Neo").empty(),
               "named_rename_refuses_illegal_characters");
+        // Renaming asks nothing; unsaved edits stay unsaved, on the printer
+        // they were made to.
+        const auto still_unsaved = [&] {
+            return printer_presets.current_is_dirty() && printer_presets.get_edited_preset().config.opt_string("printer_notes") == "unsaved" &&
+                   printer_profile(selected_printer())->config.opt_string("printer_notes") != "unsaved";
+        };
+        DialogCounter rename_dialogs;
         check(Printers::rename_named_printer(*m_plater, second, "Shed Neo").empty() &&
-                  selected_printer() == "Shed Neo" && printer_profile(second) == nullptr,
+                  selected_printer() == "Shed Neo" && printer_profile(second) == nullptr && still_unsaved(),
               "named_rename_of_the_selected_printer");
         check(Printers::rename_named_printer(*m_plater, kAddedPrinter, "Garage Neo").empty() &&
-                  selected_printer() == "Shed Neo" && printer_profile(kAddedPrinter) == nullptr,
+                  selected_printer() == "Shed Neo" && printer_profile(kAddedPrinter) == nullptr && still_unsaved(),
               "named_rename_of_another_printer_keeps_the_selection");
+        check(rename_dialogs.shown == 0, "named_rename_shows_no_dialog");
+        printer_presets.discard_current_changes();
         const Preset* garage = printer_profile("Garage Neo");
         check(garage != nullptr && garage->inherits() == kAddedPrinterProfile, "named_rename_keeps_the_parent");
         const auto renamed_printers = Printers::named_printers();
@@ -7809,6 +7859,117 @@ private:
             });
     }
 
+    // A file opened before is asked about however it is opened: File > Open
+    // Project goes through the same check as a drop, and the agent's
+    // project_open returns the question instead of showing it. A file that
+    // changed since is noticed. Ends on the newest project made from `source`.
+    void verify_reopen_everywhere(const fs::path& source, int& prompt_count, ShellController::ReimportDecision& decision)
+    {
+        using Decision = ShellController::ReimportDecision;
+        auto*             autosave = installed_shell()->autosave();
+        const std::string newest   = persistence().document().project_id();
+        installed_shell()->set_reimport_confirmation([&] {
+            ++prompt_count;
+            return decision;
+        });
+        decision = Decision::Cancel;
+        m_plater->load_project(wxString::FromUTF8(source.string()));
+        check(prompt_count == 5 && persistence().document().project_id() == newest, "reopen_open_project_menu_asks_too");
+
+        const std::filesystem::path file(source.string());
+        const auto unchanged = autosave->projects_for_source(file);
+        const auto describe = [&](const char* label, const std::vector<Workspace::ProjectAutosave::SourceMatch>& matches) {
+            std::cout << "HARNESS NOTE " << label << " current project " << persistence().document().project_id() << ":";
+            for (const auto& match : matches)
+                std::cout << ' ' << match.id << (match.current ? " current" : "") << " changed="
+                          << (match.changed ? (*match.changed ? "yes" : "no") : "unknown");
+            std::cout << std::endl;
+        };
+        describe("unchanged", unchanged);
+        check(!unchanged.empty() && unchanged.front().current && unchanged.front().changed == false, "reopen_unchanged_file_is_known");
+        std::ifstream      original_file(source.string(), std::ios::binary);
+        const std::string  original((std::istreambuf_iterator<char>(original_file)), std::istreambuf_iterator<char>());
+        original_file.close();
+        std::ofstream(source.string(), std::ios::binary | std::ios::app) << ' ';
+        const auto changed = autosave->projects_for_source(file);
+        describe("changed", changed);
+        check(!changed.empty() && changed.front().changed == true, "reopen_changed_file_is_noticed");
+        std::ofstream(source.string(), std::ios::binary | std::ios::trunc) << original;
+
+        // The agent: a model file opened as a project is remembered too.
+        Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+        const auto open = [&](const nlohmann::json& arguments) {
+            const std::string action = host.tools().submit({"project_open", arguments.dump()}, "reopen").action_id;
+            const Agent::ToolActivity* call = host.tools().find(action);
+            const std::optional<Agent::ToolError> refused = call != nullptr ? call->error : std::nullopt;
+            for (int tick = 0; tick < 200 && host.tools().find(action) != nullptr &&
+                               !Agent::tool_state_terminal(host.tools().find(action)->state); ++tick)
+                host.pump_tools();
+            return refused;
+        };
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(!open({{"path", cube}}) && autosave->save_now(), "reopen_agent_opens_a_model_file");
+        const std::string from_cube = persistence().document().project_id();
+        // Saved once, as the autosave timer would, so the draft has its own
+        // identity before the agent's next call.
+        check(m_plater->new_project(true, true) != wxID_CANCEL && autosave->save_now(), "reopen_agent_fixture_new_draft");
+        const auto asked = open({{"path", cube}});
+        check(asked && asked->code == "opened_before" && persistence().document().project_id() != from_cube,
+              "reopen_agent_model_file_opened_before");
+        check(!open({{"path", cube}, {"openedBefore", "existing"}}) && persistence().document().project_id() == from_cube,
+              "reopen_agent_continues_the_existing_project");
+        const int prompts = prompt_count;
+        check(!open({{"path", source.string()}, {"openedBefore", "new"}}) && persistence().document().project_id() != from_cube &&
+                  persistence().document().project_id() != newest && prompt_count == prompts,
+              "reopen_agent_new_project_shows_no_window");
+        check(!open({{"path", source.string()}, {"openedBefore", "existing"}}) && prompt_count == prompts,
+              "reopen_agent_existing_shows_no_window");
+        installed_shell()->set_reimport_confirmation({});
+    }
+
+    void show_reopen_prompts()
+    {
+        auto*          autosave = installed_shell()->autosave();
+        const fs::path source   = fs::path(data_dir()) / "bracket.3mf";
+        const std::string cube  = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence);
+        m_plater->new_project(true, true);
+        m_plater->load_project(wxString::FromUTF8(source.string()), "<loadall>");
+        autosave->save_now();
+        std::ifstream     original_file(source.string(), std::ios::binary);
+        const std::string original((std::istreambuf_iterator<char>(original_file)), std::istreambuf_iterator<char>());
+        original_file.close();
+        const auto ask = [&](const char* variant, bool changed) {
+            std::ofstream(source.string(), std::ios::binary | std::ios::trunc) << original << (changed ? " " : "");
+            const std::string before = persistence().document().project_id();
+            fs::create_directories(m_state->capture_dir);
+            // Once the question is up: drawn to a PNG, then answered Cancel.
+            const std::string png = (m_state->capture_dir / (std::string("reopen-") + variant + ".png")).string();
+            wxTimer           capture;
+            capture.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+                for (wxWindow* window : wxTopLevelWindows)
+                    if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
+                        capture.Stop();
+                        check(snapshot_native_window(dialog->GetHandle(), png.c_str()), std::string("reopen_prompt_") + variant + "_drawn");
+                        dialog->EndModal(wxID_CANCEL);
+                        return;
+                    }
+            });
+            capture.Start(500);
+            m_plater->load_project(wxString::FromUTF8(source.string()));
+            capture.Stop();
+            check(persistence().document().project_id() == before, std::string("reopen_prompt_") + variant + "_cancelled");
+        };
+        ask("open-project-unchanged", false);
+        ask("open-project-changed", true);
+        m_plater->new_project(true, true);
+        autosave->save_now();
+        ask("earlier-project-unchanged", false);
+        ask("earlier-project-changed", true);
+        finish();
+    }
+
     void verify_external_project_history()
     {
         auto* autosave = installed_shell()->autosave();
@@ -7862,6 +8023,7 @@ private:
         installed_shell()->set_reimport_confirmation({});
         check(reopened && prompt_count == 4 && persistence().document().project_id() == newest_id,
               "external_3mf_multiple_matches_open_most_recent_project");
+        verify_reopen_everywhere(source, prompt_count, decision);
         check(m_plater->duplicate_object(0) >= 0 && autosave->save_now(),
               "history_fixture_second_model_version_saved");
         const auto versions = autosave->history();
@@ -7951,7 +8113,7 @@ private:
 
     // project_open through the real adapter: a model saved in metres makes
     // Orca ask "Object too small", which the file listener answers No and
-    // records, and a dirty project is dropped without Orca's save prompt.
+    // records, and a dirty project is saved by autosave, not Orca's prompt.
     // The same file brought in the person's own way (Import) reaches the load
     // report listener instead, with the same message. No dialog may reach
     // the screen.
@@ -7993,8 +8155,7 @@ private:
 
         auto* workspace = installed_shell()->workspace();
         Workspace::ProjectOpenRequest request;
-        request.path            = tiny.string();
-        request.discard_unsaved = true;
+        request.path = tiny.string();
         Workspace::LoadReport report;
         {
             DialogCounter counter;
@@ -8091,27 +8252,21 @@ private:
             if (pane) pane->web_view().host().on_file_loaded(delivered);
         });
 
-        // Make the project dirty, then reopen the saved project over it.
+        // Make the project dirty, then reopen the saved project over it, the
+        // person's way: autosave saves the dirty one, and the file opens.
         check(m_plater->duplicate_object(0) >= 0, "project_open_dirty_before_reopen");
-        const auto objects_before_refusal = m_plater->model().objects.size();
-        heard.reset();
-        workspace->set_load_report_listener([&heard](const Workspace::LoadReport& delivered) { heard = delivered; });
+        check(installed_shell()->autosave()->save_now(), "dirty_user_open_autosaved_first");
         {
             DialogCounter counter;
             m_plater->load_project(from_u8(m_saved_project_file), "-");
             check(counter.shown == 0, "dirty_user_open_shows_no_dialog");
         }
         wxTheApp->ProcessPendingEvents();
-        check(heard.has_value() && heard->has_messages(), "dirty_user_open_reported");
-        check(m_plater->model().objects.size() == objects_before_refusal, "dirty_user_open_kept_existing_model");
-        workspace->set_load_report_listener([pane = wxWeakRef<AgentPane>(installed_shell()->agent_pane())](const Workspace::LoadReport& delivered) {
-            if (pane) pane->web_view().host().on_file_loaded(delivered);
-        });
+        check(fs::equivalent(fs::path(m_plater->get_project_filename(".3mf").ToUTF8().data()), m_saved_project_file), "dirty_user_open_opens_the_file");
+        check(m_plater->duplicate_object(0) >= 0, "project_open_dirty_before_tool_reopen");
         request      = {};
         request.path = m_saved_project_file;
         report       = {};
-        check(!workspace->open_project(request, report).succeeded(), "project_open_refuses_unsaved_work");
-        request.discard_unsaved = true;
         {
             DialogCounter counter;
             const auto opened = workspace->open_project(request, report);
@@ -8121,13 +8276,13 @@ private:
             check(counter.shown == 0, "project_open_project_shows_no_dialog");
         }
         print_messages("reopen", report);
-        // The unsaved work was dropped before the load, so Orca never asked
-        // to save it (its prompt offers Yes, No and Cancel).
+        // Autosave saved the unsaved work before the load, so Orca never
+        // asked to save it (its prompt offers Yes, No and Cancel).
         bool asked_to_save = false;
         for (const auto& load : report.loads)
             for (const auto& message : load.messages)
                 asked_to_save = asked_to_save || message.buttons == std::vector<std::string>{"yes", "no", "cancel"};
-        check(!asked_to_save, "project_open_drops_unsaved_work_without_asking");
+        check(!asked_to_save, "project_open_saves_unsaved_work_without_asking");
         fs::remove(tiny);
     }
 
@@ -9753,6 +9908,11 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PresetClose;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
+        else if (argument == "--reopen-prompt") {
+            if (++index == argc) return 2;
+            state->mode = HarnessState::Mode::ReopenPrompt;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--chat-restoration")
             state->mode = HarnessState::Mode::ChatRestoration;
         else if (argument == "--chat-restoration-capture") {

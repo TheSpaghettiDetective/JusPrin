@@ -800,13 +800,11 @@ TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][print
     CHECK(refused["issues"].size() == 2);
     CHECK(run("printer_setup", json{{"plateType", "Glass"}}).error->code == "unsupported_plate");
 
-    // Unsaved edits are refused until the caller says to drop them.
+    // Unsaved edits are dropped without asking, and the result lists them.
     h.workspace.m_process_dirty = true;
     h.workspace.m_process_incompatible_after_printer = true;
-    CHECK(run("printer_setup", json{{"printerPreset", "A1 mini 0.2"}}).error->code == "unsaved_edits");
-    CHECK(h.workspace.setup_applies == 0);
     const ToolActivity card = h.coordinator.submit(
-        {"printer_setup", json{{"printerPreset", "A1 mini 0.2"}, {"plateType", "Cool Plate"}, {"unsavedEdits", "discard"},
+        {"printer_setup", json{{"printerPreset", "A1 mini 0.2"}, {"plateType", "Cool Plate"},
                                {"confirmFacts", {{{"fact", "plate"}, {"value", "Cool Plate"}, {"hours", 8}}}}}.dump()}, "m-2");
     REQUIRE(card.state == ToolState::Running);
     CHECK(card.title == "Set up A1 mini 0.2, Cool Plate; replaces process 0.20mm Standard; "
@@ -842,8 +840,7 @@ TEST_CASE("a printer setup is previewed, applied, and read back", "[tools][print
     CHECK(json::parse(facts.result_json)["printer"]["confirmedFacts"].size() == 2);
 
     CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), "{}").valid());
-    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"printerPreset":"x","unsavedEdits":"keep"})").valid());
-    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup_preview"), R"({"printerPreset":"x","unsavedEdits":"discard"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"printerPreset":"x","unsavedEdits":"discard"})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("printer_setup"), R"({"confirmFacts":[{"fact":"plate","value":"x","hours":0}]})").valid());
 }
 
@@ -865,17 +862,16 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     CHECK(submit(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_argument");
     CHECK(submit(json{{"path", "bracket.stl"}}).error->code == "invalid_argument");
 
-    // A dirty project is not replaced without the user's word.
+    // A project with unsaved changes is replaced without asking.
     auto setup = h.workspace.snapshot().setup;
     setup.project_dirty = true;
     setup.project_name  = "Backpack";
     h.workspace.set_setup(setup);
-    CHECK(submit(json{{"path", model}}).error->code == "unsaved_work");
 
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "The object from file bracket.stl is too small.",
                                     {"yes", "no"}, "no", true}};
-    const ToolActivity opening = submit(json{{"path", model}, {"unsavedWork", "discard"}, {"unitConversion", "inches"}});
-    CHECK(opening.title == "Open " + model + ", discarding unsaved changes to Backpack");
+    const ToolActivity opening = submit(json{{"path", model}, {"unitConversion", "inches"}});
+    CHECK(opening.title == "Open " + model);
     for (int tick = 0; tick < 10 && h.coordinator.find(opening.action_id) != nullptr; ++tick)
         h.coordinator.pump();
     // The open's record leaves with the project it closed; its last event
@@ -901,12 +897,42 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     CHECK(result["report"]["projectOpened"] == true);
     CHECK(result["sessionId"] != std::to_string(opening.session));
     CHECK(h.workspace.last_open.units == Workspace::UnitChoice::Inches);
-    CHECK(h.workspace.last_open.discard_unsaved);
     CHECK(store.flushes == 1);
 
     const ToolActivity fresh = submit(json{{"new", true}});
     REQUIRE(fresh.state == ToolState::Running);
     CHECK(fresh.title == "Start a new project");
+
+    // A file opened before: whether to continue its project is the person's
+    // to say, through the caller; each answer does what it says.
+    std::vector<std::string> continued, recorded;
+    h.coordinator.set_earlier_projects(
+        [&](const std::string& path) -> std::optional<ToolExecutionCoordinator::EarlierProject> {
+            if (path != model) return std::nullopt;
+            return ToolExecutionCoordinator::EarlierProject{"p-1", "Bracket", false, true};
+        },
+        [&](const std::string& id) { continued.push_back(id); return true; },
+        [&](const std::string& path) { recorded.push_back(path); });
+    const ToolActivity asked = submit(json{{"path", model}});
+    REQUIRE(asked.error.has_value());
+    CHECK(asked.error->code == "opened_before");
+    CHECK(json::parse(asked.error->details_json) == json{{"project", "Bracket"}, {"current", false}, {"fileChanged", true}});
+    const auto settle = [&h](const ToolActivity& activity) {
+        for (int tick = 0; tick < 10 && h.coordinator.find(activity.action_id) != nullptr; ++tick) h.coordinator.pump();
+    };
+    settle(fresh);
+    const int opens = h.workspace.opens;
+    const ToolActivity existing = submit(json{{"path", model}, {"openedBefore", "existing"}});
+    CHECK(existing.title == "Continue Bracket");
+    settle(existing);
+    CHECK(continued == std::vector<std::string>{"p-1"});
+    CHECK(h.workspace.opens == opens);
+    settle(submit(json{{"path", model}, {"openedBefore", "new"}}));
+    CHECK(h.workspace.opens == opens + 1);
+    CHECK(recorded == std::vector<std::string>{model});
+    CHECK_FALSE(registry.validate_call(*registry.find("project_open"), R"({"new":true,"openedBefore":"new"})").valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("project_open"), json{{"path", model}, {"openedBefore", "keep"}}.dump()).valid());
+    h.coordinator.set_earlier_projects({}, {}, {});
 
     const auto& definition = *registry.find("project_open");
     CHECK_FALSE(registry.validate_call(definition, "{}").valid());
@@ -1374,14 +1400,14 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
           "name_taken");
 
     // A filament in the project is opened where the sidebar opens it, which
-    // must not lose the unsaved edits of the one being edited.
+    // drops the unsaved edits of the one being edited; preview says so.
     const json petg{{"preset", "Fixture PETG"}};
     const json hotter{{"nozzle_temperature", "250"}};
     CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", hotter}, {"persistAs", "Fixture PETG - Copy"}})["valid"] == true);
     auto& fixture = h.workspace.settings_for_testing();
     fixture.filaments.at("Fixture PLA").values["nozzle_temperature"] = "215";
-    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", hotter}, {"persistAs", "Fixture PETG - Copy"}})["issues"][0]["code"] ==
-          "unsaved_edits");
+    CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", hotter}, {"persistAs", "Fixture PETG - Copy"}})["warnings"][0]["code"] ==
+          "discards_unsaved_edits");
     fixture.filaments.at("Fixture PLA").values["nozzle_temperature"] = "210";
 
     // The filament Orca is editing takes an unsaved change, as the process does.

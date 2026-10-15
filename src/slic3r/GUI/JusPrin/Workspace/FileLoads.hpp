@@ -33,7 +33,6 @@ public:
     virtual void file_open_started() = 0;
     virtual void file_open_finished() = 0;
     virtual bool file_load_message(const std::string& text, const char* source) = 0;
-    virtual bool file_open_can_replace_project() = 0;
 };
 
 // One observer at a time; nullptr removes it.
@@ -63,7 +62,6 @@ class FileOpenScope
 public:
     explicit FileOpenScope(bool enabled = true);
     ~FileOpenScope();
-    bool can_replace_project() const;
     FileOpenScope(const FileOpenScope&)            = delete;
     FileOpenScope& operator=(const FileOpenScope&) = delete;
 

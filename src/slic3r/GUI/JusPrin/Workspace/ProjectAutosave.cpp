@@ -17,6 +17,7 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Utils.hpp"
 
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
@@ -165,6 +166,17 @@ bool authored_head(const std::filesystem::path& project)
         return false;
     std::ifstream legacy_file(legacy_path, std::ios::binary);
     return nlohmann::json::parse(legacy_file).value("docRevision", std::uint64_t{0}) > 1;
+}
+
+// The MD5 of a file's content; empty when it cannot be read.
+std::string file_digest(const std::filesystem::path& path)
+{
+    try {
+        std::string name = path.u8string(), digest;
+        return std::filesystem::is_regular_file(path) && bbl_calc_md5(name, digest) ? digest : std::string();
+    } catch (const std::exception&) {
+        return {};
+    }
 }
 
 bool same_source_path(const std::filesystem::path& first, const std::filesystem::path& second)
@@ -477,6 +489,12 @@ void ProjectAutosave::adopt_project()
         std::optional<Clock::time_point>(m_last_semantic_edit) : std::nullopt;
     const auto versions = m_store->history();
     m_project_name = versions.empty() ? std::string() : versions.back().project_name;
+    m_opened_from = versions.empty() ? std::string() : versions.back().opened_from;
+    m_opened_digest = versions.empty() ? std::string() : versions.back().opened_digest;
+    if (const std::string file = m_plater.get_project_filename(".3mf").ToUTF8().data(); versions.empty() && !file.empty()) {
+        m_opened_from = file;
+        m_opened_digest = file_digest(std::filesystem::u8path(file));
+    }
     m_revision = 0;
     for (const auto& version : versions)
         m_revision = std::max(m_revision, version.revision);
@@ -514,6 +532,14 @@ bool ProjectAutosave::capture(bool wait_for_commit)
             !m_plater.model().objects.empty())
             frozen.version.project_name = std::filesystem::u8path(m_plater.model().objects.front()->name).stem().u8string();
         m_project_name = frozen.version.project_name;
+        // A project adopted before Orca named its file gets it with its first
+        // version.
+        if (m_opened_from.empty() && m_store->head_id().empty() && !source.empty()) {
+            m_opened_from   = source.ToUTF8().data();
+            m_opened_digest = file_digest(std::filesystem::u8path(m_opened_from));
+        }
+        frozen.version.opened_from = m_opened_from;
+        frozen.version.opened_digest = m_opened_digest;
         if (m_store->unchanged(frozen)) {
             m_store->discard(frozen);
             m_last_capture_input = observed_input();
@@ -702,6 +728,8 @@ bool ProjectAutosave::resume_latest()
             throw std::runtime_error("recent managed project could not be restored");
         m_plater.set_project_filename(wxString::FromUTF8(selected->source_path));
         m_project_name = selected->project_name;
+        m_opened_from = selected->opened_from;
+        m_opened_digest = selected->opened_digest;
         m_persistence.adopt_managed_state(materialized.semantic_state);
         opened->seed_from_live(m_plater.model());
         m_last_capture_input = observed_input();
@@ -796,11 +824,19 @@ bool ProjectAutosave::has_local_project_for_source(const std::filesystem::path& 
     return !projects_for_source(source).empty();
 }
 
-std::vector<std::string> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
+std::vector<ProjectAutosave::SourceMatch> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
 {
     if (source.empty())
         return {};
-    std::vector<std::pair<std::filesystem::file_time_type, std::string>> matches;
+    std::optional<std::string> digest_now; // read once, when a match needs it
+    const auto changed = [&](const std::string& digest) -> std::optional<bool> {
+        if (digest.empty())
+            return std::nullopt;
+        if (!digest_now)
+            digest_now = file_digest(source);
+        return *digest_now != digest;
+    };
+    std::vector<std::pair<std::filesystem::file_time_type, SourceMatch>> matches;
     if (!std::filesystem::is_directory(m_root))
         return {};
     for (const auto& entry : std::filesystem::directory_iterator(m_root)) {
@@ -823,11 +859,13 @@ std::vector<std::string> ProjectAutosave::projects_for_source(const std::filesys
                 std::ifstream manifest_file(entry.path() / "versions" / *it / "manifest.json", std::ios::binary);
                 if (!manifest_file) continue;
                 const nlohmann::json manifest = nlohmann::json::parse(manifest_file);
-                if (same_source_path(source, std::filesystem::u8path(manifest.value("sourcePath", std::string())))) {
+                if (same_source_path(source, std::filesystem::u8path(manifest.value("sourcePath", std::string()))) ||
+                    same_source_path(source, std::filesystem::u8path(manifest.value("openedFrom", std::string())))) {
                     auto updated = std::filesystem::last_write_time(entry.path() / "HEAD");
                     if (std::filesystem::is_regular_file(entry.path() / "current-state.json"))
                         updated = std::max(updated, std::filesystem::last_write_time(entry.path() / "current-state.json"));
-                    matches.emplace_back(updated, entry.path().filename().string());
+                    matches.emplace_back(updated, SourceMatch{entry.path().filename().string(), manifest.value("projectName", std::string()),
+                                                              false, changed(manifest.value("openedDigest", std::string()))});
                     break;
                 }
             }
@@ -837,22 +875,36 @@ std::vector<std::string> ProjectAutosave::projects_for_source(const std::filesys
         }
     }
     std::sort(matches.begin(), matches.end(), [](const auto& a, const auto& b) {
-        return a.first != b.first ? a.first > b.first : a.second > b.second;
+        return a.first != b.first ? a.first > b.first : a.second.id > b.second.id;
     });
-    std::vector<std::string> result;
+    std::vector<SourceMatch> result;
     result.reserve(matches.size());
-    for (const auto& [updated, id] : matches)
-        result.push_back(id);
-    const wxString current_source = m_plater.get_project_filename(".3mf");
-    if (same_source_path(source, std::filesystem::u8path(current_source.ToUTF8().data()))) {
-        const std::string& current_id = m_persistence.document().project_id();
-        const auto current = std::find(result.begin(), result.end(), current_id);
+    for (const auto& [updated, match] : matches)
+        result.push_back(match);
+    const wxString     current_source = m_plater.get_project_filename(".3mf");
+    const std::string& current_id     = m_persistence.document().project_id();
+    const bool         ours           = m_store && m_store->project_id() == current_id;
+    if (same_source_path(source, std::filesystem::u8path(current_source.ToUTF8().data())) ||
+        (ours && same_source_path(source, std::filesystem::u8path(m_opened_from)))) {
+        auto current = std::find_if(result.begin(), result.end(), [&](const SourceMatch& match) { return match.id == current_id; });
         if (current != result.end())
             std::rotate(result.begin(), current, current + 1);
         else if (!current_id.empty())
-            result.insert(result.begin(), current_id);
+            result.insert(result.begin(), SourceMatch{current_id, project_name()});
+        result.front().current = true;
+        if (ours)
+            result.front().changed = changed(m_opened_digest);
     }
     return result;
+}
+
+void ProjectAutosave::record_opened_from(const std::filesystem::path& source)
+{
+    adopt_project();
+    if (!m_opened_from.empty())
+        return;
+    m_opened_from   = source.u8string();
+    m_opened_digest = file_digest(source);
 }
 
 bool ProjectAutosave::open_managed_project(const std::string& project_id)
@@ -903,6 +955,8 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
         }
         m_store = std::move(target);
         m_project_name = versions.back().project_name;
+        m_opened_from = versions.back().opened_from;
+        m_opened_digest = versions.back().opened_digest;
         m_active_materialization = *target_materialized;
         m_active_materialization_project = project_id;
         m_committed_head = m_store->head_id();

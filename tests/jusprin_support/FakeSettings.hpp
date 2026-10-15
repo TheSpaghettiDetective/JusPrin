@@ -375,7 +375,7 @@ private:
                 if (std::find(filament_slots.begin(), filament_slots.end(), patch.target.preset) == filament_slots.end())
                     result.issues.push_back({"", "not_in_project", "\"" + patch.target.preset + "\" is not one of the project's filaments."});
                 else if (editing.values != editing.saved)
-                    result.issues.push_back({"", "unsaved_edits", "The filament being edited has unsaved changes."});
+                    result.warnings.push_back({"", "discards_unsaved_edits", "Saving drops the unsaved changes to the filament being edited."});
             }
         }
         for (const auto& [key, text] : patch.changes) {

@@ -39,6 +39,12 @@ public:
         // Called after the temporary filament chat closes, before the native
         // material settings dialog is shown.
         std::function<void(std::size_t)> open_filament_settings;
+        // Bracket a printer tool that changes the project with saved
+        // versions, as the project's own agent pane does.
+        std::function<std::string(const Agent::ToolActivity&)>              version_before;
+        std::function<void(const Agent::ToolActivity&, const std::string&)> version_after;
+        // Saves the project, unsaved preset edits included, to its history.
+        std::function<bool()> keep_unsaved_edits;
     };
 
     PrinterPanel(wxWindow*              parent,

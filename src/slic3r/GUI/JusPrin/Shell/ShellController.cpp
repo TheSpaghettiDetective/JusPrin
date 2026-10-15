@@ -18,6 +18,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
@@ -424,50 +425,83 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 #else
             const std::filesystem::path source(path.string());
 #endif
-            if (!m_autosave)
+            // A tool's own open settles this in the conversation instead.
+            if (!m_autosave || m_workspace->tool_load_active())
                 return false;
             const auto matches = m_autosave->projects_for_source(source);
             if (matches.empty())
                 return false;
-            const bool current = matches.front() == m_persistence->document().project_id();
-            const ReimportDecision decision = m_reimport_confirmation ? m_reimport_confirmation() : [this, &matches, current] {
-                const wxString message = current ?
-                    _L("This file is already open as a project. Continue working in it, or create a new project from this file.") :
+            const bool current = matches.front().current;
+            // A file that changed since is most likely a new export: a new
+            // project is the default then; otherwise the saved one.
+            const bool changed = matches.front().changed.value_or(false);
+            const ReimportDecision decision = m_reimport_confirmation ? m_reimport_confirmation() : [this, &matches, current, changed] {
+                const wxString message =
+                    current && changed ? _L("This file has changed since this project was made from it. Create a new project from the "
+                                            "updated file, or continue the current project, which keeps the earlier version.") :
+                    current ? _L("This file is already open as a project. Continue working in it, or create a new project from this file.") :
+                    changed ? _L("This file has changed since you last opened it. Create a new project from the updated file, or "
+                                 "open the existing project, which keeps the earlier version.") :
                     matches.size() > 1 ?
                     _L("You've opened this file before. Open the most recently updated project or create another project from this file.") :
                     _L("You've opened this file before. Open the existing project to continue where you left off, "
                        "or create a new project from this file.");
-                wxMessageDialog dialog(m_frame,
-                    message, _L("Previously opened file"), wxYES_NO | wxCANCEL | wxICON_QUESTION);
-                dialog.SetYesNoLabels(current ? _L("Continue current project") :
-                                      matches.size() > 1 ? _L("Open most recent project") : _L("Open existing project"),
-                                      _L("Create new project"));
+                // OrcaSlicer's own dialog, as offer_agent_setup uses, so it looks
+                // like every other question the app asks. Its Yes is the
+                // highlighted button, so Yes is the choice suggested here.
+                MessageDialog dialog(m_frame, message, _L("Previously opened file"), wxYES_NO | wxCANCEL | wxICON_QUESTION);
+                const wxString keep  = current ? _L("Continue current project") :
+                                       matches.size() > 1 ? _L("Open most recent project") : _L("Open existing project");
+                const wxString fresh = _L("Create new project");
+                dialog.SetButtonLabel(wxID_YES, changed ? fresh : keep);
+                dialog.SetButtonLabel(wxID_NO, changed ? keep : fresh);
+                // A person's open answers OrcaSlicer's dialogs on its own
+                // (FileLoads.hpp); this question is theirs.
+                Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
+                    return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
+                });
                 const int answer = dialog.ShowModal();
-                return answer == wxID_YES ? ReimportDecision::OpenExisting :
-                       answer == wxID_NO ? ReimportDecision::CreateNew : ReimportDecision::Cancel;
+                if (answer != wxID_YES && answer != wxID_NO)
+                    return ReimportDecision::Cancel;
+                return (answer == wxID_YES) != changed ? ReimportDecision::OpenExisting : ReimportDecision::CreateNew;
             }();
             if (decision == ReimportDecision::CreateNew)
                 return false;
             if (decision == ReimportDecision::OpenExisting) {
-                if (!m_autosave->open_managed_project(matches.front()))
-                    wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
-                                 wxOK | wxICON_ERROR, m_frame);
+                if (!m_autosave->open_managed_project(matches.front().id))
+                    MessageDialog(m_frame, _L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                                  wxOK | wxICON_ERROR).ShowModal();
                 else
                     m_frame->select_tab(size_t(MainFrame::tp3DEditor));
             }
             return true;
         });
-        m_agent_pane->web_view().host().tools().set_version_callbacks(
-            [this](const Agent::ToolActivity&) {
-                const std::string before = m_autosave->pin_current();
-                if (before.empty())
-                    throw std::runtime_error("Couldn't save the project. The action was not run.");
-                return before;
-            },
-            [this](const Agent::ToolActivity& activity, const std::string& before) {
-                const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
-                                      activity.state == Agent::ToolState::Cancelled ? "cancelled" : "failed";
+        const auto version_before = [this](const Agent::ToolActivity&) {
+            const std::string before = m_autosave ? m_autosave->pin_current() : std::string();
+            if (before.empty())
+                throw std::runtime_error("Couldn't save the project. The action was not run.");
+            return before;
+        };
+        const auto version_after = [this](const Agent::ToolActivity& activity, const std::string& before) {
+            const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
+                                  activity.state == Agent::ToolState::Cancelled ? "cancelled" : "failed";
+            if (m_autosave)
                 m_autosave->record_agent_operation(activity.action_id, activity.tool, outcome, before);
+        };
+        m_agent_pane->web_view().host().tools().set_version_callbacks(version_before, version_after);
+        m_agent_pane->web_view().host().tools().set_earlier_projects(
+            [this](const std::string& path) -> std::optional<Agent::ToolExecutionCoordinator::EarlierProject> {
+                const auto matches = m_autosave ? m_autosave->projects_for_source(std::filesystem::u8path(path)) :
+                                                  std::vector<Workspace::ProjectAutosave::SourceMatch>{};
+                if (matches.empty())
+                    return std::nullopt;
+                return Agent::ToolExecutionCoordinator::EarlierProject{matches.front().id, matches.front().name,
+                                                                       matches.front().current, matches.front().changed};
+            },
+            [this](const std::string& id) { return m_autosave && m_autosave->open_managed_project(id); },
+            [this](const std::string& path) {
+                if (m_autosave)
+                    m_autosave->record_opened_from(std::filesystem::u8path(path));
             });
         m_agent_pane->web_view().host().tools().set_document_boundary_callback(
             [this](const Agent::ToolActivity&) {
@@ -497,7 +531,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this] { restore_task_panel(); },
                 [this](const std::string& added) { m_home->refresh(added); },
                 [this] { mark_agent_config_possibly_changed(); },
-                [](std::size_t slot) { SetupCommands::open_filament_settings(slot); }});
+                [](std::size_t slot) { SetupCommands::open_filament_settings(slot); }, version_before, version_after,
+                [this] { return m_autosave && !m_autosave->pin_current().empty(); }});
         m_home->backend().set_conversation_opener(
             [this](const std::string& printer_name, bool connect) { open_printer_conversation(printer_name, connect); });
 
@@ -671,6 +706,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         }
         if (m_agent_pane != nullptr) {
             m_agent_pane->web_view().host().tools().set_version_callbacks({}, {});
+            m_agent_pane->web_view().host().tools().set_earlier_projects({}, {}, {});
             m_agent_pane->Destroy();
             m_agent_pane = nullptr;
         }
@@ -984,6 +1020,7 @@ void ShellController::uninstall()
     }
     if (m_agent_pane != nullptr) {
         m_agent_pane->web_view().host().tools().set_version_callbacks({}, {});
+        m_agent_pane->web_view().host().tools().set_earlier_projects({}, {}, {});
         m_agent_pane->Destroy();
         m_agent_pane = nullptr;
     }

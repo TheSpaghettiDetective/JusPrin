@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -129,6 +130,25 @@ public:
     {
         m_document_boundary = std::move(callback);
     }
+    // A project made from a file before (ProjectAutosave), which project_open
+    // offers to continue. `changed` says whether the file differs from the
+    // one the project was made from, when that is known.
+    struct EarlierProject
+    {
+        std::string         id, name;
+        bool                current{false};
+        std::optional<bool> changed;
+    };
+    // Finds, opens, and tells the owner which file the new project came
+    // from. Without them every file opens as a new project.
+    void set_earlier_projects(std::function<std::optional<EarlierProject>(const std::string& path)> find,
+                              std::function<bool(const std::string& id)> open,
+                              std::function<void(const std::string& path)> opened_from)
+    {
+        m_find_earlier = std::move(find);
+        m_open_earlier = std::move(open);
+        m_opened_from  = std::move(opened_from);
+    }
 
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
@@ -199,6 +219,9 @@ private:
     std::function<std::string(const ToolActivity&)> m_version_before;
     std::function<void(const ToolActivity&, const std::string&)> m_version_after;
     std::function<void(const ToolActivity&)> m_document_boundary;
+    std::function<std::optional<EarlierProject>(const std::string&)> m_find_earlier;
+    std::function<bool(const std::string&)>                          m_open_earlier;
+    std::function<void(const std::string&)>                          m_opened_from;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};

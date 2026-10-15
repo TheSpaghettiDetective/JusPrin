@@ -121,9 +121,11 @@ public:
         return {};
     }
     // Saves the change into `saved`, as the Orca backend does.
-    std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& result) override
+    std::vector<std::string> dropped; // what a change reports it discarded
+    std::string change_printer(const ChangePrinterRequest& request, SavedPrinter& result, std::vector<std::string>& discarded) override
     {
         changed.push_back(request);
+        discarded = dropped;
         if (!refusal.empty())
             return refusal;
         for (SavedPrinter& printer : saved)
@@ -584,12 +586,15 @@ TEST_CASE("printer_change saves what changed and returns the printer as it now i
     REQUIRE(backend.changed.size() == 1);
     CHECK(backend.changed[0].nozzle == 0.6);
     CHECK(output.at("changed") == json::array({json{{"field", "nozzle"}, {"before", 0.4}, {"after", 0.6}}}));
+    CHECK(output.at("discarded").empty());
     CHECK(output.at("printer").at("nozzle") == 0.6);
     CHECK(conversation.state_json().at("context").at("printer").at("nozzle") == 0.6);
     CHECK(panel.refreshes == 1);
 
-    // Putting it back is the same tool.
-    ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}});
+    // Putting it back is the same tool; unsaved edits it drops are listed.
+    backend.dropped = {"retraction_length"};
+    CHECK(ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.4}}).at("discarded") ==
+          json::array({"retraction_length"}));
     CHECK(backend.saved[0].nozzle == 0.4);
 }
 
@@ -1777,7 +1782,7 @@ public:
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
     SavedPrinter                       stock_printer(const std::string&) const override { return {}; }
     std::string add_printer(const AddPrinterRequest&, SavedPrinter&) override { return {}; }
-    std::string change_printer(const ChangePrinterRequest&, SavedPrinter&) override { return {}; }
+    std::string change_printer(const ChangePrinterRequest&, SavedPrinter&, std::vector<std::string>&) override { return {}; }
     std::string remove_printer(const std::string&) override { return {}; }
     ManualPrinterResult run_manual_setup() override { return {}; }
     void        open_printer_settings(const std::string&) override {}

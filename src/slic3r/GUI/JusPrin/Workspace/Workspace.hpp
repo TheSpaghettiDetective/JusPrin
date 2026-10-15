@@ -623,9 +623,6 @@ struct PrinterSetupRequest
     std::optional<std::string>              plate_type;     // untranslated plate name
     std::optional<std::string>              process_preset;
     std::optional<std::vector<std::string>> filament_presets; // from the first slot
-    // Orca asks what to do with unsaved edits in a preset it switches away
-    // from. There is no dialog here: the caller says so, or the setup is refused.
-    bool                                    discard_unsaved_edits{false};
 
     bool empty() const { return !printer_preset && !plate_type && !process_preset && !filament_presets; }
 };
@@ -692,7 +689,6 @@ struct ProjectOpenRequest
     bool        new_project{false};
     bool        load_project_settings{true};
     UnitChoice  units{UnitChoice::Keep};
-    bool        discard_unsaved{false};
 };
 
 // Add the objects of a model file to the open project.

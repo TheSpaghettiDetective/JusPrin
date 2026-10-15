@@ -40,10 +40,16 @@ DialogFacts read_dialog(wxWindow& dialog);
 // A dialog with none of them is cancelled and marked unrecognised.
 OrcaMessage least_change_answer(const DialogFacts& facts, int& answer);
 
+// A listener's answer that shows the dialog to the person, so no listener
+// outside it answers: for a question that is theirs while an open or a tool
+// answers everything else.
+inline constexpr int kShowToPerson = -1;
+
 class ScopedDialogListener
 {
 public:
-    // Returns the id ShowModal would have returned, or nothing to pass.
+    // Returns the id ShowModal would have returned, kShowToPerson, or nothing
+    // to pass.
     using Listener = std::function<std::optional<int>(wxWindow& dialog, const DialogFacts& facts)>;
 
     explicit ScopedDialogListener(Listener listener);

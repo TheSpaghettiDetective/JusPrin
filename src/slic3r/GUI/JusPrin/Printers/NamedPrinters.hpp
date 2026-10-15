@@ -21,6 +21,7 @@
 
 #include <wx/string.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -65,10 +66,14 @@ wxString open_named_printer_settings(Plater& plater, const std::string& name);
 // A printer's nozzle is fixed by the profile it inherits, so changing it is a
 // change of parent. It is made only where the person is editing that printer
 // and the panel states the result; nothing else in JusPrin moves a parent.
-// The open project's printer selection and its modified state stay as they
-// were, and no dialog is shown. Returns a message for the person when it could
-// not be done, empty when it was.
-wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset);
+// The open project's printer selection stays as it was, and no dialog is
+// shown. When the project uses this printer and has unsaved edits to it, the
+// nozzle changes only once `keep_unsaved_edits` has saved them to the
+// project's version history; they are then dropped and their keys returned
+// in `discarded`. Returns a message for the person when it could not be
+// done, empty when it was.
+wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset,
+                                     const std::function<bool()>& keep_unsaved_edits, std::vector<std::string>& discarded);
 
 // Writes `changes` into a named printer the open project does not use, in
 // place, as Orca's Save writes the selected one. Nothing is selected and no
