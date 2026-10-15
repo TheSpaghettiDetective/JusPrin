@@ -170,7 +170,7 @@ The conclusion is that a definition adds cost to the *first* request of each con
 What a call may do depends on the conversation. `PrinterConversation::preflight_tool` refuses every call that is not allowed, before any card is shown, with an error that says where to go instead. The rules are:
 
 - Finding and adding a printer (`printer_identify`, `printer_add`) is allowed only in an Add conversation. A Change or Connect conversation is about a printer the person already has. An add there would save another printer and move the conversation onto it.
-- `printer_change` is allowed only on the printer the conversation is about, once there is one. When the project uses that printer and it has unsaved edits, the nozzle changes only after those edits are saved to the project's version history (`change_named_printer_nozzle` takes the step that saves them, and refuses without it); they are then dropped and listed in `discarded`. The panel's coordinator also saves a version before the call, as the project's agent pane does for any change to the project.
+- `printer_change` is allowed only on the printer the conversation is about, once there is one. When the project uses that printer, its unsaved edits are dropped and listed in `discarded`; the panel's coordinator saves a version first, as the project's agent pane does for any change to the project. If that save fails, the call does not run and returns the coordinator's generic `local_save_failed`; there is no separate message for it.
 - The connection tools are allowed only once there is a saved printer.
 - The settings tools are allowed only with `scope: "printer"`, on the printer the conversation is about.
 

@@ -1545,8 +1545,7 @@ std::vector<ToolDefinition> make_definitions()
          "Change this printer",
          "Saves a new nozzle size on a saved printer, after the person confirmed it. "
          "Returns what changed and the printer as it now is. When the open project uses this printer, its unsaved edits "
-         "are saved to the project's version history and then dropped, their keys listed in discarded; if they cannot be "
-         "saved, nothing changes.",
+         "are dropped and their keys listed in discarded; the version saved before the change keeps them.",
          object_schema(json{{"printerName", string_schema()},
                             {"nozzle", {{"type", "number"}, {"description", "The nozzle size now on it, in mm."}}}},
                        json::array({"printerName", "nozzle"})),

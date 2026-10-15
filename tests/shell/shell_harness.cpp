@@ -2327,27 +2327,20 @@ private:
         check(m_plater->is_project_dirty() == (dirty_on_it || repicked),
               "nozzle_change_of_the_projects_printer_changes_the_project_only_by_what_it_repicked");
 
-        // Unsaved edits to it are never dropped while they exist nowhere
-        // else: with nothing to keep them, or when keeping them fails, the
-        // nozzle stays, with no prompt.
+        // Unsaved edits to it are dropped with no prompt, and listed.
         printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
         check(printers.current_is_dirty(), "nozzle_fixture_has_unsaved_printer_edits");
-        const auto kept_as_it_was = [&] {
-            return parent() == "Bambu Lab X1 Carbon 0.6 nozzle" && printers.get_edited_preset().config.opt_string("printer_notes") == "unsaved";
-        };
-        check(!change(0.4).empty() && kept_as_it_was(), "nozzle_change_without_a_keeper_leaves_unsaved_edits");
-        PrinterSetup::OrcaPrinterBackend failing(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()), [] { return false; });
-        PrinterSetup::ChangePrinterRequest back{named, 0.4};
-        PrinterSetup::SavedPrinter         unused;
-        check(!failing.change_printer(back, unused, dropped).empty() && kept_as_it_was() && dropped.empty(),
-              "nozzle_change_whose_keeper_fails_leaves_unsaved_edits");
+        check(change(0.4).empty() && parent() == kSetupFixturePrinter && !printers.current_is_dirty() &&
+                  dropped == std::vector<std::string>{"printer_notes"},
+              "nozzle_change_drops_unsaved_edits_and_lists_them");
 
-        // Through the panel, the edits go to the project's history first, so
-        // restoring the version saved before the change brings them back.
+        // Through the panel's tool, a version is saved first, as for any
+        // agent change, so restoring it brings the dropped edit back.
         auto* autosave = installed_shell()->autosave();
         std::set<std::string> known;
         for (const auto& version : autosave->history()) known.insert(version.id);
-        const Agent::ToolActivity* call = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}}, "nozzle_panel");
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("unsaved"));
+        const Agent::ToolActivity* call = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.6}}, "nozzle_panel");
         check(call != nullptr && call->state == Agent::ToolState::Succeeded &&
                   nlohmann::json::parse(call->result_json).at("discarded") == nlohmann::json::array({"printer_notes"}),
               "nozzle_panel_change_lists_what_it_dropped");
@@ -2358,6 +2351,22 @@ private:
         check(before != nullptr && autosave->restore(before->id) &&
                   printers.get_edited_preset().config.opt_string("printer_notes") == "unsaved",
               "nozzle_panel_change_keeps_the_dropped_edit_in_history");
+
+        // When that save fails, the generic error stands for every cause and
+        // the nozzle stays, with its unsaved edit.
+        printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("kept"));
+        const std::filesystem::path pending = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                               persistence().document().project_id() / "pending";
+        const auto writable = std::filesystem::status(pending).permissions();
+        std::filesystem::permissions(pending, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
+                                     std::filesystem::perm_options::replace);
+        const Agent::ToolActivity* unsaved = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}},
+                                                           "nozzle_panel_unsaved");
+        std::filesystem::permissions(pending, writable, std::filesystem::perm_options::replace);
+        check(unsaved != nullptr && unsaved->state == Agent::ToolState::Failed && unsaved->error &&
+                  unsaved->error->code == "local_save_failed" && parent() == "Bambu Lab X1 Carbon 0.6 nozzle" &&
+                  printers.get_edited_preset().config.opt_string("printer_notes") == "kept",
+              "nozzle_panel_change_runs_nothing_when_the_project_cannot_be_saved");
         printers.discard_current_changes();
         SetupCommands::select_printer_preset(*m_plater, named);
         check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");

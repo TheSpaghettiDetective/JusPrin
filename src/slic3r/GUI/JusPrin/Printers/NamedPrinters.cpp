@@ -375,7 +375,7 @@ wxString configure_named_printer_host(const std::string& name, PrintHostType typ
 }
 
 wxString change_named_printer_nozzle(Plater& plater, const std::string& name, const std::string& system_preset,
-                                     const std::function<bool()>& keep_unsaved_edits, std::vector<std::string>& discarded)
+                                     std::vector<std::string>& discarded)
 {
     PresetCollection& printers = bundle().printers;
     Preset*           saved    = saved_preset(name);
@@ -394,15 +394,12 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     // the person anything: Orca's save and its unsaved-changes prompt both go
     // through the selection, so the profile is written here directly. When
     // the project uses this printer its copy follows the saved profile and
-    // drops edits nobody has saved yet. Never while they exist nowhere else:
-    // they go to the project's version history first, or nothing changes.
+    // drops edits nobody has saved yet, listed in `discarded`. The caller
+    // saves the project to its version history first: the printer panel's
+    // coordinator does, and runs nothing when that save fails.
     const bool in_use = is_selected(name);
-    if (in_use && printers.current_is_dirty()) {
-        if (!keep_unsaved_edits || !keep_unsaved_edits())
-            return _L("The unsaved changes to this printer couldn't be saved to the project's history, so the nozzle was not "
-                      "changed.");
+    if (in_use)
         discarded = printers.current_dirty_options();
-    }
 
     // The new nozzle's profile, plus every setting the person changed on this
     // printer -- except the ones the two nozzle profiles themselves disagree

@@ -532,7 +532,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this](const std::string& added) { m_home->refresh(added); },
                 [this] { mark_agent_config_possibly_changed(); },
                 [](std::size_t slot) { SetupCommands::open_filament_settings(slot); }, version_before, version_after,
-                [this] { return m_autosave && !m_autosave->pin_current().empty(); },
                 // The project's own counter, which its agent pane takes ids from.
                 [this] { return m_persistence->document().allocate_action_id(); }});
         m_home->backend().set_conversation_opener(

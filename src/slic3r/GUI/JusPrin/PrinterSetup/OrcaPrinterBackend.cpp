@@ -43,8 +43,8 @@ double nozzle_of(const std::string& variant)
 
 } // namespace
 
-OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, std::function<bool()> keep_unsaved_edits)
-    : m_plater(plater), m_catalog(std::move(catalog)), m_keep_unsaved_edits(std::move(keep_unsaved_edits))
+OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog)
+    : m_plater(plater), m_catalog(std::move(catalog))
 {
     m_models = m_catalog.panel_printers();
 }
@@ -200,8 +200,7 @@ std::string OrcaPrinterBackend::change_printer(const ChangePrinterRequest& reque
         if (variant == nullptr)
             return found->model.empty() ? std::string("This printer does not come with that nozzle size.") :
                                           "The " + found->model + " does not come with that nozzle size.";
-        const wxString problem = Printers::change_named_printer_nozzle(m_plater, request.name, variant->preset_name,
-                                                                               m_keep_unsaved_edits, discarded);
+        const wxString problem = Printers::change_named_printer_nozzle(m_plater, request.name, variant->preset_name, discarded);
         if (!problem.empty())
             return problem.ToStdString();
     }

@@ -23,7 +23,7 @@
     "type": "function"
   },
   {
-    "description": "Saves a new nozzle size on a saved printer, after the person confirmed it. Returns what changed and the printer as it now is. When the open project uses this printer, its unsaved edits are saved to the project's version history and then dropped, their keys listed in discarded; if they cannot be saved, nothing changes.",
+    "description": "Saves a new nozzle size on a saved printer, after the person confirmed it. Returns what changed and the printer as it now is. When the open project uses this printer, its unsaved edits are dropped and their keys listed in discarded; the version saved before the change keeps them.",
     "name": "printer_change",
     "parameters": {
       "additionalProperties": false,

@@ -9,7 +9,6 @@
 #include "PrinterCatalog.hpp"
 #include <atomic>
 #include <chrono>
-#include <functional>
 #include <memory>
 
 namespace Slic3r::GUI { class Plater; }
@@ -19,10 +18,7 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 class OrcaPrinterBackend : public IPrinterBackend
 {
 public:
-    // `keep_unsaved_edits` saves the project, unsaved preset edits included,
-    // to its version history; a change that would drop such edits runs only
-    // after it returns true.
-    OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog, std::function<bool()> keep_unsaved_edits = {});
+    OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog);
 
     const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
@@ -51,7 +47,6 @@ private:
 
     Plater&                     m_plater;
     PrinterCatalog              m_catalog;
-    std::function<bool()>       m_keep_unsaved_edits;
     // One entry per model, built once from the catalogue's per-variant
     // candidates: the panel proposes printers, and a nozzle is a fact about
     // the printer rather than a printer of its own.
