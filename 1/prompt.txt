@@ -1,0 +1,31 @@
+Repository /Users/kenneth/Projects/JusPrin (OrcaSlicer fork "JusPrin"). Work in your own new git worktree based on local branch `claude/no-save-prompts` (commits 7852470aff and d33fb306c9), or on origin/jusprin-newui once that branch contains them. Do not touch the main checkout or another session's worktree. Do not push.
+
+Bug: the printer panel (src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp, build_runtime) creates a fresh in-memory Agent::ProjectPersistence (storage.in_memory = true) every time it opens. The AgentHost takes tool action ids from that document (AgentHost.cpp: set_action_id_allocator -> ProjectStateDocument::allocate_action_id, which returns "t-1", "t-2", ...). Since 7852470aff the panel also installs the shell's version callbacks (host.tools().set_version_callbacks(version_before, version_after) in ShellController.cpp). version_after calls ProjectAutosave::record_agent_operation, which writes operations/<action_id>.json into the PROJECT's permanent version store. ProjectVersionStore::record_operation refuses an existing file ("operation version record already exists"). Result: the second versioned tool call (printer_change, or settings_apply_patch) from any later panel opening on the same project gets the same id "t-1". The change goes through, but the tool reports local_save_failed "The action ran, but its changes couldn't be saved. Check the project before trying again." The model then tells the person that a successful change failed. The panel's ids may also collide with the project agent pane's own "t-N" ids in the same store.
+
+Reproduced 2026-10-14 with `JusPrinShellHarness --printer-setup`: after the existing check nozzle_panel_change_keeps_the_dropped_edit_in_history, a second call_in_panel(named, "printer_change", {nozzle 0.6}) on the same project changed the nozzle, dropped the unsaved printer_notes edit, and failed with that message; the log showed "Could not save after Agent action: operation version record already exists".
+
+Fix: give the panel's action ids project-unique values. For example, take them from the shell's real project document, or add a per-opening unique prefix. Decide which and explain why. Add a shell harness check (tests/shell/shell_harness.cpp, printer-setup section near verify_nozzle_change_leaves_the_project) that makes two versioned panel calls in two openings on the same project and expects both to succeed. Show that the check fails before the fix. Build recipe: configure with /Applications/CMake.app/Contents/bin/cmake, Ninja Multi-Config, --config Release, BUILD_TESTS=ON. Build targets jusprin_web jusprin_catalogs shell_integration_harness. Run the harness with an isolated HOME.
+
+---
+
+<task-notification>
+<task-id>b8vqty4a0</task-id>
+<tool-use-id>toolu_01V2JQz1pqzgCP3uKqksUpWu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-ecstatic-bun-665f72/f7639437-e717-40bd-aed5-4a6feb48d7a4/tasks/b8vqty4a0.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -q "^exit=" build.log; do sleep 15; done; tail -3 build.log; grep -c "shell_harness.cpp.o" build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>becfybbhk</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-ecstatic-bun-665f72/f7639437-e717-40bd-aed5-4a6feb48d7a4/tasks/becfybbhk.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -q "^exit=" build.log; do sleep 20; done; tail -3 build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+commit it. merge to jusprin-newui.
