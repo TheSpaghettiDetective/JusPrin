@@ -104,3 +104,7 @@ Afterwards, those 7 rows in the README’s baseline table would be replaced and 
 Expect one gap to remain. 4 of the 14 unobserved runs were the model sending `target` as a string of JSON, which the app itself refuses, so `issue-explain` and `issue-fix` may still come back partly unobserved.
 This is a side chat, so I can’t run it from here; the main session can.
 </pasted_content id="333d">
+
+---
+
+yes, run it
