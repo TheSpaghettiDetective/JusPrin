@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M50QD3C56XBEPDHV4YHT2X47",
+  "session_id": "ef1c9e7b-9046-4021-b7fe-b659d08d3643",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-15T21:27:32.660807Z",
+  "branch": "claude/project-prompt-harness",
+  "checkpoints_count": 5,
+  "save_step_count": 3,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "f24721805d54",
+  "checkpoint_transcript_start": 860,
+  "transcript_lines_at_start": 860,
+  "compact_transcript_start": 112,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 9334,
+    "cache_read_tokens": 2266176,
+    "output_tokens": 4322,
+    "api_call_count": 9
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
