@@ -129,3 +129,7 @@ What it would and wouldn’t fix among the 7 recent misses:
 
 So recording the full settings would remove most of the setting-name misses, and searches would become most of what’s left. I can’t make changes from this side chat; the main session would need to do it.
 </pasted_content id="333d">
+
+---
+
+rerun the affected cases on the new recording. It's okay to have some absurd cases left unless things go completely unexpected. Then commit and smash all of your commits into one.
