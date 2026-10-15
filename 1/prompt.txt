@@ -111,3 +111,7 @@ go ahead, no popup
 <status>completed</status>
 <summary>Background command "Rebuild on the squashed base and wait" completed (exit code 1: No matches found)</summary>
 </task-notification>
+
+---
+
+yes, commit it. has claude/no-save-prompts been merged to jusprin-newui? If so, merge yours there too
