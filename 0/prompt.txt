@@ -73,3 +73,7 @@ yes, build it and do one run per case. direct-change Should be automatically fix
 ---
 
 go with A, then do one run per case
+
+---
+
+do 3 run per case on the new recording, and record them as the baseline
