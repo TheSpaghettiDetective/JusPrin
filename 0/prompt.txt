@@ -108,3 +108,24 @@ This is a side chat, so I can’t run it from here; the main session can.
 ---
 
 yes, run it
+
+---
+
+<pasted_content id="333d">
+can we recording the entire settings, so that there won't be unrecordded settings in future runs? we can use a simple func to return only the ask settings from the recorded full set, right?
+Yes, and the runner already does the filtering half. `recorded_answer()` in `run_prompt_tests.py` builds a `settings_get` answer from exactly the keys the model asked for, in its order, taking each key from whichever recorded read of the same scope and target has it. Today it gives up only when one of the asked keys was never recorded. If the recording held every setting, that check would almost never trigger.
+What changes is the recording side:
+
+* Enumerate every key, not a hand-picked list. The tool takes at most 32 keys per call, so the recorder would page through the full list for each scope at each case point. For print settings that’s several hundred keys, roughly 15 to 25 calls per scope. The list should come from the app itself (the keys the settings tools accept for that scope), so it can’t drift from the app.
+* Keep the file size sane. Most of the 23 points share the same settings, apart from the few that changed something (PETG, layer height, the 0.5 mm first layer). Storing each scope’s full settings once per distinct state, rather than once per point, keeps this to a few hundred KB instead of several MB.
+
+What it would and wouldn’t fix among the 7 recent misses:
+
+* `bridge_no_support` (twice) and `slow_down_layers`: fixed. Both are real print settings that simply weren’t on the list.
+* `filament_ramming_parameters`: that’s a filament setting the model asked for under the print scope. It’s fixed only if the recorder also records how the app answers each scope’s names when asked under the wrong scope.
+* Names from other slicers (`fill_density` and so on): still a gap. The app answers those with an unknown-setting entry that may include suggestions computed from the name, so they can’t be generated safely. They’d stay a short hand-kept list, as now.
+* Search wordings (“first layer bed temperature”, “fill pattern infill”): not fixed. A search result is the app’s ranked match for the query, which can’t be derived from the full settings without copying the app’s ranking. That stays the main remaining source of unobserved runs. The honest fix there is answering searches live from the running app, option B from earlier.
+* `target` sent as a string of JSON: stays unanswered on purpose, since the app refuses it.
+
+So recording the full settings would remove most of the setting-name misses, and searches would become most of what’s left. I can’t make changes from this side chat; the main session would need to do it.
+</pasted_content id="333d">
