@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M52ZGKW6155XBE731S52S342",
+  "strategy": "manual-commit",
+  "branch": "claude/plate-type-in-workspace",
+  "checkpoints_count": 14,
+  "files_touched": [
+    "tests/project_prompt/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1329,
+    "cache_read_tokens": 261517,
+    "output_tokens": 834,
+    "api_call_count": 1
+  }
+}
