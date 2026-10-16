@@ -86,6 +86,20 @@ worded too broadly fails good replies.
   made with their results (replayed since `jusprin-newui` 115e2776bf); then
   this turn's message, tool calls and results. A call the app refused before
   it ran is not replayed, because the app never recorded it.
+- **Several calls in one response** are run as `OpenAIResponsesAgent` runs
+  them since it sends `parallel_tool_calls: true` (2026-10-16): every call,
+  in the order the model wrote it, each answered under its own call id, and
+  all the results go back in one request. Once a call does not succeed --
+  the simulator answers it with an error, or the runner refuses it for bad
+  arguments or an unknown tool -- each call after it in that response gets
+  the app's `not_run` result without running. The case never sees that call
+  and it is not replayed later, so a check counts it for nothing; if it is
+  still needed, the model has to call it again. Before this, the runner
+  answered only the first call of a response, so a change written after a
+  read never reached the simulator; counts recorded before 2026-10-16 were
+  measured that way. `test_responses.py` checks this offline, with
+  hand-written model outputs and no key:
+  `python3 tests/printer_prompt/test_responses.py`.
 - **Tool answers** are what the app returned for the in-process fake Bambu
   printer, recorded from a real run.
 

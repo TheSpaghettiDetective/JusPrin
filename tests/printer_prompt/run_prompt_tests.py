@@ -18,7 +18,11 @@ What the app sends, reproduced here:
     (no item id) and function_call_output -- then this turn's message, then
     this turn's calls and results (AgentHost::make_agent_request,
     OpenAIResponsesAgent::initial_input). A call the app refused before it ran
-    (bad arguments) was never recorded, so it is not replayed.
+    (bad arguments) was never recorded, so it is not replayed;
+  - several calls per response (parallel_tool_calls), each answered in the
+    order the model wrote it, all results in the next request. A call after
+    one that did not succeed is answered "not run" without running, as
+    OpenAIResponsesAgent::next_call answers it, and is not replayed either.
 The app streams its requests; this script does not. Nothing else differs,
 except which model answers them.
 
@@ -193,6 +197,23 @@ def invalid_arguments(tool, arguments):
     return None
 
 
+def succeeded(result):
+    """Whether the app would count this answer as a call that succeeded. The
+    printer panel words a failed call as {"error": ...} with no state
+    (PrinterConversation::tool_output); a refusal before running says
+    "state": "failed"."""
+    return "error" not in result and result.get("state") not in ("failed", "cancelled")
+
+
+def not_run(failed):
+    """The result the app gives a call after one in the same response did not
+    succeed (OpenAIResponsesAgent::next_call), word for word. failed is that
+    call as "tool (call_id)"."""
+    return {"state": "failed", "error": {"code": "not_run", "message":
+            f"Not run: an earlier call in the same response, {failed}, did not succeed. "
+            "Nothing was queued. Call it again if it is still needed."}}
+
+
 class Conversation:
     """One run of a case: the chat as the app would hold it."""
 
@@ -221,10 +242,14 @@ class Conversation:
         self.respond(list(self.history))
 
     def respond(self, turn):
-        """The model until it stops."""
+        """The model until it stops. Every call of a response is answered, in
+        the order the model wrote them, and all the results go back in one
+        request (OpenAIResponsesAgent::next_call). Once a call does not
+        succeed, the calls after it in that response are answered not_run
+        without running."""
         refused = 0
         for _ in range(MAX_REQUESTS_PER_TURN):
-            response = post({"model": self.model, "store": False, "parallel_tool_calls": False,
+            response = post({"model": self.model, "store": False, "parallel_tool_calls": True,
                              "instructions": self.instructions, "tools": getattr(self.case, "tools", TOOLS), "input": turn,
                              **self.routing},
                             self.key, self.endpoint)
@@ -234,21 +259,26 @@ class Conversation:
                 if reply:
                     self.history.append({"role": "assistant", "content": reply})
                     self.log.append("assistant: " + reply)
-            call = next((item for item in output if item.get("type") == "function_call"), None)
-            if call is None:
+            calls = [item for item in output if item.get("type") == "function_call"]
+            if not calls:
                 break
-            arguments = json.loads(call.get("arguments") or "{}")
-            self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
-            problem = invalid_arguments(call["name"], arguments)
-            if problem and refused < 2:
-                refused += 1
-                result, recorded = {"state": "failed", "error": problem}, False
-            else:
-                (result, _), recorded = self.case.tool(call["name"], arguments), True
-            self.log.append("  -> " + dump(result))
-            turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
-            if recorded:
-                self.history += self.replayed(call, result)
+            failed = None  # "tool (call_id)" of the first call that did not succeed
+            for call in calls:
+                arguments = json.loads(call.get("arguments") or "{}")
+                self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
+                if failed:
+                    result, recorded = not_run(failed), False
+                elif (problem := invalid_arguments(call["name"], arguments)) and refused < 2:
+                    refused += 1
+                    result, recorded = {"state": "failed", "error": problem}, False
+                else:
+                    (result, _), recorded = self.case.tool(call["name"], arguments), True
+                if not failed and not succeeded(result):
+                    failed = f"{call['name']} ({call['call_id']})"
+                self.log.append("  -> " + dump(result))
+                turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
+                if recorded:
+                    self.history += self.replayed(call, result)
 
     @staticmethod
     def replayed(call, result):
