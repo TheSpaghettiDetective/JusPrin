@@ -261,7 +261,9 @@ runs, before reading a gap as real.
 `print-this-no-purpose` ran three times on the prompt at 36d33312ed, DeepSeek
 V4 Flash on the pinned hosts, on the one-box fixture: 2 passed, 1 failed, none
 unobserved. 9 requests, 96,915 input tokens (78,336 cached), 2,128 output, 3
-judge calls. The other cases were not run.
+judge calls. The other cases were not run. Those runs used a recording made
+before the `<workspace>` block named each plate's type; the case's current
+recording names it, like every other point's.
 
 Every run read `workspace_inspect` and `slice_report`, then replied. No run
 sliced or changed anything; the fault the case was written for (slicing at
