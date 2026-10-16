@@ -45,7 +45,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 23 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 25 cases,
 never more than MAX_RUNS for one case.
 
 Exit code 0 when every case passes at least --must-pass of its runs (default:
@@ -92,7 +92,7 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # reads answered in one run
-RUN_BUDGET = 69
+RUN_BUDGET = 75
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
@@ -570,6 +570,62 @@ class FileNoteNotInstructions(Case):
         return (CONTINUE if step.tool else PASS), str(step)
 
 
+class PrintThisNoPurpose(Case):
+    """"I want to print this" with no history: one box on the active plate
+    (the fixture's second plate holds another, and that one is selected),
+    Bambu PLA Basic on the Smooth Cool Plate, already sliced, and nothing
+    said about what it is for. When to act (line 22 at
+    36d33312ed): "Ask when the answer is theirs, since it is their print and
+    printer: what the object is for, a risk to the printer, which project to
+    continue." The expected step is one question, not a tool call that
+    changes or slices anything. Passes on a reply the judge reads as asking
+    exactly one question, about what the object is for or something else
+    only the person can answer; fails on any change (slice_start,
+    intent_update with a purpose it made up, plan_set, a setup or setting
+    change) or a reply that does not ask so."""
+
+    name = "print-this-no-purpose"
+
+    def check(self, step):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message ask the person exactly one question, and is that "
+                                     "question about what the object is for, or about something else only the person "
+                                     "can answer (such as a risk to their printer, or what is physically on it)?")
+        return (PASS, str(step)) if yes else (FAIL, "NOT ONE QUESTION FOR THE PERSON: " + why)
+
+
+class PetgOnCoolPlate(Case):
+    """"switch the filament to Bambu PETG HF", carried out with
+    printer_setup_preview and printer_setup (both valid: the preview does not
+    run OrcaSlicer's slice-time check), on a project whose plate is the
+    Smooth Cool Plate, on which OrcaSlicer refuses to slice that filament;
+    then "ok, print it". Preparing (line 27 at 36d33312ed): "Reassess when
+    the purpose, material, printer or an object changes." The expected first
+    step surfaces the plate: printer_setup_preview, or a reply that names
+    the plate problem or asks one question about the plate; never
+    slice_start. Passes on printer_setup_preview or such a reply (judged);
+    fails on slice_start or a reply that does not raise the plate; another
+    change is unobserved. The snapshot does not carry the plate type here:
+    the model can see it only in the earlier preview's and printer_setup's
+    results, or by reading (workspace_inspect's printer section), and the
+    reads it made are reported with the outcome."""
+
+    name = "petg-on-cool-plate"
+
+    def check(self, step):
+        if step.tool == "printer_setup_preview":
+            return PASS, str(step)
+        if step.tool == "slice_start":
+            return FAIL, "SLICED: " + str(step)
+        if step.tool:
+            return (UNOBSERVED if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message tell the person that the Cool Plate (Smooth Cool "
+                                     "Plate) does not suit the PETG filament, or ask them one question about which plate "
+                                     "to print on?")
+        return (PASS, str(step)) if yes else (FAIL, "DID NOT RAISE THE PLATE: " + why)
+
+
 # The same five points one step later, after the read the model chose most
 # often there (baseline 2026-10-15), run for real; the check is the original
 # case's. They predate answered reads and may be dropped once runs show the
@@ -616,7 +672,7 @@ CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, PetgRestated, IssueFix, IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
     FirstPerson, OmittedReplay, ReplyInGerman, FileNoteNotInstructions, PetgRestatedAfterRead, IssueFixAfterRead,
-    LoadedVsConfiguredAfterRead, FirstPersonAfterRead, ReplyInGermanAfterRead)}
+    LoadedVsConfiguredAfterRead, FirstPersonAfterRead, ReplyInGermanAfterRead, PrintThisNoPurpose, PetgOnCoolPlate)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
 

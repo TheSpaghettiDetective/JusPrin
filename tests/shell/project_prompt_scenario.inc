@@ -56,7 +56,12 @@
     }
 
     // The project each conversation starts from, with its current plate sliced.
-    bool prompt_fixture(const std::string& kind, const std::string& name)
+    // `plate_type` (a curr_bed_type value, such as "Cool Plate") is the plate
+    // the person selected in the sidebar before the slice. Without one the
+    // plate is whatever was selected last: the prepare conversation's printer
+    // setup leaves the Textured PEI Plate selected for the conversations
+    // after it.
+    bool prompt_fixture(const std::string& kind, const std::string& name, const std::string& plate_type)
     {
         using namespace std::chrono_literals;
         prompt_restore_settings(name);
@@ -75,6 +80,11 @@
             move_object(1, Vec3d(70, 0, 0));
         } else {
             load_multi_plate_fixture();
+        }
+        if (!plate_type.empty()) {
+            ConfigOptionEnum<BedType> plate;
+            check(plate.deserialize(plate_type) && SetupCommands::select_bed_type(*m_plater, int(plate.value)),
+                  name + "_plate_selected");
         }
         const auto slice = [this](std::chrono::seconds limit) {
             wait_for([this] { return !m_plater->is_background_process_update_scheduled(); }, 10s);
@@ -322,6 +332,10 @@
         const json        scripted = step.value("replies", json::array());
         std::deque<json>  replies(scripted.begin(), scripted.end());
 
+        // A person answers seconds later, after OrcaSlicer has taken in the
+        // last turn's changes: a filament switched by printer_setup leaves
+        // the plate's slice current until Orca's scheduled update runs.
+        wait_for([this] { return !m_plater->is_background_process_update_scheduled(); }, 5s);
         if (step.contains("say")) {
             static int next = 0;
             ++next;
@@ -476,7 +490,7 @@
                 // One pass per kept request: its answers end the conversation.
                 for (int target = 0; ok && target < points; ++target) {
                     std::cerr << "HARNESS PROMPT conversation " << name << " point " << target << '\n';
-                    if (!(ok = prompt_fixture(conversation.value("fixture", "plates"), name)))
+                    if (!(ok = prompt_fixture(conversation.value("fixture", "plates"), name, conversation.value("plateType", ""))))
                         break;
                     int point = 0, result = 1;
                     for (const json& step : conversation.at("steps"))

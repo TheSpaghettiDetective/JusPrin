@@ -989,6 +989,58 @@
      ]
     }
    ]
+  },
+  {
+   "name": "print-this",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "I want to print this",
+     "replies": [
+      {
+       "record": "print-this-no-purpose"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "petg-cool-plate",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "switch the filament to Bambu PETG HF",
+     "replies": [
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "text": "I switched the filament to Bambu PETG HF."
+      }
+     ]
+    },
+    {
+     "say": "ok, print it",
+     "replies": [
+      {
+       "record": "petg-on-cool-plate"
+      }
+     ]
+    }
+   ]
   }
  ]
 }
