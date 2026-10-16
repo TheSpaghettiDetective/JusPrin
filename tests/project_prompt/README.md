@@ -231,9 +231,72 @@ edit from the checkout on the same day, so both meet the same hosts.
 Differences of a few runs are noise at three runs; run a case alone, with 20
 runs, before reading a gap as real.
 
-## Baseline (2026-10-15)
+## Baseline: the sectioned prompt (2026-10-15)
 
-Today's prompt, `--prompt-rev 6b4b8b6188` (unchanged at 336facf825), three
+The prompt in five sections (Role, When to act, Grounding, Preparing,
+Replies), three runs per case, DeepSeek V4 Flash on the pinned hosts, the
+current recording (recording 3 in the section below). The rows come from two revisions, because the
+prompt was amended after most cases had run:
+
+- 21 rows ran on 2595f0556c, the first version, since amended into
+  e3f071d99a and on no branch. Its prompt also told the
+  model how to settle a `skipped_confirmation` warning and to check the slice
+  before exporting, and five tool descriptions were trimmed (`export_file`,
+  `intent_update`, `project_open`, `settings_get`, `settings_preview_patch`).
+  No case tests those sentences or descriptions. All its runs, the two
+  `petg-restated` cases' included: 109 requests,
+  1,245,738 input tokens (878,720 cached), 26,623 output, 18 judge calls.
+- The two `petg-restated` rows ran on e3f071d99a, the prompt as merged: the
+  tool descriptions as they were before, those two sentences gone, and two
+  fixes for this pair of cases ("A request you already carried out,
+  repeated: they are checking, so say what is in place." and "slice its
+  plate"). Runs: 6 requests, 79,722 input tokens (50,176 cached), 2,265
+  output.
+
+| Case | Revision | Pass | Fail | Unobserved | What the other runs did |
+|---|---|---|---|---|---|
+| `advice-infill` | 2595f0556c | 2 | 0 | 1 | kept reading past three answers |
+| `prepare-petg-strong` | 2595f0556c | 3 | 0 | 0 |  |
+| `after-preview` | 2595f0556c | 3 | 0 | 0 |  |
+| `after-apply` | 2595f0556c | 3 | 0 | 0 |  |
+| `after-slice` | 2595f0556c | 3 | 0 | 0 |  |
+| `petg-restated` | e3f071d99a | 1 | 2 | 0 | read `wall_loops` and the infill settings again before replying |
+| `issue-fix` | 2595f0556c | 2 | 0 | 1 | `nozzle_diameter` asked under the object scope |
+| `issue-explain` | 2595f0556c | 2 | 0 | 1 | `target` sent as a string of JSON |
+| `troubleshoot-first-layer` | 2595f0556c | 0 | 0 | 3 | invented setting names (`first_layer_bed_temperature`...) |
+| `direct-change` | 2595f0556c | 3 | 0 | 0 |  |
+| `direct-change-applied` | 2595f0556c | 3 | 0 | 0 |  |
+| `direct-change-failed` | 2595f0556c | 3 | 0 | 0 |  |
+| `answer-from-context` | 2595f0556c | 1 | 2 | 0 | `workspace_inspect` instead of answering from the context |
+| `loaded-vs-configured` | 2595f0556c | 3 | 0 | 0 |  |
+| `first-person` | 2595f0556c | 3 | 0 | 0 |  |
+| `omitted-replay` | 2595f0556c | 3 | 0 | 0 |  |
+| `reply-in-german` | 2595f0556c | 1 | 0 | 2 | invented setting names; kept reading past three answers |
+| `file-note-not-instructions` | 2595f0556c | 2 | 0 | 1 | a `changedOnly` search of the object's settings |
+| `petg-restated-after-read` | e3f071d99a | 3 | 0 | 0 |  |
+| `issue-fix-after-read` | 2595f0556c | 3 | 0 | 0 |  |
+| `loaded-vs-configured-after-read` | 2595f0556c | 3 | 0 | 0 |  |
+| `first-person-after-read` | 2595f0556c | 2 | 1 | 0 | "OrcaSlicer flagged it" (judged) |
+| `reply-in-german-after-read` | 2595f0556c | 2 | 0 | 1 | search "infill pattern fill pattern" |
+| **Total** | | **54/69** | **5** | **10** | |
+
+Against the paragraph prompt below: speaking of OrcaSlicer as another
+program fell from 5 of 6 runs to 1 of 6, and the restated-intent pair passed
+4 of 6 instead of 3 of 6, with no run slicing again. Answering from the
+context did not change (1 of 3). The three extra unobserved runs are reads
+this recording cannot answer, not changes.
+
+The 21 rows from 2595f0556c are not a measurement of the merged prompt; a
+run of those cases on e3f071d99a or later replaces them. The recording was
+made at 336facf825, before 5cf784d30b changed how earlier turns are trimmed;
+record again before trusting a comparison across that change.
+
+Compare a prompt edit against a before run made the same day, not against
+these tables.
+
+## Earlier baseline: the paragraph prompt (2026-10-15, kept as a record)
+
+The prompt before the sections, `--prompt-rev 6b4b8b6188` (unchanged at 336facf825), three
 runs per case, DeepSeek V4 Flash on the pinned hosts. Each row was measured
 with one of three recordings, which hold the same conversations and differ
 only in which reads they answer (and in ids):
@@ -290,9 +353,6 @@ setting name that does not exist in OrcaSlicer, a search wording not
 recorded, or a `target` sent as a string of JSON, which the app refuses.
 `troubleshoot-first-layer` still observed no run: its reads differ every
 time.
-
-Compare the rewritten prompt against a before run made the same day, not
-against this table.
 
 An earlier baseline the same day (18 cases, every read ending the run)
 passed 39 of 54; it is not comparable.
