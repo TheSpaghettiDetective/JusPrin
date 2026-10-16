@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5399QN3818M8NVWZ4RSGN2B",
+  "strategy": "manual-commit",
+  "branch": "claude/every-tool-call",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/test_steps.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1156,
+    "cache_read_tokens": 347070,
+    "output_tokens": 814,
+    "api_call_count": 1
+  }
+}
