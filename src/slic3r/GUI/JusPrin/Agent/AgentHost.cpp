@@ -2077,6 +2077,30 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     for (ToolActivity& activity : document.activities())
         if (!activity.call_id.empty())
             calls_by_message[activity.correlation_id].push_back(std::move(activity));
+    // A turn is every assistant message answering one message: the replies
+    // after a tool call share the in_reply_to of the message that made it.
+    // The calls of the last two turns keep their results when history is trimmed.
+    std::vector<std::string> recent_turns;
+    for (const ConversationMessage& message : document.messages(conversation_id))
+        if (message.role == MessageRole::Assistant && message.id != assistant.id &&
+            std::find(recent_turns.begin(), recent_turns.end(), message.in_reply_to) == recent_turns.end()) {
+            recent_turns.push_back(message.in_reply_to);
+            if (recent_turns.size() > 2)
+                recent_turns.erase(recent_turns.begin());
+        }
+    const auto omission_note = [](const std::string& state, std::size_t bytes) {
+        return json{{"state", state},
+                    {"omitted", "The result, " + std::to_string(bytes) + " bytes, is not repeated here; call the tool again for it."}}
+            .dump();
+    };
+    struct ReplayedCall
+    {
+        std::size_t entry;
+        std::string state;
+        bool        recent;
+        bool        omitted;
+    };
+    std::vector<ReplayedCall> replayed_calls;
     // Keep app policy separate from file-supplied text, including metadata
     // and dialog text. The opening-message policy belongs only to the report
     // turn; later turns still need the source-data boundary for report history.
@@ -2132,18 +2156,72 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
             // its space on every later turn: the model keeps the outcome and
             // may ask for the details again.
             constexpr std::size_t kReplayedResultCap = 16 * 1024;
-            if (entry.output_json.size() > kReplayedResultCap)
-                entry.output_json = json{{"state", tool_state_name(activity.state)},
-                                         {"omitted", "The result, " + std::to_string(entry.output_json.size()) +
-                                                         " bytes, is not repeated here; call the tool again for it."}}
-                                        .dump();
+            const bool            capped             = entry.output_json.size() > kReplayedResultCap;
+            if (capped)
+                entry.output_json = omission_note(tool_state_name(activity.state), entry.output_json.size());
+            replayed_calls.push_back({request.conversation.size(), tool_state_name(activity.state),
+                                      std::find(recent_turns.begin(), recent_turns.end(), message.in_reply_to) != recent_turns.end(),
+                                      capped});
             request.conversation.emplace_back(std::move(entry));
         }
     }
-    // Entries: a replayed call counts as one, like a message.
-    constexpr std::size_t kHistoryMessages = 20;
-    if (request.conversation.size() > kHistoryMessages)
-        request.conversation.erase(request.conversation.begin(), request.conversation.end() - kHistoryMessages);
+
+    // The history is sent whole on every request, so its size is what each
+    // request costs. The provider caches a request's unchanged opening, and
+    // any trimmed entry changes everything after it, so history is trimmed
+    // only once it outgrows the budget, and then from the oldest end. 64 KiB
+    // (roughly 16k to 20k tokens) holds two recent turns that each brought back two
+    // results at the 16 KiB cap; twelve recorded 3-turn project chats
+    // replayed 9 to 33 KB with no result over 10 KB, so a typical chat runs
+    // about ten turns before anything is trimmed. Tool payloads go first,
+    // since the model can call again for them; the conversation's words go last.
+    constexpr std::size_t kHistoryBytes = 64 * 1024;
+    std::vector<AgentConversationContext>& history = request.conversation;
+    const auto entry_bytes = [](const AgentConversationContext& entry) {
+        return json{{"role", entry.role}, {"text", entry.text}, {"call_id", entry.call_id}, {"tool", entry.tool},
+                    {"arguments", entry.arguments_json}, {"output", entry.output_json}}
+            .dump()
+            .size();
+    };
+    std::vector<std::size_t> bytes;
+    std::size_t              total = 0;
+    for (const AgentConversationContext& entry : history)
+        total += bytes.emplace_back(entry_bytes(entry));
+    // 1. Results older than the last two turns become the omission note; the
+    //    call stays, so the model knows what it did and with what arguments.
+    for (const ReplayedCall& call : replayed_calls) {
+        if (total <= kHistoryBytes)
+            break;
+        if (call.recent || call.omitted)
+            continue;
+        AgentConversationContext& entry = history[call.entry];
+        entry.output_json = omission_note(call.state, entry.output_json.size());
+        total -= bytes[call.entry];
+        total += bytes[call.entry] = entry_bytes(entry);
+    }
+    // 2. Whole calls, oldest first: a call and its output leave together.
+    std::vector<bool> dropped(history.size(), false);
+    for (std::size_t i = 0; i < history.size() && total > kHistoryBytes; ++i)
+        if (!history[i].call_id.empty()) {
+            dropped[i] = true;
+            total -= bytes[i];
+        }
+    // 3. The oldest words, never the newest, so a reply always has the last
+    //    thing said even if it alone is over the budget.
+    std::size_t newest_words = history.size();
+    for (std::size_t i = 0; i < history.size(); ++i)
+        if (history[i].call_id.empty())
+            newest_words = i;
+    for (std::size_t i = 0; i < newest_words && total > kHistoryBytes; ++i)
+        if (history[i].call_id.empty()) {
+            dropped[i] = true;
+            total -= bytes[i];
+        }
+    std::vector<AgentConversationContext> kept;
+    for (std::size_t i = 0; i < history.size(); ++i)
+        if (!dropped[i])
+            kept.push_back(std::move(history[i]));
+    history = std::move(kept);
 
     if (!user)
         return request;

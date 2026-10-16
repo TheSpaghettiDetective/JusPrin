@@ -1263,6 +1263,7 @@ class ScriptedAgent final : public Agent::IAgentService
 {
 public:
     std::optional<Agent::ToolRequest>   call;
+    std::string                         reply{"Understood."};
     std::vector<Agent::AgentRequest>    requests;
     std::vector<Agent::AgentToolResult> results;
 
@@ -1279,7 +1280,7 @@ public:
             m_events.push_back(Agent::AgentEvent::tool_call({"call-" + std::to_string(requests.size()), *call, true}));
             call.reset();
         } else {
-            m_events.push_back(Agent::AgentEvent::delta("Understood."));
+            m_events.push_back(Agent::AgentEvent::delta(reply));
             m_events.push_back(Agent::AgentEvent::completed());
         }
         return true;
@@ -1702,6 +1703,218 @@ TEST_CASE("a large earlier result is replayed as its state and a note, not its b
     CHECK(output.at("state") == "succeeded");
     CHECK_THAT(output.at("omitted").get<std::string>(), Catch::Matchers::ContainsSubstring("call the tool again"));
     CHECK(call->output_json.size() < 512);
+}
+
+namespace {
+
+using History = std::vector<Agent::AgentConversationContext>;
+
+constexpr std::size_t kHistoryBytes = 64 * 1024;
+
+// One turn in which the person says `text` and the model checks the printer
+// once, getting back a result of a little over `result_bytes`.
+void checked_turn(PrinterHost& harness, const std::string& text, std::size_t result_bytes)
+{
+    harness.backend.connection_info         = bambu_on_network();
+    harness.backend.connection_info.message = std::string(result_bytes, 'x');
+    harness.agent->call                     = Agent::ToolRequest{"printer_connection_status", "{}"};
+    harness.say(text);
+    harness.pump();
+}
+
+// The history the next turn sends, after a message with no tool call.
+const History& next_history(PrinterHost& harness)
+{
+    harness.say("and now?");
+    harness.pump();
+    return harness.agent->requests.back().conversation;
+}
+
+// The host's measure of an entry: the entry serialized.
+std::size_t history_bytes(const History& history)
+{
+    std::size_t total = 0;
+    for (const auto& entry : history)
+        total += json{{"role", entry.role}, {"text", entry.text}, {"call_id", entry.call_id}, {"tool", entry.tool},
+                      {"arguments", entry.arguments_json}, {"output", entry.output_json}}
+                     .dump()
+                     .size();
+    return total;
+}
+
+bool omitted(const Agent::AgentConversationContext& entry) { return json::parse(entry.output_json).contains("omitted"); }
+
+std::vector<std::size_t> calls_in(const History& history)
+{
+    std::vector<std::size_t> calls;
+    for (std::size_t i = 0; i < history.size(); ++i)
+        if (!history[i].call_id.empty())
+            calls.push_back(i);
+    return calls;
+}
+
+bool said(const History& history, const std::string& text)
+{
+    return std::any_of(history.begin(), history.end(), [&](const auto& entry) { return entry.text == text; });
+}
+
+// Whatever was trimmed, every call carries its output and nothing else.
+void check_calls_whole(const History& history)
+{
+    for (const auto& entry : history) {
+        if (entry.call_id.empty()) {
+            CHECK(entry.output_json.empty());
+            continue;
+        }
+        CHECK(entry.role.empty());
+        CHECK(entry.text.empty());
+        CHECK(entry.tool == "printer_connection_status");
+        CHECK_FALSE(entry.arguments_json.empty());
+        REQUIRE_FALSE(entry.output_json.empty());
+        CHECK(json::parse(entry.output_json).contains("state"));
+    }
+}
+
+} // namespace
+
+TEST_CASE("a long chat sheds old tool results first and keeps every word", "[printer-conversation][host][history]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    for (int turn = 1; turn <= 12; ++turn)
+        checked_turn(harness, "check " + std::to_string(turn), 8 * 1024);
+    const History& history = next_history(harness);
+
+    check_calls_whole(history);
+    CHECK(history_bytes(history) <= kHistoryBytes);
+    // Every turn's words and its call survive. The old 20-entry cut kept
+    // only the last six or so of these twelve turns.
+    for (int turn = 1; turn <= 12; ++turn)
+        CHECK(said(history, "check " + std::to_string(turn)));
+    CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; }) == 12);
+    const std::vector<std::size_t> calls = calls_in(history);
+    REQUIRE(calls.size() == 12);
+    // The oldest results are the omission note, the newest are whole, and
+    // the notes run from the start with no whole result before one.
+    CHECK(omitted(history[calls.front()]));
+    CHECK_FALSE(omitted(history[calls[10]]));
+    CHECK_FALSE(omitted(history[calls[11]]));
+    const auto first_whole = std::find_if(calls.begin(), calls.end(), [&](std::size_t i) { return !omitted(history[i]); });
+    CHECK(std::all_of(first_whole, calls.end(), [&](std::size_t i) { return !omitted(history[i]); }));
+    // Only as many as needed: a whole result is still there beyond the last two.
+    CHECK(first_whole < calls.end() - 2);
+    const json note = json::parse(history[calls.front()].output_json);
+    CHECK(note.at("state") == "succeeded");
+    CHECK_THAT(note.at("omitted").get<std::string>(), ContainsSubstring("call the tool again"));
+    // Each call still sits between the words that led to it and the reply.
+    for (int turn = 1; turn <= 12; ++turn) {
+        const std::size_t call = calls[turn - 1];
+        CHECK(history[call - 1].text == "check " + std::to_string(turn));
+        CHECK(history[call + 1].text == "Done.");
+    }
+}
+
+TEST_CASE("when notes are not enough, whole calls go before any words", "[printer-conversation][host][history]")
+{
+    // Four turns whose words and results are each 12 KiB: about 100 KiB in
+    // all, and the two recent results alone keep it over the budget once
+    // the older two are notes.
+    PrinterHost harness(ConversationMode::Connect);
+    std::vector<std::string> words;
+    for (char turn = 'a'; turn <= 'd'; ++turn) {
+        words.push_back(std::string(12 * 1024, turn));
+        checked_turn(harness, words.back(), 12 * 1024);
+    }
+    const History& history = next_history(harness);
+
+    check_calls_whole(history);
+    CHECK(history_bytes(history) <= kHistoryBytes);
+    for (const std::string& text : words)
+        CHECK(said(history, text));
+    CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; }) == 4);
+    // The three oldest calls are gone, notes included; the newest is whole.
+    const std::vector<std::size_t> calls = calls_in(history);
+    REQUIRE(calls.size() == 1);
+    CHECK_FALSE(omitted(history[calls.front()]));
+    CHECK(history[calls.front() - 1].text == words.back());
+}
+
+TEST_CASE("when the words alone are over the budget, the oldest go and the newest stays",
+          "[printer-conversation][host][history]")
+{
+    PrinterHost harness(ConversationMode::Connect);
+    SECTION("the oldest words go once no call is left") {
+        std::vector<std::string> words;
+        for (char turn = 'a'; turn <= 'e'; ++turn) {
+            words.push_back(std::string(20 * 1024, turn));
+            checked_turn(harness, words.back(), 1024);
+        }
+        const History& history = next_history(harness);
+
+        check_calls_whole(history);
+        CHECK(calls_in(history).empty());
+        CHECK(history_bytes(history) <= kHistoryBytes);
+        CHECK_FALSE(said(history, words[0]));
+        CHECK_FALSE(said(history, words[1]));
+        CHECK(said(history, words[2]));
+        CHECK(said(history, words[3]));
+        CHECK(said(history, words[4]));
+        CHECK(history.back().text == "Done.");
+    }
+    SECTION("the newest message is sent even when it alone is over the budget") {
+        checked_turn(harness, "check", 1024);
+        harness.agent->reply = std::string(70 * 1024, 'z');
+        harness.say("write it all out");
+        harness.pump();
+        harness.agent->reply = "Understood.";
+        const History& history = next_history(harness);
+
+        REQUIRE(history.size() == 1);
+        CHECK(history.front().text == std::string(70 * 1024, 'z'));
+        CHECK(history_bytes(history) > kHistoryBytes);
+    }
+}
+
+TEST_CASE("history at the budget is sent whole; one byte over starts the trimming", "[printer-conversation][host][history]")
+{
+    // The same chat three times, its last message padded to land the history
+    // under, exactly at and one byte over the budget.
+    const auto chat = [](PrinterHost& harness, std::size_t padding) {
+        for (int turn = 1; turn <= 6; ++turn)
+            checked_turn(harness, "check " + std::to_string(turn), 8 * 1024);
+        harness.say(std::string(padding, 'p'));
+        harness.pump();
+        return next_history(harness);
+    };
+    std::size_t under = 0;
+    {
+        PrinterHost harness(ConversationMode::Connect);
+        const History history = chat(harness, 1);
+        under                 = history_bytes(history);
+        REQUIRE(under < kHistoryBytes);
+        for (std::size_t call : calls_in(history))
+            CHECK_FALSE(omitted(history[call]));
+    }
+    const std::size_t at_budget = 1 + kHistoryBytes - under;
+    {
+        PrinterHost harness(ConversationMode::Connect);
+        const History history = chat(harness, at_budget);
+        CHECK(history_bytes(history) == kHistoryBytes);
+        CHECK(calls_in(history).size() == 6);
+        for (std::size_t call : calls_in(history))
+            CHECK_FALSE(omitted(history[call]));
+    }
+    {
+        PrinterHost harness(ConversationMode::Connect);
+        const History history = chat(harness, at_budget + 1);
+        check_calls_whole(history);
+        CHECK(history_bytes(history) <= kHistoryBytes);
+        const std::vector<std::size_t> calls = calls_in(history);
+        REQUIRE(calls.size() == 6);
+        // Only the oldest result had to go.
+        CHECK(omitted(history[calls[0]]));
+        for (std::size_t i = 1; i < calls.size(); ++i)
+            CHECK_FALSE(omitted(history[calls[i]]));
+    }
 }
 
 TEST_CASE("a printer session spends no request on a chat title, so the app's turn is never stuck behind one",
