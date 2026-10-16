@@ -338,7 +338,7 @@ describe('App', () => {
     connect(host);
     const sent = host.received.filter((envelope) => envelope.type === 'file_report_instructions');
     expect(sent).toHaveLength(1);
-    expect((sent[0].payload as { text: string }).text).toContain('For this response only');
+    expect((sent[0].payload as { text: string }).text).toContain('For this one response');
   });
 
   it('draws no file report the Agent is speaking about', () => {
