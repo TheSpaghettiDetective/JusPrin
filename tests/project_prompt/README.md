@@ -64,7 +64,7 @@ The recorded answers, kept beside each request, are the reads the script's
 
 They are real results the recorder got by calling those reads at that point
 in the same turn; each case's point is replayed from the start for its own
-recording, so those calls reach no other case's history. Recording all 25
+recording, so those calls reach no other case's history. Recording all 24
 points takes under three minutes. To keep `requests.json` small (about
 3 MB), the recorder keeps each distinct setting item once, file-wide
 (`settingItems`), and each point's workspace block once when a result
@@ -185,7 +185,6 @@ the case, a read is answered and the run goes on.
 | `first-person-after-read` | `first-person` after a `settings_get` of the support settings | 12, as `first-person` | as `first-person` | as `first-person` |
 | `reply-in-german-after-read` | `reply-in-german` after the `workspace_inspect` the model chose there | as `reply-in-german` | as `reply-in-german` | as `reply-in-german` |
 | `print-this-no-purpose` | "I want to print this", nothing said about what it is for | When to act (line 22 at 36d33312ed): ask what the object is for | a reply asking one question the person must answer (judged) | a change, or a reply that does not |
-| `petg-on-cool-plate` | after the filament was switched to Bambu PETG HF on the Smooth Cool Plate, "ok, print it" | Preparing (line 27 at 36d33312ed): reassess when the material changes | `printer_setup_preview`, or a reply naming the plate problem or asking about the plate (judged) | `slice_start`, or a reply that does not raise the plate |
 
 Notes on the cases:
 
@@ -213,21 +212,13 @@ Notes on the cases:
   every conversation after `prepare` starts on the Textured PEI Plate. A
   conversation with `"plateType"` in `script.json` (a `curr_bed_type` value,
   such as `"Cool Plate"`) has the person select that plate in the sidebar
-  before the fixture's slice; the two cases added on 2026-10-16 set
-  `"Cool Plate"`, the fixture's own plate.
+  before the fixture's slice; `print-this-no-purpose` sets `"Cool Plate"`,
+  the fixture's own plate.
 - Before each new message the recorder waits for OrcaSlicer's scheduled
   update, as a person typing would. Without it, the message after a
   `printer_setup` that switched the filament said the plate was still sliced
   with a current estimate; a few seconds later OrcaSlicer marks it stale. No
   earlier point changes with the wait.
-- `petg-on-cool-plate` is that refusal from the other side: its history is a
-  `printer_setup_preview` and a `printer_setup` to Bambu PETG HF that both
-  come back valid on the Smooth Cool Plate, because neither runs OrcaSlicer's
-  slice-time check. The workspace block does not carry the plate type; the
-  model can see it in that preview's result or read it with
-  `workspace_inspect` (`printer.configured.plateType`). A
-  `printer_setup_preview` passes because it is the step that reassesses the
-  setup, although on this app it would come back valid again.
 - `reply-in-german` and `file-note-not-instructions` test sentences today's
   prompt does not have: both rules live only in `fileReportInstructions.ts`,
   sent on the turn after a file opens. They are expected to score low against
@@ -249,7 +240,7 @@ new recording.
 
 ## Running it
 
-By default every case runs 3 times (`RUN_BUDGET` 75 shared by the cases run,
+By default every case runs 3 times (`RUN_BUDGET` 72 shared by the cases run,
 at most 20 for one case alone); `--runs N` sets it. `--verbose` prints every
 run's conversation. Usage is logged for every response on stderr and totalled
 at the end.
@@ -265,37 +256,27 @@ edit from the checkout on the same day, so both meet the same hosts.
 Differences of a few runs are noise at three runs; run a case alone, with 20
 runs, before reading a gap as real.
 
-## The two cases added on 2026-10-16
+## The case added on 2026-10-16
 
-Both cases ran three times on the prompt at 36d33312ed, DeepSeek V4 Flash on
-the pinned hosts. The other 23 cases were not run.
+`print-this-no-purpose` ran three times on the prompt at 36d33312ed, DeepSeek
+V4 Flash on the pinned hosts, on the one-box fixture: 2 passed, 1 failed, none
+unobserved. 9 requests, 96,915 input tokens (78,336 cached), 2,128 output, 3
+judge calls. The other cases were not run.
 
-| Case | Pass | Fail | Unobserved | What the runs did |
-|---|---|---|---|---|
-| `print-this-no-purpose` | 2 | 1 | 0 | read `workspace_inspect` and `slice_report`, then replied; the failed run asked what the cube is for and rephrased it ("Just a quick test print, or is it for something specific?"), which the judge counted as two questions |
-| `petg-on-cool-plate` | 0 | 1 | 2 | `intent_update` with a purpose it made up ("Test/calibration cube"); a reply asking what the box is for, without the plate; `settings_get` of filament names OrcaSlicer does not have (`bed_temperature`...) |
+Every run read `workspace_inspect` and `slice_report`, then replied. No run
+sliced or changed anything; the fault the case was written for (slicing at
+once) did not appear. The failed run asked what the cube is for and rephrased
+the same question ("Just a quick test print, or is it for something
+specific?"), which the judge counted as two questions. The two passing
+replies opened by saying the sliced cube looked ready; the runner keeps only
+their first 160 characters, so the question the judge found in them is not in
+the log. Three earlier runs on the two-plate fixture all asked both what the
+box is for and which plate to print, and failed as two questions.
 
-`print-this-no-purpose` on the one-box fixture: 9 requests, 96,915 input
-tokens (78,336 cached), 2,128 output, 3 judge calls. No run sliced or changed
-anything; the fault it was written for (slicing at once) did not appear.
-The two passing replies opened by saying the sliced cube looked ready; the
-runner keeps only their first 160 characters, so the question the judge
-found in them is not in the log. Its first three runs were on the two-plate fixture, where all three asked both
-what the box is for and which plate to print, and failed as two questions.
-
-`petg-on-cool-plate`, with the first `print-this-no-purpose` runs: 13
-requests, 143,784 input tokens (80,896 cached), 3,664 output, 4 judge calls.
-No run named the plate, previewed the setup again, or sliced. The plate type
-was in its history three times (the preview's result, the replayed
-`printer_setup` arguments and its result), and every run read
-`workspace_inspect`, whose recorded answer has the `printer` section with
-`plateType` whatever sections were asked for.
-
-In the third `petg-on-cool-plate` run the model's first output held two
-calls, `workspace_inspect` and an `intent_update` titled "Print 20mm
-calibration box in PETG HF". The runner judges and answers only the first
-call of an output, so that `intent_update` went unjudged, and stayed in the
-history without a result.
+A second case written the same day, Bambu PETG HF on the Smooth Cool Plate
+followed by "ok, print it", was removed. It expected the model to know an
+OrcaSlicer slice-time rule that the setup preview does not report, and it
+failed the slice the prompt asks for before a print is called ready.
 
 ## Baseline: the sectioned prompt (2026-10-15)
 
