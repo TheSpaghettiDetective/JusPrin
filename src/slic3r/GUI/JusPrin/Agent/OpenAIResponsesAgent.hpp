@@ -92,6 +92,8 @@ private:
     void parse_available();
     void parse_sse_frame(const std::string& frame);
     void finish_response(const nlohmann::json& response);
+    bool next_call();
+    void answer_call(const std::string& call_id, const nlohmann::json& output);
     void fail(AgentError error);
     AgentError http_error(unsigned status, const std::string& detail) const;
 
@@ -103,6 +105,16 @@ private:
     std::string                           m_sse_buffer;
     nlohmann::json                        m_input_history{nlohmann::json::array()};
     std::string                           m_pending_call_id;
+    std::string                           m_pending_tool;
+    // A response may hold several calls. They run one at a time, in the
+    // order the model wrote them, and every one gets a result; the results
+    // go back together in one request once the last has its answer.
+    std::deque<nlohmann::json>            m_queued_calls;
+    nlohmann::json                        m_call_outputs{nlohmann::json::array()};
+    nlohmann::json                        m_call_images{nlohmann::json::array()};
+    // The first call of this response that did not succeed, as "tool
+    // (call_id)"; every call after it is answered without being run.
+    std::string                           m_failed_call;
     std::string                           m_request_id;
     unsigned                              m_request_sequence{0};
     unsigned                              m_rejected_calls{0};

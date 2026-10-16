@@ -236,8 +236,10 @@ json OpenAIResponsesAgent::request_body(json input) const
     // session profile, the project assistant's included
     // (AgentUI/src/projectInstructions.ts); this adapter adds no words of its
     // own. The text is the same on every request of a conversation, which the
-    // provider's prompt cache depends on.
-    return json{{"model", m_config.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", false},
+    // provider's prompt cache depends on. A response may hold several calls:
+    // a read and the change it does not depend on belong in one step, and
+    // some models send several whatever this says (finish_response).
+    return json{{"model", m_config.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", true},
                 {"instructions", m_session.instructions},
                 {"tools", tools_for(m_allow_import, m_session.tool_names)}, {"input", std::move(input)}};
 }
@@ -248,6 +250,10 @@ bool OpenAIResponsesAgent::start(const AgentRequest& request)
         return false;
     m_input_history = json::array();
     m_pending_call_id.clear();
+    m_queued_calls.clear();
+    m_call_outputs = json::array();
+    m_call_images  = json::array();
+    m_failed_call.clear();
     m_waiting_for_tool = false;
     m_request_id = request.request_id;
     m_request_sequence = 0;
@@ -263,17 +269,25 @@ bool OpenAIResponsesAgent::continue_after_tool(const AgentToolResult& result)
 {
     if (!m_busy || !m_waiting_for_tool || result.call_id != m_pending_call_id)
         return false;
-    json input = m_input_history;
-    input.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
-    // A function result is text only; the picture follows it as an image input.
+    m_call_outputs.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
+    // A function result is text only; the picture follows the results as an
+    // image input.
     if (result.image)
-        input.push_back(json{{"role", "user"},
-                             {"content", json::array({json{{"type", "input_text"}, {"text", "The image returned by call " + result.call_id + "."}},
-                                                      json{{"type", "input_image"},
-                                                           {"image_url", "data:" + result.image->mime_type + ";base64," + result.image->base64}}})}});
+        m_call_images.push_back(json{{"role", "user"},
+                                     {"content", json::array({json{{"type", "input_text"}, {"text", "The image returned by call " + result.call_id + "."}},
+                                                              json{{"type", "input_image"},
+                                                                   {"image_url", "data:" + result.image->mime_type + ";base64," + result.image->base64}}})}});
+    if (result.state != "succeeded" && m_failed_call.empty())
+        m_failed_call = m_pending_tool + " (" + m_pending_call_id + ")";
     m_waiting_for_tool = false;
     m_pending_call_id.clear();
-    return post(std::move(input));
+    m_pending_tool.clear();
+    return next_call();
+}
+
+void OpenAIResponsesAgent::answer_call(const std::string& call_id, const json& output)
+{
+    m_call_outputs.push_back(json{{"type", "function_call_output"}, {"call_id", call_id}, {"output", output.dump()}});
 }
 
 bool OpenAIResponsesAgent::post(json input)
@@ -361,11 +375,38 @@ void OpenAIResponsesAgent::finish_response(const json& response)
             reported.cached_input = usage["input_tokens_details"].value("cached_tokens", std::uint64_t{0});
         m_config.usage_listener(reported);
     }
-    for (const json& item : output) {
-        if (!item.is_object() || item.value("type", "") != "function_call")
-            continue;
+    m_queued_calls.clear();
+    m_call_outputs = json::array();
+    m_call_images  = json::array();
+    m_failed_call.clear();
+    for (const json& item : output)
+        if (item.is_object() && item.value("type", "") == "function_call")
+            m_queued_calls.push_back(item);
+    if (!next_call())
+        fail(AgentError{"agent_continuation_failed", "The Agent could not be told the results of its tool calls.", true});
+}
+
+// Hands out the next call of the response, or, once every call has its
+// result, sends them all back. Whatever the model sent, the next request
+// never carries a call without its result. False only when that request
+// could not be sent.
+bool OpenAIResponsesAgent::next_call()
+{
+    while (!m_queued_calls.empty()) {
+        const json item = std::move(m_queued_calls.front());
+        m_queued_calls.pop_front();
         const std::string call_id = item.value("call_id", "");
         ToolRequest request{item.value("name", ""), item.value("arguments", "{}")};
+        // The model chose this call before it saw the earlier call fail, so
+        // it is answered unrun and the model decides again with both results.
+        if (!call_id.empty() && !m_failed_call.empty()) {
+            answer_call(call_id, json{{"state", "failed"},
+                                      {"error", json{{"code", "not_run"},
+                                                     {"message", "Not run: an earlier call in the same response, " + m_failed_call +
+                                                                     ", did not succeed. Nothing was queued. Call it again if it is "
+                                                                     "still needed."}}}});
+            continue;
+        }
         const ToolDefinition* definition = ToolRegistry::instance().find(request.tool);
         const bool available = !m_title_request && definition != nullptr && available_in_app(*definition, m_allow_import, m_session.tool_names);
         ToolValidationResult validation;
@@ -387,26 +428,33 @@ void OpenAIResponsesAgent::finish_response(const json& response)
                                      " Nothing was queued. Check the arguments against this tool's parameters and call it again."}} :
                 json{{"code", "unknown_tool"},
                      {"message", "There is no tool named \"" + request.tool + "\" here. Nothing was queued. Use one of the listed tools."}};
-            json refusal{{"state", "failed"}, {"error", std::move(error)}};
-            json input = m_input_history;
-            input.push_back(json{{"type", "function_call_output"}, {"call_id", call_id}, {"output", refusal.dump()}});
-            if (!post(std::move(input)))
-                fail(AgentError{"agent_continuation_failed", "The Agent could not be told its tool arguments were invalid.", true});
-            return;
+            answer_call(call_id, json{{"state", "failed"}, {"error", std::move(error)}});
+            m_failed_call = request.tool + " (" + call_id + ")";
+            continue;
         }
         if (call_id.empty() || !available || !validation.valid()) {
             fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool call.", false});
-            return;
+            return true;
         }
         request.arguments_json = std::move(validation.arguments_json);
         m_pending_call_id = call_id;
+        m_pending_tool    = request.tool;
         m_waiting_for_tool = true;
         AgentToolCall call{call_id, std::move(request), true};
         m_events.push_back(AgentEvent::tool_call(std::move(call)));
-        return;
+        return true;
     }
-    m_busy = false;
-    m_events.push_back(AgentEvent::completed());
+    if (m_call_outputs.empty()) {
+        m_busy = false;
+        m_events.push_back(AgentEvent::completed());
+        return true;
+    }
+    json input = m_input_history;
+    input.insert(input.end(), m_call_outputs.begin(), m_call_outputs.end());
+    input.insert(input.end(), m_call_images.begin(), m_call_images.end());
+    m_call_outputs = json::array();
+    m_call_images  = json::array();
+    return post(std::move(input));
 }
 
 void OpenAIResponsesAgent::parse_available()
@@ -479,6 +527,7 @@ void OpenAIResponsesAgent::fail(AgentError error)
         return;
     m_busy = false;
     m_waiting_for_tool = false;
+    m_queued_calls.clear();
     m_terminal_seen = true;
     m_events.push_back(AgentEvent::failed(std::move(error)));
 }
@@ -494,6 +543,7 @@ void OpenAIResponsesAgent::cancel()
     }
     m_events.clear();
     m_sse_buffer.clear();
+    m_queued_calls.clear();
     m_busy = false;
     m_waiting_for_tool = false;
     m_terminal_seen = true;

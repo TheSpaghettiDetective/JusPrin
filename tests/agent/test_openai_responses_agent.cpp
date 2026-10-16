@@ -116,7 +116,9 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["model"] == "gpt-5.4-mini");
     CHECK(body["stream"] == true);
     CHECK(body["store"] == false);
-    CHECK(body["parallel_tool_calls"] == false);
+    // A response may hold several calls; every one is run (see "every call of
+    // a response ...").
+    CHECK(body["parallel_tool_calls"] == true);
     // Exactly what the page sent, with no words of the app's own.
     CHECK(body["instructions"] == kPageProjectInstructions);
     REQUIRE(body["tools"].size() == 28);
@@ -587,6 +589,130 @@ TEST_CASE("OpenAI tool continuation retains user context and every prior tool re
     CHECK(third_input.back()["call_id"] == "call-10");
 }
 
+TEST_CASE("every call of a response runs in order and their results go back together", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json initial = json::parse(fake->requests.front().body)["input"];
+
+    // A read and the change that does not wait for it, in one response.
+    const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
+    const json read{{"type", "function_call"}, {"call_id", "call-read"}, {"name", "workspace_inspect"},
+                    {"arguments", R"({"sections":["summary"]})"}};
+    const json change{{"type", "function_call"}, {"call_id", "call-intent"}, {"name", "intent_update"},
+                      {"arguments", R"({"fields":[{"field":"material","value":"PETG"}],"setupTitle":"Strong PETG bracket"})"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({reasoning, read, change})}}}}));
+    fake->complete();
+
+    const auto first = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(first);
+    CHECK(first->tool->call_id == "call-read");
+    CHECK(first->tool->request.tool == "workspace_inspect");
+    // The second call waits for the first's result, and nothing is sent yet.
+    CHECK_FALSE(agent.poll());
+    REQUIRE(agent.continue_after_tool({"call-read", "succeeded", R"({"state":"succeeded","result":{"summary":{}}})"}));
+    CHECK(fake->requests.size() == 1);
+    const auto second = poll_until(agent, AgentEventKind::ToolCall);
+    REQUIRE(second);
+    CHECK(second->tool->call_id == "call-intent");
+    CHECK(second->tool->request.tool == "intent_update");
+    CHECK(agent.busy());
+
+    REQUIRE(agent.continue_after_tool({"call-intent", "succeeded", R"({"state":"succeeded"})"}));
+    REQUIRE(fake->requests.size() == 2);
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() == initial.size() + 5);
+    for (std::size_t i = 0; i < initial.size(); ++i) CHECK(input[i] == initial[i]);
+    CHECK(input[initial.size()] == reasoning);
+    CHECK(input[initial.size() + 1] == read);
+    CHECK(input[initial.size() + 2] == change);
+    CHECK(input[initial.size() + 3] == json{{"type", "function_call_output"}, {"call_id", "call-read"},
+                                            {"output", R"({"state":"succeeded","result":{"summary":{}}})"}});
+    CHECK(input[initial.size() + 4] == json{{"type", "function_call_output"}, {"call_id", "call-intent"},
+                                            {"output", R"({"state":"succeeded"})"}});
+
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array()}}}}));
+    fake->complete();
+    REQUIRE(poll_until(agent, AgentEventKind::Completed));
+    CHECK_FALSE(agent.busy());
+}
+
+TEST_CASE("a call that does not succeed answers the calls after it unrun", "[agent][openai][tools]")
+{
+    const std::string state = GENERATE("failed", "cancelled");
+    CAPTURE(state);
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    const json preview{{"type", "function_call"}, {"call_id", "call-1"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    const json layout{{"type", "function_call"}, {"call_id", "call-2"}, {"name", "plate_layout"},
+                      {"arguments", json{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}}.dump()}};
+    const json again{{"type", "function_call"}, {"call_id", "call-3"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({preview, layout, again})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    const std::string failed_output = json{{"state", state}, {"error", {{"code", "stale_workspace"}}}}.dump();
+    REQUIRE(agent.continue_after_tool({"call-1", state, failed_output}));
+
+    // Neither later call reaches the app; all three results go back at once.
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(fake->requests.size() == 2);
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 3);
+    const json& first = input[input.size() - 3];
+    CHECK(first["call_id"] == "call-1");
+    CHECK(first["output"] == failed_output);
+    for (const char* call_id : {"call-2", "call-3"}) {
+        const json& item = input[input.size() - (call_id == std::string("call-2") ? 2 : 1)];
+        CHECK(item["type"] == "function_call_output");
+        CHECK(item["call_id"] == call_id);
+        const json output = json::parse(item["output"].get<std::string>());
+        CHECK(output["state"] == "failed");
+        CHECK(output["error"]["code"] == "not_run");
+        CHECK(output["error"]["message"].get<std::string>().find("workspace_inspect (call-1)") != std::string::npos);
+    }
+    CHECK(agent.busy());
+}
+
+TEST_CASE("a refused call in a response answers the calls after it unrun", "[agent][openai][tools]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    std::vector<std::string> refused;
+    OpenAIResponsesConfig    config{"key"};
+    config.refusal_listener = [&refused](const std::string& tool, const std::string&, const std::string& code) {
+        refused.push_back(tool + " " + code);
+    };
+    OpenAIResponsesAgent agent(std::move(config), std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+
+    const json read{{"type", "function_call"}, {"call_id", "call-a"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    const json unknown{{"type", "function_call"}, {"call_id", "call-b"}, {"name", "support_enable"}, {"arguments", "{}"}};
+    const json bad{{"type", "function_call"}, {"call_id", "call-c"}, {"name", "plate_layout"},
+                   {"arguments", json{{"objectId", 72}}.dump()}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({read, unknown, bad})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-a", "succeeded", R"({"state":"succeeded"})"}));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::Failed));
+
+    REQUIRE(fake->requests.size() == 2);
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 3);
+    CHECK(input[input.size() - 3]["call_id"] == "call-a");
+    CHECK(input[input.size() - 2]["call_id"] == "call-b");
+    CHECK(json::parse(input[input.size() - 2]["output"].get<std::string>())["error"]["code"] == "unknown_tool");
+    // The call after the refusal is not checked, so it is not refused too.
+    CHECK(input.back()["call_id"] == "call-c");
+    const json unrun = json::parse(input.back()["output"].get<std::string>());
+    CHECK(unrun["error"]["code"] == "not_run");
+    CHECK(unrun["error"]["message"].get<std::string>().find("support_enable (call-b)") != std::string::npos);
+    CHECK(refused == std::vector<std::string>{"support_enable unknown_tool"});
+}
+
 TEST_CASE("a late completion from the tool-call request cannot end its continuation", "[agent][openai][tools]")
 {
     auto transport = std::make_unique<FakeTransport>();
@@ -788,4 +914,27 @@ TEST_CASE("an image result follows its function output as an image input", "[age
     CHECK(input[input.size() - 2]["type"] == "function_call_output");
     CHECK(input.back()["role"] == "user");
     CHECK(input.back()["content"][1] == json{{"type", "input_image"}, {"image_url", "data:image/png;base64,iVBORw0KGgo="}});
+}
+
+TEST_CASE("the images of a response's calls follow all of its results", "[agent][openai][image]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json render{{"type", "function_call"}, {"call_id", "call-img"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    const json read{{"type", "function_call"}, {"call_id", "call-text"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({render, read})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    AgentToolResult result{"call-img", "succeeded", R"({"state":"succeeded"})"};
+    result.image = std::make_shared<ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1});
+    REQUIRE(agent.continue_after_tool(result));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-text", "succeeded", R"({"state":"succeeded"})"}));
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 3);
+    CHECK(input[input.size() - 3]["call_id"] == "call-img");
+    CHECK(input[input.size() - 2]["call_id"] == "call-text");
+    CHECK(input.back()["role"] == "user");
+    CHECK(input.back()["content"][0]["text"] == "The image returned by call call-img.");
 }
