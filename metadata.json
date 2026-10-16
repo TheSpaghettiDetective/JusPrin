@@ -3,7 +3,7 @@
   "checkpoint_id": "01M53D5K8KN715SKDPJA9M8772",
   "strategy": "manual-commit",
   "branch": "claude/printer-every-tool-call",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "tests/printer_prompt/README.md",
     "tests/printer_prompt/run_prompt_tests.py",
@@ -16,13 +16,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 56,
-    "cache_creation_tokens": 128274,
-    "cache_read_tokens": 3872047,
-    "output_tokens": 23171,
-    "api_call_count": 28
+    "input_tokens": 78,
+    "cache_creation_tokens": 448660,
+    "cache_read_tokens": 7510623,
+    "output_tokens": 29275,
+    "api_call_count": 39
   }
 }
