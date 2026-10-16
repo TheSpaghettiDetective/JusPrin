@@ -1,0 +1,5 @@
+go online to search if it's true that deferred tool will inevitably cause the tools to be less likely to be discovered or called correctly. don't rush ito conclusion and coding. say it in plain eng
+
+---
+
+Can we construct a toolman's version of the tool deferral  by inserting the tool name in the tool description into the core prompt and but tell the model to get  the usage when it's ready to call the tool.  I think this is how skills works, right? If this is the case, is there any reason why we shouldn't use this for tools?  Search online to see if other people have tried that if you think that makes sense, if you don't see a fundamental flaw with this approach.
