@@ -3,7 +3,7 @@
   "checkpoint_id": "01M519JQ6EBK6CTE6YZQ1QS90K",
   "strategy": "manual-commit",
   "branch": "claude/staged-history-trim",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
     "tests/agent/test_printer_conversation.cpp"
@@ -15,13 +15,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 120,
-    "cache_creation_tokens": 158468,
-    "cache_read_tokens": 8809977,
-    "output_tokens": 35456,
-    "api_call_count": 60
+    "input_tokens": 230,
+    "cache_creation_tokens": 293530,
+    "cache_read_tokens": 16311118,
+    "output_tokens": 77875,
+    "api_call_count": 115
   }
 }
