@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M533C7C8KJAQ3TVSWFQMAK57",
+  "strategy": "manual-commit",
+  "branch": "claude/print-setup-cases",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/shell/project_prompt_scenario.inc"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 9888,
+    "cache_read_tokens": 2333710,
+    "output_tokens": 7073,
+    "api_call_count": 8
+  }
+}
