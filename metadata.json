@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M51BQ54BR1K65FBZQFJ6CGMS",
+  "strategy": "manual-commit",
+  "branch": "claude/workspace-input-tags",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 16479,
+    "cache_read_tokens": 2888106,
+    "output_tokens": 6282,
+    "api_call_count": 13
+  }
+}
