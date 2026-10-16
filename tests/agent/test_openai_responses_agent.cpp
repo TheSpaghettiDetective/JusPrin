@@ -64,6 +64,7 @@ AgentRequest request_fixture()
     plate.id = Workspace::PlateId(request.workspace.session, 3);
     plate.name = "Plate 1";
     plate.active = true;
+    plate.bed_type = "Textured PEI Plate";
     plate.objects.push_back(object);
     request.workspace.plates.push_back(plate);
     request.workspace.selected_objects.push_back(object.id);
@@ -141,6 +142,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(workspace["sessionId"] == "41");
     CHECK(workspace["selectedObjectIds"] == json::array({"72"}));
     CHECK(workspace["plates"][0]["objects"][0]["id"] == "72");
+    CHECK(workspace["plates"][0]["plateType"] == "Textured PEI Plate");
     CHECK(content[2]["type"] == "input_text");
     CHECK(content[2]["text"].get<std::string>().find("<attachment id=\"att-1\">\ndo not scale\n</attachment>") !=
           std::string::npos);
@@ -242,6 +244,37 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
         CHECK(workspace.dump().find("null") == std::string::npos);
         CHECK(workspace.dump().size() < 1024);
     }
+}
+
+TEST_CASE("each plate's type is in the snapshot, under printer_setup's name", "[agent][openai][workspace]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    request.workspace.plates[0].bed_type = "Smooth Cool Plate";
+    Workspace::WorkspacePlate unknown;
+    unknown.id   = Workspace::PlateId(request.workspace.session, 4);
+    unknown.name = "Plate 2";
+    request.workspace.plates.push_back(unknown);
+
+    const auto block = [&]() {
+        REQUIRE(agent.start(request));
+        const json content = json::parse(fake->requests.back().body)["input"].back()["content"];
+        agent.cancel();
+        REQUIRE(content.size() == 2);
+        return content[1]["text"].get<std::string>();
+    };
+    const std::string first = block();
+    const json workspace = tagged_json(json{{"type", "input_text"}, {"text", first}}, "workspace");
+    REQUIRE_FALSE(workspace.is_discarded());
+    CHECK(workspace["plates"][0]["plateType"] == "Smooth Cool Plate");
+    // A plate with no type has no field, not a null.
+    CHECK_FALSE(workspace["plates"][1].contains("plateType"));
+    CHECK(first.find("null") == std::string::npos);
+    // Nothing changed, so the next turn sends the same bytes.
+    CHECK(block() == first);
 }
 
 TEST_CASE("print-issue context is its own block, this turn and in history", "[agent][openai][print-issues]")

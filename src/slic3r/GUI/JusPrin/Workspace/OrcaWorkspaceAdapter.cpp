@@ -349,6 +349,14 @@ void drop_unsaved_edits(Tab* tab)
     }
 }
 
+std::string plate_label(BedType type)
+{
+    const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
+    if (definition == nullptr || type <= btDefault || int(type) - 1 >= int(definition->enum_labels.size()))
+        return {};
+    return definition->enum_labels[int(type) - 1];
+}
+
 } // namespace
 
 OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
@@ -693,6 +701,7 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.id     = PlateId(m_session, plate->id().id);
         projected_plate.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
         projected_plate.active = index == active_index;
+        projected_plate.bed_type = plate_label(plate->get_bed_type(true));
         projected_plate.sliced = plate->is_slice_result_valid();
         const std::uint64_t plate_key = plate->id().id;
         const bool this_plate_slicing = result.slicing.running && result.slicing.plate == projected_plate.id;
@@ -842,14 +851,6 @@ std::string printer_model_id(const PresetBundle& presets, const Preset& printer)
             if (candidate.name == model)
                 return candidate.model_id;
     return {};
-}
-
-std::string plate_label(BedType type)
-{
-    const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
-    if (definition == nullptr || type <= btDefault || int(type) - 1 >= int(definition->enum_labels.size()))
-        return {};
-    return definition->enum_labels[int(type) - 1];
 }
 
 // The plates a printer offers: every plate, less the ones its model excludes,

@@ -1205,6 +1205,7 @@ private:
         verify_attachment_retention();
         verify_legacy_delete_history();
         verify_disabled_gizmo_wheel();
+        verify_plate_type();
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
@@ -1738,6 +1739,37 @@ private:
               "legacy_delete_keeps_object_snapshot");
         check(m_plater->undo_redo_string_getter(true, 1, &previous) && std::string(previous) == "Delete selected",
               "legacy_delete_keeps_selection_snapshot");
+    }
+
+    // The snapshot names each plate's type as plate_layout takes it: a plate
+    // with no choice of its own reports the project's.
+    void verify_plate_type()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "plate_type_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "plate_type_cube_loaded");
+        check(m_plater->get_partplate_list().create_plate(true) == 1, "plate_type_second_plate_created");
+        m_plater->select_plate(0);
+
+        OrcaWorkspaceAdapter workspace(*m_plater);
+        const WorkspaceSnapshot before = workspace.snapshot();
+        const std::string project_type = workspace.configured_printer().plate_type;
+        check(!project_type.empty() && before.plates.size() == 2 && before.plates[0].bed_type == project_type &&
+                  before.plates[1].bed_type == project_type,
+              "plate_type_follows_project");
+        const std::string other = project_type == "Textured PEI Plate" ? "Smooth Cool Plate" : "Textured PEI Plate";
+        LayoutRequest request;
+        LayoutPlate row;
+        row.id       = before.plates[1].id;
+        row.bed_type = ascii_lower(other);
+        request.plates.push_back(row);
+        LayoutResult result;
+        check(workspace.lay_out(request, "plate-type", result).succeeded(), "plate_type_layout_succeeds");
+        const WorkspaceSnapshot after = workspace.snapshot();
+        check(after.plates[1].bed_type == other, "plate_type_reads_layout_choice_in_orca_words");
+        check(after.plates[0].bed_type == project_type, "plate_type_other_plate_unchanged");
     }
 
     void verify_disabled_gizmo_wheel()

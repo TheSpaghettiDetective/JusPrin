@@ -97,6 +97,23 @@ TEST_CASE("The workspace reports each real edit, and nothing else, to the change
     CHECK(log.edits.back().label.empty());
 }
 
+TEST_CASE("A plate's type in the snapshot is the one plate_layout last set on it", "[workspace][plates]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const PlateId second = workspace.snapshot().plates[1].id;
+    LayoutRequest request;
+    LayoutPlate row;
+    row.id       = second;
+    row.bed_type = "Textured PEI Plate";
+    request.plates.push_back(row);
+    LayoutResult result;
+    REQUIRE(workspace.lay_out(request, "job-1", result).succeeded());
+
+    const WorkspaceSnapshot snapshot = workspace.snapshot();
+    CHECK(snapshot.plates[0].bed_type.empty());
+    CHECK(snapshot.plates[1].bed_type == "Textured PEI Plate");
+}
+
 TEST_CASE("Edits made inside an Agent edit scope are the Agent's", "[workspace][changes]")
 {
     FakeWorkspace workspace(sample_workspace());

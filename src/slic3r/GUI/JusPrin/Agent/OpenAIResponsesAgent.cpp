@@ -45,8 +45,13 @@ json workspace_json(const AgentRequest& request)
         for (const auto& object : plate.objects)
             objects.push_back(json{{"id", std::to_string(object.id.value())}, {"name", object.name},
                                    {"instances", object.instances.size()}});
-        plates.push_back(json{{"id", std::to_string(plate.id.value())}, {"name", plate.name},
-                              {"active", plate.active}, {"sliced", plate.sliced}, {"objects", std::move(objects)}});
+        json entry{{"id", std::to_string(plate.id.value())}, {"name", plate.name},
+                   {"active", plate.active}, {"sliced", plate.sliced}, {"objects", std::move(objects)}};
+        // In printer_setup's name and plate_layout's values, so a filament
+        // the plate cannot take is visible before anything is sliced.
+        if (!plate.bed_type.empty())
+            entry["plateType"] = plate.bed_type;
+        plates.push_back(std::move(entry));
     }
     json selected = json::array();
     for (const auto id : workspace.selected_objects)

@@ -757,14 +757,21 @@ public:
                 if (row.quantity) object.instances.resize(*row.quantity);
                 if (row.name) object.name = *row.name;
             });
-        for (const LayoutPlate& row : request.plates)
+        for (const LayoutPlate& row : request.plates) {
+            WorkspacePlate* target = nullptr;
             if (!row.id) {
                 WorkspacePlate plate;
                 plate.id   = PlateId(m_session, 1000 + m_snapshot.plates.size());
                 plate.name = row.name.value_or("Plate " + std::to_string(m_snapshot.plates.size() + 1));
                 m_snapshot.plates.push_back(plate);
                 result.added_plates.push_back(plate.id);
+                target = &m_snapshot.plates.back();
+            } else {
+                for (WorkspacePlate& plate : m_snapshot.plates)
+                    if (plate.id == *row.id) target = &plate;
             }
+            if (target != nullptr && row.bed_type) target->bed_type = *row.bed_type;
+        }
         if (request.arrange) {
             m_snapshot.jobs.push_back({job_handle, "arrange", "running", {}});
             result.arranging = true;

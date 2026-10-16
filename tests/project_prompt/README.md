@@ -140,7 +140,11 @@ and the issue context into tagged blocks of their own, the commit after
 ebf723cbb6; the tool results are those of the earlier recording at
 336facf825, with only timestamps and a temporary path different. Recorded
 again after 5cf784d30b's history trimming, it came out the same apart from
-those.
+those. Recorded again for the change that added each plate's type to the
+`<workspace>` block (`plateType`, OrcaSlicer's own name for the plate, in
+"Name each plate's type in the project chat's workspace block"): every
+point's block names it, and nothing else changed but timestamps and a
+temporary path.
 
 The app streams its requests and this script does not.
 
@@ -299,7 +303,8 @@ a recording made after it differed only in timestamps and a temporary path,
 so the trimming does not affect these points. The move to tagged blocks (the
 commit after ebf723cbb6) does: before it, each user message was one text,
 the person's words followed by headed JSON, and this baseline was measured on
-that message, not on the tagged blocks the current recording holds.
+that message, not on the tagged blocks the current recording holds, and
+before the block named each plate's type.
 
 Compare a prompt edit against a before run made the same day, not against
 these tables.

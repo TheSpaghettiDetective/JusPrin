@@ -127,6 +127,10 @@ struct WorkspacePlate
     // Which of the user's actions invalidated the slice, when that is known.
     // Empty when it is not: the card would rather say nothing than guess.
     std::string                  invalidated_by;
+    // The plate type it slices with, as OrcaSlicer's untranslated name
+    // ("Textured PEI Plate"): its own choice, else the project's. Empty when
+    // neither names one.
+    std::string                  bed_type;
 };
 
 // One process setting whose value in force differs from the preset it came
