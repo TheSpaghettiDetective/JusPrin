@@ -1,0 +1,85 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5399E8TB4JCF0Z21SA4GECN",
+  "session_id": "7e07a081-60f8-4956-952d-693cdef12453",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-16T21:18:36.093443Z",
+  "branch": "claude/every-tool-call",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp",
+    "tests/agent/test_openai_responses_agent.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "f9b6c5cc4090",
+  "checkpoint_transcript_start": 550,
+  "transcript_lines_at_start": 550,
+  "compact_transcript_start": 73,
+  "token_usage": {
+    "input_tokens": 136,
+    "cache_creation_tokens": 131776,
+    "cache_read_tokens": 19801733,
+    "output_tokens": 63973,
+    "api_call_count": 68
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_012k4psD4rKyzgFraW36v9yT",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "entire-search"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "bb88eeba1d1e",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 161,
+        "end": 162,
+        "entry_ids": [
+          "70dd741e-1105-4ae8-b35b-6c71cc483139"
+        ],
+        "tool_use_id": "toolu_012k4psD4rKyzgFraW36v9yT"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_012k4psD4rKyzgFraW36v9yT"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: entire-search",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-16T21:18:35.953032Z",
+    "agent_lines": 0,
+    "agent_removed": 64,
+    "human_added": 330,
+    "human_modified": 240,
+    "human_removed": 0,
+    "total_committed": 552,
+    "total_lines_changed": 634,
+    "agent_percentage": 10.094637223974763,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
