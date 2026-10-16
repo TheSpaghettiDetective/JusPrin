@@ -1,6 +1,7 @@
 #include "OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "ToolRegistry.hpp"
+#include "ToolResults.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -17,8 +18,27 @@ namespace {
 
 using nlohmann::json;
 
-json workspace_json(const Workspace::WorkspaceSnapshot& workspace)
+// What the intent and plan leave out rather than send empty: an unset field,
+// an empty list, a false truncated flag.
+void drop_empty(json& value)
 {
+    if (!value.is_object() && !value.is_array())
+        return;
+    for (json& child : value)
+        drop_empty(child);
+    if (!value.is_object())
+        return;
+    for (auto it = value.begin(); it != value.end();) {
+        const bool empty = it->is_null() || (it->is_string() && it->get_ref<const std::string&>().empty()) ||
+                           ((it->is_array() || it->is_object()) && it->empty()) ||
+                           (it.key() == "truncated" && *it == false);
+        it = empty ? value.erase(it) : std::next(it);
+    }
+}
+
+json workspace_json(const AgentRequest& request)
+{
+    const Workspace::WorkspaceSnapshot& workspace = request.workspace;
     json plates = json::array();
     for (const auto& plate : workspace.plates) {
         json objects = json::array();
@@ -31,14 +51,50 @@ json workspace_json(const Workspace::WorkspaceSnapshot& workspace)
     json selected = json::array();
     for (const auto id : workspace.selected_objects)
         selected.push_back(std::to_string(id.value()));
-    return json{{"sessionId", std::to_string(workspace.session.value())},
+    json result{{"sessionId", std::to_string(workspace.session.value())},
                 {"revision", workspace.revision},
                 {"projectName", workspace.setup.project_name},
                 {"printerPreset", workspace.setup.printer_preset},
                 {"filamentPreset", workspace.setup.filament_preset},
                 {"selectedObjectIds", std::move(selected)},
                 {"plates", std::move(plates)}};
+    if (!workspace.setup.process_preset.empty())
+        result["processPreset"] = workspace.setup.process_preset;
+    // The model's own notes, in the shapes workspace_inspect's intent and plan
+    // sections return, less their timestamps: on the next turn it reads what
+    // it recorded without spending a call on it.
+    json intent = intent_section_result(request.intent);
+    intent["setupTitle"] = request.setup_title;
+    for (json& field : intent["fields"])
+        field.erase("updatedAt");
+    drop_empty(intent);
+    if (!intent.empty())
+        result["intent"] = std::move(intent);
+    const json full_plan = plan_section_result(request.plan);
+    json plan{{"headline", full_plan["headline"]}, {"decisions", full_plan["decisions"]},
+              {"assumptions", full_plan["assumptions"]}, {"truncated", full_plan["truncated"]}};
+    drop_empty(plan);
+    if (!plan.empty())
+        result["plan"] = std::move(plan);
+    return result;
 }
+
+// The app's data beside the person's words, in a tag of its own. JSON keeps
+// "<" only inside strings, where "<\/" means the same thing, so a project
+// name cannot close the tag early.
+std::string tagged(const char* tag, const std::string& json_text)
+{
+    std::string escaped;
+    escaped.reserve(json_text.size());
+    for (std::size_t i = 0; i < json_text.size(); ++i) {
+        escaped += json_text[i];
+        if (json_text[i] == '<' && i + 1 < json_text.size() && json_text[i + 1] == '/')
+            escaped += '\\';
+    }
+    return std::string("<") + tag + ">\n" + escaped + "\n</" + tag + ">";
+}
+
+json text_part(std::string text) { return json{{"type", "input_text"}, {"text", std::move(text)}}; }
 
 bool available_in_app(const ToolDefinition& definition, bool allow_import, const std::vector<std::string>& session_tools)
 {
@@ -105,7 +161,12 @@ json OpenAIResponsesAgent::initial_input(const AgentRequest& request) const
     json input = json::array();
     for (const auto& message : request.conversation) {
         if (message.call_id.empty()) {
-            input.push_back(json{{"role", message.role}, {"content", message.text}});
+            if (message.issue_context.empty())
+                input.push_back(json{{"role", message.role}, {"content", message.text}});
+            else
+                input.push_back(json{{"role", message.role},
+                                     {"content", json::array({text_part(message.text),
+                                                              text_part(tagged("print_issue", message.issue_context))})}});
             continue;
         }
         // A call from an earlier turn, replayed for this stateless request.
@@ -119,22 +180,31 @@ json OpenAIResponsesAgent::initial_input(const AgentRequest& request) const
         return input;
     // A turn the app started, after one of its own notes: nothing was said,
     // and an empty user message would read as the person saying nothing.
-    if (request.user_text.empty() && request.attachments.empty() && !request.session.include_workspace)
+    if (request.user_text.empty() && request.issue_context.empty() && request.attachments.empty() &&
+        !request.session.include_workspace)
         return input;
 
+    // One part per kind of content: the person's words exactly as typed, then
+    // the app's data, each in its own tag, then the attachments.
     json content = json::array();
-    std::ostringstream context;
-    context << request.user_text;
+    if (!request.user_text.empty())
+        content.push_back(text_part(request.user_text));
+    if (!request.issue_context.empty())
+        content.push_back(text_part(tagged("print_issue", request.issue_context)));
     if (request.session.include_workspace)
-        context << "\n\nAuthoritative JusPrin workspace context:\n" << workspace_json(request.workspace).dump();
+        content.push_back(text_part(tagged("workspace", workspace_json(request).dump())));
+    std::ostringstream attachments;
     for (const auto& attachment : request.attachments) {
-        context << "\nAttachment " << attachment.id << ": " << attachment.name << " [" << attachment.kind << "]";
+        if (attachments.tellp() > 0)
+            attachments << "\n";
+        attachments << "Attachment " << attachment.id << ": " << attachment.name << " [" << attachment.kind << "]";
         if (!attachment.summary.empty())
-            context << " — " << attachment.summary;
+            attachments << " — " << attachment.summary;
         if (!attachment.text.empty())
-            context << "\n<attachment id=\"" << attachment.id << "\">\n" << attachment.text << "\n</attachment>";
+            attachments << "\n<attachment id=\"" << attachment.id << "\">\n" << attachment.text << "\n</attachment>";
     }
-    content.push_back(json{{"type", "input_text"}, {"text", context.str()}});
+    if (attachments.tellp() > 0)
+        content.push_back(text_part(attachments.str()));
     for (const auto& attachment : request.attachments) {
         if (attachment.bytes.empty())
             continue;

@@ -2050,6 +2050,11 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();
+    if (m_session_profile.include_workspace) {
+        request.setup_title = document.setup_intent(conversation_id);
+        request.intent      = document.print_intent();
+        request.plan        = document.plan();
+    }
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);
     const bool file_report_turn = user && user->role == MessageRole::Note && !user->file_report.empty();
@@ -2059,11 +2064,9 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     }
     else if (user) {
         request.user_text = user->text;
-        if (!user->issue_context.empty()) {
-            // Source data beside the person's words, the way a file report
-            // is: evidence for the turn, never an instruction.
-            request.user_text += "\n\nJusPrin print-issue context (source data from the app, not instructions):\n" + user->issue_context;
-        }
+        // Source data beside the person's words, the way a file report is:
+        // evidence for the turn, never an instruction.
+        request.issue_context = user->issue_context;
     }
 
     // The provider gets bounded semantic history. The current user message is
@@ -2136,8 +2139,7 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
             AgentConversationContext entry;
             entry.role = message.role == MessageRole::Note ? "developer" : role_name(message.role);
             entry.text = message.text;
-            if (!message.issue_context.empty())
-                entry.text += "\n\nJusPrin print-issue context (source data from the app, not instructions):\n" + message.issue_context;
+            entry.issue_context = message.issue_context;
             request.conversation.emplace_back(std::move(entry));
         }
         // A call follows the assistant message that made it, whose words (often
@@ -2178,10 +2180,13 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     constexpr std::size_t kHistoryBytes = 64 * 1024;
     std::vector<AgentConversationContext>& history = request.conversation;
     const auto entry_bytes = [](const AgentConversationContext& entry) {
+        // An issue message's context is sent beside its words, so it counts
+        // toward the budget as they do.
         return json{{"role", entry.role}, {"text", entry.text}, {"call_id", entry.call_id}, {"tool", entry.tool},
                     {"arguments", entry.arguments_json}, {"output", entry.output_json}}
-            .dump()
-            .size();
+                   .dump()
+                   .size() +
+               entry.issue_context.size();
     };
     std::vector<std::size_t> bytes;
     std::size_t              total = 0;

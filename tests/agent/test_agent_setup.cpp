@@ -138,11 +138,13 @@ TEST_CASE("the check carries the candidate key and no project data", "[agent][se
     REQUIRE(body["input"].size() == 1);
     CHECK(body["input"][0]["role"] == "user");
 
-    REQUIRE(body["input"][0]["content"][0]["text"].is_string());
-    const std::string text = body["input"][0]["content"][0]["text"].get<std::string>();
-    CHECK(text.find("Reply with the single word") != std::string::npos);
-    // The snapshot travels inside that text; an empty one carries no plates,
+    REQUIRE(body["input"][0]["content"].size() == 2);
+    CHECK(body["input"][0]["content"][0]["text"] == "Reply with the single word: ready.");
+    // The snapshot travels beside that text; an empty one carries no plates,
     // and so no object or project names to leak.
+    REQUIRE(body["input"][0]["content"][1]["text"].is_string());
+    const std::string text = body["input"][0]["content"][1]["text"].get<std::string>();
+    CHECK(text.rfind("<workspace>", 0) == 0);
     CHECK(text.find("\"plates\":[]") != std::string::npos);
     CHECK(text.find("\"projectName\":\"\"") != std::string::npos);
 }

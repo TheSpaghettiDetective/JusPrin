@@ -111,8 +111,9 @@ results for every call can show that.
   real, and the app builds every request itself: the earlier turns as
   `AgentHost::make_agent_request` replays them (calls with their results, a
   result over 16 KiB replaced by the omission note, at most 20 entries), the
-  new message with the workspace context `OpenAIResponsesAgent::initial_input`
-  appends, a canvas issue's message and context, a file-load report and its
+  new message as `OpenAIResponsesAgent::initial_input` builds it (the
+  person's words, then the app's `<print_issue>` and `<workspace>` blocks,
+  each a part of its own), a canvas issue's message and context, a file-load report and its
   developer line, and the live results of this turn's calls with the
   workspace block `AgentHost::continue_after_tool` adds. Arguments that need
   ids take them from the real previous result (`{{result/sessionId}}`) or the
@@ -134,7 +135,12 @@ scripted calls carry the replay form the app uses (`call_id`, `name`,
 `arguments`); a live model's own item id, status and reasoning items within a
 turn are not reproducible. Nothing checks that `requests.json` stays current:
 record it again when a tool's results, the fixture or the request shape
-change. It was recorded at jusprin-newui 336facf825.
+change. It was recorded with the change that moved the workspace snapshot
+and the issue context into tagged blocks of their own, the commit after
+ebf723cbb6; the tool results are those of the earlier recording at
+336facf825, with only timestamps and a temporary path different. Recorded
+again after 5cf784d30b's history trimming, it came out the same apart from
+those.
 
 The app streams its requests and this script does not.
 
@@ -289,7 +295,11 @@ this recording cannot answer, not changes.
 The 21 rows from 2595f0556c are not a measurement of the merged prompt; a
 run of those cases on e3f071d99a or later replaces them. The recording was
 made at 336facf825, before 5cf784d30b changed how earlier turns are trimmed;
-record again before trusting a comparison across that change.
+a recording made after it differed only in timestamps and a temporary path,
+so the trimming does not affect these points. The move to tagged blocks (the
+commit after ebf723cbb6) does: before it, each user message was one text,
+the person's words followed by headed JSON, and this baseline was measured on
+that message, not on the tagged blocks the current recording holds.
 
 Compare a prompt edit against a before run made the same day, not against
 these tables.
@@ -299,7 +309,8 @@ these tables.
 The prompt before the sections, `--prompt-rev 6b4b8b6188` (unchanged at 336facf825), three
 runs per case, DeepSeek V4 Flash on the pinned hosts. Each row was measured
 with one of three recordings, which hold the same conversations and differ
-only in which reads they answer (and in ids):
+only in which reads they answer (and in ids). All three have the user
+message of ebf723cbb6 or earlier, as the sectioned baseline above does.
 
 1. 27 answers per point: `workspace_inspect`, `slice_report`,
    `printer_list`, about 100 print settings, the first object's, filament's
@@ -310,8 +321,8 @@ only in which reads they answer (and in ids):
    searches. The seven cases with unobserved runs in recording 1 ran again:
    21 runs, 54 requests, 602,761 input tokens (451,584 cached), 17,912
    output, 6 judge calls.
-3. The current recording: every setting of every scope and object, as the
-   section above describes. The four cases still with unobserved runs ran
+3. Every setting of every scope and object, as the section above
+   describes. The four cases still with unobserved runs ran
    again: 12 runs, 35 requests, 398,836 input tokens (279,296 cached),
    10,518 output, 3 judge calls.
 

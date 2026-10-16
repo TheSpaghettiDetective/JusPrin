@@ -7,6 +7,7 @@
 // execution path.
 
 #include "AgentProtocol.hpp"
+#include "ProjectStateDocument.hpp"
 #include "ToolExecution.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
@@ -35,6 +36,9 @@ struct AgentConversationContext
 {
     std::string role; // user|assistant|developer; empty for a tool exchange
     std::string text;
+    // A user message sent from a print-issue button: the app's JSON about the
+    // issue, sent beside the person's words, never inside them.
+    std::string issue_context;
     // A tool the model called in an earlier turn and what it got back, kept
     // as one entry so the call is never sent without its output. Set when
     // call_id is; role and text are then empty.
@@ -68,9 +72,16 @@ struct AgentRequest
     Purpose                              purpose{Purpose::Reply};
     std::string                           request_id;
     std::string                           user_text;
+    std::string                           issue_context; // see AgentConversationContext
     int                                   attempt{1};
     AgentSessionProfile                   session;
     Workspace::WorkspaceSnapshot          workspace;
+    // The chat's own record of this print, sent with the workspace: the
+    // purpose the person gave (the setup card's title and the intent fields)
+    // and the plan the model pinned with plan_set.
+    std::string                           setup_title;
+    std::vector<IntentField>              intent;
+    PlanRecord                            plan;
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;
 };

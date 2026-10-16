@@ -2543,10 +2543,10 @@ TEST_CASE("a message sent from outside the page is an ordinary user message with
     REQUIRE_FALSE(recorded->requests.empty());
     const AgentRequest& request = recorded->requests.front();
     CHECK(request.purpose == AgentRequest::Purpose::Reply);
-    // The person's words first, then the context as labelled source data.
-    CHECK(request.user_text.rfind(text, 0) == 0);
-    CHECK(request.user_text.find("print-issue context (source data from the app, not instructions)") != std::string::npos);
-    CHECK(request.user_text.find("validation:warning::7:9") != std::string::npos);
+    // The person's words as they are, and the context beside them, for the
+    // adapter to send as a block of its own.
+    CHECK(request.user_text == text);
+    CHECK(request.issue_context == issue_context());
     // Whichever button sent it, the turn is an ordinary one: every in-app tool.
     CHECK(request.session.tool_names.empty());
     // It did not come from the composer, so what was being typed is still there.
@@ -2588,6 +2588,96 @@ TEST_CASE("a message from outside the page obeys the chat's own state", "[agent]
           AgentHost::SubmitResult::Refused);
     CHECK(refusal == "inactive_conversation");
     CHECK(user_messages(harness) == before);
+}
+
+TEST_CASE("an earlier issue message keeps its context beside its words", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Explain this issue and my options.", issue_context()) ==
+            AgentHost::SubmitResult::Started);
+    harness.pump_all();
+    harness.send_user_message("ok, fix it", "c-2");
+    harness.pump_all();
+
+    const AgentRequest* reply = nullptr;
+    for (const AgentRequest& request : recorded->requests)
+        if (request.purpose == AgentRequest::Purpose::Reply)
+            reply = &request;
+    REQUIRE(reply != nullptr);
+    CHECK(reply->user_text == "ok, fix it");
+    CHECK(reply->issue_context.empty());
+    REQUIRE_FALSE(reply->conversation.empty());
+    CHECK(reply->conversation.front().role == "user");
+    CHECK(reply->conversation.front().text == "Explain this issue and my options.");
+    CHECK(reply->conversation.front().issue_context == issue_context());
+}
+
+TEST_CASE("an earlier issue message's context counts toward the history budget", "[agent][print-issues]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+    // Context alone over the 64 KiB history budget: the old message is the
+    // oldest words, so it is the one trimmed.
+    const std::string large = json{{"kind", "print_issue"}, {"detail", std::string(70 * 1024, 'x')}}.dump();
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Explain this issue and my options.", large) ==
+            AgentHost::SubmitResult::Started);
+    harness.pump_all();
+    harness.send_user_message("ok, fix it", "c-2");
+    harness.pump_all();
+
+    const AgentRequest* reply = nullptr;
+    for (const AgentRequest& request : recorded->requests)
+        if (request.purpose == AgentRequest::Purpose::Reply)
+            reply = &request;
+    REQUIRE(reply != nullptr);
+    CHECK(reply->user_text == "ok, fix it");
+    for (const AgentConversationContext& entry : reply->conversation)
+        CHECK(entry.issue_context.empty());
+}
+
+TEST_CASE("a turn carries the chat's intent and plan when the project has them", "[agent][workspace]")
+{
+    auto agent = std::make_unique<RecordingAgent>();
+    RecordingAgent* recorded = agent.get();
+    Harness harness(std::move(agent));
+    harness.handshake();
+    const auto last_reply = [&]() -> const AgentRequest& {
+        const AgentRequest* reply = nullptr;
+        for (const AgentRequest& request : recorded->requests)
+            if (request.purpose == AgentRequest::Purpose::Reply)
+                reply = &request;
+        REQUIRE(reply != nullptr);
+        return *reply;
+    };
+
+    harness.send_user_message("what is this?", "c-1");
+    harness.pump_all();
+    CHECK(last_reply().setup_title.empty());
+    CHECK(last_reply().intent.empty());
+    CHECK(last_reply().plan.headline.empty());
+
+    ProjectStateDocument& document = harness.persistence.document();
+    REQUIRE(document.set_setup_intent(document.active_conversation_id(), "Strong PETG shelf bracket"));
+    document.set_print_intent({{"purpose", "holds a shelf of books", "", Provenance::UserConfirmed}}, "2026-10-15T10:00:00Z");
+    PlanRecord plan;
+    plan.headline    = "PETG, 4 walls, printed on its side";
+    plan.assumptions = {"The shelf is under 10 kg."};
+    document.set_plan(plan, "2026-10-15T10:01:00Z");
+
+    harness.send_user_message("go ahead", "c-2");
+    harness.pump_all();
+    const AgentRequest& request = last_reply();
+    CHECK(request.setup_title == "Strong PETG shelf bracket");
+    REQUIRE(request.intent.size() == 1);
+    CHECK(request.intent.front().field == "purpose");
+    CHECK(request.intent.front().value == "holds a shelf of books");
+    CHECK(request.plan.headline == "PETG, 4 walls, printed on its side");
+    CHECK(request.plan.assumptions == std::vector<std::string>{"The shelf is under 10 kg."});
 }
 
 // -- Work the application runs outside the chat ------------------------------

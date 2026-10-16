@@ -185,7 +185,10 @@ def readable(item, limit=1500):
     if "role" not in item:
         return None  # a reasoning item: the model's own, not part of the chat
     content = item.get("content")
-    text = content if isinstance(content, str) else "".join(part.get("text", "") for part in content or [])
+    # A user message's parts (the person's words, the app's <workspace> and
+    # <print_issue> blocks, attachments) are separate in the request; keep
+    # them apart here too.
+    text = content if isinstance(content, str) else "\n\n".join(part["text"] for part in content or [] if "text" in part)
     return {"user": "person", "assistant": "assistant", "developer": "app"}.get(item["role"], item["role"]) + ": " + text
 
 
