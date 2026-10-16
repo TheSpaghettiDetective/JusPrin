@@ -3,9 +3,9 @@
   "checkpoint_id": "01M5399QN3818M8NVWZ4RSGN2B",
   "session_id": "7e07a081-60f8-4956-952d-693cdef12453",
   "strategy": "manual-commit",
-  "created_at": "2026-10-16T21:18:45.443754Z",
-  "branch": "claude/every-tool-call",
-  "checkpoints_count": 2,
+  "created_at": "2026-10-16T22:43:34.366369Z",
+  "branch": "claude/every-tool-call-on-newui",
+  "checkpoints_count": 1,
   "files_touched": [
     "tests/project_prompt/README.md",
     "tests/project_prompt/requests.json",
@@ -14,16 +14,16 @@
   ],
   "agent": "Claude Code",
   "model": "claude-opus-5-5",
-  "turn_id": "f9b6c5cc4090",
-  "checkpoint_transcript_start": 1162,
-  "transcript_lines_at_start": 1162,
-  "compact_transcript_start": 151,
+  "turn_id": "c67ce407b84a",
+  "checkpoint_transcript_start": 1358,
+  "transcript_lines_at_start": 1358,
+  "compact_transcript_start": 176,
   "token_usage": {
-    "input_tokens": 2,
-    "cache_creation_tokens": 1156,
-    "cache_read_tokens": 347070,
-    "output_tokens": 814,
-    "api_call_count": 1
+    "input_tokens": 14,
+    "cache_creation_tokens": 5891,
+    "cache_read_tokens": 2650668,
+    "output_tokens": 3938,
+    "api_call_count": 7
   },
   "skill_events_version": 1,
   "skill_events": [
@@ -60,18 +60,18 @@
     }
   ],
   "session_metrics": {
-    "turn_count": 4
+    "turn_count": 6
   },
   "initial_attribution": {
-    "calculated_at": "2026-10-16T21:18:45.332181Z",
+    "calculated_at": "2026-10-16T22:43:34.200984Z",
     "agent_lines": 0,
-    "agent_removed": 121,
-    "human_added": 96787,
+    "agent_removed": 73,
+    "human_added": 93564,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 96787,
-    "total_lines_changed": 96908,
-    "agent_percentage": 0.12486069261567671,
+    "total_committed": 93564,
+    "total_lines_changed": 93637,
+    "agent_percentage": 0.07796063521898396,
     "metric_version": 2
   },
   "prompt_attributions": [
