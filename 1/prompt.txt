@@ -1,0 +1,23 @@
+Repository: /Users/kenneth/Projects/JusPrin (OrcaSlicer fork "JusPrin"). Work in the worktree this session gives you; do not touch the main checkout. First `git fetch origin` and base your branch on origin/jusprin-newui (336facf825 or later). Another task (`task_98ae90ed`) is changing how the workspace snapshot is placed in the user message in `OpenAIResponsesAgent::initial_input`; this task is about `AgentHost::make_agent_request`, so the two should not overlap, but expect a small merge in AgentHost.cpp.
+
+## The problem
+
+`AgentHost::make_agent_request` (src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp, the block that builds `request.conversation`) replays each earlier message and, after each assistant message, the tool calls it made with their results, one entry per call-plus-result so a call is never sent without its output. A result over 16 KiB (`kReplayedResultCap`) is replaced by an omission note that tells the model to call the tool again. Then `kHistoryMessages = 20` keeps the last 20 entries, counting a replayed call as one, by erasing from the front. The history is sent to the model on every request with `store:false`, so this is the model's whole memory of the chat.
+
+Trimming the oldest entries regardless of kind has the wrong order of loss. A busy turn with ten tool calls leaves ten entries of actual conversation. Older tool payloads of up to 16 KiB each survive while the person's and the assistant's words from earlier in the chat are dropped. Anthropic's context-engineering guidance says the safe, light form of compaction is clearing old tool calls and results; the conversation text is what to keep. The 2026-09-24 commit 115e2776bf, which introduced the replay, already notes that "trimming is done selectively" and that a large result "is not worth its space on every later turn: the model keeps the outcome and may ask for the details again".
+
+## What to do
+
+Replace the single entry-count cut with staged trimming, in this order, stopping as soon as the budget is met:
+
+1. Replace tool results older than the last two assistant turns with the existing omission note (same JSON shape: state plus the "not repeated here; call the tool again" text), keeping the call itself so the model still knows what it did and with what arguments.
+2. If still over budget, drop whole call-plus-result pairs, oldest first.
+3. If still over budget, drop the oldest text entries.
+
+Define the budget in bytes of the serialized conversation entries, not in entry count, with a constant you justify in a comment from what the provider's cache and the 16 KiB cap imply (the old 20-entry cap allowed up to about 320 KiB of results, which was never the intent; something in the range of 48 to 96 KiB is the likely answer, but measure a real chat's entries before choosing). Keep the invariant that a call is never sent without its output and never an output without its call. Keep file-load reports in history as they are (they are text entries with their own boundary line). Do not change what `OpenAIResponsesAgent` does with the entries. Keep the change small: this should be a few dozen lines in one function plus tests, not a new module.
+
+## Verification
+
+Tests live in tests/agent/test_agent_bridge.cpp (grep for kHistoryMessages, "replay", "omitted" to find the existing ones). Update them and add: a chat with many tool calls where the conversation text survives and old results become omission notes; a chat where pairs are dropped before text; the call-with-output invariant under every stage; and the budget boundary. Build and run agent_bridge_tests (recipe: /Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/jusprin-worktree-build.md; CMake from /Applications/CMake.app; reuse existing deps; BUILD_TESTS=ON; long builds with nohup and a log, never as a background Bash command). No live model call.
+
+Commit on a branch in your worktree with a plain-English message; do not push. Write an untracked report in the worktree root (never commit it, never add it to .gitignore) for an engineer who did not see this session: the old and new trimming rule side by side, the budget you chose and the measurement behind it, and one worked example showing which entries a 30-entry chat keeps under each rule. Plain English, no label-colon fragments; Kenneth reads these.
