@@ -1,0 +1,64 @@
+Repository: /Users/kenneth/Projects/JusPrin (OrcaSlicer fork "JusPrin"). Work in the worktree this session gives you; do not touch the main checkout. Base your branch on local `jusprin-newui` at 7607c8fe42 or later (10 commits ahead of origin, not pushed; the harness and the tagged snapshot live in those commits). Another task (`task_cf88936b`) is adding the plate type to the snapshot and re-recording the harness's requests; if it has landed when you start, base on it, because your second case depends on the plate type being visible.
+
+## Why
+
+On 2026-10-15 another agent ran live conversations against the app and found two faults in how the assistant chooses a print setup, neither of which the project prompt harness (`tests/project_prompt`, read its README first) can see, because no case covers them:
+
+1. On "I want to print this", with a model loaded and a PLA setup already selected and no purpose stated, one run in three sliced the existing setup at once instead of asking what the part is for. The prompt's When-to-act section says "Ask when the answer is theirs, since it is their print and printer: what the object is for, a risk to the printer…", so the expected first step is one question, not a tool call that changes or slices anything.
+2. After switching the filament to Bambu PETG HF, the assistant did not notice the project's plate is a Cool Plate, which PETG cannot slice on. The expected first step at that point is a `printer_setup_preview` that would surface the mismatch, or a question or statement about the plate, and never `slice_start`.
+
+## What to do
+
+Add two cases to the harness in its own style, one step each, with history seeded by a recorded point:
+
+- `print-this-no-purpose`: a project with one object and the default PLA setup (the existing recording's fixed workspace is fine), user text "I want to print this". Pass: the reply asks exactly one question about what the part is for, or about another thing the answer to which is the person's, and no tool call other than a read happens. Fail: any change, `slice_start`, or `intent_update` with an invented purpose. Reads are answered from the recording as usual, up to the harness's three-read limit. Use the pinned judge only for the "one question about purpose" check, with a narrow yes-or-no question.
+- `petg-on-cool-plate`: history holds a completed `printer_setup` (or `settings_apply_patch` on the filament) that switched slot 1 to Bambu PETG HF, on a project whose active plate is a Cool Plate, and the person then says "ok, print it" or asks for the slice. Pass: the first step is `printer_setup_preview`, or a reply that names the plate problem, or one question about the plate. Fail: `slice_start`. If the snapshot carries the plate type (task_cf88936b), note in the case which of the two the model used.
+
+Both need points recorded from the app with `--project-prompt-requests` and a `script.json` entry, as the README describes; the recording makes no model call. Keep the cases' expected sentence written into their description, as the handover `handoff-core-prompt-eval.md` in the main checkout root requires (read it; it is untracked there). Do not change the prompt. Do not change existing cases.
+
+## Measuring
+
+Kenneth has approved one live run per case for new cases on the current prompt, on the harness's model and hosts (DeepSeek V4 Flash through OpenRouter with the pinned judge). Credentials are in `~/.config/jusprin/prompt-test.env`; load them only in the subshell that runs the suite and never print them. Run each new case three times, since one run cannot tell a fault from variation, and report pass, fail and unobserved counts with what the model did in each run, and the token totals from the usage fields. If the keys return 403 Key limit exceeded, stop and report. Do not run the other cases.
+
+## Verification
+
+`--render-only` for both cases; the native drift test for `project_tools.json` if the tool list changed under you; the AgentUI tests are not affected. Build nothing you do not need.
+
+Commit on a branch in your worktree with a plain-English message; do not push. Write an untracked report in the worktree root (never commit it, never add it to .gitignore) for an engineer who did not see this session: the two cases, their recorded points, the three-run results, and whether the current prompt passes them. Plain English, no label-colon fragments; Kenneth reads these.
+
+---
+
+<task-notification>
+<task-id>blovt26nb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-reverent-easley-219e8c/6e55dae7-7b09-4583-927d-3e1dc211ea0f/tasks/blovt26nb.output</output-file>
+<status>completed</status>
+<summary>Background command "Record the two new points with the harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Build the one-object fixture and rerun print-this three times
+
+---
+
+Tell me in plain English these two test cases regarding what you intended to test, what user input you created to test them, and what's the expected result?
+
+---
+
+<!-- reply 1 -->
+> The expected result. The assistant should notice the plate problem before going further. It passes if it does one of these:
+> 
+> previews the setup again, which is the step where it reviews the setup;
+> tells the person the Smooth Cool Plate doesn’t suit PETG;
+> asks them which plate to use.
+
+Do you think if this is a reasonable expectation? There, I guess, a lot of other things that may go wrong for during slicing or printing. Do we expect the model to catch all of them? I thought problems like this, especially problems like this that will be, and probably should be, reported by the tools when they are called
+
+---
+
+Remove the PETG case now
+
+---
+
+commit. and merge to jusprin-newui
