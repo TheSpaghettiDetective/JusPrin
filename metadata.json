@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M52ZG7E1PSDG99VXEXENYXM9",
+  "strategy": "manual-commit",
+  "branch": "claude/plate-type-in-workspace",
+  "checkpoints_count": 14,
+  "files_touched": [
+    "tests/data/jusprin/harness.conf"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 254,
+    "cache_creation_tokens": 219673,
+    "cache_read_tokens": 23289681,
+    "output_tokens": 52504,
+    "api_call_count": 127
+  }
+}
