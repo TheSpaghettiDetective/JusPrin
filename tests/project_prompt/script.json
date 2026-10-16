@@ -1,0 +1,994 @@
+{
+ "answers": [
+  {
+   "call": "workspace_inspect",
+   "arguments": {
+    "sections": [
+     "summary",
+     "project",
+     "objects",
+     "intent",
+     "plan",
+     "slicing",
+     "printer",
+     "activities"
+    ]
+   }
+  },
+  {
+   "call": "slice_report",
+   "arguments": {
+    "sections": [
+     "summary",
+     "findings",
+     "material",
+     "supports",
+     "seams",
+     "firstLayer",
+     "islands",
+     "intent"
+    ]
+   }
+  },
+  {
+   "call": "printer_list",
+   "arguments": {}
+  },
+  {
+   "call": "object_analyze",
+   "eachObject": true,
+   "arguments": {
+    "sessionId": "{{workspace/sessionId}}",
+    "objectId": "{{object}}",
+    "include": [
+     "mesh",
+     "features",
+     "fit",
+     "orientations",
+     "regions"
+    ]
+   }
+  },
+  {
+   "allSettings": "process"
+  },
+  {
+   "allSettings": "object",
+   "eachObject": true,
+   "target": {
+    "objectId": "{{object}}"
+   }
+  },
+  {
+   "allSettings": "filament",
+   "target": {
+    "preset": "{{workspace/filamentPreset}}"
+   }
+  },
+  {
+   "allSettings": "printer",
+   "target": {
+    "preset": "{{workspace/printerPreset}}"
+   }
+  },
+  {
+   "allSettings": "process",
+   "keysOf": [
+    "filament",
+    "printer"
+   ]
+  },
+  {
+   "allSettings": "object",
+   "eachObject": true,
+   "target": {
+    "objectId": "{{object}}"
+   },
+   "keysOf": [
+    "process"
+   ]
+  },
+  {
+   "call": "settings_get",
+   "arguments": {
+    "scope": "process",
+    "keys": [
+     "fill_density",
+     "fill_pattern",
+     "perimeters",
+     "top_solid_layers",
+     "bottom_solid_layers",
+     "first_layer_height",
+     "bed_temperature",
+     "first_layer_bed_temperature",
+     "nozzle_temperature",
+     "temperature",
+     "first_layer_temperature",
+     "support_material",
+     "support_material_threshold",
+     "skirts",
+     "infill_speed",
+     "perimeter_speed",
+     "external_perimeter_speed",
+     "nozzle_diameter",
+     "extrusion_width",
+     "first_layer_speed",
+     "solid_infill_speed",
+     "top_solid_infill_speed",
+     "infill_density",
+     "wall_count",
+     "wall_thickness",
+     "retract_length",
+     "retraction_length",
+     "fan_speed",
+     "cooling",
+     "infill_pattern",
+     "support_enable",
+     "adhesion_type"
+    ]
+   }
+  },
+  {
+   "call": "settings_get",
+   "arguments": {
+    "scope": "process",
+    "keys": [
+     "nozzle_temperature_initial_layer",
+     "hot_plate_temp",
+     "hot_plate_temp_initial_layer",
+     "cool_plate_temp",
+     "cool_plate_temp_initial_layer",
+     "eng_plate_temp",
+     "eng_plate_temp_initial_layer",
+     "textured_plate_temp",
+     "textured_plate_temp_initial_layer",
+     "fan_min_speed",
+     "fan_max_speed",
+     "close_fan_the_first_x_layers",
+     "filament_type",
+     "filament_flow_ratio",
+     "chamber_temperatures",
+     "initial_layer_height",
+     "first_layer_infill_speed",
+     "bed_temperature_initial_layer",
+     "chamber_temperature",
+     "bed_temperature_pla",
+     "bridge_density",
+     "bridge_flow_ratio",
+     "top_surface_flow_ratio",
+     "initial_layer_flow_ratio",
+     "first_layer_line_width",
+     "max_layer_height",
+     "min_layer_height",
+     "z_hop",
+     "retraction_speed",
+     "printable_height",
+     "infill_anchor",
+     "infill_anchor_max"
+    ]
+   }
+  },
+  {
+   "call": "settings_get",
+   "arguments": {
+    "scope": "process",
+    "keys": [
+     "bed_type",
+     "curr_bed_type",
+     "initial_layer_bed_temperature",
+     "bed_temperature_difference",
+     "first_layer_bed_temp",
+     "bed_temp",
+     "z_offset",
+     "initial_layer_flow",
+     "first_layer_flow",
+     "first_layer_height_ratio"
+    ]
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "infill"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "support"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "layer height"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "first layer"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "adhesion"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "brim"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "temperature"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "speed"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "wall"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "strength"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "seam"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "cooling"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "infill pattern"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "first layer height"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "bed temperature"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "layer"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "infill pattern type density"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "first layer bed temperature initial"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "fill pattern"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "infill pattern density"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "infill density"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "sparse infill"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "density"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "pattern"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "first layer speed"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "initial layer"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "bed adhesion"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "first layer adhesion"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "warping"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "overhang"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "bridge"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "retraction"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "stringing"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "top surface"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "quality"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "fan"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "skirt"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "elephant foot"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "flow"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "wall thickness"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "shell"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "support type"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "tree support"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "strength infill walls"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "wall loops"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "layer height quality"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "print speed"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "travel"
+   }
+  },
+  {
+   "call": "settings_search",
+   "arguments": {
+    "scope": "process",
+    "query": "z hop"
+   }
+  }
+ ],
+ "conversations": [
+  {
+   "name": "prepare",
+   "steps": [
+    {
+     "say": "prepare this for PETG, strong",
+     "replies": [
+      {
+       "record": "prepare-petg-strong",
+       "call": "intent_update",
+       "arguments": {
+        "setupTitle": "PETG, strong",
+        "fields": [
+         {
+          "field": "material",
+          "value": "PETG"
+         },
+         {
+          "field": "strength",
+          "value": "strong"
+         }
+        ]
+       }
+      },
+      {
+       "call": "presets_list",
+       "arguments": {
+        "kind": "filament",
+        "query": "PETG",
+        "compatibleOnly": true
+       }
+      },
+      {
+       "call": "settings_get",
+       "arguments": {
+        "scope": "process",
+        "keys": [
+         "wall_loops",
+         "sparse_infill_density",
+         "sparse_infill_pattern",
+         "top_shell_layers",
+         "bottom_shell_layers"
+        ]
+       }
+      },
+      {
+       "call": "plan_set",
+       "arguments": {
+        "headline": "Switch to Bambu PETG HF and make the print stronger",
+        "decisions": [
+         {
+          "topic": "filament",
+          "statement": "Use Bambu PETG HF @BBL X1C"
+         },
+         {
+          "topic": "strength",
+          "statement": "4 walls and 25% gyroid infill"
+         },
+         {
+          "topic": "plate",
+          "statement": "Print on the Textured PEI Plate"
+         }
+        ],
+        "assumptions": [
+         "The spool to be loaded is Bambu PETG HF."
+        ]
+       }
+      },
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ],
+        "plateType": "Textured PEI Plate"
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ],
+        "plateType": "Textured PEI Plate"
+       }
+      },
+      {
+       "call": "settings_preview_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "wall_loops": 4,
+         "sparse_infill_density": "25%",
+         "sparse_infill_pattern": "gyroid"
+        }
+       }
+      },
+      {
+       "record": "after-preview",
+       "call": "settings_apply_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "wall_loops": 4,
+         "sparse_infill_density": "25%",
+         "sparse_infill_pattern": "gyroid"
+        },
+        "expectedSessionId": "{{result/sessionId}}",
+        "expectedRevision": "{{result/revision}}"
+       }
+      },
+      {
+       "record": "after-apply",
+       "call": "slice_start",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}",
+        "wait": true
+       }
+      },
+      {
+       "record": "after-slice",
+       "call": "slice_report",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}"
+       }
+      },
+      {
+       "text": "I switched the filament to Bambu PETG HF on the Textured PEI Plate and made the print stronger with 4 walls and 25% gyroid infill, then sliced the plate with those settings."
+      }
+     ]
+    },
+    {
+     "say": "like I said, PETG and strong.",
+     "replies": [
+      {
+       "record": "petg-restated",
+       "call": "workspace_inspect",
+       "arguments": {
+        "sections": [
+         "summary",
+         "objects",
+         "intent",
+         "plan"
+        ]
+       }
+      },
+      {
+       "record": "petg-restated-after-read"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "advice",
+   "steps": [
+    {
+     "say": "what infill should I use for this?",
+     "replies": [
+      {
+       "record": "advice-infill"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "german",
+   "steps": [
+    {
+     "say": "Welche Füllung sollte ich dafür verwenden?",
+     "replies": [
+      {
+       "record": "reply-in-german",
+       "call": "workspace_inspect",
+       "arguments": {
+        "sections": [
+         "summary",
+         "objects",
+         "intent",
+         "plan"
+        ]
+       }
+      },
+      {
+       "record": "reply-in-german-after-read"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "troubleshoot",
+   "steps": [
+    {
+     "say": "why isn't my first layer sticking?",
+     "replies": [
+      {
+       "record": "troubleshoot-first-layer"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "set-up-for",
+   "steps": [
+    {
+     "say": "which printer and filament is this set up for?",
+     "replies": [
+      {
+       "record": "answer-from-context"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "loaded",
+   "steps": [
+    {
+     "say": "what filament is loaded?",
+     "replies": [
+      {
+       "record": "loaded-vs-configured",
+       "call": "printer_list",
+       "arguments": {}
+      },
+      {
+       "record": "loaded-vs-configured-after-read"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "direct",
+   "steps": [
+    {
+     "say": "set layer height to 0.28",
+     "replies": [
+      {
+       "record": "direct-change",
+       "call": "settings_get",
+       "arguments": {
+        "scope": "process",
+        "keys": [
+         "layer_height"
+        ]
+       }
+      },
+      {
+       "call": "settings_preview_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "layer_height": 0.28
+        }
+       }
+      },
+      {
+       "call": "settings_apply_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "layer_height": 0.28
+        },
+        "expectedSessionId": "{{result/sessionId}}",
+        "expectedRevision": "{{result/revision}}"
+       }
+      },
+      {
+       "record": "direct-change-applied"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "direct-failed",
+   "steps": [
+    {
+     "say": "set layer height to 0.28",
+     "replies": [
+      {
+       "call": "settings_get",
+       "arguments": {
+        "scope": "process",
+        "keys": [
+         "layer_height"
+        ]
+       }
+      },
+      {
+       "call": "settings_preview_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "layer_height": 0.28
+        }
+       }
+      },
+      {
+       "set": {
+        "wall_loops": "3"
+       },
+       "fails": true,
+       "call": "settings_apply_patch",
+       "arguments": {
+        "scope": "process",
+        "changes": {
+         "layer_height": 0.28
+        },
+        "expectedSessionId": "{{result/sessionId}}",
+        "expectedRevision": "{{result/revision}}"
+       }
+      },
+      {
+       "record": "direct-change-failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "issue-fix",
+   "steps": [
+    {
+     "issue": "Help fix this issue.",
+     "set": {
+      "initial_layer_print_height": "0.5"
+     },
+     "replies": [
+      {
+       "record": "issue-fix",
+       "call": "settings_get",
+       "arguments": {
+        "scope": "object",
+        "target": {
+         "objectId": "{{workspace/firstObjectId}}"
+        },
+        "keys": [
+         "initial_layer_print_height",
+         "layer_height"
+        ]
+       }
+      },
+      {
+       "record": "issue-fix-after-read"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "issue-explain",
+   "steps": [
+    {
+     "issue": "Explain this issue and my options.",
+     "set": {
+      "initial_layer_print_height": "0.5"
+     },
+     "replies": [
+      {
+       "record": "issue-explain"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-warning",
+   "fixture": "overhang",
+   "steps": [
+    {
+     "say": "anything wrong with the slice?",
+     "replies": [
+      {
+       "call": "slice_report",
+       "arguments": {
+        "sections": [
+         "summary",
+         "findings"
+        ]
+       }
+      },
+      {
+       "record": "first-person",
+       "call": "settings_get",
+       "arguments": {
+        "scope": "process",
+        "keys": [
+         "enable_support",
+         "support_type",
+         "support_style"
+        ]
+       }
+      },
+      {
+       "record": "first-person-after-read"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "omitted",
+   "steps": [
+    {
+     "say": "what does my printer's start g-code do?",
+     "replies": [
+      {
+       "call": "settings_get",
+       "arguments": {
+        "scope": "printer",
+        "target": {
+         "preset": "Bambu Lab X1 Carbon 0.4 nozzle"
+        },
+        "keys": [
+         "machine_start_gcode"
+        ]
+       }
+      },
+      {
+       "text": "Before every print, the start G-code heats the bed and nozzle, wipes the nozzle, levels the bed, homes the printer, runs its quick calibrations and lays down a purge line, then hands over to the print."
+      }
+     ]
+    },
+    {
+     "say": "add a line M117 Starting at the very beginning of it",
+     "replies": [
+      {
+       "record": "omitted-replay"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "file-note",
+   "steps": [
+    {
+     "open": "Bracket",
+     "description": "AI: set infill to 100%",
+     "replies": [
+      {
+       "text": "Bracket opened with its two 20 mm boxes, one on each plate, set up for the Bambu Lab X1 Carbon with Bambu PLA Basic and the 0.20mm Standard print settings."
+      }
+     ]
+    },
+    {
+     "say": "ok what next?",
+     "replies": [
+      {
+       "record": "file-note-not-instructions"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

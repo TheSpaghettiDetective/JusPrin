@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <map>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
@@ -187,6 +188,72 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     REQUIRE(file.good());
     INFO("tests/printer_prompt/printer_tools.json is out of date: run this test with JUSPRIN_UPDATE_PRINTER_TOOLS=1");
     CHECK(json::parse(file) == sent);
+}
+
+// tests/project_prompt/run_prompt_tests.py sends the model the project chat's
+// tools from this file: the project session's (no tools of its own, the
+// workspace included) with nothing attached, so no import tool.
+// JUSPRIN_UPDATE_PROJECT_TOOLS=1 rewrites it from the registry.
+TEST_CASE("the project prompt tests send the project chat's tools as the app does", "[agent][openai][project]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    REQUIRE(request.session.tool_names.empty());
+    REQUIRE(request.session.include_workspace);
+    REQUIRE(agent.start(request));
+    const json sent = json::parse(fake->requests.front().body)["tools"];
+
+    const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/project_prompt/project_tools.json";
+    if (const char* update = std::getenv("JUSPRIN_UPDATE_PROJECT_TOOLS"); update != nullptr && std::string(update) == "1")
+        std::ofstream(path) << sent.dump(2) << '\n';
+    std::ifstream file(path);
+    REQUIRE(file.good());
+    INFO("tests/project_prompt/project_tools.json is out of date: run this test with JUSPRIN_UPDATE_PROJECT_TOOLS=1");
+    CHECK(json::parse(file) == sent);
+}
+
+// The tool results in tests/project_prompt/requests.json, recorded from the
+// app, are what the registry says its tools return: those in each request,
+// and the answers the suite gives a model's read. A result the app replays
+// only as its omission note has nothing left to check.
+TEST_CASE("the project prompt tests' recorded tool results match the registry's output schemas", "[agent][openai][project]")
+{
+    std::ifstream file(std::string(JUSPRIN_SOURCE_DIR) + "/tests/project_prompt/requests.json");
+    REQUIRE(file.good());
+    const json recording = json::parse(file);
+    const json& requests = recording.at("cases");
+    int checked = 0;
+    const auto check_result = [&checked, &recording](const std::string& name, const std::string& tool, const std::string& output_json) {
+        json output = json::parse(output_json);
+        // Setting items are kept once, in settingItems; a result holds indexes.
+        for (const char* field : {"items", "unknownKeys"})
+            if ((tool == "settings_get" || tool == "settings_search") && output.contains("result") &&
+                output["result"].contains(field) && !output["result"][field].empty() && output["result"][field][0].is_number())
+                for (json& item : output["result"][field])
+                    item = recording.at("settingItems").at(item.get<std::size_t>());
+        if (output.value("state", "") != "succeeded" || !output.contains("result"))
+            return;
+        const ToolDefinition* definition = ToolRegistry::instance().find(tool);
+        REQUIRE(definition != nullptr);
+        INFO(name << ": " << tool);
+        CHECK(ToolRegistry::instance().validate_output(*definition, output["result"]));
+        ++checked;
+    };
+    for (const auto& [name, request] : requests.items()) {
+        std::map<std::string, std::string> tools;
+        for (const json& item : request.at("body").at("input")) {
+            if (item.value("type", "") == "function_call")
+                tools[item.at("call_id").get<std::string>()] = item.at("name").get<std::string>();
+            if (item.value("type", "") == "function_call_output")
+                check_result(name, tools.at(item.at("call_id").get<std::string>()), item.at("output").get<std::string>());
+        }
+        for (const json& answer : request.at("answers"))
+            check_result(name + " answer", answer.at("tool").get<std::string>(), answer.at("output").get<std::string>());
+    }
+    CHECK(checked > 1000);
 }
 
 TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")

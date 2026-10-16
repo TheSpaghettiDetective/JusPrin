@@ -20,6 +20,11 @@
 //   --file-corpus <manifest.json> <output.json> [--file-corpus-config <config.json>]
 //              loads real files through the native UI path and records each
 //              file-load report beside the selected setup before and after
+//   --project-prompt-requests <script.json> <output.json>
+//              plays tests/project_prompt's scripted conversations through the
+//              project chat's real adapter, tools and host, with the model's
+//              outputs scripted and nothing sent over the network, and writes
+//              the request bodies the script marks, for that suite to send
 //   --printer-menu
 //              checks the saved-printer rows and selection in the header menu
 //   --printer-menu-capture <output-directory>
@@ -661,6 +666,29 @@ private:
     };
 };
 BodyRecordingMockAgent* g_body_agent = nullptr;
+
+// --project-prompt-requests: the project chat keeps its real OpenAI adapter,
+// but the requests it sends wait here instead of leaving the machine. The
+// scenario answers each with a scripted model output, so the app runs its
+// real tools and builds every later request itself.
+struct HeldModelRequest
+{
+    nlohmann::json                         body;
+    Agent::IAgentHttpTransport::EventFn    answer;
+};
+std::deque<HeldModelRequest> g_held_model_requests;
+
+class HeldModelTransport final : public Agent::IAgentHttpTransport
+{
+public:
+    bool post(Agent::AgentHttpRequest request, EventFn event) override
+    {
+        g_held_model_requests.push_back({nlohmann::json::parse(request.body), std::move(event)});
+        return true;
+    }
+    void cancel() override {}
+};
+
 // --manual-print-issues-no-agent: the same fixture with no Agent service, to
 // see what a press of either button does before the assistant is set up.
 bool g_issue_no_agent = false;
@@ -707,6 +735,7 @@ struct HarnessState
         ReopenPrompt,
         ChatRestoration,
         FileCorpus,
+        ProjectPromptRequests,
         LeftPane,
         LeftPaneEditor,
         LeftPaneSlicedCapture
@@ -730,6 +759,8 @@ struct HarnessState
     fs::path file_corpus_manifest;
     fs::path file_corpus_output;
     fs::path file_corpus_config;
+    fs::path prompt_script;
+    fs::path prompt_requests;
     // --printer-connect-capture: the connect flow only, pictured.
     bool connect_capture{false};
     // --printer-live-no-plugin: connecting a Bambu Lab printer without the
@@ -847,6 +878,10 @@ public:
             if (m_state->mode == HarnessState::Mode::FileCorpus) {
                 capture_file_corpus();
                 finish();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ProjectPromptRequests) {
+                wait_for_agent_page("prompt_requests", [self = shared_from_this()] { self->record_prompt_requests(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::PrinterMenu) {
@@ -7053,6 +7088,7 @@ private:
 
 #include "print_issues_scenario.inc"
 #include "print_issue_readers_scenario.inc"
+#include "project_prompt_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
     {
@@ -9791,6 +9827,12 @@ void install_harness_agent(HarnessState::Mode mode)
                        Agent::AgentAvailability::Ready);
         return;
     }
+    case HarnessState::Mode::ProjectPromptRequests: {
+        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(Agent::OpenAIResponsesConfig{"sk-harness-not-a-real-key"},
+                                                                     std::make_unique<HeldModelTransport>()),
+                       Agent::AgentAvailability::Ready);
+        return;
+    }
     case HarnessState::Mode::PrintIssues:
     case HarnessState::Mode::ManualPrintIssues: {
         if (g_issue_no_agent)
@@ -9948,6 +9990,15 @@ int main(int argc, char** argv)
         }
         else if (argument == "--chat-restoration")
             state->mode = HarnessState::Mode::ChatRestoration;
+        else if (argument == "--project-prompt-requests") {
+            if (index + 2 >= argc) {
+                std::cerr << "--project-prompt-requests needs a script and an output path\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::ProjectPromptRequests;
+            state->prompt_script = utf8_argument(++index, argv);
+            state->prompt_requests = utf8_argument(++index, argv);
+        }
         else if (argument == "--chat-restoration-capture") {
             if (++index == argc) return 2;
             state->mode = HarnessState::Mode::ChatRestoration;
