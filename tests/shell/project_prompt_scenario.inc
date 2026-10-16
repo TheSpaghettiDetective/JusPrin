@@ -78,6 +78,14 @@
             check(plates.get_plate(0)->add_instance(1, 0, true) == 0, name + "_overhang_centred");
             m_plater->canvas3D()->reload_scene(true, true);
             move_object(1, Vec3d(70, 0, 0));
+        } else if (kind == "single") {
+            // One box on one plate, as a person who just added a model has.
+            check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_new_project");
+            const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+            const auto strategy = LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence;
+            check(m_plater->load_files(std::vector<std::string>{cube}, strategy, false).size() == 1, name + "_cube_loaded");
+            check(m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, name + "_cube_centred");
+            m_plater->canvas3D()->reload_scene(true, true);
         } else {
             load_multi_plate_fixture();
         }

@@ -992,6 +992,7 @@
   },
   {
    "name": "print-this",
+   "fixture": "single",
    "plateType": "Cool Plate",
    "steps": [
     {
