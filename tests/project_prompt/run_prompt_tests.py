@@ -4,11 +4,12 @@
 The project chat's assistant is a system prompt (projectInstructions.ts), the
 project tools and the chat. Each case here is one point in a project chat,
 recorded from the real app, and the model's next step there, a tool call or a
-reply, checked against one sentence of the prompt. A read the case does not
-decide on is answered with the result the app gave for that read at the same
-point (recorded beside the request) and the model asked again, at most
-MAX_READS times; nothing else is ever answered. A change, or any call a case
-judges, is the outcome and ends the run.
+reply, checked against one sentence of the prompt. A response may hold
+several calls, and every one is judged: a change among them is the outcome
+and ends the run, whatever came before it. A response of reads the case does
+not decide on is answered, each read with the result the app gave for it at
+the same point (recorded beside the request), and the model asked again, at
+most MAX_READS times; nothing else is ever answered.
 
 What the app sends, reproduced here:
   - instructions: rendered from projectInstructions.ts by
@@ -91,7 +92,7 @@ for _request in REQUESTS.values():
         if _answer.pop("sharedWorkspace", False):
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
-MAX_READS = 3  # reads answered in one run
+MAX_READS = 3  # responses of reads answered in one run
 RUN_BUDGET = 72
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
@@ -201,19 +202,36 @@ def last_result(request):
 
 
 class Step:
-    """What the model did with the request: its first tool call, or its reply."""
+    """What the model did with the request: its reply, or the tool call that
+    stands for its calls. A response may hold several calls, and the app runs
+    every one, so a change among them is the step whatever came before it
+    (the first change, if several); a response of reads is the first read,
+    and each_read() gives a step for every read. Every call is in the report."""
 
-    def __init__(self, output):
-        call = next((item for item in output if item.get("type") == "function_call"), None)
+    def __init__(self, output, index=None):
         self.output = output
+        self.calls = [item for item in output if item.get("type") == "function_call"]
         self.reply = "".join(output_text(item) for item in output if item.get("type") == "message").strip()
+        if index is None:
+            index = next((i for i, item in enumerate(self.calls) if item.get("name") not in READS), 0)
+        self.index = index
+        call = self.calls[index] if self.calls else None
         self.tool = call["name"] if call else None
         self.call_id = call.get("call_id") if call else None
-        try:
-            self.arguments = json.loads(call.get("arguments") or "{}") if call else {}
-        except json.JSONDecodeError:
-            self.arguments = {"(unreadable)": call.get("arguments")}
+        self.arguments = self.parsed(call) if call else {}
         self.problem = self.invalid() if call else ""
+
+    @staticmethod
+    def parsed(call):
+        try:
+            return json.loads(call.get("arguments") or "{}")
+        except json.JSONDecodeError:
+            return {"(unreadable)": call.get("arguments")}
+
+    def each_read(self):
+        """A step for every call of a response with no change in it, in the
+        order the model wrote them."""
+        return [Step(self.output, index) for index in range(len(self.calls))]
 
     def invalid(self):
         """Arguments the registry would refuse, as far as the schema says. The
@@ -236,9 +254,12 @@ class Step:
         return self.tool in READS
 
     def __str__(self):
-        if self.tool:
-            return f"{self.tool} {json.dumps(self.arguments, ensure_ascii=False)}" + (f" ({self.problem})" if self.problem else "")
-        return "reply: " + (self.reply.replace("\n", " ")[:160] or "(empty)")
+        if not self.tool:
+            return "reply: " + (self.reply.replace("\n", " ")[:160] or "(empty)")
+        text = f"{self.tool} {json.dumps(self.arguments, ensure_ascii=False)}" + (f" ({self.problem})" if self.problem else "")
+        others = [f"{call['name']} {json.dumps(self.parsed(call), ensure_ascii=False)}"
+                  for index, call in enumerate(self.calls) if index != self.index]
+        return text + (f" [same response: {'; '.join(others)}]" if others else "")
 
 
 # --- Cases -------------------------------------------------------------------
@@ -246,10 +267,10 @@ class Step:
 # Each case names its request in requests.json and, in its docstring, the
 # sentence of projectInstructions.ts it tests (line numbers at 6b4b8b6188).
 # check() returns PASS, FAIL, UNOBSERVED or CONTINUE with a detail. CONTINUE
-# is a read the case does not decide on: the runner answers it from the
-# recording and asks again. UNOBSERVED is a step the case can say nothing
-# about, or a read with no recorded answer, or the model still reading after
-# MAX_READS answers.
+# is a read the case does not decide on: when it decides on none of a
+# response's reads, the runner answers them all from the recording and asks
+# again. UNOBSERVED is a step the case can say nothing about, or a read with
+# no recorded answer, or the model still reading after MAX_READS answers.
 
 
 class Case:
@@ -290,8 +311,9 @@ class PreparePetgStrong(Case):
     """"prepare this for PETG, strong" with no history. Line 13: "For a print
     request, record the user's explicit purpose as setupTitle with
     intent_update"; line 14: "When asked to prepare or print a model, inspect
-    the project". Judges the first call: passes when it is intent_update or a
-    read; fails on any other change, or a reply."""
+    the project". Judges the first response: passes when its change is
+    intent_update or it holds only reads; fails on any other change, or a
+    reply."""
 
     name = "prepare-petg-strong"
 
@@ -477,9 +499,10 @@ class DirectChangeFailed(Case):
 class AnswerFromContext(Case):
     """"which printer and filament is this set up for?" with no history; the
     workspace context names both. Line 12: "Use only IDs from current
-    authoritative workspace context or tool results." Judges the first step:
-    passes on a reply naming the printer (X1) and the filament (PLA); fails
-    on any tool call, a read included, since the answer is in the message."""
+    authoritative workspace context or tool results." Judges the first
+    response: passes on a reply naming the printer (X1) and the filament
+    (PLA); fails on any tool call, a read included, since the answer is in
+    the message."""
 
     name = "answer-from-context"
 
@@ -718,26 +741,70 @@ def recorded_answer(name, step):
     return None
 
 
+def not_run(step):
+    """The result the app gives a call after one in the same response did not
+    succeed (OpenAIResponsesAgent::next_call), byte for byte."""
+    return dump({"state": "failed", "error": {"code": "not_run", "message":
+                 f"Not run: an earlier call in the same response, {step.tool} ({step.call_id}), did not succeed. "
+                 "Nothing was queued. Call it again if it is still needed."}})
+
+
+def judge_response(case, step):
+    """The verdict on one response. A change decides it; a response of reads
+    is decided by the first read the case decides on, and answered only when
+    the case decides on none of them."""
+    if not step.tool or step.changes():
+        verdict, detail = case.check(step)
+        # A change is never answered, whatever a case says of it.
+        return (UNOBSERVED, "a change, never answered: " + detail) if verdict == CONTINUE else (verdict, detail)
+    for read in step.each_read():
+        verdict, detail = case.check(read)
+        if verdict != CONTINUE:
+            return verdict, detail
+    return CONTINUE, str(step)
+
+
+def answers_for(name, step):
+    """The results the app would give the reads of one response, in order,
+    or None when one the app would run has no recorded answer. As the app
+    does, a read after one that did not succeed is answered without being
+    run."""
+    results, failed = [], None
+    for read in step.each_read():
+        if failed:
+            results.append(not_run(failed))
+            continue
+        answer = recorded_answer(name, read)
+        if answer is None:
+            return None, read
+        results.append(answer)
+        if json.loads(answer).get("state") != "succeeded":
+            failed = read
+    return results, None
+
+
 def run_once(name, instructions, key, model, endpoint, providers):
     input = list(REQUESTS[name]["body"]["input"])
-    path = []  # the reads answered, for the report
+    path = []  # the reads answered, one entry per response, for the report
     try:
         for _ in range(MAX_READS + 1):
             log = [line for line in map(readable, input) if line]
             response = post(body_for(name, instructions, model, providers, input), key, endpoint)
             count(response.get("usage"))
             step = Step(response.get("output", []))
-            verdict, detail = CASES[name](REQUESTS[name], log).check(step)
+            verdict, detail = judge_response(CASES[name](REQUESTS[name], log), step)
             if verdict != CONTINUE:
                 break
-            answer = recorded_answer(name, step)
-            if answer is None or len(path) == MAX_READS:
+            results, missing = answers_for(name, step)
+            if results is None or len(path) == MAX_READS:
                 verdict = UNOBSERVED
-                detail = ("no recorded answer for " if answer is None else "still reading after answers: ") + str(step)
+                detail = (f"no recorded answer for {missing}" if results is None else f"still reading after answers: {step}")
                 break
-            path.append(step.tool)
-            # As the app continues a turn: the model's output, then the result.
-            input += step.output + [{"type": "function_call_output", "call_id": step.call_id, "output": answer}]
+            path.append(" + ".join(call["name"] for call in step.calls))
+            # As the app continues a turn: the model's output, then a result
+            # for every call, in the order the calls were written.
+            input += step.output + [{"type": "function_call_output", "call_id": call.get("call_id"), "output": result}
+                                    for call, result in zip(step.calls, results)]
     except Exception as error:  # a failed request is a failed run, reported as such
         return FAIL, f"ERROR {error}", [line for line in map(readable, input) if line]
     prefix = f"after {', '.join(path)}: " if path else ""

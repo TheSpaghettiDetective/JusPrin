@@ -28,14 +28,31 @@ Novita, Baidu and AtlasCloud, with a pinned OpenAI judge.
 ## One step, with its reads answered
 
 Each case starts at a point recorded from the app and judges the model's next
-step: a tool call or a reply. A read the case does not decide on (any
-read-only tool, such as `workspace_inspect` before a reply) is answered with
-the result the app gave for that read at the same point, and the model is
-asked again, at most three times (`MAX_READS`). Nothing else is ever
-answered: a change, or any call the case judges, is the outcome and ends the
-run. A read with no recorded answer, or a fourth read, ends it unobserved. A
-call with arguments the registry would refuse is never answered either; it is
-the step, reported beside it, and refusals are the C++ tests' business.
+step: a reply, or its tool calls. One response may hold several calls. The
+app asks for that (`parallel_tool_calls: true`) and runs every call in the
+order the model wrote it, so every call is judged here:
+
+- A change anywhere in the response (any call the registry does not mark
+  read-only) is the step, whatever came before it; the first change if
+  there are several. It ends the run, and nothing is answered.
+- A response of reads only is checked read by read, in order, and the first
+  read the case decides on is the outcome: `issue-fix` passes on a
+  `settings_get` of its setting sent after a `workspace_inspect`.
+- When the case decides on none of the reads (such as `workspace_inspect`
+  before a reply), every one is answered with the result the app gave for
+  that read at the same point, each under its own call id, and the model is
+  asked again, at most three times (`MAX_READS`, counted in responses). As
+  the app does, a read after one whose result did not succeed gets the
+  app's "not run" result instead.
+- If any read of the response has no recorded answer, none is answered and
+  the run ends unobserved, so the history never holds a call without its
+  result. A fourth response of reads ends it unobserved too.
+
+A call with arguments the registry would refuse is never answered either; it
+is the step, reported beside it, and refusals are the C++ tests' business.
+A run's report names every call of the response it ended on. `test_steps.py`
+checks these rules offline against written model outputs, with no key and
+nothing sent (`python3 tests/project_prompt/test_steps.py`).
 
 The recorded answers, kept beside each request, are the reads the script's
 `answers` list names:
@@ -124,9 +141,10 @@ results for every call can show that.
   script's `answers` list names the reads recorded at every point.
   `test_openai_responses_agent.cpp` also checks every recorded result and
   answer against its tool's output schema.
-- **An answered read** is added as the app continues a turn: the model's own
-  output items, then the result under the model's call id. The answer carries
-  the action id and workspace block of the recorded call.
+- **Answered reads** are added as the app continues a turn: the model's own
+  output items, then a result for every call under its call id, in the order
+  the calls were written. Each answer carries the action id and workspace
+  block of the recorded call.
 
 What is written by hand is only what a model or a person would have said: the
 person's words, the scripted calls, and two assistant replies (the summary
@@ -144,7 +162,9 @@ those. Recorded again for the change that added each plate's type to the
 `<workspace>` block (`plateType`, OrcaSlicer's own name for the plate, in
 "Name each plate's type in the project chat's workspace block"): every
 point's block names it, and nothing else changed but timestamps and a
-temporary path.
+temporary path. Recorded again when the app began asking for several calls
+per response (`parallel_tool_calls: true`): only that flag, ids, timestamps
+and a temporary path changed.
 
 The app streams its requests and this script does not.
 
@@ -162,7 +182,7 @@ the case, a read is answered and the run goes on.
 | Case | Point in the chat | Sentence | Pass | Fail |
 |---|---|---|---|---|
 | `advice-infill` | "what infill should I use for this?" | 14: advice calls for recommendations, not project changes | reply | a change |
-| `prepare-petg-strong` | "prepare this for PETG, strong" | 13: record the purpose with `intent_update`; 14: inspect the project | `intent_update` or a read first (the first call decides) | anything else |
+| `prepare-petg-strong` | "prepare this for PETG, strong" | 13: record the purpose with `intent_update`; 14: inspect the project | `intent_update` or reads first (the first response decides) | anything else |
 | `after-preview` | that turn, after `settings_preview_patch` | 12: call the matching tool; use only IDs from tool results | apply with the preview's `sessionId` and `revision` | anything else |
 | `after-apply` | after the apply; the slice is out of date | 15: slice and inspect before reporting readiness | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
 | `after-slice` | after `slice_start` finished | 15, as above | `slice_report`, or a reply not claiming readiness (judged) | a readiness claim |
