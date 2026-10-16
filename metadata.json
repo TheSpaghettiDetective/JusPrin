@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M51EKV6WKEY4YC2BKZMJ237F",
+  "strategy": "manual-commit",
+  "branch": "claude/workspace-input-tags",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 25676,
+    "cache_read_tokens": 5097093,
+    "output_tokens": 13535,
+    "api_call_count": 20
+  }
+}
