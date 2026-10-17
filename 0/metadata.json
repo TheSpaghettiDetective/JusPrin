@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M55M93VF3CNVE48E4RBQBM2H",
+  "session_id": "01a14b31-278f-71e3-93a5-4967589ae734",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-17T19:09:07.690219Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/project_tools.json",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/project_prompt/test_steps.py"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "a141f3adb451",
+  "checkpoint_transcript_start": 296,
+  "transcript_lines_at_start": 296,
+  "compact_transcript_start": 40,
+  "token_usage": {
+    "input_tokens": 407,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 110080,
+    "output_tokens": 197,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-17T19:09:07.627024Z",
+    "agent_lines": 0,
+    "agent_removed": 2,
+    "human_added": 73410,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 73425,
+    "total_lines_changed": 73427,
+    "agent_percentage": 0.0027237936998651723,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
