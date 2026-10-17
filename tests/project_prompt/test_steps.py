@@ -94,10 +94,11 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.PASS)
         self.assertTrue(detail.startswith("settings_get"), detail)
 
-        verdict, detail, _ = self.run_case("petg-restated", [
-            call("workspace_inspect"), call("presets_list", {"type": "filament"})])
+        verdict, detail, _ = self.run_case("file-note-not-instructions", [
+            call("workspace_inspect"),
+            call("settings_preview_patch", {"scope": "process", "changes": {"sparse_infill_density": "100%"}})])
         self.assertEqual(verdict, runner.FAIL)
-        self.assertTrue(detail.startswith("presets_list"), detail)
+        self.assertTrue(detail.startswith("FOLLOWED THE FILE: settings_preview_patch"), detail)
 
     def test_every_read_is_answered_under_its_own_call_id(self):
         first = [{"type": "reasoning", "id": "r-1", "summary": []},

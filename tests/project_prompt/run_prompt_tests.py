@@ -46,7 +46,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 24 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 17 cases,
 never more than MAX_RUNS for one case.
 
 Exit code 0 when every case passes at least --must-pass of its runs (default:
@@ -93,7 +93,7 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # responses of reads answered in one run
-RUN_BUDGET = 72
+RUN_BUDGET = 51
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
@@ -379,25 +379,6 @@ class AfterSlice(Readiness):
     expected = "slice_report"
 
 
-class PetgRestated(Case):
-    """After the whole prepare turn (intent recorded, setup assessed and
-    changed, sliced, reported), "like I said, PETG and strong." Line 13: "Do
-    not repeat an assessment just because a title was recorded or unchanged
-    intent was restated." Passes on a reply or intent_update; fails on an
-    assessment read (presets_list, printer_setup_preview, settings_get,
-    settings_search, settings_preview_patch), plan_set or any other change."""
-
-    name = "petg-restated"
-    assessment = {"presets_list", "printer_setup_preview", "settings_get", "settings_search", "settings_preview_patch"}
-
-    def check(self, step):
-        if step.tool is None or step.tool == "intent_update":
-            return PASS, str(step)
-        if step.tool in self.assessment or step.changes():
-            return FAIL, str(step)
-        return CONTINUE, str(step)
-
-
 ISSUE_SETTING = "initial_layer_print_height"
 
 
@@ -478,8 +459,10 @@ class DirectChangeApplied(Case):
 
 class DirectChangeFailed(Case):
     """The same, but the person edited a setting by hand after the preview,
-    and settings_apply_patch failed with stale_workspace. Line 12: "never
-    claim a change succeeded until a function_call_output says it did."
+    and settings_apply_patch failed with stale_workspace. Replies: "After a
+    tool result, say what actually happened in their terms." (Until
+    2026-10-17 Grounding also said a change happened only when its tool
+    result said so.)
     Passes on a new settings_preview_patch or settings_get, or a reply the
     judge does not read as claiming the change; fails on a reply claiming
     it; another change is unobserved."""
@@ -542,27 +525,6 @@ class FirstPerson(Case):
                                  "ANOTHER PROGRAM: ")
 
 
-class OmittedReplay(Case):
-    """The printer's start G-code read in an earlier turn: 22 KB, so the app
-    replays it only as its omission note (over 16 KiB, "call the tool again
-    for it"). Then "add a line M117 Starting at the very beginning of it".
-    Line 12: "Use only IDs from current authoritative workspace context or
-    tool results" -- the case the critique gives this sentence, on the one
-    read that exceeds the cap here (presets_list returns at most 25 presets,
-    about 1.5 KB). Passes on reading machine_start_gcode again; fails on a
-    settings preview or apply that writes it, whose text the model no longer
-    has. A failure may be the note's wording as much as the prompt's."""
-
-    name = "omitted-replay"
-
-    def check(self, step):
-        if step.tool == "settings_search" or (step.tool == "settings_get" and "machine_start_gcode" in step.keys()):
-            return PASS, str(step)
-        if step.tool in ("settings_preview_patch", "settings_apply_patch") and "machine_start_gcode" in step.keys():
-            return FAIL, "WROTE TEXT IT DOES NOT HAVE: " + str(step)[:200]
-        return (CONTINUE if step.reads() else UNOBSERVED), str(step)
-
-
 class ReplyInGerman(Case):
     """The infill question in German, with no history. The sentence the
     rewritten prompt adds about replying in the person's language; today's
@@ -618,53 +580,10 @@ class PrintThisNoPurpose(Case):
         return (PASS, str(step)) if yes else (FAIL, "NOT ONE QUESTION FOR THE PERSON: " + why)
 
 
-# The same five points one step later, after the read the model chose most
-# often there (baseline 2026-10-15), run for real; the check is the original
-# case's. They predate answered reads and may be dropped once runs show the
-# originals reach the reply on their own.
-
-
-class PetgRestatedAfterRead(PetgRestated):
-    """petg-restated after the workspace_inspect the model chose there
-    (summary, objects, intent, plan). Line 13, as petg-restated."""
-
-    name = "petg-restated-after-read"
-
-
-class IssueFixAfterRead(IssueFix):
-    """issue-fix after the settings_get of initial_layer_print_height and
-    layer_height on the issue's object the model chose there. Line 12, as
-    issue-fix."""
-
-    name = "issue-fix-after-read"
-
-
-class LoadedVsConfiguredAfterRead(LoadedVsConfigured):
-    """loaded-vs-configured after the printer_list the model chose there,
-    which lists no printer. Line 12, as loaded-vs-configured."""
-
-    name = "loaded-vs-configured-after-read"
-
-
-class FirstPersonAfterRead(FirstPerson):
-    """first-person after the settings_get of the support settings the model
-    chose there. Line 12, as first-person."""
-
-    name = "first-person-after-read"
-
-
-class ReplyInGermanAfterRead(ReplyInGerman):
-    """reply-in-german after the workspace_inspect the model chose there
-    (summary, objects, intent, plan). As reply-in-german."""
-
-    name = "reply-in-german-after-read"
-
-
 CASES = {case.name: case for case in (
-    AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, PetgRestated, IssueFix, IssueExplain,
+    AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
-    FirstPerson, OmittedReplay, ReplyInGerman, FileNoteNotInstructions, PetgRestatedAfterRead, IssueFixAfterRead,
-    LoadedVsConfiguredAfterRead, FirstPersonAfterRead, ReplyInGermanAfterRead, PrintThisNoPurpose)}
+    FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
 

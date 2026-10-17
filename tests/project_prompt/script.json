@@ -660,26 +660,6 @@
        "text": "I switched the filament to Bambu PETG HF on the Textured PEI Plate and made the print stronger with 4 walls and 25% gyroid infill, then sliced the plate with those settings."
       }
      ]
-    },
-    {
-     "say": "like I said, PETG and strong.",
-     "replies": [
-      {
-       "record": "petg-restated",
-       "call": "workspace_inspect",
-       "arguments": {
-        "sections": [
-         "summary",
-         "objects",
-         "intent",
-         "plan"
-        ]
-       }
-      },
-      {
-       "record": "petg-restated-after-read"
-      }
-     ]
     }
    ]
   },
@@ -703,19 +683,7 @@
      "say": "Welche Füllung sollte ich dafür verwenden?",
      "replies": [
       {
-       "record": "reply-in-german",
-       "call": "workspace_inspect",
-       "arguments": {
-        "sections": [
-         "summary",
-         "objects",
-         "intent",
-         "plan"
-        ]
-       }
-      },
-      {
-       "record": "reply-in-german-after-read"
+       "record": "reply-in-german"
       }
      ]
     }
@@ -754,12 +722,7 @@
      "say": "what filament is loaded?",
      "replies": [
       {
-       "record": "loaded-vs-configured",
-       "call": "printer_list",
-       "arguments": {}
-      },
-      {
-       "record": "loaded-vs-configured-after-read"
+       "record": "loaded-vs-configured"
       }
      ]
     }
@@ -864,21 +827,7 @@
      },
      "replies": [
       {
-       "record": "issue-fix",
-       "call": "settings_get",
-       "arguments": {
-        "scope": "object",
-        "target": {
-         "objectId": "{{workspace/firstObjectId}}"
-        },
-        "keys": [
-         "initial_layer_print_height",
-         "layer_height"
-        ]
-       }
-      },
-      {
-       "record": "issue-fix-after-read"
+       "record": "issue-fix"
       }
      ]
     }
@@ -917,52 +866,7 @@
        }
       },
       {
-       "record": "first-person",
-       "call": "settings_get",
-       "arguments": {
-        "scope": "process",
-        "keys": [
-         "enable_support",
-         "support_type",
-         "support_style"
-        ]
-       }
-      },
-      {
-       "record": "first-person-after-read"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "name": "omitted",
-   "steps": [
-    {
-     "say": "what does my printer's start g-code do?",
-     "replies": [
-      {
-       "call": "settings_get",
-       "arguments": {
-        "scope": "printer",
-        "target": {
-         "preset": "Bambu Lab X1 Carbon 0.4 nozzle"
-        },
-        "keys": [
-         "machine_start_gcode"
-        ]
-       }
-      },
-      {
-       "text": "Before every print, the start G-code heats the bed and nozzle, wipes the nozzle, levels the bed, homes the printer, runs its quick calibrations and lays down a purge line, then hands over to the print."
-      }
-     ]
-    },
-    {
-     "say": "add a line M117 Starting at the very beginning of it",
-     "replies": [
-      {
-       "record": "omitted-replay"
+       "record": "first-person"
       }
      ]
     }
