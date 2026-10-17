@@ -1384,8 +1384,10 @@ struct PrinterHost
         }
         page("hello", {{"protocolVersions", {Agent::Protocol::kVersion}}, {"capabilities", {"streaming"}}});
         // A project conversation's instructions come from its page as well.
-        if (!printer_session)
+        if (!printer_session) {
             page("project_instructions", {{"text", "You are the project assistant."}});
+            page("skills", {{"skills", json::array()}});
+        }
     }
 
     Agent::AgentServicePtr make_agent()

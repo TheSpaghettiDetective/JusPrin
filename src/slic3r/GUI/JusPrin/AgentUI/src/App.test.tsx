@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
 import { projectInstructions } from './projectInstructions';
+import { skills } from './skills';
 import {
   Envelope,
   PROTOCOL_NAME,
@@ -322,7 +323,7 @@ describe('App', () => {
     truncated: false,
   };
 
-  it('gives the app the project assistant\'s whole prompt once per connection, before the file report\'s', () => {
+  it('gives the app the project assistant\'s whole prompt once per connection, before the skills', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
     connect(host, emptyState({}));
@@ -330,15 +331,18 @@ describe('App', () => {
     const sent = host.received.filter((envelope) => envelope.type === 'project_instructions');
     expect(sent).toHaveLength(1);
     expect((sent[0].payload as { text: string }).text).toBe(projectInstructions());
-    expect(types.indexOf('project_instructions')).toBeLessThan(types.indexOf('file_report_instructions'));
+    expect(types.indexOf('project_instructions')).toBeLessThan(types.indexOf('skills'));
   });
 
-  it('tells the project Agent what to say about a file, once per connection', () => {
+  it('gives the app every project skill in one message, once per connection', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
-    const sent = host.received.filter((envelope) => envelope.type === 'file_report_instructions');
+    connect(host, emptyState({}));
+    const sent = host.received.filter((envelope) => envelope.type === 'skills');
     expect(sent).toHaveLength(1);
-    expect((sent[0].payload as { text: string }).text).toContain('For this one response');
+    expect(sent[0].payload).toEqual({ skills });
+    expect((sent[0].payload as { skills: { trigger: string }[] }).skills.map((skill) => skill.trigger))
+      .toContain('model_arrived');
   });
 
   it('draws no file report the Agent is speaking about', () => {

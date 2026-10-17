@@ -749,6 +749,10 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                optional_string(arguments, "endedAt") && optional_string(arguments, "outcome") &&
                optional_string(arguments, "failure") && optional_string(arguments, "gcodeHash");
 
+    if (definition.handler == ToolHandler::SkillRead)
+        return has_only(arguments, {"name"}) && arguments.contains("name") && arguments["name"].is_string() &&
+               !arguments["name"].get_ref<const std::string&>().empty();
+
     return false;
 }
 
@@ -1148,8 +1152,16 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"objectId", "transform", "sizeMm", "regionsUnbound", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectPlace},
+        {"skill_read", "Read a skill",
+         "Read one of the skills listed below by its name: instructions for a kind of situation. Read one when its "
+         "description fits what you are doing. Changes nothing.",
+         object_schema({{"name", string_schema()}}, {"name"}),
+         object_schema({{"name", string_schema()}, {"text", {{"type", "string"}, {"maxLength", 16 * 1024}}}}, {"name", "text"}),
+         // The list is the project page's, so the tool is the project
+         // chat's: offered only while that list has a skill on it.
+         ActionClass::ReadOnly, ToolExposure::InApp, ToolAvailability::SkillIndex, ToolHandler::SkillRead},
         {"view_render", "Picture a plate",
-         "Picture the prepare view of one plate (default the active plate) from a named view: iso (default), front, rear, left, right, top, bottom, top_front, or plate (straight down on the whole plate). The plate's printable objects are drawn without the bed, at widthPx by heightPx (64 to 1280, default 1024 by 768). The picture comes back beside the result: as an image block over MCP, and as an image in JusPrin. Use it to check how a placement or a divide looks.",
+         "Picture the prepare view of one plate (default the active plate) from a named view: iso (default), front, rear, left, right, top, bottom, top_front, or plate (straight down on the whole plate). The plate's printable objects are drawn without the bed, at widthPx by heightPx (64 to 1280, default 1024 by 768). The picture comes back beside the result: as an image block over MCP, and as an image in JusPrin. Use it to tell what an object is when its name does not say, or to check how a placement or a divide looks.",
          object_schema({{"plateId", id},
                         {"view", {{"type", "string"}, {"enum", json::array({"iso", "front", "rear", "left", "right", "top", "bottom", "top_front", "plate"})}}},
                         {"widthPx", {{"type", "integer"}, {"minimum", 64}, {"maximum", 1280}}},

@@ -342,6 +342,12 @@ private:
     void begin_reply(const std::string& user_message_id);
     void begin_stream(ConversationMessage assistant, const std::string& conversation_id);
     AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const;
+    // The page's skill for `trigger`, as one request gets it now, or nothing
+    // when the page sent none for it or the conversation has no workspace.
+    std::optional<AgentSkillUse> fire_skill(const std::string& trigger, const std::string& conversation_id,
+                                            const Workspace::WorkspaceSnapshot& workspace) const;
+    void handle_skills(const std::string& envelope_id, const std::string& payload_json);
+    ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
     nlohmann::json tool_output_json(const ToolActivity& activity) const;
     void complete_stream();
     void fail_stream(AgentError error);
@@ -446,9 +452,14 @@ private:
     // project_instructions; until then, an app-started turn waits in
     // m_queued_user_message_ids.
     AgentSessionProfile             m_session_profile;
-    // What the model is told about a file report, written by the page
-    // (fileReportInstructions.ts) and sent with file_report_instructions.
-    std::string                     m_file_report_instructions;
+    // The project skills, written by the page (AgentUI/src/skills) and sent
+    // with the skills message, sorted by name, at most one for each trigger.
+    // Until they arrive a project turn waits, as it does for the instructions.
+    std::vector<AgentSkill>         m_skills;
+    bool                            m_skills_received{false};
+    // Load reports of projects the Agent opened, posted to the opened
+    // project's chat on the next timer tick, once its document is in place.
+    std::deque<Workspace::LoadReport> m_agent_opened_reports;
     PageMessageHandler              m_page_message_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;

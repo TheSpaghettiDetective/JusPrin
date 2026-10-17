@@ -66,7 +66,7 @@ TEST_CASE("tool registry definitions are unique deterministic and schema-backed"
 TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][exposure]")
 {
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::InApp)) ==
-          std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+          std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "skill_read", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
           std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import_file", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
@@ -212,4 +212,14 @@ TEST_CASE("output validation understands closed vocabularies and string bounds",
     CHECK_FALSE(registry.validate_output(definition, json{{"provenance", 3}, {"label", "front"}}));
     definition.output_schema["properties"]["label"]["pattern"] = "^f";
     CHECK_THROWS_AS(registry.validate_output(definition, json{{"provenance", 1}, {"label", "front"}}), std::logic_error);
+}
+
+TEST_CASE("skill_read takes one skill name and nothing else", "[tools][registry][skills]")
+{
+    const ToolDefinition& definition = *ToolRegistry::instance().find("skill_read");
+    CHECK(ToolRegistry::instance().validate_call(definition, R"({"name":"tune-strength"})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({"name":""})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({"name":7})").valid());
+    CHECK_FALSE(ToolRegistry::instance().validate_call(definition, R"({"name":"a","index":true})").valid());
 }

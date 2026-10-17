@@ -101,7 +101,8 @@ std::string tagged(const char* tag, const std::string& json_text)
 
 json text_part(std::string text) { return json{{"type", "input_text"}, {"text", std::move(text)}}; }
 
-bool available_in_app(const ToolDefinition& definition, bool allow_import, const std::vector<std::string>& session_tools)
+bool available_in_app(const ToolDefinition& definition, bool allow_import, bool skills_listed,
+                      const std::vector<std::string>& session_tools)
 {
     // A session with a subject of its own offers exactly the tools it names,
     // and those may be its own rather than the app's.
@@ -109,7 +110,9 @@ bool available_in_app(const ToolDefinition& definition, bool allow_import, const
         return std::find(session_tools.begin(), session_tools.end(), definition.name) != session_tools.end() &&
                (has_exposure(definition.exposure, ToolExposure::InApp) || has_exposure(definition.exposure, ToolExposure::Printer));
     return has_exposure(definition.exposure, ToolExposure::InApp) &&
-           (definition.availability == ToolAvailability::Always || allow_import);
+           (definition.availability == ToolAvailability::Always ||
+            (definition.availability == ToolAvailability::ImportableAttachment && allow_import) ||
+            (definition.availability == ToolAvailability::SkillIndex && skills_listed));
 }
 
 bool has_closed_required_objects(const json& schema)
@@ -127,15 +130,22 @@ bool has_closed_required_objects(const json& schema)
     return !schema.contains("items") || has_closed_required_objects(schema["items"]);
 }
 
-json tools_for(bool allow_import, const std::vector<std::string>& session_tools)
+json tools_for(bool allow_import, const std::vector<AgentSkill>& skill_index, const std::vector<std::string>& session_tools)
 {
     json tools = json::array();
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
-        if (!available_in_app(definition, allow_import, session_tools))
+        if (!available_in_app(definition, allow_import, !skill_index.empty(), session_tools))
             continue;
+        // skill_read carries the list it reads from, as one line per skill.
+        std::string description = definition.description;
+        if (definition.handler == ToolHandler::SkillRead) {
+            description += "\n\nSkills:";
+            for (const AgentSkill& skill : skill_index)
+                description += "\n- " + skill.name + ": " + skill.description;
+        }
         tools.push_back(json{{"type", "function"},
                              {"name", definition.name},
-                             {"description", definition.description},
+                             {"description", description},
                              // OpenAI strict mode cannot express optional
                              // fields or dynamic maps. Preserve the registry
                              // schema; native validation still owns acceptance.
@@ -143,6 +153,23 @@ json tools_for(bool allow_import, const std::vector<std::string>& session_tools)
                              {"parameters", definition.input_schema}});
     }
     return tools;
+}
+
+// A fired skill as the request's last items: its picture, as an image input
+// of its own, then its text in the app's voice. Neither is history: the
+// caller sends them with one request and keeps them out of the next.
+json skill_items(const std::vector<AgentSkillUse>& skills)
+{
+    json items = json::array();
+    for (const AgentSkillUse& skill : skills) {
+        if (skill.picture)
+            items.push_back(json{{"role", "user"},
+                                 {"content", json::array({json{{"type", "input_image"},
+                                                               {"image_url", "data:" + skill.picture->mime_type + ";base64," +
+                                                                                 skill.picture->base64}}})}});
+        items.push_back(json{{"role", "developer"}, {"content", skill.text}});
+    }
+    return items;
 }
 
 } // namespace
@@ -241,7 +268,7 @@ json OpenAIResponsesAgent::request_body(json input) const
     // some models send several whatever this says (finish_response).
     return json{{"model", m_config.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", true},
                 {"instructions", m_session.instructions},
-                {"tools", tools_for(m_allow_import, m_session.tool_names)}, {"input", std::move(input)}};
+                {"tools", tools_for(m_allow_import, m_skill_index, m_session.tool_names)}, {"input", std::move(input)}};
 }
 
 bool OpenAIResponsesAgent::start(const AgentRequest& request)
@@ -253,6 +280,7 @@ bool OpenAIResponsesAgent::start(const AgentRequest& request)
     m_queued_calls.clear();
     m_call_outputs = json::array();
     m_call_images  = json::array();
+    m_call_skills.clear();
     m_failed_call.clear();
     m_waiting_for_tool = false;
     m_request_id = request.request_id;
@@ -260,9 +288,10 @@ bool OpenAIResponsesAgent::start(const AgentRequest& request)
     m_rejected_calls = 0;
     m_title_request = request.purpose == AgentRequest::Purpose::ConversationTitle;
     m_session       = request.session;
+    m_skill_index  = request.skill_index;
     m_allow_import = std::any_of(request.attachments.begin(), request.attachments.end(),
                                  [](const AgentAttachmentContext& attachment) { return attachment.importable; });
-    return post(initial_input(request));
+    return post(initial_input(request), m_title_request ? json::array() : skill_items(request.skills));
 }
 
 bool OpenAIResponsesAgent::continue_after_tool(const AgentToolResult& result)
@@ -277,6 +306,14 @@ bool OpenAIResponsesAgent::continue_after_tool(const AgentToolResult& result)
                                      {"content", json::array({json{{"type", "input_text"}, {"text", "The image returned by call " + result.call_id + "."}},
                                                               json{{"type", "input_image"},
                                                                    {"image_url", "data:" + result.image->mime_type + ";base64," + result.image->base64}}})}});
+    for (const AgentSkillUse& skill : result.skills) {
+        const auto same = std::find_if(m_call_skills.begin(), m_call_skills.end(),
+                                       [&skill](const AgentSkillUse& pending) { return pending.name == skill.name; });
+        if (same != m_call_skills.end())
+            *same = skill;
+        else
+            m_call_skills.push_back(skill);
+    }
     if (result.state != "succeeded" && m_failed_call.empty())
         m_failed_call = m_pending_tool + " (" + m_pending_call_id + ")";
     m_waiting_for_tool = false;
@@ -290,7 +327,7 @@ void OpenAIResponsesAgent::answer_call(const std::string& call_id, const json& o
     m_call_outputs.push_back(json{{"type", "function_call_output"}, {"call_id", call_id}, {"output", output.dump()}});
 }
 
-bool OpenAIResponsesAgent::post(json input)
+bool OpenAIResponsesAgent::post(json input, json once)
 {
     m_sse_buffer.clear();
     m_terminal_seen = false;
@@ -302,6 +339,7 @@ bool OpenAIResponsesAgent::post(json input)
     // store:false requests are stateless. Retain the complete turn input,
     // including user context and earlier tool results, for each continuation.
     m_input_history = input;
+    input.insert(input.end(), once.begin(), once.end());
     request.body = request_body(std::move(input)).dump();
     const std::uint64_t generation = ++m_http_generation;
     if (!m_transport->post(std::move(request), [this, generation](AgentHttpEvent event) {
@@ -378,6 +416,7 @@ void OpenAIResponsesAgent::finish_response(const json& response)
     m_queued_calls.clear();
     m_call_outputs = json::array();
     m_call_images  = json::array();
+    m_call_skills.clear();
     m_failed_call.clear();
     for (const json& item : output)
         if (item.is_object() && item.value("type", "") == "function_call")
@@ -408,7 +447,8 @@ bool OpenAIResponsesAgent::next_call()
             continue;
         }
         const ToolDefinition* definition = ToolRegistry::instance().find(request.tool);
-        const bool available = !m_title_request && definition != nullptr && available_in_app(*definition, m_allow_import, m_session.tool_names);
+        const bool available = !m_title_request && definition != nullptr && available_in_app(*definition, m_allow_import, !m_skill_index.empty(),
+                                                                                                          m_session.tool_names);
         ToolValidationResult validation;
         if (available)
             validation = ToolRegistry::instance().validate_call(*definition, request.arguments_json);
@@ -452,9 +492,11 @@ bool OpenAIResponsesAgent::next_call()
     json input = m_input_history;
     input.insert(input.end(), m_call_outputs.begin(), m_call_outputs.end());
     input.insert(input.end(), m_call_images.begin(), m_call_images.end());
+    json once      = skill_items(m_call_skills);
     m_call_outputs = json::array();
     m_call_images  = json::array();
-    return post(std::move(input));
+    m_call_skills.clear();
+    return post(std::move(input), std::move(once));
 }
 
 void OpenAIResponsesAgent::parse_available()

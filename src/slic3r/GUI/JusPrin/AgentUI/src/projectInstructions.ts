@@ -3,8 +3,8 @@
 // it as the instructions of every project request and has no text of its own.
 //
 // Standing policy lives here and only here. Tool descriptions (ToolRegistry.cpp)
-// state each tool's contract, and one-turn skills such as
-// fileReportInstructions.ts add only that turn's judgement. Sections run in
+// state each tool's contract, and one-turn skills (skills/*/SKILL.md, added
+// by the app when their event happens) add only that turn's judgement. Sections run in
 // the order the prompting guides recommend: role, when to act, grounding,
 // workflow, replies. projectInstructions.test.ts pins the text byte for byte,
 // so prompt evaluations can compare a later edit against it.

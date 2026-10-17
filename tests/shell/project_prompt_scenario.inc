@@ -125,6 +125,55 @@
         return sliced && fresh;
     }
 
+    // Where a step's model is copied under a name that says nothing about it.
+    static std::string prompt_model_path(const std::string& name)
+    {
+        return (fs::path(data_dir()) / "prompt-models" / name).string();
+    }
+
+    // Copies the source tree's `from` to prompt_model_path(`as`).
+    bool prompt_copy_model(const nlohmann::json& copy, const std::string& name)
+    {
+        const fs::path target = prompt_model_path(copy.at("as").get<std::string>());
+        boost::system::error_code error;
+        fs::create_directories(target.parent_path(), error);
+        fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / copy.at("from").get<std::string>(), target,
+                      fs::copy_options::overwrite_existing, error);
+        check(!error, name + "_model_copied");
+        return !error;
+    }
+
+    // The page's skill for an arrived model, as the page sends it: the
+    // SKILL.md body (skillParser.ts).
+    static std::string prompt_arrival_skill()
+    {
+        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) /
+                            "src/slic3r/GUI/JusPrin/AgentUI/src/skills/model-opened-or-imported/SKILL.md").string(),
+                           std::ios::binary);
+        std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        const std::size_t body = text.find("\n---\n");
+        text = body == std::string::npos ? std::string() : text.substr(body + 5);
+        text.erase(0, text.find_first_not_of('\n'));
+        text.erase(text.find_last_not_of(" \n") + 1);
+        return text;
+    }
+
+    // Whether an input item is the arrival skill (a developer item that
+    // starts with its text), or a plate picture (a user item holding one
+    // image and nothing else).
+    static bool prompt_is_skill(const nlohmann::json& item, const std::string& skill)
+    {
+        return item.value("role", "") == "developer" && item.contains("content") && item["content"].is_string() &&
+               !skill.empty() && item["content"].get<std::string>().rfind(skill, 0) == 0;
+    }
+    static bool prompt_is_picture(const nlohmann::json& item)
+    {
+        return item.value("role", "") == "user" && item.contains("content") && item["content"].is_array() &&
+               item["content"].size() == 1 && item["content"][0].value("type", "") == "input_image";
+    }
+
+    // "{{file/<name>}}" is the path of a model a step copied under that name;
+    // "{{attachment}}" the id of the file the person last attached;
     // "{{result/<pointer>}}" is the last tool result in this request;
     // "{{workspace/sessionId}}", "{{workspace/revision}}",
     // "{{workspace/activePlateId}}", "{{workspace/firstObjectId}}" (the
@@ -148,6 +197,10 @@
         const std::string path = text.substr(2, text.size() - 4);
         if (path == "object" && !m_prompt_object.empty())
             return m_prompt_object;
+        if (path.rfind("file/", 0) == 0)
+            return prompt_model_path(path.substr(5));
+        if (path == "attachment" && !m_prompt_attachment.empty())
+            return m_prompt_attachment;
         if (path == "workspace/sessionId")
             return std::to_string(installed_shell()->workspace()->snapshot().session.value());
         if (path == "workspace/revision")
@@ -204,7 +257,33 @@
         }
     }
 
-    std::string m_prompt_object;  // for "{{object}}"
+    std::string m_prompt_object;      // for "{{object}}"
+    std::string m_prompt_attachment;  // for "{{attachment}}"
+
+    // The person attaches a copied model to the chat, as the composer's file
+    // picker does; its id, once the app has stored it, or empty.
+    std::string prompt_attach(const nlohmann::json& copy, const std::string& name)
+    {
+        if (!prompt_copy_model(copy, name))
+            return {};
+        std::ifstream file(prompt_model_path(copy.at("as").get<std::string>()), std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        static int next = 0;
+        const std::string client_id = "prompt-attachment-" + std::to_string(++next);
+        Agent::AgentHost& host = project_host();
+        host.on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                            {"version", Agent::Protocol::kVersion},
+                                            {"id", "prompt-attach-" + std::to_string(next)},
+                                            {"type", Agent::Protocol::kAttachFile},
+                                            {"payload", {{"clientAttachmentId", client_id},
+                                                         {"name", copy.at("as").get<std::string>()},
+                                                         {"source", "picker"},
+                                                         {"dataBase64", wxBase64Encode(bytes.data(), bytes.size()).utf8_string()}}}}
+                                 .dump());
+        const auto record = persistence().document().find_attachment_by_client_id(client_id);
+        check(record.has_value() && record->kind == "model", name + "_model_attached");
+        return record ? record->id : std::string();
+    }
 
     // The answers' reads called after the kept request, in the same turn;
     // returns each with the result the app gave, as the model would read it.
@@ -218,11 +297,15 @@
     // the app answers a name asked for under the wrong scope. The workspace block every result
     // carries is kept once, beside them, and left out of each result that
     // repeats it exactly.
-    nlohmann::json prompt_answers(const std::string& name, HeldModelRequest request, const nlohmann::json& script_reads)
+    nlohmann::json prompt_answers(const std::string& name, HeldModelRequest request, const nlohmann::json& script_reads,
+                                  std::size_t& once)
     {
         using nlohmann::json;
         json answers = json::array();
         int  calls   = 0;
+        const json kept = request.body.at("input");
+        const std::string skill = prompt_arrival_skill();
+        once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
             const std::string call_id = "call_" + name + "_answer_" + std::to_string(++calls);
@@ -233,6 +316,20 @@
             if (!next)
                 return std::nullopt;
             request = std::move(*next);
+            if (calls == 1) {
+                // What the app sent this request only: the items of the kept
+                // request the next one does not repeat. The runner leaves
+                // them out when it answers a read, as the app does.
+                const json& input = request.body.at("input");
+                std::size_t same = 0;
+                while (same < kept.size() && same < input.size() && kept[same] == input[same])
+                    ++same;
+                once = kept.size() - same;
+                bool repeated = false;
+                for (const json& item : input)
+                    repeated = repeated || prompt_is_skill(item, skill) || prompt_is_picture(item);
+                check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
+            }
             const std::string output = request.body.at("input").back().at("output");
             const bool succeeded = json::parse(output).value("state", "") == "succeeded";
             check(succeeded, name + "_answer_" + tool + "_succeeded");
@@ -344,14 +441,28 @@
         // last turn's changes: a filament switched by printer_setup leaves
         // the plate's slice current until Orca's scheduled update runs.
         wait_for([this] { return !m_plater->is_background_process_update_scheduled(); }, 5s);
+        if (step.contains("copy"))
+            prompt_copy_model(step["copy"], name);
+        json attached = json::array();
+        if (step.contains("attach")) {
+            m_prompt_attachment = prompt_attach(step["attach"], name);
+            if (!m_prompt_attachment.empty())
+                attached.push_back(m_prompt_attachment);
+        }
         if (step.contains("say")) {
+            std::string said = step["say"];
+            for (std::size_t at; (at = said.find("{{file/")) != std::string::npos;) {
+                const std::size_t end = said.find("}}", at);
+                said.replace(at, end + 2 - at, prompt_model_path(said.substr(at + 7, end - at - 7)));
+            }
             static int next = 0;
             ++next;
             host.on_page_message(json{{"protocol", Agent::Protocol::kName},
                                       {"version", Agent::Protocol::kVersion},
                                       {"id", "prompt-" + std::to_string(next)},
                                       {"type", Agent::Protocol::kUserMessage},
-                                      {"payload", {{"clientMessageId", "prompt-c-" + std::to_string(next)}, {"text", step["say"]}}}}
+                                      {"payload", {{"clientMessageId", "prompt-c-" + std::to_string(next)}, {"text", said},
+                                                   {"attachmentIds", attached}}}}
                                      .dump());
         } else if (step.contains("issue")) {
             // A setting typed in by hand, the issue OrcaSlicer reports for
@@ -370,6 +481,12 @@
             const std::string outcome = issue_id.empty() ? "" : installed_shell()->submit_issue(issue_id, step["issue"]).outcome;
             std::cerr << "HARNESS PROMPT " << name << " issue " << issue_id << " outcome=" << outcome << '\n';
             check(outcome == "started", name + "_issue_sent_to_the_chat");
+        } else if (step.contains("drop")) {
+            // A model with a name that says nothing about it, imported by the
+            // person into an empty project.
+            check(prompt_copy_model(json{{"from", step.at("model")}, {"as", step["drop"]}}, name), name + "_model_ready");
+            check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_empty_project");
+            m_plater->add_model(false, prompt_model_path(step["drop"]));
         } else if (step.contains("open")) {
             // A project someone saved with an author note in its description,
             // written by the app's own exporter, then opened.
@@ -432,15 +549,41 @@
             if (reply.contains("record") && point++ == target) {
                 // The suite sends its own copies; they must be what the app sends.
                 const std::string case_name = reply["record"];
-                check(request.body.at("tools") == tools, case_name + "_tools_match_project_tools_json");
+                // A message with a model attached adds object_import to the
+                // tools, after the others in the registry's order; such a
+                // point keeps its own list.
+                json with_import = json::array();
+                for (const json& tool : request.body.at("tools"))
+                    if (tool.value("name", "") != "object_import")
+                        with_import.push_back(tool);
+                const bool imports = with_import.size() + 1 == request.body.at("tools").size();
+                check((imports ? with_import : request.body.at("tools")) == tools, case_name + "_tools_match_project_tools_json");
                 check(request.body.at("instructions") == instructions, case_name + "_instructions_are_the_page_prompt");
                 json kept = request.body;
-                kept.erase("tools");
+                if (!imports)
+                    kept.erase("tools");
                 kept.erase("instructions");
                 const std::size_t items = input.size();
-                const json recorded_reads = prompt_answers(case_name, std::move(request), reads);
+                // A point marked "skill" is the request that first carries a
+                // model's load report: it ends with the plate's picture and
+                // the arrival skill. No other point holds either.
+                const std::string skill = prompt_arrival_skill();
+                const bool wants_skill = reply.value("skill", false);
+                const bool has_skill   = items >= 2 && prompt_is_skill(input[items - 1], skill) &&
+                                       prompt_is_picture(input[items - 2]);
+                bool elsewhere = false;
+                for (std::size_t i = 0; i + (has_skill ? 2 : 0) < items; ++i)
+                    elsewhere = elsewhere || prompt_is_skill(input[i], skill) || prompt_is_picture(input[i]);
+                check(!skill.empty(), case_name + "_skill_text_read");
+                check(has_skill == wants_skill && !elsewhere, case_name + (wants_skill ? "_ends_with_the_picture_and_skill" :
+                                                                                         "_carries_no_skill"));
+                std::size_t once = 0;
+                const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
                 const json& answers = recorded_reads["reads"];
+                check(once == (wants_skill ? 2u : 0u), case_name + "_sent_once_" + std::to_string(once));
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
+                if (once > 0)
+                    recorded[case_name]["once"] = once;
                 std::cerr << "HARNESS PROMPT recorded " << case_name << " input_items=" << items
                           << " bytes=" << kept.dump().size() << " answers=" << answers.size()
                           << " answer_bytes=" << answers.dump().size() << '\n';

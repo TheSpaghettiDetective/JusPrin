@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <deque>
+#include <functional>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -95,6 +97,16 @@ ProjectPersistence::Config test_persistence_config()
 // What the Agent page sends with project_instructions; its real text is in
 // AgentUI/src/projectInstructions.ts.
 constexpr const char* kTestProjectInstructions = "You are the project assistant under test.";
+// What the page sends with skills; the real ones are AgentUI/src/skills/*/SKILL.md.
+constexpr const char* kTestArrivalSkill = "Explain this file to the person.";
+// AgentHost's no-purpose sentence, which follows the model-arrived skill.
+constexpr const char* kNoPurpose = "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
+
+json test_skills(const std::string& arrival_text = kTestArrivalSkill)
+{
+    return json{{"skills", json::array({json{{"name", "model-opened-or-imported"}, {"trigger", "model_arrived"},
+                                             {"text", arrival_text}}})}};
+}
 
 struct Harness
 {
@@ -152,13 +164,16 @@ struct Harness
     }
 
     // As the project page does on every connection: the hello, then the
-    // project assistant's instructions, without which no project turn starts.
-    void handshake(bool with_instructions = true)
+    // project assistant's instructions and its skills, without which no
+    // project turn starts.
+    void handshake(bool with_instructions = true, bool with_skills = true)
     {
         deliver("hello", json{{"protocolVersions", json::array({Protocol::kVersion})},
                               {"capabilities", json::array({"streaming"})}});
         if (with_instructions)
             deliver("project_instructions", json{{"text", kTestProjectInstructions}});
+        if (with_skills)
+            deliver("skills", test_skills());
     }
 
     std::vector<json> of_type(const std::string& type) const
@@ -319,8 +334,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
                                               Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
-                                              Protocol::kShellAction, Protocol::kFileReportInstructions,
-                                              Protocol::kProjectInstructions});
+                                              Protocol::kShellAction, Protocol::kProjectInstructions,
+                                              Protocol::kSkills});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -966,7 +981,6 @@ TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][fi
     RecordingAgent* agent = agent_owner.get();
     Harness harness{AgentServicePtr(std::move(agent_owner))};
     harness.handshake();
-    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
 
     harness.host.on_file_loaded(prusa_open());
 
@@ -985,10 +999,17 @@ TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][fi
     REQUIRE_FALSE(agent->requests.empty());
     const auto& request = agent->requests.back();
     const auto& conversation = request.conversation;
-    const auto developer = std::find_if(conversation.begin(), conversation.end(),
-                                        [](const AgentConversationContext& entry) { return entry.role == "developer"; });
-    REQUIRE(developer != conversation.end());
-    CHECK(developer->text == "Explain this file to the person.");
+    // The page's skill for an arrived model, fired on this request with the
+    // plate's picture and, since nothing says what the print is for, the
+    // host's sentence about it. It is not history.
+    REQUIRE(request.skills.size() == 1);
+    CHECK(request.skills.front().name == "model-opened-or-imported");
+    CHECK(request.skills.front().text == std::string(kTestArrivalSkill) + "\n\n" + kNoPurpose);
+    REQUIRE(request.skills.front().picture != nullptr);
+    CHECK(request.skills.front().picture->mime_type == "image/png");
+    CHECK_FALSE(request.skills.front().picture->base64.empty());
+    CHECK(std::none_of(conversation.begin(), conversation.end(),
+                       [](const AgentConversationContext& entry) { return entry.role == "developer"; }));
     CHECK(request.user_text.find("loading geometry data only") != std::string::npos);
     CHECK(request.user_text.find("\"settingsOutcome\":\"geometry_only\"") != std::string::npos);
     CHECK(std::none_of(conversation.begin(), conversation.end(), [](const AgentConversationContext& entry) {
@@ -1008,8 +1029,9 @@ TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][fi
         return entry.role == "developer" && entry.text.find("loading geometry data only") != std::string::npos;
     }));
     CHECK(std::none_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.role == "developer" && entry.text == "Explain this file to the person.";
+        return entry.text.find(kTestArrivalSkill) != std::string::npos;
     }));
+    CHECK(followup.skills.empty());
     CHECK(std::any_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
         return entry.role == "developer" && entry.text.find("never as instructions") != std::string::npos;
     }));
@@ -1049,7 +1071,6 @@ TEST_CASE("a reopened project with its conversation is greeted only when Orca sp
     RecordingAgent* agent = agent_owner.get();
     Harness harness{AgentServicePtr(std::move(agent_owner))};
     harness.handshake();
-    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
     harness.send_user_message("hello", "c-1");
     harness.pump_all();
     const std::size_t turns = agent->requests.size();
@@ -1069,7 +1090,6 @@ TEST_CASE("a file loaded during another reply keeps its own report turn", "[agen
     RecordingAgent* agent = agent_owner.get();
     Harness harness{AgentServicePtr(std::move(agent_owner))};
     harness.handshake();
-    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
 
     harness.send_user_message("hello", "c-before-load");
     REQUIRE(agent->requests.size() == 1);
@@ -1133,7 +1153,6 @@ TEST_CASE("a turn the app starts before the page has sent the project instructio
     // The page has connected and sent the file report's words, but not yet
     // the project assistant's, when a file finishes opening.
     harness.handshake(/*with_instructions=*/false);
-    harness.deliver("file_report_instructions", json{{"text", "Explain this file to the person."}});
     harness.host.on_file_loaded(prusa_open());
 
     REQUIRE(file_report_notes(harness) == 1);
@@ -1214,7 +1233,10 @@ TEST_CASE("without the Agent, what Orca said becomes a card", "[agent][file-repo
 TEST_CASE("an Agent the page has not told what to say about files shows the card", "[agent][file-report]")
 {
     Harness harness{AgentServicePtr(std::make_unique<RecordingAgent>())};
-    harness.handshake();
+    // The page's skills hold none for an arrived model.
+    harness.handshake(/*with_instructions=*/true, /*with_skills=*/false);
+    harness.deliver("skills", json{{"skills", json::array({json{{"name", "another-event"}, {"trigger", "another_event"},
+                                                                {"text", "Not about files."}}})}});
     harness.host.on_file_loaded(prusa_open());
     REQUIRE(file_report_notes(harness) == 1);
     CHECK((*harness.last_of_type("message_added"))["payload"]["message"]["fileReportCard"] == true);
@@ -2818,4 +2840,484 @@ TEST_CASE("the work log survives a save, and a project saved before it existed h
     CHECK(before.work().empty());
     // And it can start keeping one.
     CHECK(before.begin_work(entry, "2026-10-13T11:00:00Z").state == "running");
+}
+
+// --- Project skills ----------------------------------------------------------
+
+TEST_CASE("a turn the app starts before the page has sent the skills waits for them", "[agent][skills][file-report]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake(/*with_instructions=*/true, /*with_skills=*/false);
+    harness.host.on_file_loaded(prusa_open());
+    REQUIRE(file_report_notes(harness) == 1);
+    CHECK(agent->requests.empty());
+    CHECK(harness.last_of_type("assistant_failed") == nullptr);
+
+    harness.deliver("skills", test_skills());
+    REQUIRE(agent->requests.size() == 1);
+    REQUIRE(agent->requests.front().skills.size() == 1);
+    CHECK(agent->requests.front().skills.front().text.rfind(kTestArrivalSkill, 0) == 0);
+}
+
+TEST_CASE("the skills message is taken whole or refused whole", "[agent][skills]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+
+    const json skill{{"name", "model-opened-or-imported"}, {"trigger", "model_arrived"}, {"text", "Other words."}};
+    const auto with = [&skill](const char* key, json value) {
+        json changed = skill;
+        changed[key] = std::move(value);
+        return json{{"skills", json::array({changed})}};
+    };
+    json missing_trigger = skill;
+    missing_trigger.erase("trigger");
+    json described = skill;
+    described["when"] = "When a model arrives.";
+    json oversized{{"skills", json::array()}};
+    for (char letter = 'a'; letter <= 'r'; ++letter)
+        oversized["skills"].push_back(json{{"name", std::string("skill-") + letter},
+                                           {"trigger", std::string("event_") + letter},
+                                           {"text", std::string(15 * 1024, letter)}});
+    const std::vector<json> refused{
+        json::array({skill}),
+        json{{"skills", skill}},
+        json{{"skills", json::array({skill})}, {"index", true}},
+        json{{"skills", json::array({missing_trigger})}},
+        json{{"skills", json::array({described})}},  // a key the protocol does not have
+        with("name", "Model_Opened"),
+        with("name", ""),
+        with("trigger", "model-arrived"),
+        with("trigger", 7),
+        with("text", ""),
+        with("text", std::string(16 * 1024 + 1, 'x')),
+        json{{"skills", json::array({json{{"name", "b-skill"}, {"trigger", "b_event"}, {"text", "B."}},
+                                     json{{"name", "a-skill"}, {"trigger", "a_event"}, {"text", "A."}}})}},
+        json{{"skills", json::array({json{{"name", "a-skill"}, {"trigger", "model_arrived"}, {"text", "A."}},
+                                     json{{"name", "b-skill"}, {"trigger", "model_arrived"}, {"text", "B."}}})}},
+        oversized,
+    };
+    for (std::size_t index = 0; index < refused.size(); ++index) {
+        INFO("payload " << index << ": " << refused[index].dump().substr(0, 200));
+        const std::size_t errors = harness.of_type("bridge_error").size();
+        harness.deliver("skills", refused[index]);
+        REQUIRE(harness.of_type("bridge_error").size() == errors + 1);
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+    }
+
+    // None of them replaced the skills received with the handshake.
+    harness.host.on_file_loaded(prusa_open());
+    REQUIRE_FALSE(agent->requests.empty());
+    REQUIRE(agent->requests.back().skills.size() == 1);
+    CHECK(agent->requests.back().skills.front().text.rfind(kTestArrivalSkill, 0) == 0);
+    harness.pump_all();
+
+    // A valid message replaces them, with any number of skills for other events.
+    harness.deliver("skills", json{{"skills", json::array({json{{"name", "a-later-event"}, {"trigger", "later_event"},
+                                                                {"text", "Not this one."}},
+                                                           skill})}});
+    harness.host.on_file_loaded(prusa_open());
+    harness.pump_all();
+    std::vector<AgentRequest> replies;
+    for (const AgentRequest& request : agent->requests)
+        if (request.purpose == AgentRequest::Purpose::Reply)
+            replies.push_back(request);
+    REQUIRE(replies.size() == 2);
+    REQUIRE(replies.back().skills.size() == 1);
+    CHECK(replies.back().skills.front().text.rfind("Other words.", 0) == 0);
+}
+
+TEST_CASE("the model-arrived skill pictures only a plate with something on it, and adds the purpose sentence "
+          "only when none is recorded",
+          "[agent][skills][file-report]")
+{
+    SECTION("an empty plate gets the sentence without the picture")
+    {
+        Workspace::WorkspaceSnapshot snapshot = two_object_snapshot();
+        for (auto& plate : snapshot.plates)
+            plate.objects.clear();
+        auto agent_owner = std::make_unique<RecordingAgent>();
+        RecordingAgent* agent = agent_owner.get();
+        Harness harness{snapshot};
+        harness.host.set_agent(AgentServicePtr(std::move(agent_owner)), AgentAvailability::Ready);
+        harness.handshake();
+        harness.host.on_file_loaded(prusa_open());
+        REQUIRE_FALSE(agent->requests.empty());
+        REQUIRE(agent->requests.back().skills.size() == 1);
+        CHECK(agent->requests.back().skills.front().picture == nullptr);
+        CHECK(agent->requests.back().skills.front().text == std::string(kTestArrivalSkill) + "\n\n" + kNoPurpose);
+    }
+    SECTION("a setup title recorded for the conversation leaves the sentence out")
+    {
+        auto agent_owner = std::make_unique<RecordingAgent>();
+        RecordingAgent* agent = agent_owner.get();
+        Harness harness{AgentServicePtr(std::move(agent_owner))};
+        harness.handshake();
+        ProjectStateDocument& document = harness.persistence.document();
+        REQUIRE(document.set_setup_intent(document.active_conversation_id(), "A vase for the kitchen"));
+        harness.host.on_file_loaded(prusa_open());
+        REQUIRE_FALSE(agent->requests.empty());
+        REQUIRE(agent->requests.back().skills.size() == 1);
+        CHECK(agent->requests.back().skills.front().picture != nullptr);
+        CHECK(agent->requests.back().skills.front().text == kTestArrivalSkill);
+    }
+    SECTION("an intent field recorded for the project leaves the sentence out")
+    {
+        auto agent_owner = std::make_unique<RecordingAgent>();
+        RecordingAgent* agent = agent_owner.get();
+        Harness harness{AgentServicePtr(std::move(agent_owner))};
+        harness.handshake();
+        IntentField field;
+        field.field = "purpose";
+        field.value = "a hook for a coat";
+        harness.persistence.document().set_print_intent({field}, "2026-10-17T00:00:00Z");
+        harness.host.on_file_loaded(prusa_open());
+        REQUIRE_FALSE(agent->requests.empty());
+        REQUIRE(agent->requests.back().skills.size() == 1);
+        CHECK(agent->requests.back().skills.front().text == kTestArrivalSkill);
+    }
+    SECTION("an intent question with no answer yet still counts as nothing recorded")
+    {
+        auto agent_owner = std::make_unique<RecordingAgent>();
+        RecordingAgent* agent = agent_owner.get();
+        Harness harness{AgentServicePtr(std::move(agent_owner))};
+        harness.handshake();
+        IntentField field;
+        field.field    = "purpose";
+        field.question = "What is it for?";
+        harness.persistence.document().set_print_intent({field}, "2026-10-17T00:00:00Z");
+        harness.host.on_file_loaded(prusa_open());
+        REQUIRE_FALSE(agent->requests.empty());
+        REQUIRE(agent->requests.back().skills.size() == 1);
+        CHECK(agent->requests.back().skills.front().text == std::string(kTestArrivalSkill) + "\n\n" + kNoPurpose);
+    }
+}
+
+namespace {
+
+// Calls one tool on its first turn and records what the host hands back.
+class OneCallAgent final : public IAgentService
+{
+public:
+    std::function<ToolRequest(const AgentRequest&)> call;
+
+    bool ready() const override { return true; }
+    bool busy() const override { return active; }
+    bool start(const AgentRequest& request) override
+    {
+        requests.push_back(request);
+        active = true;
+        if (request.purpose == AgentRequest::Purpose::Reply && call && !called) {
+            called = true;
+            events.push_back(AgentEvent::tool_call({"call-arrival", call(request), true}));
+        } else {
+            events.push_back(AgentEvent::delta("Done."));
+            events.push_back(AgentEvent::completed());
+        }
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult& result) override
+    {
+        results.push_back(result);
+        events.push_back(AgentEvent::delta("It arrived."));
+        events.push_back(AgentEvent::completed());
+        return true;
+    }
+    void cancel() override { active = false; events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        if (event.kind == AgentEventKind::Completed || event.kind == AgentEventKind::Failed)
+            active = false;
+        return event;
+    }
+
+    std::vector<AgentRequest>    requests;
+    std::vector<AgentToolResult> results;
+    std::deque<AgentEvent>       events;
+    bool                         active{false};
+    bool                         called{false};
+};
+
+std::string write_model_file(const std::string& name)
+{
+    const std::filesystem::path path = std::filesystem::temp_directory_path() / name;
+    std::ofstream(path, std::ios::binary) << "solid part\nendsolid part\n";
+    return path.u8string();
+}
+
+} // namespace
+
+TEST_CASE("a model a tool call brings in fires the skill on the result that carries its report, and nowhere else",
+          "[agent][skills][tools]")
+{
+    const std::string model = write_model_file("jusprin-skill-arrival.stl");
+    struct Source
+    {
+        const char* tool;
+        std::function<json(const AgentRequest&)> arguments;
+        bool attached;  // the person attached the model to the message
+    };
+    const Source sources[] = {
+        {"object_import_file",
+         [model](const AgentRequest& request) {
+             return json{{"sessionId", std::to_string(request.workspace.session.value())}, {"path", model}};
+         },
+         false},
+        {"object_import",
+         [](const AgentRequest& request) {
+             return json{{"sessionId", std::to_string(request.workspace.session.value())}, {"attachmentId", "a-1"}};
+         },
+         true},
+    };
+    for (const Source& source : sources) {
+        DYNAMIC_SECTION(source.tool)
+        {
+            auto agent_owner = std::make_unique<OneCallAgent>();
+            OneCallAgent* agent = agent_owner.get();
+            agent->call = [&source](const AgentRequest& request) {
+                return ToolRequest{source.tool, source.arguments(request).dump()};
+            };
+            Harness harness{AgentServicePtr(std::move(agent_owner))};
+            harness.handshake();
+            if (source.attached) {
+                REQUIRE(attach(harness, "ca-part", "part.stl", "solid s\nendsolid s\n")["kind"] == "model");
+                harness.deliver("user_message", json{{"clientMessageId", "c-import"}, {"text", "Add the part file too."},
+                                                     {"attachmentIds", json::array({"a-1"})}});
+            } else
+                harness.send_user_message("Add the part file too.", "c-import");
+            // The person asked; the request carries no skill yet.
+            REQUIRE(agent->requests.size() == 1);
+            CHECK(agent->requests.front().skills.empty());
+            harness.pump_all();
+            pump_tools_to_completion(harness);
+            harness.pump_all();
+
+            REQUIRE(agent->results.size() == 1);
+            const AgentToolResult& result = agent->results.front();
+            CHECK(result.state == "succeeded");
+            CHECK(json::parse(result.output_json)["result"].contains("report"));
+            REQUIRE(result.skills.size() == 1);
+            CHECK(result.skills.front().name == "model-opened-or-imported");
+            CHECK(result.skills.front().text == std::string(kTestArrivalSkill) + "\n\n" + kNoPurpose);
+            CHECK(result.skills.front().picture != nullptr);
+            // The skill is the request's, not the conversation's: nothing
+            // stored holds it, and the next turn has none.
+            for (const json& envelope : harness.sent)
+                CHECK(envelope.dump().find(kTestArrivalSkill) == std::string::npos);
+            harness.send_user_message("Thanks.", "c-after");
+            harness.pump_all();
+            const auto reply = std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+                return request.purpose == AgentRequest::Purpose::Reply;
+            });
+            REQUIRE(reply != agent->requests.rend());
+            const AgentRequest& later = *reply;
+            CHECK(later.user_text == "Thanks.");
+            CHECK(later.skills.empty());
+            for (const AgentConversationContext& entry : later.conversation)
+                CHECK(entry.text.find(kTestArrivalSkill) == std::string::npos);
+        }
+    }
+    std::filesystem::remove(model);
+}
+
+// Opening a project replaces the conversation's document with the opened
+// project's, which ends the turn that asked for it. The opened project's own
+// chat then hears the load report, as it does when the person opens a file.
+TEST_CASE("a project the Agent opens is spoken about in the opened project's chat", "[agent][skills][tools]")
+{
+    const std::string model = write_model_file("jusprin-skill-opened.stl");
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [&model](const AgentRequest&) { return ToolRequest{"project_open", json{{"path", model}}.dump()}; };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.send_user_message("Open the part file.", "c-open");
+    const std::string asking_project = harness.persistence.document().project_id();
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    REQUIRE(harness.workspace.opens == 1);
+    // The turn that asked ended with the project it was in.
+    CHECK(agent->results.empty());
+    CHECK(harness.persistence.document().project_id() != asking_project);
+    CHECK(file_report_notes(harness) == 0);
+
+    // The next tick, with the opened project's document in place.
+    harness.host.pump_tools();
+    REQUIRE(file_report_notes(harness) == 1);
+    const json note = (*harness.last_of_type("message_added"))["payload"]["message"];
+    CHECK(note["fileReport"]["startedBy"] == "agent");
+    CHECK(note["fileReport"]["projectOpened"] == true);
+    CHECK(harness.host.conversation().size() >= 1);
+    CHECK(harness.host.conversation().front().id == note["id"]);
+    harness.pump_all();
+    const auto reply = std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent->requests.rend());
+    CHECK(reply->user_text.find("JusPrin file-load report") == 0);
+    CHECK(reply->user_text.find("jusprin-skill-opened.stl") != std::string::npos);
+    // Nothing of the chat that asked comes with it.
+    CHECK(reply->conversation.empty());
+    REQUIRE(reply->skills.size() == 1);
+    CHECK(reply->skills.front().text == std::string(kTestArrivalSkill) + "\n\n" + kNoPurpose);
+    CHECK(reply->skills.front().picture != nullptr);
+    std::filesystem::remove(model);
+}
+
+TEST_CASE("a project an MCP client opens is not spoken about", "[agent][skills][tools][mcp]")
+{
+    const std::string model = write_model_file("jusprin-skill-mcp-opened.stl");
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const ToolActivity opening = harness.host.tools().submit({"project_open", json{{"path", model}}.dump()}, "mcp-open",
+                                                             ToolExecutionPacing{}, ToolSource::Mcp);
+    REQUIRE(opening.source == ToolSource::Mcp);
+    pump_tools_to_completion(harness);
+    harness.host.pump_tools();
+    harness.pump_all();
+    CHECK(harness.workspace.opens == 1);
+    CHECK(file_report_notes(harness) == 0);
+    CHECK(agent->requests.empty());
+    std::filesystem::remove(model);
+}
+
+TEST_CASE("the Agent continuing an earlier project is not spoken about", "[agent][skills][tools]")
+{
+    const std::string model = write_model_file("jusprin-skill-earlier.stl");
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [&model](const AgentRequest&) {
+        return ToolRequest{"project_open", json{{"path", model}, {"openedBefore", "existing"}}.dump()};
+    };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.host.tools().set_earlier_projects(
+        [](const std::string&) {
+            return std::optional<ToolExecutionCoordinator::EarlierProject>(
+                ToolExecutionCoordinator::EarlierProject{"p-earlier", "Earlier", false, false});
+        },
+        [](const std::string&) { return true; }, {});
+    harness.handshake();
+    harness.send_user_message("Continue the part I opened before.", "c-earlier");
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.host.pump_tools();
+    harness.pump_all();
+    // OrcaSlicer loaded nothing, so there is nothing to report.
+    CHECK(file_report_notes(harness) == 0);
+    std::filesystem::remove(model);
+}
+
+TEST_CASE("skill_read reads only the skills the page described, and is offered only with some", "[agent][skills][tools]")
+{
+    const json skills{{"skills", json::array({
+        json{{"name", "model-opened-or-imported"}, {"trigger", "model_arrived"}, {"text", kTestArrivalSkill}},
+        json{{"name", "tune-strength"}, {"description", "When a part must carry load."}, {"text", "# Strength\nUse more walls."}},
+    })}};
+    auto read = [&skills](const std::string& name, bool with_skills) {
+        auto agent_owner = std::make_unique<OneCallAgent>();
+        OneCallAgent* agent = agent_owner.get();
+        agent->call = [name](const AgentRequest&) { return ToolRequest{"skill_read", json{{"name", name}}.dump()}; };
+        auto harness = std::make_unique<Harness>(AgentServicePtr(std::move(agent_owner)));
+        harness->handshake(/*with_instructions=*/true, /*with_skills=*/false);
+        harness->deliver("skills", with_skills ? skills : json{{"skills", json::array()}});
+        harness->send_user_message("How do I make it stronger?", "c-read");
+        harness->pump_all();
+        pump_tools_to_completion(*harness);
+        harness->pump_all();
+        return std::make_pair(std::move(harness), agent);
+    };
+    SECTION("a described skill is listed and read")
+    {
+        auto [harness, agent] = read("tune-strength", true);
+        REQUIRE_FALSE(agent->requests.empty());
+        const auto& index = agent->requests.front().skill_index;
+        REQUIRE(index.size() == 1);
+        CHECK(index.front().name == "tune-strength");
+        CHECK(index.front().description == "When a part must carry load.");
+        CHECK(index.front().text.empty());
+        REQUIRE(agent->results.size() == 1);
+        CHECK(agent->results.front().state == "succeeded");
+        CHECK(json::parse(agent->results.front().output_json)["result"] ==
+              json{{"name", "tune-strength"}, {"text", "# Strength\nUse more walls."}});
+    }
+    SECTION("a skill the app fires on an event is not the model's to read")
+    {
+        auto [harness, agent] = read("model-opened-or-imported", true);
+        REQUIRE(agent->results.size() == 1);
+        CHECK(agent->results.front().state == "failed");
+        const json output = json::parse(agent->results.front().output_json);
+        CHECK(output["error"]["code"] == "unknown_skill");
+        CHECK(output["error"]["message"].get<std::string>().find("[\"tune-strength\"]") != std::string::npos);
+    }
+    SECTION("with no described skill the list is empty")
+    {
+        auto [harness, agent] = read("tune-strength", false);
+        REQUIRE_FALSE(agent->requests.empty());
+        CHECK(agent->requests.front().skill_index.empty());
+    }
+}
+
+TEST_CASE("the skills message takes described skills and refuses bad descriptions", "[agent][skills]")
+{
+    Harness harness;
+    harness.handshake();
+    const auto refused = [&harness](const json& skill) {
+        const std::size_t errors = harness.of_type("bridge_error").size();
+        harness.deliver("skills", json{{"skills", json::array({skill})}});
+        return harness.of_type("bridge_error").size() == errors + 1;
+    };
+    CHECK(refused(json{{"name", "neither"}, {"text", "No trigger, no description."}}));
+    CHECK(refused(json{{"name", "two-lines"}, {"description", "One\nTwo"}, {"text", "x"}}));
+    CHECK(refused(json{{"name", "long"}, {"description", std::string(301, 'x')}, {"text", "x"}}));
+    CHECK(refused(json{{"name", "empty"}, {"description", ""}, {"text", "x"}}));
+    CHECK(refused(json{{"name", "empty-trigger"}, {"trigger", ""}, {"description", "Fine."}, {"text", "x"}}));
+    CHECK_FALSE(refused(json{{"name", "described"}, {"description", "When useful."}, {"text", "x"}}));
+}
+
+TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]")
+{
+    SECTION("a read")
+    {
+        auto agent_owner = std::make_unique<OneCallAgent>();
+        OneCallAgent* agent = agent_owner.get();
+        agent->call = [](const AgentRequest&) { return ToolRequest{"workspace_inspect", "{}"}; };
+        Harness harness{AgentServicePtr(std::move(agent_owner))};
+        harness.handshake();
+        harness.send_user_message("What is on the plate?", "c-read");
+        harness.pump_all();
+        pump_tools_to_completion(harness);
+        harness.pump_all();
+        REQUIRE(agent->results.size() == 1);
+        CHECK(agent->results.front().skills.empty());
+    }
+    SECTION("an import of a file that is not there")
+    {
+        auto agent_owner = std::make_unique<OneCallAgent>();
+        OneCallAgent* agent = agent_owner.get();
+        agent->call = [](const AgentRequest& request) {
+            return ToolRequest{"object_import_file",
+                               json{{"sessionId", std::to_string(request.workspace.session.value())},
+                                    {"path", (std::filesystem::temp_directory_path() / "jusprin-no-such-part.stl").u8string()}}
+                                   .dump()};
+        };
+        Harness harness{AgentServicePtr(std::move(agent_owner))};
+        harness.handshake();
+        harness.send_user_message("Add the part.", "c-missing");
+        harness.pump_all();
+        pump_tools_to_completion(harness);
+        harness.pump_all();
+        REQUIRE(agent->results.size() == 1);
+        CHECK(agent->results.front().state == "failed");
+        CHECK(agent->results.front().skills.empty());
+    }
 }
