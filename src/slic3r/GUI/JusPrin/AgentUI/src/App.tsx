@@ -11,7 +11,7 @@ import { Composer } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
 import { printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
-import { fileReportInstructions } from './fileReportInstructions';
+import { skills } from './skills';
 import { projectInstructions } from './projectInstructions';
 import { opening, placeholder } from './printerWords';
 import {
@@ -168,9 +168,7 @@ export function App({
   // The project assistant's whole prompt; the app holds it in the project
   // session and sends it with every request, and starts no project turn
   // without it. Sent on every connection (a reload reconnects) and again
-  // only if the words change. Sent before the file report's words: the app
-  // speaks about an opened file only once it has those, so by then it has
-  // these too.
+  // only if the words change.
   const sentProjectInstructions = useRef<string | null>(null);
   useEffect(() => {
     if (printerPanel || embedded || state.connection !== 'connected') {
@@ -183,18 +181,19 @@ export function App({
     client.send('project_instructions', { text });
   }, [printerPanel, embedded, state.connection, client]);
 
-  // What the project Agent is told about a file the person brings in; the app
-  // holds it for the turn a file report opens. Once per connection: a reload
-  // reconnects, and the words do not change.
-  const sentFileReportInstructions = useRef(false);
+  // The project skills: situational text the app adds to one request when
+  // its trigger fires (skills/*/SKILL.md). Once per connection: a reload
+  // reconnects, and the words do not change. The app starts no project turn
+  // before it has them.
+  const sentSkills = useRef(false);
   useEffect(() => {
     if (printerPanel || embedded || state.connection !== 'connected') {
-      if (state.connection !== 'connected') sentFileReportInstructions.current = false;
+      if (state.connection !== 'connected') sentSkills.current = false;
       return;
     }
-    if (sentFileReportInstructions.current) return;
-    sentFileReportInstructions.current = true;
-    client.send('file_report_instructions', { text: fileReportInstructions() });
+    if (sentSkills.current) return;
+    sentSkills.current = true;
+    client.send('skills', { skills });
   }, [printerPanel, embedded, state.connection, client]);
 
   // The filament chat's instructions, likewise: written from the facts the

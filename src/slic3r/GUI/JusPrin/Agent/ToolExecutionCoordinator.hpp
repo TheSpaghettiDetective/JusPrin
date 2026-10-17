@@ -150,6 +150,15 @@ public:
         m_opened_from  = std::move(opened_from);
     }
 
+    // Hears the load report of a project the in-app Agent opened. Opening
+    // one replaces the conversation along with the project, so the call's
+    // own result reaches no model: the report goes to the opened project's
+    // chat instead, as a person's open does. An MCP client's open is its own.
+    void set_agent_project_opened(std::function<void(const Workspace::LoadReport&)> listener)
+    {
+        m_agent_project_opened = std::move(listener);
+    }
+
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
     // Forgets every activity except one that is executing: a command that
@@ -222,6 +231,7 @@ private:
     std::function<std::optional<EarlierProject>(const std::string&)> m_find_earlier;
     std::function<bool(const std::string&)>                          m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;
+    std::function<void(const Workspace::LoadReport&)>                m_agent_project_opened;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};

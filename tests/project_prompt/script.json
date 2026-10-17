@@ -908,6 +908,74 @@
      ]
     }
    ]
+  },
+  {
+   "name": "unnamed-model",
+   "fixture": "single",
+   "steps": [
+    {
+     "drop": "scan_0417.drc",
+     "model": "resources/handy_models/Stanford_Bunny.drc",
+     "replies": [
+      {
+       "record": "model-opened-unnamed",
+       "skill": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "tool-import",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "attach": {
+      "from": "resources/handy_models/calicat.drc",
+      "as": "part_7.drc"
+     },
+     "say": "Add this part to the project too.",
+     "replies": [
+      {
+       "call": "object_import",
+       "arguments": {
+        "sessionId": "{{workspace/sessionId}}",
+        "attachmentId": "{{attachment}}"
+       }
+      },
+      {
+       "record": "model-imported-by-tool",
+       "skill": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "tool-open",
+   "fixture": "single",
+   "steps": [
+    {
+     "copy": {
+      "from": "resources/handy_models/Voron_Design_Cube_v7.drc",
+      "as": "part_9.drc"
+     },
+     "say": "Open {{file/part_9.drc}} as a new project.",
+     "replies": [
+      {
+       "call": "project_open",
+       "arguments": {
+        "path": "{{file/part_9.drc}}"
+       }
+      },
+      {
+       "record": "model-opened-by-tool",
+       "skill": true
+      }
+     ]
+    }
+   ]
   }
  ]
 }

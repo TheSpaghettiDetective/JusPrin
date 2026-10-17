@@ -85,7 +85,9 @@ private:
         AgentHttpEvent event;
     };
 
-    bool post(nlohmann::json input);
+    // `once` follows the input on this request only and is never kept in
+    // the history a continuation is built from.
+    bool post(nlohmann::json input, nlohmann::json once = nlohmann::json::array());
     nlohmann::json request_body(nlohmann::json input) const;
     nlohmann::json initial_input(const AgentRequest& request) const;
     void accept_http(std::uint64_t generation, AgentHttpEvent event);
@@ -112,6 +114,9 @@ private:
     std::deque<nlohmann::json>            m_queued_calls;
     nlohmann::json                        m_call_outputs{nlohmann::json::array()};
     nlohmann::json                        m_call_images{nlohmann::json::array()};
+    // The skills the response's results fired, sent after all of them on the
+    // next request only; one per name, the latest kept.
+    std::vector<AgentSkillUse>            m_call_skills;
     // The first call of this response that did not succeed, as "tool
     // (call_id)"; every call after it is answered without being run.
     std::string                           m_failed_call;
@@ -123,6 +128,8 @@ private:
     bool                                  m_waiting_for_tool{false};
     bool                                  m_terminal_seen{false};
     bool                                  m_allow_import{false};
+    // The skills skill_read lists; the tool is offered only with some.
+    std::vector<AgentSkill>               m_skill_index;
     bool                                  m_title_request{false};
     // The instructions and tools of the conversation this turn belongs to.
     AgentSessionProfile                   m_session;

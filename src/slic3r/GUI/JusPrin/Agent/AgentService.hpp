@@ -48,6 +48,29 @@ struct AgentConversationContext
     std::string output_json;
 };
 
+// A project skill as its page wrote it (AgentUI/src/skills/<name>/SKILL.md).
+// A skill with a trigger is added by the app when that event happens; one
+// with a description is listed for the model to read with skill_read when
+// it judges it useful. A skill may have both.
+struct AgentSkill
+{
+    std::string name;
+    std::string trigger;     // Protocol::SkillTrigger, or empty
+    std::string description; // one line, or empty
+    std::string text;
+};
+
+// A skill the app fired for one request because its event happened: the text
+// goes in as the request's last item, after the picture that goes with it.
+// Built when the request is and never stored in the conversation, so no later
+// request carries it, not even the next one of the same turn.
+struct AgentSkillUse
+{
+    std::string                      name;
+    std::string                      text;
+    std::shared_ptr<const ToolImage> picture;
+};
+
 // What one conversation is for. The project conversation leaves the tools and
 // workspace at their defaults (every in-app tool, the project workspace) and
 // takes its instructions from its page; a session with its own subject (the
@@ -84,6 +107,10 @@ struct AgentRequest
     PlanRecord                            plan;
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;
+    std::vector<AgentSkillUse>            skills;
+    // The skills the model may read on its own, without their text: the
+    // list skill_read's description carries. Empty, and no skill_read.
+    std::vector<AgentSkill>               skill_index;
 };
 
 struct AgentToolCall
@@ -105,6 +132,8 @@ struct AgentToolResult
     std::string state;
     std::string output_json;
     std::shared_ptr<const ToolImage> image;
+    // Skills this result fires, sent after every result of the response.
+    std::vector<AgentSkillUse> skills;
 };
 
 enum class AgentEventKind : std::uint8_t { TextDelta, ToolCall, Completed, Failed };

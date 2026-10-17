@@ -155,6 +155,32 @@ class Steps(unittest.TestCase):
         self.assertIn("still reading after answers", detail)
         self.assertEqual(len(bodies), runner.MAX_READS + 1)
 
+    # --- A skill is sent on one request ------------------------------------
+
+    def test_a_skill_and_its_picture_leave_the_request_after_theirs(self):
+        """The app sends the file-loaded skill and the plate's picture on the
+        request that first carries a load report and keeps them out of the
+        turn's next request; so does the runner when it answers a read."""
+        for name in ("model-opened-unnamed", "model-imported-by-tool", "model-opened-by-tool"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 2, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# The first message after a file is opened or imported"), name)
+            self.assertEqual([part["type"] for part in recorded[-2]["content"]], ["input_image"], name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            verdict, detail, bodies = self.run_case(name, first, [call("plan_set", {"headline": "Print it"})])
+            self.assertEqual(verdict, runner.FAIL, detail)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 2], recorded[:-2], name)
+            self.assertEqual(sent[len(recorded) - 2:len(recorded) - 1], first, name)
+            self.assertEqual(sent[-1]["call_id"], "call-w", name)
+            self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
+            self.assertNotIn("input_image", json.dumps(sent), name)
+
+    def test_no_other_point_sends_anything_once(self):
+        self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
+                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed"])
+
     # --- One call or none, as before ---------------------------------------
 
     def test_a_single_read_then_a_reply(self):

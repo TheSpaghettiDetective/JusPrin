@@ -40,7 +40,9 @@ constexpr bool has_exposure(ToolExposure exposures, ToolExposure exposure)
 // Availability is evaluated by an adapter from its own request context. It is
 // deliberately not live project state: the registry and the advertised MCP
 // catalog stay immutable for the process lifetime.
-enum class ToolAvailability : std::uint8_t { Always, ImportableAttachment };
+// SkillIndex: offered when the page sent at least one skill the model may
+// read on its own (one with a description).
+enum class ToolAvailability : std::uint8_t { Always, ImportableAttachment, SkillIndex };
 
 // Stable executor association. The registry locates behavior without storing
 // workspace state or embedding Orca access in metadata lambdas.
@@ -82,7 +84,8 @@ enum class ToolHandler : std::uint8_t {
     PrinterAdd,
     PrinterChange,
     PrinterConnectionStatus,
-    PrinterConnect
+    PrinterConnect,
+    SkillRead
 };
 
 struct ToolDefinition

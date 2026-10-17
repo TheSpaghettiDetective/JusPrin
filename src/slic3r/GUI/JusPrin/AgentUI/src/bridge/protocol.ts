@@ -36,8 +36,8 @@ export type PageMessageType =
   | 'printer_opening'
   | 'filament_instructions'
   | 'shell_action'
-  | 'file_report_instructions'
-  | 'project_instructions';
+  | 'project_instructions'
+  | 'skills';
 
 export type HostMessageType =
   | 'hello_ack'

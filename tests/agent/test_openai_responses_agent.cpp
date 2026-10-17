@@ -938,3 +938,158 @@ TEST_CASE("the images of a response's calls follow all of its results", "[agent]
     CHECK(input.back()["role"] == "user");
     CHECK(input.back()["content"][0]["text"] == "The image returned by call call-img.");
 }
+
+namespace {
+
+AgentSkillUse file_loaded_skill(const std::string& text = "A file was loaded.", bool picture = true)
+{
+    return AgentSkillUse{"file-loaded", text,
+                         picture ? std::make_shared<const ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1}) : nullptr};
+}
+
+const json kPictureItem{{"role", "user"},
+                        {"content", json::array({json{{"type", "input_image"}, {"image_url", "data:image/png;base64,iVBORw0KGgo="}}})}};
+
+bool mentions(const json& input, const std::string& text) { return input.dump().find(text) != std::string::npos; }
+
+} // namespace
+
+TEST_CASE("a skill fired for a turn's first request ends that request and no other", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.skills.push_back(file_loaded_skill());
+    REQUIRE(agent.start(request));
+    const json first = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(first.size() >= 3);
+    // The turn's message, then the picture as an image input of its own, then
+    // the skill's text in the app's voice, last.
+    CHECK(first[first.size() - 3]["role"] == "user");
+    CHECK(first[first.size() - 2] == kPictureItem);
+    CHECK(first.back() == json{{"role", "developer"}, {"content", "A file was loaded."}});
+
+    // The response calls a tool; the request that carries its result is the
+    // turn's history without the skill or the picture.
+    const json call{{"type", "function_call"}, {"call_id", "call-1"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-1", "succeeded", R"({"state":"succeeded"})"}));
+    const json next = json::parse(fake->requests.back().body)["input"];
+    CHECK(next.back()["type"] == "function_call_output");
+    CHECK_FALSE(mentions(next, "A file was loaded."));
+    CHECK_FALSE(mentions(next, "input_image"));
+    CHECK(next[first.size() - 2] == call);  // the history picks up where the message ended
+}
+
+TEST_CASE("a skill a tool result fires follows every result of its response, on that request only",
+          "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json import{{"type", "function_call"}, {"call_id", "call-import"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    const json again{{"type", "function_call"}, {"call_id", "call-again"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    const json read{{"type", "function_call"}, {"call_id", "call-read"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({import, again, read})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    AgentToolResult imported{"call-import", "succeeded", R"({"state":"succeeded"})"};
+    imported.skills.push_back(file_loaded_skill("The first import."));
+    REQUIRE(agent.continue_after_tool(imported));
+    // A second import in the same response: one skill, the later one, whose
+    // picture shows both.
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    AgentToolResult imported_again{"call-again", "succeeded", R"({"state":"succeeded"})"};
+    imported_again.skills.push_back(file_loaded_skill("The second import."));
+    REQUIRE(agent.continue_after_tool(imported_again));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-read", "succeeded", R"({"state":"succeeded"})"}));
+
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.size() >= 5);
+    CHECK(input[input.size() - 5]["call_id"] == "call-import");
+    CHECK(input[input.size() - 4]["call_id"] == "call-again");
+    CHECK(input[input.size() - 3]["call_id"] == "call-read");
+    CHECK(input[input.size() - 2] == kPictureItem);
+    CHECK(input.back() == json{{"role", "developer"}, {"content", "The second import."}});
+    CHECK_FALSE(mentions(input, "The first import."));
+
+    // The next request of the same turn has the results and no skill.
+    const json reply_call{{"type", "function_call"}, {"call_id", "call-4"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({reply_call})}}}}));
+    REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+    REQUIRE(agent.continue_after_tool({"call-4", "succeeded", R"({"state":"succeeded"})"}));
+    const json later = json::parse(fake->requests.back().body)["input"];
+    CHECK(later.back()["call_id"] == "call-4");
+    CHECK_FALSE(mentions(later, "The second import."));
+    CHECK_FALSE(mentions(later, "input_image"));
+    CHECK(mentions(later, "call-import"));
+}
+
+TEST_CASE("a skill without a picture is its text alone, and a title request carries none", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    AgentRequest request = request_fixture();
+    request.skills.push_back(file_loaded_skill("No picture here.", /*picture=*/false));
+    REQUIRE(agent.start(request));
+    const json input = json::parse(fake->requests.back().body)["input"];
+    CHECK(input.back() == json{{"role", "developer"}, {"content", "No picture here."}});
+    CHECK(input[input.size() - 2]["role"] == "user");
+    CHECK_FALSE(mentions(input, "input_image"));
+
+    request.purpose = AgentRequest::Purpose::ConversationTitle;
+    request.skills  = {file_loaded_skill()};
+    auto title_transport = std::make_unique<FakeTransport>();
+    FakeTransport* title_fake = title_transport.get();
+    OpenAIResponsesAgent title_agent({"key"}, std::move(title_transport));
+    REQUIRE(title_agent.start(request));
+    const json title_input = json::parse(title_fake->requests.back().body)["input"];
+    CHECK_FALSE(mentions(title_input, "A file was loaded."));
+    CHECK_FALSE(mentions(title_input, "input_image"));
+}
+
+TEST_CASE("skill_read is offered only with skills to list, and carries the list", "[agent][openai][skills]")
+{
+    const auto tools_of = [](const AgentRequest& request) {
+        auto transport = std::make_unique<FakeTransport>();
+        FakeTransport* fake = transport.get();
+        OpenAIResponsesAgent agent({"key"}, std::move(transport));
+        REQUIRE(agent.start(request));
+        return json::parse(fake->requests.back().body)["tools"];
+    };
+    const auto find = [](const json& tools, const std::string& name) {
+        return std::find_if(tools.begin(), tools.end(), [&name](const json& tool) { return tool["name"] == name; });
+    };
+    AgentRequest request = request_fixture();
+    const json without = tools_of(request);
+    CHECK(find(without, "skill_read") == without.end());
+
+    request.skill_index = {AgentSkill{"tune-strength", {}, "When a part must carry load.", {}},
+                           AgentSkill{"wet-filament", {}, "When stringing or popping suggests moisture.", {}}};
+    const json with = tools_of(request);
+    const auto skill_read = find(with, "skill_read");
+    REQUIRE(skill_read != with.end());
+    const std::string description = (*skill_read)["description"];
+    CHECK(description.rfind(ToolRegistry::instance().find("skill_read")->description, 0) == 0);
+    CHECK(description.find("\n\nSkills:\n- tune-strength: When a part must carry load.\n"
+                           "- wet-filament: When stringing or popping suggests moisture.") != std::string::npos);
+    CHECK(with.size() == without.size() + 1);
+}
+
+TEST_CASE("a skill_read call with nothing listed is refused before it runs", "[agent][openai][skills]")
+{
+    auto transport = std::make_unique<FakeTransport>();
+    FakeTransport* fake = transport.get();
+    OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json call{{"type", "function_call"}, {"call_id", "call-skill"}, {"name", "skill_read"}, {"arguments", R"({"name":"x"})"}};
+    fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
+    CHECK_FALSE(poll_until(agent, AgentEventKind::ToolCall));
+    const json input = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(input.back()["type"] == "function_call_output");
+    CHECK(json::parse(input.back()["output"].get<std::string>())["error"]["code"] == "unknown_tool");
+}

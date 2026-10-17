@@ -46,7 +46,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 17 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 20 cases,
 never more than MAX_RUNS for one case.
 
 Exit code 0 when every case passes at least --must-pass of its runs (default:
@@ -93,7 +93,7 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # responses of reads answered in one run
-RUN_BUDGET = 51
+RUN_BUDGET = 60
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
@@ -580,10 +580,71 @@ class PrintThisNoPurpose(Case):
         return (PASS, str(step)) if yes else (FAIL, "NOT ONE QUESTION FOR THE PERSON: " + why)
 
 
+class ModelOpenedUnnamed(Case):
+    """The person imports a model whose file name says nothing about it
+    (scan_0417.drc, the Stanford bunny) into an empty project. The request
+    carries the load report, the plate's picture and the file-loaded skill
+    (skills/file-loaded/SKILL.md): "change nothing the person
+    has not asked for", and "Look at the attached picture ... make an
+    educated guess at what the object is, what it is likely for". Passes on a
+    reply the judge reads as saying what the object is or looks like, or
+    asking what it is for; fails on a change or a reply that does neither."""
+
+    name = "model-opened-unnamed"
+
+    def check(self, step):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message say what the opened object is or what it looks "
+                                     "like (for example an animal, a figure or a kind of part), or ask the person what "
+                                     "it is for?")
+        return (PASS, str(step)) if yes else (FAIL, "NEITHER DESCRIBED NOR ASKED: " + why)
+
+
+class ModelImportedByTool(Case):
+    """"Add this part to the project too." with part_7.drc (the calicat)
+    attached, on the one-box project; the model called object_import, which
+    succeeded, and the request with its result carries the load report, the
+    plate's picture and the file-loaded skill: "Report and offer from the report and the
+    picture, and change nothing the person has not asked for." Passes on a
+    reply the judge reads as telling the person the part was added; fails on
+    any further change (another import included) or a reply that does not
+    report it."""
+
+    name = "model-imported-by-tool"
+
+    def check(self, step):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message tell the person that the part from the file was "
+                                     "added to (imported into) the project?")
+        return (PASS, str(step)) if yes else (FAIL, "DID NOT REPORT THE IMPORT: " + why)
+
+
+class ModelOpenedByTool(Case):
+    """"Open .../part_9.drc as a new project." (the Voron design cube) on the
+    one-box project; the model called project_open, which ended that turn,
+    and the opened project's chat starts with the load report, the plate's
+    picture and the file-loaded skill. The same sentences as
+    model-opened-unnamed. Passes on a reply the judge reads as saying what
+    was opened and what the object is or looks like, or asking what it is
+    for; fails on a change or a reply that does not."""
+
+    name = "model-opened-by-tool"
+
+    def check(self, step):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Does the assistant's last message tell the person the file was opened, and say what "
+                                     "the object is or looks like or ask what it is for?")
+        return (PASS, str(step)) if yes else (FAIL, "DID NOT REPORT THE OPENED MODEL: " + why)
+
+
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
-    FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose)}
+    FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
+    ModelOpenedByTool)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
 
@@ -592,7 +653,9 @@ assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + s
 
 def body_for(name, instructions, model, providers, input=None):
     body = {key: value for key, value in REQUESTS[name]["body"].items() if key != "stream"}
-    body.update({"model": model, "instructions": instructions, "tools": TOOLS})
+    # A point whose message had a model attached kept its own tool list,
+    # project_tools.json with object_import added.
+    body.update({"model": model, "instructions": instructions, "tools": REQUESTS[name]["body"].get("tools", TOOLS)})
     if input is not None:
         body["input"] = input
     if providers:
@@ -704,6 +767,9 @@ def answers_for(name, step):
 
 def run_once(name, instructions, key, model, endpoint, providers):
     input = list(REQUESTS[name]["body"]["input"])
+    # The recorded request's last items that the app sends on it alone (a
+    # skill and its picture): a continuation of the turn leaves them out.
+    once = REQUESTS[name].get("once", 0)
     path = []  # the reads answered, one entry per response, for the report
     try:
         for _ in range(MAX_READS + 1):
@@ -720,8 +786,12 @@ def run_once(name, instructions, key, model, endpoint, providers):
                 detail = (f"no recorded answer for {missing}" if results is None else f"still reading after answers: {step}")
                 break
             path.append(" + ".join(call["name"] for call in step.calls))
-            # As the app continues a turn: the model's output, then a result
-            # for every call, in the order the calls were written.
+            # As the app continues a turn: the history without what was sent
+            # once, the model's output, then a result for every call, in the
+            # order the calls were written.
+            if once:
+                del input[-once:]
+                once = 0
             input += step.output + [{"type": "function_call_output", "call_id": call.get("call_id"), "output": result}
                                     for call, result in zip(step.calls, results)]
     except Exception as error:  # a failed request is a failed run, reported as such

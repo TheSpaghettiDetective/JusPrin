@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "paths": {
       "@resources/*": ["../../../../../resources/*"],
       "@shared/*": ["../WebShared/*"]

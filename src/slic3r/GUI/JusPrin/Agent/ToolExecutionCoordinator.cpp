@@ -289,6 +289,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::PrinterAdd:
     case ToolHandler::PrinterConnectionStatus:
     case ToolHandler::PrinterConnect:
+    case ToolHandler::SkillRead:
         return false;
     }
     throw std::logic_error("tool handler has no checkpoint classification");
@@ -1060,8 +1061,11 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                     {"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision}}
                                    .dump();
         current.state = ToolState::Succeeded;
+        const bool by_agent = current.source == ToolSource::Agent;
         notify(current);
         forget_if_closed(action_id);
+        if (by_agent && m_agent_project_opened)
+            m_agent_project_opened(report);
         return;
     }
 
@@ -1932,11 +1936,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    // Records the host keeps, and the printer panel's own tools: both are
-    // owned by the surface that asked for them, and both still run here,
-    // inside this execution state machine.
+    // Records the host keeps, the page's skills, and the printer panel's own
+    // tools: each is owned by the surface that asked for it, and each still
+    // runs here, inside this execution state machine.
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
-        definition->handler == ToolHandler::RecordPhysicalPrint || has_exposure(definition->exposure, ToolExposure::Printer)) {
+        definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::SkillRead ||
+        has_exposure(definition->exposure, ToolExposure::Printer)) {
         if (!m_extension_executor) {
             fail(activity, "execution_failed", "The registered tool executor is unavailable.");
             return;

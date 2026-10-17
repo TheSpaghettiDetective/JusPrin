@@ -30,7 +30,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
-                                                 "project_instructions"};
+                                                 "project_instructions", "project_skills"};
     return values;
 }
 
@@ -98,12 +98,21 @@ inline constexpr const char* kPrinterOpening      = "printer_opening";
 // the app sends as the state's session.
 inline constexpr const char* kFilamentInstructions = "filament_instructions";
 inline constexpr const char* kShellAction          = "shell_action";
-// What the model is told when a file report opens a turn, which the page
-// writes.
-inline constexpr const char* kFileReportInstructions = "file_report_instructions";
 // The project assistant's whole prompt, which the page writes
 // (projectInstructions.ts); the app has no default text.
 inline constexpr const char* kProjectInstructions    = "project_instructions";
+// Every project skill, which the page writes (AgentUI/src/skills/*/SKILL.md),
+// in one message: text the app adds to one request when the event its trigger
+// names happens.
+inline constexpr const char* kSkills                 = "skills";
+
+// The events a skill can name as its trigger. The app fires each one itself;
+// the model never chooses a skill.
+namespace SkillTrigger {
+// A file was opened or imported: the person opened or dropped one, or a
+// tool call of the in-app Agent opened or imported one.
+inline constexpr const char* kFileLoaded = "file_loaded";
+} // namespace SkillTrigger
 
 } // namespace Protocol
 
