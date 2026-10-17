@@ -1,0 +1,9 @@
+check if the last 2 commits can be squashed
+
+---
+
+squash them and correct hte issue
+
+---
+
+yes
