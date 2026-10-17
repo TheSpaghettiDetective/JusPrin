@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M55YKK6BRT577QTNY8NBFK7R",
+  "strategy": "manual-commit",
+  "branch": "claude/skill-model-arrived",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/fileReportInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/fileReportInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skillParser.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/model-opened-or-imported/SKILL.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/tsconfig.json",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_tool_registry.cpp",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/project_tools.json",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/project_prompt/test_steps.py",
+    "tests/shell/project_prompt_scenario.inc"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1301,
+    "cache_read_tokens": 1101583,
+    "output_tokens": 2374,
+    "api_call_count": 2
+  }
+}
