@@ -1,0 +1,70 @@
+You are investigating the history of the JusPrin project chat's system prompt. No code changes, no commits, no live model calls. The deliverable is a report, written in plain English for someone who did not see any of this history, saved untracked at the root of your worktree as `prompt-sentence-origins-report.md`. Never commit it and never add it to .gitignore.
+
+## Background
+
+The project chat's prompt is `src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts` (pinned byte for byte by `projectInstructions.fixture.txt`). It moved there from C++ on 2026-10-14 (commit 6b4b8b6188); before that it was a string literal in `src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp` plus `kPrintJourneyGuidance` in `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp`. It was restructured into five sections on 2026-10-15 (e3f071d99a, ebf723cbb6). The file-open skill is `fileReportInstructions.ts` in the same folder. Tool descriptions are in `ToolRegistry.cpp`.
+
+Today (2026-10-16) Kenneth had two eval cases deleted from `tests/project_prompt`, `petg-restated` and `petg-restated-after-read`. Their only purpose was to guard against the assistant redoing a finished print setup when the person repeats the same request ("like I said, PETG and strong."). The prompt sentence they measured is, in the When to act section: "A request you already carried out, repeated: they are checking, so say what is in place." It descends from a sentence added on 2026-10-12 in commit 55a2d37618 (Entire checkpoint 01M4RGQPF0WPYJQG2VHSDNTMVA): "Do not repeat an assessment just because a title was recorded or unchanged intent was restated." There is also host code that looks related: `AgentHost.cpp` around line 624 treats an `intent_update` as "restated" via `remember_setup_intent`. Kenneth's words: this was "a strange one-off guard/check" for a non-issue, and he wants to know how it "managed to sneak into the code in the first place" and whether there are "other similar stupid prompts that were put in place to prevent non-issues because of misunderstandings".
+
+## Question 1: where did the repeated-request guard come from?
+
+Find the chain from the first observation to the sentence and the test. Sources, in this order:
+- `git log -S` with both phrasings and with "restated", across all branches (`--all`), including `feature/tool-deferral`, `claude/project-prompt-harness`, `backup/*`. Read the full commit messages; several carry an `Entire-Checkpoint:` trailer.
+- The Entire checkpoint history: the `entire` CLI is installed (`entire search --json "<terms>"`; there is an `entire-search` skill you can invoke for its usage). Search for the sentence, "restated", "repeat an assessment", "setupTitle", "intent_update" around 2026-10-05 to 2026-10-12.
+- Claude Code transcripts: `~/.claude/projects/-Users-kenneth-Projects-JusPrin/*.jsonl` (about 166 files). grep for "restated", "repeat an assessment", "like I said", "unchanged intent". Each file is one session; the first lines carry the session's start time. Quote the exchange that led to the sentence, with file and line.
+- Codex sessions under `~/.codex/sessions/` (dated folders), same terms.
+
+Answer these in the report: What was observed, and in what setting: a live conversation in the app with real tool results, an eval run with canned (stub) tool replies, or an agent reasoning about a hypothetical? Who decided to add the sentence, Kenneth or an agent on its own? Was the test case built from the same observation? Note: on 2026-10-10 Kenneth ruled out the run-to-the-end eval design that answered the model with canned replies, because it burned over 300M tokens and partly provoked what it counted; if that design is where the "loop" was seen, say so, because then the guard protects against an artefact of the test, not of the app. Label every statement as verified (with a pointer) or as your inference.
+
+## Question 2: are there other sentences like it?
+
+Audit every sentence of today's prompt (the fixture file), every row and sentence of `fileReportInstructions.ts`, and the policy sentences in tool descriptions in `ToolRegistry.cpp` (sentences that tell the model when or whether to do something, not the ones that state what the tool does and returns). For each, find its origin commit and the trigger the same way. Classify each as one of:
+(a) a principle or a fact about the app, keep;
+(b) a patch for a problem reproduced in live use with real tool results;
+(c) a patch for a problem seen only under canned tool replies, a misread tool result, or an agent's own speculation about what might go wrong;
+(d) a restatement of something the app already enforces in code.
+Recommend deleting (c) and (d), and say for each (b) whether the problem would still occur today (several things changed since: tool-call approval was removed 2026-10-07, tool deferral was removed from the branch 2026-10-14, save-or-discard questions were removed 2026-10-14, every tool call in a response now runs 2026-10-16).
+
+## Report shape
+
+Four parts: the problem, what you found (Question 1 as a short narrative with the quoted exchange), the audit table (sentence, where it lives, origin commit and date, session file and line, what triggered it, real or not, recommendation), and what you could not establish. Under about 1,500 words plus the table. Write in full sentences a person would say; no internal jargon without a one-clause definition; no "authorize/approve/confirm-before" vocabulary anywhere. Where a transcript cannot be found, say so rather than guessing.
+
+Base your worktree on local `jusprin-newui` (14 commits ahead of origin). Do not modify any tracked file.
+
+---
+
+<task-notification>
+<task-id>b4cc23tq9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-vigilant-fermi-58c169/19bb280b-b221-49b7-8cea-8127be874103/tasks/b4cc23tq9.output</output-file>
+<status>completed</status>
+<summary>Background command "Find the first commit introducing each pre-sectioning prompt phrase" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Try again
+
+---
+
+Now generate a similar report for all the project prompt live test cases. List the in what each of those test cases intend to test and where each of them came from.
+
+---
+
+delete petg-restated petg-restated-after-read omitted-replay. also delete the *after-read variants after you have verified that the read answer returns the appropriate values for hte model to respond correctly.
+
+---
+
+make sure all related parts in the docs/recorded baselines are also deleted
+
+---
+
+commit. and merge to jusprin-newui
+
+---
+
+what prompt sentences do you recommend to remove?
+
+---
+
+Make the change as you recommended, and commit.
