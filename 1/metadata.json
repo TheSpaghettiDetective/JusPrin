@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M55M93VF3CNVE48E4RBQBM2H",
+  "session_id": "2163d00d-ec7e-4335-997a-78bbc8eb7cb2",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-17T19:09:09.328764Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/project_tools.json",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/project_prompt/test_steps.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "0431121e1316",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1748,
+    "cache_creation_tokens": 904323,
+    "cache_read_tokens": 13598405,
+    "output_tokens": 97899,
+    "api_call_count": 65
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-17T19:09:09.214867Z",
+    "agent_lines": 0,
+    "agent_removed": 12,
+    "human_added": 73410,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 73424,
+    "total_lines_changed": 73437,
+    "agent_percentage": 0.01634053678663344,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
