@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M55JR1KTGGS6XX83Z1PXREA4",
+  "strategy": "manual-commit",
+  "branch": "claude/prompt-case-cleanup",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/project_tools.json",
+    "tests/project_prompt/run_prompt_tests.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 449679,
+    "cache_read_tokens": 3967458,
+    "output_tokens": 9363,
+    "api_call_count": 9
+  }
+}
