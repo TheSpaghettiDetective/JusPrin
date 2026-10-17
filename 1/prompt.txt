@@ -1,0 +1,39 @@
+Implement state-driven guidance for the JusPrin project chat on a branch cut from local `jusprin-newui` (14 commits ahead of origin, not pushed; do not push). Report, untracked at your worktree root as `state-guidance-report.md`, in four parts: problem, what changed, tests and results, remaining issues; plain English for someone who did not see this session; never commit the report.
+
+## Why
+
+The project chat's system prompt (`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`, 2,741 bytes, five sections) was reduced to principles on 2026-10-15. Kenneth's goal is an agent that answers every kind of request naturally (questions with or without a model, troubleshooting, import-slice-print) yet takes the right steps in the journeys that matter, above all: check the filament and process presets as soon as the purpose and the model are understood, and look at the model to tell what it is. Published practice (Anthropic's Agent Skills write-up, Replit's decision-time guidance, Pydantic's system reminders, Anthropic's "Writing tools for agents") agrees that standing rule lists fade and lose to the model's priors, while a short instruction supplied by the harness at the moment its situation arises, placed last in the request, works better; and that a tool's result should say what is now true and what has not yet been checked. Kenneth approved doing both of the following.
+
+## A. Show the model the plate when a file opens
+
+Today, when a file opens, `AgentHost::on_file_loaded` (`src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp` about line 1318) appends a note message carrying the load report, and the model's next request gets `fileReportInstructions.ts` as a developer item (about line 2112). The model sees no picture unless it calls `view_render`. Change: attach the active plate's iso render to that file-open turn so the model sees the object without a tool call. Reuse the offscreen render `view_render` uses (`Workspace::render_view`, called from `ToolExecutionCoordinator.cpp` about line 1288); images already reach the model as `input_image` parts (`OpenAIResponsesAgent.cpp` lines about 219 and 278). Decide whether the picture is stored with the message or rendered when the request is built; keep it out of the replayed history after that turn, because history is trimmed by a 64 KiB budget and a picture on every later request would be waste. Do not render when the project has no printable object. Widen `view_render`'s description in `ToolRegistry.cpp` (about line 1151) so it also serves to tell what an object is when its name does not say. Mention the picture in `fileReportInstructions.ts` in one sentence, deleting at least as much text as you add there.
+
+## B. Notes and results that name what is unchecked
+
+1. File just opened, nothing recorded about its purpose: on that same turn, one or two sentences saying that nothing is recorded about what this print is for, that the picture is the plate as loaded, and that the filament and process presets should be checked against what it is once that is known. Fold this into the file-open turn's existing developer text rather than adding a second item if that is simpler.
+2. Intent just recorded: make `intent_update`'s tool result name the current printer, filament and process presets and the active plate's type as not yet checked against the recorded purpose (the host already treats `intent_update` specially around `AgentHost.cpp` line 624, `remember_setup_intent`). This is the tool-result channel; it needs no note.
+3. Candidates, add only if something is missing: a slice that finished with warnings; a print issue clicked (these already arrive as `slice_report`'s result and the `<print_issue>` block). Judge and say why you did or did not add anything.
+
+Rules for notes: never stored in the conversation document; the last item of the request; the same bytes for the same state so the prompt cache is not disturbed; the whole set stays a few sentences. On where the text lives: `agent-docs/jusprin/architecture.md` says the text the model reads belongs on the Agent page, as `project_instructions` and `file_report_instructions` do, while text assembled from app state (the omission note, the workspace block) is built in C++. Follow that split and say in the report which side each new text is on and why.
+
+Rule lives once: if a note or a result now covers a sentence of the prompt's Preparing section, delete that sentence, and the prompt's byte count must not go up. Never write "approve", "authorize", "confirm before" or "ask the user then call again" anywhere; tool-call approval was removed on 2026-10-07.
+
+## C. Keep the eval in step
+
+`tests/project_prompt` replays requests recorded from the app and asks the model for one step; a case must name the prompt sentence or note it tests and never runs past its first response. Re-record `requests.json` with the shell harness's `--project-prompt-requests` after your change (the recorder waits for OrcaSlicer's scheduled update, selects a per-conversation `plateType`, and points the version check at a closed port; all on the branch already). Add one first-step case at the point right after `intent_update`'s new result, expecting a read of the effective settings, `presets_list` or `printer_setup_preview`, and failing on `slice_start` or a readiness claim. The file-note case will now carry a picture; check it still renders. In the main checkout the cases `petg-restated` and `petg-restated-after-read` were deleted today, uncommitted (their step removed from `script.json`'s `prepare` conversation, their classes removed from `run_prompt_tests.py`, their `test_steps.py` use retargeted to `file-note-not-instructions`); make the identical deletion before you re-record so the two trees agree.
+
+Do not run a live model batch without Kenneth's approval: put the proposed batch (cases, runs, estimated tokens) in the report instead. Credentials for a later run live in `~/.config/jusprin/prompt-test.env`; never print them.
+
+## D. Tests and build
+
+Run `agent_bridge_tests` (cmake at `/Applications/CMake.app/Contents/bin/cmake`, target `agent_bridge_tests`, config RelWithDebInfo; nohup long builds and watch the log; `cd` into your worktree in every Bash call), the AgentUI vitest suite (build `jusprin_web` after page edits), `workspace_contract_tests`, the shell harness default scenario, and `python3 tests/project_prompt/test_steps.py` plus `run_prompt_tests.py --render-only`. New behaviour gets a test that fails without the change. Report line counts added and removed. Commit code and tests on your branch with plain commit messages and no attribution lines; do not commit docs or reports.
+
+---
+
+<task-notification>
+<task-id>bod2nhmzu</task-id>
+<tool-use-id>toolu_01HzN4bAb3V5BU8X7b4kN51z</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-cool-bardeen-7f40f5/493f628c-59eb-4dbf-bc74-c0d50e4d49d8/tasks/bod2nhmzu.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the AgentUI vitest suite" completed (exit code 0)</summary>
+</task-notification>
