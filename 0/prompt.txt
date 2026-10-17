@@ -1,0 +1,166 @@
+Build the first app-triggered skill for the JusPrin project chat: "a model is opened or imported". Branch from local `jusprin-newui` (tip 46ee617812 or later; 17 commits ahead of origin, do not push). Report, untracked at your worktree root as `skill-model-arrived-report.md`, four parts (problem, what changed, tests and results, remaining issues), plain English for someone who did not see this. Never commit the report. Commit code and tests on your branch with plain messages, no attribution lines; do not merge into `jusprin-newui`, the main session does that.
+
+## The design you are implementing
+
+Kenneth's rule for the project chat: the standing system prompt carries principles only, and everything situational arrives as a skill, a short text the app adds to one request when it knows the situation holds. The app chooses the skill by event; the model never picks one from an index and there is no tool to read one. Four skills are planned; this is the first and it also builds the loading mechanism the other three will reuse: (1) a model is opened or imported; (2) slicing finished unsuccessfully; (3) OrcaSlicer reported a print issue, including the canvas buttons "Explain this issue and my options." and "Help fix this issue."; (4) the project setup changed after a purpose was recorded.
+
+## What exists today
+
+- The skill text: `src/slic3r/GUI/JusPrin/AgentUI/src/fileReportInstructions.ts`, about 6.8 KB. The page sends it once per connection as the bridge message `file_report_instructions` (`App.tsx` line 197; `Protocol::kFileReportInstructions` in `Agent/AgentProtocol.hpp`); the host keeps it in `m_file_report_instructions` (`Agent/AgentHost.cpp`).
+- When it fires: only when the person opens or drops a file. `AgentHost::on_file_loaded` (about line 1318) appends a Note message carrying the load report and starts a turn; `make_agent_request` (about lines 2060 and 2112) sends the report as the user text and adds the skill as a developer item on that request only, and a one-line reminder on later requests (line 2115). A project reopened with an existing conversation and no OrcaSlicer messages is skipped on purpose.
+- What does not fire it: `project_open` and `object_import_file` run by a tool. Their replies carry the same load report (`Agent/ToolExecutionCoordinator.cpp` about lines 1050 to 1105, `load_report_result`) but no skill. The model then reads OrcaSlicer's dialog answers and the file's notes with no guidance. Kenneth's words: treating the second model as if nothing happened is wrong.
+- The shelved loader to port: branch `feature/project-skills-routing` (tip 77a8be964e; read `src/slic3r/GUI/JusPrin/AgentUI/src/skills/README.md` at commit 2d62184e37 for why it was shelved). Reuse: `AgentUI/src/skillParser.ts` (SKILL.md with YAML frontmatter, name rule, size checks) and `skills.ts` (glob-loads `skills/*/SKILL.md`), the `skills` bridge message with the host-side validation in that branch's `AgentHost.cpp` around line 973 (one message, sorted names, 16 KiB per text, 256 KiB payload, bridge error on a bad payload), and the `AgentSkill` record. Do not port: the `skill_read` tool, the skill index appended to the prompt, and any prompt text about choosing skills. The model never chooses.
+
+## What to build
+
+1. **Skill files on the page.** `AgentUI/src/skills/<name>/SKILL.md`, frontmatter with `name`, a `trigger` the host understands (for this skill, a model arrived), and the body. Move the file-open text into `skills/model-arrived/SKILL.md` (name as you see fit, in a person's words). The body is the text the model gets; keep it as is except for the changes under 3. Keep `projectInstructions.ts` separate; it is the standing prompt and does not become a skill.
+2. **The page sends all skills once per connection** with one `skills` message replacing `file_report_instructions`; the host stores them by trigger. Bridge version stays 1; list the capability as the printer and project instructions do (`protocol.json`, `AgentProtocol.hpp`, `protocol.ts`). The host refuses a bad payload with a bridge error and keeps the previous set. App-started turns that arrive before the skills, as today before `file_report_instructions`, wait the same way.
+3. **The host adds the skill on the request where the load report first reaches the model**, for every source: the person's open or drop (today's Note path), and a `project_open` or `object_import_file` reply inside a turn, which is a continuation request built through `continue_after_tool` and `OpenAIResponsesAgent::continue_after_tool`; the skill goes in as a developer item after the tool outputs of that request. The text is never stored in the conversation document and appears on no later request. Two additions to the text: one sentence telling the model what the attached picture is, and one sentence, present only when no purpose is recorded for the conversation, saying that nothing is recorded about what this print is for and that the presets should be checked against the purpose once it is known. The skill text itself may say "the picture, when present"; the conditional sentence is added by the host, from state, in a fixed form so the same state gives the same bytes. The whole text deletes at least as much as it adds: the opening sentence "They have asked for nothing yet, so this message reports and offers, from the report alone" no longer holds for a tool import that fulfilled a request, so reword it for both cases.
+4. **The picture.** Attach the active plate's iso render to that same request as an image input, using the offscreen render `view_render` already uses (`Workspace::render_view`, called from the coordinator about line 1288; images reach the model as `input_image` parts in `OpenAIResponsesAgent.cpp` lines about 219 and 278). Render when the request is built, not stored, so it is never replayed; none when the plate has no printable object. Widen `view_render`'s description (`ToolRegistry.cpp` about line 1151) so it also serves to tell what an object is when its name does not say, and regenerate `tests/project_prompt/project_tools.json` from the registry.
+5. **The reminder line** on later requests (line 2115) stays as it is.
+
+Never write "approve", "authorize", "confirm before" or "ask the user then call again" anywhere; tool-call approval was removed on 2026-10-07. Text the model reads lives on the page; text assembled from state lives in C++; say in the report which is which. The host must stay indifferent to the number of skills, since three more follow with other triggers.
+
+## The eval
+
+`tests/project_prompt` replays requests recorded from the app and asks the model for one step; each case names the sentence or skill it tests and never runs past its first response. Re-record `requests.json` with the shell harness's `--project-prompt-requests` (the recorder waits for OrcaSlicer's scheduled update, selects a per-conversation plate type, and points the version check at a closed port). Add two first-step cases that start at the request carrying the skill: the person opens a file whose name says nothing about what it is, expecting a reply that describes the object or asks what it is for and makes no change; and a tool import into an existing project, expecting the reply to report the import and make no further change. Make the recorder check that the skill and the picture are on exactly that request and absent from the next. Do not run a live model batch; put the proposed batch (cases, runs, estimated tokens) in the report instead. Credentials for a later run are in `~/.config/jusprin/prompt-test.env`; never print them.
+
+## Tests and build
+
+`agent_bridge_tests` (cmake at `/Applications/CMake.app/Contents/bin/cmake`, config RelWithDebInfo, or Release if disk is short; nohup long builds and watch the log; `cd` into your worktree in every Bash call), AgentUI vitest after `jusprin_web` is rebuilt, `workspace_contract_tests`, the shell harness default scenario, `python3 tests/project_prompt/test_steps.py`, `run_prompt_tests.py --render-only`. New behaviour gets a test that fails without the change: the skill on the three arrival paths and on no later request, the picture present and absent, the conditional sentence present and absent, the bad-payload refusal, the parser. Report line counts added and removed, and the skill text's byte count before and after.
+
+---
+
+<!-- reply 1 -->
+> project_open called by the model ends the turn. Opening a project replaces the chat’s document, which cancels the turn, so the result never reaches the model. I confirmed this in the real app, and a test now holds that behaviour in place. Fixing it is your call. I’d post the load report as a note in the newly opened project’s chat and start a turn there, the same way a person’s open works today
+
+You’re right, most of that was me narrating my own fix. The one thing you needed to know: your brief asked for a test where the AI imports with object_import_file. The in-app chat can’t call that tool, so the test I committed uses object_import with an attached file instead. That’s a change from what you specified.
+
+Why did you ask this? Shouldn't this case be best triggered by a normal file import?
+Let me check what path a person’s own “import a second model” takes, since that decides whether the brief asked for the right test.
+Short answer: a normal import by the person already fires the skill, so a test there would prove nothing about the change. I asked for a tool-import case because that was the path that did not fire before. But I named the wrong tool.
+What a normal import does today. When the person imports a second model (File > Import, or dropping it on the canvas), OrcaSlicer’s load finishes, the workspace adapter delivers a load report through the same listener that handles opening a file, and `AgentHost::on_file_loaded` starts the file-report turn (OrcaWorkspaceAdapter.cpp:583, ShellController.cpp:291). The only skip is a project reopen with an existing conversation. So the person’s own import, first model or fifth, has always had the instructions. The “person opens a file” case covers it.
+What did not fire before. An import started by the model: the tool’s reply carries the same load report but no instructions. That is the path the chip exists to fix, so a case there is the one that passes after the change and would have failed before.
+My mistake. There are two import tools. `object_import_file` takes a file path and is exposed to MCP only (ToolRegistry.cpp:1092). `object_import` takes a chat attachment and is the in-app one (ToolRegistry.cpp:1084). The in-app chat cannot call the first, so the agent substituting the second was correct, and the case now matches the only way the model can import inside the app.
+One thing worth questioning. Whether the skill is present on that request is a request-shape fact, and the recorder and native tests prove it without a model. What a live case at that point measures is what the model does with the skill, which is the same question the person-import case already asks. So the tool-import live case is mostly redundant; the request-shape check is what matters. If you want fewer live cases, that one can go.
+Short answer: a normal import by the person already fires the skill, so a test there would prove nothing about the change. - How can this be the case? The old code has a roughly equivalent of prompt that was ugly injected. The whole new point of this task is to implement the same mechanism in a reusable more systematic skill system, right? Shouldn't we test to make sure the main flow still works?
+You’re right, and I framed it wrong. The mechanism underneath the main flow was replaced, so the main flow has to be tested to prove the port didn’t break it. “Proves nothing about the change” was true only of the new trigger, not of the migration. Let me check what the chip actually tested on that path.
+Yes, and the main flow is tested, at three levels. My earlier sentence was wrong about what needed proving; the chip itself did not make that mistake.
+What the chip tests on the person’s path, the migrated mechanism:
+
+A C++ test asserts the skill is on the request when the person opens a file, and absent from every later request (test_agent_bridge.cpp:2934 and the cases around it). The report says each was broken on purpose and seen to fail.
+The recorder drives the real app: the `unnamed-model` conversation drops a file onto the plate the way a person does (script.json:917), and `"skill": true` makes the recorder check that the skill and the picture are on that exact request and absent from the next. That is the end-to-end proof that the port still delivers on the main flow.
+The live case `model-opened-unnamed` then starts at that request and judges what the model does with the skill: describe the object or ask what it is for, change nothing.
+The tool-import conversation (script.json:929) is the second case, for the path that was new.
+So the correction to what I said: the person-open live case does prove something about the change. It proves the new loader still produces the behaviour the old one-off injection produced. The thing it cannot show is a before-and-after difference, because the model saw equivalent text before. That is the only sense in which it “proves nothing”, and it was a bad way to put it.
+One real gap the report flags, worth your attention: the eval model it runs on, DeepSeek V4 Flash, is text-only, so the two new live cases will either error on the picture or run without it. The chip proposes one run of each first to find out, then either dropping the picture in the runner or running those two cases on an image-capable model. That decision is yours before the batch runs.
+
+the task chip got this part wrong. see the Delegating agents confession. You need to make sure that your. the skills should be properly injected in all circurmstances when a new model is imported, with only one exception - by mcp client.
+
+if the skill won't be injected when project_open, Then this task becomes essentially useless. If you can't figure this out, just tell me and I'll find another agent to work on it. 
+
+I agree with you that opening an existing project shouldn't trigger your skills.
+
+
+you responded in thie sidechat:
+
+<pasted_content id="9328">
+es, I can fix this, and the change is small. I can’t edit files from this side chat, though, so the main session has to make it; below is exactly what it needs to do.
+Where the result gets lost: the host listens for every finished tool call, and its first check (`AgentHost.cpp:669-673`) throws away any result that belongs to the project that was just closed. A successful `project_open` always belongs to the closed project, so its result is dropped right there, along with OrcaSlicer’s load report inside it.
+The fix: in that same listener, just before the result is thrown away, check whether all of these are true:
+
+* the call is `project_open`;
+* it succeeded;
+* it came from the in-app AI (`ToolSource::Agent`), not an MCP client (`ToolSource::Mcp`), which is your one exception;
+* its result contains a load report.
+
+If they are, take the report and do what `on_file_loaded` already does when you open a file yourself: post the “file loaded” note in the newly opened project’s chat and start the AI’s turn. From there the existing code adds the skill and the plate picture, because that path already does it for your own opens.
+Keeping your rule about existing projects: `on_file_loaded` already skips a reopened project that has a conversation, unless OrcaSlicer said something while loading it. The new path goes through the same check. That also covers the AI choosing “continue the existing project” when a file was opened before.
+Tests that come with it:
+
+* The native test that currently pins the broken behaviour flips to check that the opened project’s chat gets the note, a turn, the skill and the picture.
+* A second test checks that an MCP client’s `project_open` produces none of that.
+* A third checks that reopening an existing project with its conversation produces none of it either.
+* The recorder gets a third live case: the AI opens a file as a new project, and the recording checks the skill and picture are on the first request in the new project’s chat.
+
+With this, the skill fires every time a new model arrives in the in-app chat (your own open or drop, the AI’s import, the AI’s open). It stays silent for MCP clients and for reopening an existing project.
+One effect to accept: your request (“open bracket.stl”) stays in the old project’s chat. The new project’s chat starts with the file note and the AI’s first message about the file, which is the same thing you see when you open a file yourself today.
+If you send this back to the main session, it can make the change on the same branch.
+</pasted_content id="9328">
+
+Now don't make any changes. Just tell me your understanding about the situation and what you will do next.
+
+---
+
+let's still port skill_read so that we have a way that is consistent with other harness. Also, we may want to expose some common skills to model to use based on its own discretion. 
+
+The expected behavior for project_open should be:
+
+* interupt current turn.
+* If it's an internal projects, do nothing as we agreed upon, otherwise:
+* start a listener to gather all events/dialogs happening in the process. I'm pretty sure you can just move existing code unless You find the reason why it's implemented fundamentally wrong. 
+* Start a new chat and hand the collected report to the new chat. This should be exactly how it's happening today. Basically the current hard coded one-off process should be replaced by the skill mechanism. You are not supposed to keep both. 
+* s things you need to change to the existing mechanism: 1. The instructions to check available presets  and selected ones, and make suggestions to the user if the selected ones are not the right one to use; 2. ask the user if the agent should visually inspect the model to guess the usage, intent, and slicing strategy.
+
+Are we on the same page now?
+
+---
+
+<!-- reply 6 -->
+> The picture. Today the plate picture is attached to the model automatically. “Ask whether to look at the model” suggests no picture until the person says yes, after which the AI calls view_render. Should I remove the automatic picture? I recommend removing it. Otherwise the question asks permission for something the model has already seen.
+
+no. keep the plate picture. change the instruct to take a look at the attached pic.
+
+<!-- reply -->
+> Internal project. Today a reopened project with its own conversation is skipped, but it is still greeted if OrcaSlicer said something while loading it, such as a dialog. Should internal projects stay silent even then? I recommend keeping today’s exception, since that dialog may matter.
+
+no. keep current behavior.
+
+<!-- reply -->
+> Discretionary skills. None exist yet. Should this task ship only the mechanism, with no discretionary skill?
+
+right. no discretionary skills for now
+
+<!-- reply -->
+> What else becomes a skill.
+
+Don't worry about it for now.
+
+<!-- reply -->
+> Still pending: the eval model, DeepSeek V4 Flash, reads text only. If you drop the automatic picture (question 1), that problem mostly goes away.
+
+Don't worry about it for now. I will test it later myself.
+
+<!-- reply -->
+> The skill currently says to end with one question or offer and to stay under 90 words.
+
+If possible, we want to make it slightly more flexible so that the m model can decide how to end the turn. It doesn't have to be a question, but the goal is to make an educated guess on what the user want as a next step.
+
+---
+
+<task-notification>
+<task-id>benc1tx34</task-id>
+<tool-use-id>toolu_01LLqpvsEt3E7d9unZnZXBqP</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-happy-mahavira-7c23a6/bf2543ad-f3af-4c5d-a3d4-e6a0dd958661/tasks/benc1tx34.output</output-file>
+<status>failed</status>
+<summary>Background command "SP=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-happy-mahavira-7c23a6/bf2543ad-f3af-4c5d-a3d4-e6a0dd958661/scratchpad &amp;&amp; git show HEAD:tests/project_prompt/requests.json &gt; $SP/old_requests2.json &amp;&amp; python3 - &lt;&lt;EOF
+import json,re
+old=json.load(open('$SP/old_requests2.json'))['cases']
+new=json.load(open('tests/project_prompt/requests.json'))['cases']
+def norm(s):
+    s=re.sub(r'\d{4}-\d\d-\d\dT[\d:.]+Z?','T',s); s=re.sub(r'/var/folders/[^"\\\\]+','P',s)
+    s=re.sub(r'\d+(\.\d+)?','N',s); s=re.sub(r'call_[\w-]+','C',s); s=re.sub(r'data:image/png;base64,[A-Za-z0-9+/=N]+','IMG',s)
+    return s
+for k in sorted(new):
+    if k not in old: print('NEW',k, new[k].get('once'), len(new[k]['body']['input'])); continue
+    a=norm(json.dumps(old[k]['body'],sort_keys=True)); b=norm(json.dumps(new[k]['body'],sort_keys=True))
+    if a==b: print('same',k); continue
+    import difflib
+    ops=[op for op in difflib.SequenceMatcher(None,a,b,autojunk=False).get_opcodes() if op[0]!='equal']
+    print('DIFF',k,len(ops), repr(b[ops[0][3]-60:ops[0][4]+60][:200]))
+EOF" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+squash your commits into 1. merge it into jusprin-newui
