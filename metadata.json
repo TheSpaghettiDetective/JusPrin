@@ -3,7 +3,7 @@
   "checkpoint_id": "01M54175KGTFF7Q72PH7HZRYNH",
   "strategy": "manual-commit",
   "branch": "claude/state-guidance",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "tests/project_prompt/README.md",
     "tests/project_prompt/run_prompt_tests.py",
@@ -17,13 +17,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 614,
-    "cache_creation_tokens": 417502,
-    "cache_read_tokens": 3320354,
-    "output_tokens": 45722,
-    "api_call_count": 24
+    "input_tokens": 3402,
+    "cache_creation_tokens": 649098,
+    "cache_read_tokens": 20975828,
+    "output_tokens": 124232,
+    "api_call_count": 113
   }
 }
