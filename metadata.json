@@ -13,8 +13,7 @@
     "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp",
     "tests/agent/test_agent_bridge.cpp",
-    "tests/agent/test_openai_responses_agent.cpp",
-    "tests/project_prompt/requests.json"
+    "tests/agent/test_openai_responses_agent.cpp"
   ],
   "sessions": [
     {
@@ -27,9 +26,9 @@
   ],
   "token_usage": {
     "input_tokens": 28,
-    "cache_creation_tokens": 397154,
-    "cache_read_tokens": 5807424,
-    "output_tokens": 17725,
+    "cache_creation_tokens": 442083,
+    "cache_read_tokens": 6232803,
+    "output_tokens": 7992,
     "api_call_count": 14
   }
 }
