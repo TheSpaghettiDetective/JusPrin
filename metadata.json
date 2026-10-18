@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5658W81929P0ZARTMVC6M1M",
   "strategy": "manual-commit",
   "branch": "claude/skill-slice-failed",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 470,
-    "cache_creation_tokens": 495150,
-    "cache_read_tokens": 83789132,
-    "output_tokens": 188081,
-    "api_call_count": 235
+    "input_tokens": 724,
+    "cache_creation_tokens": 815402,
+    "cache_read_tokens": 116303300,
+    "output_tokens": 272546,
+    "api_call_count": 362
   }
 }
