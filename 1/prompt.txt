@@ -1,0 +1,11 @@
+> after-slice shows the cost of removing wait. Two runs said “Still slicing (80% done) — let me check again” and kept calling workspace_inspect until the read limit. The recording replays an answer frozen mid-slice, so they could never see the run end. In the app they would, but each poll is a full request of roughly 12,000 to 20,000 input tokens. With wait, this case passed 3 of 3. Steering the model to end its turn instead of polling would be a wording change in the tool’s reply or description; your call.
+
+is the slicing progress showing somewhere? If not, we should show the slicing progress right below this turn.
+
+---
+
+did you word the tool response to instruct the model keep on polling? This is the opposite of what we decided on the design, right?
+
+---
+
+Repeat what you wanted to say in clean English under a hundred and fifty words.
