@@ -177,9 +177,38 @@ class Steps(unittest.TestCase):
             self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
             self.assertNotIn("input_image", json.dumps(sent), name)
 
+    def test_the_print_issues_skill_leaves_the_request_after_its_own(self):
+        """A chip's message and the first message after a slice with warnings
+        carry the print-issues skill alone, no picture, on that request only."""
+        for name in ("issue-fix", "issue-explain", "slice-warnings-ready"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# Issues I report about the print"), name)
+            self.assertNotIn("input_image", json.dumps(recorded[-2]), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            verdict, detail, bodies = self.run_case(name, first, [call("plan_set", {"headline": "Print it"})])
+            self.assertEqual(verdict, runner.FAIL, detail)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# Issues I report about the print", json.dumps(sent), name)
+
+    def test_the_slice_with_warnings_is_in_the_workspace_block(self):
+        workspace = json.dumps(runner.REQUESTS["slice-warnings-ready"]["body"]["input"])
+        self.assertIn("sliceWarnings", workspace)
+        self.assertNotIn("sliceWarnings", json.dumps(runner.REQUESTS["advice-infill"]["body"]["input"]))
+
+    def test_slice_warnings_ready(self):
+        case = "slice-warnings-ready"
+        self.assertEqual(self.run_case(case, [call("slice_report", {"sections": ["findings"]})])[0], runner.PASS)
+        verdict, detail, _ = self.run_case(case, [call("slice_start")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertIn("UNREQUESTED CHANGE", detail)
+
     def test_no_other_point_sends_anything_once(self):
         self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
-                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed"])
+                         ["issue-explain", "issue-fix", "model-imported-by-tool", "model-opened-by-tool",
+                          "model-opened-unnamed", "slice-warnings-ready"])
 
     # --- One call or none, as before ---------------------------------------
 

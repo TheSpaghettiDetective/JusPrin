@@ -51,6 +51,9 @@ json workspace_json(const AgentRequest& request)
         // the plate cannot take is visible before anything is sliced.
         if (!plate.bed_type.empty())
             entry["plateType"] = plate.bed_type;
+        // What its current slice warned about, whoever sliced it.
+        if (plate.slice_warnings)
+            entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
         plates.push_back(std::move(entry));
     }
     json selected = json::array();

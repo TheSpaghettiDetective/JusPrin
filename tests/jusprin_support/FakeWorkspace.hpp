@@ -52,6 +52,8 @@ public:
                 // A fixture may describe an estimate the plate can no longer
                 // defend -- recomputing or stale -- but never a current one.
                 if (plate.estimate_status == EstimateStatus::Current) plate.estimate.reset();
+                // Warnings belong to a current slice, as in the Orca adapter.
+                plate.slice_warnings.reset();
                 continue;
             } else {
                 plate.estimate_status = EstimateStatus::Current;
@@ -1205,15 +1207,32 @@ public:
     }
 
     // What the owner reports while a run is in flight, and when it ends.
+    // A run that slices leaves `warnings_after_slice` on its plate.
     void finish_slice_for_testing(bool sliced)
     {
         const auto plate            = m_snapshot.slicing.plate;
         m_snapshot.slicing          = {};
         if (plate)
             for (WorkspacePlate& candidate : m_snapshot.plates)
-                if (candidate.id == *plate)
-                    candidate.sliced = sliced;
+                if (candidate.id == *plate) {
+                    candidate.sliced         = sliced;
+                    candidate.slice_warnings = sliced ? warnings_after_slice : std::nullopt;
+                }
         publish(WorkspaceChangeReasons::Slicing);
+    }
+    std::optional<SliceWarnings> warnings_after_slice;
+
+    // A slice of the plate that finished with these warnings, as the person's
+    // Slice press leaves it.
+    void set_plate_warnings_for_testing(PlateId id, std::optional<SliceWarnings> warnings)
+    {
+        for (WorkspacePlate& plate : m_snapshot.plates)
+            if (plate.id == id) {
+                plate.sliced         = true;
+                plate.slice_warnings = std::move(warnings);
+                publish(WorkspaceChangeReasons::Slicing);
+                return;
+            }
     }
 
     std::uint32_t slice_starts{0};

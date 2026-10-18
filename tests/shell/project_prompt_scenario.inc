@@ -143,12 +143,12 @@
         return !error;
     }
 
-    // The page's skill for a loaded file, as the page sends it: the
-    // SKILL.md body (skillParser.ts).
-    static std::string prompt_file_loaded_skill()
+    // A page skill as the page sends it: the SKILL.md body (skillParser.ts).
+    // The file-loaded skill is the one a point's "skill": true names.
+    static constexpr const char* kPromptFileLoadedSkill = "file-loaded";
+    static std::string prompt_skill(const std::string& skill)
     {
-        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) /
-                            "src/slic3r/GUI/JusPrin/AgentUI/src/skills/file-loaded/SKILL.md").string(),
+        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/skills" / skill / "SKILL.md").string(),
                            std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         const std::size_t body = text.find("\n---\n");
@@ -165,6 +165,11 @@
     {
         return item.value("role", "") == "developer" && item.contains("content") && item["content"].is_string() &&
                !skill.empty() && item["content"].get<std::string>().rfind(skill, 0) == 0;
+    }
+    // Whether an input item is any of the page's triggered skills.
+    static bool prompt_is_any_skill(const nlohmann::json& item)
+    {
+        return prompt_is_skill(item, prompt_skill(kPromptFileLoadedSkill)) || prompt_is_skill(item, prompt_skill("print-issues"));
     }
     static bool prompt_is_picture(const nlohmann::json& item)
     {
@@ -304,7 +309,6 @@
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
-        const std::string skill = prompt_file_loaded_skill();
         once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
@@ -327,7 +331,7 @@
                 once = kept.size() - same;
                 bool repeated = false;
                 for (const json& item : input)
-                    repeated = repeated || prompt_is_skill(item, skill) || prompt_is_picture(item);
+                    repeated = repeated || prompt_is_any_skill(item) || prompt_is_picture(item);
                 check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
             }
             const std::string output = request.body.at("input").back().at("output");
@@ -564,23 +568,31 @@
                     kept.erase("tools");
                 kept.erase("instructions");
                 const std::size_t items = input.size();
-                // A point marked "skill" is the request that first carries a
-                // model's load report: it ends with the plate's picture and
-                // the file-loaded skill. No other point holds either.
-                const std::string skill = prompt_file_loaded_skill();
-                const bool wants_skill = reply.value("skill", false);
-                const bool has_skill   = items >= 2 && prompt_is_skill(input[items - 1], skill) &&
-                                       prompt_is_picture(input[items - 2]);
+                // A point marked "skill" is the request where the model
+                // first reads about the skill's event: it ends with that
+                // skill, after the plate's picture for a loaded file
+                // ("skill": true; "skill": "print-issues" has no picture). No
+                // other point holds a skill or a picture, and the request
+                // after it holds neither (prompt_answers).
+                const json wanted = reply.value("skill", json(false));
+                const std::string wanted_skill = wanted.is_string() ? wanted.get<std::string>() :
+                                                 wanted == true      ? std::string(kPromptFileLoadedSkill) : std::string();
+                const bool        wants_skill  = !wanted_skill.empty();
+                const bool        pictured     = wanted_skill == kPromptFileLoadedSkill;
+                const std::size_t trailing     = wants_skill ? (pictured ? 2u : 1u) : 0u;
+                const std::string skill        = wants_skill ? prompt_skill(wanted_skill) : std::string();
+                const bool has_skill = wants_skill && items >= trailing && prompt_is_skill(input[items - 1], skill) &&
+                                       (!pictured || prompt_is_picture(input[items - 2]));
                 bool elsewhere = false;
-                for (std::size_t i = 0; i + (has_skill ? 2 : 0) < items; ++i)
-                    elsewhere = elsewhere || prompt_is_skill(input[i], skill) || prompt_is_picture(input[i]);
-                check(!skill.empty(), case_name + "_skill_text_read");
-                check(has_skill == wants_skill && !elsewhere, case_name + (wants_skill ? "_ends_with_the_picture_and_skill" :
-                                                                                         "_carries_no_skill"));
+                for (std::size_t i = 0; i + (has_skill ? trailing : 0) < items; ++i)
+                    elsewhere = elsewhere || prompt_is_any_skill(input[i]) || prompt_is_picture(input[i]);
+                check(!wants_skill || !skill.empty(), case_name + "_skill_text_read");
+                check(has_skill == wants_skill && !elsewhere,
+                      case_name + (wants_skill ? "_ends_with_the_skill_" + wanted_skill : std::string("_carries_no_skill")));
                 std::size_t once = 0;
                 const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
                 const json& answers = recorded_reads["reads"];
-                check(once == (wants_skill ? 2u : 0u), case_name + "_sent_once_" + std::to_string(once));
+                check(once == trailing, case_name + "_sent_once_" + std::to_string(once));
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
                 if (once > 0)
                     recorded[case_name]["once"] = once;

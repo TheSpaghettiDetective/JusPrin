@@ -64,6 +64,10 @@ nlohmann::json region_result(const Workspace::RegionRecord& record, const Worksp
 nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
                                       const Workspace::WorkspaceSnapshot& snapshot);
 
+// What a plate's current slice warned about: how many warnings, and the first
+// to read in OrcaSlicer's words with its setting and object. The same shape in
+// the workspace block, a tool result's workspace and the slicing section.
+nlohmann::json slice_warnings_result(const Workspace::SliceWarnings& warnings);
 nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
 
 // Which parts of a sliced plate's report a call asked for. Summary is what a

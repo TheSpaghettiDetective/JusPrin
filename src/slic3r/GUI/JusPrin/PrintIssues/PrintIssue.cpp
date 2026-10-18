@@ -87,4 +87,38 @@ void mark_ignored(std::vector<PrintIssue>& issues, std::set<std::string>& ignore
         ignored = std::move(reported);
 }
 
+std::optional<std::vector<Workspace::SliceWarningFinding>> slice_warnings_of(const PrintIssueSnapshot& snapshot)
+{
+    if (!snapshot.checked || snapshot.slicing || !snapshot.sliced || snapshot.plate == 0)
+        return std::nullopt;
+    std::vector<Workspace::SliceWarningFinding> findings;
+    for (const PrintIssue& issue : snapshot.issues) {
+        if (issue.severity != IssueSeverity::Warning || issue.stale || issue.plate != snapshot.plate)
+            continue;
+        // What slice_report lists, as OrcaSlicer's send dialog shows it:
+        // never the bed-temperature warning (1000C001), and the
+        // traditional-timelapse one once, not again as its copy for older
+        // firmware (1000C003). A count the full list does not match would
+        // send the reader looking for a warning that is not there.
+        if (issue.source == IssueSource::SliceResult && (issue.code == "1000C001" || issue.code == "1000C003"))
+            continue;
+        Workspace::SliceWarningFinding finding;
+        finding.id = issue.id;
+        // A step's critical warning, and the two paths that cross: what
+        // OrcaSlicer raises as a serious warning rather than a plain one.
+        const std::string critical = ":critical";
+        finding.critical = (issue.code.size() > critical.size() &&
+                            issue.code.compare(issue.code.size() - critical.size(), critical.size(), critical) == 0) ||
+                           issue.code == "gcode_path_conflict" || issue.code == "SlicingSeriousWarning";
+        finding.message     = issue.message;
+        finding.setting     = issue.setting;
+        finding.code        = issue.code;
+        finding.object      = issue.object;
+        finding.object_name = issue.object_name;
+        finding.ignored     = issue.ignored;
+        findings.push_back(std::move(finding));
+    }
+    return findings;
+}
+
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

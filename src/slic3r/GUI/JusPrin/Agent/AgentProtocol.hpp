@@ -112,6 +112,11 @@ namespace SkillTrigger {
 // A file was opened or imported: the person opened or dropped one, or a
 // tool call of the in-app Agent opened or imported one.
 inline constexpr const char* kFileLoaded = "file_loaded";
+// OrcaSlicer reported something about the print the model has not read
+// yet: the person pressed a print-issue chip's button (the message carries a
+// <print_issue> block), or a slice finished with warnings a plate's last
+// slice did not report, whoever sliced it.
+inline constexpr const char* kPrintIssues  = "print_issues";
 } // namespace SkillTrigger
 
 } // namespace Protocol

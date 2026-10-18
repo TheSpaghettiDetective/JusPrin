@@ -827,7 +827,8 @@
      },
      "replies": [
       {
-       "record": "issue-fix"
+       "record": "issue-fix",
+       "skill": "print-issues"
       }
      ]
     }
@@ -843,7 +844,8 @@
      },
      "replies": [
       {
-       "record": "issue-explain"
+       "record": "issue-explain",
+       "skill": "print-issues"
       }
      ]
     }
@@ -867,6 +869,21 @@
       },
       {
        "record": "first-person"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-warnings-ready",
+   "fixture": "overhang",
+   "steps": [
+    {
+     "say": "is this good to print?",
+     "replies": [
+      {
+       "record": "slice-warnings-ready",
+       "skill": "print-issues"
       }
      ]
     }

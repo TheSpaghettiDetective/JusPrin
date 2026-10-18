@@ -102,10 +102,14 @@ constexpr const char* kTestFileLoadedSkill = "Explain this file to the person.";
 // AgentHost's no-purpose sentence, which follows the file-loaded skill.
 constexpr const char* kNoPurpose = "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
 
+constexpr const char* kTestPrintIssuesSkill = "Read what OrcaSlicer reported about the print.";
+
 json test_skills(const std::string& file_loaded_text = kTestFileLoadedSkill)
 {
     return json{{"skills", json::array({json{{"name", "file-loaded"}, {"trigger", "file_loaded"},
-                                             {"text", file_loaded_text}}})}};
+                                             {"text", file_loaded_text}},
+                                        json{{"name", "print-issues"}, {"trigger", "print_issues"},
+                                             {"text", kTestPrintIssuesSkill}}})}};
 }
 
 struct Harness
@@ -3319,5 +3323,201 @@ TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]"
         REQUIRE(agent->results.size() == 1);
         CHECK(agent->results.front().state == "failed");
         CHECK(agent->results.front().skills.empty());
+    }
+}
+
+// -- The print-issues skill --------------------------------------------------
+
+namespace {
+
+Workspace::SliceWarnings test_warnings(std::uint64_t sequence, const char* message = "It seems object Slab has floating cantilever.")
+{
+    Workspace::SliceWarnings warnings;
+    warnings.count       = 2;
+    warnings.severity    = "warning";
+    warnings.message     = message;
+    warnings.setting     = "enable_support";
+    warnings.object_name = "Slab";
+    warnings.sequence    = sequence;
+    return warnings;
+}
+
+bool carries_print_issues(const std::vector<AgentSkillUse>& skills)
+{
+    return std::any_of(skills.begin(), skills.end(), [](const AgentSkillUse& skill) {
+        return skill.name == "print-issues" && skill.text == kTestPrintIssuesSkill && skill.picture == nullptr;
+    });
+}
+
+const AgentRequest& last_reply(const std::vector<AgentRequest>& requests)
+{
+    const auto reply = std::find_if(requests.rbegin(), requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != requests.rend());
+    return *reply;
+}
+
+} // namespace
+
+TEST_CASE("a print-issue chip's message carries the print-issues skill, and the next message does not",
+          "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Help fix this issue.\n\n> Layer height cannot exceed nozzle diameter.",
+                                              issue_context()) == AgentHost::SubmitResult::Started);
+    const AgentRequest chip = last_reply(agent->requests);
+    CHECK(chip.issue_context == issue_context());
+    REQUIRE(chip.skills.size() == 1);
+    CHECK(carries_print_issues(chip.skills));
+    harness.pump_all();
+
+    harness.send_user_message("ok, go ahead", "c-after");
+    harness.pump_all();
+    const AgentRequest& later = last_reply(agent->requests);
+    CHECK(later.user_text == "ok, go ahead");
+    CHECK(later.skills.empty());
+    for (const AgentConversationContext& entry : later.conversation)
+        CHECK(entry.text.find(kTestPrintIssuesSkill) == std::string::npos);
+    // Never stored, never shown.
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestPrintIssuesSkill) == std::string::npos);
+}
+
+TEST_CASE("an ordinary message on a clean slice carries no print-issues skill", "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const Workspace::PlateId plate = harness.workspace.snapshot().plates.front().id;
+    harness.workspace.set_plate_warnings_for_testing(plate, std::nullopt);
+    harness.send_user_message("is this good to print?", "c-clean");
+    CHECK(last_reply(agent->requests).skills.empty());
+    CHECK_FALSE(last_reply(agent->requests).workspace.plates.front().slice_warnings.has_value());
+}
+
+TEST_CASE("warnings from the person's slice fire the print-issues skill on the next request only, once per new set",
+          "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const Workspace::PlateId plate = harness.workspace.snapshot().plates.front().id;
+
+    // The person pressed Slice and it finished with warnings.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(1));
+    harness.send_user_message("is this good to print?", "c-1");
+    const AgentRequest first = last_reply(agent->requests);
+    REQUIRE(first.skills.size() == 1);
+    CHECK(carries_print_issues(first.skills));
+    // The fact rides with it, in the request's workspace.
+    REQUIRE(first.workspace.plates.front().slice_warnings.has_value());
+    CHECK(first.workspace.plates.front().slice_warnings->message == "It seems object Slab has floating cantilever.");
+    harness.pump_all();
+
+    harness.send_user_message("and the time?", "c-2");
+    CHECK(last_reply(agent->requests).skills.empty());
+    CHECK(last_reply(agent->requests).workspace.plates.front().slice_warnings.has_value());
+    harness.pump_all();
+
+    // Sliced again with the same warnings: nothing new to be told.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(1));
+    harness.send_user_message("sliced again", "c-3");
+    CHECK(last_reply(agent->requests).skills.empty());
+    harness.pump_all();
+
+    // A slice that reports a warning the last did not: a new set.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(2, "Your model needs support! Please enable support material."));
+    harness.send_user_message("and now?", "c-4");
+    CHECK(carries_print_issues(last_reply(agent->requests).skills));
+    harness.pump_all();
+    harness.send_user_message("thanks", "c-5");
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("a chip's message with new warnings carries the print-issues skill once", "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.workspace.set_plate_warnings_for_testing(harness.workspace.snapshot().plates.front().id, test_warnings(1));
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Explain this issue and my options.", issue_context()) ==
+            AgentHost::SubmitResult::Started);
+    CHECK(last_reply(agent->requests).skills.size() == 1);
+    CHECK(carries_print_issues(last_reply(agent->requests).skills));
+    harness.pump_all();
+    // The warnings the chip's request carried count as told.
+    harness.send_user_message("ok", "c-after");
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("warnings from the model's own slice fire the print-issues skill on the result that carries them",
+          "[agent][skills][print-issues][tools]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest& request) {
+        return ToolRequest{"slice_start", json{{"plateId", std::to_string(request.workspace.plates.front().id.value())},
+                                               {"wait", true}}.dump()};
+    };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.workspace.warnings_after_slice = test_warnings(7);
+    harness.send_user_message("slice it", "c-slice");
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().skills.empty());
+    harness.pump_all();
+    // The call starts the run, and the next pump sees it running.
+    harness.host.pump_tools();
+    harness.host.pump_tools();
+    REQUIRE(harness.workspace.snapshot().slicing.running);
+    REQUIRE(agent->results.empty());
+
+    harness.workspace.finish_slice_for_testing(true);
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE(agent->results.size() == 1);
+    const AgentToolResult& result = agent->results.front();
+    CHECK(result.state == "succeeded");
+    REQUIRE(result.skills.size() == 1);
+    CHECK(carries_print_issues(result.skills));
+    const json output = json::parse(result.output_json);
+    // The slicing section and the result's workspace both carry the summary.
+    CHECK(output["result"]["slicing"]["plates"][0]["sliceWarnings"]["count"] == 2);
+    CHECK(output["result"]["slicing"]["plates"][0]["sliceWarnings"]["setting"] == "enable_support");
+    CHECK(output["workspace"]["plates"][0]["sliceWarnings"]["message"] == "It seems object Slab has floating cantilever.");
+
+    harness.send_user_message("is it ready?", "c-after");
+    harness.pump_all();
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("the slice warnings summary, present and absent", "[agent][print-issues][workspace]")
+{
+    Workspace::WorkspaceSnapshot snapshot = two_object_snapshot();
+    Workspace::WorkspacePlate& plate = snapshot.plates.front();
+    plate.sliced = true;
+    SECTION("absent: no key in the slicing section")
+    {
+        const json section = slicing_section_result(snapshot, "");
+        CHECK_FALSE(section["plates"][0].contains("sliceWarnings"));
+    }
+    SECTION("present: OrcaSlicer's words, setting, object and the count")
+    {
+        plate.slice_warnings = test_warnings(3);
+        plate.slice_warnings->object  = plate.objects.front().id;
+        plate.slice_warnings->ignored = 1;
+        const json warnings = slicing_section_result(snapshot, "")["plates"][0]["sliceWarnings"];
+        CHECK(warnings == json{{"count", 2}, {"severity", "warning"},
+                               {"message", "It seems object Slab has floating cantilever."},
+                               {"setting", "enable_support"}, {"objectId", std::to_string(plate.objects.front().id.value())},
+                               {"objectName", "Slab"}, {"ignored", 1}});
     }
 }

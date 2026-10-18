@@ -959,10 +959,18 @@ std::vector<ToolDefinition> make_definitions()
     // What the slicer is doing, and what each plate currently holds. One
     // background process serves the whole application, so "running" is not a
     // per-plate fact and is not reported as one.
+    // What a plate's current slice warned about: how many warnings, and the
+    // first to read in OrcaSlicer's words.
+    const json slice_warnings = object_schema({{"count", integer_schema()},
+                                               {"severity", {{"type", "string"}, {"enum", json::array({"critical", "warning"})}}},
+                                               {"message", text}, {"setting", id}, {"objectId", id},
+                                               {"objectName", string_schema()}, {"ignored", integer_schema()},
+                                               {"truncated", boolean_schema()}},
+                                              {"count", "severity", "message"});
     const json slicing_plate = object_schema({{"plateId", id}, {"name", string_schema()}, {"sliced", boolean_schema()},
                                               {"estimateStatus", {{"type", "string"},
                                                                   {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
-                                              {"invalidatedBy", string_schema()}},
+                                              {"invalidatedBy", string_schema()}, {"sliceWarnings", slice_warnings}},
                                              {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
     const json jobs_list = {{"type", "array"}, {"maxItems", 16},
                             {"items", object_schema({{"handle", id},
@@ -1432,7 +1440,7 @@ std::vector<ToolDefinition> make_definitions()
          "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, "
          "size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
          "packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's "
-         "slice is current, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
+         "slice is current and what it warned about, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
          "printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped "
          "to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},

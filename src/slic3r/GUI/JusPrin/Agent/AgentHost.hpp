@@ -346,6 +346,12 @@ private:
     // when the page sent none for it or the conversation has no workspace.
     std::optional<AgentSkillUse> fire_skill(const std::string& trigger, const std::string& conversation_id,
                                             const Workspace::WorkspaceSnapshot& workspace) const;
+    // The print-issues skill, when `workspace` shows a plate whose slice
+    // warned about something no request has carried yet, or when `chip` (a
+    // message from a print-issue chip). Fired once per new set of warnings:
+    // either way, the warnings in `workspace` count as told.
+    std::optional<AgentSkillUse> fire_print_issues(const std::string& conversation_id,
+                                                   const Workspace::WorkspaceSnapshot& workspace, bool chip) const;
     void handle_skills(const std::string& envelope_id, const std::string& payload_json);
     ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
     nlohmann::json tool_output_json(const ToolActivity& activity) const;
@@ -457,6 +463,9 @@ private:
     // Until they arrive a project turn waits, as it does for the instructions.
     std::vector<AgentSkill>         m_skills;
     bool                            m_skills_received{false};
+    // The slice warnings (Workspace::SliceWarnings::sequence) a request has
+    // already carried with the print-issues skill.
+    mutable std::set<std::uint64_t> m_slice_warnings_told;
     // Load reports of projects the Agent opened, posted to the opened
     // project's chat on the next timer tick, once its document is in place.
     std::deque<Workspace::LoadReport> m_agent_opened_reports;

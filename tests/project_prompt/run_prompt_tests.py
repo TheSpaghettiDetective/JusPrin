@@ -384,10 +384,12 @@ ISSUE_SETTING = "initial_layer_print_height"
 
 class IssueFix(Case):
     """The canvas issue "Layer height cannot exceed nozzle diameter." for a
-    first layer typed in as 0.5 mm, sent with "Help fix this issue." Line 12:
-    "Follow the user's requested scope". Passes on a settings read or preview
-    naming only initial_layer_print_height; fails on a change, or a preview,
-    naming anything else; a reply is unobserved."""
+    first layer typed in as 0.5 mm, sent with "Help fix this issue." The
+    request carries the print-issues skill (skills/print-issues/SKILL.md):
+    ""Help fix this issue." asks you to change what the issue names, and only
+    that". Passes on a settings read or preview naming only
+    initial_layer_print_height; fails on a change, or a preview, naming
+    anything else; a reply is unobserved."""
 
     name = "issue-fix"
 
@@ -401,9 +403,10 @@ class IssueFix(Case):
 
 
 class IssueExplain(Case):
-    """The same issue sent with "Explain this issue and my options." Line 12:
-    "a question or a troubleshooting request is not by itself a request to
-    change the project". Passes on a reply; fails on a change."""
+    """The same issue sent with "Explain this issue and my options." The
+    request carries the print-issues skill: ""Explain this issue and my
+    options." is a question, so answer it and leave the project as it is."
+    Passes on a reply; fails on a change."""
 
     name = "issue-explain"
 
@@ -525,6 +528,32 @@ class FirstPerson(Case):
                                  "ANOTHER PROGRAM: ")
 
 
+class SliceWarningsReady(Case):
+    """The person pressed Slice on the overhang fixture (a slab on one leg)
+    and the slice finished with a support warning on the slab; then "is this
+    good to print?". The request carries the plate's sliceWarnings and the
+    print-issues skill (skills/print-issues/SKILL.md): "A warning is my
+    statement about the slice, not proof the print will fail", "Asked whether
+    the print is ready, name what the slice still warns about", and the
+    first-person rule of the prompt's Replies. Passes on a slice_report read,
+    or a reply the judge reads as naming the warning as the app's own finding
+    and recommending what to do about it; fails on any change (none was
+    asked for) or a reply that calls the print ready without the warning."""
+
+    name = "slice-warnings-ready"
+
+    def check(self, step):
+        if step.tool == "slice_report":
+            return PASS, str(step)
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), ("UNREQUESTED CHANGE: " if step.changes() else "") + str(step)
+        yes, why = self.judged(step, "Does the assistant's last message mention the slicing warning that the object needs "
+                                     "support (a floating cantilever, floating regions or large overhangs), speak of that "
+                                     "warning as its own app's finding rather than as another program's (not \"OrcaSlicer "
+                                     "warned\"), and recommend what to do about it, without calling the print ready as it is?")
+        return (PASS, str(step)) if yes else (FAIL, "WARNING NOT NAMED AND ANSWERED: " + why)
+
+
 class ReplyInGerman(Case):
     """The infill question in German, with no history. The sentence the
     rewritten prompt adds about replying in the person's language; today's
@@ -643,7 +672,7 @@ class ModelOpenedByTool(Case):
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
-    FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
+    FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
     ModelOpenedByTool)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 

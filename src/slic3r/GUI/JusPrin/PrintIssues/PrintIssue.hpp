@@ -6,7 +6,10 @@
 // and the rule that turns notifications into issues can be tested without the
 // application.
 
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
+
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -121,5 +124,11 @@ std::vector<PrintIssue> issues_from(const std::vector<Notice>& held, std::vector
 // a list OrcaSlicer vouches for; an id it no longer reports as a warning is
 // forgotten then, so a warning that comes back is shown again.
 void mark_ignored(std::vector<PrintIssue>& issues, std::set<std::string>& ignored, bool settled);
+
+// The warnings of the active plate's current slice, as this list holds them:
+// every warning slice_report lists, ignored ones included, with OrcaSlicer's
+// words, setting and object. Nothing when the list vouches for no finished slice: an edit not
+// yet checked, a slice running, or no current slice.
+std::optional<std::vector<Workspace::SliceWarningFinding>> slice_warnings_of(const PrintIssueSnapshot& snapshot);
 
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

@@ -608,6 +608,18 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
     return result;
 }
 
+json slice_warnings_result(const Workspace::SliceWarnings& warnings)
+{
+    bool truncated = false;
+    json result{{"count", warnings.count}, {"severity", warnings.severity}, {"message", text(warnings.message, truncated)}};
+    if (!warnings.setting.empty()) result["setting"] = warnings.setting;
+    if (warnings.object) result["objectId"] = std::to_string(warnings.object->value());
+    if (!warnings.object_name.empty()) result["objectName"] = label(warnings.object_name, truncated);
+    if (warnings.ignored != 0) result["ignored"] = warnings.ignored;
+    if (truncated) result["truncated"] = true;
+    return result;
+}
+
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
 {
     bool truncated = false;
@@ -617,9 +629,11 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
         const char* status = !plate.estimate ? "none" :
             plate.estimate_status == Workspace::EstimateStatus::Current ? "current" :
             plate.estimate_status == Workspace::EstimateStatus::Recomputing ? "recomputing" : "stale";
-        plates.push_back({{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
-                          {"sliced", plate.sliced}, {"estimateStatus", status},
-                          {"invalidatedBy", label(plate.invalidated_by, truncated)}});
+        json entry{{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
+                   {"sliced", plate.sliced}, {"estimateStatus", status},
+                   {"invalidatedBy", label(plate.invalidated_by, truncated)}};
+        if (plate.slice_warnings) entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
+        plates.push_back(std::move(entry));
     }
     json jobs = json::array();
     for (const auto& job : snapshot.jobs) {

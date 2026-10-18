@@ -729,9 +729,14 @@
             self->check(self->m_issue_agent->requests.size() == self->m_requests_before + 1, "ask_started_one_agent_request");
             if (self->m_issue_agent->requests.size() > self->m_requests_before) {
                 const Agent::AgentRequest& request = self->m_issue_agent->requests.back();
-                self->check(request.user_text.find("print-issue context") != std::string::npos &&
-                                request.user_text.find(self->m_warning_id) != std::string::npos,
+                // The context is its own block beside the person's words
+                // (36d33312ed), and the request carries the print-issues skill.
+                self->check(request.user_text.rfind("Explain this issue and my options.", 0) == 0 &&
+                                request.issue_context.find(self->m_warning_id) != std::string::npos,
                             "ask_request_gives_the_model_the_structured_context");
+                self->check(std::any_of(request.skills.begin(), request.skills.end(),
+                                        [](const Agent::AgentSkillUse& skill) { return skill.name == "print-issues"; }),
+                            "ask_request_carries_the_print_issues_skill");
                 self->check(request.session.tool_names.empty(), "ask_turn_keeps_the_ordinary_tool_set");
                 self->check(request.workspace.revision == workspace.revision, "ask_request_carries_the_workspace_snapshot");
             }
@@ -1111,7 +1116,21 @@
             self->check(self->issue_overlay().selected().empty(), "a_new_project_drops_the_old_projects_selection");
             self->check(self->issues().checked && self->issues().issues.empty(), "overhang_project_starts_clean");
         }});
-        steps.push_back({"slice_overhang", [self] { installed_shell()->status_row()->request_slice(); }, [self] {
+        steps.push_back({"slice_overhang", [self] {
+            // The first workspace change that shows the plate sliced is the
+            // earliest a slice_start result could be built: the summary must
+            // already be there.
+            self->m_warnings_at_slice = -1;
+            self->m_warnings_probe = installed_shell()->workspace()->subscribe([self](const Workspace::WorkspaceChanged&) {
+                if (self->m_warnings_at_slice != -1)
+                    return;
+                const auto workspace = installed_shell()->workspace()->snapshot();
+                for (const auto& plate : workspace.plates)
+                    if (plate.active && plate.sliced && !workspace.slicing.running)
+                        self->m_warnings_at_slice = plate.slice_warnings ? 1 : 0;
+            });
+            installed_shell()->status_row()->request_slice();
+        }, [self] {
             PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
             return !self->m_plater->is_background_process_slicing() && self->issues().checked &&
                    (plate->is_slice_result_valid() || self->issue_from(IssueSource::SliceFailure, IssueSeverity::Blocker) != nullptr);
@@ -1123,6 +1142,31 @@
                 self->m_step_issue = step->id;
                 self->issue_overlay().select(step->id);
                 self->capture_issues("17-slice-warning");
+            }
+            self->m_warnings_probe.reset();
+            std::cerr << "HARNESS ISSUES warnings at the first sliced change: " << self->m_warnings_at_slice << '\n';
+            self->check(self->m_warnings_at_slice == 1, "the_first_sliced_change_already_summarizes_the_warnings");
+            // The workspace the chat reads carries the warning too: the
+            // count, and the first in OrcaSlicer's words with its object.
+            const Workspace::WorkspaceSnapshot workspace = installed_shell()->workspace()->snapshot();
+            const auto active = std::find_if(workspace.plates.begin(), workspace.plates.end(),
+                                             [](const Workspace::WorkspacePlate& plate) { return plate.active; });
+            const bool summarized = active != workspace.plates.end() && active->slice_warnings.has_value();
+            self->check(summarized, "the_workspace_summarizes_the_slice_warnings");
+            if (summarized && step != nullptr) {
+                const Workspace::SliceWarnings& warnings = *active->slice_warnings;
+                std::cerr << "HARNESS ISSUES slice warnings count=" << warnings.count << " severity=" << warnings.severity
+                          << " message='" << warnings.message << "' object=" << warnings.object_name << '\n';
+                self->check(warnings.count >= 1 && warnings.message == step->message &&
+                                warnings.object && warnings.object->value() == step->object,
+                            "the_summary_names_the_warning_and_its_object");
+                // Read again with nothing new: the same record, the same number.
+                const auto again = installed_shell()->workspace()->snapshot();
+                const auto plate = std::find_if(again.plates.begin(), again.plates.end(),
+                                                [](const Workspace::WorkspacePlate& candidate) { return candidate.active; });
+                self->check(plate != again.plates.end() && plate->slice_warnings &&
+                                plate->slice_warnings->sequence == warnings.sequence,
+                            "reading_again_keeps_the_warnings_sequence");
             }
         }});
         // Check print is a second canvas inside the shell. OrcaSlicer's notices
@@ -1387,6 +1431,8 @@
     std::vector<IssueStep>    m_issue_steps;
     std::size_t               m_issue_step{0};
     RecordingAgent*           m_issue_agent{nullptr};
+    Workspace::WorkspaceSubscription m_warnings_probe;
+    int                              m_warnings_at_slice{-1}; // -1 not seen, 0 absent, 1 present
     std::string               m_warning_id, m_last_outcome, m_pill_right_after, m_group_first, m_deleted_issue, m_step_issue,
                               m_failure_issue;
     std::uint64_t             m_warning_copy{0}, m_deleted_object{0}, m_plate_one{0}, m_old_session{0};
