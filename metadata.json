@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M565WZK48BM6TTW121ZX292V",
+  "strategy": "manual-commit",
+  "branch": "claude/skill-setup-changed",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 342,
+    "cache_creation_tokens": 365701,
+    "cache_read_tokens": 48995590,
+    "output_tokens": 120701,
+    "api_call_count": 171
+  }
+}
