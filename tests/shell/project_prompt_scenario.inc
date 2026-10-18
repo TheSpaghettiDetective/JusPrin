@@ -143,12 +143,18 @@
         return !error;
     }
 
-    // The page's skill for a loaded file, as the page sends it: the
-    // SKILL.md body (skillParser.ts).
-    static std::string prompt_file_loaded_skill()
+    // The page's skills the recorder checks for, as the page sends each one:
+    // the SKILL.md body (skillParser.ts). Only the file-loaded skill brings
+    // a picture of the plate.
+    static constexpr const char* kPromptFileLoadedSkill = "file-loaded";
+    static const std::vector<std::string>& prompt_skill_names()
     {
-        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) /
-                            "src/slic3r/GUI/JusPrin/AgentUI/src/skills/file-loaded/SKILL.md").string(),
+        static const std::vector<std::string> names{kPromptFileLoadedSkill, "project-setup-changed"};
+        return names;
+    }
+    static std::string prompt_skill_text(const std::string& name)
+    {
+        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/skills" / name / "SKILL.md").string(),
                            std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         const std::size_t body = text.find("\n---\n");
@@ -158,13 +164,19 @@
         return text;
     }
 
-    // Whether an input item is the file-loaded skill (a developer item that
-    // starts with its text), or a plate picture (a user item holding one
-    // image and nothing else).
-    static bool prompt_is_skill(const nlohmann::json& item, const std::string& skill)
+    // Which skill an input item is (a developer item that starts with its
+    // text), or empty; and whether it is a plate picture (a user item
+    // holding one image and nothing else).
+    static std::string prompt_skill_of(const nlohmann::json& item)
     {
-        return item.value("role", "") == "developer" && item.contains("content") && item["content"].is_string() &&
-               !skill.empty() && item["content"].get<std::string>().rfind(skill, 0) == 0;
+        if (item.value("role", "") != "developer" || !item.contains("content") || !item["content"].is_string())
+            return {};
+        for (const std::string& name : prompt_skill_names()) {
+            const std::string text = prompt_skill_text(name);
+            if (!text.empty() && item["content"].get<std::string>().rfind(text, 0) == 0)
+                return name;
+        }
+        return {};
     }
     static bool prompt_is_picture(const nlohmann::json& item)
     {
@@ -304,7 +316,6 @@
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
-        const std::string skill = prompt_file_loaded_skill();
         once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
@@ -327,7 +338,7 @@
                 once = kept.size() - same;
                 bool repeated = false;
                 for (const json& item : input)
-                    repeated = repeated || prompt_is_skill(item, skill) || prompt_is_picture(item);
+                    repeated = repeated || !prompt_skill_of(item).empty() || prompt_is_picture(item);
                 check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
             }
             const std::string output = request.body.at("input").back().at("output");
@@ -564,23 +575,27 @@
                     kept.erase("tools");
                 kept.erase("instructions");
                 const std::size_t items = input.size();
-                // A point marked "skill" is the request that first carries a
-                // model's load report: it ends with the plate's picture and
-                // the file-loaded skill. No other point holds either.
-                const std::string skill = prompt_file_loaded_skill();
-                const bool wants_skill = reply.value("skill", false);
-                const bool has_skill   = items >= 2 && prompt_is_skill(input[items - 1], skill) &&
-                                       prompt_is_picture(input[items - 2]);
+                // A point marked "skill" is the request where the model first
+                // reads about that skill's event: it ends with that skill,
+                // after the plate's picture for the file-loaded skill. No
+                // other point holds a skill or a picture, and an import's
+                // point holds the file-loaded skill alone.
+                const std::string wanted   = reply.value("skill", "");
+                const bool        pictured = wanted == kPromptFileLoadedSkill;
+                const std::size_t tail     = wanted.empty() ? 0 : pictured ? 2 : 1;
+                const bool has_skill = !wanted.empty() && items >= tail && prompt_skill_of(input[items - 1]) == wanted &&
+                                       (!pictured || prompt_is_picture(input[items - 2]));
                 bool elsewhere = false;
-                for (std::size_t i = 0; i + (has_skill ? 2 : 0) < items; ++i)
-                    elsewhere = elsewhere || prompt_is_skill(input[i], skill) || prompt_is_picture(input[i]);
-                check(!skill.empty(), case_name + "_skill_text_read");
-                check(has_skill == wants_skill && !elsewhere, case_name + (wants_skill ? "_ends_with_the_picture_and_skill" :
-                                                                                         "_carries_no_skill"));
+                for (std::size_t i = 0; i + (has_skill ? tail : 0) < items; ++i)
+                    elsewhere = elsewhere || !prompt_skill_of(input[i]).empty() || prompt_is_picture(input[i]);
+                for (const std::string& skill : prompt_skill_names())
+                    check(!prompt_skill_text(skill).empty(), case_name + "_skill_text_read_" + skill);
+                check(has_skill == !wanted.empty() && !elsewhere,
+                      case_name + (wanted.empty() ? "_carries_no_skill" : "_ends_with_" + wanted));
                 std::size_t once = 0;
                 const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
                 const json& answers = recorded_reads["reads"];
-                check(once == (wants_skill ? 2u : 0u), case_name + "_sent_once_" + std::to_string(once));
+                check(once == tail, case_name + "_sent_once_" + std::to_string(once));
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
                 if (once > 0)
                     recorded[case_name]["once"] = once;

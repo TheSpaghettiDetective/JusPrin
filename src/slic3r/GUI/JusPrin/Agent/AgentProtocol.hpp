@@ -112,6 +112,12 @@ namespace SkillTrigger {
 // A file was opened or imported: the person opened or dropped one, or a
 // tool call of the in-app Agent opened or imported one.
 inline constexpr const char* kFileLoaded = "file_loaded";
+// The setup is to be checked against a purpose recorded for this print:
+// intent_update recorded one for the first time or changed it, the printer,
+// filament, process or plate type changed since the model last checked them
+// under a recorded one (by a tool call or by the person), or the person
+// restored an earlier version while one is recorded.
+inline constexpr const char* kSetupChanged = "setup_changed";
 } // namespace SkillTrigger
 
 } // namespace Protocol

@@ -5,7 +5,10 @@ const encoder = new TextEncoder();
 
 describe('project skills', () => {
   it('loads every SKILL.md, sorted by name, one per trigger', () => {
-    expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([['file-loaded', 'file_loaded']]);
+    expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
+      ['file-loaded', 'file_loaded'],
+      ['project-setup-changed', 'setup_changed'],
+    ]);
     expect(skills.every((skill) => skill.text.startsWith('# '))).toBe(true);
     expect(skills.every((skill) => !skill.text.includes('---\nname:'))).toBe(true);
   });
@@ -102,6 +105,39 @@ describe('the skill for a file opened or imported', () => {
     expect(text).toContain('G-code is the instructions a printer runs');
     expect(text).toContain('do not invent a line number');
     expect(text).toContain('claim they were applied only when loadFacts.settingsOutcome says applied');
+  });
+
+  it('never words a change as needing the person\'s permission', () => {
+    for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
+      expect(text).not.toMatch(word);
+  });
+});
+
+describe('the skill for a setup to check against the print\'s purpose', () => {
+  const text = skills.find((skill) => skill.trigger === 'setup_changed')!.text;
+  const arrived = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
+
+  it('opens under the standing rules and stays short', () => {
+    expect(text.split('\n\n')[1]).toMatch(/^The rules above still apply\./);
+    expect(encoder.encode(text).length).toBeLessThan(encoder.encode(arrived).length / 4);
+  });
+
+  it('says what checking the setup against the purpose means here', () => {
+    expect(text).toContain('A preset\'s name does not prove its values');
+    expect(text).toContain('settings_get, including the objects\' own overrides');
+    expect(text).toContain('compatible presets with presets_list');
+    expect(text).toContain('plate type against the filament with printer_setup_preview');
+    expect(text).toContain('A material and its saved filament preset are separate choices');
+    expect(text).toContain('Keep customizations that still fit');
+    expect(text).toContain('recommend a material, a compatible preset or a focused setting change');
+    expect(text).toContain('record the plan and its assumptions with plan_set first');
+    expect(text).toContain('restores an earlier version, the plan may be stale');
+  });
+
+  it('leaves asking and scope to the standing prompt', () => {
+    expect(text).not.toMatch(/\bask\b/i);
+    expect(text).not.toContain('did not ask for');
+    expect(text).not.toContain('You are JusPrin');
   });
 
   it('never words a change as needing the person\'s permission', () => {

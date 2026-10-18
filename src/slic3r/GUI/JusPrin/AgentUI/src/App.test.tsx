@@ -342,7 +342,7 @@ describe('App', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].payload).toEqual({ skills });
     expect((sent[0].payload as { skills: { trigger: string }[] }).skills.map((skill) => skill.trigger))
-      .toContain('file_loaded');
+      .toEqual(['file_loaded', 'setup_changed']);
   });
 
   it('draws no file report the Agent is speaking about', () => {

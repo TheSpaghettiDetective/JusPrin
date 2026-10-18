@@ -206,6 +206,22 @@ json plan_section_result(const PlanRecord& plan)
             {"invalidatedBy", plan.invalidated_by}, {"truncated", truncated}};
 }
 
+json setup_in_force(const Workspace::WorkspaceSnapshot& snapshot)
+{
+    json setup = json::object();
+    const auto put = [&setup](const char* key, const std::string& value) {
+        if (!value.empty())
+            setup[key] = value;
+    };
+    put("printerPreset", snapshot.setup.printer_preset);
+    put("filamentPreset", snapshot.setup.filament_preset);
+    put("processPreset", snapshot.setup.process_preset);
+    for (const Workspace::WorkspacePlate& plate : snapshot.plates)
+        if (plate.active)
+            put("plateType", plate.bed_type);
+    return setup;
+}
+
 namespace {
 const Workspace::PrinterDevice* selected_device(const std::vector<Workspace::PrinterDevice>& devices)
 {

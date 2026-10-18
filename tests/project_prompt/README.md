@@ -132,7 +132,9 @@ results for every call can show that.
   person's words, then the app's `<print_issue>` and `<workspace>` blocks,
   each a part of its own), a canvas issue's message and context, a file-load report and its
   developer line, the file-loaded skill and the plate's picture on the
-  request that first carries a load report, and the live results of this turn's calls with the
+  request that first carries a load report, the setup skill on the request
+  that first carries a recorded or changed purpose or a setup change under
+  one, and the live results of this turn's calls with the
   workspace block `AgentHost::continue_after_tool` adds. Arguments that need
   ids take them from the real previous result (`{{result/sessionId}}`) or the
   project (`{{workspace/activePlateId}}`). For each request it keeps, the
@@ -147,14 +149,17 @@ results for every call can show that.
   the calls were written. Each answer carries the action id and workspace
   block of the recorded call. A point's `once` (in `requests.json`) counts
   the last items of its request that the app sends on that request alone,
-  the skill's text and its picture; the runner drops them before it answers
+  a skill's text and, for the file-loaded skill, its picture; the runner
+  drops them before it answers
   a read, as the app does.
 - **Skills** (`AgentUI/src/skills/*/SKILL.md`) reach the model only in the
   recorded requests: the app adds one to the request where its event first
   reaches the model, as that request's last item. The recorder checks that a
-  point the script marks `"skill": true` ends with the plate's picture and
-  the file-loaded skill, that no other point carries either, and that the
-  next request of the same turn (the first answered read) has neither.
+  point the script marks `"skill": "<name>"` ends with that skill (after the
+  plate's picture for `file-loaded`), that no other point
+  carries a skill or a picture, so an import's point carries the
+  file-loaded skill alone, and that the next request of the same turn (the
+  first answered read) has none.
   A skill edit therefore needs a new recording, unlike a prompt edit.
 
 What is written by hand is only what a model or a person would have said: the
@@ -193,10 +198,12 @@ the case, a read is answered and the run goes on.
 | Case | Point in the chat | Sentence | Pass | Fail |
 |---|---|---|---|---|
 | `advice-infill` | "what infill should I use for this?" | 14: advice calls for recommendations, not project changes | reply | a change |
-| `prepare-petg-strong` | "prepare this for PETG, strong" | 13: record the purpose with `intent_update`; 14: inspect the project | `intent_update` or reads first (the first response decides) | anything else |
-| `after-preview` | that turn, after `settings_preview_patch` | 12: call the matching tool; use only IDs from tool results | apply with the preview's `sessionId` and `revision` | anything else |
-| `after-apply` | after the apply; the slice is out of date | 15: slice and inspect before reporting readiness | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
-| `after-slice` | after `slice_start` finished | 15, as above | `slice_report`, or a reply not claiming readiness (judged) | a readiness claim |
+| `prepare-petg-strong` | "prepare this for PETG, strong" | When to act: a print request's setup suits its purpose, recorded with `intent_update`; `intent_update`'s description | `intent_update` or reads first (the first response decides) | anything else |
+| `after-intent` | that turn, after `intent_update` recorded the first purpose; the request ends with the setup skill | the setup skill: check the setup in force against the purpose with `settings_get`, `presets_list`, `printer_setup_preview` | one of those three | `slice_start`, or a reply claiming readiness (judged) |
+| `after-filament-change` | that turn, after `printer_setup` switched to Bambu PETG HF on the Textured PEI Plate; the request ends with the setup skill | the setup skill, as above | one of those three, or a reply relating the change to the purpose (judged) | a reply claiming readiness |
+| `after-preview` | that turn, after `settings_preview_patch` | Grounding: use only IDs from tool results; `plan_set`'s description (the plan was recorded first) | apply with the preview's `sessionId` and `revision` | anything else |
+| `after-apply` | after the apply; the slice is out of date | When to act: verified by a slice before you call it ready; Preparing: slice and check `slice_report` | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
+| `after-slice` | after `slice_start` finished | as above | `slice_report`, or a reply not claiming readiness (judged) | a readiness claim |
 | `issue-fix` | canvas issue, "Help fix this issue." | 12: follow the requested scope | read or preview naming only `initial_layer_print_height` | a change or preview naming anything else |
 | `issue-explain` | the same issue, "Explain this issue and my options." | 12: a question is not by itself a request to change the project | reply | a change |
 | `troubleshoot-first-layer` | "why isn't my first layer sticking?" | 12, as above, nor to run the preparation sequence | reply | a change |
@@ -251,6 +258,16 @@ Notes on the cases:
   `"single"` fixture: one box, selected, on the project's only plate, already
   sliced, so a `slice_start` there would slice it again. On the two-plate
   fixture every run also asked which plate to print, a fair second question.
+- `after-intent` and `after-filament-change` start at the two requests of
+  the prepare turn that carry the setup skill
+  (`AgentUI/src/skills/project-setup-changed/SKILL.md`): the result of the
+  `intent_update` that recorded "PETG, strong" while Bambu PLA Basic was
+  selected (its result states the first purpose and the setup in force), and
+  the result of the `printer_setup` that switched to Bambu PETG HF on the
+  Textured PEI Plate. The setup skill carries no picture, so their `once` is
+  1. Any other change, and in `after-intent` a reply that does not claim
+  readiness, is unobserved: the skill also allows a question for the person
+  or `plan_set` first.
 - `model-opened-unnamed`, `model-imported-by-tool` and `model-opened-by-tool`
   start at the request carrying the file-loaded skill, both on the `"single"` fixture with no
   purpose recorded, so the skill ends with the app's sentence about that.

@@ -1090,6 +1090,14 @@ public:
         m_configured_printer = applied.resulting;
         m_process_preset     = applied.substitutions.empty() ? applied.process_preset : "substitute process";
         m_snapshot.setup.printer_preset = m_configured_printer.preset;
+        // As the real snapshot does: the first slot's preset, and the plate
+        // type on the active plate.
+        if (request.filament_presets && !m_configured_printer.filaments.empty())
+            m_snapshot.setup.filament_preset = m_configured_printer.filaments.front().preset;
+        if (request.plate_type)
+            for (WorkspacePlate& plate : m_snapshot.plates)
+                if (plate.active)
+                    plate.bed_type = *request.plate_type;
         publish(WorkspaceChangeReasons::Settings);
         return CommandResult::success();
     }

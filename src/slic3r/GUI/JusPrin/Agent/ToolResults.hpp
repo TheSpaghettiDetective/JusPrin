@@ -29,6 +29,9 @@ struct InspectSections
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
 nlohmann::json intent_section_result(const std::vector<IntentField>& fields);
 nlohmann::json plan_section_result(const PlanRecord& plan);
+// The printer, filament and process presets and the active plate's type in
+// force now, each left out when the workspace names none.
+nlohmann::json setup_in_force(const Workspace::WorkspaceSnapshot& snapshot);
 // `handle` names the slice_start call that started the run in flight, when the
 // tool system started it; empty when the run is the person's or there is none.
 // The key a person's printer facts are filed under: the machine the app is

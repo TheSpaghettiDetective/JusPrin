@@ -555,6 +555,8 @@
        }
       },
       {
+       "record": "after-intent",
+       "skill": "project-setup-changed",
        "call": "presets_list",
        "arguments": {
         "kind": "filament",
@@ -617,6 +619,8 @@
        }
       },
       {
+       "record": "after-filament-change",
+       "skill": "project-setup-changed",
        "call": "settings_preview_patch",
        "arguments": {
         "scope": "process",
@@ -919,7 +923,7 @@
      "replies": [
       {
        "record": "model-opened-unnamed",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -946,7 +950,7 @@
       },
       {
        "record": "model-imported-by-tool",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -971,7 +975,7 @@
       },
       {
        "record": "model-opened-by-tool",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }

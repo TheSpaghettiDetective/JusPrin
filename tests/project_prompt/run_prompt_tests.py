@@ -308,12 +308,13 @@ class AdviceInfill(Case):
 
 
 class PreparePetgStrong(Case):
-    """"prepare this for PETG, strong" with no history. Line 13: "For a print
-    request, record the user's explicit purpose as setupTitle with
-    intent_update"; line 14: "When asked to prepare or print a model, inspect
-    the project". Judges the first response: passes when its change is
-    intent_update or it holds only reads; fails on any other change, or a
-    reply."""
+    """"prepare this for PETG, strong" with no history. When to act: "A print
+    request: a setup that suits the print's purpose, recorded with
+    intent_update, checked, and verified by a slice before you call it
+    ready."; intent_update's description: "Record the user's explicit
+    purpose as setupTitle". Judges the first response: passes when its
+    change is intent_update or it holds only reads; fails on any other
+    change, or a reply."""
 
     name = "prepare-petg-strong"
 
@@ -324,11 +325,12 @@ class PreparePetgStrong(Case):
 
 
 class AfterPreview(Case):
-    """The prepare turn after settings_preview_patch returned a valid preview.
-    Line 12: "When asked to make a supported change, call the matching tool"
-    and "Use only IDs from current authoritative workspace context or tool
-    results." Passes on settings_apply_patch with the preview's sessionId and
-    revision; fails on any other change or a reply."""
+    """The prepare turn after settings_preview_patch returned a valid preview
+    of the change plan_set recorded. Grounding: "use only IDs from it or tool
+    results"; plan_set's description: "Call it before applying several
+    changes for one request" (it was). Passes on settings_apply_patch with
+    the preview's sessionId and revision; fails on any other change or a
+    reply."""
 
     name = "after-preview"
 
@@ -355,28 +357,88 @@ class Readiness(Case):
             return CONTINUE, str(step)
         if step.tool:
             return (FAIL if step.tool != "slice_start" else UNOBSERVED), str(step)
-        yes, why = self.judged(step, "Does the assistant's last message say or imply that the print is ready to print or "
-                                     "to send to the printer?")
+        yes, why = self.judged(step, READY_QUESTION)
         return (FAIL, "CLAIMS READY: " + why) if yes else (PASS, str(step))
 
 
 class AfterApply(Readiness):
     """The prepare turn after settings_apply_patch succeeded; the plate's
-    slice is now out of date. Line 15: "Slice and inspect with slice_report
-    ... before reporting print readiness." Passes on slice_start, or a reply
-    that does not claim the print is ready (judged)."""
+    slice is now out of date. When to act: a print request is "verified by a
+    slice before you call it ready"; Preparing: "Before calling a print
+    ready, slice its plate and check slice_report". Passes on slice_start, or
+    a reply that does not claim the print is ready (judged)."""
 
     name = "after-apply"
     expected = "slice_start"
 
 
 class AfterSlice(Readiness):
-    """The prepare turn after slice_start finished. Line 15, as after-apply.
-    Passes on slice_report, or a reply that does not claim the print is ready
-    (judged)."""
+    """The prepare turn after slice_start finished. The same sentences as
+    after-apply. Passes on slice_report, or a reply that does not claim the
+    print is ready (judged)."""
 
     name = "after-slice"
     expected = "slice_report"
+
+
+# The reads that check a setup against a purpose, as the setup skill names
+# them (skills/project-setup-changed/SKILL.md).
+SETUP_CHECKS = ("settings_get", "presets_list", "printer_setup_preview")
+READY_QUESTION = ("Does the assistant's last message say or imply that the print is ready to print or to send to the "
+                  "printer?")
+
+
+class AfterIntent(Case):
+    """The prepare turn after intent_update recorded "PETG, strong" as the
+    first purpose; its result states the purpose and the setup in force
+    (Bambu PLA Basic), and the request ends with the setup skill
+    (skills/project-setup-changed/SKILL.md): "check that the printer,
+    filament, process and plate type in force suit the purpose recorded
+    now", with settings_get, presets_list and printer_setup_preview. Passes
+    on one of those three; fails on slice_start or a reply claiming the
+    print is ready (judged); another read is answered; any other step is
+    unobserved."""
+
+    name = "after-intent"
+
+    def check(self, step):
+        if step.tool in SETUP_CHECKS:
+            return PASS, str(step)
+        if step.tool == "slice_start":
+            return FAIL, str(step)
+        if step.reads():
+            return CONTINUE, str(step)
+        if step.tool:
+            return UNOBSERVED, str(step)
+        yes, why = self.judged(step, READY_QUESTION)
+        return (FAIL, "CLAIMS READY: " + why) if yes else (UNOBSERVED, str(step))
+
+
+class AfterFilamentChange(Case):
+    """The prepare turn after printer_setup switched the filament to Bambu
+    PETG HF and the plate to the Textured PEI Plate, with "PETG, strong"
+    recorded; the request ends with the setup skill, as after-intent.
+    Passes on settings_get, presets_list or printer_setup_preview (a read of
+    the new setup), or a reply the judge reads as relating the change to
+    what the print is for without calling it ready; fails on a reply calling
+    the print ready; another read is answered; any other step is
+    unobserved."""
+
+    name = "after-filament-change"
+
+    def check(self, step):
+        if step.tool in SETUP_CHECKS:
+            return PASS, str(step)
+        if step.reads():
+            return CONTINUE, str(step)
+        if step.tool:
+            return UNOBSERVED, str(step)
+        ready, why = self.judged(step, READY_QUESTION)
+        if ready:
+            return FAIL, "CLAIMS READY: " + why
+        related, why = self.judged(step, "Does the assistant's last message relate the new filament or plate to what "
+                                         "the print is for (a strong PETG part)?")
+        return (PASS, str(step)) if related else (FAIL, "DID NOT RELATE THE CHANGE TO THE PURPOSE: " + why)
 
 
 ISSUE_SETTING = "initial_layer_print_height"
@@ -641,7 +703,8 @@ class ModelOpenedByTool(Case):
 
 
 CASES = {case.name: case for case in (
-    AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
+    AdviceInfill, PreparePetgStrong, AfterIntent, AfterFilamentChange, AfterPreview, AfterApply, AfterSlice, IssueFix,
+    IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
     FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
     ModelOpenedByTool)}

@@ -3321,3 +3321,273 @@ TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]"
         CHECK(agent->results.front().skills.empty());
     }
 }
+
+namespace {
+
+// What the page sends for the setup skill; the real one is
+// AgentUI/src/skills/project-setup-changed/SKILL.md.
+constexpr const char* kTestSetupSkill = "Check the setup against the purpose.";
+
+json skills_with_setup_check()
+{
+    json skills = test_skills();
+    skills["skills"].push_back(
+        json{{"name", "project-setup-changed"}, {"trigger", "setup_changed"}, {"text", kTestSetupSkill}});
+    return skills;
+}
+
+// One turn in which the agent makes `request`; returns what the host handed
+// back for it.
+AgentToolResult run_call(Harness& harness, OneCallAgent& agent, ToolRequest request, const std::string& text)
+{
+    agent.called = false;
+    agent.call   = [request](const AgentRequest&) { return request; };
+    const std::size_t before = agent.results.size();
+    static int next_client = 0;
+    harness.send_user_message(text, "c-setup-" + std::to_string(++next_client));
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE(agent.results.size() == before + 1);
+    return agent.results.back();
+}
+
+// One turn with no call; returns the request the host built for it.
+AgentRequest run_reply(Harness& harness, OneCallAgent& agent, const std::string& text)
+{
+    agent.called = true;
+    static int next_client = 0;
+    harness.send_user_message(text, "c-reply-" + std::to_string(++next_client));
+    harness.pump_all();
+    const auto reply = std::find_if(agent.requests.rbegin(), agent.requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent.requests.rend());
+    CHECK(reply->user_text == text);
+    return *reply;
+}
+
+ToolRequest intent_call(json arguments) { return ToolRequest{"intent_update", arguments.dump()}; }
+
+const json kPetg{{"setupTitle", "A strong hook"}, {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}};
+
+bool fires_setup_skill(const AgentToolResult& result)
+{
+    return std::any_of(result.skills.begin(), result.skills.end(),
+                       [](const AgentSkillUse& skill) { return skill.trigger == "setup_changed"; });
+}
+
+// A printer with two filaments and two plates the agent's printer_setup can
+// switch between.
+void with_printer_choices(Workspace::FakeWorkspace& workspace)
+{
+    Workspace::ConfiguredPrinter configured;
+    configured.preset     = "Test Printer 0.4 nozzle";
+    configured.plate_type = "Textured PEI Plate";
+    configured.filaments  = {{"Generic PLA", "PLA"}};
+    workspace.set_configured_printer_for_testing(configured);
+    workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate", "Cool Plate"},
+                                    {{"Generic PLA", "PLA"}, {"Generic PETG", "PETG"}});
+    workspace.set_presets_for_testing(Workspace::PresetKind::Printer, {{"Test Printer 0.4 nozzle"}});
+    workspace.set_presets_for_testing(Workspace::PresetKind::Filament, {{"Generic PLA"}, {"Generic PETG"}});
+}
+
+// A setup change the person makes in the sidebar: no tool call, no chat.
+void hand_setup(Workspace::FakeWorkspace& workspace, std::optional<std::string> filament,
+                std::optional<std::string> plate = std::nullopt)
+{
+    Workspace::PrinterSetupRequest request;
+    if (filament)
+        request.filament_presets = std::vector<std::string>{*filament};
+    request.plate_type = std::move(plate);
+    Workspace::PrinterSetupPreview applied;
+    REQUIRE(workspace.apply_printer_setup(request, applied).succeeded());
+}
+
+} // namespace
+
+TEST_CASE("a purpose recorded for the first time or changed fires the setup skill on that result only",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+
+    const AgentToolResult first = run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+    CHECK(json::parse(first.output_json)["result"]["purposeChange"] == "first");
+    REQUIRE(first.skills.size() == 1);
+    CHECK(first.skills.front().name == "project-setup-changed");
+    CHECK(first.skills.front().text == kTestSetupSkill);
+    CHECK(first.skills.front().picture == nullptr);
+    // The model reads the plan's real state in a result, and not the chat's
+    // title, which is its own words.
+    CHECK_FALSE(json::parse(first.output_json)["workspace"].contains("setupIntent"));
+
+    // Never stored, so the next request of the chat does not carry it.
+    CHECK(run_reply(harness, *agent, "Thanks.").skills.empty());
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestSetupSkill) == std::string::npos);
+
+    // A new title alone, or the same purpose again, is no new purpose.
+    const AgentToolResult retitled =
+        run_call(harness, *agent, intent_call({{"setupTitle", "A sturdy hook"}, {"fields", json::array()}}), "Call it sturdy.");
+    CHECK(json::parse(retitled.output_json)["result"]["purposeChange"] == "title_only");
+    CHECK_FALSE(fires_setup_skill(retitled));
+    const AgentToolResult repeated = run_call(
+        harness, *agent, intent_call({{"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}}), "PETG, yes.");
+    CHECK(json::parse(repeated.output_json)["result"]["purposeChange"] == "unchanged");
+    CHECK_FALSE(fires_setup_skill(repeated));
+
+    const AgentToolResult changed = run_call(
+        harness, *agent, intent_call({{"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}}), "Use ASA.");
+    CHECK(json::parse(changed.output_json)["result"]["purposeChange"] == "changed");
+    CHECK(fires_setup_skill(changed));
+}
+
+TEST_CASE("a printer_setup that changes the setup under a recorded purpose fires the setup skill",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    with_printer_choices(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    const ToolRequest petg{"printer_setup", json{{"filamentPresets", {"Generic PETG"}}}.dump()};
+
+    SECTION("no purpose recorded: nothing to check against")
+    {
+        const AgentToolResult switched = run_call(harness, *agent, petg, "Use PETG.");
+        REQUIRE(switched.state == "succeeded");
+        CHECK(switched.skills.empty());
+    }
+    SECTION("a purpose recorded: a change fires it, a setup left as it was does not")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        const AgentToolResult switched = run_call(harness, *agent, petg, "Use PETG.");
+        REQUIRE(switched.state == "succeeded");
+        REQUIRE(switched.skills.size() == 1);
+        CHECK(switched.skills.front().name == "project-setup-changed");
+        CHECK(run_reply(harness, *agent, "Thanks.").skills.empty());
+
+        const AgentToolResult again = run_call(harness, *agent, petg, "PETG again.");
+        REQUIRE(again.state == "succeeded");
+        CHECK(again.skills.empty());
+
+        const AgentToolResult plate = run_call(
+            harness, *agent, ToolRequest{"printer_setup", json{{"plateType", "Cool Plate"}}.dump()}, "Cool plate.");
+        REQUIRE(plate.state == "succeeded");
+        CHECK(fires_setup_skill(plate));
+    }
+}
+
+TEST_CASE("a restored version under a recorded purpose fires the setup skill on the next request only",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    // What ProjectPersistence::record_managed_restore writes in the log.
+    const auto restore = [&harness]() {
+        ChangeEntry change;
+        change.kind  = "restore";
+        change.actor = "person";
+        change.label = "Restored an earlier project version";
+        harness.persistence.document().add_change(change, "2026-10-17T00:00:00Z");
+    };
+
+    SECTION("no purpose recorded")
+    {
+        restore();
+        CHECK(run_reply(harness, *agent, "What changed?").skills.empty());
+    }
+    SECTION("a purpose recorded")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        CHECK(run_reply(harness, *agent, "Thanks.").skills.empty());
+        restore();
+        const AgentRequest next = run_reply(harness, *agent, "What changed?");
+        REQUIRE(next.skills.size() == 1);
+        CHECK(next.skills.front().name == "project-setup-changed");
+        CHECK(run_reply(harness, *agent, "And now?").skills.empty());
+    }
+    SECTION("a file loaded on the next request carries the file-loaded skill alone")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        restore();
+        harness.host.on_file_loaded(prusa_open());
+        harness.pump_all();
+        const auto report = std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+            return request.purpose == AgentRequest::Purpose::Reply;
+        });
+        REQUIRE(report != agent->requests.rend());
+        CHECK(report->user_text.rfind("JusPrin file-load report", 0) == 0);
+        REQUIRE(report->skills.size() == 1);
+        CHECK(report->skills.front().name == "file-loaded");
+        // The model has replied since the restore, so no later request fires it.
+        CHECK(run_reply(harness, *agent, "And now?").skills.empty());
+    }
+}
+
+TEST_CASE("a setup change is unchecked until the model is asked to check it, once", "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    with_printer_choices(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    const auto fires = [](const AgentRequest& request) {
+        return std::any_of(request.skills.begin(), request.skills.end(),
+                           [](const AgentSkillUse& skill) { return skill.trigger == "setup_changed"; });
+    };
+
+    // No purpose: no change is unchecked, and nothing fires.
+    hand_setup(harness.workspace, std::nullopt, "Cool Plate");
+    const AgentRequest before = run_reply(harness, *agent, "Hello.");
+    CHECK_FALSE(before.setup_unchecked_change);
+    CHECK_FALSE(fires(before));
+
+    // The purpose is recorded under the setup in force, which is checked.
+    run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+    const AgentRequest recorded = run_reply(harness, *agent, "Thanks.");
+    CHECK_FALSE(recorded.setup_unchecked_change);
+    CHECK_FALSE(fires(recorded));
+
+    SECTION("the agent's own printer_setup is checked on its result, and stays checked")
+    {
+        const AgentToolResult switched =
+            run_call(harness, *agent, ToolRequest{"printer_setup", json{{"filamentPresets", {"Generic PETG"}}}.dump()}, "Use PETG.");
+        CHECK(fires_setup_skill(switched));
+        for (const char* text : {"Thanks.", "Anything else?", "And now?"}) {
+            const AgentRequest later = run_reply(harness, *agent, text);
+            CHECK_FALSE(later.setup_unchecked_change);
+            CHECK_FALSE(fires(later));
+        }
+    }
+    SECTION("the person's own change fires the skill on their next message, once")
+    {
+        // As the sidebar does: no tool call, no chat.
+        hand_setup(harness.workspace, "Generic PETG");
+        const AgentRequest next = run_reply(harness, *agent, "I switched to PETG.");
+        CHECK(next.setup_unchecked_change);
+        CHECK(fires(next));
+        for (const char* text : {"Thanks.", "And now?"}) {
+            const AgentRequest later = run_reply(harness, *agent, text);
+            CHECK_FALSE(later.setup_unchecked_change);
+            CHECK_FALSE(fires(later));
+        }
+        // A change before a message that leads to a call is caught on that
+        // message's request, and the call's result does not repeat it.
+        hand_setup(harness.workspace, "Generic PLA");
+        const AgentToolResult read = run_call(harness, *agent, ToolRequest{"workspace_inspect", "{}"}, "What is set up?");
+        CHECK(fires(*std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+            return request.purpose == AgentRequest::Purpose::Reply;
+        })));
+        CHECK_FALSE(fires_setup_skill(read));
+    }
+}

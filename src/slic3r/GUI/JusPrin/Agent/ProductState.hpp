@@ -18,6 +18,7 @@
 #include "ProjectStateDocument.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.hpp"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,16 @@ public:
     virtual std::vector<IntentField> print_intent() const = 0;
     // Upserts by field name and returns the record as stored.
     virtual std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields) = 0;
+    // The purpose in the person's words that intent_update records as
+    // setupTitle, which belongs to the chat that holds `message_id`: nullopt
+    // when no chat holds it, as for an external client's call.
+    virtual std::optional<std::string> setup_title(const std::string& message_id) const = 0;
+    // False when no chat holds the message or the document refuses the title.
+    virtual bool set_setup_title(const std::string& message_id, const std::string& title) = 0;
+    // The setup in force when the purpose was last recorded or changed
+    // (ProjectStateDocument::purpose_setup).
+    virtual nlohmann::json purpose_setup() const = 0;
+    virtual void           set_purpose_setup(nlohmann::json setup) = 0;
 
     virtual PlanRecord plan() const = 0;
     // Replaces the plan whole and returns it as stored.

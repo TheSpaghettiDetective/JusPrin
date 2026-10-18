@@ -177,9 +177,34 @@ class Steps(unittest.TestCase):
             self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
             self.assertNotIn("input_image", json.dumps(sent), name)
 
+    def test_the_setup_skill_leaves_the_request_after_its_own(self):
+        """The setup skill comes without a picture: one item, sent once."""
+        for name in ("after-intent", "after-filament-change"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# Checking the setup against the print's purpose"), name)
+            self.assertNotIn("input_image", json.dumps(recorded), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            _, _, bodies = self.run_case(name, first, [call("slice_start")])
+            self.assertEqual(len(bodies), 2, name)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# Checking the setup against the print's purpose", json.dumps(sent), name)
+
+    def test_the_setup_cases_pass_on_a_check_and_fail_on_a_slice(self):
+        """A slice straight after the first purpose skips the check; after a
+        filament change the case says nothing about one."""
+        for name in ("after-intent", "after-filament-change"):
+            for tool in runner.SETUP_CHECKS:
+                self.assertEqual(self.run_case(name, [call(tool, {"kind": "filament"})])[0], runner.PASS, (name, tool))
+        self.assertEqual(self.run_case("after-intent", [call("slice_start")])[0], runner.FAIL)
+        self.assertEqual(self.run_case("after-filament-change", [call("slice_start")])[0], runner.UNOBSERVED)
+
     def test_no_other_point_sends_anything_once(self):
         self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
-                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed"])
+                         ["after-filament-change", "after-intent", "model-imported-by-tool", "model-opened-by-tool",
+                          "model-opened-unnamed"])
 
     # --- One call or none, as before ---------------------------------------
 
