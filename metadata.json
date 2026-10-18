@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M58D8T5VJB9NXBDMHG01JAF8",
+  "strategy": "manual-commit",
+  "branch": "claude/skill-slice-failed",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 862,
+    "cache_creation_tokens": 2230167,
+    "cache_read_tokens": 218901887,
+    "output_tokens": 352022,
+    "api_call_count": 431
+  }
+}
