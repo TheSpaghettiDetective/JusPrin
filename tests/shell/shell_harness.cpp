@@ -7769,6 +7769,19 @@ private:
         return count;
     }
 
+    // The page sends a message as the composer does, once its own state
+    // shows the chat the host has active. Sent sooner (right after a reload
+    // or a new chat), the message names a chat the host no longer has active
+    // and is refused as stale, and nothing answers it.
+    void page_send(const std::string& text)
+    {
+        const std::string active = persistence().document().active_conversation_id();
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                           "(function(){var tries=0;(function go(){var t=window.__jusprinTest;var s=t&&t.state();"
+                           "if(s&&s.activeConversationId===" + nlohmann::json(active).dump() + "){t.send(" +
+                               nlohmann::json(text).dump() + ");}else if(++tries<400){setTimeout(go,25);}})();})()");
+    }
+
     void agent_tool_submit()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
@@ -7776,8 +7789,7 @@ private:
         m_objects_before_tool = copy_count();
         const std::size_t activities_before = web_view.host().tools().activities().size();
 
-        WebView::RunScript(web_view.webview(),
-                           "window.__jusprinTest && window.__jusprinTest.send('please duplicate the selected object')");
+        page_send("please duplicate the selected object");
         wait_until(
             [&web_view, activities_before] {
                 const auto& activities = web_view.host().tools().activities();
@@ -7823,8 +7835,7 @@ private:
                 AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
                 const std::size_t messages_before = web_view.host().conversation().size();
                 self->check(messages_before == 0, "new_conversation_starts_empty");
-                WebView::RunScript(web_view.webview(),
-                                   "window.__jusprinTest && window.__jusprinTest.send('what changed so far?')");
+                self->page_send("what changed so far?");
                 self->wait_until(
                     [&web_view] {
                         // Same reason as the first exchange: wait for the
@@ -9187,10 +9198,70 @@ private:
 
     void after_agent()
     {
-        verify_resize();
-        verify_project_replacement();
-        verify_uninstall_restores_stock([self = shared_from_this()] { self->finish(); });
+        verify_model_slice_card([self = shared_from_this()] {
+            self->verify_resize();
+            self->verify_project_replacement();
+            self->verify_uninstall_restores_stock([self] { self->finish(); });
+        });
     }
+
+    // A slice the chat's model starts: its progress card sits right below
+    // the slice_start call, above the model's reply to it, as the call's
+    // result tells the model; and the model, which reads no tool result after
+    // that call, hears the end from the app's note and the turn on it.
+    void verify_model_slice_card(std::function<void()> next)
+    {
+        // One box in the middle of a new project's plate, so the run starts:
+        // the earlier steps leave an object over the plate's edge.
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "model_slice_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
+                      .size() == 1,
+              "model_slice_cube_loaded");
+        check(m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, "model_slice_cube_centred");
+        m_plater->canvas3D()->reload_scene(true, true);
+        Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+        const auto active = installed_shell()->workspace()->snapshot().active_plate;
+        nlohmann::json arguments = nlohmann::json::object();
+        if (active)
+            arguments["plateId"] = std::to_string(active->value());
+        host.set_agent(std::make_unique<ToolCallingAgent>("slice_start", arguments), Agent::AgentAvailability::Ready);
+        const std::size_t work_before = persistence().document().work().size();
+        wait_until([this] { return !m_plater->is_background_process_update_scheduled(); }, "model_slice_edit_applied",
+            [self = shared_from_this(), &host, work_before, next] {
+                self->page_send("Slice the plate.");
+                self->wait_until(
+                    [self, &host, work_before] {
+                        return persistence_work_count(*self) > work_before &&
+                               std::any_of(host.tools().activities().begin(), host.tools().activities().end(),
+                                           [](const Agent::ToolActivity& activity) { return activity.tool == "slice_start"; });
+                    },
+                    "model_slice_card_started", [self, &host, work_before, next] {
+                        std::string call;
+                        for (const auto& activity : host.tools().activities())
+                            if (activity.tool == "slice_start")
+                                call = activity.action_id;
+                        const auto work = self->persistence().document().work();
+                        const Agent::WorkEntry& card = work.back();
+                        std::cerr << "HARNESS MODEL SLICE card kind=" << card.kind << " after=" << card.after_id
+                                  << " call=" << call << '\n';
+                        self->check(card.kind == "slice" && card.after_id == call, "model_slice_card_below_the_call");
+                        self->wait_until(
+                            [self, &host] {
+                                if (self->m_plater->is_background_process_slicing() || host.busy())
+                                    return false;
+                                for (const auto& message : host.conversation())
+                                    if (message.role == Agent::MessageRole::Note && message.text.rfind("The slice of", 0) == 0)
+                                        return true;
+                                return false;
+                            },
+                            "model_slice_end_told", next);
+                    });
+            });
+    }
+
+    static std::size_t persistence_work_count(Scenario& scenario) { return scenario.persistence().document().work().size(); }
 
     void verify_resize()
     {

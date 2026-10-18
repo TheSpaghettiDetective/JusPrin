@@ -102,10 +102,14 @@ constexpr const char* kTestFileLoadedSkill = "Explain this file to the person.";
 // AgentHost's no-purpose sentence, which follows the file-loaded skill.
 constexpr const char* kNoPurpose = "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
 
+// What the page sends for a slice that did not succeed.
+constexpr const char* kTestSliceSkill = "Explain why the slice did not succeed.";
+
 json test_skills(const std::string& file_loaded_text = kTestFileLoadedSkill)
 {
     return json{{"skills", json::array({json{{"name", "file-loaded"}, {"trigger", "file_loaded"},
-                                             {"text", file_loaded_text}}})}};
+                                             {"text", file_loaded_text}},
+                                        json{{"name", "slice-failed"}, {"trigger", "slice_failed"}, {"text", kTestSliceSkill}}})}};
 }
 
 struct Harness
@@ -3023,6 +3027,12 @@ public:
     bool continue_after_tool(const AgentToolResult& result) override
     {
         results.push_back(result);
+        // Optionally one more call before the reply.
+        if (then_call && !then_called) {
+            then_called = true;
+            events.push_back(AgentEvent::tool_call({"call-then", *then_call, true}));
+            return true;
+        }
         events.push_back(AgentEvent::delta("It is in."));
         events.push_back(AgentEvent::completed());
         return true;
@@ -3044,6 +3054,8 @@ public:
     std::deque<AgentEvent>       events;
     bool                         active{false};
     bool                         called{false};
+    std::optional<ToolRequest>   then_call;
+    bool                         then_called{false};
 };
 
 std::string write_model_file(const std::string& name)
@@ -3282,6 +3294,331 @@ TEST_CASE("the skills message takes described skills and refuses bad description
     CHECK(refused(json{{"name", "empty"}, {"description", ""}, {"text", "x"}}));
     CHECK(refused(json{{"name", "empty-trigger"}, {"trigger", ""}, {"description", "Fine."}, {"text", "x"}}));
     CHECK_FALSE(refused(json{{"name", "described"}, {"description", "When useful."}, {"text", "x"}}));
+}
+
+namespace {
+
+Workspace::SliceFailure test_bed_refusal()
+{
+    Workspace::SliceFailure refusal;
+    refusal.severity = "blocker";
+    refusal.message  = "Plate 1: Cool Plate is not suggested for use printing filament 1 (Bambu PETG HF).";
+    return refusal;
+}
+
+// The last request the model was asked to reply to.
+const AgentRequest& last_reply(const OneCallAgent& agent)
+{
+    const auto reply = std::find_if(agent.requests.rbegin(), agent.requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent.requests.rend());
+    return *reply;
+}
+
+} // namespace
+
+TEST_CASE("a slice_start OrcaSlicer refuses fires the slice-failed skill on its result, and on no later request",
+          "[agent][skills][tools][slicing]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) { return ToolRequest{"slice_start", "{}"}; };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.workspace.refusal = test_bed_refusal();
+    harness.handshake();
+    harness.send_user_message("Slice it.", "c-slice");
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().skills.empty());
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+
+    REQUIRE(agent->results.size() == 1);
+    const AgentToolResult& result = agent->results.front();
+    CHECK(result.state == "succeeded");
+    const json output = json::parse(result.output_json);
+    CHECK(output["result"]["started"] == false);
+    CHECK(output["result"]["reason"]["message"] == test_bed_refusal().message);
+    CHECK(output["workspace"]["plates"][0]["sliceFailure"]["kind"] == "refused");
+    REQUIRE(result.skills.size() == 1);
+    CHECK(result.skills.front().name == "slice-failed");
+    CHECK(result.skills.front().text == kTestSliceSkill);
+    CHECK(result.skills.front().picture == nullptr);
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestSliceSkill) == std::string::npos);
+
+    // The model has read about it: the next turn still shows the failure in
+    // the workspace, and carries no skill.
+    harness.send_user_message("Is it ready to print?", "c-ready");
+    harness.pump_all();
+    const AgentRequest& later = last_reply(*agent);
+    CHECK(later.user_text == "Is it ready to print?");
+    CHECK(later.skills.empty());
+    REQUIRE(later.workspace.plates.at(0).slice_failure);
+    for (const AgentConversationContext& entry : later.conversation)
+        CHECK(entry.text.find(kTestSliceSkill) == std::string::npos);
+}
+
+TEST_CASE("a slice the person started that did not succeed fires the skill on the next request, once a failure",
+          "[agent][skills][slicing]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const auto ask = [&](const std::string& text, const std::string& id) -> const AgentRequest& {
+        harness.send_user_message(text, id);
+        harness.pump_all();
+        return last_reply(*agent);
+    };
+
+    // The person presses Slice, and OrcaSlicer refuses the plate.
+    harness.workspace.refusal = test_bed_refusal();
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    const AgentRequest& first = ask("Is it ready to print?", "c-1");
+    REQUIRE(first.skills.size() == 1);
+    CHECK(first.skills.front().name == "slice-failed");
+    CHECK(first.skills.front().text == kTestSliceSkill);
+    CHECK(ask("What should I change?", "c-2").skills.empty());
+
+    // Pressing Slice again with nothing changed is the same refusal.
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    CHECK(ask("I pressed it again.", "c-3").skills.empty());
+
+    // A run that fails partway is a new failure, told once.
+    harness.workspace.refusal.reset();
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    REQUIRE(harness.workspace.snapshot().slicing.running);
+    Workspace::SliceFailure failure;
+    failure.severity = "blocker";
+    failure.message  = "Slicing failed: the object has no layers.";
+    harness.workspace.fail_slice_for_testing(failure);
+    const AgentRequest& failed = ask("And now?", "c-4");
+    REQUIRE(failed.skills.size() == 1);
+    CHECK(failed.skills.front().name == "slice-failed");
+    CHECK(ask("Thanks.", "c-5").skills.empty());
+
+    // A slice that succeeds says nothing.
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    harness.workspace.finish_slice_for_testing(true);
+    CHECK(ask("Done?", "c-6").skills.empty());
+}
+
+namespace {
+
+// A chat whose model slices the first plate when the person asks.
+struct ModelSlice
+{
+    OneCallAgent*            agent{nullptr};
+    std::unique_ptr<Harness> harness;
+
+    ModelSlice()
+    {
+        auto owner = std::make_unique<OneCallAgent>();
+        agent      = owner.get();
+        agent->call = [](const AgentRequest& request) {
+            return ToolRequest{"slice_start",
+                               json{{"plateId", std::to_string(request.workspace.plates.at(0).id.value())}}.dump()};
+        };
+        harness = std::make_unique<Harness>(AgentServicePtr(std::move(owner)));
+        harness->handshake();
+    }
+
+    // The person asks; the model slices, and its turn ends with the run in flight.
+    void slice_and_end_turn()
+    {
+        harness->send_user_message("Slice it.", "c-slice");
+        harness->pump_all();
+        pump_tools_to_completion(*harness);
+        harness->pump_all();
+        REQUIRE(harness->workspace.snapshot().slicing.running);
+        REQUIRE_FALSE(harness->host.stream_active());
+    }
+
+    // A timer tick, then whatever turn it started, to its end.
+    void tick()
+    {
+        harness->host.pump_tools();
+        harness->pump_all();
+    }
+
+    std::vector<std::string> notes() const
+    {
+        std::vector<std::string> texts;
+        for (const ConversationMessage& message : harness->host.conversation())
+            if (message.role == MessageRole::Note)
+                texts.push_back(message.text);
+        return texts;
+    }
+
+    std::vector<const AgentRequest*> app_turns() const
+    {
+        std::vector<const AgentRequest*> turns;
+        for (const AgentRequest& request : agent->requests)
+            if (request.purpose == AgentRequest::Purpose::Reply && request.user_text.rfind("JusPrin app note", 0) == 0)
+                turns.push_back(&request);
+        return turns;
+    }
+
+    std::string plate_name() const { return harness->workspace.snapshot().plates.at(0).name; }
+};
+
+} // namespace
+
+TEST_CASE("a slice the model started that ends after its turn starts one app turn", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    CHECK(chat.notes().empty());
+
+    SECTION("it sliced")
+    {
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        REQUIRE(chat.notes() == std::vector<std::string>{"The slice of " + chat.plate_name() + " finished."});
+        REQUIRE(chat.app_turns().size() == 1);
+        CHECK(chat.app_turns().front()->user_text ==
+              "JusPrin app note, not the person's words: The slice of " + chat.plate_name() + " finished.");
+        CHECK(chat.app_turns().front()->skills.empty());
+    }
+
+    SECTION("it failed: the turn carries the slice-failed skill")
+    {
+        Workspace::SliceFailure failure;
+        failure.severity = "blocker";
+        failure.message  = "Slicing failed: the object has no layers.";
+        chat.harness->workspace.fail_slice_for_testing(failure);
+        chat.tick();
+        REQUIRE(chat.notes() ==
+                std::vector<std::string>{"OrcaSlicer stopped the slice of " + chat.plate_name() + ": " + failure.message});
+        REQUIRE(chat.app_turns().size() == 1);
+        REQUIRE(chat.app_turns().front()->skills.size() == 1);
+        CHECK(chat.app_turns().front()->skills.front().name == "slice-failed");
+    }
+
+    // Once a run, whatever the workspace does next.
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    CHECK(chat.notes().size() == 1);
+    CHECK(chat.app_turns().size() == 1);
+}
+
+TEST_CASE("the progress card of the model's slice sits below the call that started it", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    // OrcaSlicer's first progress arrives after the model has replied.
+    const std::string handle = json::parse(chat.agent->results.front().output_json)["result"]["handle"];
+    chat.harness->host.begin_work("slice", "Slicing plate 1", true);
+    const std::vector<WorkEntry> work = chat.harness->persistence.document().work();
+    REQUIRE(work.size() == 1);
+    CHECK(work.back().after_id == handle);
+    CHECK(work.back().conversation_id == chat.harness->persistence.document().active_conversation_id());
+
+    // A slice the person starts goes after the chat's last item, as before.
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    REQUIRE(chat.harness->workspace.start_slice(std::nullopt, false).succeeded());
+    chat.harness->host.begin_work("slice", "Slicing plate 1", true);
+    const std::vector<ConversationMessage> messages = chat.harness->host.conversation();
+    CHECK(chat.harness->persistence.document().work().back().after_id == messages.back().id);
+}
+
+TEST_CASE("a slice that ends during the model's turn is told when the turn ends, unless a tool result showed it",
+          "[agent][slicing]")
+{
+    ModelSlice chat;
+    SECTION("the turn ends with a reply: the note follows it")
+    {
+        chat.harness->send_user_message("Slice it.", "c-slice");
+        chat.harness->host.pump_stream();
+        pump_tools_to_completion(*chat.harness);
+        // The model is answering the slice_start result when the run ends.
+        REQUIRE(chat.harness->host.stream_active());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.harness->host.pump_tools();
+        CHECK(chat.notes().empty());
+        chat.harness->pump_all();
+        chat.tick();
+        CHECK(chat.notes().size() == 1);
+        CHECK(chat.app_turns().size() == 1);
+    }
+    SECTION("a later tool result shows the outcome: no note")
+    {
+        chat.agent->then_call = ToolRequest{"workspace_inspect", "{}"};
+        chat.harness->send_user_message("Slice it.", "c-slice");
+        chat.harness->host.pump_stream();
+        pump_tools_to_completion(*chat.harness);
+        REQUIRE(chat.harness->host.stream_active());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.harness->host.pump_tools();
+        chat.harness->pump_all();
+        pump_tools_to_completion(*chat.harness);
+        chat.harness->pump_all();
+        REQUIRE(chat.agent->results.size() == 2);
+        CHECK(json::parse(chat.agent->results.back().output_json)["workspace"]["plates"][0]["sliced"] == true);
+        chat.tick();
+        chat.tick();
+        CHECK(chat.notes().empty());
+        CHECK(chat.app_turns().empty());
+    }
+}
+
+TEST_CASE("a slice that ends during another turn is told after it", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    chat.harness->send_user_message("Anything else?", "c-other");
+    REQUIRE(chat.harness->host.stream_active());
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.harness->host.pump_tools();
+    CHECK(chat.notes().size() == 1);
+    CHECK(chat.app_turns().empty());
+    chat.harness->pump_all();
+    REQUIRE(chat.app_turns().size() == 1);
+    const auto other = std::find_if(chat.agent->requests.begin(), chat.agent->requests.end(),
+                                    [](const AgentRequest& request) { return request.user_text == "Anything else?"; });
+    REQUIRE(other != chat.agent->requests.end());
+    CHECK(&*other < chat.app_turns().front());
+}
+
+TEST_CASE("nothing is told for a slice the person started, one cancelled, or one from a closed project", "[agent][slicing]")
+{
+    ModelSlice chat;
+    SECTION("the person's slice, after the model's was told")
+    {
+        chat.slice_and_end_turn();
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        REQUIRE(chat.notes().size() == 1);
+        chat.harness->workspace.set_plate_sliced(chat.harness->workspace.snapshot().plates.at(0).id, false);
+        REQUIRE(chat.harness->workspace.start_slice(std::nullopt, false).succeeded());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        CHECK(chat.notes().size() == 1);
+        CHECK(chat.app_turns().size() == 1);
+        return;
+    }
+    SECTION("a run activity_cancel stopped")
+    {
+        chat.slice_and_end_turn();
+        const std::string handle = json::parse(chat.agent->results.front().output_json)["result"]["handle"];
+        const ToolActivity& cancel = chat.harness->host.tools().submit(
+            {"activity_cancel", json{{"handle", handle}}.dump()}, "cancel", {}, ToolSource::Agent, "call-cancel");
+        const std::string cancel_id = cancel.action_id;
+        pump_tools_to_completion(*chat.harness);
+        REQUIRE(json::parse(chat.harness->host.tools().find(cancel_id)->result_json)["cancelled"] == true);
+    }
+    SECTION("a project replaced meanwhile")
+    {
+        chat.slice_and_end_turn();
+        chat.harness->workspace.replace_project(two_object_snapshot());
+    }
+    chat.tick();
+    chat.tick();
+    CHECK(chat.notes().empty());
+    CHECK(chat.app_turns().empty());
 }
 
 TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]")

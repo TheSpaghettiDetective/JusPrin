@@ -376,10 +376,16 @@ ToolExecutionCoordinator::ToolExecutionCoordinator(Workspace::IWorkspace& worksp
     : m_workspace(workspace), m_registry(registry), m_observers(std::make_shared<ObserverState>())
 {
     m_workspace_subscription = m_workspace.subscribe([this](const Workspace::WorkspaceChanged& change) {
-        if (!m_slice_handle.empty() && !m_slice_ended) {
-            const bool running = m_workspace.snapshot().slicing.running;
-            m_slice_seen_running = m_slice_seen_running || running;
-            m_slice_ended        = m_slice_seen_running && !running;
+        // A run belongs to the project it started in; in another, its handle
+        // names nothing and its end is nobody's to report.
+        if (!m_slice_handle.empty() && change.session != m_slice_session)
+            m_slice_handle.clear();
+        // The end of the run a slice_start began is a workspace change like
+        // any other.
+        if (m_slice_running && !m_workspace.snapshot().slicing.running) {
+            m_slice_running = false;
+            if (m_slice_ended)
+                m_slice_ended(m_slice_handle);
         }
         invalidate_pending(change);
     });
@@ -812,52 +818,32 @@ void ToolExecutionCoordinator::forget_if_closed(const std::string& action_id)
                        m_activities.end());
 }
 
-void ToolExecutionCoordinator::finish_slice_waits()
+namespace {
+
+// Whether every plate a slice_start named (all of them when it named none)
+// holds a current slice, and why the first that does not was refused or failed.
+bool targets_sliced(const Workspace::WorkspaceSnapshot& snapshot, const std::optional<Workspace::PlateId>& plate,
+                    std::optional<Workspace::SliceFailure>& failure)
 {
-    for (auto wait = m_slice_waits.begin(); wait != m_slice_waits.end();) {
-        ToolActivity* activity = find_mutable(wait->first);
-        if (activity == nullptr || activity->state != ToolState::Running) {
-            wait = m_slice_waits.erase(wait);
+    bool sliced = !snapshot.plates.empty();
+    for (const auto& candidate : snapshot.plates) {
+        if (plate && candidate.id != *plate)
             continue;
+        if (!candidate.sliced) {
+            sliced = false;
+            if (!failure && candidate.slice_failure)
+                failure = candidate.slice_failure;
         }
-        const auto snapshot = m_workspace.snapshot();
-        if (snapshot.session.value() != activity->session) {
-            fail(*activity, "stale_revision", "The project changed while it was slicing.");
-            wait = m_slice_waits.erase(wait);
-            continue;
-        }
-        wait->second.seen_running = wait->second.seen_running || snapshot.slicing.running;
-        bool sliced = !snapshot.plates.empty();
-        for (const auto& plate : snapshot.plates)
-            if ((!wait->second.plate || plate.id == *wait->second.plate) && !plate.sliced)
-                sliced = false;
-        const auto elapsed = std::chrono::steady_clock::now() - wait->second.started;
-        // The run ends when it has been seen and stops. A run too quick to be
-        // seen, or one Orca did not need, ends when the plates read as sliced;
-        // a run that never reports ends the call after fifteen minutes.
-        const bool ended = !snapshot.slicing.running &&
-                           (wait->second.seen_running || (sliced && elapsed > std::chrono::seconds(3)) ||
-                            elapsed > std::chrono::minutes(15));
-        if (!ended) {
-            ++wait;
-            continue;
-        }
-        activity->result_json = json{{"handle", activity->action_id}, {"started", true}, {"finished", sliced},
-                                     {"slicing", slicing_section_result(snapshot, m_slice_handle)},
-                                     {"sessionId", std::to_string(snapshot.session.value())},
-                                     {"revision", snapshot.revision}}
-                                    .dump();
-        activity->state = ToolState::Succeeded;
-        wait = m_slice_waits.erase(wait);
-        notify(*activity);
     }
+    return sliced;
 }
+
+} // namespace
 
 void ToolExecutionCoordinator::pump()
 {
-    finish_slice_waits();
     for (ToolActivity& activity : m_activities) {
-        if (activity.state != ToolState::Running || m_slice_waits.count(activity.action_id)) {
+        if (activity.state != ToolState::Running) {
             continue;
         }
         if (activity.progress_current + 1 < activity.progress_total) {
@@ -1381,7 +1367,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         bool        cancelled = false;
         if (handle == m_slice_handle && !handle.empty()) {
             kind = "slice";
-            if (before.slicing.running && !m_slice_ended)
+            if (before.slicing.running && m_slice_running)
                 m_workspace.cancel_slice(cancelled);
             message = cancelled ? "The slice was stopped." :
                                   "That slice has ended; a slice started since is not the tools' to stop.";
@@ -1775,24 +1761,44 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                  started.message);
             return;
         }
-        // The run is Orca's, and it outlives this call: the handle is how the
-        // caller finds it again in the slicing section, which is where the
-        // result appears when the slicer is done.
-        m_slice_handle       = activity.action_id;
-        // The run may already be under way (and seen) when start returns.
-        m_slice_seen_running = m_workspace.snapshot().slicing.running;
-        m_slice_ended        = false;
-        if (arguments.value("wait", false)) {
-            m_slice_waits[activity.action_id] = {plate, false, std::chrono::steady_clock::now()};
-            return;
+        // OrcaSlicer decides inside that call: a run began, nothing needed
+        // slicing, or its check refused the plate and started nothing, with
+        // the reason recorded on the plate before the call returned.
+        const auto snapshot = m_workspace.snapshot();
+        json result{{"handle", activity.action_id}, {"started", snapshot.slicing.running}};
+        if (snapshot.slicing.running) {
+            // The run is Orca's, and it outlives this call: the handle is how
+            // the caller finds it again in the slicing section, which is where
+            // the result appears when the slicer is done.
+            m_slice_handle  = activity.action_id;
+            m_slice_running = true;
+            m_slice_session = snapshot.session;
+            result["note"]  = activity.source == ToolSource::Agent ?
+                "Slicing has started in the background. The person sees its progress in a card in the chat, below this "
+                "turn, with a Cancel button. Until the run ends, slicing.running stays true and slice_report returns "
+                "valid: false. When it ends after this turn, the app starts a new turn with the outcome: sliced, or "
+                "OrcaSlicer's reason. Checking on it from this turn shows nothing the person can't already see." :
+                "Slicing has started in the background. Until the run ends, slicing.running stays true and slice_report "
+                "returns valid: false. Nothing notifies this client when it ends: the outcome shows in workspace_inspect's "
+                "slicing section, and slice_report reads the finished slice.";
+        } else {
+            std::optional<Workspace::SliceFailure> failure;
+            if (targets_sliced(snapshot, plate, failure)) {
+                result["alreadySliced"] = true;
+            } else {
+                if (!failure) {
+                    failure.emplace();
+                    failure->severity = "blocker";
+                    failure->message  = "OrcaSlicer did not start slicing this plate.";
+                }
+                result["reason"] = slice_failure_result(*failure);
+            }
         }
-        const auto snapshot  = m_workspace.snapshot();
-        activity.result_json = json{{"handle", activity.action_id}, {"started", true},
-                                    {"slicing", slicing_section_result(snapshot, m_slice_handle)},
-                                    {"sessionId", std::to_string(snapshot.session.value())},
-                                    {"revision", snapshot.revision}}
-                                   .dump();
-        activity.state = ToolState::Succeeded;
+        result["slicing"]    = slicing_section_result(snapshot, m_slice_handle);
+        result["sessionId"]  = std::to_string(snapshot.session.value());
+        result["revision"]   = snapshot.revision;
+        activity.result_json = result.dump();
+        activity.state       = ToolState::Succeeded;
         notify(activity);
         return;
     }

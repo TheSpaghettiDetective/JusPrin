@@ -64,6 +64,17 @@
     bool prompt_fixture(const std::string& kind, const std::string& name, const std::string& plate_type)
     {
         using namespace std::chrono_literals;
+        // A slice the last conversation's model started may still be running.
+        // When it ends the app starts a turn about it in that conversation;
+        // that turn is answered with nothing, so this one starts clean.
+        wait_for([this] { return !m_plater->is_background_process_slicing(); }, 120s);
+        wait_for([] { return !g_held_model_requests.empty(); }, 2s);
+        while (!g_held_model_requests.empty()) {
+            HeldModelRequest request = std::move(g_held_model_requests.front());
+            g_held_model_requests.pop_front();
+            prompt_answer(request, nlohmann::json::array(), "");
+            wait_for([this] { return !g_held_model_requests.empty() || !project_host().busy(); }, 10s);
+        }
         prompt_restore_settings(name);
         if (kind == "overhang") {
             // print_issues_scenario's slab on one leg: slicing it warns.
@@ -143,12 +154,10 @@
         return !error;
     }
 
-    // The page's skill for a loaded file, as the page sends it: the
-    // SKILL.md body (skillParser.ts).
-    static std::string prompt_file_loaded_skill()
+    // A page skill as the page sends it: the SKILL.md body (skillParser.ts).
+    static std::string prompt_skill(const std::string& name)
     {
-        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) /
-                            "src/slic3r/GUI/JusPrin/AgentUI/src/skills/file-loaded/SKILL.md").string(),
+        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/skills" / name / "SKILL.md").string(),
                            std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         const std::size_t body = text.find("\n---\n");
@@ -156,6 +165,12 @@
         text.erase(0, text.find_first_not_of('\n'));
         text.erase(text.find_last_not_of(" \n") + 1);
         return text;
+    }
+    // The file-loaded skill, and every skill the app fires.
+    static std::string prompt_file_loaded_skill() { return prompt_skill("file-loaded"); }
+    static std::vector<std::string> prompt_all_skills()
+    {
+        return {prompt_file_loaded_skill(), prompt_skill("slice-failed")};
     }
 
     // Whether an input item is the file-loaded skill (a developer item that
@@ -175,7 +190,7 @@
     // "{{file/<name>}}" is the path of a model a step copied under that name;
     // "{{attachment}}" the id of the file the person last attached;
     // "{{result/<pointer>}}" is the last tool result in this request;
-    // "{{workspace/sessionId}}", "{{workspace/revision}}",
+    // "{{workspace/sessionId}}", "{{workspace/revision}}", "{{workspace/plateId/N}}" (the Nth plate),
     // "{{workspace/activePlateId}}", "{{workspace/firstObjectId}}" (the
     // active plate's first object), "{{workspace/filamentPreset}}" and
     // "{{workspace/printerPreset}}" the project now; "{{object}}" the object
@@ -209,6 +224,12 @@
             return installed_shell()->workspace()->snapshot().setup.filament_preset;
         if (path == "workspace/printerPreset")
             return installed_shell()->workspace()->snapshot().setup.printer_preset;
+        if (path.rfind("workspace/plateId/", 0) == 0) {
+            const auto plates = installed_shell()->workspace()->snapshot().plates;
+            const std::size_t number = std::stoul(path.substr(18));
+            if (number >= 1 && number <= plates.size())
+                return std::to_string(plates[number - 1].id.value());
+        }
         if (path == "workspace/activePlateId" || path == "workspace/firstObjectId")
             for (const auto& plate : installed_shell()->workspace()->snapshot().plates)
                 if (plate.active && (path == "workspace/activePlateId" || !plate.objects.empty()))
@@ -304,7 +325,7 @@
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
-        const std::string skill = prompt_file_loaded_skill();
+        const std::vector<std::string> skills = prompt_all_skills();
         once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
@@ -326,8 +347,11 @@
                     ++same;
                 once = kept.size() - same;
                 bool repeated = false;
-                for (const json& item : input)
-                    repeated = repeated || prompt_is_skill(item, skill) || prompt_is_picture(item);
+                for (const json& item : input) {
+                    repeated = repeated || prompt_is_picture(item);
+                    for (const std::string& skill : skills)
+                        repeated = repeated || prompt_is_skill(item, skill);
+                }
                 check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
             }
             const std::string output = request.body.at("input").back().at("output");
@@ -449,6 +473,18 @@
             if (!m_prompt_attachment.empty())
                 attached.push_back(m_prompt_attachment);
         }
+        if (step.contains("slice")) {
+            // The person presses Slice (true) or Slice all ("all") in the
+            // status row, and waits for whatever OrcaSlicer does with it.
+            // Neither is enabled for a plate OrcaSlicer's check has refused;
+            // Slice all slices plate by plate and is refused at such a plate.
+            installed_shell()->status_row()->request_slice(step["slice"] == "all");
+            wait_for([this] { return !m_plater->is_background_process_slicing(); }, 120s);
+            const auto snapshot = installed_shell()->workspace()->snapshot();
+            for (const auto& plate : snapshot.plates)
+                std::cerr << "HARNESS PROMPT " << name << " pressed Slice: plate " << plate.id.value() << " sliced=" << plate.sliced << " failure='"
+                              << (plate.slice_failure ? plate.slice_failure->message : std::string()) << "'\n";
+        }
         if (step.contains("say")) {
             std::string said = step["say"];
             for (std::size_t at; (at = said.find("{{file/")) != std::string::npos;) {
@@ -564,23 +600,33 @@
                     kept.erase("tools");
                 kept.erase("instructions");
                 const std::size_t items = input.size();
-                // A point marked "skill" is the request that first carries a
-                // model's load report: it ends with the plate's picture and
-                // the file-loaded skill. No other point holds either.
-                const std::string skill = prompt_file_loaded_skill();
-                const bool wants_skill = reply.value("skill", false);
-                const bool has_skill   = items >= 2 && prompt_is_skill(input[items - 1], skill) &&
-                                       prompt_is_picture(input[items - 2]);
+                // A point marked "skill" is the request where the model first
+                // reads about an event the app fires a skill for. `true` is a
+                // file's load report: the request ends with the plate's
+                // picture and the file-loaded skill. A skill's name is that skill
+                // alone, last. No other point holds any skill or picture.
+                const json marked = reply.value("skill", json(false));
+                const bool file_loaded = marked == true;
+                const std::string skill = file_loaded ? prompt_file_loaded_skill() :
+                                          marked.is_string() ? prompt_skill(marked.get<std::string>()) : std::string();
+                const std::size_t sent_once = file_loaded ? 2 : skill.empty() ? 0 : 1;
+                const bool has_skill = items >= sent_once && sent_once > 0 && prompt_is_skill(input[items - 1], skill) &&
+                                       (!file_loaded || prompt_is_picture(input[items - 2]));
                 bool elsewhere = false;
-                for (std::size_t i = 0; i + (has_skill ? 2 : 0) < items; ++i)
-                    elsewhere = elsewhere || prompt_is_skill(input[i], skill) || prompt_is_picture(input[i]);
-                check(!skill.empty(), case_name + "_skill_text_read");
-                check(has_skill == wants_skill && !elsewhere, case_name + (wants_skill ? "_ends_with_the_picture_and_skill" :
-                                                                                         "_carries_no_skill"));
+                for (std::size_t i = 0; i + (has_skill ? sent_once : 0) < items; ++i) {
+                    elsewhere = elsewhere || prompt_is_picture(input[i]);
+                    for (const std::string& other : prompt_all_skills())
+                        elsewhere = elsewhere || prompt_is_skill(input[i], other);
+                }
+                for (const std::string& other : prompt_all_skills())
+                    check(!other.empty(), case_name + "_skill_text_read");
+                check(has_skill == (sent_once > 0) && !elsewhere,
+                      case_name + (file_loaded ? "_ends_with_the_picture_and_skill" :
+                                   sent_once ? "_ends_with_the_skill" : "_carries_no_skill"));
                 std::size_t once = 0;
                 const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
                 const json& answers = recorded_reads["reads"];
-                check(once == (wants_skill ? 2u : 0u), case_name + "_sent_once_" + std::to_string(once));
+                check(once == sent_once, case_name + "_sent_once_" + std::to_string(once));
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
                 if (once > 0)
                     recorded[case_name]["once"] = once;

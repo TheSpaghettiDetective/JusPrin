@@ -5,7 +5,10 @@ const encoder = new TextEncoder();
 
 describe('project skills', () => {
   it('loads every SKILL.md, sorted by name, one per trigger', () => {
-    expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([['file-loaded', 'file_loaded']]);
+    expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
+      ['file-loaded', 'file_loaded'],
+      ['slice-failed', 'slice_failed'],
+    ]);
     expect(skills.every((skill) => skill.text.startsWith('# '))).toBe(true);
     expect(skills.every((skill) => !skill.text.includes('---\nname:'))).toBe(true);
   });
@@ -106,6 +109,29 @@ describe('the skill for a file opened or imported', () => {
 
   it('never words a change as needing the person\'s permission', () => {
     for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
+      expect(text).not.toMatch(word);
+  });
+});
+
+describe('the skill for a slice that did not succeed', () => {
+  const text = skills.find((skill) => skill.trigger === 'slice_failed')!.text;
+  const fileLoaded = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
+
+  it('stands on the standing rules and stays well under the file-loaded skill', () => {
+    expect(text).toMatch(/^# [^\n]+\n\nThe rules above still apply\./);
+    expect(encoder.encode(text).length).toBeLessThan(encoder.encode(fileLoaded).length * 0.6);
+  });
+
+  it('tells a refusal from a failed run, and what counts as fixed', () => {
+    expect(text).toContain('"refused"');
+    expect(text).toContain('"failed"');
+    expect(text).toContain('about 150 distinct messages');
+    expect(text).toContain('settings_search or settings_get');
+    expect(text).toContain('fixed only when a new slice no longer reports it');
+  });
+
+  it('never speaks of approving a call', () => {
+    for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user/i])
       expect(text).not.toMatch(word);
   });
 });

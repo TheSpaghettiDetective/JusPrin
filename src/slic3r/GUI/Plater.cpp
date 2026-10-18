@@ -16044,6 +16044,7 @@ void Plater::reslice()
     {
         BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(": process_completed_with_error, return directly");
         reset_gcode_toolpaths();
+        report_slice_declined(); // JusPrin: SliceRequests.hpp
         return;
     }
 
@@ -16089,6 +16090,7 @@ void Plater::reslice()
         //BBS: add logs
         BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(": state %1% is UPDATE_BACKGROUND_PROCESS_INVALID, can not slice") % state;
         p->update_fff_scene_only_shells();
+        report_slice_declined(); // JusPrin: SliceRequests.hpp
         return;
     }
 
@@ -16234,6 +16236,7 @@ int Plater::start_next_slice()
     if (!p->partplate_list.get_curr_plate()->can_slice()) {
         p->process_completed_with_error = p->partplate_list.get_curr_plate_index();
         BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(": found invalidated apply in update_background_process.");
+        report_slice_declined(); // JusPrin: SliceRequests.hpp
         return -1;
     }
 

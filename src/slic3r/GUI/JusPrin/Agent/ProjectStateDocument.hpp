@@ -306,7 +306,9 @@ public:
     std::vector<ChangeEntry> changes() const;
 
     // Work the application ran outside the chat. `begin_work` assigns the id,
-    // the sequence number and the place in the timeline.
+    // the sequence number and, unless the entry names its conversation and
+    // the item it follows, the place in the timeline: after the active
+    // conversation's last item.
     WorkEntry              begin_work(WorkEntry entry, const std::string& timestamp);
     // Completes a running entry. Empty when no running entry has that id.
     std::optional<WorkEntry> finish_work(const std::string& id, const std::string& state, const std::string& detail,

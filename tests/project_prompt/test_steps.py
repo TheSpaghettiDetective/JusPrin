@@ -177,9 +177,33 @@ class Steps(unittest.TestCase):
             self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
             self.assertNotIn("input_image", json.dumps(sent), name)
 
+    def test_the_slice_failed_skill_leaves_the_request_after_its_own(self):
+        """The app sends the slice-failed skill, and no picture, on the request
+        where the model first reads a refused slice: the slice_start result, or
+        the message after the person pressed Slice."""
+        for name in ("slice-refused-by-tool", "slice-refused-then-ready"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# A slice that did not succeed"), name)
+            self.assertNotIn("input_image", json.dumps(recorded), name)
+            self.assertIn("is not suggested for use printing filament", json.dumps(recorded), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            verdict, detail, bodies = self.run_case(name, first, [call("slice_start", {"wait": True})])
+            self.assertEqual(verdict, runner.FAIL, detail)
+            self.assertIn("SLICED AGAIN UNCHANGED", detail)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# A slice that did not succeed", json.dumps(sent), name)
+
+    def test_a_read_of_the_plate_or_filament_decides_a_refusal(self):
+        verdict, detail, _ = self.run_case("slice-refused-by-tool", [call("presets_list", {"kind": "filament"})])
+        self.assertEqual(verdict, runner.PASS, detail)
+
     def test_no_other_point_sends_anything_once(self):
         self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
-                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed"])
+                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed", "slice-refused-by-tool",
+                          "slice-refused-then-ready"])
 
     # --- One call or none, as before ---------------------------------------
 

@@ -16,6 +16,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -2048,7 +2049,91 @@ private:
         std::cerr << "HARNESS CHECKPOINT_RESTORE_DIALOGS count=" << restore_dialogs.titles.size();
         for (const auto& title : restore_dialogs.titles) std::cerr << " title=" << title;
         std::cerr << '\n';
-        finish();
+        verify_slice_failure();
+    }
+
+    // The active plate as the shell's workspace reads it now.
+    const WorkspacePlate* active_plate(const WorkspaceSnapshot& snapshot) const
+    {
+        for (const WorkspacePlate& plate : snapshot.plates)
+            if (plate.active)
+                return &plate;
+        return nullptr;
+    }
+
+    // OrcaSlicer's own check refuses Bambu PETG HF on the Cool Plate and
+    // starts nothing. The shell's workspace records why, in the print-issue
+    // monitor's words, inside the call that asked; the record stays through a
+    // second refusal and goes when the plate slices.
+    void verify_slice_failure()
+    {
+        auto* shell = Slic3r::GUI::JusPrin::installed_shell();
+        IWorkspace* workspace = shell ? shell->workspace() : nullptr;
+        check(workspace != nullptr, "slice_failure_shell_workspace");
+        if (workspace == nullptr) {
+            finish();
+            return;
+        }
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "slice_failure_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
+                      .size() == 1,
+              "slice_failure_cube_loaded");
+        check(m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, "slice_failure_cube_centred");
+        m_plater->canvas3D()->reload_scene(true, true);
+        check(JusPrin::SetupCommands::select_filament_preset(*m_plater, 0, "Bambu PETG HF @BBL X1C"), "slice_failure_petg_hf_selected");
+        const auto select_plate_type = [this](const char* name) {
+            ConfigOptionEnum<BedType> plate;
+            return plate.deserialize(name) && JusPrin::SetupCommands::select_bed_type(*m_plater, int(plate.value));
+        };
+        check(select_plate_type("Cool Plate"), "slice_failure_cool_plate_selected");
+        const auto settled = [this] { return !m_plater->is_background_process_update_scheduled(); };
+        wait_until(settled, 10000, [this, workspace, select_plate_type, settled](bool) {
+            const WorkspaceSnapshot before = workspace->snapshot();
+            check(workspace->start_slice(before.active_plate, false).succeeded(), "slice_failure_start_returns");
+            const WorkspaceSnapshot refused = workspace->snapshot();
+            const WorkspacePlate*   plate   = active_plate(refused);
+            check(!refused.slicing.running && plate != nullptr && !plate->sliced, "slice_failure_nothing_runs");
+            const bool recorded = plate != nullptr && plate->slice_failure && plate->slice_failure->kind == SliceFailureKind::Refused;
+            check(recorded, "slice_failure_recorded_inside_the_call");
+            check(recorded && plate->slice_failure->severity == "blocker" &&
+                      plate->slice_failure->message.find("is not suggested for use printing filament 1 (Bambu PETG HF)") != std::string::npos &&
+                      plate->slice_failure->code == "filament_not_match_bed_type",
+                  "slice_failure_in_orca_words");
+            check(refused.revision > before.revision, "slice_failure_advances_the_revision");
+            if (recorded)
+                std::cerr << "HARNESS SLICE_FAILURE kind=refused message='" << plate->slice_failure->message << "' setting='"
+                          << plate->slice_failure->setting << "' code='" << plate->slice_failure->code << "' sequence="
+                          << plate->slice_failure->sequence << '\n';
+            // Orca's own entry, which a Slice press reaches: the same refusal,
+            // so the same failure, and no new revision.
+            const std::uint64_t sequence = recorded ? plate->slice_failure->sequence : 0;
+            m_plater->reslice();
+            const WorkspaceSnapshot again = workspace->snapshot();
+            const WorkspacePlate*   still = active_plate(again);
+            check(still != nullptr && still->slice_failure && still->slice_failure->sequence == sequence &&
+                      again.revision == refused.revision,
+                  "slice_failure_repeated_refusal_is_the_same_failure");
+
+            // A plate that takes the filament slices, and the reason goes.
+            check(select_plate_type("Textured PEI Plate"), "slice_failure_textured_plate_selected");
+            wait_until(settled, 10000, [this, workspace](bool) {
+                const WorkspaceSnapshot fixed = workspace->snapshot();
+                check(workspace->start_slice(fixed.active_plate, false).succeeded() && workspace->snapshot().slicing.running,
+                      "slice_failure_fixed_plate_starts");
+                check(!active_plate(workspace->snapshot())->slice_failure, "slice_failure_cleared_when_a_run_starts");
+                wait_until([this, workspace] {
+                    const WorkspaceSnapshot now = workspace->snapshot();
+                    return !now.slicing.running && active_plate(now) != nullptr && active_plate(now)->sliced;
+                }, 120000, [this, workspace](bool sliced) {
+                    check(sliced, "slice_failure_fixed_plate_sliced");
+                    const WorkspacePlate* plate = active_plate(workspace->snapshot());
+                    check(plate != nullptr && !plate->slice_failure, "slice_failure_absent_once_sliced");
+                    finish();
+                });
+            });
+        });
     }
 
     // Polls on a timer so the event loop, and the backup's hand-offs to it,

@@ -472,3 +472,44 @@ TEST_CASE("the chat is told when the issue asked about was ignored", "[print-iss
     snapshot.issues[0].ignored = true;
     CHECK(json::parse(make_issue_message(snapshot.issues[0], snapshot, {}).context_json)["issue"].value("ignored", false));
 }
+
+TEST_CASE("why the active plate did not slice is the first blocker, OrcaSlicer's validation first", "[print-issues][slicing]")
+{
+    using namespace Slic3r::GUI::JusPrin;
+    PrintIssueSnapshot snapshot;
+    snapshot.session = 7;
+    const auto issue = [](IssueSource source, IssueSeverity severity, std::string message) {
+        PrintIssue found;
+        found.source   = source;
+        found.severity = severity;
+        found.message  = std::move(message);
+        return found;
+    };
+    CHECK_FALSE(slice_failure_of(snapshot));
+
+    // A warning does not stop a slice.
+    snapshot.issues.push_back(issue(IssueSource::Validation, IssueSeverity::Warning, "The jerk is capped."));
+    CHECK_FALSE(slice_failure_of(snapshot));
+
+    // The last run's failure, then a validation blocker, which comes first.
+    snapshot.issues.push_back(issue(IssueSource::SliceFailure, IssueSeverity::Blocker, "Slicing failed."));
+    REQUIRE(slice_failure_of(snapshot));
+    CHECK(slice_failure_of(snapshot)->kind == Workspace::SliceFailureKind::Failed);
+    PrintIssue layer = issue(IssueSource::Validation, IssueSeverity::Blocker, "Layer height cannot exceed nozzle diameter.");
+    layer.setting     = "layer_height";
+    layer.code        = "layer_height_exceeds_limit";
+    layer.object      = 42;
+    layer.object_name = "cube";
+    snapshot.issues.push_back(layer);
+    const auto failure = slice_failure_of(snapshot);
+    REQUIRE(failure);
+    CHECK(failure->kind == Workspace::SliceFailureKind::Refused);
+    CHECK(failure->severity == "blocker");
+    CHECK(failure->message == layer.message);
+    CHECK(failure->setting == "layer_height");
+    CHECK(failure->code == "layer_height_exceeds_limit");
+    REQUIRE(failure->object);
+    CHECK(failure->object->session().value() == 7);
+    CHECK(failure->object->value() == 42);
+    CHECK(failure->object_name == "cube");
+}

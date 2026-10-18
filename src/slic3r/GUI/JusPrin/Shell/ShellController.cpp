@@ -600,6 +600,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             // manager keeps running underneath, and the detach that restores
             // the overlays brings the notices straight back.
             m_print_issues = std::make_unique<PrintIssues::PrintIssueMonitor>(*plater);
+            // The workspace records why a slice did not succeed in the words
+            // the monitor reads from OrcaSlicer, at the moment it happens.
+            m_workspace->set_slice_failure_reader([this]() -> std::optional<Workspace::SliceFailure> {
+                return m_print_issues ? m_print_issues->slice_failure() : std::nullopt;
+            });
             PrintIssues::IssueOverlay::Actions actions;
             actions.highlight = [this](const PrintIssues::PrintIssue& issue) {
                 if (m_workspace == nullptr || m_print_issues == nullptr)

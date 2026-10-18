@@ -112,6 +112,11 @@ namespace SkillTrigger {
 // A file was opened or imported: the person opened or dropped one, or a
 // tool call of the in-app Agent opened or imported one.
 inline constexpr const char* kFileLoaded = "file_loaded";
+// A plate's slice did not succeed: OrcaSlicer refused to start it, or the run
+// failed. Fired on the first request that carries the failure, whoever asked
+// for the slice: the reply to the model's slice_start, or the next request
+// after the person's.
+inline constexpr const char* kSliceFailed  = "slice_failed";
 } // namespace SkillTrigger
 
 } // namespace Protocol

@@ -51,6 +51,9 @@ json workspace_json(const AgentRequest& request)
         // the plate cannot take is visible before anything is sliced.
         if (!plate.bed_type.empty())
             entry["plateType"] = plate.bed_type;
+        // Why its last slice did not succeed, whoever asked for that slice.
+        if (plate.slice_failure)
+            entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
         plates.push_back(std::move(entry));
     }
     json selected = json::array();

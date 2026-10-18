@@ -8,3 +8,4 @@
 #include "JusPrin/Workspace/ProjectState.hpp"
 #include "JusPrin/Workspace/PlaterProjectState.hpp"
 #include "JusPrin/Workspace/FileLoads.hpp"
+#include "JusPrin/Workspace/SliceRequests.hpp"

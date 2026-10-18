@@ -645,8 +645,7 @@
        "record": "after-apply",
        "call": "slice_start",
        "arguments": {
-        "plateId": "{{workspace/activePlateId}}",
-        "wait": true
+        "plateId": "{{workspace/activePlateId}}"
        }
       },
       {
@@ -972,6 +971,96 @@
       {
        "record": "model-opened-by-tool",
        "skill": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-refused",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "Print this in Bambu PETG HF.",
+     "replies": [
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "slice_start",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}"
+       }
+      },
+      {
+       "record": "slice-refused-by-tool",
+       "skill": "slice-failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-pressed",
+   "plateType": "Textured PEI Plate",
+   "steps": [
+    {
+     "say": "Switch to Bambu PETG HF, and put the second plate on my Cool Plate.",
+     "replies": [
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "plate_layout",
+       "arguments": {
+        "sessionId": "{{workspace/sessionId}}",
+        "plates": [
+         {
+          "plateId": "{{workspace/plateId/2}}",
+          "bedType": "Smooth Cool Plate"
+         }
+        ]
+       }
+      },
+      {
+       "text": "I switched the filament to Bambu PETG HF and set the second plate to the Cool Plate."
+      }
+     ]
+    },
+    {
+     "slice": "all",
+     "say": "is it ready to print?",
+     "replies": [
+      {
+       "record": "slice-refused-then-ready",
+       "skill": "slice-failed"
       }
      ]
     }

@@ -608,6 +608,21 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
     return result;
 }
 
+json slice_failure_result(const Workspace::SliceFailure& failure, bool full)
+{
+    bool truncated = false;
+    json result{{"kind", Workspace::slice_failure_kind_name(failure.kind)}, {"severity", failure.severity},
+                {"message", text(failure.message, truncated)}};
+    if (!failure.setting.empty()) result["setting"] = failure.setting;
+    if (failure.object) result["objectId"] = std::to_string(failure.object->value());
+    if (full) {
+        if (!failure.code.empty()) result["code"] = failure.code;
+        if (!failure.object_name.empty()) result["objectName"] = label(failure.object_name, truncated);
+    }
+    if (truncated) result["truncated"] = true;
+    return result;
+}
+
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
 {
     bool truncated = false;
@@ -617,9 +632,11 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
         const char* status = !plate.estimate ? "none" :
             plate.estimate_status == Workspace::EstimateStatus::Current ? "current" :
             plate.estimate_status == Workspace::EstimateStatus::Recomputing ? "recomputing" : "stale";
-        plates.push_back({{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
-                          {"sliced", plate.sliced}, {"estimateStatus", status},
-                          {"invalidatedBy", label(plate.invalidated_by, truncated)}});
+        json entry{{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
+                   {"sliced", plate.sliced}, {"estimateStatus", status},
+                   {"invalidatedBy", label(plate.invalidated_by, truncated)}};
+        if (plate.slice_failure) entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
+        plates.push_back(std::move(entry));
     }
     json jobs = json::array();
     for (const auto& job : snapshot.jobs) {
@@ -689,8 +706,13 @@ json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateI
     // A plate with no current slice has nothing to report, and saying so is the
     // answer: an empty summary of zeros would read as a print that costs
     // nothing and takes no time.
-    if (!report.valid)
+    if (!report.valid) {
+        // Why it is not sliced, when its last slice was refused or failed.
+        for (const auto& candidate : snapshot.plates)
+            if (candidate.id == plate && candidate.slice_failure)
+                result["sliceFailure"] = slice_failure_result(*candidate.slice_failure, true);
         return result;
+    }
 
     if (sections.summary) {
         json filaments = json::array();

@@ -46,7 +46,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 20 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 22 cases,
 never more than MAX_RUNS for one case.
 
 Exit code 0 when every case passes at least --must-pass of its runs (default:
@@ -93,7 +93,7 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # responses of reads answered in one run
-RUN_BUDGET = 60
+RUN_BUDGET = 66
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
@@ -371,9 +371,17 @@ class AfterApply(Readiness):
 
 
 class AfterSlice(Readiness):
-    """The prepare turn after slice_start finished. Line 15, as after-apply.
-    Passes on slice_report, or a reply that does not claim the print is ready
-    (judged)."""
+    """The prepare turn after slice_start started a run. Its result says the
+    run goes on in the background, the person watches it in a card below
+    the call, slice_report returns valid: false until it ends, and the app
+    starts a new turn with the outcome when it ends after this turn. A reply
+    that does not claim readiness is what that invites. The recorded reads were
+    taken one after another while the run went on: workspace_inspect shows
+    it still slicing, and slice_report, read later, has the finished slice.
+    A model that polls workspace_inspect gets that same in-flight answer
+    each time, so it ends unobserved at MAX_READS. Line 15, as after-apply.
+    Passes on slice_report, or a reply that does not claim the print is
+    ready (judged)."""
 
     name = "after-slice"
     expected = "slice_report"
@@ -640,11 +648,76 @@ class ModelOpenedByTool(Case):
         return (PASS, str(step)) if yes else (FAIL, "DID NOT REPORT THE OPENED MODEL: " + why)
 
 
+class SliceRefused(Case):
+    """Shared by the two refusal cases: Bambu PETG HF on a plate set to the
+    Cool Plate. OrcaSlicer refused to slice that plate ("Plate 1: Cool Plate
+    is not suggested for use printing filament 1 (Bambu PETG HF)..."), and the
+    request where the model first reads that carries the slice-failed skill
+    (skills/slice-failed/SKILL.md): "refused": nothing was sliced, and slicing
+    again unchanged is refused the same way; "OrcaSlicer's message is the
+    reason; do not add a different one. What it means for the print, and what
+    each way of fixing it involves, is yours to explain"; and when a message
+    pairs the filament and the plate, "which one to change is their decision".
+    The standing prompt's Replies section: "Assume they are new to 3D
+    printing ... explain a problem by what it means for their print and what
+    they can do about it." Passes on a read of the plate or the filament
+    (settings_search, settings_get, presets_list, printer_setup_preview), or on
+    a reply the judge reads as saying a plate was not sliced, giving
+    OrcaSlicer's reason without contradicting it or blaming another cause,
+    and telling the person what they can do in beginner's words; explaining
+    what the problem means for the print passes. Fails on another slice_start
+    (nothing has changed), on any other change (which of the two to change is
+    the person's), on a reply saying or implying the print is ready, or on one
+    that the judge does not read as all three."""
+
+    def check(self, step):
+        if step.tool in ("settings_search", "settings_get", "presets_list", "printer_setup_preview"):
+            return PASS, str(step)
+        if step.reads():
+            return CONTINUE, str(step)
+        if step.tool == "slice_start":
+            return FAIL, "SLICED AGAIN UNCHANGED: " + str(step)
+        if step.tool:
+            return FAIL, "CHANGED: " + str(step)
+        yes, why = self.judged(step, "Does the assistant's last message say or imply that the whole job is ready to print or "
+                                     "to send to the printer?")
+        if yes:
+            return FAIL, "CLAIMS READY: " + why
+        yes, why = self.judged(step, "Does the assistant's last message do all of these: say that a plate was not sliced; "
+                                     "give OrcaSlicer's reason, that the selected plate type (the Cool Plate) is not "
+                                     "suitable for the selected filament (Bambu PETG HF), without contradicting it or "
+                                     "blaming a different setting or cause; and tell the person what they can do about "
+                                     "it, in words someone new to 3D printing would understand? Explaining what the "
+                                     "problem means for the print, such as how the filament sticks to or affects that "
+                                     "plate, is fine.")
+        return (PASS, str(step)) if yes else (FAIL, "REFUSAL NOT EXPLAINED: " + why)
+
+
+class SliceRefusedByTool(SliceRefused):
+    """"Print this in Bambu PETG HF." The model previewed and ran printer_setup,
+    then slice_start with wait, which OrcaSlicer refused; the request carries
+    that result (started false, reason in OrcaSlicer's words) and the skill.
+    See SliceRefused."""
+
+    name = "slice-refused-by-tool"
+
+
+class SliceRefusedThenReady(SliceRefused):
+    """On the two-plate fixture: "Switch to Bambu PETG HF, and put the second
+    plate on my Cool Plate.", done; then the person pressed Slice all, which
+    sliced plate 1 and was refused at plate 2, and asked "is it ready to
+    print?". That request carries the refusal in the workspace block and the
+    skill. A person cannot press Slice on a plate OrcaSlicer's check has
+    already refused: the button is off. See SliceRefused."""
+
+    name = "slice-refused-then-ready"
+
+
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
     FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
-    ModelOpenedByTool)}
+    ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
 

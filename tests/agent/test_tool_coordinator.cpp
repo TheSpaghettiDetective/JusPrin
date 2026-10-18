@@ -598,8 +598,11 @@ TEST_CASE("the slice report says what the plate holds, or that it holds nothing"
     CHECK(findings["material"]["supportMm3"] == 120.0);
 
     // A slice being replaced is not a report: the numbers on screen are the
-    // ones it is about to overwrite.
+    // ones it is about to overwrite. An edit invalidates the slice first;
+    // OrcaSlicer runs nothing for a plate that is sliced and unchanged.
+    h.workspace.set_plate_sliced(plate, false);
     REQUIRE(h.workspace.start_slice(plate, false).succeeded());
+    REQUIRE(h.workspace.snapshot().slicing.running);
     CHECK(read("m-4", json::object())["valid"] == false);
 }
 
@@ -1733,32 +1736,116 @@ TEST_CASE("a settings patch survives model edits after its preview, but not a se
     CHECK(opening.error->message.find("Give exactly one of path and new.") != std::string::npos);
 }
 
-TEST_CASE("a slice started with wait returns when the run ends, without holding up other calls", "[tools][slicing]")
+namespace {
+
+Workspace::SliceFailure bed_refusal()
+{
+    Workspace::SliceFailure refusal;
+    refusal.severity = "blocker";
+    refusal.message  = "Plate 1: Cool Plate is not suggested for use printing filament 1 (Bambu PETG HF).";
+    refusal.code     = "filament_not_match_bed_type";
+    return refusal;
+}
+
+} // namespace
+
+TEST_CASE("slice_start says whether OrcaSlicer began a run, had nothing to slice, or refused the plate", "[tools][slicing]")
 {
     Harness h;
     const auto& registry = ToolRegistry::instance();
     const auto plate = h.workspace.snapshot().plates.at(0).id;
-    const ToolActivity started = h.coordinator.submit({"slice_start", json{{"plateId", std::to_string(plate.value())}, {"wait", true}}.dump()}, "m-1");
-    for (int i = 0; i < 20; ++i)
-        h.coordinator.pump();
-    CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
-    CHECK(h.workspace.slice_starts == 1);
+    int calls = 0;
+    const auto start = [&]() {
+        const json arguments{{"plateId", std::to_string(plate.value())}};
+        const std::string action = h.coordinator.submit({"slice_start", arguments.dump()}, "m-" + std::to_string(++calls)).action_id;
+        h.pump_to_completion(action);
+        return *h.coordinator.find(action);
+    };
 
-    // A read submitted meanwhile still runs.
-    const ToolActivity read = h.coordinator.submit({"workspace_inspect", "{}"}, "m-2");
-    h.pump_to_completion(read.action_id);
-    CHECK(h.coordinator.find(read.action_id)->state == ToolState::Succeeded);
-    CHECK(h.coordinator.find(started.action_id)->state == ToolState::Running);
+    SECTION("refused: nothing runs, and the reply carries OrcaSlicer's reason")
+    {
+        const Workspace::SliceFailure refusal = bed_refusal();
+        h.workspace.refusal = refusal;
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            const ToolActivity done = start();
+            REQUIRE(done.state == ToolState::Succeeded);
+            const json result = json::parse(done.result_json);
+            CHECK(registry.validate_output(*registry.find("slice_start"), result));
+            CHECK(result["started"] == false);
+            CHECK(result["reason"] == json{{"kind", "refused"}, {"severity", "blocker"}, {"message", refusal.message}});
+            CHECK_FALSE(result.contains("alreadySliced"));
+            CHECK(result["slicing"]["running"] == false);
+            CHECK(result["slicing"]["plates"][0]["sliced"] == false);
+            CHECK(result["slicing"]["plates"][0]["sliceFailure"]["message"] == refusal.message);
+        }
+        CHECK(h.workspace.slice_starts == 2);
+        // Asked again unchanged, OrcaSlicer refuses for the same reason: the
+        // same failure, not a new one.
+        CHECK(h.workspace.snapshot().plates.at(0).slice_failure->sequence == 1);
 
-    h.workspace.finish_slice_for_testing(true);
-    h.pump_to_completion(started.action_id);
-    const ToolActivity done = *h.coordinator.find(started.action_id);
-    REQUIRE(done.state == ToolState::Succeeded);
-    const auto result = json::parse(done.result_json);
-    CHECK(registry.validate_output(*registry.find("slice_start"), result));
-    CHECK(result["finished"] == true);
-    CHECK(result["slicing"]["running"] == false);
-    CHECK_FALSE(registry.validate_call(*registry.find("slice_start"), R"({"wait":"yes"})").valid());
+        // The slice_report of a plate refused says why it holds nothing.
+        const std::string report = h.coordinator.submit({"slice_report", "{}"}, "m-report").action_id;
+        h.pump_to_completion(report);
+        const json read = json::parse(h.coordinator.find(report)->result_json);
+        CHECK(registry.validate_output(*registry.find("slice_report"), read));
+        CHECK(read["valid"] == false);
+        CHECK(read["sliceFailure"] == json{{"kind", "refused"}, {"severity", "blocker"}, {"message", refusal.message},
+                                           {"code", "filament_not_match_bed_type"}});
+
+        // Once the plate is fixed a run begins, and the reason goes with it.
+        h.workspace.refusal.reset();
+        const ToolActivity began = start();
+        CHECK(json::parse(began.result_json)["started"] == true);
+        CHECK_FALSE(json::parse(began.result_json).contains("reason"));
+        CHECK_FALSE(h.workspace.snapshot().plates.at(0).slice_failure);
+    }
+
+    SECTION("nothing to slice: the plate is sliced and unchanged")
+    {
+        h.workspace.set_plate_sliced(plate, true);
+        const ToolActivity done = start();
+        REQUIRE(done.state == ToolState::Succeeded);
+        const json result = json::parse(done.result_json);
+        CHECK(registry.validate_output(*registry.find("slice_start"), result));
+        CHECK(result["started"] == false);
+        CHECK(result["alreadySliced"] == true);
+        CHECK_FALSE(result.contains("reason"));
+        CHECK_FALSE(h.workspace.snapshot().slicing.running);
+    }
+
+    SECTION("a run began")
+    {
+        const ToolActivity done = start();
+        REQUIRE(done.state == ToolState::Succeeded);
+        const json result = json::parse(done.result_json);
+        CHECK(result["started"] == true);
+        CHECK(result["slicing"]["running"] == true);
+        CHECK(result["slicing"]["handle"] == done.action_id);
+        CHECK_FALSE(result.contains("reason"));
+        CHECK_FALSE(result.contains("alreadySliced"));
+        // The chat's model learns where the person watches the run and that
+        // the app reports its end; an MCP client, that nothing reports it.
+        CHECK(result["note"].get<std::string>().find("card in the chat") != std::string::npos);
+        h.workspace.finish_slice_for_testing(false);
+        const std::string mcp = h.coordinator
+                                    .submit({"slice_start", json{{"plateId", std::to_string(plate.value())}}.dump()}, "mcp",
+                                            {}, ToolSource::Mcp)
+                                    .action_id;
+        h.pump_to_completion(mcp);
+        const json from_mcp = json::parse(h.coordinator.find(mcp)->result_json);
+        REQUIRE(from_mcp["started"] == true);
+        CHECK(from_mcp["note"].get<std::string>().find("Nothing notifies this client") != std::string::npos);
+        CHECK(from_mcp["note"].get<std::string>().find("card") == std::string::npos);
+
+        // In the next project the handle names nothing: action ids start
+        // again there.
+        h.workspace.finish_slice_for_testing(true);
+        h.workspace.replace_project(one_plate_snapshot());
+        h.workspace.refusal = bed_refusal();
+        const ToolActivity refused = start();
+        CHECK(json::parse(refused.result_json)["started"] == false);
+        CHECK_FALSE(json::parse(refused.result_json)["slicing"].contains("handle"));
+    }
 }
 
 TEST_CASE("the print intent's limits are read from its words", "[tools][intent][report]")
@@ -1853,7 +1940,9 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(gcode["gcode"] == "G28\nG1 X10\nM104 S0\n");
     CHECK_FALSE(gcode.contains("next"));
 
-    // A cancel needs no card and stops only what the tools started.
+    // A cancel needs no card and stops only what the tools started. An edit
+    // invalidates the slice, so slicing again starts a run.
+    h.workspace.set_plate_sliced(plate, false);
     const auto started = run("slice_start", json::object()).second;
     const std::string slice_handle = json::parse(started.result_json)["handle"];
     const auto [cancel_card, cancelled] = run("activity_cancel", json{{"handle", slice_handle}});

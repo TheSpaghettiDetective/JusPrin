@@ -64,6 +64,11 @@ nlohmann::json region_result(const Workspace::RegionRecord& record, const Worksp
 nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnalysis& analysis,
                                       const Workspace::WorkspaceSnapshot& snapshot);
 
+// Why a plate's last slice did not succeed: whether OrcaSlicer refused it or
+// the run failed, its rating, its words, and the setting and object it named.
+// `full` adds the native check and the object's name, for slice_report.
+nlohmann::json slice_failure_result(const Workspace::SliceFailure& failure, bool full = false);
+
 nlohmann::json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle);
 
 // Which parts of a sliced plate's report a call asked for. Summary is what a

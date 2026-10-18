@@ -652,13 +652,62 @@ public:
             if (found == m_snapshot.plates.end())
                 return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
         }
-        m_snapshot.slicing.running = true;
-        m_snapshot.slicing.plate   = plate ? plate : (m_snapshot.plates.empty() ? std::optional<PlateId>() :
-                                                                                 m_snapshot.plates.front().id);
-        m_snapshot.slicing.percent = 0;
         ++slice_starts;
+        // As OrcaSlicer decides inside the call that asks: its check refuses
+        // the plate and records why, or every plate named is already sliced
+        // and nothing runs, or a run begins.
+        const auto named = [&plate](const WorkspacePlate& candidate) { return !plate || candidate.id == *plate; };
+        WorkspacePlate* first = nullptr;
+        bool all_sliced = !m_snapshot.plates.empty();
+        for (WorkspacePlate& candidate : m_snapshot.plates)
+            if (named(candidate)) {
+                first = first ? first : &candidate;
+                all_sliced = all_sliced && candidate.sliced;
+            }
+        if (refusal && first != nullptr) {
+            record_failure_for_testing(*first, *refusal);
+            return CommandResult::success();
+        }
+        if (all_sliced && !m_snapshot.slicing.running)
+            return CommandResult::success();
+        m_snapshot.slicing.running = true;
+        m_snapshot.slicing.plate   = first ? std::optional<PlateId>(first->id) : std::optional<PlateId>();
+        m_snapshot.slicing.percent = 0;
+        if (first != nullptr)
+            first->slice_failure.reset();
         publish(WorkspaceChangeReasons::Slicing);
         return CommandResult::success();
+    }
+
+    // While set, OrcaSlicer's check refuses every slice asked for, as it does
+    // until the setting it names changes.
+    std::optional<SliceFailure> refusal;
+
+    // A failure recorded on a plate, numbered as the adapter numbers them:
+    // the same reason again keeps its number.
+    void record_failure_for_testing(WorkspacePlate& plate, SliceFailure failure)
+    {
+        if (plate.slice_failure && plate.slice_failure->same_reason(failure))
+            return;
+        failure.sequence    = ++m_failure_sequence;
+        plate.slice_failure = std::move(failure);
+        publish(WorkspaceChangeReasons::Slicing);
+    }
+    std::uint64_t m_failure_sequence{0};
+
+    // The run in flight stops with an error.
+    void fail_slice_for_testing(SliceFailure failure)
+    {
+        const auto plate   = m_snapshot.slicing.plate;
+        m_snapshot.slicing = {};
+        failure.kind       = SliceFailureKind::Failed;
+        for (WorkspacePlate& candidate : m_snapshot.plates)
+            if (plate && candidate.id == *plate) {
+                candidate.sliced = false;
+                if (!candidate.slice_failure || !candidate.slice_failure->same_reason(failure))
+                    failure.sequence = ++m_failure_sequence, candidate.slice_failure = failure;
+            }
+        publish(WorkspaceChangeReasons::Slicing);
     }
 
     PresetListResult list_presets(const PresetQuery& query) const override
@@ -1211,8 +1260,11 @@ public:
         m_snapshot.slicing          = {};
         if (plate)
             for (WorkspacePlate& candidate : m_snapshot.plates)
-                if (candidate.id == *plate)
+                if (candidate.id == *plate) {
                     candidate.sliced = sliced;
+                    if (sliced)
+                        candidate.slice_failure.reset();
+                }
         publish(WorkspaceChangeReasons::Slicing);
     }
 

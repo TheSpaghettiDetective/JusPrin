@@ -1222,8 +1222,10 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
 
 WorkEntry ProjectStateDocument::begin_work(WorkEntry entry, const std::string& timestamp)
 {
-    entry.conversation_id = active_conversation_id();
-    entry.after_id        = last_item_id(entry.conversation_id);
+    if (entry.conversation_id.empty()) {
+        entry.conversation_id = active_conversation_id();
+        entry.after_id        = last_item_id(entry.conversation_id);
+    }
     entry.seq             = next_seq();
     entry.id              = "work-" + std::to_string(entry.seq);
     entry.started_at      = timestamp;

@@ -87,4 +87,27 @@ void mark_ignored(std::vector<PrintIssue>& issues, std::set<std::string>& ignore
         ignored = std::move(reported);
 }
 
+std::optional<Workspace::SliceFailure> slice_failure_of(const PrintIssueSnapshot& snapshot)
+{
+    for (const IssueSource source : {IssueSource::Validation, IssueSource::Placement, IssueSource::SliceFailure, IssueSource::Notice})
+        for (const PrintIssue& issue : snapshot.issues) {
+            if (issue.source != source || issue.severity != IssueSeverity::Blocker)
+                continue;
+            Workspace::SliceFailure failure;
+            failure.kind     = source == IssueSource::SliceFailure ? Workspace::SliceFailureKind::Failed :
+                                                                     Workspace::SliceFailureKind::Refused;
+            failure.severity = severity_name(issue.severity);
+            // OrcaSlicer ends some of its messages with a line break.
+            failure.message  = issue.message.substr(0, issue.message.find_last_not_of(" \n") + 1);
+            failure.setting  = issue.setting;
+            failure.code     = issue.code;
+            if (issue.object != 0) {
+                failure.object      = Workspace::ObjectId(Workspace::ProjectSessionId(snapshot.session), issue.object);
+                failure.object_name = issue.object_name;
+            }
+            return failure;
+        }
+    return std::nullopt;
+}
+
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

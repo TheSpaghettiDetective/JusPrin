@@ -346,6 +346,10 @@ private:
     // when the page sent none for it or the conversation has no workspace.
     std::optional<AgentSkillUse> fire_skill(const std::string& trigger, const std::string& conversation_id,
                                             const Workspace::WorkspaceSnapshot& workspace) const;
+    // The slice-failed skill, when `workspace` shows a plate whose slice
+    // failed and no request has carried that failure yet. Fired once a failure.
+    std::optional<AgentSkillUse> fire_on_new_slice_failure(const std::string& conversation_id,
+                                                           const Workspace::WorkspaceSnapshot& workspace) const;
     void handle_skills(const std::string& envelope_id, const std::string& payload_json);
     ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
     nlohmann::json tool_output_json(const ToolActivity& activity) const;
@@ -457,9 +461,19 @@ private:
     // Until they arrive a project turn waits, as it does for the instructions.
     std::vector<AgentSkill>         m_skills;
     bool                            m_skills_received{false};
+    // The slice failures (Workspace::SliceFailure::sequence) a request has
+    // already carried with the slice-failed skill.
+    mutable std::set<std::uint64_t> m_slice_failures_told;
     // Load reports of projects the Agent opened, posted to the opened
     // project's chat on the next timer tick, once its document is in place.
     std::deque<Workspace::LoadReport> m_agent_opened_reports;
+    // Runs the chat's slice_start began that have ended, by that call's
+    // action id, told on a timer tick once the turn that started them has
+    // ended (slice_ended). A tool result the model reads before then carries
+    // the outcome, and drops them.
+    std::deque<std::string>         m_ended_slices;
+    // False while the turn that started the run goes on: ask again later.
+    bool slice_ended(const std::string& action_id);
     PageMessageHandler              m_page_message_handler;
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;

@@ -209,6 +209,21 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
         CHECK(workspace.dump().find("null") == std::string::npos);
     }
 
+    SECTION("a plate whose slice did not succeed says why, short") {
+        Workspace::SliceFailure refusal;
+        refusal.severity    = "blocker";
+        refusal.message     = "Layer height cannot exceed nozzle diameter.";
+        refusal.setting     = "layer_height";
+        refusal.code        = "layer_height_exceeds_limit";
+        refusal.object      = request.workspace.plates.at(0).objects.at(0).id;
+        refusal.object_name = "cube";
+        request.workspace.plates.at(0).slice_failure = refusal;
+        const json workspace = snapshot();
+        CHECK(workspace["plates"][0]["sliceFailure"] ==
+              json{{"kind", "refused"}, {"severity", "blocker"}, {"message", refusal.message}, {"setting", "layer_height"},
+                   {"objectId", std::to_string(refusal.object->value())}});
+    }
+
     SECTION("a project with them sends them, in workspace_inspect's words") {
         request.workspace.setup.process_preset = "0.20mm Standard @BBL X1C";
         request.setup_title = "Strong PETG shelf bracket";
