@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5ANPWT0X8QJ773WN4J8D5BS",
+  "strategy": "manual-commit",
+  "branch": "claude/skills-integrated",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/project_prompt/test_steps.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 19950,
+    "cache_read_tokens": 11304287,
+    "output_tokens": 10540,
+    "api_call_count": 17
+  }
+}
