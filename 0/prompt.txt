@@ -1,0 +1,44 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an in-app LLM agent. Today the agent talks to one API, OpenAI's Responses API, through OpenAIResponsesAgent (613 lines), which mixes the provider-neutral tool-call turn loop with the Responses wire format and OpenAI-specific choices. Kenneth asked for a design that adds Anthropic's Messages API and OpenRouter with the least ongoing compatibility work. The design (llm-provider-design.md in the repo root, untracked, with a table of every per-provider difference) splits the class into a neutral loop, one codec per API family, and provider profiles as data. OpenRouter already serves an OpenAI-compatible Responses endpoint (the prompt eval harness in tests/project_prompt uses it), so after the split it is one profile row; Anthropic becomes one codec plus a schema projection because Anthropic strict mode rejects minimum/maximum/minLength/maxLength/maxItems, which the registry schemas use. The MCP server shares only the tool registry and is untouched. This session does only the first step, the behaviour-neutral extraction; later sessions add OpenRouter and Anthropic. Project rules: AGENTS.md in the repo root (error handling discipline, no temp docs committed, test every change end to end); tests/CLAUDE.md for Catch2 rules.
+
+Task:
+Do rollout step 1 of llm-provider-design.md (repo root, untracked; read it first, in full): split OpenAIResponsesAgent into a provider-neutral turn loop plus a Responses-API codec plus a provider profile, with no behaviour change.
+
+Files: src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.{hpp,cpp}, OpenAIHttpTransport.cpp, AgentSetup.{hpp,cpp}, AgentConfiguration.cpp, and tests/agent/test_openai_responses_agent.cpp. The shell harness (tests/shell/shell_harness.cpp, project_prompt_scenario.inc) and tests/agent/test_agent_setup.cpp and test_printer_conversation.cpp also name the class.
+
+What to build:
+1. ProviderAgent (new files, e.g. Agent/ProviderAgent.{hpp,cpp}): the turn loop, taken from OpenAIResponsesAgent.cpp unchanged in behaviour. It owns a neutral TurnTranscript (instructions, tools offered, opening conversation and this turn's user content, then one step per response: an opaque assistant_turn JSON, the results with their images, and the once-only skill items). It keeps every rule the current class enforces: calls run one at a time in order, a failed call answers the rest unrun, unknown or invalid calls are refused back at most twice per turn, images follow results, skills ride on one request only, usage to the listener, late events dropped by generation, SSE framing.
+2. IProviderCodec + ResponsesCodec (e.g. Agent/ProviderCodec.hpp, Agent/ResponsesCodec.{hpp,cpp}): build(transcript, profile, kind) -> body JSON and headers; parse(sse data payload) -> neutral events (TextDelta, TurnComplete{assistant_turn, calls, usage}, Incomplete, Failed). Pure, no network, no GUI. The assistant_turn is the raw output[] of the response; the loop never looks inside it.
+3. ProviderProfile (data): family, endpoint, auth header style, default model, display name for error text. One row for openai with today's values. AgentHttpRequest carries a header list instead of a single authorization string; update the transport and the FakeTransport in the tests accordingly.
+4. Keep `OpenAIResponsesAgent` and `OpenAIResponsesConfig` as thin aliases or wrappers so the harness, AgentSetup and AgentConfiguration compile unchanged in this step. Do not add Anthropic or OpenRouter in this step.
+
+Done means:
+- Every test in tests/agent passes (build in build/arm64, see memory note "Worktree build recipe" if in a worktree; ctest --test-dir build/arm64/tests/agent or the equivalent).
+- Request bodies are byte-identical before and after: before refactoring, run the adapter tests and the shell harness mode that records request bodies (--project-prompt-requests, see shell_harness.cpp around line 635 and 670) and keep the output; after refactoring, diff. tests/project_prompt/requests.json is the oracle for the Responses wire shape and must still validate against the registry (test "the project prompt tests' recorded tool results match the registry's output schemas").
+- The 33 adapter tests are split into loop tests (run against ProviderAgent with a scripted fake codec) and Responses wire tests, keeping every existing assertion.
+- No change to AgentHost, ToolRegistry, ToolExecutionCoordinator, the MCP code, or anything outside src/slic3r/GUI/JusPrin/Agent and tests/agent and tests/shell.
+- Commit on your own branch with a message a cold reader understands. Do not commit llm-provider-design.md or any handoff doc.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_e88d114e-900b-4ee5-b003-859981e02006
+
+---
+
+<cross-session-message from="local_e88d114e-900b-4ee5-b003-859981e02006" name="LLM API abstraction design">
+Step 1 is verified good (I re-ran agent_bridge_tests: 340 cases pass). Please do rollout step 2 of llm-provider-design.md on the same branch, claude/provider-agent-extract: OpenRouter as a provider.
+
+OpenRouter serves an OpenAI-compatible Responses endpoint, so this is a profile row plus wiring, no new codec.
+
+1. ProviderProfile: add an `openrouter` row: family Responses, endpoint https://openrouter.ai/api/v1/responses, Bearer auth, display name "OpenRouter", default model `openai/gpt-5.4-mini` (the same model the OpenAI row uses, so behaviour is the one already evaluated; this default is Kenneth's to change later, say so in your report). Let a profile carry extra fixed headers, and give OpenRouter `HTTP-Referer` (the app's website; find the constant the rebrand uses rather than inventing one) and `X-Title: JusPrin`. Add a `profile_for(id)` lookup over the rows; nothing may branch on a provider's name outside that table.
+2. AgentSetup: `setup_provider_supported` answers from the table; `ProviderKeySetup::start_check` builds the agent through one factory `make_provider_agent(profile, api_key, model, endpoint, transport)` that picks the codec from the family, instead of naming OpenAIResponsesAgent. The probe stays what it is.
+3. AgentConfiguration: `load_agent_runtime` accepts any id in the table and builds through the same factory. The endpoint override becomes `JUSPRIN_AGENT_ENDPOINT`, applied to whichever profile is active; keep `JUSPRIN_OPENAI_ENDPOINT` as an alias so the shell harness keeps working. Error text comes from the profile's display name, nowhere else.
+4. Setup page (AgentUI/src/components/Setup.tsx): add `{ id: 'openrouter', label: 'OpenRouter', placeholder: 'sk-or-…', available: true }` between OpenAI and Anthropic; Anthropic and Other stay unavailable. Rebuild the web bundle the way the build does (see agent-docs and AgentUI/README.md; the bundle is CMake-built), and run the page's vitest suite.
+5. Tests: a wire test that an agent built from the openrouter profile posts to the OpenRouter endpoint with the Bearer and the two fixed headers; a setup test that `openrouter` is supported and the probe goes there; a configuration test that provider=openrouter loads; the existing tests unchanged.
+6. Live smoke: write it, do not run it. A Catch2 case tagged [live] that is skipped unless OPENROUTER_API_KEY is set, sending one real request with the project tools and checking for a text reply and one tool call, and probing the four things the design lists as unverified for OpenRouter: `instructions` honoured, `strict` accepted, `parallel_tool_calls` accepted, and an image part inside `function_call_output` accepted. Kenneth approves live spend per batch, so report that it is ready and what it would cost (a handful of small requests) instead of running it.
+
+Done means: all agent tests pass, the page tests pass, the bundle builds, one commit on the branch with a cold-reader message, nothing merged or pushed, no handoff docs committed. Report what you changed, the default-model decision, and the live smoke's readiness.
+</cross-session-message>
+
+---
+
+continue.
