@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5AN4CP4GG414HYFNPBTHXX4",
   "strategy": "manual-commit",
   "branch": "claude/skills-integrated",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 594,
-    "cache_creation_tokens": 1379649,
-    "cache_read_tokens": 125279266,
-    "output_tokens": 210228,
-    "api_call_count": 296
+    "input_tokens": 1212,
+    "cache_creation_tokens": 2805952,
+    "cache_read_tokens": 258704620,
+    "output_tokens": 425625,
+    "api_call_count": 604
   }
 }
