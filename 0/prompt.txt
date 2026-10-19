@@ -1,0 +1,5 @@
+So far, the coding agent has been very confusing about where a logic came from.  Sometimes it says "OrcaSlicer does this",  But it's actually the fork (JusPrin) that does it.  Where is the place where we should add a global rule that tells the agents to be clear about if it's upstream (orcaslicer), or the fork (JusPrin)?
+
+---
+
+Okay, make the change and commit to jusprin-newui branch
