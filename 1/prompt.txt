@@ -1,0 +1,25 @@
+> after-filament-change: the case doesn’t decide what to do when the model previews its own plan.
+
+what is after-filament-change test case? what do you eman by "the case doesn’t decide what to do when the model previews its own plan."?
+
+---
+
+check if the original purpose of the setup-changed skill task chip  was to deal with the situation when the setup were changed by the user, instead of the model.  If the original purpose also included the situations when the model initiated the changes itself, I will be really surprised because I need to hear the rationale for this.
+
+---
+
+the master agent said:
+
+Yes. I did.
+
+The brief I wrote for the setup-changed chip said, under "When it fires": on the request carrying a `printer_setup` reply that changed the printer, filament, process or plate type while a purpose is recorded. It also asked for the eval case `after-filament-change`, which is exactly that situation. The chip built what I asked for. Hand changes were not in my brief, which is why they arrived later as a side effect of the stuck-flag fix.
+
+The reason behind it was mine, and it was thin. The prompt sentence "Reassess when the purpose, material, printer or an object changes" came from your own October 11 request for the preset check, and when I turned the Preparing section into events I translated that sentence into "a tool changed the setup while a purpose exists" without asking whether the model's own change needs a reminder. It does not, in the ordinary case: the model just decided to make that change, so telling it to go and check the setup again is telling it what it was already doing. The case that does need something is the one where its change breaks a pairing it did not look at, PETG on the Cool Plate being the example, and that is covered better by the slice-refusal skill and the facts than by firing the setup skill on every change the model makes.
+
+The person's hand change is the real event for this skill: the setup moved and the model does not know. The restore is the other. Those two are worth keeping.
+
+What I would change: stop firing the setup-changed skill on the model's own `printer_setup`, keep the facts in that reply, and keep the saved "last checked" setup moving forward so hand changes are still caught afterwards. The `after-filament-change` eval case would go with it, or be re-pointed at a hand change recorded through the recorder. That is a small edit on the integrated branch.
+
+Since this is a side session, nothing here reaches the main one on its own. Say the word and I will pass this to [the main session](#local_2bf88d16-a54c-4582-9b9d-d938f2f311fb) so it goes into the integration work, or I can write it up as a chip against `claude/skills-integrated`.
+
+is it consitent with your suggestion? if so, tell main session to carry out the change.
