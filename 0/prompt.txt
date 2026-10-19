@@ -1,0 +1,11 @@
+> Do you confirm the red-flag thresholds, which are still my suggestion?
+
+ I don't know what you're talking about for the red flag threshold.
+
+---
+
+Why do we have those hard numbers?  Can we just leave the coding agent to decide,  I'll need to instruct that. If not sure, check with Kenneth.
+
+---
+
+Commit the two README edits on claude/skills-integrated.
