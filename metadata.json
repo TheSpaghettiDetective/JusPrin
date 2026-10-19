@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5B3KKE324C3TGY7M4SSK3JA",
+  "strategy": "manual-commit",
+  "branch": "claude/provider-agent-extract",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/agent/test_provider_live.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 880,
+    "cache_creation_tokens": 219231,
+    "cache_read_tokens": 7577930,
+    "output_tokens": 38380,
+    "api_call_count": 35
+  }
+}
