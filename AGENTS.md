@@ -1,6 +1,14 @@
 # CLAUDE.md
 
-OrcaSlicer — open-source C++17 3D slicer. wxWidgets GUI, CMake build system.
+JusPrin — a long-lived fork of OrcaSlicer (open-source C++17 3D slicer, wxWidgets GUI, CMake build system).
+
+## Upstream vs. fork attribution
+
+This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, SoftFever/OrcaSlicer) and the JusPrin fork's changes on top of it. Fork changes include everything under `src/slic3r/GUI/JusPrin/` and the seams the fork added inside OrcaSlicer-owned files.
+
+- Say "OrcaSlicer does X" only for behavior upstream ships. Behavior added by a fork commit is "JusPrin does X", even when it lives in an OrcaSlicer-owned file.
+- Check before attributing; the file path is not enough. Run `git blame` on the line, then `git branch -r --contains <sha> 'upstream/*'`. No upstream branch containing the commit means the fork owns it. Run `git fetch upstream` first if the remote may be stale.
+- If you have not checked, say it is unverified whether the behavior is upstream or fork.
 
 ## Error handling discipline
 
