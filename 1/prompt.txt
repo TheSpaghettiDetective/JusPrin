@@ -1,0 +1,9 @@
+check @/Users/kenneth/Projects/JusPrin/handoff-setup-card-headline.md to see if it's a solid design
+
+---
+
+Let's talk through the open decisions before you edit the handoff.
+
+---
+
+check side chat to get update. and tell me what the current situation is
