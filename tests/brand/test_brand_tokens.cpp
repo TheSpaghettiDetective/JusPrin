@@ -301,7 +301,7 @@ TEST_CASE("the Agent pane resize geometry is explicit", "[brand]")
     const json tokens = load_tokens();
     const json& pane = tokens.at("component").at("agentPane");
     require_exact_table<int>(pane,
-        {{"minWidth", 320}, {"workspaceMinWidth", 320}, {"resizeHandleWidth", 8},
+        {{"width", 429}, {"minWidth", 320}, {"workspaceMinWidth", 320}, {"resizeHandleWidth", 8},
          {"resizeHandleLineWidth", 2}},
         "component.agentPane");
 }

@@ -93,6 +93,7 @@ struct MenuRowMetrics   { int height{0}; int radius{0}; int side_inset{0}; };
 struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; };
 struct StatusRowMetrics { int height{0}; };
 struct AgentPaneMetrics {
+    int width{0};
     int min_width{0};
     int workspace_min_width{0};
     int resize_handle_width{0};

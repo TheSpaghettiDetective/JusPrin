@@ -353,6 +353,7 @@
       "height": 34
     },
     "agentPane": {
+      "width": 429,
       "minWidth": 320,
       "workspaceMinWidth": 320,
       "resizeHandleWidth": 8,

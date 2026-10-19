@@ -268,7 +268,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
-        m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.min_width);
+        m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.width);
         m_agent_resize_handle = new PaneResizeHandle(
             &frame, *m_theme, PaneResizeHandle::PaneSide::Right,
             _L("Resize Agent panel"), _L("Drag to resize the Agent panel"),
