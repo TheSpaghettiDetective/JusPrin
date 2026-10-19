@@ -605,8 +605,13 @@ std::optional<json> ProjectStateDocument::chat_checkpoint(const std::string& con
 
 json ProjectStateDocument::planning_snapshot() const
 {
-    return json{{"printIntent", m_doc["printIntent"]}, {"plan", m_doc["plan"]},
-                {"regions", m_doc["regions"]}};
+    json snapshot{{"printIntent", m_doc["printIntent"]}, {"plan", m_doc["plan"]},
+                  {"regions", m_doc["regions"]}};
+    // Absent until recorded, so a checkpoint taken before it existed still
+    // matches a document that has none.
+    if (!purpose_setup().empty())
+        snapshot["purposeSetup"] = purpose_setup();
+    return snapshot;
 }
 
 bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_id,
@@ -635,6 +640,7 @@ void ProjectStateDocument::restore_planning_snapshot(const json& snapshot)
     m_doc["printIntent"] = snapshot["printIntent"];
     m_doc["plan"] = snapshot["plan"];
     m_doc["regions"] = snapshot["regions"];
+    set_purpose_setup(snapshot.value("purposeSetup", json::object()));
     touch();
 }
 
@@ -1100,6 +1106,37 @@ std::vector<IntentField> ProjectStateDocument::set_print_intent(const std::vecto
     return print_intent();
 }
 
+json ProjectStateDocument::purpose_setup() const
+{
+    const json setup = m_doc.value("purposeSetup", json::object());
+    return setup.is_object() ? setup : json::object();
+}
+
+void ProjectStateDocument::set_purpose_setup(json setup)
+{
+    if (setup.is_object() && !setup.empty())
+        m_doc["purposeSetup"] = std::move(setup);
+    else
+        m_doc.erase("purposeSetup");
+    touch();
+}
+
+bool ProjectStateDocument::restored_since_reply(const std::string& except_message_id) const
+{
+    std::uint64_t restored = 0;
+    for (const json& change : m_doc["changes"])
+        if (change.value("kind", "") == "restore")
+            restored = std::max(restored, change.value("seq", std::uint64_t(0)));
+    if (restored == 0)
+        return false;
+    for (const json& conversation : m_doc["conversations"])
+        for (const json& message : conversation.value("messages", json::array()))
+            if (message.value("role", "") == "assistant" && message.value("id", "") != except_message_id &&
+                message.value("seq", std::uint64_t(0)) > restored)
+                return false;
+    return true;
+}
+
 PlanRecord ProjectStateDocument::plan() const
 {
     const json& stored = m_doc["plan"];
@@ -1222,8 +1259,10 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
 
 WorkEntry ProjectStateDocument::begin_work(WorkEntry entry, const std::string& timestamp)
 {
-    entry.conversation_id = active_conversation_id();
-    entry.after_id        = last_item_id(entry.conversation_id);
+    if (entry.conversation_id.empty()) {
+        entry.conversation_id = active_conversation_id();
+        entry.after_id        = last_item_id(entry.conversation_id);
+    }
     entry.seq             = next_seq();
     entry.id              = "work-" + std::to_string(entry.seq);
     entry.started_at      = timestamp;

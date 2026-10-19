@@ -107,7 +107,12 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.PASS)
         self.assertTrue(detail.startswith("after workspace_inspect + printer_list: reply"), detail)
         self.assertEqual(len(bodies), 2)
+        # What the app sent this request only (the print-issues skill, since
+        # the fixture's slice carries the bed-temperature warning) is not
+        # repeated on the next one.
+        once = runner.REQUESTS["advice-infill"].get("once", 0)
         recorded = runner.REQUESTS["advice-infill"]["body"]["input"]
+        recorded = recorded[:len(recorded) - once]
         sent = bodies[1]["input"]
         self.assertEqual(sent[:len(recorded)], recorded)
         self.assertEqual(sent[len(recorded):len(recorded) + 3], first)
@@ -117,6 +122,24 @@ class Steps(unittest.TestCase):
         answers = {answer["tool"]: answer["output"] for answer in runner.REQUESTS["advice-infill"]["answers"]}
         self.assertEqual(results[0]["output"], answers["workspace_inspect"])
         self.assertEqual(results[1]["output"], answers["printer_list"])
+
+    def test_a_picture_is_answered_with_its_text_and_no_image(self):
+        """view_render is answered from the recording for the plate and view
+        asked for (none named: the active plate); the pinned hosts refuse
+        images, so no image goes out."""
+        plate = next(answer["arguments"]["plateId"] for answer in runner.REQUESTS["first-person"]["answers"]
+                     if answer["tool"] == "view_render" and "plateId" in answer["arguments"])
+        for arguments in ({"plateId": plate, "view": "iso"}, {"view": "plate"}, {}):
+            verdict, detail, bodies = self.run_case("first-person", [call("view_render", arguments, "call-v")],
+                                                    [reply("Yes, one warning: the slab has nothing under it.")])
+            self.assertEqual(len(bodies), 2, (arguments, detail))
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[-1]["type"], "function_call_output")
+            self.assertEqual(json.loads(sent[-1]["output"])["result"]["view"], arguments.get("view", "iso"))
+            self.assertNotIn("input_image", json.dumps(sent))
+        verdict, detail, _ = self.run_case("first-person", [call("view_render", {"view": "front"})])
+        self.assertEqual(verdict, runner.UNOBSERVED)
+        self.assertIn("no recorded answer for view_render", detail)
 
     def test_one_unrecorded_read_leaves_the_whole_response_unanswered(self):
         verdict, detail, bodies = self.run_case("advice-infill", [
@@ -177,9 +200,84 @@ class Steps(unittest.TestCase):
             self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
             self.assertNotIn("input_image", json.dumps(sent), name)
 
+    def test_the_slice_failed_skill_leaves_the_request_after_its_own(self):
+        """The app sends the slice-failed skill, and no picture, on the request
+        where the model first reads a refused slice: the slice_start result, or
+        the message after the person pressed Slice."""
+        for name in ("slice-refused-by-tool", "slice-refused-then-ready"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# A slice that did not succeed"), name)
+            self.assertNotIn("input_image", json.dumps(recorded), name)
+            self.assertIn("is not suggested for use printing filament", json.dumps(recorded), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            verdict, detail, bodies = self.run_case(name, first, [call("slice_start", {"wait": True})])
+            self.assertEqual(verdict, runner.FAIL, detail)
+            self.assertIn("SLICED AGAIN UNCHANGED", detail)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# A slice that did not succeed", json.dumps(sent), name)
+
+    def test_a_read_of_the_plate_or_filament_decides_a_refusal(self):
+        verdict, detail, _ = self.run_case("slice-refused-by-tool", [call("presets_list", {"kind": "filament"})])
+        self.assertEqual(verdict, runner.PASS, detail)
+
+    def test_the_print_issues_skill_leaves_the_request_after_its_own(self):
+        """A chip's message and the first message after a slice with warnings
+        carry the print-issues skill alone, no picture, on that request only."""
+        for name in ("issue-fix", "issue-explain", "slice-warnings-ready"):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# Issues I report about the print"), name)
+            self.assertNotIn("input_image", json.dumps(recorded[-2]), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            verdict, detail, bodies = self.run_case(name, first, [call("plan_set", {"headline": "Print it"})])
+            self.assertEqual(verdict, runner.FAIL, detail)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# Issues I report about the print", json.dumps(sent), name)
+
+    def test_the_slice_with_warnings_is_in_the_workspace_block(self):
+        workspace = json.dumps(runner.REQUESTS["slice-warnings-ready"]["body"]["input"])
+        self.assertIn("sliceWarnings", workspace)
+        self.assertNotIn("sliceWarnings", json.dumps(runner.REQUESTS["prepare-petg-strong"]["body"]["input"]))
+
+    def test_slice_warnings_ready(self):
+        case = "slice-warnings-ready"
+        self.assertEqual(self.run_case(case, [call("slice_report", {"sections": ["findings"]})])[0], runner.PASS)
+        verdict, detail, _ = self.run_case(case, [call("slice_start")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertIn("UNREQUESTED CHANGE", detail)
+
+    def test_the_setup_skill_leaves_the_request_after_its_own(self):
+        """The setup skill comes without a picture: one item, sent once."""
+        for name in ("after-intent",):
+            recorded = runner.REQUESTS[name]["body"]["input"]
+            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
+            self.assertEqual(recorded[-1]["role"], "developer", name)
+            self.assertTrue(recorded[-1]["content"].startswith("# Checking the setup against the print's purpose"), name)
+            self.assertNotIn("input_image", json.dumps(recorded), name)
+            first = [call("workspace_inspect", {}, "call-w")]
+            _, _, bodies = self.run_case(name, first, [call("slice_start")])
+            self.assertEqual(len(bodies), 2, name)
+            sent = bodies[1]["input"]
+            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
+            self.assertNotIn("# Checking the setup against the print's purpose", json.dumps(sent), name)
+
+    def test_the_setup_case_passes_on_a_check_and_fails_on_a_slice(self):
+        """A slice straight after the first purpose skips the check."""
+        for tool in runner.SETUP_CHECKS:
+            self.assertEqual(self.run_case("after-intent", [call(tool, {"kind": "filament"})])[0], runner.PASS, tool)
+        self.assertEqual(self.run_case("after-intent", [call("slice_start")])[0], runner.FAIL)
+
     def test_no_other_point_sends_anything_once(self):
         self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
-                         ["model-imported-by-tool", "model-opened-by-tool", "model-opened-unnamed"])
+                         ["advice-infill", "after-intent", "answer-from-context", "direct-change",
+                          "issue-explain", "issue-fix", "loaded-vs-configured", "model-imported-by-tool",
+                          "model-opened-by-tool", "model-opened-unnamed", "reply-in-german", "slice-refused-by-tool",
+                          "slice-refused-then-ready", "slice-warnings-ready", "troubleshoot-first-layer"])
 
     # --- One call or none, as before ---------------------------------------
 

@@ -5,6 +5,7 @@
 
 #include "slic3r/GUI/JusPrin/PrintIssues/IssueContext.hpp"
 #include "slic3r/GUI/JusPrin/PrintIssues/IssueOverlayLayout.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SliceWarnings.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -471,4 +472,149 @@ TEST_CASE("the chat is told when the issue asked about was ignored", "[print-iss
     CHECK_FALSE(json::parse(make_issue_message(snapshot.issues[0], snapshot, {}).context_json)["issue"].contains("ignored"));
     snapshot.issues[0].ignored = true;
     CHECK(json::parse(make_issue_message(snapshot.issues[0], snapshot, {}).context_json)["issue"].value("ignored", false));
+}
+
+TEST_CASE("why the active plate did not slice is the first blocker, OrcaSlicer's validation first", "[print-issues][slicing]")
+{
+    using namespace Slic3r::GUI::JusPrin;
+    PrintIssueSnapshot snapshot;
+    snapshot.session = 7;
+    const auto issue = [](IssueSource source, IssueSeverity severity, std::string message) {
+        PrintIssue found;
+        found.source   = source;
+        found.severity = severity;
+        found.message  = std::move(message);
+        return found;
+    };
+    CHECK_FALSE(slice_failure_of(snapshot));
+
+    // A warning does not stop a slice.
+    snapshot.issues.push_back(issue(IssueSource::Validation, IssueSeverity::Warning, "The jerk is capped."));
+    CHECK_FALSE(slice_failure_of(snapshot));
+
+    // The last run's failure, then a validation blocker, which comes first.
+    snapshot.issues.push_back(issue(IssueSource::SliceFailure, IssueSeverity::Blocker, "Slicing failed."));
+    REQUIRE(slice_failure_of(snapshot));
+    CHECK(slice_failure_of(snapshot)->kind == Workspace::SliceFailureKind::Failed);
+    PrintIssue layer = issue(IssueSource::Validation, IssueSeverity::Blocker, "Layer height cannot exceed nozzle diameter.");
+    layer.setting     = "layer_height";
+    layer.code        = "layer_height_exceeds_limit";
+    layer.object      = 42;
+    layer.object_name = "cube";
+    snapshot.issues.push_back(layer);
+    const auto failure = slice_failure_of(snapshot);
+    REQUIRE(failure);
+    CHECK(failure->kind == Workspace::SliceFailureKind::Refused);
+    CHECK(failure->severity == "blocker");
+    CHECK(failure->message == layer.message);
+    CHECK(failure->setting == "layer_height");
+    CHECK(failure->code == "layer_height_exceeds_limit");
+    REQUIRE(failure->object);
+    CHECK(failure->object->session().value() == 7);
+    CHECK(failure->object->value() == 42);
+    CHECK(failure->object_name == "cube");
+}
+
+// -- What the workspace is told about a slice's warnings -----------------------
+
+namespace {
+
+PrintIssueSnapshot sliced_plate(std::vector<PrintIssue> issues)
+{
+    PrintIssueSnapshot snapshot;
+    snapshot.session = 4;
+    snapshot.plate   = 11;
+    snapshot.checked = true;
+    snapshot.sliced  = true;
+    for (PrintIssue& issue : issues)
+        issue.plate = 11;
+    snapshot.issues = std::move(issues);
+    return snapshot;
+}
+
+} // namespace
+
+TEST_CASE("the workspace reads a slice's warnings only while the list vouches for a finished slice", "[print-issues][warnings]")
+{
+    PrintIssue warning = issue_with("slice_step:object:3:7:0:m1", IssueSeverity::Warning);
+    warning.message = "It seems object Slab has floating cantilever. Please re-orient the object or enable support generation.";
+    PrintIssueSnapshot snapshot = sliced_plate({warning});
+    REQUIRE(slice_warnings_of(snapshot).has_value());
+    for (const auto& [name, change] : std::vector<std::pair<const char*, std::function<void(PrintIssueSnapshot&)>>>{
+             {"an edit not yet checked", [](PrintIssueSnapshot& s) { s.checked = false; }},
+             {"a slice running", [](PrintIssueSnapshot& s) { s.slicing = true; }},
+             {"no current slice", [](PrintIssueSnapshot& s) { s.sliced = false; }}}) {
+        DYNAMIC_SECTION(name)
+        {
+            PrintIssueSnapshot changed = snapshot;
+            change(changed);
+            CHECK_FALSE(slice_warnings_of(changed).has_value());
+        }
+    }
+}
+
+TEST_CASE("only current warnings of the plate are the slice's, ignored ones included", "[print-issues][warnings]")
+{
+    PrintIssue blocker = issue_with("validation:error:layer_height:0:0", IssueSeverity::Blocker);
+    PrintIssue stale   = issue_with("slice_step:object:3:7:0:m2", IssueSeverity::Warning);
+    stale.stale = true;
+    PrintIssue validation = issue_with("validation:warning:outer_wall_jerk:0:0", IssueSeverity::Warning);
+    validation.setting = "outer_wall_jerk";
+    validation.message = "Setting the jerk speed too low could lead to artifacts on curved surfaces";
+    validation.ignored = true;
+    PrintIssue step = issue_with("slice_step:print:4:0:0:m3", IssueSeverity::Warning);
+    step.code        = "object_step_9:critical";
+    step.message     = "Object can't be printed for empty layer between 1.2 and 1.4.";
+    step.object      = 7;
+    step.object_name = "Slab";
+    const auto findings = slice_warnings_of(sliced_plate({blocker, stale, validation, step}));
+    REQUIRE(findings.has_value());
+    REQUIRE(findings->size() == 2);
+    CHECK((*findings)[0].setting == "outer_wall_jerk");
+    CHECK((*findings)[0].ignored);
+    CHECK_FALSE((*findings)[0].critical);
+    CHECK((*findings)[1].critical);
+    CHECK((*findings)[1].object == 7);
+
+    namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
+    const auto summary = Workspace::summarize_slice_warnings(*findings, Workspace::ProjectSessionId(4), 9);
+    REQUIRE(summary.has_value());
+    CHECK(summary->count == 2);
+    CHECK(summary->ignored == 1);
+    // The critical one is read first, with its object.
+    CHECK(summary->severity == "critical");
+    CHECK(summary->message == step.message);
+    CHECK(summary->object_name == "Slab");
+    REQUIRE(summary->object.has_value());
+    CHECK(summary->object->value() == 7);
+    CHECK(summary->sequence == 9);
+    CHECK_FALSE(Workspace::summarize_slice_warnings({}, Workspace::ProjectSessionId(4), 10).has_value());
+
+    // New to a reader only when the slice holds an id the last record did not.
+    CHECK_FALSE(Workspace::has_new_slice_warning(*findings, {validation.id, step.id}));
+    CHECK_FALSE(Workspace::has_new_slice_warning({(*findings)[0]}, {validation.id, step.id}));
+    CHECK(Workspace::has_new_slice_warning(*findings, {validation.id}));
+}
+
+TEST_CASE("the summary counts every warning the chip lists, the ones slice_report leaves out included", "[print-issues][warnings]")
+{
+    PrintIssue bed = issue_with("slice_result:1000C001", IssueSeverity::Warning);
+    bed.source  = IssueSource::SliceResult;
+    bed.code    = "1000C001";
+    bed.message = "The current heatbed temperature is relatively high.";
+    PrintIssue timelapse = issue_with("slice_result:10018003", IssueSeverity::Warning);
+    timelapse.source  = IssueSource::SliceResult;
+    timelapse.code    = "10018003";
+    timelapse.message = "Enabling traditional timelapse photography may cause surface imperfections.";
+    PrintIssue copy = timelapse;
+    copy.id   = "slice_result:1000C003";
+    copy.code = "1000C003";
+    // The chip lists the bed-temperature warning, and the timelapse warning
+    // twice, since OrcaSlicer records it again for older firmware.
+    const auto findings = slice_warnings_of(sliced_plate({bed, timelapse, copy}));
+    REQUIRE(findings.has_value());
+    REQUIRE(findings->size() == 3);
+    CHECK((*findings)[0].code == "1000C001");
+    CHECK((*findings)[1].code == "10018003");
+    CHECK((*findings)[2].code == "1000C003");
 }

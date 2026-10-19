@@ -7,6 +7,10 @@
 #include <map>
 #include <set>
 
+namespace Slic3r {
+class SlicingProcessCompletedEvent;
+}
+
 namespace Slic3r::GUI {
 class Job;
 class Plater;
@@ -70,6 +74,19 @@ public:
     CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                  std::vector<ObjectId>& added) override;
     void set_load_report_listener(std::function<void(const LoadReport&)> listener) override;
+    // Why OrcaSlicer did not slice the active plate, in the words of the one
+    // that already reads them from OrcaSlicer: the print-issue monitor, which
+    // re-asks OrcaSlicer's validation for the setting and object its notice
+    // leaves out. Asked only at the moment a slice is refused or a run fails;
+    // without a reader the record says only that slicing did not succeed.
+    using SliceFailureReader = std::function<std::optional<SliceFailure>()>;
+    void set_slice_failure_reader(SliceFailureReader reader) { m_slice_failure_reader = std::move(reader); }
+    // The warnings of the current slice of a plate (by Orca id), from the one
+    // that already reads them from OrcaSlicer with their setting and object:
+    // the print-issue monitor. Nothing while it vouches for no finished slice
+    // of that plate. Without a reader no plate carries a warnings summary.
+    using SliceWarningsReader = std::function<std::optional<std::vector<SliceWarningFinding>>(std::uint64_t plate)>;
+    void set_slice_warnings_reader(SliceWarningsReader reader) { m_slice_warnings_reader = std::move(reader); }
     // A tool's own open or import is running; it settles what the person
     // would otherwise be asked about the file.
     bool tool_load_active() const { return m_tool_loads != 0; }
@@ -127,6 +144,13 @@ private:
     LoadReport take_load_report(bool started_by_agent);
     void deliver_load_report();
     void on_slice_status_changed(wxCommandEvent& event);
+    void on_process_completed(SlicingProcessCompletedEvent& event);
+    // OrcaSlicer was asked to slice and started nothing (SliceRequests.hpp).
+    void on_slice_declined();
+    // Records on the active plate why its slice did not succeed, as the
+    // reader words it; `kind` when the reader has nothing.
+    // Whether that changed the record.
+    bool record_slice_failure(SliceFailureKind kind);
     // Per plate: whether it holds a valid slice, and which result. Compared on
     // every slice-status event so only a real change advances the revision.
     // What one plate holds right now. Compared whole on every slice-status
@@ -172,6 +196,30 @@ private:
     mutable std::map<std::uint64_t, SliceEstimate> m_last_estimate;
     std::map<std::uint64_t, std::string>           m_invalidated_by;
     std::string                                    m_last_change_reason;
+    // Why each plate's last slice did not succeed, by plate id, recorded when
+    // OrcaSlicer refused it or the run failed. Cleared when the plate slices.
+    std::map<std::uint64_t, SliceFailure>          m_slice_failures;
+    std::uint64_t                                  m_next_slice_failure{0};
+    // The plate whose run just ended with an error. The completion event
+    // comes before OrcaSlicer has finished with the plate, so the record is
+    // made at the slice-status change that follows.
+    std::optional<std::uint64_t>                   m_failed_run_plate;
+    SliceFailureReader                             m_slice_failure_reader;
+    // What each plate's slice last warned about, by plate id, read while the
+    // plate is active and kept for as long as that slice is its current one.
+    // The finding ids outlive the slice, so a re-slice that reports the same
+    // warnings keeps the summary's sequence.
+    struct PlateWarnings
+    {
+        std::uint64_t                result{0}; // the slice result the summary describes
+        std::set<std::string>        ids;
+        std::optional<SliceWarnings> summary;
+    };
+    void read_slice_warnings(std::uint64_t plate, std::uint64_t result) const;
+    SliceWarningsReader                            m_slice_warnings_reader;
+    mutable std::map<std::uint64_t, PlateWarnings> m_slice_warnings;
+    mutable ProjectSessionId                       m_slice_warnings_session;
+    mutable std::uint64_t                          m_next_slice_warnings{0};
     mutable std::set<std::uint64_t> m_known_object_ids;
     ProjectStateSubscription        m_project_subscription;
 

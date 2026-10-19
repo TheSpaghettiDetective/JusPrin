@@ -668,10 +668,9 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     }
 
     if (definition.handler == ToolHandler::SliceStart)
-        return has_only(arguments, {"plateId", "preempt", "wait"}) &&
+        return has_only(arguments, {"plateId", "preempt"}) &&
                (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
-               (!arguments.contains("preempt") || arguments["preempt"].is_boolean()) &&
-               (!arguments.contains("wait") || arguments["wait"].is_boolean());
+               (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
 
     if (definition.handler == ToolHandler::IntentUpdate) {
         if (!has_only(arguments, {"fields", "setupTitle"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
@@ -949,9 +948,21 @@ std::vector<ToolDefinition> make_definitions()
                                              {"invalidatedBy", string_schema()}, {"truncated", boolean_schema()}},
                                             {"headline", "decisions", "assumptions", "risks", "updatedAt",
                                              "validity", "invalidatedBy", "truncated"});
-    const json intent_output = object_schema({{"intent", intent_section}, {"sessionId", id}, {"revision", revision},
+    // The purpose is the chat's title and the answered fields: what the call
+    // did to it, and the presets and plate type in force when it did.
+    const json purpose = object_schema({{"setupTitle", text},
+                                        {"fields", array_schema(object_schema({{"field", id}, {"value", text}},
+                                                                              {"field", "value"}), 64)}});
+    const json setup_presets = object_schema({{"printerPreset", string_schema()}, {"filamentPreset", string_schema()},
+                                               {"processPreset", string_schema()}, {"plateType", string_schema()}});
+    const json intent_output = object_schema({{"intent", intent_section},
+                                              {"purposeChange", {{"type", "string"},
+                                                                 {"enum", json::array({"first", "changed", "title_only", "unchanged"})}}},
+                                              {"purposeBefore", purpose}, {"purposeAfter", purpose},
+                                              {"setupInForce", setup_presets},
+                                              {"sessionId", id}, {"revision", revision},
                                               {"projectUndo", boolean_schema()}},
-                                             {"intent", "sessionId", "revision", "projectUndo"});
+                                             {"intent", "setupInForce", "sessionId", "revision", "projectUndo"});
     const json plan_output = object_schema({{"plan", plan_section}, {"sessionId", id}, {"revision", revision},
                                             {"projectUndo", boolean_schema()}},
                                            {"plan", "sessionId", "revision", "projectUndo"});
@@ -959,10 +970,26 @@ std::vector<ToolDefinition> make_definitions()
     // What the slicer is doing, and what each plate currently holds. One
     // background process serves the whole application, so "running" is not a
     // per-plate fact and is not reported as one.
+    // Why a plate's last slice did not succeed: refused (nothing was sliced)
+    // or failed (the run stopped with an error), in OrcaSlicer's words.
+    const json slice_failure = object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"refused", "failed"})}}},
+                                              {"severity", {{"type", "string"}, {"enum", json::array({"blocker", "warning"})}}},
+                                              {"message", text}, {"setting", id}, {"objectId", id}, {"code", id},
+                                              {"objectName", string_schema()}, {"truncated", boolean_schema()}},
+                                             {"kind", "severity", "message"});
+    // What a plate's current slice warned about: how many warnings, and the
+    // first to read in OrcaSlicer's words.
+    const json slice_warnings = object_schema({{"count", integer_schema()},
+                                               {"severity", {{"type", "string"}, {"enum", json::array({"critical", "warning"})}}},
+                                               {"message", text}, {"setting", id}, {"objectId", id},
+                                               {"objectName", string_schema()}, {"ignored", integer_schema()},
+                                               {"truncated", boolean_schema()}},
+                                              {"count", "severity", "message"});
     const json slicing_plate = object_schema({{"plateId", id}, {"name", string_schema()}, {"sliced", boolean_schema()},
                                               {"estimateStatus", {{"type", "string"},
                                                                   {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
-                                              {"invalidatedBy", string_schema()}},
+                                              {"invalidatedBy", string_schema()}, {"sliceFailure", slice_failure},
+                                              {"sliceWarnings", slice_warnings}},
                                              {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
     const json jobs_list = {{"type", "array"}, {"maxItems", 16},
                             {"items", object_schema({{"handle", id},
@@ -1022,7 +1049,7 @@ std::vector<ToolDefinition> make_definitions()
          intent_output,
          ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::IntentUpdate},
         {"plan_set", "Pin your plan for this print",
-         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan and runs immediately; project Undo does not undo this.",
+         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first. Replaces the whole plan and runs immediately; project Undo does not undo this.",
          object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                                       {"confidence", id}, {"alternative", text}},
                                                                                      {"topic", "statement"}), 16)},
@@ -1057,7 +1084,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"projectName", "path", "plateCount", "objectCount", "report", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectOpen},
         {"printer_setup", "Set up the printer",
-         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own.",
+         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. A material and its saved filament preset are separate choices.",
          object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
                         {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"minItems", 1}, {"maxItems", 16}}},
                         {"confirmFacts", {{"type", "array"}, {"minItems", 1}, {"maxItems", 16},
@@ -1340,7 +1367,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"objectId", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectAnalyze},
         {"presets_list", "List printer, filament, or process presets",
-         "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
+         "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees. A material and its saved filament preset are separate choices.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
                         {"query", id}, {"compatibleOnly", boolean_schema()},
                         {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}},
@@ -1354,7 +1381,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "total", "nextCursor", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PresetsList},
         {"slice_report", "Check the sliced plate",
-         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing.",
+         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing, with sliceFailure when its last slice was refused or failed.",
          object_schema({{"plateId", id}, {"sections", {{"type", "array"},
                                                        {"items", {{"type", "string"},
                                                                   {"enum", json::array({"summary", "findings", "material", "supports", "seams", "firstLayer", "islands", "intent"})}}},
@@ -1416,13 +1443,14 @@ std::vector<ToolDefinition> make_definitions()
                                                                                         {"objectId", "object", "zMm", "areaMm2", "supported", "at"}), 32)},
                                                    {"truncated", boolean_schema()}},
                                                   {"items", "truncated"})},
-                        {"sessionId", id}, {"revision", revision}},
+                        {"sliceFailure", slice_failure}, {"sessionId", id}, {"revision", revision}},
                        {"valid", "plateId", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceReportRead},
         {"slice_start", "Slice the plate",
-         "Start Orca's own slicing run for one plate, or every plate when you name none, and return once it has started; read the slicing section of workspace_inspect for the result, which is not ready then. With wait, return when the run ends instead (finished says whether the plates are sliced), which is what to use before reading slice_report. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's.",
-         object_schema({{"plateId", id}, {"preempt", boolean_schema()}, {"wait", boolean_schema()}}),
-         object_schema({{"handle", id}, {"started", boolean_schema()}, {"finished", boolean_schema()}, {"slicing", slicing_section},
+         "Start Orca's own slicing run for one plate, or every plate when you name none. OrcaSlicer checks the plate first: when it refuses, it starts nothing, started is false and reason is OrcaSlicer's own, with the setting and object it names; when the plates are already sliced and unchanged, started is false and alreadySliced true. Otherwise the run starts in the background: until it ends, slicing.running stays true and slice_report returns valid: false. In the app's chat the person watches it in a card with a Cancel button, and when it ends after the turn the app starts a new turn with the outcome; nothing notifies an MCP client, which reads it from workspace_inspect's slicing section. Fails when a slice is already running unless you pass preempt, because nothing records who started that run and it may be the user's.",
+         object_schema({{"plateId", id}, {"preempt", boolean_schema()}}),
+         object_schema({{"handle", id}, {"started", boolean_schema()}, {"note", string_schema()},
+                        {"alreadySliced", boolean_schema()}, {"reason", slice_failure}, {"slicing", slicing_section},
                         {"sessionId", id}, {"revision", revision}},
                        {"handle", "started", "slicing", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceStart},
@@ -1432,7 +1460,7 @@ std::vector<ToolDefinition> make_definitions()
          "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, "
          "size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
          "packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's "
-         "slice is current, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
+         "slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
          "printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped "
          "to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},

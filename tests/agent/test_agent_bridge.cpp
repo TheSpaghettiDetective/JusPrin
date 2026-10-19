@@ -102,10 +102,18 @@ constexpr const char* kTestFileLoadedSkill = "Explain this file to the person.";
 // AgentHost's no-purpose sentence, which follows the file-loaded skill.
 constexpr const char* kNoPurpose = "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
 
+// What the page sends for a slice that did not succeed, and for what
+// OrcaSlicer reported about the print. The page sends skills sorted by name.
+constexpr const char* kTestSliceSkill = "Explain why the slice did not succeed.";
+constexpr const char* kTestPrintIssuesSkill = "Read what OrcaSlicer reported about the print.";
+
 json test_skills(const std::string& file_loaded_text = kTestFileLoadedSkill)
 {
     return json{{"skills", json::array({json{{"name", "file-loaded"}, {"trigger", "file_loaded"},
-                                             {"text", file_loaded_text}}})}};
+                                             {"text", file_loaded_text}},
+                                        json{{"name", "print-issues"}, {"trigger", "print_issues"},
+                                             {"text", kTestPrintIssuesSkill}},
+                                        json{{"name", "slice-failed"}, {"trigger", "slice_failed"}, {"text", kTestSliceSkill}}})}};
 }
 
 struct Harness
@@ -3023,6 +3031,12 @@ public:
     bool continue_after_tool(const AgentToolResult& result) override
     {
         results.push_back(result);
+        // Optionally one more call before the reply.
+        if (then_call && !then_called) {
+            then_called = true;
+            events.push_back(AgentEvent::tool_call({"call-then", *then_call, true}));
+            return true;
+        }
         events.push_back(AgentEvent::delta("It is in."));
         events.push_back(AgentEvent::completed());
         return true;
@@ -3044,6 +3058,8 @@ public:
     std::deque<AgentEvent>       events;
     bool                         active{false};
     bool                         called{false};
+    std::optional<ToolRequest>   then_call;
+    bool                         then_called{false};
 };
 
 std::string write_model_file(const std::string& name)
@@ -3284,6 +3300,331 @@ TEST_CASE("the skills message takes described skills and refuses bad description
     CHECK_FALSE(refused(json{{"name", "described"}, {"description", "When useful."}, {"text", "x"}}));
 }
 
+namespace {
+
+Workspace::SliceFailure test_bed_refusal()
+{
+    Workspace::SliceFailure refusal;
+    refusal.severity = "blocker";
+    refusal.message  = "Plate 1: Cool Plate is not suggested for use printing filament 1 (Bambu PETG HF).";
+    return refusal;
+}
+
+// The last request the model was asked to reply to.
+const AgentRequest& last_reply(const OneCallAgent& agent)
+{
+    const auto reply = std::find_if(agent.requests.rbegin(), agent.requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent.requests.rend());
+    return *reply;
+}
+
+} // namespace
+
+TEST_CASE("a slice_start OrcaSlicer refuses fires the slice-failed skill on its result, and on no later request",
+          "[agent][skills][tools][slicing]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) { return ToolRequest{"slice_start", "{}"}; };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.workspace.refusal = test_bed_refusal();
+    harness.handshake();
+    harness.send_user_message("Slice it.", "c-slice");
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().skills.empty());
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+
+    REQUIRE(agent->results.size() == 1);
+    const AgentToolResult& result = agent->results.front();
+    CHECK(result.state == "succeeded");
+    const json output = json::parse(result.output_json);
+    CHECK(output["result"]["started"] == false);
+    CHECK(output["result"]["reason"]["message"] == test_bed_refusal().message);
+    CHECK(output["workspace"]["plates"][0]["sliceFailure"]["kind"] == "refused");
+    REQUIRE(result.skills.size() == 1);
+    CHECK(result.skills.front().name == "slice-failed");
+    CHECK(result.skills.front().text == kTestSliceSkill);
+    CHECK(result.skills.front().picture == nullptr);
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestSliceSkill) == std::string::npos);
+
+    // The model has read about it: the next turn still shows the failure in
+    // the workspace, and carries no skill.
+    harness.send_user_message("Is it ready to print?", "c-ready");
+    harness.pump_all();
+    const AgentRequest& later = last_reply(*agent);
+    CHECK(later.user_text == "Is it ready to print?");
+    CHECK(later.skills.empty());
+    REQUIRE(later.workspace.plates.at(0).slice_failure);
+    for (const AgentConversationContext& entry : later.conversation)
+        CHECK(entry.text.find(kTestSliceSkill) == std::string::npos);
+}
+
+TEST_CASE("a slice the person started that did not succeed fires the skill on the next request, once a failure",
+          "[agent][skills][slicing]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const auto ask = [&](const std::string& text, const std::string& id) -> const AgentRequest& {
+        harness.send_user_message(text, id);
+        harness.pump_all();
+        return last_reply(*agent);
+    };
+
+    // The person presses Slice, and OrcaSlicer refuses the plate.
+    harness.workspace.refusal = test_bed_refusal();
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    const AgentRequest& first = ask("Is it ready to print?", "c-1");
+    REQUIRE(first.skills.size() == 1);
+    CHECK(first.skills.front().name == "slice-failed");
+    CHECK(first.skills.front().text == kTestSliceSkill);
+    CHECK(ask("What should I change?", "c-2").skills.empty());
+
+    // Pressing Slice again with nothing changed is the same refusal.
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    CHECK(ask("I pressed it again.", "c-3").skills.empty());
+
+    // A run that fails partway is a new failure, told once.
+    harness.workspace.refusal.reset();
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    REQUIRE(harness.workspace.snapshot().slicing.running);
+    Workspace::SliceFailure failure;
+    failure.severity = "blocker";
+    failure.message  = "Slicing failed: the object has no layers.";
+    harness.workspace.fail_slice_for_testing(failure);
+    const AgentRequest& failed = ask("And now?", "c-4");
+    REQUIRE(failed.skills.size() == 1);
+    CHECK(failed.skills.front().name == "slice-failed");
+    CHECK(ask("Thanks.", "c-5").skills.empty());
+
+    // A slice that succeeds says nothing.
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    harness.workspace.finish_slice_for_testing(true);
+    CHECK(ask("Done?", "c-6").skills.empty());
+}
+
+namespace {
+
+// A chat whose model slices the first plate when the person asks.
+struct ModelSlice
+{
+    OneCallAgent*            agent{nullptr};
+    std::unique_ptr<Harness> harness;
+
+    ModelSlice()
+    {
+        auto owner = std::make_unique<OneCallAgent>();
+        agent      = owner.get();
+        agent->call = [](const AgentRequest& request) {
+            return ToolRequest{"slice_start",
+                               json{{"plateId", std::to_string(request.workspace.plates.at(0).id.value())}}.dump()};
+        };
+        harness = std::make_unique<Harness>(AgentServicePtr(std::move(owner)));
+        harness->handshake();
+    }
+
+    // The person asks; the model slices, and its turn ends with the run in flight.
+    void slice_and_end_turn()
+    {
+        harness->send_user_message("Slice it.", "c-slice");
+        harness->pump_all();
+        pump_tools_to_completion(*harness);
+        harness->pump_all();
+        REQUIRE(harness->workspace.snapshot().slicing.running);
+        REQUIRE_FALSE(harness->host.stream_active());
+    }
+
+    // A timer tick, then whatever turn it started, to its end.
+    void tick()
+    {
+        harness->host.pump_tools();
+        harness->pump_all();
+    }
+
+    std::vector<std::string> notes() const
+    {
+        std::vector<std::string> texts;
+        for (const ConversationMessage& message : harness->host.conversation())
+            if (message.role == MessageRole::Note)
+                texts.push_back(message.text);
+        return texts;
+    }
+
+    std::vector<const AgentRequest*> app_turns() const
+    {
+        std::vector<const AgentRequest*> turns;
+        for (const AgentRequest& request : agent->requests)
+            if (request.purpose == AgentRequest::Purpose::Reply && request.user_text.rfind("JusPrin app note", 0) == 0)
+                turns.push_back(&request);
+        return turns;
+    }
+
+    std::string plate_name() const { return harness->workspace.snapshot().plates.at(0).name; }
+};
+
+} // namespace
+
+TEST_CASE("a slice the model started that ends after its turn starts one app turn", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    CHECK(chat.notes().empty());
+
+    SECTION("it sliced")
+    {
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        REQUIRE(chat.notes() == std::vector<std::string>{"The slice of " + chat.plate_name() + " finished."});
+        REQUIRE(chat.app_turns().size() == 1);
+        CHECK(chat.app_turns().front()->user_text ==
+              "JusPrin app note, not the person's words: The slice of " + chat.plate_name() + " finished.");
+        CHECK(chat.app_turns().front()->skills.empty());
+    }
+
+    SECTION("it failed: the turn carries the slice-failed skill")
+    {
+        Workspace::SliceFailure failure;
+        failure.severity = "blocker";
+        failure.message  = "Slicing failed: the object has no layers.";
+        chat.harness->workspace.fail_slice_for_testing(failure);
+        chat.tick();
+        REQUIRE(chat.notes() ==
+                std::vector<std::string>{"OrcaSlicer stopped the slice of " + chat.plate_name() + ": " + failure.message});
+        REQUIRE(chat.app_turns().size() == 1);
+        REQUIRE(chat.app_turns().front()->skills.size() == 1);
+        CHECK(chat.app_turns().front()->skills.front().name == "slice-failed");
+    }
+
+    // Once a run, whatever the workspace does next.
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    CHECK(chat.notes().size() == 1);
+    CHECK(chat.app_turns().size() == 1);
+}
+
+TEST_CASE("the progress card of the model's slice sits below the call that started it", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    // OrcaSlicer's first progress arrives after the model has replied.
+    const std::string handle = json::parse(chat.agent->results.front().output_json)["result"]["handle"];
+    chat.harness->host.begin_work("slice", "Slicing plate 1", true);
+    const std::vector<WorkEntry> work = chat.harness->persistence.document().work();
+    REQUIRE(work.size() == 1);
+    CHECK(work.back().after_id == handle);
+    CHECK(work.back().conversation_id == chat.harness->persistence.document().active_conversation_id());
+
+    // A slice the person starts goes after the chat's last item, as before.
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    REQUIRE(chat.harness->workspace.start_slice(std::nullopt, false).succeeded());
+    chat.harness->host.begin_work("slice", "Slicing plate 1", true);
+    const std::vector<ConversationMessage> messages = chat.harness->host.conversation();
+    CHECK(chat.harness->persistence.document().work().back().after_id == messages.back().id);
+}
+
+TEST_CASE("a slice that ends during the model's turn is told when the turn ends, unless a tool result showed it",
+          "[agent][slicing]")
+{
+    ModelSlice chat;
+    SECTION("the turn ends with a reply: the note follows it")
+    {
+        chat.harness->send_user_message("Slice it.", "c-slice");
+        chat.harness->host.pump_stream();
+        pump_tools_to_completion(*chat.harness);
+        // The model is answering the slice_start result when the run ends.
+        REQUIRE(chat.harness->host.stream_active());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.harness->host.pump_tools();
+        CHECK(chat.notes().empty());
+        chat.harness->pump_all();
+        chat.tick();
+        CHECK(chat.notes().size() == 1);
+        CHECK(chat.app_turns().size() == 1);
+    }
+    SECTION("a later tool result shows the outcome: no note")
+    {
+        chat.agent->then_call = ToolRequest{"workspace_inspect", "{}"};
+        chat.harness->send_user_message("Slice it.", "c-slice");
+        chat.harness->host.pump_stream();
+        pump_tools_to_completion(*chat.harness);
+        REQUIRE(chat.harness->host.stream_active());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.harness->host.pump_tools();
+        chat.harness->pump_all();
+        pump_tools_to_completion(*chat.harness);
+        chat.harness->pump_all();
+        REQUIRE(chat.agent->results.size() == 2);
+        CHECK(json::parse(chat.agent->results.back().output_json)["workspace"]["plates"][0]["sliced"] == true);
+        chat.tick();
+        chat.tick();
+        CHECK(chat.notes().empty());
+        CHECK(chat.app_turns().empty());
+    }
+}
+
+TEST_CASE("a slice that ends during another turn is told after it", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.slice_and_end_turn();
+    chat.harness->send_user_message("Anything else?", "c-other");
+    REQUIRE(chat.harness->host.stream_active());
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.harness->host.pump_tools();
+    CHECK(chat.notes().size() == 1);
+    CHECK(chat.app_turns().empty());
+    chat.harness->pump_all();
+    REQUIRE(chat.app_turns().size() == 1);
+    const auto other = std::find_if(chat.agent->requests.begin(), chat.agent->requests.end(),
+                                    [](const AgentRequest& request) { return request.user_text == "Anything else?"; });
+    REQUIRE(other != chat.agent->requests.end());
+    CHECK(&*other < chat.app_turns().front());
+}
+
+TEST_CASE("nothing is told for a slice the person started, one cancelled, or one from a closed project", "[agent][slicing]")
+{
+    ModelSlice chat;
+    SECTION("the person's slice, after the model's was told")
+    {
+        chat.slice_and_end_turn();
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        REQUIRE(chat.notes().size() == 1);
+        chat.harness->workspace.set_plate_sliced(chat.harness->workspace.snapshot().plates.at(0).id, false);
+        REQUIRE(chat.harness->workspace.start_slice(std::nullopt, false).succeeded());
+        chat.harness->workspace.finish_slice_for_testing(true);
+        chat.tick();
+        CHECK(chat.notes().size() == 1);
+        CHECK(chat.app_turns().size() == 1);
+        return;
+    }
+    SECTION("a run activity_cancel stopped")
+    {
+        chat.slice_and_end_turn();
+        const std::string handle = json::parse(chat.agent->results.front().output_json)["result"]["handle"];
+        const ToolActivity& cancel = chat.harness->host.tools().submit(
+            {"activity_cancel", json{{"handle", handle}}.dump()}, "cancel", {}, ToolSource::Agent, "call-cancel");
+        const std::string cancel_id = cancel.action_id;
+        pump_tools_to_completion(*chat.harness);
+        REQUIRE(json::parse(chat.harness->host.tools().find(cancel_id)->result_json)["cancelled"] == true);
+    }
+    SECTION("a project replaced meanwhile")
+    {
+        chat.slice_and_end_turn();
+        chat.harness->workspace.replace_project(two_object_snapshot());
+    }
+    chat.tick();
+    chat.tick();
+    CHECK(chat.notes().empty());
+    CHECK(chat.app_turns().empty());
+}
+
 TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]")
 {
     SECTION("a read")
@@ -3319,5 +3660,505 @@ TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]"
         REQUIRE(agent->results.size() == 1);
         CHECK(agent->results.front().state == "failed");
         CHECK(agent->results.front().skills.empty());
+    }
+}
+
+// -- The print-issues skill --------------------------------------------------
+
+namespace {
+
+Workspace::SliceWarnings test_warnings(std::uint64_t sequence, const char* message = "It seems object Slab has floating cantilever.")
+{
+    Workspace::SliceWarnings warnings;
+    warnings.count       = 2;
+    warnings.severity    = "warning";
+    warnings.message     = message;
+    warnings.setting     = "enable_support";
+    warnings.object_name = "Slab";
+    warnings.sequence    = sequence;
+    return warnings;
+}
+
+bool carries_print_issues(const std::vector<AgentSkillUse>& skills)
+{
+    return std::any_of(skills.begin(), skills.end(), [](const AgentSkillUse& skill) {
+        return skill.name == "print-issues" && skill.text == kTestPrintIssuesSkill && skill.picture == nullptr;
+    });
+}
+
+const AgentRequest& last_reply(const std::vector<AgentRequest>& requests)
+{
+    const auto reply = std::find_if(requests.rbegin(), requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != requests.rend());
+    return *reply;
+}
+
+} // namespace
+
+TEST_CASE("a print-issue chip's message carries the print-issues skill, and the next message does not",
+          "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Help fix this issue.\n\n> Layer height cannot exceed nozzle diameter.",
+                                              issue_context()) == AgentHost::SubmitResult::Started);
+    const AgentRequest chip = last_reply(agent->requests);
+    CHECK(chip.issue_context == issue_context());
+    REQUIRE(chip.skills.size() == 1);
+    CHECK(carries_print_issues(chip.skills));
+    harness.pump_all();
+
+    harness.send_user_message("ok, go ahead", "c-after");
+    harness.pump_all();
+    const AgentRequest& later = last_reply(agent->requests);
+    CHECK(later.user_text == "ok, go ahead");
+    CHECK(later.skills.empty());
+    for (const AgentConversationContext& entry : later.conversation)
+        CHECK(entry.text.find(kTestPrintIssuesSkill) == std::string::npos);
+    // Never stored, never shown.
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestPrintIssuesSkill) == std::string::npos);
+}
+
+TEST_CASE("an ordinary message on a clean slice carries no print-issues skill", "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const Workspace::PlateId plate = harness.workspace.snapshot().plates.front().id;
+    harness.workspace.set_plate_warnings_for_testing(plate, std::nullopt);
+    harness.send_user_message("is this good to print?", "c-clean");
+    CHECK(last_reply(agent->requests).skills.empty());
+    CHECK_FALSE(last_reply(agent->requests).workspace.plates.front().slice_warnings.has_value());
+}
+
+TEST_CASE("warnings from the person's slice fire the print-issues skill on the next request only, once per new set",
+          "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const Workspace::PlateId plate = harness.workspace.snapshot().plates.front().id;
+
+    // The person pressed Slice and it finished with warnings.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(1));
+    harness.send_user_message("is this good to print?", "c-1");
+    const AgentRequest first = last_reply(agent->requests);
+    REQUIRE(first.skills.size() == 1);
+    CHECK(carries_print_issues(first.skills));
+    // The fact rides with it, in the request's workspace.
+    REQUIRE(first.workspace.plates.front().slice_warnings.has_value());
+    CHECK(first.workspace.plates.front().slice_warnings->message == "It seems object Slab has floating cantilever.");
+    harness.pump_all();
+
+    harness.send_user_message("and the time?", "c-2");
+    CHECK(last_reply(agent->requests).skills.empty());
+    CHECK(last_reply(agent->requests).workspace.plates.front().slice_warnings.has_value());
+    harness.pump_all();
+
+    // Sliced again with the same warnings: nothing new to be told.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(1));
+    harness.send_user_message("sliced again", "c-3");
+    CHECK(last_reply(agent->requests).skills.empty());
+    harness.pump_all();
+
+    // A slice that reports a warning the last did not: a new set.
+    harness.workspace.set_plate_warnings_for_testing(plate, test_warnings(2, "Your model needs support! Please enable support material."));
+    harness.send_user_message("and now?", "c-4");
+    CHECK(carries_print_issues(last_reply(agent->requests).skills));
+    harness.pump_all();
+    harness.send_user_message("thanks", "c-5");
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("a chip's message with new warnings carries the print-issues skill once", "[agent][skills][print-issues]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.workspace.set_plate_warnings_for_testing(harness.workspace.snapshot().plates.front().id, test_warnings(1));
+    REQUIRE(harness.host.submit_issue_message("issue-1", "Explain this issue and my options.", issue_context()) ==
+            AgentHost::SubmitResult::Started);
+    CHECK(last_reply(agent->requests).skills.size() == 1);
+    CHECK(carries_print_issues(last_reply(agent->requests).skills));
+    harness.pump_all();
+    // The warnings the chip's request carried count as told.
+    harness.send_user_message("ok", "c-after");
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("warnings from a slice that ends while the model's call runs fire the print-issues skill on that result",
+          "[agent][skills][print-issues][tools]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) { return ToolRequest{"workspace_inspect", json{{"sections", {"slicing"}}}.dump()}; };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.send_user_message("is it ready?", "c-read");
+    REQUIRE(agent->requests.size() == 1);
+    CHECK(agent->requests.front().skills.empty());
+    harness.pump_all();
+    // The slice finishes, with warnings, before the read runs.
+    harness.workspace.set_plate_warnings_for_testing(harness.workspace.snapshot().plates.front().id, test_warnings(7));
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE(agent->results.size() == 1);
+    const AgentToolResult& result = agent->results.front();
+    CHECK(result.state == "succeeded");
+    REQUIRE(result.skills.size() == 1);
+    CHECK(carries_print_issues(result.skills));
+    const json output = json::parse(result.output_json);
+    // The slicing section and the result's workspace both carry the summary.
+    CHECK(output["result"]["slicing"]["plates"][0]["sliceWarnings"]["count"] == 2);
+    CHECK(output["result"]["slicing"]["plates"][0]["sliceWarnings"]["setting"] == "enable_support");
+    CHECK(output["workspace"]["plates"][0]["sliceWarnings"]["message"] == "It seems object Slab has floating cantilever.");
+
+    harness.send_user_message("and now?", "c-after");
+    harness.pump_all();
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("warnings from the model's own slice that ends after its turn ride on the app's turn",
+          "[agent][skills][print-issues][slicing]")
+{
+    ModelSlice chat;
+    chat.harness->workspace.warnings_after_slice = test_warnings(7);
+    chat.slice_and_end_turn();
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    REQUIRE(chat.app_turns().size() == 1);
+    const AgentRequest& turn = *chat.app_turns().front();
+    REQUIRE(turn.skills.size() == 1);
+    CHECK(carries_print_issues(turn.skills));
+    CHECK(turn.workspace.plates.front().slice_warnings.has_value());
+}
+
+TEST_CASE("a refused plate and a warned one fire both skills on one request, each once", "[agent][skills][slicing]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    REQUIRE(harness.workspace.add_plate().succeeded());
+    const std::vector<Workspace::WorkspacePlate> plates = harness.workspace.snapshot().plates;
+    REQUIRE(plates.size() == 2);
+    // Slice all: the first plate slices with warnings, OrcaSlicer refuses the second.
+    harness.workspace.set_plate_warnings_for_testing(plates[0].id, test_warnings(50));
+    harness.workspace.refusal = test_bed_refusal();
+    REQUIRE(harness.workspace.start_slice(plates[1].id, false).succeeded());
+
+    harness.send_user_message("is it ready?", "c-both");
+    const AgentRequest first = last_reply(agent->requests);
+    REQUIRE(first.skills.size() == 2);
+    CHECK(first.skills[0].name == "slice-failed");
+    CHECK(carries_print_issues(first.skills));
+    REQUIRE(first.workspace.plates.size() == 2);
+    CHECK(first.workspace.plates[0].slice_warnings.has_value());
+    CHECK(first.workspace.plates[1].slice_failure.has_value());
+    harness.pump_all();
+
+    harness.send_user_message("and now?", "c-both-after");
+    CHECK(last_reply(agent->requests).skills.empty());
+}
+
+TEST_CASE("the slice warnings summary, present and absent", "[agent][print-issues][workspace]")
+{
+    Workspace::WorkspaceSnapshot snapshot = two_object_snapshot();
+    Workspace::WorkspacePlate& plate = snapshot.plates.front();
+    plate.sliced = true;
+    SECTION("absent: no key in the slicing section")
+    {
+        const json section = slicing_section_result(snapshot, "");
+        CHECK_FALSE(section["plates"][0].contains("sliceWarnings"));
+    }
+    SECTION("present: OrcaSlicer's words, setting, object and the count")
+    {
+        plate.slice_warnings = test_warnings(3);
+        plate.slice_warnings->object  = plate.objects.front().id;
+        plate.slice_warnings->ignored = 1;
+        const json warnings = slicing_section_result(snapshot, "")["plates"][0]["sliceWarnings"];
+        CHECK(warnings == json{{"count", 2}, {"severity", "warning"},
+                               {"message", "It seems object Slab has floating cantilever."},
+                               {"setting", "enable_support"}, {"objectId", std::to_string(plate.objects.front().id.value())},
+                               {"objectName", "Slab"}, {"ignored", 1}});
+    }
+}
+
+namespace {
+
+// What the page sends for the setup skill; the real one is
+// AgentUI/src/skills/project-setup-changed/SKILL.md.
+constexpr const char* kTestSetupSkill = "Check the setup against the purpose.";
+
+json skills_with_setup_check()
+{
+    // Sorted by name, as the page sends them: after print-issues, before slice-failed.
+    json skills = test_skills();
+    json& list  = skills["skills"];
+    list.insert(list.begin() + 2,
+                json{{"name", "project-setup-changed"}, {"trigger", "setup_changed"}, {"text", kTestSetupSkill}});
+    return skills;
+}
+
+// One turn in which the agent makes `request`; returns what the host handed
+// back for it.
+AgentToolResult run_call(Harness& harness, OneCallAgent& agent, ToolRequest request, const std::string& text)
+{
+    agent.called = false;
+    agent.call   = [request](const AgentRequest&) { return request; };
+    const std::size_t before = agent.results.size();
+    static int next_client = 0;
+    harness.send_user_message(text, "c-setup-" + std::to_string(++next_client));
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE(agent.results.size() == before + 1);
+    return agent.results.back();
+}
+
+// One turn with no call; returns the request the host built for it.
+AgentRequest run_reply(Harness& harness, OneCallAgent& agent, const std::string& text)
+{
+    agent.called = true;
+    static int next_client = 0;
+    harness.send_user_message(text, "c-reply-" + std::to_string(++next_client));
+    harness.pump_all();
+    const auto reply = std::find_if(agent.requests.rbegin(), agent.requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent.requests.rend());
+    CHECK(reply->user_text == text);
+    return *reply;
+}
+
+ToolRequest intent_call(json arguments) { return ToolRequest{"intent_update", arguments.dump()}; }
+
+const json kPetg{{"setupTitle", "A strong hook"}, {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}};
+
+bool fires_setup_skill(const AgentToolResult& result)
+{
+    return std::any_of(result.skills.begin(), result.skills.end(),
+                       [](const AgentSkillUse& skill) { return skill.trigger == "setup_changed"; });
+}
+
+// A printer with two filaments and two plates the agent's printer_setup can
+// switch between.
+void with_printer_choices(Workspace::FakeWorkspace& workspace)
+{
+    Workspace::ConfiguredPrinter configured;
+    configured.preset     = "Test Printer 0.4 nozzle";
+    configured.plate_type = "Textured PEI Plate";
+    configured.filaments  = {{"Generic PLA", "PLA"}};
+    workspace.set_configured_printer_for_testing(configured);
+    workspace.set_setup_for_testing("0.20mm Standard", {"Textured PEI Plate", "Cool Plate"},
+                                    {{"Generic PLA", "PLA"}, {"Generic PETG", "PETG"}});
+    workspace.set_presets_for_testing(Workspace::PresetKind::Printer, {{"Test Printer 0.4 nozzle"}});
+    workspace.set_presets_for_testing(Workspace::PresetKind::Filament, {{"Generic PLA"}, {"Generic PETG"}});
+}
+
+// A setup change the person makes in the sidebar: no tool call, no chat.
+void hand_setup(Workspace::FakeWorkspace& workspace, std::optional<std::string> filament,
+                std::optional<std::string> plate = std::nullopt)
+{
+    Workspace::PrinterSetupRequest request;
+    if (filament)
+        request.filament_presets = std::vector<std::string>{*filament};
+    request.plate_type = std::move(plate);
+    Workspace::PrinterSetupPreview applied;
+    REQUIRE(workspace.apply_printer_setup(request, applied).succeeded());
+}
+
+} // namespace
+
+TEST_CASE("a purpose recorded for the first time or changed fires the setup skill on that result only",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+
+    const AgentToolResult first = run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+    CHECK(json::parse(first.output_json)["result"]["purposeChange"] == "first");
+    REQUIRE(first.skills.size() == 1);
+    CHECK(first.skills.front().name == "project-setup-changed");
+    CHECK(first.skills.front().text == kTestSetupSkill);
+    CHECK(first.skills.front().picture == nullptr);
+    // The model reads the plan's real state in a result, and not the chat's
+    // title, which is its own words.
+    CHECK_FALSE(json::parse(first.output_json)["workspace"].contains("setupIntent"));
+
+    // Never stored, so the next request of the chat does not carry it.
+    CHECK(run_reply(harness, *agent, "Thanks.").skills.empty());
+    for (const json& envelope : harness.sent)
+        CHECK(envelope.dump().find(kTestSetupSkill) == std::string::npos);
+
+    // A new title alone, or the same purpose again, is no new purpose.
+    const AgentToolResult retitled =
+        run_call(harness, *agent, intent_call({{"setupTitle", "A sturdy hook"}, {"fields", json::array()}}), "Call it sturdy.");
+    CHECK(json::parse(retitled.output_json)["result"]["purposeChange"] == "title_only");
+    CHECK_FALSE(fires_setup_skill(retitled));
+    const AgentToolResult repeated = run_call(
+        harness, *agent, intent_call({{"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}}), "PETG, yes.");
+    CHECK(json::parse(repeated.output_json)["result"]["purposeChange"] == "unchanged");
+    CHECK_FALSE(fires_setup_skill(repeated));
+
+    const AgentToolResult changed = run_call(
+        harness, *agent, intent_call({{"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}}), "Use ASA.");
+    CHECK(json::parse(changed.output_json)["result"]["purposeChange"] == "changed");
+    CHECK(fires_setup_skill(changed));
+}
+
+TEST_CASE("the model's own printer_setup never fires the setup skill, and its setup counts as checked",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    with_printer_choices(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    const ToolRequest petg{"printer_setup", json{{"filamentPresets", {"Generic PETG"}}}.dump()};
+
+    SECTION("no purpose recorded")
+    {
+        const AgentToolResult switched = run_call(harness, *agent, petg, "Use PETG.");
+        REQUIRE(switched.state == "succeeded");
+        CHECK(switched.skills.empty());
+    }
+    SECTION("a purpose recorded: neither a filament nor a plate change fires it, then or later")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        const AgentToolResult switched = run_call(harness, *agent, petg, "Use PETG.");
+        REQUIRE(switched.state == "succeeded");
+        CHECK_FALSE(fires_setup_skill(switched));
+        const AgentRequest next = run_reply(harness, *agent, "Thanks.");
+        CHECK(next.skills.empty());
+        CHECK_FALSE(next.setup_unchecked_change);
+
+        const AgentToolResult plate = run_call(
+            harness, *agent, ToolRequest{"printer_setup", json{{"plateType", "Cool Plate"}}.dump()}, "Cool plate.");
+        REQUIRE(plate.state == "succeeded");
+        CHECK_FALSE(fires_setup_skill(plate));
+        CHECK_FALSE(run_reply(harness, *agent, "And now?").setup_unchecked_change);
+    }
+}
+
+TEST_CASE("a restored version under a recorded purpose fires the setup skill on the next request only",
+          "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    // What ProjectPersistence::record_managed_restore writes in the log.
+    const auto restore = [&harness]() {
+        ChangeEntry change;
+        change.kind  = "restore";
+        change.actor = "person";
+        change.label = "Restored an earlier project version";
+        harness.persistence.document().add_change(change, "2026-10-17T00:00:00Z");
+    };
+
+    SECTION("no purpose recorded")
+    {
+        restore();
+        CHECK(run_reply(harness, *agent, "What changed?").skills.empty());
+    }
+    SECTION("a purpose recorded")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        CHECK(run_reply(harness, *agent, "Thanks.").skills.empty());
+        restore();
+        const AgentRequest next = run_reply(harness, *agent, "What changed?");
+        REQUIRE(next.skills.size() == 1);
+        CHECK(next.skills.front().name == "project-setup-changed");
+        CHECK(run_reply(harness, *agent, "And now?").skills.empty());
+    }
+    SECTION("a file loaded on the next request carries the file-loaded skill alone")
+    {
+        run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+        restore();
+        harness.host.on_file_loaded(prusa_open());
+        harness.pump_all();
+        const auto report = std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+            return request.purpose == AgentRequest::Purpose::Reply;
+        });
+        REQUIRE(report != agent->requests.rend());
+        CHECK(report->user_text.rfind("JusPrin file-load report", 0) == 0);
+        REQUIRE(report->skills.size() == 1);
+        CHECK(report->skills.front().name == "file-loaded");
+        // The model has replied since the restore, so no later request fires it.
+        CHECK(run_reply(harness, *agent, "And now?").skills.empty());
+    }
+}
+
+TEST_CASE("a setup change is unchecked until the model is asked to check it, once", "[agent][skills][setup-skill]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    with_printer_choices(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    const auto fires = [](const AgentRequest& request) {
+        return std::any_of(request.skills.begin(), request.skills.end(),
+                           [](const AgentSkillUse& skill) { return skill.trigger == "setup_changed"; });
+    };
+
+    // No purpose: no change is unchecked, and nothing fires.
+    hand_setup(harness.workspace, std::nullopt, "Cool Plate");
+    const AgentRequest before = run_reply(harness, *agent, "Hello.");
+    CHECK_FALSE(before.setup_unchecked_change);
+    CHECK_FALSE(fires(before));
+
+    // The purpose is recorded under the setup in force, which is checked.
+    run_call(harness, *agent, intent_call(kPetg), "Make it a strong PETG hook.");
+    const AgentRequest recorded = run_reply(harness, *agent, "Thanks.");
+    CHECK_FALSE(recorded.setup_unchecked_change);
+    CHECK_FALSE(fires(recorded));
+
+    SECTION("the agent's own printer_setup fires nothing and counts as checked")
+    {
+        const AgentToolResult switched =
+            run_call(harness, *agent, ToolRequest{"printer_setup", json{{"filamentPresets", {"Generic PETG"}}}.dump()}, "Use PETG.");
+        CHECK_FALSE(fires_setup_skill(switched));
+        for (const char* text : {"Thanks.", "Anything else?", "And now?"}) {
+            const AgentRequest later = run_reply(harness, *agent, text);
+            CHECK_FALSE(later.setup_unchecked_change);
+            CHECK_FALSE(fires(later));
+        }
+    }
+    SECTION("the person's own change fires the skill on their next message, once")
+    {
+        // As the sidebar does: no tool call, no chat.
+        hand_setup(harness.workspace, "Generic PETG");
+        const AgentRequest next = run_reply(harness, *agent, "I switched to PETG.");
+        CHECK(next.setup_unchecked_change);
+        CHECK(fires(next));
+        for (const char* text : {"Thanks.", "And now?"}) {
+            const AgentRequest later = run_reply(harness, *agent, text);
+            CHECK_FALSE(later.setup_unchecked_change);
+            CHECK_FALSE(fires(later));
+        }
+        // A change before a message that leads to a call is caught on that
+        // message's request, and the call's result does not repeat it.
+        hand_setup(harness.workspace, "Generic PLA");
+        const AgentToolResult read = run_call(harness, *agent, ToolRequest{"workspace_inspect", "{}"}, "What is set up?");
+        CHECK(fires(*std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+            return request.purpose == AgentRequest::Purpose::Reply;
+        })));
+        CHECK_FALSE(fires_setup_skill(read));
     }
 }

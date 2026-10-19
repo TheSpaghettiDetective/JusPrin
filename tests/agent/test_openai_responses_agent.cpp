@@ -209,6 +209,21 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
         CHECK(workspace.dump().find("null") == std::string::npos);
     }
 
+    SECTION("a plate whose slice did not succeed says why, short") {
+        Workspace::SliceFailure refusal;
+        refusal.severity    = "blocker";
+        refusal.message     = "Layer height cannot exceed nozzle diameter.";
+        refusal.setting     = "layer_height";
+        refusal.code        = "layer_height_exceeds_limit";
+        refusal.object      = request.workspace.plates.at(0).objects.at(0).id;
+        refusal.object_name = "cube";
+        request.workspace.plates.at(0).slice_failure = refusal;
+        const json workspace = snapshot();
+        CHECK(workspace["plates"][0]["sliceFailure"] ==
+              json{{"kind", "refused"}, {"severity", "blocker"}, {"message", refusal.message}, {"setting", "layer_height"},
+                   {"objectId", std::to_string(refusal.object->value())}});
+    }
+
     SECTION("a project with them sends them, in workspace_inspect's words") {
         request.workspace.setup.process_preset = "0.20mm Standard @BBL X1C";
         request.setup_title = "Strong PETG shelf bracket";
@@ -242,9 +257,28 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
                    {"decisions", json::array({json{{"topic", "orientation"},
                                                    {"statement", "On its side so the layers run along the arm."},
                                                    {"confidence", "high"}}})},
-                   {"assumptions", json::array({"The shelf is under 10 kg."})}});
+                   {"assumptions", json::array({"The shelf is under 10 kg."})},
+                   {"validity", "current"}});
         CHECK(workspace.dump().find("null") == std::string::npos);
         CHECK(workspace.dump().size() < 1024);
+    }
+
+    SECTION("an unchecked setup change, and the plan's validity, when there are some") {
+        request.setup_title          = "Strong PETG shelf bracket";
+        request.plan.headline        = "PETG, 4 walls";
+        json workspace = snapshot();
+        CHECK_FALSE(workspace["intent"].contains("setupUncheckedChange"));
+        CHECK(workspace["plan"]["validity"] == "current");
+        CHECK_FALSE(workspace["plan"].contains("invalidatedBy"));
+
+        request.setup_unchecked_change = true;
+        request.plan.validity          = "needs_reassessment";
+        request.plan.invalidated_by    = "Bambu PETG HF @BBL X1C";
+        workspace = snapshot();
+        CHECK(workspace["intent"]["setupUncheckedChange"] == true);
+        CHECK(workspace["plan"]["validity"] == "needs_reassessment");
+        CHECK(workspace["plan"]["invalidatedBy"] == "Bambu PETG HF @BBL X1C");
+        CHECK(workspace.dump().find("null") == std::string::npos);
     }
 }
 
@@ -944,7 +978,14 @@ namespace {
 AgentSkillUse file_loaded_skill(const std::string& text = "A file was loaded.", bool picture = true)
 {
     return AgentSkillUse{"file-loaded", text,
-                         picture ? std::make_shared<const ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1}) : nullptr};
+                         picture ? std::make_shared<const ToolImage>(ToolImage{"image/png", "iVBORw0KGgo=", 2, 1}) : nullptr,
+                         "file_loaded"};
+}
+
+// As AgentHost fires it: it gives way to the file-loaded skill.
+AgentSkillUse setup_skill()
+{
+    return AgentSkillUse{"project-setup-changed", "Check the setup.", nullptr, "setup_changed", {"file_loaded"}};
 }
 
 const json kPictureItem{{"role", "user"},
@@ -1050,6 +1091,48 @@ TEST_CASE("a skill without a picture is its text alone, and a title request carr
     const json title_input = json::parse(title_fake->requests.back().body)["input"];
     CHECK_FALSE(mentions(title_input, "A file was loaded."));
     CHECK_FALSE(mentions(title_input, "input_image"));
+}
+
+TEST_CASE("a skill that yields to another on the same request is left out of it", "[agent][openai][skills]")
+{
+    SECTION("a turn's first request")
+    {
+        auto transport = std::make_unique<FakeTransport>();
+        FakeTransport* fake = transport.get();
+        OpenAIResponsesAgent agent({"key"}, std::move(transport));
+        AgentRequest request = request_fixture();
+        request.skills = {setup_skill()};
+        REQUIRE(agent.start(request));
+        CHECK(json::parse(fake->requests.back().body)["input"].back() ==
+              json{{"role", "developer"}, {"content", "Check the setup."}});
+        agent.cancel();
+        request.skills = {file_loaded_skill(), setup_skill()};
+        REQUIRE(agent.start(request));
+        const json input = json::parse(fake->requests.back().body)["input"];
+        CHECK(input.back() == json{{"role", "developer"}, {"content", "A file was loaded."}});
+        CHECK_FALSE(mentions(input, "Check the setup."));
+    }
+    SECTION("the results of one response")
+    {
+        auto transport = std::make_unique<FakeTransport>();
+        FakeTransport* fake = transport.get();
+        OpenAIResponsesAgent agent({"key"}, std::move(transport));
+        REQUIRE(agent.start(request_fixture()));
+        const json setup{{"type", "function_call"}, {"call_id", "call-setup"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+        const json import{{"type", "function_call"}, {"call_id", "call-import"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
+        fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({setup, import})}}}}));
+        REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+        AgentToolResult changed{"call-setup", "succeeded", R"({"state":"succeeded"})"};
+        changed.skills.push_back(setup_skill());
+        REQUIRE(agent.continue_after_tool(changed));
+        REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
+        AgentToolResult imported{"call-import", "succeeded", R"({"state":"succeeded"})"};
+        imported.skills.push_back(file_loaded_skill());
+        REQUIRE(agent.continue_after_tool(imported));
+        const json input = json::parse(fake->requests.back().body)["input"];
+        CHECK(input.back() == json{{"role", "developer"}, {"content", "A file was loaded."}});
+        CHECK_FALSE(mentions(input, "Check the setup."));
+    }
 }
 
 TEST_CASE("skill_read is offered only with skills to list, and carries the list", "[agent][openai][skills]")

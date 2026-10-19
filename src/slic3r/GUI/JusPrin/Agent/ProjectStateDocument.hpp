@@ -287,6 +287,19 @@ public:
     // Upserts by field name and returns the fields as stored. A field the call
     // does not mention keeps the value, provenance, and seq it had.
     std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields, const std::string& timestamp);
+    // The setup in force (setup_in_force's shape: presets and plate type)
+    // when the model was last asked to check it against the purpose: when
+    // intent_update recorded a purpose for the first time or changed it, or
+    // a request carried the setup or file-loaded skill under a recorded
+    // purpose. An empty object when that is not known. It travels with the
+    // intent in a chat checkpoint.
+    nlohmann::json purpose_setup() const;
+    void           set_purpose_setup(nlohmann::json setup);
+    // Whether the person restored an earlier version after the model last
+    // replied anywhere in the project: a restore in the change log with no
+    // assistant message after it other than `except_message_id`, the reply
+    // being written now.
+    bool restored_since_reply(const std::string& except_message_id) const;
     // The pinned plan, or a default record when the agent has not written one.
     PlanRecord plan() const;
     // Replaces the plan wholesale: it is one statement, not a list of edits.
@@ -306,7 +319,9 @@ public:
     std::vector<ChangeEntry> changes() const;
 
     // Work the application ran outside the chat. `begin_work` assigns the id,
-    // the sequence number and the place in the timeline.
+    // the sequence number and, unless the entry names its conversation and
+    // the item it follows, the place in the timeline: after the active
+    // conversation's last item.
     WorkEntry              begin_work(WorkEntry entry, const std::string& timestamp);
     // Completes a running entry. Empty when no running entry has that id.
     std::optional<WorkEntry> finish_work(const std::string& id, const std::string& state, const std::string& detail,

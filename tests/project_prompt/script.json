@@ -528,6 +528,34 @@
     "scope": "process",
     "query": "z hop"
    }
+  },
+  {
+   "call": "view_render",
+   "arguments": {
+    "view": "iso"
+   }
+  },
+  {
+   "call": "view_render",
+   "eachPlate": true,
+   "arguments": {
+    "plateId": "{{plate}}",
+    "view": "iso"
+   }
+  },
+  {
+   "call": "view_render",
+   "arguments": {
+    "view": "plate"
+   }
+  },
+  {
+   "call": "view_render",
+   "eachPlate": true,
+   "arguments": {
+    "plateId": "{{plate}}",
+    "view": "plate"
+   }
   }
  ],
  "conversations": [
@@ -555,6 +583,8 @@
        }
       },
       {
+       "record": "after-intent",
+       "skill": "project-setup-changed",
        "call": "presets_list",
        "arguments": {
         "kind": "filament",
@@ -645,8 +675,7 @@
        "record": "after-apply",
        "call": "slice_start",
        "arguments": {
-        "plateId": "{{workspace/activePlateId}}",
-        "wait": true
+        "plateId": "{{workspace/activePlateId}}"
        }
       },
       {
@@ -670,7 +699,8 @@
      "say": "what infill should I use for this?",
      "replies": [
       {
-       "record": "advice-infill"
+       "record": "advice-infill",
+       "skill": "print-issues"
       }
      ]
     }
@@ -683,7 +713,8 @@
      "say": "Welche Füllung sollte ich dafür verwenden?",
      "replies": [
       {
-       "record": "reply-in-german"
+       "record": "reply-in-german",
+       "skill": "print-issues"
       }
      ]
     }
@@ -696,7 +727,8 @@
      "say": "why isn't my first layer sticking?",
      "replies": [
       {
-       "record": "troubleshoot-first-layer"
+       "record": "troubleshoot-first-layer",
+       "skill": "print-issues"
       }
      ]
     }
@@ -709,7 +741,8 @@
      "say": "which printer and filament is this set up for?",
      "replies": [
       {
-       "record": "answer-from-context"
+       "record": "answer-from-context",
+       "skill": "print-issues"
       }
      ]
     }
@@ -722,7 +755,8 @@
      "say": "what filament is loaded?",
      "replies": [
       {
-       "record": "loaded-vs-configured"
+       "record": "loaded-vs-configured",
+       "skill": "print-issues"
       }
      ]
     }
@@ -736,6 +770,7 @@
      "replies": [
       {
        "record": "direct-change",
+       "skill": "print-issues",
        "call": "settings_get",
        "arguments": {
         "scope": "process",
@@ -827,7 +862,8 @@
      },
      "replies": [
       {
-       "record": "issue-fix"
+       "record": "issue-fix",
+       "skill": "print-issues"
       }
      ]
     }
@@ -843,7 +879,8 @@
      },
      "replies": [
       {
-       "record": "issue-explain"
+       "record": "issue-explain",
+       "skill": "print-issues"
       }
      ]
     }
@@ -867,6 +904,21 @@
       },
       {
        "record": "first-person"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-warnings-ready",
+   "fixture": "overhang",
+   "steps": [
+    {
+     "say": "is this good to print?",
+     "replies": [
+      {
+       "record": "slice-warnings-ready",
+       "skill": "print-issues"
       }
      ]
     }
@@ -919,7 +971,7 @@
      "replies": [
       {
        "record": "model-opened-unnamed",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -946,7 +998,7 @@
       },
       {
        "record": "model-imported-by-tool",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -971,7 +1023,97 @@
       },
       {
        "record": "model-opened-by-tool",
-       "skill": true
+       "skill": "file-loaded"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-refused",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "Print this in Bambu PETG HF.",
+     "replies": [
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "slice_start",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}"
+       }
+      },
+      {
+       "record": "slice-refused-by-tool",
+       "skill": "slice-failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-pressed",
+   "plateType": "Textured PEI Plate",
+   "steps": [
+    {
+     "say": "Switch to Bambu PETG HF, and put the second plate on my Cool Plate.",
+     "replies": [
+      {
+       "call": "printer_setup_preview",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "printer_setup",
+       "arguments": {
+        "filamentPresets": [
+         "Bambu PETG HF @BBL X1C"
+        ]
+       }
+      },
+      {
+       "call": "plate_layout",
+       "arguments": {
+        "sessionId": "{{workspace/sessionId}}",
+        "plates": [
+         {
+          "plateId": "{{workspace/plateId/2}}",
+          "bedType": "Smooth Cool Plate"
+         }
+        ]
+       }
+      },
+      {
+       "text": "I switched the filament to Bambu PETG HF and set the second plate to the Cool Plate."
+      }
+     ]
+    },
+    {
+     "slice": "all",
+     "say": "is it ready to print?",
+     "replies": [
+      {
+       "record": "slice-refused-then-ready",
+       "skill": "slice-failed"
       }
      ]
     }

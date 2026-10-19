@@ -1,11 +1,14 @@
 #include "OrcaWorkspaceAdapter.hpp"
 #include "SliceBounds.hpp"
+#include "SliceRequests.hpp"
+#include "PlaterProjectState.hpp"
 #include "DialogListeners.hpp"
 #include "SkippedConfirmations.hpp"
 #include "OrcaSettings.hpp"
 #include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
+#include "SliceWarnings.hpp"
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
@@ -13,6 +16,7 @@
 #include "libslic3r/Orient.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "slic3r/GUI/BackgroundSlicingProcess.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GLToolbar.hpp"
@@ -371,6 +375,11 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     // listens to this event; the workspace has to as well, or an estimate only
     // appears after the next click.
     m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
+    // Why a slice did not succeed is known only as it happens: OrcaSlicer
+    // refuses a plate inside the call that asked for the slice, and a failed
+    // run's error is in its completion event.
+    m_plater.Bind(EVT_PROCESS_COMPLETED, &OrcaWorkspaceAdapter::on_process_completed, this);
+    add_slice_declined_listener(this, [this] { on_slice_declined(); });
     m_known_slice_state = current_slice_state();
     remember_current_ids();
     remember_history();
@@ -384,6 +393,8 @@ OrcaWorkspaceAdapter::~OrcaWorkspaceAdapter()
     set_file_load_observer(nullptr);
     m_open_answers.reset();
     m_active_load.reset();
+    remove_slice_declined_listener(this);
+    m_plater.Unbind(EVT_PROCESS_COMPLETED, &OrcaWorkspaceAdapter::on_process_completed, this);
     m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &OrcaWorkspaceAdapter::on_slice_status_changed, this);
     m_project_subscription.reset();
 }
@@ -635,11 +646,102 @@ void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
         const auto before = m_known_slice_state.find(id);
         if (before != m_known_slice_state.end() && before->second.sliced && !now.sliced)
             m_invalidated_by[id] = m_last_change_reason;
-        else if (now.sliced)
+        else if (now.sliced) {
             m_invalidated_by.erase(id);
+            m_slice_failures.erase(id);
+        }
     }
+    // One process slices for the whole application, so every plate's entry
+    // carries the same flag.
+    const auto slicing_in = [](const SliceState& slices) {
+        return !slices.empty() && slices.begin()->second.slicing;
+    };
+    const bool was_slicing = slicing_in(m_known_slice_state), slicing = slicing_in(state);
     m_known_slice_state = std::move(state);
+    // A run that starts replaces whatever the plate's last slice failed with;
+    // one that ended with an error says why now, OrcaSlicer having finished
+    // with the plate.
+    if (slicing && !was_slicing)
+        if (const PartPlate* current = m_plater.get_partplate_list().get_curr_plate())
+            m_slice_failures.erase(current->id().id);
+    if (!slicing && m_failed_run_plate) {
+        record_slice_failure(SliceFailureKind::Failed);
+        m_failed_run_plate.reset();
+    }
     publish_change(WorkspaceChangeReasons::Slicing);
+}
+
+void OrcaWorkspaceAdapter::on_process_completed(SlicingProcessCompletedEvent& event)
+{
+    event.Skip();
+    wxASSERT(wxIsMainThread());
+    if (!event.error())
+        return;
+    if (const PartPlate* current = m_plater.get_partplate_list().get_curr_plate())
+        m_failed_run_plate = current->id().id;
+}
+
+void OrcaWorkspaceAdapter::on_slice_declined()
+{
+    wxASSERT(wxIsMainThread());
+    // Inside the call that asked for the slice, so a tool reading the
+    // snapshot when its request returns finds the reason already there.
+    if (record_slice_failure(SliceFailureKind::Refused))
+        publish_change(WorkspaceChangeReasons::Slicing);
+}
+
+bool OrcaWorkspaceAdapter::record_slice_failure(SliceFailureKind kind)
+{
+    const PartPlate* current = m_plater.get_partplate_list().get_curr_plate();
+    if (current == nullptr)
+        return false;
+    const std::uint64_t plate = m_failed_run_plate && kind == SliceFailureKind::Failed ? *m_failed_run_plate : current->id().id;
+    // The reader speaks for the active plate only, as OrcaSlicer's checks do.
+    SliceFailure failure;
+    if (m_slice_failure_reader && plate == current->id().id)
+        if (std::optional<SliceFailure> read = m_slice_failure_reader())
+            failure = std::move(*read);
+    // The reader may find the plate's earlier failed run behind a refusal;
+    // a run that failed now is a failure whatever else the plate holds.
+    if (kind == SliceFailureKind::Failed)
+        failure.kind = kind;
+    if (failure.message.empty()) {
+        failure.kind     = kind;
+        failure.severity = "blocker";
+        failure.message  = kind == SliceFailureKind::Refused ? "OrcaSlicer did not start slicing this plate." :
+                                                               "The slice stopped with an error.";
+    }
+    const auto known = m_slice_failures.find(plate);
+    if (known != m_slice_failures.end() && known->second.same_reason(failure))
+        return false;
+    failure.sequence        = ++m_next_slice_failure;
+    m_slice_failures[plate] = std::move(failure);
+    return true;
+}
+
+void OrcaWorkspaceAdapter::read_slice_warnings(std::uint64_t plate, std::uint64_t result) const
+{
+    if (!m_slice_warnings_reader)
+        return;
+    if (m_slice_warnings_session != m_session) {
+        // Another project: nothing it was warned about describes this one.
+        m_slice_warnings.clear();
+        m_slice_warnings_session = m_session;
+    }
+    const std::optional<std::vector<SliceWarningFinding>> findings = m_slice_warnings_reader(plate);
+    if (!findings)
+        return;
+    PlateWarnings& record = m_slice_warnings[plate];
+    // A warning the plate's last record did not hold is news; the same set
+    // read again, or a smaller one, is not.
+    std::uint64_t sequence = record.summary ? record.summary->sequence : 0;
+    if (!findings->empty() && (has_new_slice_warning(*findings, record.ids) || !record.summary))
+        sequence = ++m_next_slice_warnings;
+    record.result  = result;
+    record.summary = summarize_slice_warnings(*findings, m_session, sequence);
+    record.ids.clear();
+    for (const SliceWarningFinding& finding : *findings)
+        record.ids.insert(finding.id);
 }
 
 WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
@@ -722,6 +824,20 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         }
         if (this_plate_slicing && !projected_plate.estimate)
             projected_plate.estimate_status = EstimateStatus::Recomputing;
+        // A run on the plate replaces whatever its last slice failed with,
+        // from the moment it starts.
+        if (const auto failure = m_slice_failures.find(plate_key); failure != m_slice_failures.end() && !this_plate_slicing)
+            projected_plate.slice_failure = failure->second;
+        // What the current slice warned about. OrcaSlicer checks only the
+        // active plate, so another plate keeps what was read while it was
+        // active, for as long as that slice is still its own.
+        if (projected_plate.sliced && !this_plate_slicing && plate->get_slice_result()) {
+            const std::uint64_t slice = plate->get_slice_result()->id;
+            if (projected_plate.active)
+                read_slice_warnings(plate_key, slice);
+            if (const auto found = m_slice_warnings.find(plate_key); found != m_slice_warnings.end() && found->second.result == slice)
+                projected_plate.slice_warnings = found->second.summary;
+        }
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));
@@ -1780,13 +1896,20 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
         if (index < 0)
             return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
         PartPlate* target = plates.get_plate(index);
-        if (target == nullptr || !target->can_slice())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation,
-                                          "That plate cannot be sliced as it stands");
+        if (target == nullptr)
+            return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
         // Orca slices the current plate, so selecting it is part of starting
         // the run, exactly as the header's own Slice button does it.
         if (plates.get_curr_plate_index() != index)
             m_plater.select_plate(index);
+        // A plate OrcaSlicer's check refused is still asked: the slice event
+        // runs the check again and records why. One that does not fit the
+        // printer has its Slice button off in OrcaSlicer, so nothing is
+        // posted; the refusal is recorded in the words of OrcaSlicer's notice.
+        if (!target->can_slice() && !target->is_apply_result_invalid()) {
+            on_slice_declined();
+            return CommandResult::success();
+        }
     }
 
     // The toolbar events are Orca's own entry points: they carry the slice-all
@@ -2340,6 +2463,10 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
     if (change.project_replaced) {
         m_session = ProjectSessionId(change.project_session);
         m_known_object_ids.clear();
+        // Plate ids restart with the project; what the last one's slices
+        // failed with says nothing about this one's.
+        m_slice_failures.clear();
+        m_failed_run_plate.reset();
         // Jobs belong to the project that started them; the new project's
         // action ids, which name them, start again.
         m_jobs.clear();

@@ -277,6 +277,58 @@ TEST_CASE("viewing history never changes authority and checkpoints bind planning
     CHECK_FALSE(reloaded.chat_checkpoint(first));
 }
 
+TEST_CASE("the setup a purpose was recorded under travels with the intent", "[project-state][intent]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const std::string chat = document.active_conversation_id();
+    CHECK(document.purpose_setup().empty());
+    // A checkpoint from before anything was recorded matches a document that
+    // has recorded nothing, as a checkpoint written by an older build does.
+    REQUIRE(document.save_chat_checkpoint(chat, "v-1", json::object(), kT));
+    CHECK_FALSE(document.planning_snapshot().contains("purposeSetup"));
+
+    const json setup{{"printerPreset", "Bambu Lab X1 Carbon 0.4 nozzle"}, {"filamentPreset", "Bambu PLA Basic @BBL X1C"}};
+    document.set_purpose_setup(setup);
+    CHECK(document.purpose_setup() == setup);
+    CHECK(document.planning_snapshot()["purposeSetup"] == setup);
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(reloaded.purpose_setup() == setup);
+
+    // Restoring the earlier checkpoint takes its planning whole: no setup.
+    document.restore_planning_snapshot((*document.chat_checkpoint(chat))["planning"]);
+    CHECK(document.purpose_setup().empty());
+}
+
+TEST_CASE("a restore counts until the model next replies", "[project-state][changes]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const std::string chat = document.active_conversation_id();
+    const auto reply = [&document, &chat](const std::string& id) {
+        ConversationMessage message;
+        message.id   = id;
+        message.role = MessageRole::Assistant;
+        document.append_message(chat, message, kT);
+    };
+    const auto restore = [&document]() {
+        ChangeEntry change;
+        change.kind = "restore";
+        document.add_change(change, kT);
+    };
+    reply("m-1");
+    CHECK_FALSE(document.restored_since_reply("m-2"));
+    restore();
+    CHECK(document.restored_since_reply("m-2"));
+    // The reply being written is not one the model has given yet.
+    reply("m-2");
+    CHECK(document.restored_since_reply("m-2"));
+    CHECK_FALSE(document.restored_since_reply("m-3"));
+    restore();
+    CHECK(document.restored_since_reply("m-3"));
+}
+
 TEST_CASE("unknown fields survive a load-edit-save cycle", "[project-state][schema]")
 {
     ProjectStateDocument document;

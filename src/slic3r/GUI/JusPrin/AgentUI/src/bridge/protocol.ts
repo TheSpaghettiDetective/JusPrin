@@ -346,6 +346,15 @@ export interface WorkspaceContext {
     // Empty otherwise: the card says nothing rather than attributing the loss
     // to something the reader did not do.
     invalidatedBy: string;
+    // Why the plate's last slice did not succeed: OrcaSlicer refused it or the
+    // run failed. Absent once the plate slices.
+    sliceFailure?: {
+      kind: 'refused' | 'failed';
+      severity: 'blocker' | 'warning';
+      message: string;
+      setting?: string;
+      objectId?: string;
+    };
     objects: { id: string; name: string; instances: number; selected: boolean }[];
   }[];
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };

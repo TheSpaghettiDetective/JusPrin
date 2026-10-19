@@ -112,6 +112,23 @@ namespace SkillTrigger {
 // A file was opened or imported: the person opened or dropped one, or a
 // tool call of the in-app Agent opened or imported one.
 inline constexpr const char* kFileLoaded = "file_loaded";
+// A plate's slice did not succeed: OrcaSlicer refused to start it, or the run
+// failed. Fired on the first request that carries the failure, whoever asked
+// for the slice: the reply to the model's slice_start, or the next request
+// after the person's.
+inline constexpr const char* kSliceFailed  = "slice_failed";
+// OrcaSlicer reported something about the print the model has not read
+// yet: the person pressed a print-issue chip's button (the message carries a
+// <print_issue> block), or a slice finished with warnings a plate's last
+// slice did not report, whoever sliced it.
+inline constexpr const char* kPrintIssues  = "print_issues";
+// The setup is to be checked against a purpose recorded for this print:
+// intent_update recorded one for the first time or changed it, the printer,
+// filament, process or plate type changed since the model last checked them
+// under a recorded one (by the person; the model's own printer_setup counts
+// as checked and fires nothing), or the person restored an earlier version
+// while one is recorded.
+inline constexpr const char* kSetupChanged = "setup_changed";
 } // namespace SkillTrigger
 
 } // namespace Protocol

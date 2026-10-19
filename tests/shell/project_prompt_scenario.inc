@@ -64,6 +64,17 @@
     bool prompt_fixture(const std::string& kind, const std::string& name, const std::string& plate_type)
     {
         using namespace std::chrono_literals;
+        // A slice the last conversation's model started may still be running.
+        // When it ends the app starts a turn about it in that conversation;
+        // that turn is answered with nothing, so this one starts clean.
+        wait_for([this] { return !m_plater->is_background_process_slicing(); }, 120s);
+        wait_for([] { return !g_held_model_requests.empty(); }, 2s);
+        while (!g_held_model_requests.empty()) {
+            HeldModelRequest request = std::move(g_held_model_requests.front());
+            g_held_model_requests.pop_front();
+            prompt_answer(request, nlohmann::json::array(), "");
+            wait_for([this] { return !g_held_model_requests.empty() || !project_host().busy(); }, 10s);
+        }
         prompt_restore_settings(name);
         if (kind == "overhang") {
             // print_issues_scenario's slab on one leg: slicing it warns.
@@ -143,12 +154,19 @@
         return !error;
     }
 
-    // The page's skill for a loaded file, as the page sends it: the
-    // SKILL.md body (skillParser.ts).
-    static std::string prompt_file_loaded_skill()
+    // The page's skills the recorder checks for, as the page sends each one:
+    // the SKILL.md body (skillParser.ts). Only the file-loaded skill brings
+    // a picture of the plate.
+    static constexpr const char* kPromptFileLoadedSkill = "file-loaded";
+    static const std::vector<std::string>& prompt_skill_names()
     {
-        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) /
-                            "src/slic3r/GUI/JusPrin/AgentUI/src/skills/file-loaded/SKILL.md").string(),
+        static const std::vector<std::string> names{kPromptFileLoadedSkill, "print-issues", "project-setup-changed",
+                                                     "slice-failed"};
+        return names;
+    }
+    static std::string prompt_skill_text(const std::string& name)
+    {
+        std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/skills" / name / "SKILL.md").string(),
                            std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         const std::size_t body = text.find("\n---\n");
@@ -158,13 +176,19 @@
         return text;
     }
 
-    // Whether an input item is the file-loaded skill (a developer item that
-    // starts with its text), or a plate picture (a user item holding one
-    // image and nothing else).
-    static bool prompt_is_skill(const nlohmann::json& item, const std::string& skill)
+    // Which skill an input item is (a developer item that starts with its
+    // text), or empty; and whether it is a plate picture (a user item
+    // holding one image and nothing else).
+    static std::string prompt_skill_of(const nlohmann::json& item)
     {
-        return item.value("role", "") == "developer" && item.contains("content") && item["content"].is_string() &&
-               !skill.empty() && item["content"].get<std::string>().rfind(skill, 0) == 0;
+        if (item.value("role", "") != "developer" || !item.contains("content") || !item["content"].is_string())
+            return {};
+        for (const std::string& name : prompt_skill_names()) {
+            const std::string text = prompt_skill_text(name);
+            if (!text.empty() && item["content"].get<std::string>().rfind(text, 0) == 0)
+                return name;
+        }
+        return {};
     }
     static bool prompt_is_picture(const nlohmann::json& item)
     {
@@ -175,11 +199,12 @@
     // "{{file/<name>}}" is the path of a model a step copied under that name;
     // "{{attachment}}" the id of the file the person last attached;
     // "{{result/<pointer>}}" is the last tool result in this request;
-    // "{{workspace/sessionId}}", "{{workspace/revision}}",
+    // "{{workspace/sessionId}}", "{{workspace/revision}}", "{{workspace/plateId/N}}" (the Nth plate),
     // "{{workspace/activePlateId}}", "{{workspace/firstObjectId}}" (the
     // active plate's first object), "{{workspace/filamentPreset}}" and
     // "{{workspace/printerPreset}}" the project now; "{{object}}" the object
-    // an "eachObject" answer is being read for.
+    // an "eachObject" answer is being read for, "{{plate}}" the plate an
+    // "eachPlate" answer is being read for.
     nlohmann::json prompt_fill(const nlohmann::json& value, const nlohmann::json& body, const std::string& name)
     {
         using nlohmann::json;
@@ -197,6 +222,8 @@
         const std::string path = text.substr(2, text.size() - 4);
         if (path == "object" && !m_prompt_object.empty())
             return m_prompt_object;
+        if (path == "plate" && !m_prompt_plate.empty())
+            return m_prompt_plate;
         if (path.rfind("file/", 0) == 0)
             return prompt_model_path(path.substr(5));
         if (path == "attachment" && !m_prompt_attachment.empty())
@@ -209,6 +236,12 @@
             return installed_shell()->workspace()->snapshot().setup.filament_preset;
         if (path == "workspace/printerPreset")
             return installed_shell()->workspace()->snapshot().setup.printer_preset;
+        if (path.rfind("workspace/plateId/", 0) == 0) {
+            const auto plates = installed_shell()->workspace()->snapshot().plates;
+            const std::size_t number = std::stoul(path.substr(18));
+            if (number >= 1 && number <= plates.size())
+                return std::to_string(plates[number - 1].id.value());
+        }
         if (path == "workspace/activePlateId" || path == "workspace/firstObjectId")
             for (const auto& plate : installed_shell()->workspace()->snapshot().plates)
                 if (plate.active && (path == "workspace/activePlateId" || !plate.objects.empty()))
@@ -258,6 +291,7 @@
     }
 
     std::string m_prompt_object;      // for "{{object}}"
+    std::string m_prompt_plate;       // for "{{plate}}"
     std::string m_prompt_attachment;  // for "{{attachment}}"
 
     // The person attaches a copied model to the chat, as the composer's file
@@ -288,7 +322,9 @@
     // The answers' reads called after the kept request, in the same turn;
     // returns each with the result the app gave, as the model would read it.
     // A read marked "eachObject" is called once for every object on every
-    // plate, and an "allSettings" entry with it once for every object.
+    // plate, and an "allSettings" entry with it once for every object; one
+    // marked "eachPlate" once for every plate. A read whose result brings a
+    // picture (view_render) keeps the result's text only.
     // An "allSettings" entry reads every setting of its scope:
     // the keys come from the app's own settings_search (an empty query lists
     // them all, page by page; those pages are not kept), then settings_get
@@ -304,7 +340,6 @@
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
-        const std::string skill = prompt_file_loaded_skill();
         once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
@@ -327,10 +362,19 @@
                 once = kept.size() - same;
                 bool repeated = false;
                 for (const json& item : input)
-                    repeated = repeated || prompt_is_skill(item, skill) || prompt_is_picture(item);
+                    repeated = repeated || !prompt_skill_of(item).empty() || prompt_is_picture(item);
                 check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
             }
-            const std::string output = request.body.at("input").back().at("output");
+            // The call's own result: a picture the call returned comes after
+            // it, as a message of its own, and is not kept.
+            const json& sent = request.body.at("input");
+            const auto result = std::find_if(sent.rbegin(), sent.rend(), [&call_id](const json& item) {
+                return item.value("type", "") == "function_call_output" && item.value("call_id", "") == call_id;
+            });
+            check(result != sent.rend(), name + "_answer_" + tool + "_has_its_result");
+            if (result == sent.rend())
+                return std::nullopt;
+            const std::string output = result->at("output");
             const bool succeeded = json::parse(output).value("state", "") == "succeeded";
             check(succeeded, name + "_answer_" + tool + "_succeeded");
             return succeeded ? std::optional<std::string>(output) : std::nullopt;
@@ -346,6 +390,19 @@
                 for (const auto& plate : installed_shell()->workspace()->snapshot().plates)
                     for (const auto& object : plate.objects)
                         objects.push_back(std::to_string(object.id.value()));
+            }
+            if (read.value("eachPlate", false)) {
+                for (const auto& plate : installed_shell()->workspace()->snapshot().plates) {
+                    if (!ok)
+                        break;
+                    m_prompt_plate = std::to_string(plate.id.value());
+                    const json arguments = prompt_fill(read.value("arguments", json::object()), request.body, name);
+                    const std::optional<std::string> output = call(read.at("call"), arguments);
+                    if ((ok = output.has_value()))
+                        answers.push_back({{"tool", read.at("call")}, {"arguments", arguments}, {"output", *output}});
+                }
+                m_prompt_plate.clear();
+                continue;
             }
             if (read.contains("allSettings")) {
                 const std::string scope = read["allSettings"];
@@ -448,6 +505,18 @@
             m_prompt_attachment = prompt_attach(step["attach"], name);
             if (!m_prompt_attachment.empty())
                 attached.push_back(m_prompt_attachment);
+        }
+        if (step.contains("slice")) {
+            // The person presses Slice (true) or Slice all ("all") in the
+            // status row, and waits for whatever OrcaSlicer does with it.
+            // Neither is enabled for a plate OrcaSlicer's check has refused;
+            // Slice all slices plate by plate and is refused at such a plate.
+            installed_shell()->status_row()->request_slice(step["slice"] == "all");
+            wait_for([this] { return !m_plater->is_background_process_slicing(); }, 120s);
+            const auto snapshot = installed_shell()->workspace()->snapshot();
+            for (const auto& plate : snapshot.plates)
+                std::cerr << "HARNESS PROMPT " << name << " pressed Slice: plate " << plate.id.value() << " sliced=" << plate.sliced << " failure='"
+                              << (plate.slice_failure ? plate.slice_failure->message : std::string()) << "'\n";
         }
         if (step.contains("say")) {
             std::string said = step["say"];
@@ -564,23 +633,27 @@
                     kept.erase("tools");
                 kept.erase("instructions");
                 const std::size_t items = input.size();
-                // A point marked "skill" is the request that first carries a
-                // model's load report: it ends with the plate's picture and
-                // the file-loaded skill. No other point holds either.
-                const std::string skill = prompt_file_loaded_skill();
-                const bool wants_skill = reply.value("skill", false);
-                const bool has_skill   = items >= 2 && prompt_is_skill(input[items - 1], skill) &&
-                                       prompt_is_picture(input[items - 2]);
+                // A point marked "skill" is the request where the model first
+                // reads about that skill's event: it ends with that skill,
+                // after the plate's picture for the file-loaded skill. No
+                // other point holds a skill or a picture, and an import's
+                // point holds the file-loaded skill alone.
+                const std::string wanted   = reply.value("skill", "");
+                const bool        pictured = wanted == kPromptFileLoadedSkill;
+                const std::size_t tail     = wanted.empty() ? 0 : pictured ? 2 : 1;
+                const bool has_skill = !wanted.empty() && items >= tail && prompt_skill_of(input[items - 1]) == wanted &&
+                                       (!pictured || prompt_is_picture(input[items - 2]));
                 bool elsewhere = false;
-                for (std::size_t i = 0; i + (has_skill ? 2 : 0) < items; ++i)
-                    elsewhere = elsewhere || prompt_is_skill(input[i], skill) || prompt_is_picture(input[i]);
-                check(!skill.empty(), case_name + "_skill_text_read");
-                check(has_skill == wants_skill && !elsewhere, case_name + (wants_skill ? "_ends_with_the_picture_and_skill" :
-                                                                                         "_carries_no_skill"));
+                for (std::size_t i = 0; i + (has_skill ? tail : 0) < items; ++i)
+                    elsewhere = elsewhere || !prompt_skill_of(input[i]).empty() || prompt_is_picture(input[i]);
+                for (const std::string& skill : prompt_skill_names())
+                    check(!prompt_skill_text(skill).empty(), case_name + "_skill_text_read_" + skill);
+                check(has_skill == !wanted.empty() && !elsewhere,
+                      case_name + (wanted.empty() ? "_carries_no_skill" : "_ends_with_" + wanted));
                 std::size_t once = 0;
                 const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
                 const json& answers = recorded_reads["reads"];
-                check(once == (wants_skill ? 2u : 0u), case_name + "_sent_once_" + std::to_string(once));
+                check(once == tail, case_name + "_sent_once_" + std::to_string(once));
                 recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
                 if (once > 0)
                     recorded[case_name]["once"] = once;

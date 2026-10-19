@@ -34,6 +34,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -66,6 +67,15 @@ public:
     // Reads the native state now, for a press that must act on what is true
     // at the press.
     void refresh_now();
+
+    // Why OrcaSlicer did not slice the active plate, read now
+    // (slice_failure_of): what the workspace records when a slice is refused
+    // or a run fails.
+    std::optional<Workspace::SliceFailure> slice_failure()
+    {
+        refresh_now();
+        return slice_failure_of(m_snapshot);
+    }
 
     // Closes OrcaSlicer's own notifications of one kind, as their close
     // button did. The confirmation goes when OrcaSlicer lets go of them.

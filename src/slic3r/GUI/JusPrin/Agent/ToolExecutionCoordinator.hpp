@@ -154,6 +154,11 @@ public:
     // one replaces the conversation along with the project, so the call's
     // own result reaches no model: the report goes to the opened project's
     // chat instead, as a person's open does. An MCP client's open is its own.
+    // The run a slice_start began has ended in the project it started in,
+    // by that call's action id, whether it sliced, failed or was stopped.
+    void set_slice_ended(std::function<void(const std::string& action_id)> listener) { m_slice_ended = std::move(listener); }
+    // The action id of the slice_start whose run is in flight, or empty.
+    std::string slice_in_flight() const { return m_slice_running ? m_slice_handle : std::string(); }
     void set_agent_project_opened(std::function<void(const Workspace::LoadReport&)> listener)
     {
         m_agent_project_opened = std::move(listener);
@@ -216,10 +221,12 @@ private:
     // The slice_start call behind the run now in flight, so the slicing
     // section can say which handle a reader is watching.
     std::string                      m_slice_handle;
-    // Whether the run m_slice_handle started has been seen, and has ended. A
-    // later run is the person's, and activity_cancel does not stop it.
-    bool                             m_slice_seen_running{false};
-    bool                             m_slice_ended{false};
+    // Whether the run m_slice_handle started is still in flight. A later run
+    // is the person's, and activity_cancel does not stop it.
+    bool                             m_slice_running{false};
+    // The project that run belongs to. Action ids restart with each project,
+    // so in another project the handle names nothing.
+    Workspace::ProjectSessionId      m_slice_session;
     std::string                      m_executing;
     ExtensionExecutor                m_extension_executor;
     ExtensionPreflight               m_extension_preflight;
@@ -238,16 +245,7 @@ private:
     // The last change a settings patch cares about: a settings edit or a new
     // project. A model edit between a preview and its apply does not move it.
     std::uint64_t                    m_last_settings_revision{0};
-    // slice_start calls that return when their run ends, by action id. Such a
-    // call stays Running without holding up the others.
-    struct SliceWait
-    {
-        std::optional<Workspace::PlateId>     plate;
-        bool                                  seen_running{false};
-        std::chrono::steady_clock::time_point started;
-    };
-    std::map<std::string, SliceWait> m_slice_waits;
-    void finish_slice_waits();
+    std::function<void(const std::string&)> m_slice_ended;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

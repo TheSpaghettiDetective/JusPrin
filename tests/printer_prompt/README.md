@@ -35,25 +35,34 @@ conversation, not only the failed ones.
 
 ## Judging a prompt change
 
-Run the cases before and after the edit and compare the counts; "Baseline"
-below has the counts to start from. The script renders the prompt from the
-TypeScript source on every run, so nothing needs building. At the default
-three runs a case catches a behaviour that fails often, not one that fails one
-time in twenty; when a case fails, or to judge the edit it was written for,
-run that case alone, where it gets 20 runs.
-Differences of a few runs out of 20 are noise; look for a clear gap.
+What the suite is for (Kenneth, 2026-10-19): showing that a change has not
+made the prompt substantially worse. At three runs a case it detects large
+regressions only, not small effects. Day-to-day host noise is small next to
+what it looks for: the same prompt scored 76, 76 and 74 of 84 on three runs.
+The script renders the prompt from the TypeScript source on every run, so
+nothing needs building.
 
-For a prompt-only edit, run the previous prompt with `--prompt-rev HEAD` (any
-git revision works): the page's source is read as it was there, and the checkout
-is left alone. The current change also removes three tools, so the earlier
-prompt and tool list are no longer a valid control for the affected cases.
-Run both versions at the same time when their tools and case expectations match,
-so both meet the same hosts and the same day. A baseline recorded earlier is a
-guide, not a control: the same prompt
-scored 76, 76 and 74 of 84 in three runs, so compare against a before run made
-alongside the after run.
-Paired this way, a real effect shows plainly: on 2026-09-28 a two-line edit
-took `add-not-now-done` from 19 to 3 of 20 while its own case improved.
+1. After a prompt change, run the "after" batch only: the checkout, same
+   model, pinned hosts and judge, three runs a case. Compare it with the
+   current baseline table below. There is no before run.
+2. Judging the result. There are no fixed thresholds (Kenneth,
+   2026-10-19). The agent running the batch compares it with the baseline
+   case by case and reads every failure and unobserved run. It decides
+   whether anything looks like a real regression worth investigating, and
+   says why. A case with no baseline row is judged on its own expectation.
+   When it is not sure, it asks Kenneth.
+3. Only for a case that looks like a regression, run it again with
+   `--prompt-rev <previous revision>` (any git revision; the page's source is
+   read as it was there and the checkout is left alone) the same day. That
+   tells the prompt apart from a bad host day, which usually shows as drops in
+   untouched cases too. A case run alone gets 20 runs; differences of a few
+   runs out of 20 are noise, so look for a clear gap. Paired this way, a real
+   effect shows plainly: on 2026-09-28 a two-line edit took
+   `add-not-now-done` from 19 to 3 of 20 while its own case improved.
+4. Baselines. The current baseline is one section. When Kenneth confirms a
+   new result is good enough, it becomes the new baseline, and the old one
+   moves to "Baseline history" below, kept for audit only and not used for
+   comparison.
 
 Run every case, not only the one the edit is for. The three sessions share one
 prompt, so a line written for one of them reaches the other two; a fix is one
@@ -308,7 +317,7 @@ before it was told to say "settings", 5 of 20 replies said "preset" or
 "profile". `--prompt-rev` does not apply to these cases before the commit
 that adds `filamentInstructions.ts`.
 
-## Baseline after offering the settings tools (2026-09-29)
+## Current baseline: after offering the settings tools (2026-09-29)
 
 The printer panel now also offers `settings_search`, `settings_get`,
 `settings_preview_patch` and `settings_apply_patch`, answered by
@@ -341,7 +350,12 @@ the model then sent correctly. The registry now says so when it happens
 ("target must be a JSON object, not a string holding one"); too few string
 targets have been seen since to measure whether that ends the bursts.
 
-## Historical baseline before removing the dialog and finish tools
+## Baseline history
+
+Earlier baselines, kept for audit only. Do not compare a new run against
+them.
+
+### Before removing the dialog and finish tools (2026-09-28)
 
 The prompt before this tool removal, recorded in `dd7ca1b8ef`, run alongside
 the one before it on 2026-09-28, three runs per case, with the app's refusals in place

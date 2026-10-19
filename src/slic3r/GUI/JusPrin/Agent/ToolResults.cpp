@@ -206,6 +206,22 @@ json plan_section_result(const PlanRecord& plan)
             {"invalidatedBy", plan.invalidated_by}, {"truncated", truncated}};
 }
 
+json setup_in_force(const Workspace::WorkspaceSnapshot& snapshot)
+{
+    json setup = json::object();
+    const auto put = [&setup](const char* key, const std::string& value) {
+        if (!value.empty())
+            setup[key] = value;
+    };
+    put("printerPreset", snapshot.setup.printer_preset);
+    put("filamentPreset", snapshot.setup.filament_preset);
+    put("processPreset", snapshot.setup.process_preset);
+    for (const Workspace::WorkspacePlate& plate : snapshot.plates)
+        if (plate.active)
+            put("plateType", plate.bed_type);
+    return setup;
+}
+
 namespace {
 const Workspace::PrinterDevice* selected_device(const std::vector<Workspace::PrinterDevice>& devices)
 {
@@ -608,6 +624,33 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
     return result;
 }
 
+json slice_failure_result(const Workspace::SliceFailure& failure, bool full)
+{
+    bool truncated = false;
+    json result{{"kind", Workspace::slice_failure_kind_name(failure.kind)}, {"severity", failure.severity},
+                {"message", text(failure.message, truncated)}};
+    if (!failure.setting.empty()) result["setting"] = failure.setting;
+    if (failure.object) result["objectId"] = std::to_string(failure.object->value());
+    if (full) {
+        if (!failure.code.empty()) result["code"] = failure.code;
+        if (!failure.object_name.empty()) result["objectName"] = label(failure.object_name, truncated);
+    }
+    if (truncated) result["truncated"] = true;
+    return result;
+}
+
+json slice_warnings_result(const Workspace::SliceWarnings& warnings)
+{
+    bool truncated = false;
+    json result{{"count", warnings.count}, {"severity", warnings.severity}, {"message", text(warnings.message, truncated)}};
+    if (!warnings.setting.empty()) result["setting"] = warnings.setting;
+    if (warnings.object) result["objectId"] = std::to_string(warnings.object->value());
+    if (!warnings.object_name.empty()) result["objectName"] = label(warnings.object_name, truncated);
+    if (warnings.ignored != 0) result["ignored"] = warnings.ignored;
+    if (truncated) result["truncated"] = true;
+    return result;
+}
+
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
 {
     bool truncated = false;
@@ -617,9 +660,12 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
         const char* status = !plate.estimate ? "none" :
             plate.estimate_status == Workspace::EstimateStatus::Current ? "current" :
             plate.estimate_status == Workspace::EstimateStatus::Recomputing ? "recomputing" : "stale";
-        plates.push_back({{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
-                          {"sliced", plate.sliced}, {"estimateStatus", status},
-                          {"invalidatedBy", label(plate.invalidated_by, truncated)}});
+        json entry{{"plateId", std::to_string(plate.id.value())}, {"name", label(plate.name, truncated)},
+                   {"sliced", plate.sliced}, {"estimateStatus", status},
+                   {"invalidatedBy", label(plate.invalidated_by, truncated)}};
+        if (plate.slice_failure) entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
+        if (plate.slice_warnings) entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
+        plates.push_back(std::move(entry));
     }
     json jobs = json::array();
     for (const auto& job : snapshot.jobs) {
@@ -689,8 +735,13 @@ json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateI
     // A plate with no current slice has nothing to report, and saying so is the
     // answer: an empty summary of zeros would read as a print that costs
     // nothing and takes no time.
-    if (!report.valid)
+    if (!report.valid) {
+        // Why it is not sliced, when its last slice was refused or failed.
+        for (const auto& candidate : snapshot.plates)
+            if (candidate.id == plate && candidate.slice_failure)
+                result["sliceFailure"] = slice_failure_result(*candidate.slice_failure, true);
         return result;
+    }
 
     if (sections.summary) {
         json filaments = json::array();
