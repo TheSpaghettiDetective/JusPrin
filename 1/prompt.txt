@@ -1,0 +1,14 @@
+did you merge your worktree/branch? if so, undo the merge. I haven't confirmed it yet
+
+---
+
+<cross-session-message from="local_e88d114e-900b-4ee5-b003-859981e02006" name="LLM API abstraction design">
+Kenneth approved the OpenRouter live smoke with a hard spend cap of $0.50 total, and confirmed the default model stays `openai/gpt-5.4-mini`. Please run it now.
+
+How to run it:
+- Use OPENROUTER_API_KEY from the environment (the prompt eval harness in tests/project_prompt reads the same variable; if it is not set in your shell, look at how that harness is run and stop and report rather than guessing a key).
+- Before the real run, estimate the cost from the recorded request sizes and the model's OpenRouter price, and keep the number of requests to what the four probes need (instructions honoured, strict accepted, parallel_tool_calls accepted, image part inside function_call_output accepted) plus the one reply-and-tool-call check.
+- Meter actual spend: OpenRouter reports cost in the response usage when the request sets `usage: {"include": true}` (verify that field name against OpenRouter's docs before relying on it; otherwise use the generation endpoint or the account's activity page). Stop before any request that could take the running total past $0.50.
+- Report per request: what was sent, what came back, the cost, and the verdict on each of the four probes. If a probe fails (for example OpenRouter rejects `strict` or an image part), say exactly what the error was and what the profile or codec should do about it, but do not change the codec in this run; fix the profile only if the fix is a data change.
+- Commit nothing new unless the smoke revealed a data-only fix; then one commit with a cold-reader message. Nothing merged or pushed.
+</cross-session-message>
