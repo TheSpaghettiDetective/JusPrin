@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5AYXA5140RJVH3ABEEY3027",
+  "session_id": "01a155e5-1d1d-7ad1-b00d-bb27e14b0b90",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-19T20:51:07.498057Z",
+  "branch": "codex/provider-agent-extract-verification",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderCodec.hpp",
+    "tests/agent/test_provider_agent.cpp"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-astra",
+  "turn_id": "54d333431d2f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 125968,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2809088,
+    "output_tokens": 14148,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-19T20:51:07.439069Z",
+    "agent_lines": 1448,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1448,
+    "total_lines_changed": 1448,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
