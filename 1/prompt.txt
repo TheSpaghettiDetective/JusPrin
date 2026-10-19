@@ -1,0 +1,20 @@
+> New since the baseline: the model asks for a picture of the plate. Five runs stopped on view_render, which the recording has no answer for: two first-person runs, and one each in reply-in-german, advice-infill and troubleshoot-first-layer. The model said things like “Let me show you what it looks like”. The baseline batch never called view_render, in 51 runs. The tool and its description are unchanged.
+> 
+> The print-issues skill isn’t the cause on its own: first-person’s request doesn’t carry it.
+> What all four cases share is the standing prompt. It differs from the baseline’s in three ways: the Preparing section is gone (branch 3), the print-issue bullet is gone (branch 2), and Replies has your beginner rule (branch 1).
+> My guess, not tested, is the beginner rule, especially “explain a problem by what it means for their print”. It makes sense that the model wants to show a beginner the object.
+> In the app this costs one extra picture and the turn carries on. In the eval it ends the run unobserved, which is where most of the lost passes went.
+
+ Have you checked if in those cases it actually makes sense for a model to try to view the object?  Basically, if it's at least reasonable for the model to want to gather that info in order to better serve the user's request, or this tool call seems completely random out of the year.
+
+---
+
+“Let me show you what it looks like” is ok. the 3d viewer is right next to it, and th euser can see it.  So the reasonable next step is to tell the main session to record the render so that these cases will no longer be unobserved, right?  If so, do it.
+
+---
+
+what do you mean by "offline checks"?
+
+---
+
+what does offline checks test? they can't test prompt itself, right?
