@@ -528,6 +528,34 @@
     "scope": "process",
     "query": "z hop"
    }
+  },
+  {
+   "call": "view_render",
+   "arguments": {
+    "view": "iso"
+   }
+  },
+  {
+   "call": "view_render",
+   "eachPlate": true,
+   "arguments": {
+    "plateId": "{{plate}}",
+    "view": "iso"
+   }
+  },
+  {
+   "call": "view_render",
+   "arguments": {
+    "view": "plate"
+   }
+  },
+  {
+   "call": "view_render",
+   "eachPlate": true,
+   "arguments": {
+    "plateId": "{{plate}}",
+    "view": "plate"
+   }
   }
  ],
  "conversations": [
@@ -555,6 +583,8 @@
        }
       },
       {
+       "record": "after-intent",
+       "skill": "project-setup-changed",
        "call": "presets_list",
        "arguments": {
         "kind": "filament",
@@ -669,7 +699,8 @@
      "say": "what infill should I use for this?",
      "replies": [
       {
-       "record": "advice-infill"
+       "record": "advice-infill",
+       "skill": "print-issues"
       }
      ]
     }
@@ -682,7 +713,8 @@
      "say": "Welche Füllung sollte ich dafür verwenden?",
      "replies": [
       {
-       "record": "reply-in-german"
+       "record": "reply-in-german",
+       "skill": "print-issues"
       }
      ]
     }
@@ -695,7 +727,8 @@
      "say": "why isn't my first layer sticking?",
      "replies": [
       {
-       "record": "troubleshoot-first-layer"
+       "record": "troubleshoot-first-layer",
+       "skill": "print-issues"
       }
      ]
     }
@@ -708,7 +741,8 @@
      "say": "which printer and filament is this set up for?",
      "replies": [
       {
-       "record": "answer-from-context"
+       "record": "answer-from-context",
+       "skill": "print-issues"
       }
      ]
     }
@@ -721,7 +755,8 @@
      "say": "what filament is loaded?",
      "replies": [
       {
-       "record": "loaded-vs-configured"
+       "record": "loaded-vs-configured",
+       "skill": "print-issues"
       }
      ]
     }
@@ -735,6 +770,7 @@
      "replies": [
       {
        "record": "direct-change",
+       "skill": "print-issues",
        "call": "settings_get",
        "arguments": {
         "scope": "process",
@@ -826,7 +862,8 @@
      },
      "replies": [
       {
-       "record": "issue-fix"
+       "record": "issue-fix",
+       "skill": "print-issues"
       }
      ]
     }
@@ -842,7 +879,8 @@
      },
      "replies": [
       {
-       "record": "issue-explain"
+       "record": "issue-explain",
+       "skill": "print-issues"
       }
      ]
     }
@@ -866,6 +904,21 @@
       },
       {
        "record": "first-person"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "slice-warnings-ready",
+   "fixture": "overhang",
+   "steps": [
+    {
+     "say": "is this good to print?",
+     "replies": [
+      {
+       "record": "slice-warnings-ready",
+       "skill": "print-issues"
       }
      ]
     }
@@ -918,7 +971,7 @@
      "replies": [
       {
        "record": "model-opened-unnamed",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -945,7 +998,7 @@
       },
       {
        "record": "model-imported-by-tool",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }
@@ -970,7 +1023,7 @@
       },
       {
        "record": "model-opened-by-tool",
-       "skill": true
+       "skill": "file-loaded"
       }
      ]
     }

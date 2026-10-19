@@ -605,6 +605,21 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             m_workspace->set_slice_failure_reader([this]() -> std::optional<Workspace::SliceFailure> {
                 return m_print_issues ? m_print_issues->slice_failure() : std::nullopt;
             });
+            // The workspace summarizes a slice's warnings in the words the
+            // monitor reads from OrcaSlicer, with their setting and object.
+            // Read now: the slice's end reaches the workspace before the
+            // notification manager's next turn has the monitor look again,
+            // and a slice_start result is built at that moment. Its callbacks
+            // (the overlay's redraw, the work entries) never read the workspace.
+            m_workspace->set_slice_warnings_reader(
+                [this](std::uint64_t plate) -> std::optional<std::vector<Workspace::SliceWarningFinding>> {
+                    if (m_print_issues == nullptr)
+                        return std::nullopt;
+                    m_print_issues->refresh_now();
+                    if (m_print_issues->snapshot().plate != plate)
+                        return std::nullopt;
+                    return PrintIssues::slice_warnings_of(m_print_issues->snapshot());
+                });
             PrintIssues::IssueOverlay::Actions actions;
             actions.highlight = [this](const PrintIssues::PrintIssue& issue) {
                 if (m_workspace == nullptr || m_print_issues == nullptr)

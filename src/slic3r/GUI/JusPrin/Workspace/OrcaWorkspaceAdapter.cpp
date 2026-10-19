@@ -8,6 +8,7 @@
 #include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
+#include "SliceWarnings.hpp"
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
@@ -718,6 +719,31 @@ bool OrcaWorkspaceAdapter::record_slice_failure(SliceFailureKind kind)
     return true;
 }
 
+void OrcaWorkspaceAdapter::read_slice_warnings(std::uint64_t plate, std::uint64_t result) const
+{
+    if (!m_slice_warnings_reader)
+        return;
+    if (m_slice_warnings_session != m_session) {
+        // Another project: nothing it was warned about describes this one.
+        m_slice_warnings.clear();
+        m_slice_warnings_session = m_session;
+    }
+    const std::optional<std::vector<SliceWarningFinding>> findings = m_slice_warnings_reader(plate);
+    if (!findings)
+        return;
+    PlateWarnings& record = m_slice_warnings[plate];
+    // A warning the plate's last record did not hold is news; the same set
+    // read again, or a smaller one, is not.
+    std::uint64_t sequence = record.summary ? record.summary->sequence : 0;
+    if (!findings->empty() && (has_new_slice_warning(*findings, record.ids) || !record.summary))
+        sequence = ++m_next_slice_warnings;
+    record.result  = result;
+    record.summary = summarize_slice_warnings(*findings, m_session, sequence);
+    record.ids.clear();
+    for (const SliceWarningFinding& finding : *findings)
+        record.ids.insert(finding.id);
+}
+
 WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
 {
     wxASSERT(wxIsMainThread());
@@ -802,6 +828,16 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         // from the moment it starts.
         if (const auto failure = m_slice_failures.find(plate_key); failure != m_slice_failures.end() && !this_plate_slicing)
             projected_plate.slice_failure = failure->second;
+        // What the current slice warned about. OrcaSlicer checks only the
+        // active plate, so another plate keeps what was read while it was
+        // active, for as long as that slice is still its own.
+        if (projected_plate.sliced && !this_plate_slicing && plate->get_slice_result()) {
+            const std::uint64_t slice = plate->get_slice_result()->id;
+            if (projected_plate.active)
+                read_slice_warnings(plate_key, slice);
+            if (const auto found = m_slice_warnings.find(plate_key); found != m_slice_warnings.end() && found->second.result == slice)
+                projected_plate.slice_warnings = found->second.summary;
+        }
         const ModelObjectPtrs& objects = m_plater.model().objects;
         for (std::size_t object_index = 0; object_index < objects.size(); ++object_index) {
             WorkspaceObject object = project_object(m_session, *objects[object_index], *plate, static_cast<int>(object_index));

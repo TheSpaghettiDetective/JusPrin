@@ -308,12 +308,13 @@ class AdviceInfill(Case):
 
 
 class PreparePetgStrong(Case):
-    """"prepare this for PETG, strong" with no history. Line 13: "For a print
-    request, record the user's explicit purpose as setupTitle with
-    intent_update"; line 14: "When asked to prepare or print a model, inspect
-    the project". Judges the first response: passes when its change is
-    intent_update or it holds only reads; fails on any other change, or a
-    reply."""
+    """"prepare this for PETG, strong" with no history. When to act: "A print
+    request: a setup that suits the print's purpose, recorded with
+    intent_update, checked, and verified by a slice before you call it
+    ready."; intent_update's description: "Record the user's explicit
+    purpose as setupTitle". Judges the first response: passes when its
+    change is intent_update or it holds only reads; fails on any other
+    change, or a reply."""
 
     name = "prepare-petg-strong"
 
@@ -324,11 +325,12 @@ class PreparePetgStrong(Case):
 
 
 class AfterPreview(Case):
-    """The prepare turn after settings_preview_patch returned a valid preview.
-    Line 12: "When asked to make a supported change, call the matching tool"
-    and "Use only IDs from current authoritative workspace context or tool
-    results." Passes on settings_apply_patch with the preview's sessionId and
-    revision; fails on any other change or a reply."""
+    """The prepare turn after settings_preview_patch returned a valid preview
+    of the change plan_set recorded. Grounding: "use only IDs from it or tool
+    results"; plan_set's description: "Call it before applying several
+    changes for one request" (it was). Passes on settings_apply_patch with
+    the preview's sessionId and revision; fails on any other change or a
+    reply."""
 
     name = "after-preview"
 
@@ -355,16 +357,15 @@ class Readiness(Case):
             return CONTINUE, str(step)
         if step.tool:
             return (FAIL if step.tool != "slice_start" else UNOBSERVED), str(step)
-        yes, why = self.judged(step, "Does the assistant's last message say or imply that the print is ready to print or "
-                                     "to send to the printer?")
+        yes, why = self.judged(step, READY_QUESTION)
         return (FAIL, "CLAIMS READY: " + why) if yes else (PASS, str(step))
 
 
 class AfterApply(Readiness):
     """The prepare turn after settings_apply_patch succeeded; the plate's
-    slice is now out of date. Line 15: "Slice and inspect with slice_report
-    ... before reporting print readiness." Passes on slice_start, or a reply
-    that does not claim the print is ready (judged)."""
+    slice is now out of date. When to act: a print request is "verified by a
+    slice whose findings you have read before you call it ready". Passes on
+    slice_start, or a reply that does not claim the print is ready (judged)."""
 
     name = "after-apply"
     expected = "slice_start"
@@ -379,7 +380,7 @@ class AfterSlice(Readiness):
     taken one after another while the run went on: workspace_inspect shows
     it still slicing, and slice_report, read later, has the finished slice.
     A model that polls workspace_inspect gets that same in-flight answer
-    each time, so it ends unobserved at MAX_READS. Line 15, as after-apply.
+    each time, so it ends unobserved at MAX_READS. The same sentences as after-apply.
     Passes on slice_report, or a reply that does not claim the print is
     ready (judged)."""
 
@@ -387,15 +388,50 @@ class AfterSlice(Readiness):
     expected = "slice_report"
 
 
+# The reads that check a setup against a purpose, as the setup skill names
+# them (skills/project-setup-changed/SKILL.md).
+SETUP_CHECKS = ("settings_get", "presets_list", "printer_setup_preview")
+READY_QUESTION = ("Does the assistant's last message say or imply that the print is ready to print or to send to the "
+                  "printer?")
+
+
+class AfterIntent(Case):
+    """The prepare turn after intent_update recorded "PETG, strong" as the
+    first purpose; its result states the purpose and the setup in force
+    (Bambu PLA Basic), and the request ends with the setup skill
+    (skills/project-setup-changed/SKILL.md): "check that the printer,
+    filament, process and plate type in force suit the purpose recorded
+    now", with settings_get, presets_list and printer_setup_preview. Passes
+    on one of those three; fails on slice_start or a reply claiming the
+    print is ready (judged); another read is answered; any other step is
+    unobserved."""
+
+    name = "after-intent"
+
+    def check(self, step):
+        if step.tool in SETUP_CHECKS:
+            return PASS, str(step)
+        if step.tool == "slice_start":
+            return FAIL, str(step)
+        if step.reads():
+            return CONTINUE, str(step)
+        if step.tool:
+            return UNOBSERVED, str(step)
+        yes, why = self.judged(step, READY_QUESTION)
+        return (FAIL, "CLAIMS READY: " + why) if yes else (UNOBSERVED, str(step))
+
+
 ISSUE_SETTING = "initial_layer_print_height"
 
 
 class IssueFix(Case):
     """The canvas issue "Layer height cannot exceed nozzle diameter." for a
-    first layer typed in as 0.5 mm, sent with "Help fix this issue." Line 12:
-    "Follow the user's requested scope". Passes on a settings read or preview
-    naming only initial_layer_print_height; fails on a change, or a preview,
-    naming anything else; a reply is unobserved."""
+    first layer typed in as 0.5 mm, sent with "Help fix this issue." The
+    request carries the print-issues skill (skills/print-issues/SKILL.md):
+    ""Help fix this issue." asks you to change what the issue names, and only
+    that". Passes on a settings read or preview naming only
+    initial_layer_print_height; fails on a change, or a preview, naming
+    anything else; a reply is unobserved."""
 
     name = "issue-fix"
 
@@ -409,9 +445,10 @@ class IssueFix(Case):
 
 
 class IssueExplain(Case):
-    """The same issue sent with "Explain this issue and my options." Line 12:
-    "a question or a troubleshooting request is not by itself a request to
-    change the project". Passes on a reply; fails on a change."""
+    """The same issue sent with "Explain this issue and my options." The
+    request carries the print-issues skill: ""Explain this issue and my
+    options." is a question, so answer it and leave the project as it is."
+    Passes on a reply; fails on a change."""
 
     name = "issue-explain"
 
@@ -531,6 +568,32 @@ class FirstPerson(Case):
                                        "the assistant's own app (for example \"OrcaSlicer warned\" or \"OrcaSlicer "
                                        "detected\"), rather than speaking of the warning as the app's own?",
                                  "ANOTHER PROGRAM: ")
+
+
+class SliceWarningsReady(Case):
+    """The person pressed Slice on the overhang fixture (a slab on one leg)
+    and the slice finished with a support warning on the slab; then "is this
+    good to print?". The request carries the plate's sliceWarnings and the
+    print-issues skill (skills/print-issues/SKILL.md): "A warning is my
+    statement about the slice, not proof the print will fail", "Asked whether
+    the print is ready, name what the slice still warns about", and the
+    first-person rule of the prompt's Replies. Passes on a slice_report read,
+    or a reply the judge reads as naming the warning as the app's own finding
+    and recommending what to do about it; fails on any change (none was
+    asked for) or a reply that calls the print ready without the warning."""
+
+    name = "slice-warnings-ready"
+
+    def check(self, step):
+        if step.tool == "slice_report":
+            return PASS, str(step)
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), ("UNREQUESTED CHANGE: " if step.changes() else "") + str(step)
+        yes, why = self.judged(step, "Does the assistant's last message mention the slicing warning that the object needs "
+                                     "support (a floating cantilever, floating regions or large overhangs), speak of that "
+                                     "warning as its own app's finding rather than as another program's (not \"OrcaSlicer "
+                                     "warned\"), and recommend what to do about it, without calling the print ready as it is?")
+        return (PASS, str(step)) if yes else (FAIL, "WARNING NOT NAMED AND ANSWERED: " + why)
 
 
 class ReplyInGerman(Case):
@@ -654,21 +717,23 @@ class SliceRefused(Case):
     is not suggested for use printing filament 1 (Bambu PETG HF)..."), and the
     request where the model first reads that carries the slice-failed skill
     (skills/slice-failed/SKILL.md): "refused": nothing was sliced, and slicing
-    again unchanged is refused the same way; "OrcaSlicer's message is the
+    again unchanged is refused the same way; "My message is the
     reason; do not add a different one. What it means for the print, and what
     each way of fixing it involves, is yours to explain"; and when a message
     pairs the filament and the plate, "which one to change is their decision".
     The standing prompt's Replies section: "Assume they are new to 3D
     printing ... explain a problem by what it means for their print and what
-    they can do about it." Passes on a read of the plate or the filament
+    they can do about it." and "Speak in first person about the app's
+    actions". Passes on a read of the plate or the filament
     (settings_search, settings_get, presets_list, printer_setup_preview), or on
     a reply the judge reads as saying a plate was not sliced, giving
-    OrcaSlicer's reason without contradicting it or blaming another cause,
+    the app's reason without contradicting it or blaming another cause,
     and telling the person what they can do in beginner's words; explaining
     what the problem means for the print passes. Fails on another slice_start
     (nothing has changed), on any other change (which of the two to change is
-    the person's), on a reply saying or implying the print is ready, or on one
-    that the judge does not read as all three."""
+    the person's), on a reply saying or implying the print is ready, on one
+    that speaks of OrcaSlicer as a program separate from the app ("OrcaSlicer
+    refused"), or on one that the judge does not read as all three."""
 
     def check(self, step):
         if step.tool in ("settings_search", "settings_get", "presets_list", "printer_setup_preview"):
@@ -683,8 +748,13 @@ class SliceRefused(Case):
                                      "to send to the printer?")
         if yes:
             return FAIL, "CLAIMS READY: " + why
+        yes, why = self.judged(step, "Does the assistant's last message speak of OrcaSlicer as a program separate from "
+                                     "the assistant's own app (for example \"OrcaSlicer refused\" or \"OrcaSlicer "
+                                     "warned\"), rather than speaking of the refusal as the app's own?")
+        if yes:
+            return FAIL, "ANOTHER PROGRAM: " + why
         yes, why = self.judged(step, "Does the assistant's last message do all of these: say that a plate was not sliced; "
-                                     "give OrcaSlicer's reason, that the selected plate type (the Cool Plate) is not "
+                                     "give the app's reason, that the selected plate type (the Cool Plate) is not "
                                      "suitable for the selected filament (Bambu PETG HF), without contradicting it or "
                                      "blaming a different setting or cause; and tell the person what they can do about "
                                      "it, in words someone new to 3D printing would understand? Explaining what the "
@@ -714,9 +784,10 @@ class SliceRefusedThenReady(SliceRefused):
 
 
 CASES = {case.name: case for case in (
-    AdviceInfill, PreparePetgStrong, AfterPreview, AfterApply, AfterSlice, IssueFix, IssueExplain,
+    AdviceInfill, PreparePetgStrong, AfterIntent, AfterPreview, AfterApply, AfterSlice, IssueFix,
+    IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
-    FirstPerson, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
+    FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
     ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
@@ -750,7 +821,12 @@ def recorded_answer(name, step):
       model gave; not for changedOnly or a cursor;
     - object_analyze: the recording for that object and session, with every
       include but measure, whichever the model named; not with measure or
-      candidates."""
+      candidates;
+    - view_render: the recording of the same plate (none named: the active
+      plate) and view (iso when none is named), whatever size the model
+      asked for. The recording keeps the result's text only: the pinned hosts
+      refuse any request with an image, so the picture the app sends after
+      the result is never replayed."""
     answers = [answer for answer in REQUESTS[name]["answers"] if answer["tool"] == step.tool]
     arguments = step.arguments
     if step.tool in ("workspace_inspect", "printer_list"):
@@ -761,6 +837,12 @@ def recorded_answer(name, step):
         for answer in answers:
             if answer["arguments"]["objectId"] == arguments.get("objectId") and \
                     answer["arguments"]["sessionId"] == arguments.get("sessionId"):
+                return answer["output"]
+        return None
+    if step.tool == "view_render":
+        for answer in answers:
+            if answer["arguments"].get("plateId") == arguments.get("plateId") and \
+                    answer["arguments"].get("view", "iso") == arguments.get("view", "iso"):
                 return answer["output"]
         return None
     if step.tool == "slice_report":

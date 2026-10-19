@@ -81,6 +81,12 @@ public:
     // without a reader the record says only that slicing did not succeed.
     using SliceFailureReader = std::function<std::optional<SliceFailure>()>;
     void set_slice_failure_reader(SliceFailureReader reader) { m_slice_failure_reader = std::move(reader); }
+    // The warnings of the current slice of a plate (by Orca id), from the one
+    // that already reads them from OrcaSlicer with their setting and object:
+    // the print-issue monitor. Nothing while it vouches for no finished slice
+    // of that plate. Without a reader no plate carries a warnings summary.
+    using SliceWarningsReader = std::function<std::optional<std::vector<SliceWarningFinding>>(std::uint64_t plate)>;
+    void set_slice_warnings_reader(SliceWarningsReader reader) { m_slice_warnings_reader = std::move(reader); }
     // A tool's own open or import is running; it settles what the person
     // would otherwise be asked about the file.
     bool tool_load_active() const { return m_tool_loads != 0; }
@@ -199,6 +205,21 @@ private:
     // made at the slice-status change that follows.
     std::optional<std::uint64_t>                   m_failed_run_plate;
     SliceFailureReader                             m_slice_failure_reader;
+    // What each plate's slice last warned about, by plate id, read while the
+    // plate is active and kept for as long as that slice is its current one.
+    // The finding ids outlive the slice, so a re-slice that reports the same
+    // warnings keeps the summary's sequence.
+    struct PlateWarnings
+    {
+        std::uint64_t                result{0}; // the slice result the summary describes
+        std::set<std::string>        ids;
+        std::optional<SliceWarnings> summary;
+    };
+    void read_slice_warnings(std::uint64_t plate, std::uint64_t result) const;
+    SliceWarningsReader                            m_slice_warnings_reader;
+    mutable std::map<std::uint64_t, PlateWarnings> m_slice_warnings;
+    mutable ProjectSessionId                       m_slice_warnings_session;
+    mutable std::uint64_t                          m_next_slice_warnings{0};
     mutable std::set<std::uint64_t> m_known_object_ids;
     ProjectStateSubscription        m_project_subscription;
 

@@ -69,6 +69,10 @@ struct AgentSkillUse
     std::string                      name;
     std::string                      text;
     std::shared_ptr<const ToolImage> picture;
+    std::string                      trigger;
+    // Triggers of skills this one gives way to: when one of them fires for
+    // the same request, this one is left out of it.
+    std::vector<std::string>         yields_to;
 };
 
 // What one conversation is for. The project conversation leaves the tools and
@@ -105,6 +109,9 @@ struct AgentRequest
     std::string                           setup_title;
     std::vector<IntentField>              intent;
     PlanRecord                            plan;
+    // The presets or the plate type in force differ from those the model was
+    // last asked to check against the recorded purpose.
+    bool                                  setup_unchecked_change{false};
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;
     std::vector<AgentSkillUse>            skills;

@@ -463,6 +463,77 @@ TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]"
     CHECK(document_boundaries == std::vector<std::string>{plan_action, intent_action, assumed});
 }
 
+TEST_CASE("intent_update says what it did to the purpose and which setup was in force", "[tools][intent]")
+{
+    Workspace::WorkspaceSnapshot fixture = one_plate_snapshot();
+    fixture.setup.printer_preset  = "Bambu Lab X1 Carbon 0.4 nozzle";
+    fixture.setup.filament_preset = "Bambu PLA Basic @BBL X1C";
+    fixture.plates[0].bed_type    = "Textured PEI Plate";
+    Workspace::FakeWorkspace workspace(fixture);
+    ToolExecutionCoordinator coordinator(workspace);
+    FakeProductState         store;
+    coordinator.set_product_state(&store);
+    const auto& registry = ToolRegistry::instance();
+    const auto  record   = [&](const json& arguments, const std::string& message_id = "m-1") {
+        const std::string action = coordinator.submit({"intent_update", arguments.dump()}, message_id).action_id;
+        coordinator.pump();
+        REQUIRE(coordinator.find(action)->state == ToolState::Succeeded);
+        const json result = json::parse(coordinator.find(action)->result_json);
+        CHECK(registry.validate_output(*registry.find("intent_update"), result));
+        return result;
+    };
+    const json in_force{{"printerPreset", "Bambu Lab X1 Carbon 0.4 nozzle"},
+                        {"filamentPreset", "Bambu PLA Basic @BBL X1C"},
+                        {"processPreset", "Fixture process"},
+                        {"plateType", "Textured PEI Plate"}};
+
+    // A question with no answer records no purpose: nothing to say about one.
+    const json asked = record({{"fields", json::array({json{{"field", "use"}, {"question", "What is it for?"}}})}});
+    CHECK_FALSE(asked.contains("purposeChange"));
+    CHECK(asked["setupInForce"] == in_force);
+    CHECK(store.purpose_setup().empty());
+
+    // The first purpose: what it is, and the setup chosen before it existed,
+    // which the app keeps to tell later whether the setup has changed since.
+    const json first = record({{"setupTitle", "A strong hook"},
+                               {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    CHECK(first["purposeChange"] == "first");
+    CHECK_FALSE(first.contains("purposeBefore"));
+    CHECK(first["purposeAfter"] ==
+          json{{"setupTitle", "A strong hook"}, {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    CHECK(first["setupInForce"] == in_force);
+    CHECK(store.purpose_setup() == in_force);
+
+    // The same purpose again, and a new title alone, say so and leave the
+    // setup the purpose was recorded under as it was.
+    store.set_purpose_setup(json{{"printerPreset", "kept"}});
+    const json repeated = record({{"setupTitle", "A strong hook"},
+                                  {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    CHECK(repeated["purposeChange"] == "unchanged");
+    CHECK_FALSE(repeated.contains("purposeBefore"));
+    CHECK_FALSE(repeated.contains("purposeAfter"));
+    const json retitled = record({{"setupTitle", "A sturdy hook"}, {"fields", json::array()}});
+    CHECK(retitled["purposeChange"] == "title_only");
+    CHECK_FALSE(retitled.contains("purposeAfter"));
+    CHECK(retitled["setupInForce"] == in_force);
+    CHECK(store.purpose_setup() == json{{"printerPreset", "kept"}});
+
+    // A changed answer is a changed purpose: before and after, and the setup
+    // recorded again under it.
+    const json changed = record({{"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}});
+    CHECK(changed["purposeChange"] == "changed");
+    CHECK(changed["purposeBefore"]["fields"][0]["value"] == "PETG");
+    CHECK(changed["purposeAfter"]["fields"][0]["value"] == "ASA");
+    CHECK(changed["purposeAfter"]["setupTitle"] == "A sturdy hook");
+    CHECK(store.purpose_setup() == in_force);
+
+    // A call from no chat records no title, so a title alone changes nothing.
+    store.chatless_messages.insert("m-outside");
+    const json outside = record({{"setupTitle", "Someone else's words"}, {"fields", json::array()}}, "m-outside");
+    CHECK(outside["purposeChange"] == "unchanged");
+    CHECK_FALSE(outside.contains("purposeAfter"));
+}
+
 TEST_CASE("workspace_inspect without sections is what it always was", "[tools][inspect]")
 {
     Harness h;

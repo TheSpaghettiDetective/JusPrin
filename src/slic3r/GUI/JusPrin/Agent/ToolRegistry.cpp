@@ -948,9 +948,21 @@ std::vector<ToolDefinition> make_definitions()
                                              {"invalidatedBy", string_schema()}, {"truncated", boolean_schema()}},
                                             {"headline", "decisions", "assumptions", "risks", "updatedAt",
                                              "validity", "invalidatedBy", "truncated"});
-    const json intent_output = object_schema({{"intent", intent_section}, {"sessionId", id}, {"revision", revision},
+    // The purpose is the chat's title and the answered fields: what the call
+    // did to it, and the presets and plate type in force when it did.
+    const json purpose = object_schema({{"setupTitle", text},
+                                        {"fields", array_schema(object_schema({{"field", id}, {"value", text}},
+                                                                              {"field", "value"}), 64)}});
+    const json setup_presets = object_schema({{"printerPreset", string_schema()}, {"filamentPreset", string_schema()},
+                                               {"processPreset", string_schema()}, {"plateType", string_schema()}});
+    const json intent_output = object_schema({{"intent", intent_section},
+                                              {"purposeChange", {{"type", "string"},
+                                                                 {"enum", json::array({"first", "changed", "title_only", "unchanged"})}}},
+                                              {"purposeBefore", purpose}, {"purposeAfter", purpose},
+                                              {"setupInForce", setup_presets},
+                                              {"sessionId", id}, {"revision", revision},
                                               {"projectUndo", boolean_schema()}},
-                                             {"intent", "sessionId", "revision", "projectUndo"});
+                                             {"intent", "setupInForce", "sessionId", "revision", "projectUndo"});
     const json plan_output = object_schema({{"plan", plan_section}, {"sessionId", id}, {"revision", revision},
                                             {"projectUndo", boolean_schema()}},
                                            {"plan", "sessionId", "revision", "projectUndo"});
@@ -965,10 +977,19 @@ std::vector<ToolDefinition> make_definitions()
                                               {"message", text}, {"setting", id}, {"objectId", id}, {"code", id},
                                               {"objectName", string_schema()}, {"truncated", boolean_schema()}},
                                              {"kind", "severity", "message"});
+    // What a plate's current slice warned about: how many warnings, and the
+    // first to read in OrcaSlicer's words.
+    const json slice_warnings = object_schema({{"count", integer_schema()},
+                                               {"severity", {{"type", "string"}, {"enum", json::array({"critical", "warning"})}}},
+                                               {"message", text}, {"setting", id}, {"objectId", id},
+                                               {"objectName", string_schema()}, {"ignored", integer_schema()},
+                                               {"truncated", boolean_schema()}},
+                                              {"count", "severity", "message"});
     const json slicing_plate = object_schema({{"plateId", id}, {"name", string_schema()}, {"sliced", boolean_schema()},
                                               {"estimateStatus", {{"type", "string"},
                                                                   {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
-                                              {"invalidatedBy", string_schema()}, {"sliceFailure", slice_failure}},
+                                              {"invalidatedBy", string_schema()}, {"sliceFailure", slice_failure},
+                                              {"sliceWarnings", slice_warnings}},
                                              {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
     const json jobs_list = {{"type", "array"}, {"maxItems", 16},
                             {"items", object_schema({{"handle", id},
@@ -1028,7 +1049,7 @@ std::vector<ToolDefinition> make_definitions()
          intent_output,
          ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::IntentUpdate},
         {"plan_set", "Pin your plan for this print",
-         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan and runs immediately; project Undo does not undo this.",
+         "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first. Replaces the whole plan and runs immediately; project Undo does not undo this.",
          object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                                       {"confidence", id}, {"alternative", text}},
                                                                                      {"topic", "statement"}), 16)},
@@ -1063,7 +1084,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"projectName", "path", "plateCount", "objectCount", "report", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectOpen},
         {"printer_setup", "Set up the printer",
-         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own.",
+         "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. A material and its saved filament preset are separate choices.",
          object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
                         {"filamentPresets", {{"type", "array"}, {"items", string_schema()}, {"minItems", 1}, {"maxItems", 16}}},
                         {"confirmFacts", {{"type", "array"}, {"minItems", 1}, {"maxItems", 16},
@@ -1346,7 +1367,7 @@ std::vector<ToolDefinition> make_definitions()
                        {"objectId", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ObjectAnalyze},
         {"presets_list", "List printer, filament, or process presets",
-         "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
+         "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees. A material and its saved filament preset are separate choices.",
          object_schema({{"kind", {{"type", "string"}, {"enum", json::array({"printer", "filament", "process"})}}},
                         {"query", id}, {"compatibleOnly", boolean_schema()},
                         {"limit", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}}, {"cursor", id}},
@@ -1439,7 +1460,7 @@ std::vector<ToolDefinition> make_definitions()
          "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, "
          "size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
          "packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's "
-         "slice is current and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
+         "slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
          "printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped "
          "to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},

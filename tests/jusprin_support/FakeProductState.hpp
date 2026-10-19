@@ -7,6 +7,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ProductState.hpp"
 
 #include <algorithm>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,27 @@ public:
         }
         return m_fields;
     }
+
+    // Every message belongs to one chat here unless a test names it in
+    // chatless_messages, as an external client's call would be.
+    std::optional<std::string> setup_title(const std::string& message_id) const override
+    {
+        if (chatless_messages.count(message_id) != 0)
+            return std::nullopt;
+        return m_setup_title;
+    }
+
+    bool set_setup_title(const std::string& message_id, const std::string& title) override
+    {
+        if (chatless_messages.count(message_id) != 0 || title.empty())
+            return false;
+        ++writes;
+        m_setup_title = title;
+        return true;
+    }
+
+    nlohmann::json purpose_setup() const override { return m_purpose_setup; }
+    void set_purpose_setup(nlohmann::json setup) override { m_purpose_setup = std::move(setup); }
 
     PlanRecord plan() const override { return m_plan; }
 
@@ -93,9 +115,12 @@ public:
     std::string   timestamp{"2026-09-16T00:00:00Z"};
     std::uint32_t writes{0};
     std::uint32_t flushes{0};
+    std::set<std::string> chatless_messages;
 
 private:
     std::vector<IntentField> m_fields;
+    std::string              m_setup_title;
+    nlohmann::json           m_purpose_setup = nlohmann::json::object();
     PlanRecord               m_plan;
     std::vector<Workspace::RegionRecord> m_regions;
     std::vector<Workspace::PrinterFact> m_facts;

@@ -206,6 +206,22 @@ json plan_section_result(const PlanRecord& plan)
             {"invalidatedBy", plan.invalidated_by}, {"truncated", truncated}};
 }
 
+json setup_in_force(const Workspace::WorkspaceSnapshot& snapshot)
+{
+    json setup = json::object();
+    const auto put = [&setup](const char* key, const std::string& value) {
+        if (!value.empty())
+            setup[key] = value;
+    };
+    put("printerPreset", snapshot.setup.printer_preset);
+    put("filamentPreset", snapshot.setup.filament_preset);
+    put("processPreset", snapshot.setup.process_preset);
+    for (const Workspace::WorkspacePlate& plate : snapshot.plates)
+        if (plate.active)
+            put("plateType", plate.bed_type);
+    return setup;
+}
+
 namespace {
 const Workspace::PrinterDevice* selected_device(const std::vector<Workspace::PrinterDevice>& devices)
 {
@@ -623,6 +639,18 @@ json slice_failure_result(const Workspace::SliceFailure& failure, bool full)
     return result;
 }
 
+json slice_warnings_result(const Workspace::SliceWarnings& warnings)
+{
+    bool truncated = false;
+    json result{{"count", warnings.count}, {"severity", warnings.severity}, {"message", text(warnings.message, truncated)}};
+    if (!warnings.setting.empty()) result["setting"] = warnings.setting;
+    if (warnings.object) result["objectId"] = std::to_string(warnings.object->value());
+    if (!warnings.object_name.empty()) result["objectName"] = label(warnings.object_name, truncated);
+    if (warnings.ignored != 0) result["ignored"] = warnings.ignored;
+    if (truncated) result["truncated"] = true;
+    return result;
+}
+
 json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const std::string& handle)
 {
     bool truncated = false;
@@ -636,6 +664,7 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
                    {"sliced", plate.sliced}, {"estimateStatus", status},
                    {"invalidatedBy", label(plate.invalidated_by, truncated)}};
         if (plate.slice_failure) entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
+        if (plate.slice_warnings) entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
         plates.push_back(std::move(entry));
     }
     json jobs = json::array();

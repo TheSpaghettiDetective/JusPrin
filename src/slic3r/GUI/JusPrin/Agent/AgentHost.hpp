@@ -350,6 +350,22 @@ private:
     // failed and no request has carried that failure yet. Fired once a failure.
     std::optional<AgentSkillUse> fire_on_new_slice_failure(const std::string& conversation_id,
                                                            const Workspace::WorkspaceSnapshot& workspace) const;
+    // The print-issues skill, when `workspace` shows a plate whose slice
+    // warned about something no request has carried yet, or when `chip` (a
+    // message from a print-issue chip). Fired once per new set of warnings:
+    // either way, the warnings in `workspace` count as told.
+    std::optional<AgentSkillUse> fire_print_issues(const std::string& conversation_id,
+                                                   const Workspace::WorkspaceSnapshot& workspace, bool chip) const;
+    // A purpose is recorded once the chat has a setup title or an intent
+    // field has an answer; a question asked and not answered is none.
+    bool purpose_recorded(const std::string& conversation_id) const;
+    // Whether the setup in force differs from the one the model was last
+    // asked to check against the recorded purpose (ProjectStateDocument::
+    // purpose_setup); false with no purpose or nothing checked yet.
+    bool setup_unchecked(const std::string& conversation_id, const Workspace::WorkspaceSnapshot& workspace) const;
+    // The model is asked to check the setup in force now: later changes are
+    // measured from it.
+    void mark_setup_checked(const Workspace::WorkspaceSnapshot& workspace);
     void handle_skills(const std::string& envelope_id, const std::string& payload_json);
     ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
     nlohmann::json tool_output_json(const ToolActivity& activity) const;
@@ -357,10 +373,6 @@ private:
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);
     void continue_after_tool(const ToolActivity& activity);
-    // Records the agent's one-line restatement of intent on the chat the
-    // change came from, so the setup card can say what it heard.
-    // Returns whether the write should reach the page now.
-    bool remember_setup_intent(const ToolActivity& activity);
     // Records which process settings the agent itself put in force, and to
     // what, so the card can count your hand edits separately from its own.
     bool remember_agent_authored(const ToolActivity& activity);
@@ -394,6 +406,27 @@ private:
             auto stored = m_persistence.document().set_print_intent(fields, m_persistence.timestamp());
             m_persistence.flush();
             return stored;
+        }
+        std::optional<std::string> setup_title(const std::string& message_id) const override
+        {
+            const std::string conversation_id = m_persistence.document().conversation_of_message(message_id);
+            if (conversation_id.empty())
+                return std::nullopt;
+            return m_persistence.document().setup_intent(conversation_id);
+        }
+        bool set_setup_title(const std::string& message_id, const std::string& title) override
+        {
+            const std::string conversation_id = m_persistence.document().conversation_of_message(message_id);
+            if (conversation_id.empty() || !m_persistence.document().set_setup_intent(conversation_id, title))
+                return false;
+            m_persistence.flush();
+            return true;
+        }
+        nlohmann::json purpose_setup() const override { return m_persistence.document().purpose_setup(); }
+        void           set_purpose_setup(nlohmann::json setup) override
+        {
+            m_persistence.document().set_purpose_setup(std::move(setup));
+            m_persistence.flush();
         }
         PlanRecord plan() const override { return m_persistence.document().plan(); }
         PlanRecord set_plan(PlanRecord record) override
@@ -464,6 +497,9 @@ private:
     // The slice failures (Workspace::SliceFailure::sequence) a request has
     // already carried with the slice-failed skill.
     mutable std::set<std::uint64_t> m_slice_failures_told;
+    // The slice warnings (Workspace::SliceWarnings::sequence) a request has
+    // already carried with the print-issues skill.
+    mutable std::set<std::uint64_t> m_slice_warnings_told;
     // Load reports of projects the Agent opened, posted to the opened
     // project's chat on the next timer tick, once its document is in place.
     std::deque<Workspace::LoadReport> m_agent_opened_reports;

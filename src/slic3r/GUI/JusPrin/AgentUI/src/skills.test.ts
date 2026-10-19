@@ -7,6 +7,8 @@ describe('project skills', () => {
   it('loads every SKILL.md, sorted by name, one per trigger', () => {
     expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
       ['file-loaded', 'file_loaded'],
+      ['print-issues', 'print_issues'],
+      ['project-setup-changed', 'setup_changed'],
       ['slice-failed', 'slice_failed'],
     ]);
     expect(skills.every((skill) => skill.text.startsWith('# '))).toBe(true);
@@ -130,8 +132,96 @@ describe('the skill for a slice that did not succeed', () => {
     expect(text).toContain('fixed only when a new slice no longer reports it');
   });
 
+  it('speaks as the app, never of OrcaSlicer as another program', () => {
+    expect(text).not.toMatch(/OrcaSlicer (warned|detected|reports|refused|checked)/);
+    expect(text).not.toMatch(/OrcaSlicer's (check|message)/);
+    expect(text).toContain('I checked the plate before slicing');
+  });
+
   it('never speaks of approving a call', () => {
     for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user/i])
+      expect(text).not.toMatch(word);
+  });
+});
+
+describe('the skill for issues OrcaSlicer reports', () => {
+  const text = skills.find((skill) => skill.trigger === 'print_issues')!.text;
+  const fileLoaded = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
+
+  it('is well under the file-loaded skill', () => {
+    expect(encoder.encode(text).length).toBeLessThan(0.75 * encoder.encode(fileLoaded).length);
+  });
+
+  it('carries what the chip buttons ask for, with the scope of a fix', () => {
+    expect(text).toContain('"Explain this issue and my options." is a question');
+    expect(text).toContain('"Help fix this issue." asks you to change what the issue names, and only that');
+    expect(text).toContain('<print_issue>');
+  });
+
+  it('says how to read a finding and where the warnings are', () => {
+    expect(text).toContain('sliceWarnings');
+    expect(text).toContain('The current heatbed temperature is relatively high');
+    expect(text).toContain("slice_report's findings");
+    expect(text).toContain('settings_search or settings_get with that key');
+    expect(text).toContain('The object, when named, narrows where');
+    expect(text).toContain('not proof the print will fail');
+    expect(text).toContain("the person's call");
+  });
+
+  it('counts a finding resolved only when a new slice no longer reports it', () => {
+    expect(text).toContain('resolved only when a new slice no longer reports it');
+    expect(text).toContain('never because a setting changed or a chip was closed or ignored');
+  });
+
+  it('guides the warning families OrcaSlicer raises, in its own words', () => {
+    for (const words of ['floating cantilever', "Object can't be printed for empty layer", 'is too close to others',
+      'Found gcode path conflicts', 'A G-code path goes beyond the plate boundaries', 'Orca will automatically cap',
+      'Partial flushing volume set to 0', 'The nozzle hardness required by the filament'])
+      expect(text).toContain(words);
+    expect(text).toContain('I raise no slicing warning for thin walls, bridges, bed adhesion, brims or cooling');
+  });
+
+  it('leaves standing policy to the project prompt and speaks as the app', () => {
+    expect(text).toContain('The rules above still apply');
+    expect(text).not.toContain('first person');
+    expect(text).not.toMatch(/OrcaSlicer (warned|detected|reports)/);
+  });
+
+  it('never words a change as needing the person\'s permission', () => {
+    for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
+      expect(text).not.toMatch(word);
+  });
+});
+
+describe('the skill for a setup to check against the print\'s purpose', () => {
+  const text = skills.find((skill) => skill.trigger === 'setup_changed')!.text;
+  const arrived = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
+
+  it('opens under the standing rules and stays short', () => {
+    expect(text.split('\n\n')[1]).toMatch(/^The rules above still apply\./);
+    expect(encoder.encode(text).length).toBeLessThan(encoder.encode(arrived).length / 4);
+  });
+
+  it('says what checking the setup against the purpose means here', () => {
+    expect(text).toContain('A preset\'s name does not prove its values');
+    expect(text).toContain('settings_get, including the objects\' own overrides');
+    expect(text).toContain('compatible presets with presets_list');
+    expect(text).toContain('plate type against the filament with printer_setup_preview');
+    expect(text).toContain('A material and its saved filament preset are separate choices');
+    expect(text).toContain('Keep customizations that still fit');
+    expect(text).toContain('recommend a material, a compatible preset or a focused setting change');
+    expect(text).toContain('record the plan and its assumptions with plan_set first');
+    expect(text).toContain('restores an earlier version, the plan may be stale');
+  });
+
+  it('leaves asking and scope to the standing prompt', () => {
+    expect(text).not.toMatch(/\bask\b/i);
+    expect(text).not.toContain('did not ask for');
+    expect(text).not.toContain('You are JusPrin');
+  });
+
+  it('never words a change as needing the person\'s permission', () => {
+    for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
       expect(text).not.toMatch(word);
   });
 });

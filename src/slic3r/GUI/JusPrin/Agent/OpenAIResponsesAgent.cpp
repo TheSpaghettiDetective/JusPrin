@@ -54,6 +54,9 @@ json workspace_json(const AgentRequest& request)
         // Why its last slice did not succeed, whoever asked for that slice.
         if (plate.slice_failure)
             entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
+        // What its current slice warned about, whoever sliced it.
+        if (plate.slice_warnings)
+            entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
         plates.push_back(std::move(entry));
     }
     json selected = json::array();
@@ -76,14 +79,21 @@ json workspace_json(const AgentRequest& request)
     for (json& field : intent["fields"])
         field.erase("updatedAt");
     drop_empty(intent);
+    if (request.setup_unchecked_change)
+        intent["setupUncheckedChange"] = true;
     if (!intent.empty())
         result["intent"] = std::move(intent);
     const json full_plan = plan_section_result(request.plan);
     json plan{{"headline", full_plan["headline"]}, {"decisions", full_plan["decisions"]},
               {"assumptions", full_plan["assumptions"]}, {"truncated", full_plan["truncated"]}};
     drop_empty(plan);
-    if (!plan.empty())
+    // Whether the plan still holds, and the edit that put it in doubt.
+    if (!plan.empty()) {
+        plan["validity"] = full_plan["validity"];
+        if (!request.plan.invalidated_by.empty())
+            plan["invalidatedBy"] = full_plan["invalidatedBy"];
         result["plan"] = std::move(plan);
+    }
     return result;
 }
 
@@ -160,11 +170,17 @@ json tools_for(bool allow_import, const std::vector<AgentSkill>& skill_index, co
 
 // A fired skill as the request's last items: its picture, as an image input
 // of its own, then its text in the app's voice. Neither is history: the
-// caller sends them with one request and keeps them out of the next.
+// caller sends them with one request and keeps them out of the next. A skill
+// that yields to another fired for the same request is left out.
 json skill_items(const std::vector<AgentSkillUse>& skills)
 {
     json items = json::array();
     for (const AgentSkillUse& skill : skills) {
+        const bool yields = std::any_of(skills.begin(), skills.end(), [&skill](const AgentSkillUse& other) {
+            return std::find(skill.yields_to.begin(), skill.yields_to.end(), other.trigger) != skill.yields_to.end();
+        });
+        if (yields)
+            continue;
         if (skill.picture)
             items.push_back(json{{"role", "user"},
                                  {"content", json::array({json{{"type", "input_image"},

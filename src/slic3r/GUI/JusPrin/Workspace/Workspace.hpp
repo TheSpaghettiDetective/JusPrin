@@ -142,6 +142,42 @@ inline const char* slice_failure_kind_name(SliceFailureKind kind)
 {
     return kind == SliceFailureKind::Refused ? "refused" : "failed";
 }
+// One warning OrcaSlicer reports for a plate it sliced, as the print-issue
+// list holds it: OrcaSlicer's words unchanged, with the setting and object it
+// named. Read by OrcaWorkspaceAdapter's slice-warnings reader.
+struct SliceWarningFinding
+{
+    std::string   id;      // the print-issue id, stable across slices of the same project
+    bool          critical{false};
+    std::string   message;
+    std::string   setting; // the setting key OrcaSlicer attached, or empty
+    std::string   code;    // the native check or step, or empty
+    std::uint64_t object{0}; // ModelObject id; 0 for the whole plate
+    std::string   object_name;
+    bool          ignored{false}; // the person chose not to be told about it
+};
+
+// The warnings of a plate's current slice: how many, and the one to read
+// first. Absent when the slice reported none or the plate holds no current
+// slice; slice_report has the full list.
+struct SliceWarnings
+{
+    std::size_t             count{0};   // every warning, ignored ones included
+    std::size_t             ignored{0}; // of those, the ones the person chose to ignore
+    // The first to read: a critical one before the rest, one the person has
+    // not ignored before one they have, else the order OrcaSlicer lists them.
+    std::string             severity; // "critical" or "warning"
+    std::string             message;  // OrcaSlicer's words, unchanged
+    std::string             setting;
+    std::string             code;
+    std::optional<ObjectId> object;
+    std::string             object_name;
+    // Advances when a slice of this plate reports a warning the plate's last
+    // record did not hold, across plates. A re-slice with the same warnings
+    // keeps its number, so a reader can tell new warnings from ones it has
+    // already been told about.
+    std::uint64_t           sequence{0};
+};
 
 struct WorkspacePlate
 {
@@ -162,6 +198,8 @@ struct WorkspacePlate
     // Why the last slice asked of this plate did not succeed; absent once it
     // slices, and whenever nothing was refused or failed.
     std::optional<SliceFailure>  slice_failure;
+    // What OrcaSlicer warned about in this plate's current slice.
+    std::optional<SliceWarnings> slice_warnings;
     // The plate type it slices with, as OrcaSlicer's untranslated name
     // ("Textured PEI Plate"): its own choice, else the project's. Empty when
     // neither names one.

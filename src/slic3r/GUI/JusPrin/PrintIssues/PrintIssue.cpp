@@ -110,4 +110,36 @@ std::optional<Workspace::SliceFailure> slice_failure_of(const PrintIssueSnapshot
     return std::nullopt;
 }
 
+std::optional<std::vector<Workspace::SliceWarningFinding>> slice_warnings_of(const PrintIssueSnapshot& snapshot)
+{
+    if (!snapshot.checked || snapshot.slicing || !snapshot.sliced || snapshot.plate == 0)
+        return std::nullopt;
+    std::vector<Workspace::SliceWarningFinding> findings;
+    for (const PrintIssue& issue : snapshot.issues) {
+        if (issue.severity != IssueSeverity::Warning || issue.stale || issue.plate != snapshot.plate)
+            continue;
+        // Every warning the chip lists, the bed-temperature one (1000C001)
+        // and the traditional-timelapse copy for older firmware (1000C003)
+        // among them, though slice_report leaves those two out as
+        // OrcaSlicer's send dialog does: the model is told what the person
+        // is shown.
+        Workspace::SliceWarningFinding finding;
+        finding.id = issue.id;
+        // A step's critical warning, and the two paths that cross: what
+        // OrcaSlicer raises as a serious warning rather than a plain one.
+        const std::string critical = ":critical";
+        finding.critical = (issue.code.size() > critical.size() &&
+                            issue.code.compare(issue.code.size() - critical.size(), critical.size(), critical) == 0) ||
+                           issue.code == "gcode_path_conflict" || issue.code == "SlicingSeriousWarning";
+        finding.message     = issue.message;
+        finding.setting     = issue.setting;
+        finding.code        = issue.code;
+        finding.object      = issue.object;
+        finding.object_name = issue.object_name;
+        finding.ignored     = issue.ignored;
+        findings.push_back(std::move(finding));
+    }
+    return findings;
+}
+
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

@@ -1815,6 +1815,22 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                           // every other mutation says it.
                           {"projectUndo", false}};
         if (definition->handler == ToolHandler::IntentUpdate) {
+            // The purpose is the chat's title and the answered fields; what
+            // this call did to it is stated in the reply, beside the setup in
+            // force now, which was chosen before a first or changed purpose.
+            const auto purpose = [this, &activity]() {
+                json answered = json::array();
+                for (const IntentField& field : m_product_state->print_intent())
+                    if (field.answered())
+                        answered.push_back(json{{"field", field.field}, {"value", field.value}});
+                json stated = json::object();
+                if (const auto title = m_product_state->setup_title(activity.correlation_id); title && !title->empty())
+                    stated["setupTitle"] = *title;
+                if (!answered.empty())
+                    stated["fields"] = std::move(answered);
+                return stated;
+            };
+            const json before = purpose();
             std::vector<IntentField> fields;
             for (const auto& field : arguments.at("fields")) {
                 IntentField written;
@@ -1829,6 +1845,22 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             }
             result["intent"] = intent_section_result(fields.empty() ? m_product_state->print_intent() :
                                                          m_product_state->set_print_intent(fields));
+            if (arguments.contains("setupTitle"))
+                m_product_state->set_setup_title(activity.correlation_id, arguments["setupTitle"].get<std::string>());
+            const json after = purpose();
+            // Nothing recorded before or after: there is no purpose to speak of.
+            if (!after.empty()) {
+                const bool changed = !before.empty() && before.value("fields", json()) != after.value("fields", json());
+                result["purposeChange"] = before.empty() ? "first" : changed ? "changed" :
+                                          before != after ? "title_only" : "unchanged";
+                if (changed)
+                    result["purposeBefore"] = before;
+                if (before.empty() || changed) {
+                    result["purposeAfter"] = after;
+                    m_product_state->set_purpose_setup(setup_in_force(snapshot));
+                }
+            }
+            result["setupInForce"] = setup_in_force(snapshot);
         } else {
             PlanRecord plan;
             plan.headline = arguments.at("headline").get<std::string>();

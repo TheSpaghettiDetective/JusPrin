@@ -463,7 +463,7 @@
     "type": "function"
   },
   {
-    "description": "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Replaces the whole plan and runs immediately; project Undo does not undo this.",
+    "description": "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first. Replaces the whole plan and runs immediately; project Undo does not undo this.",
     "name": "plan_set",
     "parameters": {
       "additionalProperties": false,
@@ -615,7 +615,7 @@
     "type": "function"
   },
   {
-    "description": "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees.",
+    "description": "List the presets of one kind this installation offers, newest compatibility verdict included. Compatible ones only unless you ask for all; a page is not the whole list, so follow nextCursor. Names are what a selection takes; labels are what the user sees. A material and its saved filament preset are separate choices.",
     "name": "presets_list",
     "parameters": {
       "additionalProperties": false,
@@ -664,7 +664,7 @@
     "type": "function"
   },
   {
-    "description": "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own.",
+    "description": "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. A material and its saved filament preset are separate choices.",
     "name": "printer_setup",
     "parameters": {
       "additionalProperties": false,
@@ -1340,7 +1340,7 @@
     "type": "function"
   },
   {
-    "description": "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+    "description": "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
     "name": "workspace_inspect",
     "parameters": {
       "additionalProperties": false,

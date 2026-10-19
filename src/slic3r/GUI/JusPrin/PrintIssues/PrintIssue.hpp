@@ -131,5 +131,10 @@ void mark_ignored(std::vector<PrintIssue>& issues, std::set<std::string>& ignore
 // OrcaSlicer raised as an error. Its object, if it names one, is in the
 // snapshot's session. Nothing when no blocker is listed.
 std::optional<Workspace::SliceFailure> slice_failure_of(const PrintIssueSnapshot& snapshot);
+// The warnings of the active plate's current slice, as this list holds them:
+// every warning the chip lists, ignored ones included, with OrcaSlicer's
+// words, setting and object. Nothing when the list vouches for no finished
+// slice: an edit not yet checked, a slice running, or no current slice.
+std::optional<std::vector<Workspace::SliceWarningFinding>> slice_warnings_of(const PrintIssueSnapshot& snapshot);
 
 } // namespace Slic3r::GUI::JusPrin::PrintIssues
