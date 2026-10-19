@@ -1,0 +1,134 @@
+Integrate three finished branches of the JusPrin project chat's skills work into one branch for Kenneth to merge. Start from local `jusprin-newui` at 4ec21799ce (unpushed; do not push). Create branch `claude/skills-integrated`. Report, untracked at your worktree root as `skills-integration-report.md`, four parts (problem, what changed, tests and results, remaining issues), plain English for someone who did not see this. Never commit the report. Commit on your branch with plain messages and no attribution lines; do not merge into `jusprin-newui`, Kenneth does that.
+
+## What you are merging
+
+Each is one commit on 4ec21799ce, with its report untracked at the root of its worktree. Read all three reports first.
+
+1. `claude/skill-slice-failed` (c7ed56d027; report `.claude/worktrees/cool-bardeen-7f40f5/skill-slice-failed-report.md`): per-plate `slice_failure` in the workspace snapshot, recorded by the adapter from a hook in `Plater::reslice` and worded by the print-issue monitor; `slice_start` decides at once between a run that began, nothing needed, and a refusal; `wait` and `finished` removed; the app starts a turn when the model's slice ends after its turn; the `slice-failed` skill; a shell-harness race fix; Kenneth's beginner rule added to the standing prompt's Replies section.
+2. `claude/skill-print-issues` (2381d07aaa; report `.claude/worktrees/angry-rhodes-dd8e89/skill-print-issues-report.md`): per-plate `slice_warnings` summary from the monitor; the `print-issues` skill fired on a print-issue chip's request and on new warnings after a slice; the print-issue bullet removed from the prompt.
+3. `claude/skill-setup-changed` (77d9d3dbdf; report `.claude/worktrees/quizzical-jepsen-f3a53c/skill-setup-changed-report.md`): `intent_update`'s reply states the purpose change and the setup in force; the workspace block gains `setupUncheckedChange` and plan validity; the `project-setup-changed` skill, which gives way to `file-loaded`; the Preparing section reduced to one bullet; two rules moved into tool descriptions.
+
+Merge in that order. `git merge-tree` shows every pair conflicts: 1 with 2 in 24 files (the shared per-plate record in `Workspace.hpp`, the plate JSON in `AgentHost::context_json`, `OpenAIResponsesAgent::workspace_json` and `slicing_section_result`, the `slicing_plate` schema, `PrintIssue.hpp/.cpp`, the adapter and `ShellController` wiring, `SkillTrigger`, `workspace_inspect`'s description, `skills.test.ts`, the recorder and the eval files); 1 with 3 in 11 and 2 with 3 in 10, mostly `AgentHost`, `AgentProtocol.hpp`, `skills.test.ts`, the tool guide and the eval files. Resolve by keeping both sides' behaviour; where the two sides wrote the same sentence twice in different words (the `workspace_inspect` description), write it once: branch 2's report suggests "whether each plate's slice is current, what it warned about and why its last slice did not succeed".
+
+## Decisions Kenneth has made for this integration
+
+- **One finding record, not two.** Branches 1 and 2 each added a per-plate record with the same fields (severity, OrcaSlicer's message, setting, code, object, sequence): `SliceFailure` and `SliceWarnings`. Make them one shape: a plate's findings from its last slice attempt, with a kind (refused, failed, warning), the count and how many the person ignored, and the first one to read, critical first. Keep each branch's firing rule and told-list semantics (the `slice-failed` skill fires once per failure, the `print-issues` skill once per set of new warnings); unify the bookkeeping only where the two sides are duplicates (`m_slice_failures_told` beside `m_slice_warnings_told`, `fire_on_new_slice_failure` beside `fire_print_issues`). The model's view in the workspace block and tool replies stays short.
+- **The bed-temperature warning is told to the model.** Branch 2 left code `1000C001` out of the summary to match `slice_report`; Kenneth wants the summary to match what the chip shows the person, so include it (and the duplicate timelapse code `1000C003` only if the chip shows it). Say in the report whether `slice_report` should follow, and leave it as is.
+- **The standing prompt.** Write the one fixture the three branches imply: Role unchanged; When to act with three bullets, the print bullet as branch 3 wrote it, the print-issue bullet gone, the repeated-request bullet gone; Grounding unchanged; no Preparing section, with the last procedural sentence ("Before calling a print ready, slice its plate and check slice_report (slice_inspect when needed) against their requirements; fix or explain what remains.") folded into the print bullet as one clause, since the warnings now reach the model without a call and "their requirements" has lost its referent, for example "A print request: a setup that suits the print's purpose, recorded with intent_update, checked, and verified by a slice whose findings you have read before you call it ready."; Replies with Kenneth's beginner rule from branch 1. Report the byte count; expect about 1,900 bytes. Update `projectInstructions.ts`, its fixture and `projectInstructions.test.ts` together.
+- **Do not change the Slice button.** A person still cannot press Slice on a plate OrcaSlicer refused; leave that alone.
+- No sentence anywhere may say "approve", "authorize", "confirm before" or "ask the user then call again"; tool-call approval was removed on 2026-10-07.
+
+## After the merge
+
+- Regenerate `tests/project_prompt/project_tools.json` from the registry.
+- Re-record `tests/project_prompt/requests.json` once with the shell harness's `--project-prompt-requests`; the recorder's skill checks (`prompt_is_any_skill` and the per-point `"skill": "<name>"` checks) must know all four skills; the union of the three branches' cases must render (`run_prompt_tests.py --render-only`), and `test_steps.py` must pass with every branch's offline tests kept.
+- Build and run everything on the merged tree, Release if disk is short: `agent_bridge_tests`, `jusprin_tests`, `workspace_contract_tests`, the real-adapter workspace harness, the shell harness default scenario plus `--print-issues` and `--external-project-history`, AgentUI vitest and `tsc` after `jusprin_web` is rebuilt, `test_steps.py`, the recorder. Every test the three branches added must still pass; report counts. cmake is at `/Applications/CMake.app/Contents/bin/cmake`; nohup long builds and watch the log; `cd` into your worktree in every Bash call.
+- Update `agent-docs/jusprin/mcp-tool-extension-guide.md` once for all three (each branch edited it).
+- Report line counts added and removed against 4ec21799ce, excluding `requests.json`, and the prompt, skills and descriptions byte counts.
+
+## Measurement
+
+Do not run a live model batch; Kenneth runs live evals himself. Propose in the report the paired run: every case once, the prompt at 4ec21799ce rendered with `--prompt-rev` against the integrated prompt from the checkout, same day, DeepSeek V4 Flash on the pinned hosts with the pinned judge; estimate requests and tokens from the README's last batches. Note which cases have no "before" (the ones whose point did not exist or whose request now carries a skill).
+
+---
+
+<task-notification>
+<task-id>btwkzzbm8</task-id>
+<tool-use-id>toolu_016gfTDGh3TQLhg4FTMwMm4B</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-liskov-ebe5b4/8b3a3dc8-0a03-43af-8e03-a41db258a482/tasks/btwkzzbm8.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -q "^exit=" ../competent-liskov-build-1.log; do sleep 10; done; tail -2 ../competent-liskov-build-1.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>byb30ft61</task-id>
+<tool-use-id>toolu_01Jrun3YYeALYJCL84zwny2h</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-liskov-ebe5b4/8b3a3dc8-0a03-43af-8e03-a41db258a482/tasks/byb30ft61.output</output-file>
+<status>completed</status>
+<summary>Background command "until grep -qE "^exit=|error:" ../competent-liskov-build-1.log; do sleep 15; done; grep -o '^\[[0-9]*/[0-9]*\]' ../competent-liskov-build-1.log | tail -1; grep -m5 "error:" ../competent-liskov-build-1.log; tail -1 ../competent-liskov-build-1.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bffiv9d49</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-competent-liskov-ebe5b4/8b3a3dc8-0a03-43af-8e03-a41db258a482/tasks/bffiv9d49.output</output-file>
+<status>completed</status>
+<summary>Background command "python3 - &lt;&lt;'EOF'
+p='tests/agent/test_agent_bridge.cpp'; s=open(p).read()
+a='''    json skills = test_skills();
+    skills["skills"].push_back(
+        json{{"name", "project-setup-changed"}, {"trigger", "setup_changed"}, {"text", kTestSetupSkill}});
+    return skills;'''
+b='''    // Sorted by name, as the page sends them: after print-issues, before slice-failed.
+    json skills = test_skills();
+    json&amp; list  = skills["skills"];
+    list.insert(list.begin() + 2,
+                json{{"name", "project-setup-changed"}, {"trigger", "setup_changed"}, {"text", kTestSetupSkill}});
+    return skills;'''
+assert a in s; s=s.replace(a,b); open(p,'w').write(s)
+EOF
+export PATH=/Applications/CMake.app/Contents/bin:$PATH; cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/competent-liskov-ebe5b4/build/arm64 --config Release --target agent_bridge_tests 2&gt;&amp;1 | grep -E "error:|FAILED" | head; T=build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests; $T --order rand 2&gt;&amp;1 | grep -E "FAILED:|^test cases|^assertions|SIGSEGV|All tests" | sort | uniq -c | head -30" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>START workspace 18:24:24</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>END workspace exit=0 18:24:54
+START shell-default 18:24:54</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>END shell-default exit=0 18:25:19
+START shell-print-issues 18:25:19</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>END shell-print-issues exit=0 18:25:47
+START shell-external-history 18:25:47</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>END shell-external-history exit=0 18:25:55
+START recorder 18:25:55</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>biac9mv5b</task-id>
+<summary>Monitor event: "harness runs: start/end lines and PASS/FAIL summaries"</summary>
+<event>END recorder exit=1 18:28:57
+ALLDONE</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
