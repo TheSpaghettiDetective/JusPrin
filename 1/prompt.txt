@@ -1,0 +1,25 @@
+read @/Users/kenneth/Projects/JusPrin/handoff-composer-redesign.md and tell me if you have everything to do this task. also tell me if this handoff tells you how to access the artifact
+
+---
+
+Do the token sync here first, following handoff-design-token-sync.md, then continue with the composer.
+
+---
+
+<task-notification>
+<task-id>bw8vt3zmb</task-id>
+<tool-use-id>toolu_011PxRJy6KKdEyTu3wn4ukJB</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/bw8vt3zmb.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the native build or its first error" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>by81zhizb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/by81zhizb.output</output-file>
+<status>completed</status>
+<summary>Background command "Build everything in the main checkout" completed (exit code 0)</summary>
+</task-notification>
