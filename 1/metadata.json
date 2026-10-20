@@ -1,0 +1,93 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5BC6V3DF4E8DJ6CEMAA23TM",
+  "session_id": "d804c96b-50d0-45aa-a4f5-5da33ec3a304",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T00:43:32.244094Z",
+  "branch": "claude/provider-agent-extract",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "tests/agent/test_provider_live.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "ddfe6e4447de",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1178,
+    "cache_creation_tokens": 465530,
+    "cache_read_tokens": 11168275,
+    "output_tokens": 47323,
+    "api_call_count": 49
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_013yZpLgvUGbJxPjuRYbB1MF",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "ddfe6e4447de",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 38,
+        "end": 39,
+        "entry_ids": [
+          "53a62362-c42d-4cbf-a50e-1188f6a00360"
+        ],
+        "tool_use_id": "toolu_013yZpLgvUGbJxPjuRYbB1MF"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013yZpLgvUGbJxPjuRYbB1MF"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T00:43:31.763748Z",
+    "agent_lines": 464,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 3,
+    "total_committed": 464,
+    "total_lines_changed": 467,
+    "agent_percentage": 99.3576017130621,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 499,
+      "user_lines_removed": 3,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 130,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 101,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        "tests/agent/test_provider_live.cpp": 118
+      },
+      "user_removed_per_file": {
+        "tests/agent/test_provider_live.cpp": 3
+      }
+    }
+  ]
+}
