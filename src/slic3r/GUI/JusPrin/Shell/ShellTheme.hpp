@@ -17,10 +17,11 @@ struct ShellPalette
     wxColour surface_canvas;
     wxColour surface_subtle;
     wxColour surface_raised;
+    // A row under the pointer or the keyboard inside a menu or popover.
+    wxColour surface_raised_hover;
     wxColour surface_selected;
     wxColour text_primary;
     wxColour text_secondary;
-    wxColour text_on_action;
     wxColour border_subtle;
     wxColour border_strong;
     wxColour border_focus;
@@ -28,11 +29,6 @@ struct ShellPalette
     wxColour action_primary_hover;
     wxColour action_primary_pressed;
     wxColour action_primary_text;
-    wxColour action_secondary;
-    wxColour action_secondary_hover;
-    wxColour action_secondary_pressed;
-    wxColour action_secondary_text;
-    wxColour action_secondary_border;
     wxColour action_disabled;
     wxColour action_disabled_text;
     wxColour status_warning;
@@ -83,6 +79,9 @@ struct ButtonMetrics
     ButtonRecipe choice;
     ButtonRecipe parameter;
     ButtonRecipe icon;
+    // The design system's 26 DIP icon target: the canvas tool strip and the
+    // reset button in a form row, which stands at the field's height.
+    ButtonRecipe icon_compact;
     ButtonRecipe expanded;
     ButtonRecipe secondary;
     ButtonRecipe primary;
@@ -90,7 +89,8 @@ struct ButtonMetrics
 
 struct ChipMetrics      { int height{0}; int radius{0}; };
 struct MenuRowMetrics   { int height{0}; int radius{0}; int side_inset{0}; };
-struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; };
+// Rows sit inside the popover's border, so a full-width row never covers it.
+struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; int border_width{0}; };
 struct StatusRowMetrics { int height{0}; };
 struct AgentPaneMetrics {
     int width{0};
@@ -180,11 +180,12 @@ struct PrintIssueMetrics { int bubble_width{0}; int list_width{0}; };
 // value is DIP; callers wrap it in FromDIP().
 struct ShellMetrics
 {
-    int radius_standard{0};
-    int radius_compact{0};
-    int radius_container{0};
-    int radius_window{0};
-    int radius_pill{0};
+    // The design system's radius scale, under its own names.
+    int radius_small{0};
+    int radius_medium{0};
+    int radius_large{0};
+    int radius_chip{0};
+    int radius_full{0};
 
     // The spacing scale, named by its step: space_2 is dimension.space["2"].
     int space_1{0};

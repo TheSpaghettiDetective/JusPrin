@@ -27,6 +27,21 @@ interface ButtonRecipe {
   iconSize?: number;
 }
 
+// The fixed sizes a recipe may name, each written as --button-<recipe>-<size>
+// (--button-icon-height, --button-link-height).
+const BUTTON_SIZES = ['width', 'height', 'iconSize'] as const;
+
+function buttonSizeVariables(recipes: Record<string, ButtonRecipe>): [string, number][] {
+  const variables: [string, number][] = [];
+  for (const [name, recipe] of Object.entries(recipes)) {
+    for (const size of BUTTON_SIZES) {
+      const value = recipe[size];
+      if (value !== undefined) variables.push([`--button-${kebab(name)}-${kebab(size)}`, value]);
+    }
+  }
+  return variables;
+}
+
 interface StaticTokens {
   dimension: { radius: Record<string, number> };
   typography: {
@@ -75,20 +90,21 @@ export function sharedStaticVariableNames(): string[] {
     ...Object.entries(component.button)
       .filter(([, recipe]) => recipe.iconGap !== undefined)
       .map(([name]) => `--button-${kebab(name)}-icon-gap`),
-    '--button-icon-width', '--button-icon-height', '--button-icon-icon-size',
+    ...buttonSizeVariables(component.button).map(([name]) => name),
     ...pixelVariableNames('progress', component.progress),
   ];
 }
 
 // Colors depend on the appearance; everything below does not, so it is
 // written once at startup:
-//   --radius-<name>       e.g. --radius-container: 8px
+//   --radius-<name>       the design system's scale, e.g. --radius-medium: 8px
 //   --font-<role>         full `font` shorthand in the UI face, kebab-case
 //   --font-code           the one monospace role, for code, keys, paths, IDs
 //   --button-<recipe>-padding  "<y>px <x>px" from component.button; control
 //                         padding follows the recipes, not the spacing scale
 //   --button-<recipe>-icon-gap  the space between a button's icon and its
 //                         label, also a recipe-internal size, not a layout gap
+//   --button-<recipe>-<size>  a recipe's fixed width, height or icon size
 export function applySharedStaticTokens(): void {
   const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
@@ -108,10 +124,9 @@ export function applySharedStaticTokens(): void {
     if (recipe.paddingX === undefined || recipe.paddingY === undefined) continue;
     root.style.setProperty(`--button-${kebab(name)}-padding`, `${recipe.paddingY}px ${recipe.paddingX}px`);
   }
-  const icon = component.button.icon;
-  root.style.setProperty('--button-icon-width', `${icon.width}px`);
-  root.style.setProperty('--button-icon-height', `${icon.height}px`);
-  root.style.setProperty('--button-icon-icon-size', `${icon.iconSize}px`);
+  for (const [name, value] of buttonSizeVariables(component.button)) {
+    root.style.setProperty(name, `${value}px`);
+  }
   applyPixelTokens('progress', component.progress);
 }
 

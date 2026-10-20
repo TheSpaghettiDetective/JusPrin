@@ -7,9 +7,23 @@
 // Only the Agent page's own component variables are written here.
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
-import { applySharedStaticTokens, sharedStaticVariableNames } from '@shared/tokens';
+import { applyPixelTokens, applySharedStaticTokens, pixelVariableNames, sharedStaticVariableNames } from '@shared/tokens';
 
 export { applyAppearance } from '@shared/tokens';
+
+// The menus, the segmented control and the tooltip, as the design system
+// draws them. A section's text role is a name, not a length, so only its
+// numbers become variables.
+type Section = Record<string, number | string>;
+const shared = (tokens as unknown as { component: Record<string, Section> }).component;
+const SECTIONS: [string, string][] = [
+  ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
+];
+
+function lengths(section: Section): Record<string, number> {
+  return Object.fromEntries(Object.entries(section).filter(([, value]) => typeof value === 'number')) as
+    Record<string, number>;
+}
 
 // Every --font-*, --button-*, and Agent-page variable applyStaticTokens
 // writes, so a test can check that the stylesheet only asks for variables
@@ -20,7 +34,8 @@ export function staticVariableNames(): string[] {
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
-    '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size'];
+    '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size',
+    ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key])))];
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -38,8 +53,12 @@ export function staticVariableNames(): string[] {
 //                          system's Swatch
 //   --reply-chip-height,   a reply the assistant offers as a chip under its
 //   --reply-chip-padding-x message: its height and its text's inset.
+//   --menu-row-*, --popover-*  the header's menu geometry, so the chat's
+//                          menus are the same control
+//   --segmented-*, --tooltip-*  Segmented Control and Tooltip
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
+  for (const [prefix, key] of SECTIONS) applyPixelTokens(prefix, lengths(shared[key]));
   const { component } = tokens as unknown as {
     component: { threadRow: { lineGap: number };
       timelineSummary: { paddingX: number; paddingY: number; iconGap: number };

@@ -37,25 +37,27 @@ void style_button(Button& button, const ShellTheme& theme, const ShellPalette& p
 
     // The same state tables Button::SetStyle builds, ordered so the more
     // specific state is matched first, with focus drawn as a border rather
-    // than as hover.
+    // than as hover. At rest the design system's secondary button has no
+    // fill of its own; Button cannot paint transparent, so it takes the
+    // colour of what it sits on, which the caller sets before styling.
     StateColor background(
-        std::pair(palette.action_disabled,          int(StateColor::Disabled)),
-        std::pair(palette.action_secondary_pressed, int(StateColor::Pressed)),
-        std::pair(palette.action_secondary_hover,   int(StateColor::Hovered)),
-        std::pair(palette.action_secondary,         int(StateColor::Normal)));
+        std::pair(palette.action_disabled,                   int(StateColor::Disabled)),
+        std::pair(palette.surface_selected,                  int(StateColor::Pressed)),
+        std::pair(palette.surface_subtle,                    int(StateColor::Hovered)),
+        std::pair(button.GetParent()->GetBackgroundColour(), int(StateColor::Normal)));
     background.setTakeFocusedAsHovered(false);
     button.SetBackgroundColor(background);
 
     StateColor border(
         std::pair(palette.action_disabled,         int(StateColor::Disabled)),
         std::pair(palette.border_focus,            int(StateColor::Focused)),
-        std::pair(palette.action_secondary_border, int(StateColor::Normal)));
+        std::pair(palette.border_subtle,           int(StateColor::Normal)));
     border.setTakeFocusedAsHovered(false);
     button.SetBorderColor(border);
 
     button.SetTextColor(StateColor(
         std::pair(palette.action_disabled_text,   int(StateColor::Disabled)),
-        std::pair(palette.action_secondary_text,  int(StateColor::Normal))));
+        std::pair(palette.text_primary,           int(StateColor::Normal))));
 }
 
 void style_primary_button(Button& button, const ShellTheme& theme, const ShellPalette& palette,

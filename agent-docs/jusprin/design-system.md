@@ -61,6 +61,7 @@ Core mappings include:
 | `surface.canvas` | `#FFFFFF` | `#17131F` | Main application background |
 | `surface.subtle` | `#F6F2F7` | `#211B2A` | Sidebars and grouped settings |
 | `surface.raised` | `#FFFFFF` | `#2B2336` | Dialogs, menus, elevated panels |
+| `surface.raisedHover` | `#F6F2F7` | `#3B3047` | The hovered or keyboard-focused row in a menu or popover |
 | `text.primary` | `#17131F` | `#F6F2F7` | Headings, values, body copy |
 | `text.secondary` | `#5F5767` | `#CFC5D3` | Descriptions and secondary labels |
 | `border.subtle` | `#E8DFEB` | `#4B3E57` | Dividers and quiet structure |
@@ -69,7 +70,7 @@ Core mappings include:
 | `action.primary.hover` | `#4B3A77` | `#D99AC5` | Pointer hover |
 | `action.primary.pressed` | `#2B214F` | `#B76CA0` | Pressed or active state |
 
-The JSON token file is authoritative and contains the complete action, status, selected-surface, disabled, text, and component values.
+The JSON token file is authoritative for the code and contains the complete action, status, selected-surface, disabled, text, and component values. Every colour it shares with the design system holds the design system's value; `tests/brand/test_brand_tokens.cpp` pins each one beside its design-system name. Secondary and danger buttons have no colours of their own: like the design system's Button/Secondary they have no fill, a `border.subtle` (secondary) or `status.danger` (danger) stroke, and `text.primary` or `status.danger` text, with `surface.subtle` on hover and `surface.selected` when pressed. `overlay.scrim` and `status.successOnAction` exist only in the code until the Design System artifact adds them.
 
 ## Typography
 
@@ -111,14 +112,19 @@ text around it is.
 Design for a dense, native, high-DPI desktop application on Windows, macOS, and Linux. Use device-independent pixels (DIP), not physical pixels. Verify 100%, 150%, and 200% scaling.
 
 - Spacing scale: 4, 8, 12, 16, 20, 24, 32, 40, and 48 DIP.
-- Standard control radius: 4 DIP, matching OrcaSlicer's own controls.
-- Compact or branded action radius: 8 DIP.
-- Container radius: 8 DIP, for grouped panels and cards, matching OrcaSlicer's `StaticBox` default.
-- Window action and large-dialog radius: 12 DIP.
-- Capsule radius: `pill`, for status chips and progress tracks whose shape is
-  the full height. Menu rows sit inset 4 DIP inside the popover and carry the
-  standard radius, so a hovered row reads as a control inside the panel
-  rather than a stripe across it.
+- The radius scale carries the design system's names (`dimension.radius`):
+  - `small`, 4 DIP: standard controls (secondary and icon buttons, fields, the segmented control), matching OrcaSlicer's own controls.
+  - `medium`, 8 DIP: containers (cards, popovers, chat bubbles) and the primary button, the one branded action.
+  - `large`, 12 DIP: sheets, large dialogs and window actions.
+  - `chip`, 4 DIP: the printer and filament chip in the header.
+  - `full`, 10 DIP: capsule ends of status chips and progress tracks up to 20 DIP tall.
+- Menus follow the design system's Menu/Popover and Menu/Row: the popover has 8 DIP
+  vertical padding, a 1 DIP border and 2 DIP between rows; rows are 36 DIP
+  high, run the popover's full width inside its border, and carry no radius,
+  so a hovered row is a `surface.raisedHover` band across the panel (lighter
+  than the menu in dark mode, never sunk into it). A row has no focus state of
+  its own: the keyboard's row is drawn as the hovered one, never with the
+  outside focus ring, which would stick out past the popover's edge.
 - Reserve 16–24 DIP radii for onboarding and marketing, not the main application shell.
 
 Avoid web-only assumptions such as oversized controls, blur-heavy or glass surfaces, fixed physical pixels, and platform-specific fonts.
@@ -136,13 +142,18 @@ Use the existing native component density and Lucide `v1.47.0` SVG artwork for g
 - Window button: minimum 58×24 DIP, 12 DIP radius, 12 DIP text.
 - Choice control: minimum 100×32 DIP, 12×8 DIP padding, 4 DIP radius.
 - Parameter control: 120×26 DIP, 4 DIP radius, 14 DIP text.
-- Icon button: 26×26 DIP, 16 DIP icon, 4 DIP radius.
+- Icon button: 32×32 DIP, 16 DIP icon, 4 DIP radius (`component.button.icon`).
+- Compact icon target: 26×26 DIP (`component.button.iconCompact`), only for the canvas tool strip and the reset button in a form row, which stands at the field's height.
+- Link button: 26 DIP high, 4 DIP horizontal padding, Label Bold in `action.primary`, underlined on hover (`component.button.link`).
+- Segmented control: a 30 DIP `surface.subtle` track with a 1 DIP `border.subtle` border and 2 DIP padding, holding 24 DIP segments in Label; the chosen one is `action.primary` (`component.segmented`).
+- Tooltip: 24 DIP high, 4×8 DIP padding, Metadata, inverse (`text.primary` fill, `surface.canvas` text) with the subtle elevation (`component.tooltip`). Native tooltips are the operating system's own.
+- Header chip: 28 DIP high, `chip` radius (`component.chip`).
 - Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
 - Plates / Project pane: 200 DIP wide on `surface.subtle`, a 12 DIP band above a 36 DIP tab strip (the active tab is Label Bold with a 2 DIP `action.primary` rule; the other is Label in `text.secondary`). Plate rows are 32 DIP, object rows 36 DIP, both on `surface.canvas` blocks with the standard radius and a 2 DIP gap; a folded plate adds a 20 DIP Metadata summary line indented 32 DIP. Every number is under `component.leftPane`, taken from the Figma frames on the Plates & Project Pane page.
 - Agent-pane divider: transparent 8 DIP pointer target with a centered 2 DIP line; the line changes from subtle to strong on hover and to the primary action color while dragging.
 - Agent-pane width: minimum 320 DIP; its maximum follows the window width while preserving at least 320 DIP for the workspace.
 - Printer setup, connecting, printer settings, and filament settings help use the same temporary conversation layer over the originating workspace. The underlying Home, Prepare, or Preview screen stays selected and constructed so Back returns to it. The conversation keeps the centered content width from `component.printerSetup.contentWidth` and the existing task header controls; manual settings remain available from that header. The saved project Agent pane remains a separate persistent conversation.
-- Agent-pane collapse: a 26 DIP icon button in the header, left of the overflow button, whose glyph fills its right-hand column while the pane is open and empties it while the pane is closed. Double-clicking the divider closes the pane. Dragging it does not: a drag only sizes the pane and stops at its 320 DIP minimum, so aiming for a narrow pane never takes the conversation off the screen. There is no keyboard shortcut, no animation, and no automatic reopening; the pane is hidden, never destroyed, so its conversation survives. Reopening restores the width it last held.
+- Agent-pane collapse: an icon button in the header, left of the overflow button, whose glyph fills its right-hand column while the pane is open and empties it while the pane is closed. Double-clicking the divider closes the pane. Dragging it does not: a drag only sizes the pane and stops at its 320 DIP minimum, so aiming for a narrow pane never takes the conversation off the screen. There is no keyboard shortcut, no animation, and no automatic reopening; the pane is hidden, never destroyed, so its conversation survives. Reopening restores the width it last held.
 
 Every interactive component must define normal, hover, pressed, disabled, focused, success, warning, and error states where relevant. Status must combine color with an icon and plain-language label.
 
@@ -185,10 +196,13 @@ only if the code goes through the token file in the first place.
 4. **Pick the nearest role, never a bespoke size.** The roles are the whole
    type system. Bold at a body or label size is a role of its own; if a
    surface seems to need a size that no role has, see rule 2.
-5. **Read the code on `jusprin-newui`, not old commit messages or Figma,
-   when they disagree.** The header's chip and menu dimensions were once
-   changed to match Figma and reverted because they looked worse; the
-   token file records what stayed.
+5. **The design system wins when it and the code disagree.** The two Claude
+   artifacts are the source of truth (Kenneth, 2026-10-20; Figma is
+   retired): the Design System
+   (https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL) and the "JusPrin v2"
+   canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v). Change the
+   token file to match, or, when the code's value is the one to keep, change
+   the artifact first. Do not trust old commit messages about either.
 6. **Run the guards before calling UI work done:** `brand_tokens_tests`,
    `shell_theme_tests`, and `npm test` in `AgentUI`. Then look at the surface
    in the running app; the guards prove the code went through the tokens,
@@ -297,7 +311,7 @@ Every high-fidelity product frame must:
    light/dark differences in the design-system primitives and semantic mappings
    rather than duplicating every application screen.
 2. State the mode, viewport, component variants, keyboard focus, and any deliberate exception.
-3. Use DIP, native density, and the standard radius scale.
+3. Use DIP, native density, and the design system's radius scale.
 4. Use HarmonyOS Sans SC for product UI, and monospace only for code (Figma's Code style uses Roboto Mono as a stand-in for the system font).
 5. Show normal, hover, pressed, disabled, focus, error, warning, and success states as applicable.
 6. Test long filenames, localized labels, dense settings, empty states, and narrow windows.

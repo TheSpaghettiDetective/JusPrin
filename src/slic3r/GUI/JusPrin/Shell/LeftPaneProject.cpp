@@ -272,7 +272,7 @@ int LeftPane::draw_outline_button(wxGraphicsContext& gc, int y, int width, const
     gc.SetPen(wxPen(p.border_subtle, 1));
     gc.SetBrush(wxBrush(p.surface_canvas));
     gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
-                            FromDIP(m_theme.metrics().radius_compact));
+                            FromDIP(m_theme.metrics().radius_medium));
     gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
     double tw = 0, th = 0;
     const wxString visible_label = leading_plus ? "+ " + label : label;
@@ -346,7 +346,7 @@ int LeftPane::draw_cover(wxGraphicsContext& gc, int y, int width, std::size_t co
         const double x = pad_x + double(index) * (cell + gap) + (cell - w) / 2.0;
         gc.SetPen(wxPen(m_theme.palette(m_dark).border_subtle, 1));
         gc.SetBrush(wxBrush(m_theme.palette(m_dark).surface_canvas));
-        gc.DrawRoundedRectangle(pad_x + double(index) * (cell + gap), y, cell, height, FromDIP(m_theme.metrics().radius_standard));
+        gc.DrawRoundedRectangle(pad_x + double(index) * (cell + gap), y, cell, height, FromDIP(m_theme.metrics().radius_small));
         gc.DrawBitmap(picture, x, y + (height - h) / 2.0, w, h);
     }
     return y + height + FromDIP(pane.list_padding_y);
@@ -657,7 +657,7 @@ int LeftPane::draw_versions(wxGraphicsContext& gc, int y, int width)
         const int pad_x = FromDIP(pane.row_padding_x);
         gc.SetPen(*wxTRANSPARENT_PEN);
         gc.SetBrush(wxBrush(p.surface_canvas));
-        gc.DrawRoundedRectangle(0, y, width, line, FromDIP(m_theme.metrics().radius_standard));
+        gc.DrawRoundedRectangle(0, y, width, line, FromDIP(m_theme.metrics().radius_small));
         double tw = 0, th = 0;
         gc.SetFont(m_theme.font(TextRole::Label), p.text_primary);
         gc.GetTextExtent(when, &tw, &th);
@@ -671,7 +671,7 @@ int LeftPane::draw_versions(wxGraphicsContext& gc, int y, int width)
         gc.SetPen(wxPen(p.border_subtle, 1));
         gc.SetBrush(*wxTRANSPARENT_BRUSH);
         gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
-                                FromDIP(m_theme.metrics().radius_standard));
+                                FromDIP(m_theme.metrics().radius_small));
         gc.DrawText(word, button.x + button_pad, button.y + (button.height - th) / 2);
         Hit hit{Hit::Kind::Action, button, 0, PaneTab::Project};
         hit.label  = _L("Restore") + " " + when;

@@ -837,7 +837,7 @@ void LeftPane::draw(wxGraphicsContext& gc, const wxSize& client)
             const wxRect rect = m_hits[actions[m_action_focus]].rect;
             gc.SetPen(wxPen(p.border_focus, FromDIP(m_theme.metrics().focus.width)));
             gc.SetBrush(*wxTRANSPARENT_BRUSH);
-            gc.DrawRoundedRectangle(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2, FromDIP(m_theme.metrics().radius_standard));
+            gc.DrawRoundedRectangle(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2, FromDIP(m_theme.metrics().radius_small));
         }
     }
 }
@@ -871,7 +871,7 @@ void LeftPane::draw_tabs(wxGraphicsContext& gc, int width)
                 gc.SetPen(wxPen(p.border_focus, FromDIP(m_theme.metrics().focus.width)));
                 gc.SetBrush(*wxTRANSPARENT_BRUSH);
                 gc.DrawRoundedRectangle(rect.x, rect.y, rect.width, rect.height,
-                                        FromDIP(m_theme.metrics().radius_standard));
+                                        FromDIP(m_theme.metrics().radius_small));
             }
         }
         m_hits.push_back({Hit::Kind::Tab, rect, 0, tabs[index].tab});
@@ -905,7 +905,7 @@ int LeftPane::draw_plates(wxGraphicsContext& gc, int top, int width)
         // The block's ground, then its rows.
         gc.SetPen(*wxTRANSPARENT_PEN);
         gc.SetBrush(wxBrush(p.surface_canvas));
-        gc.DrawRoundedRectangle(0, y, width, block, FromDIP(m_theme.metrics().radius_standard));
+        gc.DrawRoundedRectangle(0, y, width, block, FromDIP(m_theme.metrics().radius_small));
 
         int row_y = y;
         draw_plate_row(gc, row, index, row_y, width, block);
@@ -922,7 +922,7 @@ int LeftPane::draw_plates(wxGraphicsContext& gc, int top, int width)
     gc.SetPen(wxPen(p.border_subtle, 1));
     gc.SetBrush(*wxTRANSPARENT_BRUSH);
     gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
-                            FromDIP(m_theme.metrics().radius_compact));
+                            FromDIP(m_theme.metrics().radius_medium));
     const bool can_add = m_outline.can_add_plate;
     gc.SetFont(m_theme.font(TextRole::LabelBold), can_add ? p.text_primary : p.action_disabled_text);
     const wxString label = wxString::FromUTF8("+ ") + _L("Add plate");
@@ -943,7 +943,7 @@ void LeftPane::draw_focus_ring(wxGraphicsContext& gc, std::size_t index, const w
     gc.SetBrush(*wxTRANSPARENT_BRUSH);
     const int inset = FromDIP(1);
     gc.DrawRoundedRectangle(rect.x + inset, rect.y + inset, rect.width - 2 * inset, rect.height - 2 * inset,
-                            FromDIP(m_theme.metrics().radius_standard));
+                            FromDIP(m_theme.metrics().radius_small));
 }
 
 void LeftPane::draw_plate_row(wxGraphicsContext& gc, const PaneRow& row, std::size_t index, int& y, int width, int block_height)
@@ -970,7 +970,7 @@ void LeftPane::draw_plate_row(wxGraphicsContext& gc, const PaneRow& row, std::si
     if (hot) {
         gc.SetPen(*wxTRANSPARENT_PEN);
         gc.SetBrush(wxBrush(p.surface_selected));
-        gc.DrawRoundedRectangle(0, y, width, row_rect.height, FromDIP(m_theme.metrics().radius_standard));
+        gc.DrawRoundedRectangle(0, y, width, row_rect.height, FromDIP(m_theme.metrics().radius_small));
     }
     m_hits.push_back({Hit::Kind::Row, row_rect, index, PaneTab::Plates});
     draw_focus_ring(gc, index, row_rect);
@@ -1037,7 +1037,7 @@ void LeftPane::draw_object_row(wxGraphicsContext& gc, const PaneRow& row, std::s
     if (row.selected || hot) {
         gc.SetPen(*wxTRANSPARENT_PEN);
         gc.SetBrush(wxBrush(p.surface_selected));
-        gc.DrawRoundedRectangle(0, y, width, line, FromDIP(m_theme.metrics().radius_standard));
+        gc.DrawRoundedRectangle(0, y, width, line, FromDIP(m_theme.metrics().radius_small));
     }
     m_hits.push_back({Hit::Kind::Row, wxRect(0, y, width, line), index, PaneTab::Plates});
 

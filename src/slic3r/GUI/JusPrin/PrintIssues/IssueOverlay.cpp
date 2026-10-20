@@ -501,7 +501,7 @@ void IssueOverlay::draw_notices(const Style& s, StatusLayout& layout, const Prin
 
         begin_bare(("##jusprin_notice_" + std::to_string(slot)).c_str(), rect);
         ImDrawList& draw = *ImGui::GetWindowDrawList();
-        panel(draw, rect, s.p, std::round(s.m.radius_container * s.scale), s.p.surface_raised);
+        panel(draw, rect, s.p, std::round(s.m.radius_medium * s.scale), s.p.surface_raised);
         draw.AddCircleFilled(ImVec2(rect.x + s.pad + s.dot / 2, rect.y + s.pad + s.line / 2), s.dot / 2, im_color(dot));
         const ImVec2 text_at(rect.x + s.pad + s.dot + s.gap, rect.y + s.pad);
         draw.PushClipRect(text_at, ImVec2(text_at.x + wrap, rect.y + rect.h - s.pad), true);
@@ -575,8 +575,8 @@ void IssueOverlay::draw_list(const Style& s, const StatusLayout& layout, const P
     // canvas has room for, it scrolls.
     ImGui::SetNextWindowPos(ImVec2(list.x, list.y));
     ImGui::SetNextWindowSize(ImVec2(list.w, list.h));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::round(s.m.menu_row.side_inset * s.scale), std::round(s.m.popover.padding_y * s.scale)));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::round((s.m.menu_row.side_inset + s.m.popover.border_width) * s.scale), std::round(s.m.popover.padding_y * s.scale)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, std::round(s.m.popover.border_width * s.scale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, std::round(s.m.popover.radius * s.scale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0.f, 0.f));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.f, 0.f));
@@ -603,8 +603,9 @@ void IssueOverlay::draw_list(const Style& s, const StatusLayout& layout, const P
         ImGui::PopID();
         const ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
         m_frame.rows.emplace_back(issue.id, OverlayRect{min.x, min.y, max.x - min.x, max.y - min.y});
+        // The list is a menu: its row under the pointer is a menu row's.
         if (ImGui::IsItemHovered())
-            draw.AddRectFilled(min, max, im_color(s.p.surface_selected), std::round(s.m.menu_row.radius * s.scale));
+            draw.AddRectFilled(min, max, im_color(s.p.surface_raised_hover), std::round(s.m.menu_row.radius * s.scale));
         draw.AddCircleFilled(ImVec2(min.x + s.pad / 2 + s.dot / 2, (min.y + max.y) / 2), s.dot / 2, im_color(tone(issue, s.p)));
         const float text_x = min.x + s.pad / 2 + s.dot + s.gap;
         const float text_y = min.y + std::round((row_height - 2 * s.line) / 2);
@@ -713,7 +714,7 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
         draw.AddLine(ImVec2(placement.leader_from_x, placement.leader_from_y), to, im_color(tone(issue, s.p)), 2.f * s.scale);
         draw.AddCircleFilled(to, s.dot / 2, im_color(tone(issue, s.p)));
     }
-    panel(draw, bubble, s.p, std::round(s.m.radius_container * s.scale), s.p.surface_raised);
+    panel(draw, bubble, s.p, std::round(s.m.radius_medium * s.scale), s.p.surface_raised);
 
     const float icon_radius = std::round(s.m.button.icon.radius * s.scale);
     // An icon button is larger than its icon. It is placed so the icon, not
@@ -754,11 +755,12 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
                 self.close_bubble();
         });
     };
-    if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.action_secondary,
-               s.p.action_secondary_hover, s.p.action_secondary_text, &s.p.action_secondary_border, s.p))
+    // A secondary button shows the bubble behind it; hover is the quiet-control fill.
+    if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.surface_raised,
+               s.p.surface_subtle, s.p.text_primary, &s.p.border_subtle, s.p))
         submit(_u8L("Explain this issue and my options."));
     if (button(draw, "##resolve", resolve, _u8L("Resolve with AI"), std::round(resolve_recipe.radius * s.scale), enabled, s.p.action_primary,
-               s.p.action_primary_hover, s.p.text_on_action, nullptr, s.p))
+               s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
         submit(_u8L("Help fix this issue."));
     y += button_h + s.gap;
 

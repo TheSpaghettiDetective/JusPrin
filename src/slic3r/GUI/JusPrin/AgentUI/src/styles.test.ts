@@ -80,7 +80,9 @@ describe('styles.css stays on the design tokens', () => {
     expect(emitted).toContain('--progress-height');
     expect(emitted).toContain('--action-primary-text');
     const requested = [
-      ...css.matchAll(/var\((--(?:radius|font|button|progress|action|text|surface|border|status)-[\w-]+)\)/g),
+      ...css.matchAll(
+        /var\((--(?:radius|font|button|progress|action|text|surface|border|status|menu-row|popover|segmented|tooltip)-[\w-]+)\)/g,
+      ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.filter((name) => !emitted.has(name))).toEqual([]);
@@ -98,6 +100,39 @@ describe('styles.css stays on the design tokens', () => {
   // The dock narrows with the window, well below the 429px design frame, and
   // a header that wraps there silently costs the thread a row. The label on
   // the left must clip instead, so the state on the right is always whole.
+  // Each design-system control is drawn from its own recipe, so a size
+  // typed into one of them cannot drift from Figma unnoticed.
+  it.each([
+    ['.panel-link-button', ['--button-link-height', '--button-link-padding', '--font-label-bold']],
+    ['.setup-tabs', ['--segmented-height', '--segmented-padding', '--segmented-border-width', '--segmented-radius']],
+    ['.setup-tab', ['--segmented-segment-height', '--segmented-segment-padding-y', '--segmented-segment-padding-x',
+      '--font-label']],
+    ['.change-revert-tooltip', ['--tooltip-height', '--tooltip-padding-y', '--tooltip-padding-x', '--tooltip-radius',
+      '--font-metadata']],
+    ['.chat-menu', ['--popover-padding-y', '--popover-row-gap', '--popover-border-width', '--popover-radius']],
+    ['.chat-menu button', ['--menu-row-height', '--menu-row-side-inset', '--menu-row-radius']],
+    ['button.primary', ['--button-primary-padding', '--font-body-small-bold']],
+  ])('draws %s from its recipe', (selector, variables) => {
+    // Only rules that name the selector itself, alone or in a list, not a
+    // descendant form of it such as `.dialog button.primary`.
+    const escaped = selector.replace(/[.]/g, '\\.');
+    const rules = [...css.matchAll(new RegExp(`(?:^|[},])\\s*(?:[^{},]*,\\s*)*${escaped}\\s*[,{][^}]*\\}`, 'gm'))]
+      .map((match) => match[0]).join('\n');
+    expect(rules.length).toBeGreaterThan(0);
+    for (const variable of variables) expect(rules).toContain(`var(${variable})`);
+  });
+
+  // A menu row's keyboard focus is the hovered row's fill, never the outside
+  // ring, which would stick out past the popover's edge.
+  it('draws a focused menu row as the hovered one', () => {
+    const bodies = css.split('}').map((rule) => rule.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === '.chat-menu button:focus-visible'))
+      .map(([, body]) => body)
+      .join(';');
+    expect(bodies).toMatch(/outline:\s*none/);
+    expect(bodies).toMatch(/background:\s*var\(--surface-raised-hover\)/);
+  });
+
   it('keeps the setup card header on one line', () => {
     const rule = css.match(/\.current-setup-header\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();

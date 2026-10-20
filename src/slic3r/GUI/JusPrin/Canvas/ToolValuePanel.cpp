@@ -557,7 +557,7 @@ void ToolValuePanel::render_footer(const ShellTheme& theme, const ShellPalette& 
     ImGui::PushStyleColor(ImGuiCol_Button, im_vec4(palette.action_primary));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, im_vec4(palette.action_primary_hover));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, im_vec4(palette.action_primary_pressed));
-    ImGui::PushStyleColor(ImGuiCol_Text, im_vec4(palette.text_on_action));
+    ImGui::PushStyleColor(ImGuiCol_Text, im_vec4(palette.action_primary_text));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, std::round(theme.metrics().button.primary.radius * scale));
     GLGizmoUtils::begin_right_aligned_buttons({_L("Done")});
     if (imgui->button(_L("Done")))
@@ -589,7 +589,7 @@ bool ToolValuePanel::render_checkbox(const ShellTheme& theme, const ShellPalette
         const float inset = (side - glyph) / 2;
         draw.AddImage((ImTextureID)(intptr_t)canvas_icon_texture("check", glyph), ImVec2(min.x + inset, min.y + inset),
                       ImVec2(min.x + inset + glyph, min.y + inset + glyph), ImVec2(0.f, 0.f), ImVec2(1.f, 1.f),
-                      im_color(palette.text_on_action));
+                      im_color(palette.action_primary_text));
     }
     ImGui::SameLine(0.f, std::round(m.checkbox.label_gap * scale));
     ImGui::AlignTextToFramePadding();
@@ -604,8 +604,8 @@ bool ToolValuePanel::render_reset(const ShellTheme& theme, const ShellPalette& p
                                   const wxString& tooltip, float scale)
 {
     const ShellMetrics& m = theme.metrics();
-    const float side = std::round(m.button.icon.width * scale);
-    const int icon_px = int(std::lround(m.button.icon.icon_size * scale));
+    const float side = std::round(m.button.icon_compact.width * scale);
+    const int icon_px = int(std::lround(m.button.icon_compact.icon_size * scale));
     ImGui::PushID(icon);
     const bool pressed = ImGui::Button("##reset", ImVec2(side, side));
     const ImVec2 min = ImGui::GetItemRectMin();
