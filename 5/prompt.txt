@@ -1,0 +1,51 @@
+<cross-session-message from="uds:/tmp/claude/cc-socks/44528.sock" from-session="local_be7b8a24-4adf-4c51-ac5b-329a4d1851c0" from-name="Building design systems from Figma" from-mode="bypass">
+Kenneth approved two more changes for your design-token-sync worktree: a lighter dark-mode highlight for menu rows, and the print-issue list matching the menus.
+
+1. New design token. In dark mode surface-subtle (#211B2A) is darker than the menu's surface-raised (#2B2336), so a highlighted row looked sunk in. Kenneth chose to change the design's colour. I'm adding a new semantic colour to the Design System artifact (https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL, tokens.json / tokens.css):
+   `surface-raised-hover`: light #F6F2F7 (same as surface-subtle), dark #3B3047 (between surface-raised #2B2336 and surface-selected #4B3E57). Usage: "The hover and keyboard-focus fill of a row on surface-raised: menu rows and other rows in menus and popovers."
+   surface-subtle itself is unchanged.
+   Please add it to resources/jusprin/ui/design-tokens.json (with the CSS variable and ShellTheme palette entry and guard tests per design-system.md), and use it instead of surface-subtle for the hover and focus fill of menu rows: the Agent chat menu (.chat-menu button), the Home printer-card menu, and the native header menus (HeaderButton, HeaderStyle::Menu).
+2. The print-issue list (PrintIssues/IssueOverlay.cpp:607) should match: its hovered row uses the same surface-raised-hover fill instead of surface_selected.
+
+Same rules as before: colour from the token file through ShellTheme or CSS variables, fail-first guards (restore from a saved copy, never `git checkout`), check that nothing else changes, build, and send Kenneth before/after pictures of a header menu, an Agent chat menu and the print-issue list with a row highlighted, light and dark (dark is the one that changes). Leave it uncommitted unless Kenneth asks.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b325fhs8p</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/b325fhs8p.output</output-file>
+<status>completed</status>
+<summary>Background command "Restore the harness, document the token, rerun checks" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0wyqw256</task-id>
+<tool-use-id>toolu_01ET3mcTCEfNSca6nEtng5LH</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/b0wyqw256.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the composer build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brhz0zdz9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/brhz0zdz9.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the rebuild or its first error" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0or34csm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/b0or34csm.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for both harness runs" completed (exit code 0)</summary>
+</task-notification>
