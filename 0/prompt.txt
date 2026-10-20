@@ -1,0 +1,104 @@
+Background (from the session that started this one):
+The suite replays app requests recorded by the shell harness and answers only reads, only from recordings. A new --backend claude-cli (branch claude/claude-cli-backend, commit ddc771948a, on jusprin-newui) runs it on Opus 5.5 through the Claude Code CLI. Its first full batch (2026-10-19) had 10 of 63 comparable runs unobserved, nearly all because Opus asked for these two reads, which DeepSeek V4 Flash never did. Base the work on claude/claude-cli-backend so the backend is available.
+
+Task:
+In JusPrin's project prompt suite (tests/project_prompt), extend the recorder's "answers" lists so that two read patterns Opus 5.5 makes on the Claude subscription backend have recorded answers, then re-record requests.json.
+
+1. settings_search with scope "object", a target {"objectId": ...} for every object on every plate, query "" and changedOnly: true. Today the runner returns no answer for any changedOnly search (recorded_answer in run_prompt_tests.py refuses it), and Opus sends exactly this first in file-note-not-instructions, print-this-no-purpose and the three model-opened/imported cases. The runner's recorded_answer has to match changedOnly searches too (scope, target, query, changedOnly; whatever limit).
+2. slice_report for every plate, not only the active one (slice-refused-then-ready: Opus asks for Plate 1, id 2162, which sliced; only Plate 2's report is recorded).
+
+Recording: the shell harness's --project-prompt-requests mode (README "What keeps it faithful to the app"); it needs the built shell harness (build/arm64/tests/shell/...). The script.json "answers" list and the harness code in tests/shell/shell_harness.cpp decide what is recorded. Keep test_steps.py and test_claude_cli.py passing, and test_openai_responses_agent.cpp's schema checks of recorded answers. Update the README's recorded-answers list. Do not run any paid API batch; checking with `--backend claude-cli --judge claude-cli` on the five affected cases (3 runs each) is fine and needs no approval beyond Kenneth's go-ahead for subscription runs. Done = those five cases have no unobserved run caused by these two reads.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f024afad-757d-4c80-ba8d-848ac2da8e00
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[156/912] Building CXX object src/libslic3r/CMakeFiles/libslic3r.dir/Release/Fea</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[425/912] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/Release/GU</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>22 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>23 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>13 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>16 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[Monitor expired after 30m with 6 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvbtkyh1e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/bvbtkyh1e.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 47265 2&gt;/dev/null; do sleep 30; done; tail -5 /tmp/claude/build-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj0ggwe4k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/bj0ggwe4k.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 61699 2&gt;/dev/null; do sleep 10; done; grep -E "FAIL|failed|_kept|exit" /tmp/claude/record-opus-reads.log | grep -v "=1\b" | tail -15; tail -3 /tmp/claude/record-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>beni5ufor</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/beni5ufor.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/scratchpad; while kill -0 63497 2&gt;/dev/null; do sleep 15; done; tail -40 $S/cli-run.log" completed (exit code 0)</summary>
+</task-notification>
