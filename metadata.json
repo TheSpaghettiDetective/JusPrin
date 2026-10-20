@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5CZ3QSA2G3D7R8X7GAH8P6H",
+  "strategy": "manual-commit",
+  "branch": "claude/setup-card-headline",
+  "checkpoints_count": 8,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 458,
+    "cache_creation_tokens": 1447643,
+    "cache_read_tokens": 70276793,
+    "output_tokens": 158184,
+    "api_call_count": 229
+  }
+}
