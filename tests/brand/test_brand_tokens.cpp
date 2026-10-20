@@ -68,7 +68,7 @@ TEST_CASE("text keeps the documented contrast on every surface", "[brand]")
     const json tokens = load_tokens();
     for (const char* mode : {"light", "dark"}) {
         const json& s = tokens.at("semantic").at(mode);
-        for (const char* surface : {"canvas", "subtle", "raised", "selected"}) {
+        for (const char* surface : {"canvas", "subtle", "raised", "raisedHover", "selected"}) {
             const std::string bg = s.at("surface").at(surface);
             INFO(mode << " text on surface." << surface << " (" << bg << ")");
             CHECK(contrast(s.at("text").at("primary"), bg) >= 4.5);
@@ -115,8 +115,11 @@ TEST_CASE("action text is readable on the action fill in every state", "[brand]"
             INFO(mode << " action." << fill);
             CHECK(contrast(a.at("primaryText"), a.at(fill)) >= 4.5);
         }
-        CHECK(contrast(a.at("secondaryText"), a.at("secondary")) >= 4.5);
-        CHECK(contrast(a.at("dangerText"), a.at("danger")) >= 4.5);
+        // Secondary and danger buttons have no fill of their own: their label
+        // sits on the surface behind them, as the design system's Button/Secondary does.
+        const json& semantic = tokens.at("semantic").at(mode);
+        for (const char* surface : {"canvas", "subtle", "raised"})
+            CHECK(contrast(semantic.at("status").at("danger"), semantic.at("surface").at(surface)) >= 4.5);
         CHECK(contrast(tokens.at("semantic").at(mode).at("status").at("successOnAction"), a.at("primary")) >= 3.0);
         // Disabled controls are exempt from the contrast minimum (WCAG 1.4.3);
         // only guard against a fully invisible label.
@@ -193,7 +196,7 @@ TEST_CASE("the radius scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("dimension").at("radius"),
-        {{"standard", 4}, {"compact", 8}, {"container", 8}, {"window", 12}, {"pill", 9999}},
+        {{"small", 4}, {"medium", 8}, {"large", 12}, {"chip", 4}, {"full", 10}},
         "dimension.radius");
 }
 
@@ -368,6 +371,76 @@ TEST_CASE("printer setup has a readable conversation width", "[brand]")
 
 // Replies in the Agent thread use the standard control radius. Their height
 // and text inset are shared between the printer, filament, and project chats.
+// The design system (the Design System artifact's project/tokens.json,
+// https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL) is the source of truth
+// for every colour both sides name. Left: the design system's name. Right:
+// where the token file keeps it. overlay.scrim and status.successOnAction
+// exist only here until the artifact adds them.
+TEST_CASE("the shared semantic colours are the design system's", "[brand]")
+{
+    struct Colour { const char* design; const char* path; const char* light; const char* dark; };
+    const Colour colours[] = {
+        {"surface-canvas", "surface.canvas", "#FFFFFF", "#17131F"},
+        {"surface-subtle", "surface.subtle", "#F6F2F7", "#211B2A"},
+        {"surface-raised", "surface.raised", "#FFFFFF", "#2B2336"},
+        {"surface-raised-hover", "surface.raisedHover", "#F6F2F7", "#3B3047"},
+        {"surface-selected", "surface.selected", "#EDE7F2", "#4B3E57"},
+        {"surface-failure-inverse", "surface.failureInverse", "#261F37", "#342C3B"},
+        {"text-primary", "text.primary", "#17131F", "#F6F2F7"},
+        {"text-secondary", "text.secondary", "#5F5767", "#CFC5D3"},
+        {"text-tertiary", "text.tertiary", "#6C6374", "#A99EAE"},
+        {"border-subtle", "border.subtle", "#E8DFEB", "#4B3E57"},
+        {"border-strong", "border.strong", "#6F4F84", "#7D6A8D"},
+        {"border-focus", "border.focus", "#6F4F84", "#7D6A8D"},
+        {"action-primary", "action.primary", "#3A2D64", "#CE84B7"},
+        {"action-primary-hover", "action.primaryHover", "#4B3A77", "#D99AC5"},
+        {"action-primary-pressed", "action.primaryPressed", "#2B214F", "#B76CA0"},
+        {"action-on-primary", "action.primaryText", "#FFFFFF", "#17131F"},
+        {"action-disabled", "action.disabled", "#E4E0E6", "#342C3B"},
+        {"action-disabled-text", "action.disabledText", "#8A838F", "#857B8C"},
+        {"status-success", "status.success", "#2D6A55", "#4CAF82"},
+        {"status-danger", "status.danger", "#B44757", "#E07080"},
+        {"status-warning", "status.warning", "#D49A2A", "#E8B84A"},
+        {"status-danger-on-inverse", "status.dangerOnInverse", "#FF7868", "#FF8E80"},
+        {"axis-x", "axis.x", "#FF3C5B", "#FF3C5B"},
+        {"axis-y", "axis.y", "#64C818", "#64C818"},
+        {"axis-z", "axis.z", "#2F88E9", "#2F88E9"},
+    };
+    const json tokens = load_tokens();
+    for (const Colour& colour : colours) {
+        const std::string path(colour.path);
+        const size_t dot = path.find('.');
+        for (const char* mode : {"light", "dark"}) {
+            INFO(colour.design << " (" << mode << ".semantic." << path << ")");
+            const json& group = tokens.at("semantic").at(mode).at(path.substr(0, dot));
+            REQUIRE(group.contains(path.substr(dot + 1)));
+            CHECK(group.at(path.substr(dot + 1)) == (std::string(mode) == "light" ? colour.light : colour.dark));
+        }
+    }
+}
+
+// Button/Link, Segmented Control and Tooltip, as the design system draws them.
+TEST_CASE("the link, segmented control and tooltip geometry is explicit", "[brand]")
+{
+    const json component = load_tokens().at("component");
+    require_exact_table<int>(component.at("button").at("link"),
+        {{"height", 26}, {"paddingX", 4}, {"paddingY", 0}, {"radius", 4}}, "component.button.link", {"textRole"});
+    CHECK(component.at("button").at("link").at("textRole") == "labelBold");
+    require_exact_table<int>(component.at("segmented"),
+        {{"height", 30}, {"padding", 2}, {"borderWidth", 1}, {"radius", 4}, {"segmentHeight", 24}, {"segmentPaddingX", 16},
+         {"segmentPaddingY", 4}},
+        "component.segmented", {"textRole"});
+    CHECK(component.at("segmented").at("textRole") == "label");
+    // The segments fill the track: its border and padding on both sides plus one segment.
+    const json& segmented = component.at("segmented");
+    CHECK(segmented.at("height").get<int>() ==
+          2 * (segmented.at("borderWidth").get<int>() + segmented.at("padding").get<int>()) +
+              segmented.at("segmentHeight").get<int>());
+    require_exact_table<int>(component.at("tooltip"), {{"height", 24}, {"paddingX", 8}, {"paddingY", 4}, {"radius", 4}},
+                             "component.tooltip", {"textRole"});
+    CHECK(component.at("tooltip").at("textRole") == "metadata");
+}
+
 TEST_CASE("the reply chip geometry is explicit", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("replyChip"),
@@ -378,6 +451,56 @@ TEST_CASE("the shared chat attachment geometry is explicit", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("chatAttachment"),
         {{"maxWidth", 320}, {"thumbnailSize", 48}, {"kindSize", 32}}, "component.chatAttachment");
+}
+
+// The Agent message box: one bordered box whose text field grows a line at a
+// time up to maxLines of Body Small, then scrolls. Its insets are layout
+// spacing, so they stay on the spacing scale.
+TEST_CASE("the composer geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& composer = tokens.at("component").at("composer");
+    require_exact_table<int>(composer, {{"padding", 8}, {"gap", 4}, {"inputPadding", 4}, {"maxLines", 8}},
+                             "component.composer");
+    std::set<int> scale;
+    for (const auto& [name, value] : tokens.at("dimension").at("space").items())
+        scale.insert(value.get<int>());
+    for (const char* inset : {"padding", "gap", "inputPadding"}) {
+        INFO("component.composer." << inset << " is not a dimension.space value");
+        CHECK(scale.count(composer.at(inset).get<int>()) == 1);
+    }
+}
+
+// The composer's Send and Stop: Button/Primary and Button/Secondary at 28 DIP,
+// so they sit inside the toolbar beside the 32 DIP + without growing it.
+TEST_CASE("the small button recipes are explicit", "[brand]")
+{
+    const json tokens  = load_tokens();
+    const json& button = tokens.at("component").at("button");
+    require_exact_table<int>(button.at("primarySmall"),
+        {{"height", 28}, {"paddingX", 16}, {"paddingY", 4}, {"radius", 8}}, "component.button.primarySmall", {"textRole"});
+    CHECK(button.at("primarySmall").at("textRole") == "bodySmallBold");
+    require_exact_table<int>(button.at("secondarySmall"),
+        {{"height", 28}, {"paddingX", 12}, {"paddingY", 4}, {"radius", 4}}, "component.button.secondarySmall", {"textRole"});
+    CHECK(button.at("secondarySmall").at("textRole") == "bodySmall");
+    CHECK(button.at("primarySmall").at("height") < button.at("icon").at("height"));
+    // The composer's model and thinking pickers: a label and a chevron.
+    require_exact_table<int>(button.at("picker"),
+        {{"height", 24}, {"paddingX", 8}, {"paddingY", 4}, {"radius", 4}, {"iconGap", 4}}, "component.button.picker", {"textRole"});
+    CHECK(button.at("picker").at("textRole") == "label");
+}
+
+// Field/Search, the box at the top of a long menu: taller than a form field,
+// with a 16 DIP glyph, and a stroke that thickens while it has the focus.
+TEST_CASE("the search field geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& field = tokens.at("component").at("fieldSearch");
+    require_exact_table<int>(field,
+        {{"height", 38}, {"paddingX", 10}, {"iconSize", 16}, {"iconGap", 6}, {"radius", 4}, {"borderWidth", 1},
+         {"focusBorderWidth", 2}},
+        "component.fieldSearch", {"textRole"});
+    CHECK(field.at("textRole") == "body");
 }
 
 TEST_CASE("the printer card geometry is explicit", "[brand]")
@@ -402,11 +525,12 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
     const json tokens = load_tokens();
     const json& component = tokens.at("component");
     require_exact_table<int>(component.at("button").at("icon"),
-        {{"width", 26}, {"height", 26}, {"iconSize", 16}, {"radius", 4}}, "component.button.icon");
-    require_exact_table<int>(component.at("menuRow"), {{"height", 32}, {"radius", 4}, {"sideInset", 4}},
+        {{"width", 32}, {"height", 32}, {"iconSize", 16}, {"radius", 4}}, "component.button.icon");
+    require_exact_table<int>(component.at("menuRow"), {{"height", 36}, {"radius", 0}, {"sideInset", 0}},
         "component.menuRow");
-    require_exact_table<int>(component.at("popover"), {{"paddingY", 4}, {"rowGap", 0}, {"radius", 8}},
+    require_exact_table<int>(component.at("popover"), {{"paddingY", 8}, {"rowGap", 2}, {"radius", 8}, {"borderWidth", 1}, {"width", 280}},
         "component.popover");
+    require_exact_table<int>(component.at("chip"), {{"height", 28}, {"radius", 4}}, "component.chip");
     require_exact_table<int>(component.at("timelineRevert"), {{"width", 320}}, "component.timelineRevert");
 }
 
@@ -452,8 +576,11 @@ TEST_CASE("the tool panel geometry is explicit", "[brand]")
                              "component.field", {"textRole", "unitTextRole"});
     require_exact_table<int>(component.at("select"), {{"height", 26}, {"radius", 4}, {"paddingX", 8}, {"chevronSize", 16}},
                              "component.select", {"textRole"});
-    // A field and the select share the icon button's height so a form row lines up.
-    CHECK(component.at("field").at("height") == component.at("button").at("icon").at("height"));
+    // A form row's reset button is the compact icon target, at the field's
+    // height so the row lines up; standalone icon buttons are taller.
+    require_exact_table<int>(component.at("button").at("iconCompact"),
+        {{"width", 26}, {"height", 26}, {"iconSize", 16}, {"radius", 4}}, "component.button.iconCompact");
+    CHECK(component.at("field").at("height") == component.at("button").at("iconCompact").at("height"));
     CHECK(component.at("select").at("height") == component.at("field").at("height"));
     CHECK(component.at("formRow").at("height") == component.at("field").at("height"));
 }

@@ -211,6 +211,26 @@ TEST_CASE("a configured model and endpoint replace the row's defaults", "[agent]
     CHECK(json::parse(fake->requests.front().body)["model"] == "deepseek/deepseek-v4-flash");
 }
 
+TEST_CASE("a chat's thinking level is sent as reasoning effort, and nothing when there is none", "[agent][openai][openrouter]")
+{
+    for (const char* provider : {"openai", "openrouter"}) {
+        CAPTURE(provider);
+        ProviderProfile profile = *profile_for(provider);
+        auto transport          = std::make_unique<FakeTransport>();
+        FakeTransport* fake     = transport.get();
+        AgentServicePtr plain   = make_provider_agent(profile, "k", "", "", std::move(transport));
+        REQUIRE(plain->start(request_fixture()));
+        CHECK_FALSE(json::parse(fake->requests.front().body).contains("reasoning"));
+
+        profile.effort       = "low";
+        auto chosen_transport = std::make_unique<FakeTransport>();
+        fake                  = chosen_transport.get();
+        AgentServicePtr chosen = make_provider_agent(profile, "k", "", "", std::move(chosen_transport));
+        REQUIRE(chosen->start(request_fixture()));
+        CHECK(json::parse(fake->requests.front().body)["reasoning"] == json{{"effort", "low"}});
+    }
+}
+
 TEST_CASE("text the person pastes is never taken for the app's snapshot", "[agent][openai][workspace]")
 {
     auto transport = std::make_unique<FakeTransport>();

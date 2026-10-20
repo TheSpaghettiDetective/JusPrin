@@ -185,6 +185,34 @@ TEST_CASE("chat metadata follows activity and manual titles survive reload", "[p
     CHECK(loaded.needs_conversation_title(second));
 }
 
+// A chat's model choice is its own and survives reopening the project; an
+// older project, which has none, leaves the chat on the app's default.
+TEST_CASE("a chat keeps its own model choice across a reload", "[project-state][conversations]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const auto first  = document.active_conversation_id();
+    const auto second = document.create_conversation({}, kT);
+    CHECK_FALSE(document.chat_model(first));
+
+    const ChatModelChoice opus{"anthropic", "claude-opus-5-5", "high"};
+    REQUIRE(document.set_chat_model(first, opus));
+    CHECK(document.chat_model(first) == opus);
+    CHECK_FALSE(document.chat_model(second));
+    // Switching mid-chat replaces the choice.
+    const ChatModelChoice mini{"openai", "gpt-5.4-mini", ""};
+    REQUIRE(document.set_chat_model(first, mini));
+    CHECK(document.chat_model(first) == mini);
+    // A choice must name a provider and a model, and a chat that exists.
+    CHECK_FALSE(document.set_chat_model(first, ChatModelChoice{"openai", "", "low"}));
+    CHECK_FALSE(document.set_chat_model("c-missing", opus));
+
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.chat_model(first) == mini);
+    CHECK_FALSE(loaded.chat_model(second));
+}
+
 TEST_CASE("deleting chats removes their content and preserves manufacturing history", "[project-state][conversations]")
 {
     ProjectStateDocument document;

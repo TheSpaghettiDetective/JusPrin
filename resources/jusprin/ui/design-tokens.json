@@ -32,10 +32,7 @@
     "status": {
       "success": "#2D6A55",
       "danger": "#B44757",
-      "warning": "#D49A2A",
-      "successDark": "#58B894",
-      "dangerDark": "#F07A8E",
-      "warningDark": "#E9B960"
+      "warning": "#D49A2A"
     }
   },
   "semantic": {
@@ -44,6 +41,7 @@
         "canvas": "#FFFFFF",
         "subtle": "#F6F2F7",
         "raised": "#FFFFFF",
+        "raisedHover": "#F6F2F7",
         "selected": "#EDE7F2",
         "failureInverse": "#261F37"
       },
@@ -51,7 +49,6 @@
         "primary": "#17131F",
         "secondary": "#5F5767",
         "tertiary": "#6C6374",
-        "onAction": "#FFFFFF",
         "onFailurePrimary": "#FFFFFF",
         "onFailureSecondary": "#C8C1D2",
         "onFailureTertiary": "#A29AAA"
@@ -67,14 +64,6 @@
         "primaryHover": "#4B3A77",
         "primaryPressed": "#2B214F",
         "primaryText": "#FFFFFF",
-        "secondary": "#FFFFFF",
-        "secondaryHover": "#F6F2F7",
-        "secondaryPressed": "#EDE7F2",
-        "secondaryText": "#17131F",
-        "secondaryBorder": "#E8DFEB",
-        "danger": "#FFFFFF",
-        "dangerText": "#B44757",
-        "dangerBorder": "#B44757",
         "disabled": "#E4E0E6",
         "disabledText": "#8A838F"
       },
@@ -99,6 +88,7 @@
         "canvas": "#17131F",
         "subtle": "#211B2A",
         "raised": "#2B2336",
+        "raisedHover": "#3B3047",
         "selected": "#4B3E57",
         "failureInverse": "#342C3B"
       },
@@ -106,7 +96,6 @@
         "primary": "#F6F2F7",
         "secondary": "#CFC5D3",
         "tertiary": "#A99EAE",
-        "onAction": "#17131F",
         "onFailurePrimary": "#FFFFFF",
         "onFailureSecondary": "#D7D0DF",
         "onFailureTertiary": "#B8AFBF"
@@ -122,23 +111,15 @@
         "primaryHover": "#D99AC5",
         "primaryPressed": "#B76CA0",
         "primaryText": "#17131F",
-        "secondary": "#211B2A",
-        "secondaryHover": "#2B2336",
-        "secondaryPressed": "#3A3047",
-        "secondaryText": "#F6F2F7",
-        "secondaryBorder": "#7D6A8D",
-        "danger": "#211B2A",
-        "dangerText": "#F07A8E",
-        "dangerBorder": "#F07A8E",
         "disabled": "#342C3B",
         "disabledText": "#857B8C"
       },
       "status": {
-        "success": "#58B894",
+        "success": "#4CAF82",
         "successOnAction": "#174735",
-        "danger": "#F07A8E",
+        "danger": "#E07080",
         "dangerOnInverse": "#FF8E80",
-        "warning": "#E9B960"
+        "warning": "#E8B84A"
       },
       "overlay": {
         "scrim": "#000000"
@@ -234,11 +215,11 @@
       "12": 48
     },
     "radius": {
-      "standard": 4,
-      "compact": 8,
-      "container": 8,
-      "window": 12,
-      "pill": 9999
+      "small": 4,
+      "medium": 8,
+      "large": 12,
+      "chip": 4,
+      "full": 10
     }
   },
   "elevation": {
@@ -305,10 +286,31 @@
         "textRole": "body"
       },
       "icon": {
+        "width": 32,
+        "height": 32,
+        "iconSize": 16,
+        "radius": 4
+      },
+      "iconCompact": {
         "width": 26,
         "height": 26,
         "iconSize": 16,
         "radius": 4
+      },
+      "link": {
+        "height": 26,
+        "paddingX": 4,
+        "paddingY": 0,
+        "radius": 4,
+        "textRole": "labelBold"
+      },
+      "picker": {
+        "height": 24,
+        "paddingX": 8,
+        "paddingY": 4,
+        "radius": 4,
+        "iconGap": 4,
+        "textRole": "label"
       },
       "expanded": {
         "minHeight": 32,
@@ -324,27 +326,60 @@
         "iconGap": 6,
         "textRole": "bodySmall"
       },
+      "secondarySmall": {
+        "height": 28,
+        "paddingX": 12,
+        "paddingY": 4,
+        "radius": 4,
+        "textRole": "bodySmall"
+      },
       "primary": {
         "paddingX": 16,
         "paddingY": 8,
         "radius": 8,
         "iconGap": 6,
         "textRole": "bodySmallBold"
+      },
+      "primarySmall": {
+        "height": 28,
+        "paddingX": 16,
+        "paddingY": 4,
+        "radius": 8,
+        "textRole": "bodySmallBold"
       }
     },
     "chip": {
-      "height": 26,
+      "height": 28,
       "radius": 4
     },
     "menuRow": {
-      "height": 32,
-      "radius": 4,
-      "sideInset": 4
+      "height": 36,
+      "radius": 0,
+      "sideInset": 0
     },
     "popover": {
+      "paddingY": 8,
+      "rowGap": 2,
+      "radius": 8,
+      "borderWidth": 1,
+      "width": 280
+    },
+    "segmented": {
+      "height": 30,
+      "padding": 2,
+      "borderWidth": 1,
+      "radius": 4,
+      "segmentHeight": 24,
+      "segmentPaddingX": 16,
+      "segmentPaddingY": 4,
+      "textRole": "label"
+    },
+    "tooltip": {
+      "height": 24,
+      "paddingX": 8,
       "paddingY": 4,
-      "rowGap": 0,
-      "radius": 8
+      "radius": 4,
+      "textRole": "metadata"
     },
     "timelineRevert": {
       "width": 320
@@ -434,6 +469,12 @@
       "thumbnailSize": 48,
       "kindSize": 32
     },
+    "composer": {
+      "padding": 8,
+      "gap": 4,
+      "inputPadding": 4,
+      "maxLines": 8
+    },
     "printerCard": {
       "columnWidth": 320,
       "pictureSize": 32,
@@ -456,6 +497,16 @@
       "minWidth": 72,
       "textRole": "body",
       "unitTextRole": "label"
+    },
+    "fieldSearch": {
+      "height": 38,
+      "paddingX": 10,
+      "iconSize": 16,
+      "iconGap": 6,
+      "radius": 4,
+      "borderWidth": 1,
+      "focusBorderWidth": 2,
+      "textRole": "body"
     },
     "select": {
       "height": 26,

@@ -192,6 +192,22 @@ std::size_t count_keyword(const json& schema, const std::string& keyword)
 
 } // namespace
 
+// A chat's chosen thinking level: effort, with thinking left adaptive. A
+// conversation title never carries it.
+TEST_CASE("an Anthropic request carries the chat's thinking level as effort", "[agent][anthropic]")
+{
+    ProviderProfile profile = *profile_for("anthropic");
+    profile.effort          = "high";
+    auto transport          = std::make_unique<FakeTransport>();
+    FakeTransport* fake     = transport.get();
+    AgentServicePtr service = make_provider_agent(profile, "sk-ant-secret", "claude-sonnet-5-5", "", std::move(transport));
+    REQUIRE(service->start(request_fixture()));
+    const json body = json::parse(fake->requests.front().body);
+    CHECK(body["model"] == "claude-sonnet-5-5");
+    CHECK(body["thinking"] == json{{"type", "adaptive"}});
+    CHECK(body["output_config"] == json{{"effort", "high"}});
+}
+
 TEST_CASE("an Anthropic request: the key header, the version, a cached system block and tools, and no thinking or tool choice",
           "[agent][anthropic]")
 {

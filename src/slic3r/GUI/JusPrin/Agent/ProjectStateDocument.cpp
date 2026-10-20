@@ -699,6 +699,27 @@ bool ProjectStateDocument::set_setup_intent(const std::string& conversation_id, 
     return true;
 }
 
+std::optional<ChatModelChoice> ProjectStateDocument::chat_model(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (!conversation || !conversation->contains("chatModel") || !(*conversation)["chatModel"].is_object())
+        return std::nullopt;
+    const json& stored = (*conversation)["chatModel"];
+    ChatModelChoice choice{stored.value("provider", ""), stored.value("model", ""), stored.value("effort", "")};
+    if (choice.provider.empty() || choice.model.empty())
+        return std::nullopt;
+    return choice;
+}
+
+bool ProjectStateDocument::set_chat_model(const std::string& conversation_id, const ChatModelChoice& choice)
+{
+    json* conversation = conversation_json(conversation_id);
+    if (!conversation || choice.provider.empty() || choice.model.empty()) return false;
+    (*conversation)["chatModel"] = json{{"provider", choice.provider}, {"model", choice.model}, {"effort", choice.effort}};
+    touch();
+    return true;
+}
+
 std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversation(const std::string& conversation_id,
                                                                                 const std::string& timestamp)
 {

@@ -209,7 +209,7 @@ body {
   flex: 0 0 auto;
   width: var(--status-dot-size);
   height: var(--status-dot-size);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--text-secondary);
 }
 
@@ -289,7 +289,7 @@ body {
 
 .printer-progress {
   height: var(--progress-height);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   background: var(--border-subtle);
   overflow: hidden;
 }
@@ -356,7 +356,7 @@ body {
   gap: var(--button-secondary-icon-gap);
   font: var(--font-body-small);
   padding: var(--button-secondary-padding);
-  border-radius: var(--radius-standard);
+  border-radius: var(--radius-small);
   cursor: pointer;
 }
 
@@ -364,29 +364,28 @@ body {
   gap: var(--button-primary-icon-gap);
   font: var(--font-body-small-bold);
   padding: var(--button-primary-padding);
-  border-radius: var(--radius-compact);
+  border-radius: var(--radius-medium);
   color: var(--action-primary-text);
   background: var(--action-primary);
-  border: 1px solid var(--action-primary);
+  border: 0;
 }
 
 .button-primary:hover {
   background: var(--action-primary-hover);
-  border-color: var(--action-primary-hover);
 }
 
 /* Import and Launch monitor are outlined, not plain text: as text they
    stopped reading as controls. */
 .button-secondary,
 .launch-monitor {
-  color: var(--action-secondary-text);
-  background: var(--action-secondary);
-  border: 1px solid var(--action-secondary-border);
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
 }
 
 .button-secondary:hover,
 .launch-monitor:hover {
-  background: var(--action-secondary-hover);
+  background: var(--surface-subtle);
 }
 
 .launch-monitor {
@@ -405,7 +404,7 @@ body {
 }
 
 .add-printer:hover {
-  background: var(--action-secondary-hover);
+  background: var(--surface-subtle);
 }
 
 /* The gallery's scroller sits right beside the rail's divider, so a platform
@@ -433,7 +432,7 @@ body {
 .gallery::-webkit-scrollbar-thumb,
 .printer-column::-webkit-scrollbar-thumb {
   background: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
 }
 
 .gallery:hover::-webkit-scrollbar-thumb,
@@ -515,7 +514,7 @@ body {
 .printer-menu-button:hover,
 .printer-menu-button[aria-expanded='true'] {
   color: var(--text-primary);
-  background: var(--action-secondary-hover);
+  background: var(--surface-subtle);
 }
 
 .printer-menu {
@@ -529,7 +528,7 @@ body {
   min-width: max-content;
   padding: var(--popover-padding-y) 0;
   background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
+  border: var(--popover-border-width) solid var(--border-subtle);
   border-radius: var(--popover-radius);
   box-shadow: var(--elevation-medium);
 }
@@ -552,7 +551,13 @@ body {
 
 .printer-menu button:hover:enabled,
 .printer-menu button:focus-visible {
-  background: var(--surface-subtle);
+  background: var(--surface-raised-hover);
+}
+
+/* A menu row has no focus state of its own: the keyboard's row looks like the
+   hovered one. The outside ring would stick out past the popover's edge. */
+.printer-menu button:focus-visible {
+  outline: none;
 }
 
 .printer-menu button:disabled {
@@ -572,7 +577,7 @@ body {
   color: var(--status-danger);
   background: var(--surface-raised);
   border: 1px solid var(--status-danger);
-  border-radius: var(--radius-standard);
+  border-radius: var(--radius-small);
 }
 
 /* Draws attention to a card the conversation just added, once, then leaves
@@ -587,7 +592,8 @@ body {
 }
 
 /* Rename and remove are the add-printer dialog's kind: the same width,
-   radius, and scrim over the whole window. */
+   radius, and scrim over the whole window, laid out as the design system's
+   Sheet (24 padding, 16 between its parts). */
 .printer-dialog-shade {
   position: fixed;
   inset: 0;
@@ -600,23 +606,25 @@ body {
 }
 
 .printer-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
   max-width: var(--printer-dialog-width);
   padding: 24px;
   background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
   border-radius: var(--printer-dialog-radius);
   box-shadow: var(--elevation-strong);
 }
 
 .printer-dialog h2 {
-  margin: 0 0 12px;
+  margin: 0;
   font: var(--font-section);
   color: var(--text-primary);
 }
 
 .printer-dialog p {
-  margin: 8px 0 0;
+  margin: 0;
   overflow-wrap: anywhere;
   font: var(--font-body);
   color: var(--text-secondary);
@@ -640,14 +648,23 @@ body {
   color: var(--text-primary);
   background: var(--surface-canvas);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-standard);
+  border-radius: var(--radius-small);
 }
 
 .printer-dialog-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 24px;
+}
+
+/* Inside the rename form the field's error sits under it, and the buttons
+   keep the Sheet's gap from the field. */
+.printer-dialog form > p {
+  margin-top: 8px;
+}
+
+.printer-dialog form > .printer-dialog-buttons {
+  margin-top: 16px;
 }
 
 .button-danger {
@@ -655,16 +672,15 @@ body {
   align-items: center;
   font: var(--font-body-small-bold);
   padding: var(--button-primary-padding);
-  border-radius: var(--radius-compact);
-  color: var(--action-danger-text);
-  background: var(--action-danger);
-  border: 1px solid var(--action-danger-border);
+  border-radius: var(--radius-medium);
+  color: var(--status-danger);
+  background: transparent;
+  border: 1px solid var(--status-danger);
   cursor: pointer;
 }
 
 .button-primary:disabled {
   color: var(--action-disabled-text);
   background: var(--action-disabled);
-  border-color: var(--action-disabled);
   cursor: default;
 }

@@ -61,7 +61,7 @@ void draw_shadow(ImDrawList& draw, const StripRect& rect, float radius, const El
 StripGeometry tool_strip_geometry(const ShellMetrics& metrics)
 {
     StripGeometry geometry;
-    geometry.button  = metrics.button.icon.width;
+    geometry.button  = metrics.button.icon_compact.width;
     geometry.padding = metrics.space_1;
     geometry.gap     = metrics.space_1;
     geometry.inset   = metrics.space_3;
@@ -89,7 +89,7 @@ void ViewportToolStrip::render()
     const StripLayout layout = layout_tool_strip(tool_strip_geometry(m), scale, float(canvas_size.get_width()),
                                                  float(canvas_size.get_height()));
 
-    const int icon_px = int(std::lround(m.button.icon.icon_size * scale));
+    const int icon_px = int(std::lround(m.button.icon_compact.icon_size * scale));
 
     ImGui::SetNextWindowPos(ImVec2(layout.strip.x, layout.strip.y));
     ImGui::SetNextWindowSize(ImVec2(layout.strip.w, layout.strip.h));
@@ -107,7 +107,7 @@ void ViewportToolStrip::render()
     // The shadow falls outside the window's own rectangle.
     draw.PushClipRectFullScreen();
 
-    const float strip_radius = std::round(m.radius_container * scale);
+    const float strip_radius = std::round(m.radius_medium * scale);
     const ImVec2 strip_min(layout.strip.x, layout.strip.y);
     const ImVec2 strip_max(layout.strip.x + layout.strip.w, layout.strip.y + layout.strip.h);
     draw_shadow(draw, layout.strip, strip_radius, m.elevation_medium, p.elevation_medium, scale);
@@ -120,7 +120,7 @@ void ViewportToolStrip::render()
 
     const GLGizmosManager& gizmos = m_canvas.get_gizmos_manager();
     const GLGizmosManager::EType open_tool = gizmos.get_current_type();
-    const float button_radius = std::round(m.button.icon.radius * scale);
+    const float button_radius = std::round(m.button.icon_compact.radius * scale);
     for (std::size_t i = 0; i < kStripToolCount; ++i) {
         const StripTool tool = StripTool(i);
         const StripRect& button = layout.buttons[i];
@@ -144,7 +144,7 @@ void ViewportToolStrip::render()
             fill = pressed ? &p.action_primary_pressed : hovered ? &p.action_primary_hover : &p.action_primary;
         else if (enabled && (hovered || pressed))
             fill = &p.surface_selected;
-        const wxColour& icon_color = !enabled ? p.action_disabled_text : active ? p.text_on_action : p.text_secondary;
+        const wxColour& icon_color = !enabled ? p.action_disabled_text : active ? p.action_primary_text : p.text_secondary;
 
         const ImVec2 button_min(button.x, button.y);
         const ImVec2 button_max(button.x + button.w, button.y + button.h);

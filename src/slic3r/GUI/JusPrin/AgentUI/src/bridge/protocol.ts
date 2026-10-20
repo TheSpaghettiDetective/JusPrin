@@ -31,6 +31,8 @@ export type PageMessageType =
   | 'mcp_preview'
   | 'mcp_connect'
   | 'reveal_path'
+  | 'pick_attachment'
+  | 'set_chat_model'
   | 'printer_action'
   | 'printer_instructions'
   | 'printer_opening'
@@ -63,6 +65,8 @@ export type HostMessageType =
   | 'change_added'
   | 'work_updated'
   | 'open_setup'
+  | 'model_catalog'
+  | 'chat_model'
   | 'printer_session';
 
 export interface Envelope<T = unknown> {
@@ -178,6 +182,40 @@ interface LoadedObject {
 
 // How a file entered the composer.
 export type AttachmentSource = 'picker' | 'drop' | 'clipboard' | 'project';
+
+// What the composer's + menu asks the host's own file dialog for, when the
+// host has the native_file_picker capability: one kind, filtered by the host
+// to the extensions it files under that kind.
+export type AttachmentPickKind = 'image' | 'model' | 'gcode' | 'pdf';
+
+// A chat's provider, model and thinking level (model_choice capability). An
+// empty effort means the model's own default.
+export interface ChatModelChoice {
+  provider: string;
+  model: string;
+  effort: string;
+}
+
+export interface ModelOptionInfo {
+  id: string;
+  label: string;
+  // Levels the model accepts, lowest first; empty when it has none.
+  efforts: string[];
+  defaultEffort?: string;
+}
+
+export interface ProviderModelsInfo {
+  id: string;
+  label: string;
+  defaultModel: string;
+  state: 'loading' | 'ready' | 'failed';
+  models: ModelOptionInfo[];
+}
+
+export interface ModelCatalogPayload {
+  defaultProvider: string;
+  providers: ProviderModelsInfo[];
+}
 
 // The host's classification of an attachment. Model/project files go through
 // Orca's native importer and reach the Agent as a native summary, never as
@@ -667,6 +705,7 @@ export interface PrinterContext {
 
 export interface StatePayload {
   conversationBusy?: boolean;
+  chatModel?: ChatModelChoice; // the active chat's, from hosts with model_choice
   agent: { status: AgentStatus };
   appearance: Appearance;
   conversations: ConversationInfo[];

@@ -61,11 +61,14 @@ describe('Agent UI state matrices', () => {
     }).join('\n');
     const nav = matrices.map((matrix) => `<a href="#${slug(matrix)}">${escapeHtml(matrix)}</a>`).join('');
 
+    // The focus a case left is a mark, not real focus, so the stylesheet's
+    // own focus rules are pointed at the mark: a control draws focus as it
+    // does in the app, a ring where it has one and none where it has not.
     writeFileSync(out, `<!doctype html><html lang="en"><meta charset="utf-8">
 <title>Agent UI state matrices</title>
 <style>
 :root { ${light} }
-${productionCss()}
+${productionCss().replaceAll(':focus-visible', '[data-visual-focus]')}
 .dark { ${dark} }
 html, body { height: auto; }
 body { margin:0; padding:16px; background:var(--surface-subtle); color:var(--text-primary); font:var(--font-body); }
@@ -88,7 +91,6 @@ figcaption { font:var(--font-label); color:var(--text-secondary); margin-bottom:
 .stage { box-sizing:content-box; position:relative; height:640px; overflow:hidden; border:1px solid var(--border-subtle);
   background:var(--surface-subtle); color:var(--text-primary); }
 .stage > .app, .stage > div > .app { height:100%; }
-[data-visual-focus] { outline:2px solid var(--border-focus); outline-offset:2px; }
 </style>
 <body><h1>Agent UI state matrices</h1><nav>${nav}</nav>${sections}
 <script>

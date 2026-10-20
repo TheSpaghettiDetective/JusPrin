@@ -35,6 +35,11 @@ struct ProviderProfile
     // The most output tokens one response may use, for a family that
     // requires the number (Anthropic); 0 where none is sent.
     unsigned       max_tokens{0};
+    // How hard the model thinks before a reply, chosen per chat: one of the
+    // levels the provider's model list offers for this model ("low",
+    // "medium", "high", ...). Empty sends nothing, so the model's own default
+    // applies. Title requests never carry it.
+    std::string    effort;
 };
 
 // Every provider this build can talk to, in the order setup lists them.

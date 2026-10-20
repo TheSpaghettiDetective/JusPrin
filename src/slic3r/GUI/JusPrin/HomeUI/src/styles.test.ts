@@ -101,6 +101,17 @@ describe('styles.css stays on the design tokens', () => {
   // Section 2 of the handoff: as many columns as fit, each card between its
   // own bounds. A fixed column count grows cards to fill a wide monitor, which
   // is the mistake this rule exists to prevent.
+  // A menu row's keyboard focus is the hovered row's fill, never the outside
+  // ring, which would stick out past the popover's edge.
+  it('draws a focused menu row as the hovered one', () => {
+    const bodies = css.split('}').map((rule) => rule.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === '.printer-menu button:focus-visible'))
+      .map(([, body]) => body)
+      .join(';');
+    expect(bodies).toMatch(/outline:\s*none/);
+    expect(bodies).toMatch(/background:\s*var\(--surface-raised-hover\)/);
+  });
+
   it('sizes the gallery by the card bounds, not by a column count', () => {
     const rule = css.match(/\.project-grid\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();

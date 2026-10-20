@@ -417,7 +417,10 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     const bool highlighted = (m_hover || m_open || m_menu_selected) && IsEnabled();
     wxColour fill = primary ? (!IsEnabled() ? p.action_disabled : m_pressed || m_open ? p.action_primary_pressed :
                               m_hover ? p.action_primary_hover : p.action_primary) :
-                   highlighted ? p.surface_selected :
+                   // A menu row under the pointer or the keyboard is the design
+                   // system's Menu/Row band; every other control shows its open
+                   // or hovered state as selected.
+                   highlighted ? (m_style == HeaderStyle::Menu ? p.surface_raised_hover : p.surface_selected) :
                    // The filament half sits on a quieter ground than the printer
                    // half, so the chip reads as two things inside one outline.
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
@@ -425,10 +428,10 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
 
     const ShellMetrics& m = m_theme.metrics();
     const double w = client.x, h = client.y;
-    const double r = FromDIP(primary ? m.radius_compact :
+    const double r = FromDIP(primary ? m.radius_medium :
                              chip ? m.chip.radius :
                              m_style == HeaderStyle::Menu ? m.menu_row.radius :
-                             m_style == HeaderStyle::Outline ? m.button.icon.radius : m.radius_standard);
+                             m_style == HeaderStyle::Outline ? m.button.icon.radius : m.radius_small);
     if (chip) {
         // Each half draws the whole chip's rounded rectangle, extended past
         // the shared inner edge so only its own outer corners round. The top
@@ -514,10 +517,11 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     if (!m_row_action_label.empty()) {
         const wxRect rect = row_action_rect();
         const ButtonRecipe& recipe = m.button.compact;
-        gc->SetPen(wxPen(p.action_secondary_border));
-        gc->SetBrush(wxBrush(m_pressed ? p.action_secondary_pressed : highlighted ? p.action_secondary_hover : p.action_secondary));
+        // A secondary button: no fill of its own, so it shows the row's.
+        gc->SetPen(wxPen(p.border_subtle));
+        gc->SetBrush(wxBrush(m_pressed ? p.surface_selected : fill));
         gc->DrawRoundedRectangle(rect.x, rect.y, rect.width, rect.height, FromDIP(recipe.radius));
-        gc->SetFont(m_theme.font(recipe.text_role.value_or(TextRole::Metadata)), p.action_secondary_text);
+        gc->SetFont(m_theme.font(recipe.text_role.value_or(TextRole::Metadata)), p.text_primary);
         double tw, th;
         gc->GetTextExtent(m_row_action_label, &tw, &th);
         gc->DrawText(m_row_action_label, rect.x + (rect.width - tw) / 2, rect.y + (rect.height - th) / 2);
@@ -621,6 +625,10 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     }
 }
 
+// The popover's outline is drawn this many pixels inside the window, so the
+// shaped window's edge never clips it. Rows and separators start inside it.
+constexpr int kPopoverOutlineInset = 1;
+
 HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std::vector<HeaderMenuItem> items)
     : PopupWindow(parent, wxBORDER_NONE | wxPU_CONTAINS_CONTROLS | wxFRAME_SHAPED)
     , m_theme(theme)
@@ -634,7 +642,7 @@ HeaderMenu::HeaderMenu(wxWindow* parent, const ShellTheme& theme, bool dark, std
         wxAutoBufferedPaintDC dc(this);
         dc.SetBackground(wxBrush(palette.surface_raised)); dc.Clear();
         dc.SetPen(wxPen(palette.border_subtle)); dc.SetBrush(wxBrush(palette.surface_raised));
-        dc.DrawRoundedRectangle(GetClientRect().Deflate(1),FromDIP(radius));
+        dc.DrawRoundedRectangle(GetClientRect().Deflate(kPopoverOutlineInset),FromDIP(radius));
     });
     build(std::move(items));
     Bind(wxEVT_CHAR_HOOK,&HeaderMenu::on_key,this);
@@ -658,6 +666,9 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     }
     m_header = nullptr;
 
+    // Rows and separators run the popover's full width inside its border,
+    // so they never paint over it.
+    const int row_inset = kPopoverOutlineInset + FromDIP(menu_row.side_inset + popover.border_width);
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     sizer->AddSpacer(FromDIP(popover.padding_y));
     int placed_rows = 0;
@@ -678,7 +689,9 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
         if (item.separator) {
             auto* line = new wxStaticLine(this);
             line->SetForegroundColour(palette.border_subtle);
-            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM,FromDIP(menu_row.side_inset));
+            sizer->AddSpacer(FromDIP(m_theme.metrics().space_1));
+            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT,row_inset);
+            sizer->AddSpacer(FromDIP(m_theme.metrics().space_1));
             after_row = false;
         }
         // A separator-only entry carries no caption of its own.
@@ -724,7 +737,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
             e.Skip();
         });
         if (after_row) sizer->AddSpacer(FromDIP(popover.row_gap));
-        sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,FromDIP(menu_row.side_inset));
+        sizer->Add(button,0,wxEXPAND | wxLEFT | wxRIGHT,row_inset);
         ++placed_rows;
         after_row = true;
         button->Bind(wxEVT_BUTTON,[this,owner=wxWeakRef<wxWindow>(GetParent()),invoke=std::move(item.invoke),
@@ -754,7 +767,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     // The first build fixes the width; later rebuilds keep it so swapping to
     // the search view does not make the popup jump under the pointer.
     if (m_width == 0)
-        m_width = std::clamp(GetSize().x,FromDIP(280),FromDIP(420));
+        m_width = std::clamp(GetSize().x,FromDIP(m_theme.metrics().popover.width),FromDIP(420));
     SetSize(wxSize(m_width,GetSize().y));
     Layout();
 #if defined(__WXOSX__) || defined(__WXMSW__)

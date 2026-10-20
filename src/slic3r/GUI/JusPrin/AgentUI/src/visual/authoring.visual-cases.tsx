@@ -6,7 +6,7 @@
 import { ComponentProps } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AttachmentInfo, FileReport } from '../bridge/protocol';
+import { AttachmentInfo, FileReport, ModelCatalogPayload } from '../bridge/protocol';
 import { AttachmentChip } from '../components/AttachmentChip';
 import { Composer } from '../components/Composer';
 import { FileNotesCard } from '../components/FileNotesCard';
@@ -49,6 +49,60 @@ const composer = (id: string, name: string, expects: string[], props: Partial<Co
   build: () => mounted(<Composer disabled={false} streaming={false} attachments={[]} onSend={noop} onStop={noop}
     onAttachFiles={noop} onRemoveAttachment={noop} {...props} />, after),
 });
+
+// Two providers set up, as the proposal draws them.
+const twoProviders: ModelCatalogPayload = {
+  defaultProvider: 'anthropic',
+  providers: [
+    { id: 'anthropic', label: 'Anthropic', defaultModel: 'claude-opus-5-5', state: 'ready', models: [
+      { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', efforts: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'medium' },
+      { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] }] },
+    { id: 'openai', label: 'OpenAI', defaultModel: 'gpt-5.4-mini', state: 'ready', models: [
+      { id: 'gpt-5.4', label: 'GPT-5.4', efforts: ['low', 'medium', 'high'] },
+      { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini', efforts: ['low', 'medium', 'high'] }] },
+  ],
+};
+const oneProvider: ModelCatalogPayload = { defaultProvider: 'openai', providers: [twoProviders.providers[1]] };
+const noLevels: ModelCatalogPayload = {
+  defaultProvider: 'openrouter',
+  providers: [{ id: 'openrouter', label: 'OpenRouter', defaultModel: 'openai/gpt-5.4-mini', state: 'ready',
+    models: [{ id: 'deepseek/deepseek-v3', label: 'DeepSeek V3', efforts: [] }] }],
+};
+
+// The model-menu-search board's example: three providers, OpenRouter's list
+// long enough to need the search field. Names past the board's are filler.
+const routerNames = ['Anthropic: Claude Opus 5.5', 'DeepSeek: DeepSeek V3.2', 'Google: Gemini 3 Pro',
+  'Anthropic: Claude Sonnet 5.5', 'Anthropic: Claude Sonnet 4.5', 'Meta: Llama 4 Maverick', 'Mistral: Mistral Large 3',
+  'Qwen: Qwen3 Max', 'xAI: Grok 4'];
+const longList: ModelCatalogPayload = {
+  defaultProvider: 'anthropic',
+  providers: [
+    { ...twoProviders.providers[0], models: [...twoProviders.providers[0].models,
+      { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', efforts: [] }] },
+    { ...twoProviders.providers[1], models: [...twoProviders.providers[1].models,
+      { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano', efforts: ['low', 'medium', 'high'] }] },
+    { id: 'openrouter', label: 'OpenRouter', defaultModel: 'openai/gpt-5.4-mini', state: 'ready',
+      models: Array.from({ length: 312 }, (_, i) =>
+        ({ id: `router/model-${i}`, label: routerNames[i] ?? `Vendor ${i}: Model ${i}`, efforts: [] })) },
+  ],
+};
+const openModels = async () => { await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' })); };
+
+// The proposal that replaced it (the Composer proposal on the "JusPrin v2"
+// canvas), in every state the page draws, pickers included.
+const redesign = (id: string, name: string, expects: string[], props: Partial<ComponentProps<typeof Composer>>,
+  after?: (root: HTMLElement) => Promise<void> | void): VisualCase => ({
+  node: '1834:2216', matrix: 'Composer redesign', id: `composer-redesign-${id}`, name, frame: 'block', expects,
+  build: () => mounted(<Composer disabled={false} streaming={false} attachments={[]} onSend={noop} onStop={noop}
+    onAttachFiles={noop} onRemoveAttachment={noop} models={twoProviders}
+    chatModel={{ provider: 'anthropic', model: 'claude-opus-5-5', effort: '' }} onChooseModel={noop}
+    {...props} />, after),
+});
+
+const longMessage = 'The bracket cracked at the hook after two days on the wall. Make it stronger without moving the screw '
+  + 'holes, keep the outside face smooth, and try to keep the print under three hours. If that means a different infill '
+  + 'or more walls, tell me what you changed and why, and slice it again so I can check the layer view before I print '
+  + 'it. Also check that the hook still clears the shelf above it, and that the screw heads sit flush with the face.';
 
 const chip = (id: string, name: string, expects: string[], info: AttachmentInfo, removable: boolean): VisualCase => ({
   node: '1558:1302', matrix: 'Composer', id: `attachment-${id}`, name, frame: 'card', expects,
@@ -118,6 +172,42 @@ export const authoringCases: VisualCase[] = [
     (root) => { fireEvent.dragOver(root.querySelector('.composer')!); }),
   composer('unavailable', 'Agent unavailable', ['The Agent is not available', 'disabled'],
     { disabled: true, disabledReason: 'The Agent is not available' }),
+
+  redesign('empty', '1. Empty', ['Ask about this print or request a change…', 'jp-icon-plus', 'Send'], {}),
+  redesign('typing', '2. Typing grows the box', ['The bracket cracked at the hook'], {
+    initialText: 'The bracket cracked at the hook after two days. Make it stronger without moving the screw holes, and keep the print under three hours if you can.' }),
+  redesign('long', '3. Long message: 8 lines, then it scrolls', ['keep the outside face smooth'], { initialText: longMessage }),
+  redesign('menu', '4. + opens the attachment menu', ['Photo or image', '3D model (STL, 3MF, STEP)', 'G-code', 'Document (PDF)'], {},
+    async () => { await userEvent.click(screen.getByRole('button', { name: 'Attach a file' })); }),
+  redesign('several-providers', '5. Model menu: several providers', ['chat-menu-section', 'Anthropic', 'GPT-5.4 mini'], {},
+    async () => { await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' })); }),
+  redesign('one-provider', '6. Model menu: one provider', ['GPT-5.4', 'aria-checked="true"'],
+    { models: oneProvider, chatModel: { provider: 'openai', model: 'gpt-5.4', effort: 'high' } },
+    async () => { await userEvent.click(screen.getByRole('button', { name: 'Model: GPT-5.4' })); }),
+  redesign('thinking', '7. Thinking level follows the model', ['Thinking: Medium', 'Extra high'], {},
+    async () => { await userEvent.click(screen.getByRole('button', { name: 'Thinking: Medium' })); }),
+  redesign('no-levels', '8. Model without thinking levels', ['DeepSeek V3'],
+    { models: noLevels, chatModel: { provider: 'openrouter', model: 'deepseek/deepseek-v3', effort: '' } }),
+  redesign('files', '9. Files attached', ['bracket-on-wall.png', 'bracket-v3.3mf', 'Can you check whether this will fit?'], {
+    initialText: 'Can you check whether this will fit?',
+    attachments: [{ ...photo, name: 'bracket-on-wall.png' },
+      attachment({ id: 'a-2', name: 'bracket-v3.3mf', kind: 'model', mime: 'model/3mf', sizeBytes: 2516582 })] }),
+  redesign('responding', '10. Agent responding', ['Agent is responding…', 'Stop', 'disabled'], { streaming: true }),
+  redesign('photo', 'Printer panel · Photo', ['Photo'], { photoButton: true }),
+  // At the 320 px pane minimum the thinking picker reads "Medium" alone.
+  redesign('narrow', '11. Narrow pane', ['Thinking: Medium', 'composer-picker-prefix'], {}),
+  redesign('search', 'Model menu search · 1. A long list opens with a search field',
+    ['Search models', 'OpenRouter · 312 models', 'Claude Haiku 5.5'], { models: longList }, openModels),
+  redesign('search-typed', 'Model menu search · 2. Typing filters by model or provider',
+    ['Claude Sonnet 5.5', 'Anthropic: Claude Sonnet 4.5'], { models: longList }, async () => {
+      await openModels();
+      await userEvent.type(screen.getByRole('searchbox'), 'sonnet');
+    }),
+  redesign('search-empty', 'Model menu search · 3. Nothing matches', ['No models match “llama 9”.'],
+    { models: longList }, async () => {
+      await openModels();
+      await userEvent.type(screen.getByRole('searchbox'), 'llama 9');
+    }),
 
   thread('streaming', 'Assistant · Streaming partial', ['streaming-cursor', 'I checked the bracket.'], {
     messages: [message('m-1', 'assistant', 'I checked the bracket. Use **four walls', { state: 'streaming' })], streamingMessageId: 'm-1' }),

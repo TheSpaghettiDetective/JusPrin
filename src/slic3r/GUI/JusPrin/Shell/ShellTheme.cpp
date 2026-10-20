@@ -29,10 +29,10 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.surface_canvas          = parse_color(mode_tokens, "surface", "canvas");
     palette.surface_subtle          = parse_color(mode_tokens, "surface", "subtle");
     palette.surface_raised          = parse_color(mode_tokens, "surface", "raised");
+    palette.surface_raised_hover = parse_color(mode_tokens, "surface", "raisedHover");
     palette.surface_selected        = parse_color(mode_tokens, "surface", "selected");
     palette.text_primary            = parse_color(mode_tokens, "text", "primary");
     palette.text_secondary          = parse_color(mode_tokens, "text", "secondary");
-    palette.text_on_action          = parse_color(mode_tokens, "text", "onAction");
     palette.border_subtle           = parse_color(mode_tokens, "border", "subtle");
     palette.border_strong           = parse_color(mode_tokens, "border", "strong");
     palette.border_focus            = parse_color(mode_tokens, "border", "focus");
@@ -40,11 +40,6 @@ ShellPalette parse_palette(const nlohmann::json& mode_tokens)
     palette.action_primary_hover    = parse_color(mode_tokens, "action", "primaryHover");
     palette.action_primary_pressed  = parse_color(mode_tokens, "action", "primaryPressed");
     palette.action_primary_text     = parse_color(mode_tokens, "action", "primaryText");
-    palette.action_secondary        = parse_color(mode_tokens, "action", "secondary");
-    palette.action_secondary_hover  = parse_color(mode_tokens, "action", "secondaryHover");
-    palette.action_secondary_pressed = parse_color(mode_tokens, "action", "secondaryPressed");
-    palette.action_secondary_text   = parse_color(mode_tokens, "action", "secondaryText");
-    palette.action_secondary_border = parse_color(mode_tokens, "action", "secondaryBorder");
     palette.action_disabled         = parse_color(mode_tokens, "action", "disabled");
     palette.action_disabled_text    = parse_color(mode_tokens, "action", "disabledText");
     palette.status_warning          = parse_color(mode_tokens, "status", "warning");
@@ -160,6 +155,12 @@ ButtonMetrics parse_buttons(const nlohmann::json& buttons)
     b.icon.icon_size = parse_int(icon, "component.button.icon", "iconSize");
     b.icon.radius    = parse_int(icon, "component.button.icon", "radius");
 
+    const nlohmann::json& icon_compact = buttons.at("iconCompact");
+    b.icon_compact.width     = parse_int(icon_compact, "component.button.iconCompact", "width");
+    b.icon_compact.height    = parse_int(icon_compact, "component.button.iconCompact", "height");
+    b.icon_compact.icon_size = parse_int(icon_compact, "component.button.iconCompact", "iconSize");
+    b.icon_compact.radius    = parse_int(icon_compact, "component.button.iconCompact", "radius");
+
     const nlohmann::json& expanded = buttons.at("expanded");
     b.expanded.min_height = parse_int(expanded, "component.button.expanded", "minHeight");
     b.expanded.padding_x  = parse_int(expanded, "component.button.expanded", "paddingX");
@@ -185,11 +186,11 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
 {
     ShellMetrics m;
     const nlohmann::json& radius = tokens.at("dimension").at("radius");
-    m.radius_standard  = parse_int(radius, "dimension.radius", "standard");
-    m.radius_compact   = parse_int(radius, "dimension.radius", "compact");
-    m.radius_container = parse_int(radius, "dimension.radius", "container");
-    m.radius_window    = parse_int(radius, "dimension.radius", "window");
-    m.radius_pill      = parse_int(radius, "dimension.radius", "pill");
+    m.radius_small  = parse_int(radius, "dimension.radius", "small");
+    m.radius_medium = parse_int(radius, "dimension.radius", "medium");
+    m.radius_large  = parse_int(radius, "dimension.radius", "large");
+    m.radius_chip   = parse_int(radius, "dimension.radius", "chip");
+    m.radius_full   = parse_int(radius, "dimension.radius", "full");
 
     const nlohmann::json& space = tokens.at("dimension").at("space");
     m.space_1  = parse_int(space, "dimension.space", "1");
@@ -259,6 +260,8 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.popover.padding_y = parse_int(popover, "component.popover", "paddingY");
     m.popover.row_gap   = parse_int(popover, "component.popover", "rowGap");
     m.popover.radius    = parse_int(popover, "component.popover", "radius");
+    m.popover.border_width = parse_int(popover, "component.popover", "borderWidth");
+    m.popover.width        = parse_int(popover, "component.popover", "width");
 
     m.status_row.height = parse_int(component.at("statusRow"), "component.statusRow", "height");
 

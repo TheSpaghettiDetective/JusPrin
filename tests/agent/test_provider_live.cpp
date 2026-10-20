@@ -8,6 +8,7 @@
 //
 //   ( . "$HOME/.config/jusprin/prompt-test.env"; agent_live_tests "[openrouter][live]" )
 //   ( export ANTHROPIC_API_KEY=...; agent_live_tests "[anthropic][live]" )
+//   ( export OPENAI_API_KEY=...; agent_live_tests "[models][live]" )
 //
 // JUSPRIN_AGENT_ENDPOINT points it at a local stand-in instead, for a dry
 // run of the metering that spends nothing.
@@ -27,11 +28,14 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
 #include <chrono>
+#include <optional>
 #include <condition_variable>
 #include <algorithm>
 #include <cctype>
@@ -78,6 +82,9 @@ struct Pricing
 // claude-opus-5-5 in Anthropic's price list (5-minute cache writes).
 constexpr Pricing kOpenRouter{"openrouter", 0.75e-6, 4.5e-6, 0.075e-6, 0.75e-6, 16000};
 constexpr Pricing kAnthropic{"anthropic", 4e-6, 20e-6, 0.2e-6, 5e-6, 4000};
+// OpenAI direct, priced high on purpose (a GPT-5.4-class rate) because the
+// model-choice smoke picks whichever small model the list offers.
+constexpr Pricing kOpenAI{"openai", 2.5e-6, 15e-6, 0.25e-6, 2.5e-6, 16000};
 
 // What this process has spent, in US dollars, and the most it may. A
 // request's cost is known only once it returns, so one is refused unless
@@ -582,4 +589,105 @@ TEST_CASE("Anthropic writes a title from a conversation with a replayed call, or
     // A conversation whose first message is the assistant's.
     const json opening = title({{"assistant", "Hello! Load a model to begin."}, {"user", "A phone stand."}});
     CHECK(opening["messages"][0]["role"] == "assistant");
+}
+
+namespace {
+
+ModelListResult fetch_now(const ProviderProfile& profile, const std::string& key)
+{
+    std::mutex              mutex;
+    std::condition_variable answered;
+    std::optional<ModelListResult> result;
+    fetch_model_list(profile, key, agent_endpoint_override(), std::make_shared<std::atomic<bool>>(false),
+                     [&](ModelListResult got) {
+                         std::lock_guard<std::mutex> lock(mutex);
+                         result = std::move(got);
+                         answered.notify_one();
+                     });
+    std::unique_lock<std::mutex> lock(mutex);
+    answered.wait_for(lock, std::chrono::seconds(60), [&] { return result.has_value(); });
+    REQUIRE(result.has_value());
+    return std::move(*result);
+}
+
+Turn one_word(const ProviderProfile& profile, const std::string& key, const std::string& model, const Pricing& pricing,
+              std::vector<AgentHttpRequest>& sent)
+{
+    AgentServicePtr agent = make_provider_agent(profile, key, model, agent_endpoint_override(),
+                                                std::make_unique<RecordingTransport>(sent, pricing));
+    AgentRequest request;
+    request.request_id                = "live-model-choice";
+    request.session.instructions      = "You are a connectivity check. Reply with exactly the word READY and nothing else. "
+                                        "Do not call any tool.";
+    request.session.include_workspace = false;
+    request.user_text                 = "Are you there?";
+    REQUIRE(agent->start(request));
+    return run_until_settled(*agent);
+}
+
+} // namespace
+
+// The composer's pickers, live and small: each provider with a key lists its
+// models, answers once on a model other than its default at the lowest
+// thinking level it offers, then once on its default, as a chat switched
+// between two turns would. Two one-word replies per provider.
+TEST_CASE("each provider lists its models and answers on a chosen model and thinking level", "[agent][models][live][.]")
+{
+    struct Live { const char* provider; std::string key; const Pricing* pricing; };
+    const Live providers[] = {{"openai", environment("OPENAI_API_KEY"), &kOpenAI},
+                              {"anthropic", anthropic_key(), &kAnthropic},
+                              {"openrouter", openrouter_key(), &kOpenRouter}};
+    int tried = 0;
+    for (const Live& live : providers) {
+        if (live.key.empty())
+            continue;
+        ++tried;
+        CAPTURE(live.provider);
+        const ProviderProfile& row = *profile_for(live.provider);
+
+        const ModelListResult list = fetch_now(row, live.key);
+        INFO("list error: " << list.error);
+        REQUIRE(list.ok);
+        REQUIRE_FALSE(list.models.empty());
+        std::cerr << "LIVE MODELS " << live.provider << ": " << list.models.size() << " models\n";
+        for (std::size_t i = 0; i < list.models.size() && i < 12; ++i) {
+            std::string efforts;
+            for (const std::string& effort : list.models[i].efforts)
+                efforts += (efforts.empty() ? "" : ",") + effort;
+            std::cerr << "  " << list.models[i].id << " (" << list.models[i].label << ") [" << efforts << "]\n";
+        }
+        const bool lists_default = std::any_of(list.models.begin(), list.models.end(),
+                                               [&](const ModelOption& model) { return model.id == row.model; });
+        CHECK(lists_default);
+
+        // The smallest other model that takes a thinking level.
+        const ModelOption* chosen = nullptr;
+        for (const char* size : {"nano", "haiku", "mini", ""})
+            for (const ModelOption& model : list.models)
+                if (!chosen && model.id != row.model && !model.efforts.empty() &&
+                    model.id.find(size) != std::string::npos)
+                    chosen = &model;
+        REQUIRE(chosen != nullptr);
+        std::cerr << "LIVE CHOSEN " << live.provider << ": " << chosen->id << " at " << chosen->efforts.front() << "\n";
+
+        std::vector<AgentHttpRequest> sent;
+        ProviderProfile with_effort = row;
+        with_effort.effort          = chosen->efforts.front();
+        const Turn first = one_word(with_effort, live.key, chosen->id, *live.pricing, sent);
+        INFO("first: " << first.text << (first.error ? " error: " + first.error->code + " " + first.error->message : ""));
+        REQUIRE_FALSE(first.error);
+        CHECK(first.completed);
+        CHECK(first.text.find("READY") != std::string::npos);
+
+        // Switched back to the default between turns, with no level.
+        const Turn second = one_word(row, live.key, row.model, *live.pricing, sent);
+        INFO("second: " << second.text << (second.error ? " error: " + second.error->code + " " + second.error->message : ""));
+        REQUIRE_FALSE(second.error);
+        CHECK(second.completed);
+        REQUIRE(sent.size() == 2);
+        CHECK(json::parse(sent[0].body)["model"] == chosen->id);
+        CHECK(json::parse(sent[1].body)["model"] == row.model);
+    }
+    if (tried == 0)
+        SKIP("no provider key is set");
 }

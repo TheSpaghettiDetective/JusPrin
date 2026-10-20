@@ -80,7 +80,9 @@ describe('styles.css stays on the design tokens', () => {
     expect(emitted).toContain('--progress-height');
     expect(emitted).toContain('--action-primary-text');
     const requested = [
-      ...css.matchAll(/var\((--(?:radius|font|button|progress|action|text|surface|border|status)-[\w-]+)\)/g),
+      ...css.matchAll(
+        /var\((--(?:radius|font|button|progress|action|text|surface|border|status|menu-row|popover|segmented|tooltip|composer|focus)-[\w-]+)\)/g,
+      ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.filter((name) => !emitted.has(name))).toEqual([]);
@@ -98,6 +100,88 @@ describe('styles.css stays on the design tokens', () => {
   // The dock narrows with the window, well below the 429px design frame, and
   // a header that wraps there silently costs the thread a row. The label on
   // the left must clip instead, so the state on the right is always whole.
+  // Each design-system control is drawn from its own recipe, so a size
+  // typed into one of them cannot drift from Figma unnoticed.
+  it.each([
+    ['.panel-link-button', ['--button-link-height', '--button-link-padding', '--font-label-bold']],
+    ['.setup-tabs', ['--segmented-height', '--segmented-padding', '--segmented-border-width', '--segmented-radius']],
+    ['.setup-tab', ['--segmented-segment-height', '--segmented-segment-padding-y', '--segmented-segment-padding-x',
+      '--font-label']],
+    ['.change-revert-tooltip', ['--tooltip-height', '--tooltip-padding-y', '--tooltip-padding-x', '--tooltip-radius',
+      '--font-metadata']],
+    ['.chat-menu', ['--popover-padding-y', '--popover-border-width', '--popover-radius']],
+    ['.chat-menu-list', ['--popover-row-gap']],
+    ['.field-search', ['--field-search-height', '--field-search-padding-x', '--field-search-icon-gap',
+      '--field-search-radius', '--field-search-border-width', '--border-subtle', '--font-body']],
+    ['.field-search .jp-icon', ['--field-search-icon-size', '--text-secondary']],
+    ['.field-search:focus-within', ['--field-search-focus-border-width', '--border-strong']],
+    ['.chat-actions--above .chat-menu--search', ['--popover-width']],
+    ['.chat-menu button', ['--menu-row-height', '--menu-row-side-inset', '--menu-row-radius']],
+    ['button.primary', ['--button-primary-padding', '--font-body-small-bold']],
+    ['.composer-send', ['--button-primary-small-height', '--button-primary-small-padding']],
+    ['.composer-send.composer-stop', ['--button-secondary-small-height', '--button-secondary-small-padding']],
+    ['.composer-choices button.chat-icon', ['--button-icon-width', '--button-icon-height']],
+    ['.composer-picker', ['--button-picker-height', '--button-picker-padding', '--button-picker-icon-gap', '--font-label']],
+    ['.chat-actions--above .chat-menu', ['--popover-width']],
+    ['.composer-box:has(textarea:focus)', ['--focus-width', '--border-focus']],
+  ])('draws %s from its recipe', (selector, variables) => {
+    // Only rules that name the selector itself, alone or in a list, not a
+    // descendant form of it such as `.dialog button.primary`.
+    const escaped = selector.replace(/[.()[\]]/g, '\\$&');
+    const rules = [...css.matchAll(new RegExp(`(?:^|[},])\\s*(?:[^{},]*,\\s*)*${escaped}\\s*[,{][^}]*\\}`, 'gm'))]
+      .map((match) => match[0]).join('\n');
+    expect(rules.length).toBeGreaterThan(0);
+    for (const variable of variables) expect(rules).toContain(`var(${variable})`);
+  });
+
+  // A menu row's keyboard focus is the hovered row's fill, never the outside
+  // ring, which would stick out past the popover's edge.
+  it('draws a focused menu row as the hovered one', () => {
+    const bodies = css.split('}').map((rule) => rule.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === '.chat-menu button:focus-visible'))
+      .map(([, body]) => body)
+      .join(';');
+    expect(bodies).toMatch(/outline:\s*none/);
+    expect(bodies).toMatch(/background:\s*var\(--surface-raised-hover\)/);
+  });
+
+  // The composer's menus open above the box at its left edge, never at their
+  // own button, where a wide menu would run past the pane's right edge.
+  it('places the composer menus on the box, not on their buttons', () => {
+    const rule = (selector: string) => css.split('}').map((block) => block.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === selector))
+      .map(([, body]) => body).join(';');
+    expect(rule('.composer-box')).toMatch(/position:\s*relative/);
+    expect(rule('.composer-choices .chat-actions')).toMatch(/position:\s*static/);
+    const menu = rule('.chat-actions--above .chat-menu');
+    expect(menu).toMatch(/left:\s*0/);
+    expect(menu).toMatch(/bottom:\s*calc\(100% \+ 8px\)/);
+    expect(menu).toMatch(/max-width:\s*100%/);
+  });
+
+  // A narrow pane drops "Thinking:" before it cuts the model's name, and
+  // only the model picker gives up width; + and Send keep theirs. While the
+  // composer measures, the prefix is shown, so the full width is what counts.
+  it('shortens the thinking picker before the model picker', () => {
+    const rule = (selector: string) => css.split('}').map((block) => block.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === selector))
+      .map(([, body]) => body).join(';');
+    expect(rule('.composer-choices--narrow .composer-picker-prefix')).toMatch(/display:\s*none/);
+    expect(rule('.composer-choices--measuring .composer-picker-prefix')).toMatch(/display:\s*inline/);
+    expect(rule('.composer-choices .composer-model-menu')).toMatch(/flex:\s*0 1 auto/);
+    expect(rule('.composer-choices .chat-actions')).toMatch(/flex:\s*0 0 auto/);
+  });
+
+  // The model menu's search field stays put while the rows scroll under it.
+  it('scrolls a menu\'s rows, not its search field', () => {
+    const rule = (selector: string) => css.split('}').map((block) => block.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === selector))
+      .map(([, body]) => body).join(';');
+    expect(rule('.chat-menu-list')).toMatch(/overflow-y:\s*auto/);
+    expect(rule('.chat-actions--above .chat-menu')).not.toMatch(/overflow-y/);
+    expect(rule('.chat-menu-search')).toMatch(/flex:\s*0 0 auto/);
+  });
+
   it('keeps the setup card header on one line', () => {
     const rule = css.match(/\.current-setup-header\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();

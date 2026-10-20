@@ -22,7 +22,9 @@
     "setup_differences",
     "work_log",
     "project_instructions",
-    "project_skills"
+    "project_skills",
+    "native_file_picker",
+    "model_choice"
   ],
   "pageMessageTypes": [
     "hello",
@@ -46,6 +48,8 @@
     "mcp_preview",
     "mcp_connect",
     "reveal_path",
+    "pick_attachment",
+    "set_chat_model",
     "printer_action",
     "printer_instructions",
     "printer_opening",
@@ -78,6 +82,8 @@
     "change_added",
     "work_updated",
     "open_setup",
+    "model_catalog",
+    "chat_model",
     "printer_session"
   ]
 }

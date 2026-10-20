@@ -1,5 +1,6 @@
 #include "AgentHost.hpp"
 #include "ToolRegistry.hpp"
+#include "ProviderProfile.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
@@ -12,6 +13,8 @@
 #include <array>
 #include <cctype>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <set>
 #include <string_view>
 
@@ -938,6 +941,8 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"context", card_context(context_json(snapshot, m_workspace.configured_printer(),
                                                        current_printer_review(m_workspace, m_product_state)),
                                           document, active)}};
+    if (m_model_source)
+        payload["chatModel"] = chat_model_json(active);
     if (m_session_state_provider)
         payload["session"] = m_session_state_provider();
     if (m_navigation_state_provider)
@@ -1060,6 +1065,10 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_mcp_connect(envelope_id, payload);
     else if (type == Protocol::kRevealPath)
         handle_reveal_path(envelope_id, payload);
+    else if (type == Protocol::kPickAttachment)
+        handle_pick_attachment(envelope_id, payload);
+    else if (type == Protocol::kSetChatModel)
+        handle_set_chat_model(envelope_id, payload);
     else if (type == Protocol::kSkills)
         handle_skills(envelope_id, payload);
     else if (type == Protocol::kProjectInstructions) {
@@ -1269,6 +1278,10 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
                       .dump(),
                   envelope_id);
     send_state();
+    if (m_model_source) {
+        send_model_catalog();
+        request_model_lists();
+    }
     if (m_setup_requested) {
         m_setup_requested = false;
         send_envelope(Protocol::kOpenSetup, "{}");
@@ -1452,7 +1465,11 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
         send_attachment_updated(record, envelope_id);
         return;
     }
+    store_file_attachment(std::move(record), bytes, envelope_id);
+}
 
+void AgentHost::store_file_attachment(AttachmentRecord record, const std::string& bytes, const std::string& correlation_id)
+{
     if (bytes.size() > kMaxAttachmentBytes) {
         record.state = "error";
         record.error = AgentError{"too_large", "This file is too large to attach."};
@@ -1473,17 +1490,82 @@ void AgentHost::handle_attach_file(const std::string& envelope_id, const std::st
             // Models reach the Agent as a native summary, never as bytes. The
             // authoritative import happens when the message is sent (Phase 5
             // import seam); this is the pre-import description.
-            record.summary = "3D model \"" + name + "\" (" + std::to_string(bytes.size()) +
+            record.summary = "3D model \"" + record.original_name + "\" (" + std::to_string(bytes.size()) +
                              " bytes), ready to import into the project.";
         }
         // Images and PDFs are stored as-is; images get an inline preview built
         // on demand from the blob, so nothing large is kept in state.json.
     }
 
-    document.add_attachment(record, m_persistence.timestamp());
+    m_persistence.document().add_attachment(record, m_persistence.timestamp());
     m_persistence.commit();
     m_persistence.flush();
-    send_attachment_updated(record, envelope_id);
+    send_attachment_updated(record, correlation_id);
+}
+
+void AgentHost::handle_pick_attachment(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload     = json::parse(payload_json);
+    const std::string kind = payload.at("kind").get<std::string>();
+    // The four kinds the composer's + menu offers, each filtered to exactly
+    // the extensions classify_attachment() files under that kind.
+    FilePickerRequest request;
+    if (kind == "image") {
+        request = {"Photo or image", {"png", "jpg", "jpeg", "gif", "webp"}};
+    } else if (kind == "model") {
+        request.description = "3D model";
+        request.extensions.assign(model_extensions().begin(), model_extensions().end());
+    } else if (kind == "gcode") {
+        request = {"G-code", {"gcode", "g", "gco"}};
+    } else if (kind == "pdf") {
+        request = {"Document (PDF)", {"pdf"}};
+    } else {
+        // The page offers a fixed list; any other kind is a broken page.
+        throw RuntimeError("jusprin-agent-bridge: pick_attachment names an unknown kind: " + kind);
+    }
+    if (!m_file_picker) {
+        send_bridge_error("unsupported", "This build cannot open a file dialog.", envelope_id);
+        return;
+    }
+    m_file_picker(request, [this, envelope_id](std::vector<std::string> paths) {
+        for (const std::string& path : paths) {
+            const std::filesystem::path file = std::filesystem::u8path(path);
+            AttachmentRecord record;
+            record.id            = m_persistence.document().allocate_attachment_id();
+            record.original_name = file.filename().u8string();
+            record.source        = "picker";
+            record.state         = "staged";
+            const AttachmentClassification classification = classify_attachment(record.original_name, "");
+            record.kind        = classification.kind;
+            record.mime        = classification.mime;
+            record.stored_name = sanitize_filename(record.original_name);
+
+            std::error_code size_error;
+            const std::uintmax_t size = std::filesystem::file_size(file, size_error);
+            std::string bytes;
+            if (!size_error && size > kMaxAttachmentBytes) {
+                // Refused by its size alone, without reading it.
+                record.state = "error";
+                record.error = AgentError{"too_large", "This file is too large to attach."};
+            } else {
+                std::ifstream in(file, std::ios::binary);
+                if (in)
+                    bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+                if (size_error || !in || in.bad()) {
+                    record.state = "error";
+                    record.error = AgentError{"unreadable", "The file could not be read."};
+                }
+            }
+            if (record.state == "error") {
+                m_persistence.document().add_attachment(record, m_persistence.timestamp());
+                m_persistence.commit();
+                m_persistence.flush();
+                send_attachment_updated(record, envelope_id);
+                continue;
+            }
+            store_file_attachment(std::move(record), bytes, envelope_id);
+        }
+    });
 }
 
 void AgentHost::handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json)
@@ -2342,6 +2424,8 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     send_envelope(Protocol::kAssistantStarted,
                   json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
 
+    if (!use_chat_model(conversation_id))
+        return;
     const AgentRequest request = make_agent_request(assistant, conversation_id);
     if (asks_setup_check(request.skills) && purpose_recorded(conversation_id))
         mark_setup_checked(request.workspace);
@@ -2935,7 +3019,141 @@ void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)
     if (m_agent)
         m_agent->cancel();
     m_agent = std::move(agent);
+    // An installed agent is the default choice's: a chat that never picked a
+    // model keeps using it, and one with a choice of its own is rebuilt
+    // before its next turn. A provider just set up has a list to fetch.
+    m_agent_choice = installed_agent_choice();
     set_availability(availability);
+    if (m_model_source && m_handshake) {
+        send_model_catalog();
+        request_model_lists();
+    }
+}
+
+void AgentHost::set_chat_model_source(std::shared_ptr<IChatModelSource> source)
+{
+    m_model_source = std::move(source);
+    m_models.clear();
+    m_agent_choice = installed_agent_choice();
+}
+
+ChatModelChoice AgentHost::default_chat_model() const
+{
+    ChatModelChoice fallback;
+    fallback.provider = m_model_source->default_provider();
+    if (const ProviderProfile* profile = profile_for(fallback.provider))
+        fallback.model = profile->model;
+    return fallback;
+}
+
+std::optional<ChatModelChoice> AgentHost::installed_agent_choice() const
+{
+    if (!m_model_source || !m_agent)
+        return std::nullopt;
+    return default_chat_model();
+}
+
+ChatModelChoice AgentHost::chat_model_choice(const std::string& conversation_id) const
+{
+    const std::vector<std::string> configured = m_model_source->configured_providers();
+    if (const std::optional<ChatModelChoice> chosen = m_persistence.document().chat_model(conversation_id))
+        // A provider whose key is gone falls back to the default.
+        if (std::find(configured.begin(), configured.end(), chosen->provider) != configured.end())
+            return *chosen;
+    return default_chat_model();
+}
+
+json AgentHost::chat_model_json(const std::string& conversation_id) const
+{
+    const ChatModelChoice choice = chat_model_choice(conversation_id);
+    return json{{"provider", choice.provider}, {"model", choice.model}, {"effort", choice.effort}};
+}
+
+void AgentHost::request_model_lists()
+{
+    for (const std::string& provider : m_model_source->configured_providers()) {
+        const auto held = m_models.find(provider);
+        if (held != m_models.end() && held->second.state != ProviderModels::State::Failed)
+            continue;
+        m_models[provider] = ProviderModels{};
+        m_model_source->list_models(provider, [this, provider](bool ok, std::vector<ModelOption> models) {
+            ProviderModels& entry = m_models[provider];
+            entry.state  = ok ? ProviderModels::State::Ready : ProviderModels::State::Failed;
+            entry.models = std::move(models);
+            if (m_handshake)
+                send_model_catalog();
+        });
+    }
+}
+
+void AgentHost::send_model_catalog()
+{
+    json providers = json::array();
+    for (const std::string& provider : m_model_source->configured_providers()) {
+        const ProviderProfile* profile = profile_for(provider);
+        if (profile == nullptr)
+            continue;
+        const auto held = m_models.find(provider);
+        const char* state = held == m_models.end() || held->second.state == ProviderModels::State::Loading ? "loading" :
+                            held->second.state == ProviderModels::State::Ready                             ? "ready" :
+                                                                                                             "failed";
+        json models = json::array();
+        if (held != m_models.end())
+            for (const ModelOption& option : held->second.models) {
+                json model{{"id", option.id}, {"label", option.label}, {"efforts", option.efforts}};
+                if (!option.default_effort.empty())
+                    model["defaultEffort"] = option.default_effort;
+                models.push_back(std::move(model));
+            }
+        providers.push_back(json{{"id", provider}, {"label", profile->display_name}, {"defaultModel", profile->model},
+                                 {"state", state}, {"models", std::move(models)}});
+    }
+    send_envelope(Protocol::kModelCatalog,
+                  json{{"defaultProvider", m_model_source->default_provider()}, {"providers", std::move(providers)}}.dump());
+}
+
+void AgentHost::handle_set_chat_model(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json);
+    ChatModelChoice choice{payload.at("provider").get<std::string>(), payload.at("model").get<std::string>(),
+                           payload.value("effort", "")};
+    if (!m_model_source)
+        throw RuntimeError("jusprin-agent-bridge: set_chat_model without the model_choice capability");
+    const std::vector<std::string> configured = m_model_source->configured_providers();
+    // The pickers list configured providers only; any other is a broken page.
+    if (std::find(configured.begin(), configured.end(), choice.provider) == configured.end() || choice.model.empty())
+        throw RuntimeError("jusprin-agent-bridge: set_chat_model names a provider that is not set up: " + choice.provider);
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string conversation_id = document.active_conversation_id();
+    document.set_chat_model(conversation_id, choice);
+    m_persistence.commit();
+    send_envelope(Protocol::kChatModel,
+                  json{{"conversationId", conversation_id}, {"chatModel", chat_model_json(conversation_id)}}.dump(),
+                  envelope_id);
+}
+
+bool AgentHost::use_chat_model(const std::string& conversation_id)
+{
+    if (!m_model_source)
+        return true;
+    const ChatModelChoice choice = chat_model_choice(conversation_id);
+    if (m_agent_choice && *m_agent_choice == choice)
+        return true;
+    AgentServicePtr agent = m_model_source->make_agent(choice);
+    if (!agent) {
+        const ProviderProfile* profile = profile_for(choice.provider);
+        fail_stream(AgentError{"provider_not_set_up",
+                               "No " + (profile ? profile->display_name : choice.provider) +
+                                   " API key is set up. Add it in the Agent settings, or choose another model.",
+                               false});
+        return false;
+    }
+    cancel_conversation_title();
+    if (m_agent)
+        m_agent->cancel();
+    m_agent        = std::move(agent);
+    m_agent_choice = choice;
+    return true;
 }
 
 void AgentHost::configure_mcp_connect(McpConnectSettings settings)
@@ -2951,6 +3169,11 @@ void AgentHost::set_mcp_cli_runner(McpCliRunner runner)
 void AgentHost::set_reveal_path_handler(RevealPathFn reveal)
 {
     m_reveal_path = std::move(reveal);
+}
+
+void AgentHost::set_file_picker(FilePickerFn picker)
+{
+    m_file_picker = std::move(picker);
 }
 
 std::vector<Mcp::CatalogItem> AgentHost::mcp_catalog_items() const

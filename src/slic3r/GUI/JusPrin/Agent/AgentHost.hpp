@@ -17,6 +17,7 @@
 #include "AgentProtocol.hpp"
 #include "AgentService.hpp"
 #include "AgentSetup.hpp"
+#include "ModelCatalog.hpp"
 #include "ProjectPersistence.hpp"
 #include "ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConfigFile.hpp"
@@ -34,6 +35,25 @@
 namespace Slic3r::GUI::JusPrin::Mcp { class McpRuntime; struct CatalogItem; }
 
 namespace Slic3r::GUI::JusPrin::Agent {
+
+// Where a chat's model choice becomes an agent. The wx side supplies it, from
+// the keys setup stored and the providers' own model lists; without one (the
+// printer panel) every chat uses the agent the host was given.
+class IChatModelSource
+{
+public:
+    virtual ~IChatModelSource() = default;
+    // Providers with a stored key, in setup's order.
+    virtual std::vector<std::string> configured_providers() const = 0;
+    // The provider a chat without a choice of its own talks to.
+    virtual std::string default_provider() const = 0;
+    // A ready agent for this choice, or nullptr when its provider has no key.
+    virtual AgentServicePtr make_agent(const ChatModelChoice& choice) = 0;
+    // Asks the provider for its models; `done` is called later, once, on the
+    // thread the host runs on, and not at all after the source is replaced.
+    using ModelsDone = std::function<void(bool ok, std::vector<ModelOption> models)>;
+    virtual void list_models(const std::string& provider, ModelsDone done) = 0;
+};
 
 class AgentHost
 {
@@ -155,6 +175,10 @@ public:
     void set_appearance(bool dark);
     void set_availability(AgentAvailability availability);
     void set_agent(AgentServicePtr agent, AgentAvailability availability);
+    // Lets each chat choose its provider, model and thinking level: the
+    // composer's pickers, switchable between any two turns. The choice is
+    // kept with the chat; each turn is started on an agent built for it.
+    void set_chat_model_source(std::shared_ptr<IChatModelSource> source);
     // Opens the page's setup flow; held until the next handshake when the
     // page is not connected yet.
     void request_setup();
@@ -207,6 +231,17 @@ public:
     // runner above.
     using RevealPathFn = std::function<void(const std::string& path)>;
     void set_reveal_path_handler(RevealPathFn reveal);
+    // Shows the desktop's file dialog for one kind of attachment and calls
+    // `done` with the chosen paths (UTF-8), empty when the person cancels.
+    // GUI-free like the reveal handler: the wx side supplies the dialog.
+    struct FilePickerRequest
+    {
+        std::string              description; // e.g. "Photo or image"
+        std::vector<std::string> extensions;  // lower case, without the dot
+    };
+    using FilePickerFn = std::function<void(const FilePickerRequest& request,
+                                            std::function<void(std::vector<std::string> paths)> done)>;
+    void set_file_picker(FilePickerFn picker);
 
     // The active conversation's messages, straight from the document.
     std::vector<ConversationMessage> conversation() const;
@@ -311,6 +346,25 @@ private:
     void handle_delete_conversation(const std::string& envelope_id, const std::string& payload_json);
     void handle_draft_update(const std::string& payload_json);
     void handle_attach_file(const std::string& envelope_id, const std::string& payload_json);
+    void handle_pick_attachment(const std::string& envelope_id, const std::string& payload_json);
+    void handle_set_chat_model(const std::string& envelope_id, const std::string& payload_json);
+    // The active chat's choice, or the default provider's default model.
+    ChatModelChoice chat_model_choice(const std::string& conversation_id) const;
+    ChatModelChoice default_chat_model() const;
+    // What the agent the host was handed (by its owner or by setup) runs:
+    // the default choice. Nothing without a source or an agent.
+    std::optional<ChatModelChoice> installed_agent_choice() const;
+    nlohmann::json  chat_model_json(const std::string& conversation_id) const;
+    // Fetches the lists not yet held, then sends what is known.
+    void request_model_lists();
+    void send_model_catalog();
+    // Puts m_agent on the chat's choice before a turn; false when that
+    // provider has no key (the turn then fails with a reason).
+    bool use_chat_model(const std::string& conversation_id);
+    // Checks and stores one file's contents on a staged record, then records
+    // it and tells the page. Shared by files the page read and files the
+    // native picker chose, so both are judged by the same rules.
+    void store_file_attachment(AttachmentRecord record, const std::string& bytes, const std::string& correlation_id);
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
@@ -521,6 +575,18 @@ private:
     McpConnectSettings              m_mcp_connect;
     McpCliRunner                    m_mcp_cli;
     RevealPathFn                    m_reveal_path;
+    // Per-chat models: the source, the choice the current m_agent was built
+    // for (none for the agent the host was handed), and each configured
+    // provider's list as it arrives.
+    struct ProviderModels
+    {
+        enum class State { Loading, Ready, Failed } state{State::Loading};
+        std::vector<ModelOption> models;
+    };
+    std::shared_ptr<IChatModelSource>       m_model_source;
+    std::optional<ChatModelChoice>          m_agent_choice;
+    std::map<std::string, ProviderModels>   m_models;
+    FilePickerFn                    m_file_picker;
     std::string                     m_mcp_discovery_path;
     std::string                     m_mcp_edit_tool;
     std::optional<Mcp::ConfigEdit>  m_mcp_edit;

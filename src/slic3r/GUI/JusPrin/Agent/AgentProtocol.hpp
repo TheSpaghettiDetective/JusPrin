@@ -30,7 +30,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "manufacturing_history", "agent_setup", "conversation_management",
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
-                                                 "project_instructions", "project_skills"};
+                                                 "project_instructions", "project_skills", "native_file_picker",
+                                                 "model_choice"};
     return values;
 }
 
@@ -60,6 +61,16 @@ inline constexpr const char* kMcpConnect         = "mcp_connect";
 // catalog tool, never a path: the host resolves it, so nothing the page can
 // say reaches the shell.
 inline constexpr const char* kRevealPath         = "reveal_path";
+// Opens the operating system's file dialog for one kind of attachment
+// (image, model, gcode, pdf), filtered to the extensions the host reads as
+// that kind. The page names the kind only; the chosen files arrive as
+// attachment_updated, the same as a file the page read itself. Added
+// additively; the native_file_picker capability advertises it.
+inline constexpr const char* kPickAttachment     = "pick_attachment";
+// The active chat's provider, model and thinking level, from the composer's
+// pickers: {provider, model, effort}. It applies from the next turn. Added
+// additively; the model_choice capability advertises it.
+inline constexpr const char* kSetChatModel       = "set_chat_model";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -86,6 +97,12 @@ inline constexpr const char* kWorkUpdated        = "work_updated";
 // Asks the page to open its own setup flow, as its "Set up the agent" button
 // does; sent when another JusPrin surface sends the person there.
 inline constexpr const char* kOpenSetup          = "open_setup";
+// Each configured provider's models, sent after the handshake and again as
+// each list arrives: {defaultProvider, providers: [{id, label, state, models:
+// [{id, label, efforts, defaultEffort}]}]}. model_choice capability.
+inline constexpr const char* kModelCatalog       = "model_catalog";
+// The active chat's choice after a set_chat_model: {conversationId, chatModel}.
+inline constexpr const char* kChatModel          = "chat_model";
 // The printer panel's own: what its surface shows above and inside the
 // thread, a tap on one of the cards it draws there, and the model's
 // instructions, which the page writes.

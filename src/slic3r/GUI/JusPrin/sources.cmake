@@ -24,6 +24,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ProviderAgent.cpp
     GUI/JusPrin/Agent/ProviderAgent.hpp
     GUI/JusPrin/Agent/ProviderCodec.hpp
+    GUI/JusPrin/Agent/ModelCatalog.cpp
+    GUI/JusPrin/Agent/ModelCatalog.hpp
+    GUI/JusPrin/Agent/ModelCatalogFetch.cpp
+    GUI/JusPrin/Agent/ModelCatalogFetch.hpp
     GUI/JusPrin/Agent/ProviderFactory.cpp
     GUI/JusPrin/Agent/ProviderFactory.hpp
     GUI/JusPrin/Agent/ProviderProfile.hpp

@@ -6,6 +6,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
+#include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
@@ -72,11 +73,11 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     const ShellTheme theme = load_packaged_theme();
     const ShellMetrics& m = theme.metrics();
 
-    CHECK(m.radius_standard == 4);
-    CHECK(m.radius_compact == 8);
-    CHECK(m.radius_container == 8);
-    CHECK(m.radius_window == 12);
-    CHECK(m.radius_pill == 9999);
+    CHECK(m.radius_small == 4);
+    CHECK(m.radius_medium == 8);
+    CHECK(m.radius_large == 12);
+    CHECK(m.radius_chip == 4);
+    CHECK(m.radius_full == 10);
     CHECK(m.space_1 == 4);
     CHECK(m.space_12 == 48);
 
@@ -88,14 +89,15 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(theme.palette(false).elevation_medium == wxColour(0, 0, 0, 31));
     CHECK(theme.palette(true).elevation_medium == wxColour(0, 0, 0, 82));
 
-    CHECK(m.chip.height == 26);
+    CHECK(m.chip.height == 28);
     CHECK(m.chip.radius == 4);
-    CHECK(m.menu_row.height == 32);
-    CHECK(m.menu_row.radius == 4);
-    CHECK(m.menu_row.side_inset == 4);
-    CHECK(m.popover.padding_y == 4);
-    CHECK(m.popover.row_gap == 0);
+    CHECK(m.menu_row.height == 36);
+    CHECK(m.menu_row.radius == 0);
+    CHECK(m.menu_row.side_inset == 0);
+    CHECK(m.popover.padding_y == 8);
+    CHECK(m.popover.row_gap == 2);
     CHECK(m.popover.radius == 8);
+    CHECK(m.popover.border_width == 1);
     CHECK(m.status_row.height == 34);
     CHECK(m.agent_pane.width == 429);
     CHECK(m.agent_pane.min_width == 320);
@@ -155,8 +157,11 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(theme.palette(true).axis_x == theme.palette(false).axis_x);
     CHECK(theme.palette(true).axis_z == theme.palette(false).axis_z);
 
-    CHECK(m.button.icon.width == 26);
+    CHECK(m.button.icon.width == 32);
     CHECK(m.button.icon.icon_size == 16);
+    CHECK(m.button.icon_compact.width == 26);
+    CHECK(m.button.icon_compact.height == 26);
+    CHECK(m.button.icon_compact.icon_size == 16);
     CHECK_FALSE(m.button.icon.text_role.has_value());
     CHECK(m.button.window.text_role == TextRole::Label);
     CHECK(m.button.compact.text_role == TextRole::Metadata);
@@ -194,7 +199,7 @@ TEST_CASE("a token file without the component section is refused", "[shell][them
 
 TEST_CASE("a token file with a fractional DIP value is refused", "[shell][theme]")
 {
-    const ScratchResources resources(packaged_tokens_with("\"chip\": {\n      \"height\": 26,", "\"chip\": {\n      \"height\": 26.5,"));
+    const ScratchResources resources(packaged_tokens_with("\"chip\": {\n      \"height\": 28,", "\"chip\": {\n      \"height\": 28.5,"));
     CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("component.chip.height"));
 }
 
@@ -204,9 +209,9 @@ TEST_CASE("the viewport tool strip takes every size from the token file", "[shel
     const ShellMetrics& m = theme.metrics();
     const StripGeometry geometry = tool_strip_geometry(m);
 
-    // The icon-button recipe, and padding, gaps and inset on the spacing scale.
-    CHECK(geometry.button == m.button.icon.width);
-    CHECK(m.button.icon.width == m.button.icon.height);
+    // The compact icon target, and padding, gaps and inset on the spacing scale.
+    CHECK(geometry.button == m.button.icon_compact.width);
+    CHECK(m.button.icon_compact.width == m.button.icon_compact.height);
     CHECK(geometry.padding == m.space_1);
     CHECK(geometry.gap == m.space_1);
     CHECK(geometry.inset == m.space_3);
@@ -278,5 +283,34 @@ TEST_CASE("the recipes dress stock controls from the theme", "[shell][theme][wx]
     CHECK(button->GetMinSize().y >= button->FromDIP(buttons.window.height));
     CHECK(button->GetMinSize().x >= button->FromDIP(buttons.window.min_width));
 
+    frame->Destroy();
+}
+
+// The design system's Menu/Row: a hovered row and the keyboard's row are the
+// same full-width surface.raisedHover band; surface.selected is for things
+// that are selected or pressed, not for the row under the pointer. The row draws
+// itself into a bitmap, so the colour checked is the one painted.
+TEST_CASE("a header menu row is highlighted with the raised hover surface", "[shell][theme][wx]")
+{
+    wxInitializer wx;
+    REQUIRE(wx.IsOk());
+    const ShellTheme theme = load_packaged_theme();
+    auto* frame = new wxFrame(nullptr, wxID_ANY, "menu row");
+    auto* row   = new HeaderButton(frame, theme, HeaderStyle::Menu, "Printer settings", HeaderIcon::None);
+    row->SetSize(row->FromDIP(wxSize(280, theme.metrics().menu_row.height)));
+    for (const bool dark : {false, true}) {
+        const ShellPalette& palette = theme.palette(dark);
+        row->set_dark(dark);
+        auto fill_at_right_edge = [&] {
+            const wxImage image = row->snapshot().ConvertToImage();
+            const int x = image.GetWidth() - 3, y = image.GetHeight() / 2;
+            return wxColour(image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y));
+        };
+        INFO((dark ? "dark" : "light"));
+        row->set_menu_selected(false);
+        CHECK(fill_at_right_edge() == palette.surface_raised);
+        row->set_menu_selected(true);
+        CHECK(fill_at_right_edge() == palette.surface_raised_hover);
+    }
     frame->Destroy();
 }
