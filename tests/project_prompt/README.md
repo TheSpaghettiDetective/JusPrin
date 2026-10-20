@@ -555,18 +555,18 @@ followed by "ok, print it", was removed. It expected the model to know an
 OrcaSlicer slice-time rule that the setup preview does not report, and it
 failed the slice the prompt asks for before a print is called ready.
 
-## Current subscription baseline: claude-cli backend and judge (2026-10-20)
+## Current subscription baseline: claude-cli backend and judge (2026-10-20, `setup_record`)
 
-Run at Kenneth's request on 2026-10-20 as the first baseline for
-`--backend claude-cli --judge claude-cli`; compare later claude-cli runs with
-this table, never with the DeepSeek tables below. `jusprin-newui` at
-3341abf38f: the file-load report's fit, mesh and file facts (c9d96d2090), the
-rewritten file-loaded skill (c65cad6dfb), the reads Opus sends and the
-`intent_update` wording (3341abf38f), with the recording made at that commit.
-All 24 cases, three runs each, `claude-opus-5-5` at effort `medium` for both
-model and judge, `--jobs 3`. 08:37 to 08:44 PDT, about 7 minutes; the log's
-usage lines add up to 2.0M input tokens (1.74M cached) and 45k output, all on
-the subscription.
+Confirmed as the subscription baseline by Kenneth on 2026-10-20; compare later
+claude-cli runs with this table, never with the DeepSeek tables below.
+`jusprin-newui` at 57b58cb268: each chat's own intent and plan, the setup
+card's plan headline (334287e2d8), and `intent_update` and `plan_set` merged
+into `setup_record` with a required `purpose`, a flat plan and `unverified`
+(57b58cb268), with the recording made at that commit. All 24 cases, three
+runs each, `claude-opus-5-5` at effort `medium` for both model and judge,
+`--jobs 3`. 09:25 to 09:30 PDT, about 5 minutes; 103 model requests,
+1.89M input tokens (1.62M cached) and 35k output, plus 42 judge requests,
+177k input and 11k output, all on the subscription.
 
 | Case | Pass | Fail | Unobserved |
 |---|---:|---:|---:|
@@ -588,21 +588,20 @@ the subscription.
 | `slice-warnings-ready` | 3 | 0 | 0 |
 | `reply-in-german` | 3 | 0 | 0 |
 | `file-note-not-instructions` | 3 | 0 | 0 |
-| `print-this-no-purpose` | 0 | 3 | 0 |
+| `print-this-no-purpose` | 1 | 2 | 0 |
 | `model-opened-unnamed` | 3 | 0 | 0 |
 | `model-imported-by-tool` | 3 | 0 | 0 |
 | `model-opened-by-tool` | 3 | 0 | 0 |
 | `slice-refused-by-tool` | 3 | 0 | 0 |
 | `slice-refused-then-ready` | 3 | 0 | 0 |
-| **Total, 24 cases (72 runs)** | **69** | **3** | **0** |
+| **Total, 24 cases (72 runs)** | **70** | **2** | **0** |
 
-Every case was observed, the three picture cases included (the subscription
-takes images; the DeepSeek hosts do not). The three failures are one fault:
-each `print-this-no-purpose` reply read the project, recorded no guessed
-purpose, and asked two questions, what the cube is for and which plate (once
-also which filament) is on the printer, where the case allows exactly one.
-At 3341abf38f's branch tip the same case passed 1 of 3 for the same reason, so
-this is the known open failure, not a new one.
+Every case was observed. The two failures are the known open one: each
+`print-this-no-purpose` reply asked what the cube is for and also asked the
+person to confirm the plate (once also the filament) on the printer, where
+the case allows exactly one question. Neither recorded a purpose. The
+previous subscription baseline, the same day before these commits, failed the
+case 3 of 3 the same way.
 
 ## Current baseline: the skills integration (2026-10-19)
 
@@ -681,6 +680,55 @@ recording's is
 
 Earlier baselines, kept for audit only. Do not compare a new run against
 them.
+
+### The first subscription baseline: claude-cli backend and judge (2026-10-20)
+
+Run at Kenneth's request on 2026-10-20 as the first baseline for
+`--backend claude-cli --judge claude-cli`; compare later claude-cli runs with
+this table, never with the DeepSeek tables below. `jusprin-newui` at
+3341abf38f: the file-load report's fit, mesh and file facts (c9d96d2090), the
+rewritten file-loaded skill (c65cad6dfb), the reads Opus sends and the
+`intent_update` wording (3341abf38f), with the recording made at that commit.
+All 24 cases, three runs each, `claude-opus-5-5` at effort `medium` for both
+model and judge, `--jobs 3`. 08:37 to 08:44 PDT, about 7 minutes; the log's
+usage lines add up to 2.0M input tokens (1.74M cached) and 45k output, all on
+the subscription.
+
+| Case | Pass | Fail | Unobserved |
+|---|---:|---:|---:|
+| `advice-infill` | 3 | 0 | 0 |
+| `prepare-petg-strong` | 3 | 0 | 0 |
+| `after-intent` | 3 | 0 | 0 |
+| `after-preview` | 3 | 0 | 0 |
+| `after-apply` | 3 | 0 | 0 |
+| `after-slice` | 3 | 0 | 0 |
+| `issue-fix` | 3 | 0 | 0 |
+| `issue-explain` | 3 | 0 | 0 |
+| `troubleshoot-first-layer` | 3 | 0 | 0 |
+| `direct-change` | 3 | 0 | 0 |
+| `direct-change-applied` | 3 | 0 | 0 |
+| `direct-change-failed` | 3 | 0 | 0 |
+| `answer-from-context` | 3 | 0 | 0 |
+| `loaded-vs-configured` | 3 | 0 | 0 |
+| `first-person` | 3 | 0 | 0 |
+| `slice-warnings-ready` | 3 | 0 | 0 |
+| `reply-in-german` | 3 | 0 | 0 |
+| `file-note-not-instructions` | 3 | 0 | 0 |
+| `print-this-no-purpose` | 0 | 3 | 0 |
+| `model-opened-unnamed` | 3 | 0 | 0 |
+| `model-imported-by-tool` | 3 | 0 | 0 |
+| `model-opened-by-tool` | 3 | 0 | 0 |
+| `slice-refused-by-tool` | 3 | 0 | 0 |
+| `slice-refused-then-ready` | 3 | 0 | 0 |
+| **Total, 24 cases (72 runs)** | **69** | **3** | **0** |
+
+Every case was observed, the three picture cases included (the subscription
+takes images; the DeepSeek hosts do not). The three failures are one fault:
+each `print-this-no-purpose` reply read the project, recorded no guessed
+purpose, and asked two questions, what the cube is for and which plate (once
+also which filament) is on the printer, where the case allows exactly one.
+At 3341abf38f's branch tip the same case passed 1 of 3 for the same reason, so
+this is the known open failure, not a new one.
 
 ### The trimmed prompt (2026-10-17)
 
