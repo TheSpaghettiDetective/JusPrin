@@ -1,0 +1,228 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an in-app AI agent panel. On October 19, 2026 Kenneth decided: intent and plan are stored once per chat (normalized; the active chat link selects the current one), a new chat copies the active chat's intent with no plan, region annotations belong with the model version, a missing headline just omits the card line, the overrides note stays, the origin field goes, and the live eval batch is approved. A separate side chat also decided that only the in-app agent's own edits stop marking the plan stale. All of these are written into the handoff file, which is the source of truth for this task.
+
+Task:
+Implement the handoff at /Users/kenneth/Projects/JusPrin/handoff-setup-card-headline.md (read it from the main checkout; it is untracked and must stay untracked: never commit it or add it to an ignore file). Do the "Data ownership" part first: move print intent, plan and purposeSetup onto each chat, derive the current ones from the active chat, a new chat copies the active chat's intent and starts with no plan, drop the checkpoint planning copy, regions owned with the model version, schema migration. Then replace the setup card's preset-difference rows with the plan headline, make plan_set's headline concise, stop the in-app agent's own edits marking the plan stale, keep the "N objects with overrides" note, and remove the attribution layer, ranking and the model-visible origin field. Done means: every check under "Verification and completion" has been run and reported, including the approved live batch (4 journeys, DeepSeek V4 Flash, 1 run each; any rerun needs Kenneth's approval), and the final report covers everything listed in the handoff's last paragraph. Commit to your own branch only after the checks pass; don't push.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_2012258e-6e8e-4c8c-bb42-733d62a15120
+
+---
+
+<task-notification>
+<task-id>b7sj4i2r4</task-id>
+<summary>Monitor event: "serene-snyder build: errors and the final exit line"</summary>
+<event>[Monitor expired after 30m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was unexpected.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfgb2c54g</task-id>
+<summary>Monitor event: "serene-snyder build: errors, progress every 100 steps, and the final exit line"</summary>
+<event>[600/932] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/Release/GUI/PhysicalPrinterDialog.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfgb2c54g</task-id>
+<summary>Monitor event: "serene-snyder build: errors, progress every 100 steps, and the final exit line"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvgnt30eo</task-id>
+<summary>Monitor event: "serene-snyder build: errors, progress every 100 steps, and the final exit line"</summary>
+<event>[700/932] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/Release/GUI/WebViewDialog.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvgnt30eo</task-id>
+<summary>Monitor event: "serene-snyder build: errors, progress every 100 steps, and the final exit line"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bepbgs1p6</task-id>
+<summary>Monitor event: "serene-snyder build: errors and the final exit line"</summary>
+<event>[900/932] Building CXX object tests/jusprin/CMakeFiles/jusprin_tests.dir/Release/test_project_pane_model.cpp.o</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<cross-session-message from="local_e78f817e-dfbf-4d43-8f9b-f15ee63b4baf" name="Handoff setup card headline design">
+Kenneth wants the project-state schema reset to version 1, with every migration removed, not just the 3→4 step. His words: "reset the version to 1 and remove all the migration.  The project is not live yet."
+
+Your build finished: build1.log ends with [931/932] linking JusPrinShellHarness and exit=0.
+
+What this means in ProjectStateDocument:
+- Set kSchemaVersion to 1.
+- In load(), delete the merge-onto-skeleton path for older versions, the viewedConversationId backfill, move_planning_onto_chats and its `version < 4` branch, and LoadResult::Migrated plus every caller of it. A document whose schemaVersion isn't 1 is handled the way a newer version is today: a fresh document, returned as Corrupt.
+- Also delete the other compatibility reads for older records, e.g. read_activity's guess at `source` from the "mcp-" correlation-id prefix (ProjectStateDocument.cpp around line 347). Look for others, including the "version saved before schema 4" handling near line 479 and anything similar in ProjectVersionStore/ProjectAutosave.
+- Remove the tests that cover migration. Update the header comments that mention migration (ProjectStateDocument.hpp lines 187, 202 and 221).
+- Mention in your report that project-state files Kenneth saved during development will load as fresh documents, losing their chats.
+
+Don't start the live evaluation batch. Kenneth is reviewing the batch plan in the session that started you, and he will approve a specific batch before any live-model call.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_e78f817e-dfbf-4d43-8f9b-f15ee63b4baf" name="Handoff setup card headline design">
+Kenneth approved one live batch: the 12 headline journeys only. His words: "Run only batch B, the 12 headline journeys with the pilot first. Skip the standard 75-run evaluation for now."
+
+Do this after the schema reset is finished and the native and shell-harness tests pass. Re-record tests/project_prompt/requests.json with the scripted model too; that costs nothing.
+
+Batch B, using your --plan-journey harness mode on DeepSeek V4 Flash with the pinned host:
+- 4 cases, 3 runs each, every run starting from a clean project with one model loaded:
+  1. Strength.
+  2. Appearance with supports.
+  3. Quick fit-check prototype.
+  4. Changed strategy: a second user message changes the goal, so the headline should change with it.
+- Lower the per-turn tool-call cap from 40 to 20.
+- Pilot first: run one journey, log `usage` from every response, and add up its input tokens (cached and uncached) and output tokens. The estimate was about 500k input tokens per journey. If the pilot uses more than 1M input tokens, stop and report back without running the rest.
+- If the pilot is within that, run the other 11. Stop at once on a `403 Key limit exceeded`; don't switch keys.
+- For every run, report:
+  - the exact headline text and its word count;
+  - whether `plan_set` was called at all;
+  - for the changed-strategy runs, whether the headline was rewritten after the second message or left stale;
+  - what the setup card showed at the end (state label, and whether the headline line appeared).
+- No pass/fail thresholds. Read each run and say what looks wrong and why. Report the actual token total for the batch.
+- Keep the journey harness patch out of any commit.
+
+Don't run the standard 25-case project-prompt evaluation, and don't make any other live-model calls.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b5vaenf0h</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/tasks/b5vaenf0h.output</output-file>
+<status>completed</status>
+<summary>Background command "LOG=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/scratchpad/build3.log; until grep -q "^exit=" $LOG; do sleep 5; done; grep -E "error:|^exit=" $LOG | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bepbgs1p6</task-id>
+<summary>Monitor event: "serene-snyder build: errors and the final exit line"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmuqh4klq</task-id>
+<summary>Monitor event: "serene-snyder rebuild 2: compile errors and exit line"</summary>
+<event>[Monitor expired after 30m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was unexpected.]</event>
+</task-notification>
+
+---
+
+<cross-session-message from="local_ebee9dab-8e05-40b8-aa9a-92224b142061" name="btw: by  prupose title  do you mean the title of the setup card,…">
+Kenneth wants intent_update and plan_set merged into one tool, built on claude/setup-card-headline (on top of f964221268). His words: "Send the merged-tool design to the implementation session to build on claude/setup-card-headline. No live runs until I approve a batch."
+
+Why: in batch B's changed-strategy runs 2 and 3, the model rewrote the plan headline with plan_set but never called intent_update. The card's title still said spiral vase above a multi-wall watertight headline. The two records are already handled as one: same handler block in ToolExecutionCoordinator.cpp, both in-app only, both stored on the chat, the same context push (AgentHost.cpp around line 721). Together they make up the card.
+
+The design Kenneth agreed to:
+- One tool that records the chat's purpose and plan. Suggested name `setup_record`; keep neither old name.
+- `setupTitle` is required on every call, so the plan can't change without the title being restated.
+- Intent `fields` stay optional, with today's semantics (assumed flag, question, provenance).
+- The plan (headline, decisions, assumptions, risks) is optional. When present it replaces the whole plan, as plan_set does now. When absent, the current plan is kept. That covers recording a purpose before a strategy exists: a title-only call, then the setup check, then a later call with the plan.
+- Keep the concise-headline wording you added. Have the description state the split: the title is what the user wants, the headline is how the agent will print it.
+
+What has to move with it:
+- purpose_changed (AgentHost.cpp around line 494) and the setup-changed skill trigger it feeds: key on the merged tool, and fire only when the title or fields actually changed (first or changed purpose), never on a call that only changes the plan.
+- Anything else keyed on ToolHandler::IntentUpdate / PlanSet or on either tool name: mark_setup_checked paths, the activity-title builder in ToolRegistry.cpp around line 1794, protocol/page code, history replay.
+- The project prompt line naming intent_update (projectInstructions.ts line 18) and the fixture; the setup-changed skill's plan_set line; any other skill text naming either tool.
+- tests/project_prompt: run_prompt_tests.py and test_steps.py treat intent_update as an allowed first step and count intent_update/plan_set as changes. Update the grading and README to the merged tool, then regenerate project_tools.json and re-record requests.json and script.json with the scripted model (no live calls).
+- Native, page and shell-harness tests updated, including a test that a plan-only call does not fire the setup-changed skill and that the card's title and headline update together.
+
+No live-model calls at all until Kenneth approves a batch. When the code is done and tests pass, commit on the branch and report. Propose the batch in your report: the standard 25-case project-prompt evaluation (75 runs, about 1.2M input tokens going by the October 19 baseline), because a merged first-step tool is what it grades, plus a re-run of the three changed-strategy journeys (about 1.5–2M input tokens going by batch B). Wait for his approval before running either.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_3e169d35-d0ba-4254-bab3-66e1bbe53eb2" name="Keep setup title current when the goal changes">
+Kenneth approved a 3-run live check of the changed-strategy journey against 28d6d67fdc (setup_record), to be run from your session because you own claude/setup-card-headline.
+
+His words, verbatim: "Approved: 3 runs of the changed-strategy journey on DeepSeek V4 Flash against 28d6d67fdc, about 1.9M input tokens and 42k output in total. Run them from the session that owns claude/setup-card-headline."
+
+What it checks: in batch B, runs changed-2 and changed-3 rewrote the plan headline with plan_set after the second message ("Change of plan: it will hold fresh flowers in water now, so it has to be watertight and sturdy enough to carry to the sink and back."), but never called intent_update, so setupIntent still said "dried flowers ... spiral vase mode". With setup_record requiring setupTitle on every call, the pass condition is: after turn 2, setupIntent names the new purpose (fresh flowers / watertight) and no longer names spiral vase mode, in all 3 runs. Also note whether the title is a word-for-word copy of the old one in any call.
+
+Practical notes: same two messages and END as batch B (out/changed-N/next-*.txt in the shared notes folder local_2012258e-.../plan-journey-batch-b); rebuild the harness at 28d6d67fdc with plan-journey-harness-mode.patch applied (keep the patch out of any commit); show.py's special case prints plan_set only, so setup_record calls fall through to its generic 160-character line. Batch B's three changed runs used 1,884,166 input (1,522,176 cached) and 41,653 output tokens in total; stop and report if a run looks set to exceed that budget by much. Put the transcripts in a new plan-journey-batch-c/ folder beside batch B.
+</cross-session-message>
+
+---
+
+It does look pretty wrong.  Do you have a good guess on why the model was so confused?  Was it because we didn't prompt it the right way?
+
+---
+
+yes
+
+---
+
+yes
+
+---
+
+go ahead
+
+---
+
+Yes: flatten setup_record's plan into top-level optional arguments (headline, decisions, assumptions, risks), log refused calls in the journey runner, update tests and re-record. No live runs yet.
+
+---
+
+<task-notification>
+<task-id>b5q3qnyjb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/tasks/b5q3qnyjb.output</output-file>
+<status>completed</status>
+<summary>Background command "SP=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/scratchpad &amp;&amp; NOTES="/Users/kenneth/Library/Application Support/Claude/side-session-notes/local_2012258e-6e8e-4c8c-bb42-733d62a15120" &amp;&amp; cp $SP/journey.patch.tmp "$NOTES/plan-journey-harness-mode.patch" &amp;&amp; patch --dry-run -p0 tests/shell/shell_harness.cpp &lt; "$NOTES/plan-journey-harness-mode.patch" &amp;&amp; cmp tests/shell/shell_harness.cpp $SP/harness.base.cpp &amp;&amp; echo "harness unchanged"; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cmake --build build/arm64 --config Release --target jusprin_web agent_bridge_tests shell_integration_harness &gt; $SP/build6.log 2&gt;&amp;1; echo build exit=$?; grep -E "error:" $SP/build6.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+go ahead
+
+---
+
+Yes: rename or reshape setup_record's assumptions so the model stops sending intent-field objects there, update tests and re-record. No live runs yet.
+
+---
+
+<task-notification>
+<task-id>b9nvaod87</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/tasks/b9nvaod87.output</output-file>
+<status>completed</status>
+<summary>Background command "LOG=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-serene-snyder-280b07/d9cbbb7a-5dad-4c2a-a396-430143f13416/scratchpad/build7.log; until grep -q "^exit=" $LOG; do sleep 5; done; grep -E "error:|^exit=" $LOG | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+summarize what you have done so far and what the current situation is.  The most important thing that I want to know is that if there has been improvement from where, from your starting point and if not, why?
+
+---
+
+go ahead
+
+---
+
+Let's wrap up this task.  How many commits have you made? Can some of them be squashed so that we don't have a lot of noises in a Git log?
+
+---
+
+Yes: squash commits 2-5 into one setup_record commit with a message describing the final shape, keep commit 1 as it is.
