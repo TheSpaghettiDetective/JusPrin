@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5DVJWX96TFKRQPPKWN6Y8KP",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_project_state.cpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 35166,
+    "cache_read_tokens": 10792635,
+    "output_tokens": 15570,
+    "api_call_count": 42
+  }
+}
