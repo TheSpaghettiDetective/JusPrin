@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5BBF8E95QZHBMJD1WPX4XS8",
+  "strategy": "manual-commit",
+  "branch": "claude/provider-agent-extract",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 285175,
+    "cache_read_tokens": 3070580,
+    "output_tokens": 17257,
+    "api_call_count": 26
+  }
+}
