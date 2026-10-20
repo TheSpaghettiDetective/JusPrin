@@ -115,6 +115,11 @@ public:
         return result;
     }
 
+    // The All settings panel's table is whatever a test put in `catalog`;
+    // the fake's own settings are the process values the tools read.
+    SettingsCatalog settings_catalog() const override { return catalog; }
+    SettingsCatalog catalog;
+
     // Fixture-only seams for pre-existing dependencies and an unannounced edit.
     void set_setting_for_testing(const std::string& key, std::string value, bool notify = true)
     {

@@ -39,7 +39,8 @@ export type PageMessageType =
   | 'filament_instructions'
   | 'shell_action'
   | 'project_instructions'
-  | 'skills';
+  | 'skills'
+  | 'settings_catalog_request';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -67,7 +68,8 @@ export type HostMessageType =
   | 'open_setup'
   | 'model_catalog'
   | 'chat_model'
-  | 'printer_session';
+  | 'printer_session'
+  | 'settings_catalog';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -363,6 +365,79 @@ export interface AppliedSetupInfo {
     label?: string;
     display?: string;
   }[];
+}
+
+// -- The All settings panel ----------------------------------------------------
+// Every setting in force, in answer to settings_catalog_request (all_settings
+// capability): the process and printer presets' settings and each filament
+// slot's, under the page and group OrcaSlicer's settings tabs file them
+// under; each plate's own settings; and each object's customizations. Values
+// are the host's formatter's wording beside OrcaSlicer's raw serialization.
+
+export interface CatalogSettingInfo {
+  key: string;
+  label: string;
+  page: string;  // Quality, Strength, Speed, Support, Others, ...; empty when the tab does not index it
+  group: string; // the option group within the page
+  value: string;
+  display: string;
+  // Set when the value differs from the saved preset: the preset's own value.
+  preset?: string;
+  presetDisplay?: string;
+  // A filament's override of a printer setting that is not set, so the
+  // printer's value (inheritedDisplay) is in force.
+  inherited?: boolean;
+  inheritedDisplay?: string;
+}
+
+export interface CatalogPresetInfo {
+  name: string;
+  settings: CatalogSettingInfo[];
+}
+
+export interface CatalogFilamentInfo {
+  slot: number; // 1-based
+  preset: string;
+  material: string;
+  colour: string; // "#RRGGBB", empty when the project names none
+  settings: CatalogSettingInfo[];
+}
+
+export interface CatalogPlateInfo {
+  id: string;
+  name: string;
+  active: boolean;
+  bedType: string; // the plate type it prints with: its own, else the project's
+  ownBedType: boolean;
+  // The filament keys that hold the bed temperature for that plate type.
+  bedTempKey: string;
+  bedTempInitialKey: string;
+  own: CatalogSettingInfo[]; // the settings the plate sets itself
+}
+
+export interface CatalogOverrideInfo {
+  target: string; // "object" or "object / volume"
+  kind: string;   // object, modifier, part, height range, support blocker, ... painting
+  key: string;    // empty for a customization with no setting of its own
+  value: string;
+  label?: string;
+  display?: string;
+}
+
+export interface CatalogObjectInfo {
+  id: string;
+  name: string;
+  plateId?: string;
+  overrides: CatalogOverrideInfo[];
+}
+
+export interface SettingsCatalogPayload {
+  available: boolean; // false for a non-FFF printer
+  process: CatalogPresetInfo;
+  printer: CatalogPresetInfo;
+  filaments: CatalogFilamentInfo[];
+  plates: CatalogPlateInfo[];
+  objects: CatalogObjectInfo[];
 }
 
 export interface SetupIdentityInfo {

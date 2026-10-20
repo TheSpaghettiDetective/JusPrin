@@ -90,7 +90,7 @@ export function filterMenu(items: (MenuItem | MenuSection)[], query: string): (M
 // highlight, Enter picks it, and Escape clears the field before it closes
 // the menu.
 export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, prefixed = false, above = false,
-  disabled = false, search, className }: {
+  disabled = false, search, className, appearance = 'picker' }: {
   label: string;
   items: (MenuItem | MenuSection)[];
   buttonRef?: React.RefObject<HTMLButtonElement>;
@@ -101,6 +101,10 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
   disabled?: boolean;
   search?: MenuSearch;
   className?: string;
+  // With `text`: the composer's picker (a bare label with a chevron), or the
+  // design system's Select (a 26 DIP field with a stroke, as wide as its
+  // row, whose menu opens under its left edge).
+  appearance?: 'picker' | 'select';
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -147,7 +151,8 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
   const pick = (item: MenuItem) => { setOpen(false); item.onSelect(); };
   const name = text === undefined ? label : `${label}: ${text}`;
 
-  return <div className={['chat-actions', above && 'chat-actions--above', className].filter(Boolean).join(' ')}
+  return <div className={['chat-actions', above && 'chat-actions--above', appearance === 'select' && 'chat-actions--select', className]
+    .filter(Boolean).join(' ')}
     ref={container} onKeyDown={(event) => {
     if (event.key === 'Escape') { setOpen(false); button.current?.focus(); }
     // The search field keeps its own keys; Home and End move its cursor.
@@ -165,8 +170,8 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
           <span className={`jp-icon jp-icon-${icon}`} aria-hidden="true" />
         </button>
       // Named, and titled, in full even when a narrow pane shortens it.
-      : <button ref={button} className="composer-picker" disabled={disabled} aria-label={name} title={name}
-          aria-haspopup="menu" aria-expanded={shown} onClick={toggle}>
+      : <button ref={button} className={appearance === 'select' ? 'jp-select' : 'composer-picker'} disabled={disabled}
+          aria-label={name} title={name} aria-haspopup="menu" aria-expanded={shown} onClick={toggle}>
           <span className="composer-picker-text">
             {prefixed && <span className="composer-picker-prefix">{label}: </span>}{text}
           </span>

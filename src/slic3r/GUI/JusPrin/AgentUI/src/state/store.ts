@@ -28,6 +28,7 @@ import {
   McpStatusPayload,
   FilamentSessionPayload,
   PrinterSessionPayload,
+  SettingsCatalogPayload,
 } from '../bridge/protocol';
 import { ConnectionState } from '../bridge/client';
 
@@ -73,6 +74,9 @@ export interface AgentUiState {
   // The filament chat's, in its place.
   filamentSession: FilamentSessionPayload | null;
   navigation: { focused: boolean; returnLabel?: string };
+  // The All settings panel's table, read from hosts with all_settings; the
+  // revision says which project state it describes.
+  settingsCatalog: { sessionId: string; revision: number; catalog: SettingsCatalogPayload } | null;
   // Progress of a credential check. The host owns it; the page only mirrors
   // it, so a reload cannot leave a check looking live when it is not.
   setup: SetupStatusPayload;
@@ -118,6 +122,7 @@ export const initialState: AgentUiState = {
   session: null,
   filamentSession: null,
   navigation: { focused: false },
+  settingsCatalog: null,
   setupRequests: 0,
   needsResync: false,
   diagnostics: [],
@@ -200,6 +205,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         session: full.session && !('kind' in full.session) ? full.session : null,
         filamentSession: full.session && 'kind' in full.session ? full.session : null,
         navigation: full.navigation ?? { focused: false },
+        settingsCatalog: full.context?.sessionId === state.context?.sessionId ? state.settingsCatalog : null,
         // A full state answers a fresh handshake; any check that was in
         // flight before belonged to the previous page.
         setup: { phase: 'idle' },
@@ -207,8 +213,16 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         needsResync: false,
       };
     }
-    case 'context':
-      return { ...state, context: payload.context as WorkspaceContext };
+    case 'context': {
+      const context = payload.context as WorkspaceContext;
+      return { ...state, context,
+        settingsCatalog: context.sessionId === state.context?.sessionId ? state.settingsCatalog : null };
+    }
+    case 'settings_catalog':
+      // The host stamps every envelope with the project it describes; a
+      // page fixture that leaves it out means the project on show.
+      return { ...state, settingsCatalog: { sessionId: envelope.sessionId ?? state.context?.sessionId ?? '', revision: envelope.revision ?? 0,
+        catalog: envelope.payload as SettingsCatalogPayload } };
     case 'printer_session':
       return { ...state, session: envelope.payload as PrinterSessionPayload };
     case 'conversations_updated':

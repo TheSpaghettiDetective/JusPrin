@@ -249,80 +249,9 @@ body {
 
 .current-setup-link { align-self: flex-start; }
 
-/* The design system's Disclosure header: one 28px target for the whole row. */
-.current-setup-disclosure {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-small);
-  background: none;
-  font: var(--font-label-bold);
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: pointer;
-}
-
-.current-setup-disclosure:hover {
-  color: var(--text-primary);
-}
-
-.current-setup-section,
-.current-setup-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.current-setup h3 {
-  font: var(--font-label-bold);
-  color: var(--text-secondary);
-}
-
-/* Name left, value right. A long value wraps under itself, still right. */
-.current-setup-row {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 4px 0;
-  font: var(--font-metadata);
-}
-
-.current-setup-row dt {
-  flex: 0 0 auto;
-  color: var(--text-secondary);
-}
-
-.current-setup-row dd {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
 .current-setup-note {
   font: var(--font-metadata);
   color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.current-setup-object {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 4px 0;
-}
-
-.current-setup-object-name {
-  font: var(--font-metadata-bold);
-  color: var(--text-primary);
   overflow-wrap: anywhere;
 }
 
@@ -348,57 +277,6 @@ body {
 
 .current-setup-findings strong {
   color: var(--text-primary);
-}
-
-/* The setup page's header: Back at one end, the panel's own toggle at the
-   other, where the chat header has it. */
-.current-setup-page-header {
-  justify-content: space-between;
-}
-
-/* The setup page's scrolling body, in place of the thread: the pinned
-   band's own padding and surface, and the height the thread had. */
-.current-setup-page {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 12px;
-  background: var(--surface-canvas);
-}
-
-/* Which settings-tab page and group, or which part of an object, a run of
-   rows belongs to. */
-.current-setup-group {
-  padding-top: 4px;
-  font: var(--font-metadata-bold);
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
-/* A setting's row keeps to one line where it can: its name gives way, and
-   the value is never cut. The whole name is in the tooltip. */
-.current-setup-row--change dt {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Only the name shrinks. A value takes the width it needs, and one too long
-   for a line wraps inside its own share of the row. */
-.current-setup-row--change dd {
-  flex: 0 0 auto;
-  max-width: 60%;
-}
-
-/* An opened object's rows sit under its name, past the chevron (icon 16 +
-   gap 8). */
-.current-setup-object-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 24px;
 }
 
 .notice {
@@ -1967,7 +1845,6 @@ input[type='radio']:checked {
   cursor: pointer;
 }
 
-
 .attach-button {
   min-height: var(--button-link-height);
   padding: var(--button-link-padding);
@@ -2934,4 +2811,425 @@ button.wide {
 /* Labelled, because a picture is a primary way to name a printer. */
 .attach-button-photo {
   color: var(--action-primary);
+}
+
+/* -- The All settings panel ------------------------------------------------
+   Every setting in force, in the pane's place: the setup card's "All
+   settings" link opens it. Its own prefix; the design system's Select,
+   Field/Search, Segmented Control and Swatch are drawn from their recipes. */
+
+/* The panel's header: the compact icon button back to the chat, the title,
+   and the pane's own toggle at the far end, where the chat header has it. */
+.all-settings-header {
+  justify-content: space-between;
+}
+
+/* The scrolling body, in place of the thread. */
+.all-settings {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+  background: var(--surface-canvas);
+}
+
+.all-settings-scope,
+.all-settings-slot-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.all-settings-scope-label {
+  flex: 0 0 auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.all-settings-scope .chat-actions,
+.all-settings-slot-picker .chat-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The design system's Select: a 26 DIP field with a 1 DIP stroke, Body text
+   and a 16 DIP chevron; the stroke strengthens on hover and the focus ring
+   when open. Its menu opens under its left edge and takes its width. */
+.jp-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--select-height);
+  padding: 0 var(--select-padding-x);
+  border: 0;
+  border-radius: var(--select-radius);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.jp-select .composer-picker-text,
+.jp-select > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jp-select .jp-icon {
+  flex: 0 0 auto;
+  width: var(--select-chevron-size);
+  height: var(--select-chevron-size);
+  color: var(--text-secondary);
+}
+
+.jp-select:hover:enabled {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.jp-select[aria-expanded='true'],
+.jp-select:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--border-focus);
+}
+
+.chat-actions--select .chat-menu {
+  top: calc(100% + 8px);
+  right: auto;
+  left: 0;
+  min-width: 100%;
+}
+
+.all-settings-hint,
+.all-settings-note,
+.all-settings-own-hint {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.all-settings-find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.all-settings-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The design system's Segmented Control, as the setup screens draw it, for
+   any surface: a subtle track holding equal segments, the chosen one filled
+   with action/primary. */
+.jp-segmented {
+  display: flex;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: var(--segmented-height);
+  padding: var(--segmented-padding);
+  border: var(--segmented-border-width) solid var(--border-subtle);
+  border-radius: var(--segmented-radius);
+  background: var(--surface-subtle);
+}
+
+.jp-segment {
+  flex: 1 1 auto;
+  height: var(--segmented-segment-height);
+  padding: var(--segmented-segment-padding-y) var(--segmented-segment-padding-x);
+  border: 0;
+  border-radius: var(--segmented-radius);
+  background: transparent;
+  font: var(--font-label);
+  color: var(--text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.jp-segment:hover:enabled,
+.jp-segment:active:enabled {
+  border: 0;
+}
+
+.jp-segment.selected {
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+}
+
+.jp-segment:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+/* The presets in use, and an object's or a plate's summary: a subtle box. */
+.all-settings-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-subtle);
+}
+
+.all-settings-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.all-settings-preset-label {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.all-settings-preset-value {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.all-settings-preset-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.all-settings-preset-detail {
+  display: block;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+.all-settings-object-summary {
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* The design system's Swatch: one filament colour, with a stroke so a
+   white filament stays visible. */
+.all-settings-swatch {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: var(--swatch-size);
+  height: var(--swatch-size);
+  border-radius: var(--radius-small);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+/* Objects that print with settings of their own, which the project view
+   cannot show. */
+.all-settings-own {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.all-settings-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.all-settings-group {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* A group's header is a 32 DIP row: the chevron, the name, and on the right
+   what the group says about itself ("3 changed", "same as project"). */
+.all-settings-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.all-settings-group-header--empty {
+  cursor: default;
+}
+
+.all-settings-group-header .jp-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.all-settings-group-name {
+  flex: 0 0 auto;
+  font: var(--font-body-small-bold);
+  white-space: nowrap;
+}
+
+.all-settings-group-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The rows sit under the name, past the chevron (icon 16 + gap 8). */
+.all-settings-group-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 4px 24px;
+}
+
+.all-settings-run {
+  display: flex;
+  flex-direction: column;
+}
+
+.all-settings-run-name {
+  padding-top: 4px;
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.all-settings-row {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Name left, value right, on one 28 DIP line where they fit: the name gives
+   way, with the whole of it in the tooltip; the value is never cut. */
+.all-settings-row-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.all-settings-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-settings-row-value {
+  flex: 0 0 auto;
+  max-width: 60%;
+  overflow-wrap: anywhere;
+}
+
+.all-settings-row-value--bold {
+  font: var(--font-body-small-bold);
+}
+
+.all-settings-row-value--muted {
+  color: var(--text-secondary);
+}
+
+.all-settings-row-tag {
+  flex: 0 0 auto;
+  width: 64px;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.all-settings-row-note {
+  padding: 0 0 4px;
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Two or three filament slots side by side: a grid whose first column is
+   the name and whose others, one per slot, line up under the slot heads. */
+.all-settings-columns {
+  display: flex;
+  flex-direction: column;
+}
+
+.all-settings-columns-head,
+.all-settings-row-line--columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(var(--all-settings-slots), minmax(0, auto));
+  align-items: center;
+  gap: 8px;
+}
+
+.all-settings-row-line--columns .all-settings-row-value {
+  max-width: none;
+  text-align: right;
+}
+
+.all-settings-column-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 4px 0;
+  min-width: 0;
+}
+
+.all-settings-column-slot-name {
+  font: var(--font-metadata);
+  color: var(--text-secondary);
+}
+
+.all-settings-column-slot-material {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* An object on a plate: its name opens its own view. */
+.all-settings-object-link {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.all-settings-object-link:hover {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
 }

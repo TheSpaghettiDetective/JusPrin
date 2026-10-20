@@ -1678,6 +1678,77 @@ struct SettingsPreview
     bool        preset_dirty{false};
 };
 
+// -- The All settings panel ----------------------------------------------------
+// Every setting in force, read in one call for the panel that lists them all:
+// the process and printer presets' settings and each filament slot's, under
+// the page and group OrcaSlicer's settings tabs file them under; each plate's
+// own settings; and each object's customizations. A value is OrcaSlicer's own
+// serialization beside the setup card's wording of it (SettingDisplay.hpp).
+struct CatalogSetting
+{
+    std::string key;
+    std::string label;
+    std::string page;    // the settings tab's page: Quality, Strength, ...; empty when the tab does not index it
+    std::string group;   // the option group within that page
+    std::string value;   // raw serialized value in force
+    std::string display; // the value as a person reads it
+    // Set when the value differs from the saved preset: the preset's own
+    // value, raw and as a person reads it.
+    std::optional<std::string> preset;
+    std::optional<std::string> preset_display;
+    // A filament's override of a printer setting that is not set, so the
+    // printer's value is in force; `inherited_display` is that value.
+    bool        inherited{false};
+    std::string inherited_display;
+};
+
+struct CatalogPreset
+{
+    std::string                 name;
+    std::vector<CatalogSetting> settings;
+};
+
+struct CatalogFilament
+{
+    std::size_t                 slot{1}; // 1-based, as a person reads it
+    std::string                 preset;
+    std::string                 material;
+    std::string                 colour; // "#RRGGBB", empty when the project names none
+    std::vector<CatalogSetting> settings;
+};
+
+struct CatalogPlate
+{
+    PlateId                     id;
+    std::string                 name;
+    bool                        active{false};
+    std::string                 bed_type;     // the plate type it prints with: its own, else the project's
+    bool                        own_bed_type{false};
+    // The filament keys that hold the bed temperature for that plate type,
+    // for the first layer and the layers after it.
+    std::string                 bed_temp_initial_key;
+    std::string                 bed_temp_key;
+    std::vector<CatalogSetting> own; // the settings the plate sets itself
+};
+
+struct CatalogObject
+{
+    ObjectId                        id;
+    std::string                     name;
+    std::optional<PlateId>          plate; // the plate a printable copy sits on, when one does
+    std::vector<SetupLocalOverride> overrides; // `object` is unused here
+};
+
+struct SettingsCatalog
+{
+    bool                         available{false}; // false for a non-FFF printer
+    CatalogPreset                process;
+    CatalogPreset                printer;
+    std::vector<CatalogFilament> filaments;
+    std::vector<CatalogPlate>    plates;
+    std::vector<CatalogObject>   objects;
+};
+
 class IWorkspace
 {
 public:
@@ -1773,6 +1844,9 @@ public:
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
     virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                          SettingsPreview& applied) = 0;
+    // Every setting in force, for the All settings panel. Read-only, like
+    // read_settings, and read fresh from Orca on every call.
+    virtual SettingsCatalog settings_catalog() const = 0;
 
     // Directory for consumer-owned files that belong to the open project and
     // travel inside its saved archive. The path changes when the

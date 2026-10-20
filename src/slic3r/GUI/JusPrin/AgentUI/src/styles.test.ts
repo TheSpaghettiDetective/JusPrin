@@ -81,7 +81,7 @@ describe('styles.css stays on the design tokens', () => {
     expect(emitted).toContain('--action-primary-text');
     const requested = [
       ...css.matchAll(
-        /var\((--(?:radius|font|button|progress|action|text|surface|border|status|menu-row|popover|segmented|tooltip|composer|focus)-[\w-]+)\)/g,
+        /var\((--(?:radius|font|button|progress|action|text|surface|border|status|menu-row|popover|segmented|tooltip|composer|focus|select|field-search|swatch)-[\w-]+)\)/g,
       ),
     ].map((m) => m[1]);
     expect(requested.length).toBeGreaterThan(0);
@@ -124,6 +124,15 @@ describe('styles.css stays on the design tokens', () => {
     ['.composer-picker', ['--button-picker-height', '--button-picker-padding', '--button-picker-icon-gap', '--font-label']],
     ['.chat-actions--above .chat-menu', ['--popover-width']],
     ['.composer-box:has(textarea:focus)', ['--focus-width', '--border-focus']],
+    // The All settings panel's controls: the design system's Select,
+    // Segmented Control (for any surface, not only the setup screens) and
+    // Swatch.
+    ['.jp-select', ['--select-height', '--select-padding-x', '--select-radius', '--font-body', '--border-subtle']],
+    ['.jp-select .jp-icon', ['--select-chevron-size', '--text-secondary']],
+    ['.jp-segmented', ['--segmented-height', '--segmented-padding', '--segmented-border-width', '--segmented-radius']],
+    ['.jp-segment', ['--segmented-segment-height', '--segmented-segment-padding-y', '--segmented-segment-padding-x',
+      '--font-label']],
+    ['.all-settings-swatch', ['--swatch-size', '--radius-small', '--border-subtle']],
   ])('draws %s from its recipe', (selector, variables) => {
     // Only rules that name the selector itself, alone or in a list, not a
     // descendant form of it such as `.dialog button.primary`.

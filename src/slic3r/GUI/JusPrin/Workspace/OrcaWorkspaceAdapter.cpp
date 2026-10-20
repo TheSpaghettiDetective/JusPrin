@@ -177,6 +177,18 @@ std::string index_key(const std::string& option, Preset::Type type)
     return std::to_string(int(type)) + ";" + option;
 }
 
+// Where a setting sits in Orca's settings tabs. Every option group registers
+// its options with the searcher as its tab is built, whatever user mode is in
+// force, which get_option's index of the visible options is not. An option
+// with one value per extruder is registered as key#0.
+Search::GroupAndCategory tab_location(Search::OptionsSearcher& searcher, const std::string& key, Preset::Type type)
+{
+    Search::GroupAndCategory location = searcher.get_group_and_category(index_key(key, type));
+    if (location.group.empty())
+        location = searcher.get_group_and_category(index_key(key + "#0", type));
+    return location;
+}
+
 // Every setting whose edited value differs from its selected preset. Deep
 // comparisons may report vector entries as key#N; one row describes the
 // setting, so those entries collapse back to their pure key and the formatter
@@ -203,13 +215,7 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& presets, const
                           preset_type_name(type), presets.get_edited_preset().name,
                           display_change(display_definition, before->serialize(), after->serialize())};
 
-        // Where the setting sits in Orca's settings tabs. Every option group
-        // registers its options here as its tab is built, whatever user mode
-        // is in force, which get_option's index of the visible options is
-        // not. An option with one value per extruder is registered as key#0.
-        Search::GroupAndCategory location = searcher.get_group_and_category(index_key(key, type));
-        if (location.group.empty())
-            location = searcher.get_group_and_category(index_key(key + "#0", type));
+        const Search::GroupAndCategory location = tab_location(searcher, key, type);
         delta.page  = into_u8(location.category);
         delta.group = into_u8(location.group);
         result.push_back(std::move(delta));
@@ -225,13 +231,15 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& presets, const
     return result;
 }
 
-AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlate& plate)
+// Everything one object prints with that the project's settings do not say:
+// its own settings, its height ranges', its parts' and modifiers', and the
+// customizations with no value to quote (paint, a blocker, a variable-height
+// profile). `object_index` is what each override's `object` field is set to.
+// Returns whether the object has a variable layer height profile.
+bool add_object_customizations(const ModelObject& object, std::size_t object_index, std::vector<SetupLocalOverride>& overrides)
 {
-    AppliedSetup result;
-    result.plate = PlateId(session, plate.id().id);
-    result.spiral_mode = plate.get_spiral_vase_mode();
-    const auto add_local = [&result](const std::string& target, const std::string& kind,
-                                     const DynamicPrintConfig& config) {
+    const auto add_local = [&overrides, object_index](const std::string& target, const std::string& kind,
+                                                      const DynamicPrintConfig& config) {
         for (const std::string& key : config.keys()) {
             const ConfigOption* option = config.option(key);
             const ConfigOptionDef* definition = print_config_def.get(key);
@@ -241,70 +249,169 @@ AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlat
             // It is the inherited/default filament, not a local override.
             if (key == "extruder") {
                 if (option->serialize() != "1")
-                    result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
-                                                      "Filament slot", option->serialize()});
+                    overrides.push_back({target, kind, key, option->serialize(), object_index, "Filament slot", option->serialize()});
             } else if (definition != nullptr) {
                 const SettingDefinition display_definition = setting_definition(key);
-                result.local_overrides.push_back({target, kind, key, option->serialize(), result.objects.size() - 1,
-                                                  display_definition.label,
-                                                  display_value(display_definition, option->serialize())});
+                overrides.push_back({target, kind, key, option->serialize(), object_index, display_definition.label,
+                                     display_value(display_definition, option->serialize())});
             }
         }
     };
-    // A customization with no single value to quote: paint, a blocker, a
-    // variable-height profile.
-    const auto add_artifact = [&result](const std::string& target, const std::string& kind, const std::string& key = {}) {
+    const auto add_artifact = [&overrides, object_index](const std::string& target, const std::string& kind,
+                                                         const std::string& key = {}) {
         const ConfigOptionDef* definition = key.empty() ? nullptr : print_config_def.get(key);
-        result.local_overrides.push_back({target, kind, key, {}, result.objects.size() - 1,
-                                          definition == nullptr ? std::string() :
-                                              (definition->full_label.empty() ? definition->label : definition->full_label),
-                                          {}});
+        overrides.push_back({target, kind, key, {}, object_index,
+                             definition == nullptr ? std::string() :
+                                 (definition->full_label.empty() ? definition->label : definition->full_label),
+                             {}});
     };
 
+    bool variable_layer_height = false;
+    add_local(object.name, "object", object.config.get());
+    // has_custom_layering() is also true for a height range, which may
+    // change walls and leave the layer height alone; ranges are listed
+    // below with the keys they actually set.
+    if (!object.layer_height_profile.empty()) {
+        variable_layer_height = true;
+        add_artifact(object.name, "variable layer height", "layer_height");
+    }
+    for (const auto& range : object.layer_config_ranges)
+        add_local(object.name, "height range", range.second.get());
+    for (const ModelVolume* volume : object.volumes) {
+        const std::string target = object.name + " / " + volume->name;
+        const char* kind = volume->is_modifier() ? "modifier" :
+                           volume->is_support_blocker() ? "support blocker" :
+                           volume->is_support_enforcer() ? "support enforcer" :
+                           volume->is_negative_volume() ? "negative part" : "part";
+        add_local(target, kind, volume->config.get());
+        if (volume->is_support_blocker() || volume->is_support_enforcer())
+            add_artifact(target, kind);
+    }
+    if (object.is_fdm_support_painted())
+        add_artifact(object.name, "support painting");
+    if (object.is_seam_painted())
+        add_artifact(object.name, "seam painting");
+    if (object.is_mm_painted())
+        add_artifact(object.name, "color painting");
+    if (object.is_fuzzy_skin_painted())
+        add_artifact(object.name, "fuzzy skin painting");
+    return variable_layer_height;
+}
+
+// Whether a printable copy of the object sits on the plate.
+bool prints_on(const ModelObject& object, std::size_t object_index, PartPlate& plate)
+{
+    if (!object.printable) return false;
+    for (std::size_t copy = 0; copy < object.instances.size(); ++copy)
+        if (object.instances[copy]->printable && plate.contain_instance(static_cast<int>(object_index), static_cast<int>(copy)))
+            return true;
+    return false;
+}
+
+AppliedSetup applied_setup_of(ProjectSessionId session, Plater& plater, PartPlate& plate)
+{
+    AppliedSetup result;
+    result.plate = PlateId(session, plate.id().id);
+    result.spiral_mode = plate.get_spiral_vase_mode();
     const ModelObjectPtrs& objects = plater.model().objects;
     for (std::size_t index = 0; index < objects.size(); ++index) {
         const ModelObject& object = *objects[index];
-        if (!object.printable) continue;
-        bool prints_here = false;
-        for (std::size_t copy = 0; copy < object.instances.size(); ++copy)
-            if (object.instances[copy]->printable && plate.contain_instance(static_cast<int>(index), static_cast<int>(copy))) {
-                prints_here = true;
-                break;
-            }
-        if (!prints_here) continue;
+        if (!prints_on(object, index, plate)) continue;
         ++result.printable_objects;
         result.objects.push_back(object.name);
-        const DynamicPrintConfig& object_config = object.config.get();
-        add_local(object.name, "object", object_config);
-        // has_custom_layering() is also true for a height range, which may
-        // change walls and leave the layer height alone; ranges are listed
-        // below with the keys they actually set.
-        if (!object.layer_height_profile.empty()) {
+        if (add_object_customizations(object, result.objects.size() - 1, result.local_overrides))
             result.variable_layer_height = true;
-            add_artifact(object.name, "variable layer height", "layer_height");
-        }
-        for (const auto& range : object.layer_config_ranges)
-            add_local(object.name, "height range", range.second.get());
-        for (const ModelVolume* volume : object.volumes) {
-            const std::string target = object.name + " / " + volume->name;
-            const char* kind = volume->is_modifier() ? "modifier" :
-                               volume->is_support_blocker() ? "support blocker" :
-                               volume->is_support_enforcer() ? "support enforcer" :
-                               volume->is_negative_volume() ? "negative part" : "part";
-            add_local(target, kind, volume->config.get());
-            if (volume->is_support_blocker() || volume->is_support_enforcer())
-                add_artifact(target, kind);
-        }
-        if (object.is_fdm_support_painted())
-            add_artifact(object.name, "support painting");
-        if (object.is_seam_painted())
-            add_artifact(object.name, "seam painting");
-        if (object.is_mm_painted())
-            add_artifact(object.name, "color painting");
-        if (object.is_fuzzy_skin_painted())
-            add_artifact(object.name, "fuzzy skin painting");
     }
+    return result;
+}
 
+// Every setting a preset holds, in Orca's order, under its tab's page and
+// group, with the saved preset's value beside each one that differs. The
+// selected preset is read with its unsaved edits, as read_settings reads it;
+// any other is read as saved, and then nothing differs.
+std::vector<CatalogSetting> catalog_settings(const PresetCollection& collection, const Preset& preset, bool selected,
+                                             Preset::Type type, Search::OptionsSearcher& searcher)
+{
+    const SettingsScope       scope  = settings_scope(type);
+    const DynamicPrintConfig& config = selected ? collection.get_edited_preset().config : preset.config;
+    const DynamicPrintConfig* saved  = selected ? &collection.get_selected_preset().config : nullptr;
+    std::set<std::string> dirty;
+    if (selected)
+        for (const std::string& reported : collection.current_dirty_options(true))
+            dirty.insert(pure_option_key(reported));
+    std::vector<CatalogSetting> result;
+    for (const std::string& key : scope_options(scope)) {
+        if (!has_scope_setting(key, scope) || withheld_setting(key)) continue;
+        const ConfigOption* option = config.option(key);
+        if (option == nullptr) continue;
+        const SettingDefinition definition = setting_definition(key);
+        CatalogSetting row;
+        row.key   = key;
+        row.label = definition.label.empty() ? key : definition.label;
+        const Search::GroupAndCategory location = tab_location(searcher, key, type);
+        row.page    = into_u8(location.category);
+        row.group   = into_u8(location.group);
+        row.value   = option->serialize();
+        row.display = display_value(definition, row.value);
+        if (saved != nullptr && dirty.count(key) > 0)
+            if (const ConfigOption* before = saved->option(key); before != nullptr && before->serialize() != row.value) {
+                row.preset         = before->serialize();
+                row.preset_display = display_value(definition, *row.preset);
+            }
+        result.push_back(std::move(row));
+    }
+    return result;
+}
+
+// A filament's override of a printer setting (filament_retraction_length and
+// the rest of Orca's "Setting Overrides" page) that is not set defers to the
+// printer: every entry of the nullable vector is nil. The printer's value is
+// the one in force, so the row carries it.
+void mark_inherited(std::vector<CatalogSetting>& settings, const DynamicPrintConfig& filament_config,
+                    const DynamicPrintConfig& printer_config)
+{
+    static const std::string prefix = "filament_";
+    for (CatalogSetting& row : settings) {
+        if (row.key.compare(0, prefix.size(), prefix) != 0) continue;
+        const auto* vector = dynamic_cast<const ConfigOptionVectorBase*>(filament_config.option(row.key));
+        if (vector == nullptr || vector->size() == 0) continue;
+        bool all_nil = true;
+        for (std::size_t index = 0; index < vector->size() && all_nil; ++index)
+            all_nil = vector->is_nil(index);
+        if (!all_nil) continue;
+        const std::string   printer_key = row.key.substr(prefix.size());
+        const ConfigOption* in_force    = printer_config.option(printer_key);
+        if (in_force == nullptr || print_config_def.get(printer_key) == nullptr) continue;
+        row.inherited         = true;
+        row.inherited_display = display_value(setting_definition(printer_key), in_force->serialize());
+    }
+}
+
+// The settings a plate sets itself. Orca keeps the plate dialog's own state
+// beside them (which combo was on Customize) and the filament grouping, which
+// are not settings a person reads.
+std::vector<CatalogSetting> plate_own_settings(PartPlate& plate, Search::OptionsSearcher& searcher)
+{
+    std::vector<CatalogSetting> result;
+    const DynamicPrintConfig* config = plate.config();
+    if (config == nullptr) return result;
+    for (const std::string& key : config->keys()) {
+        if (key.size() > 16 && key.compare(key.size() - 16, 16, "_sequence_choice") == 0) continue;
+        if (key == "other_layers_print_sequence_nums" || key == "filament_map" || key == "filament_map_mode") continue;
+        const ConfigOptionDef* definition = print_config_def.get(key);
+        const ConfigOption*    option     = config->option(key);
+        if (definition == nullptr || option == nullptr) continue;
+        const SettingDefinition display_definition = setting_definition(key);
+        CatalogSetting row;
+        row.key   = key;
+        row.label = display_definition.label.empty() ? key : display_definition.label;
+        const Search::GroupAndCategory location = tab_location(searcher, key, Preset::TYPE_PLATE);
+        row.page    = into_u8(location.category);
+        row.group   = into_u8(location.group);
+        row.value   = option->serialize();
+        row.display = display_value(display_definition, row.value);
+        result.push_back(std::move(row));
+    }
     return result;
 }
 
@@ -2958,6 +3065,76 @@ SettingsReadResult OrcaWorkspaceAdapter::read_settings(const std::vector<std::st
             std::find(system.begin(), system.end(), key) != system.end(), setting_definition(key)});
         if (object)
             result.items.back().overridden = overridden;
+    }
+    return result;
+}
+
+SettingsCatalog OrcaWorkspaceAdapter::settings_catalog() const
+{
+    wxASSERT(wxIsMainThread());
+    SettingsCatalog result;
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr || !fff_printer()) return result;
+    result.available = true;
+    Search::OptionsSearcher& searcher = m_plater.sidebar().get_searcher();
+
+    result.process.name     = presets->prints.get_edited_preset().name;
+    result.process.settings = catalog_settings(presets->prints, presets->prints.get_selected_preset(), true,
+                                               Preset::TYPE_PRINT, searcher);
+    result.printer.name     = presets->printers.get_edited_preset().name;
+    result.printer.settings = catalog_settings(presets->printers, presets->printers.get_selected_preset(), true,
+                                               Preset::TYPE_PRINTER, searcher);
+
+    const DynamicPrintConfig& printer_config = presets->printers.get_edited_preset().config;
+    const auto* colours = presets->project_config.option<ConfigOptionStrings>("filament_colour");
+    for (std::size_t slot = 0; slot < presets->filament_presets.size(); ++slot) {
+        const std::string& name   = presets->filament_presets[slot];
+        const Preset*      preset = presets->filaments.find_preset(name, false);
+        if (preset == nullptr) continue;
+        const bool selected = presets->filaments.get_selected_preset_name() == name;
+        CatalogFilament filament;
+        filament.slot   = slot + 1;
+        filament.preset = name;
+        const DynamicPrintConfig& config = selected ? presets->filaments.get_edited_preset().config : preset->config;
+        if (const auto* types = config.option<ConfigOptionStrings>("filament_type"); types != nullptr && !types->values.empty())
+            filament.material = types->values.front();
+        if (colours != nullptr && slot < colours->values.size())
+            filament.colour = colours->values[slot];
+        filament.settings = catalog_settings(presets->filaments, *preset, selected, Preset::TYPE_FILAMENT, searcher);
+        mark_inherited(filament.settings, config, printer_config);
+        result.filaments.push_back(std::move(filament));
+    }
+
+    PartPlateList& plate_list   = m_plater.get_partplate_list();
+    const int      active_index = plate_list.get_curr_plate_index();
+    for (int index = 0; index < plate_list.get_plate_count(); ++index) {
+        PartPlate* plate = plate_list.get_plate(index);
+        if (plate == nullptr) continue;
+        CatalogPlate entry;
+        entry.id     = PlateId(m_session, plate->id().id);
+        entry.name   = plate->get_plate_name().empty() ? "Plate " + std::to_string(index + 1) : plate->get_plate_name();
+        entry.active = index == active_index;
+        // Its own plate type, else the project's: the one it prints with.
+        const BedType in_force     = plate->get_bed_type(true);
+        entry.own_bed_type         = plate->get_bed_type(false) != btDefault;
+        entry.bed_type             = plate_label(in_force);
+        entry.bed_temp_key         = get_bed_temp_key(in_force);
+        entry.bed_temp_initial_key = get_bed_temp_1st_layer_key(in_force);
+        entry.own                  = plate_own_settings(*plate, searcher);
+        result.plates.push_back(std::move(entry));
+    }
+
+    const ModelObjectPtrs& objects = m_plater.model().objects;
+    for (std::size_t index = 0; index < objects.size(); ++index) {
+        const ModelObject& object = *objects[index];
+        CatalogObject entry;
+        entry.id   = ObjectId(m_session, object.id().id);
+        entry.name = object.name;
+        for (int plate_index = 0; plate_index < plate_list.get_plate_count() && !entry.plate; ++plate_index)
+            if (PartPlate* plate = plate_list.get_plate(plate_index); plate != nullptr && prints_on(object, index, *plate))
+                entry.plate = PlateId(m_session, plate->id().id);
+        add_object_customizations(object, 0, entry.overrides);
+        result.objects.push_back(std::move(entry));
     }
     return result;
 }

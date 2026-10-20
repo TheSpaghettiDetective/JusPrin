@@ -4,7 +4,7 @@ import { AttachmentPickKind, AttachmentSource, Envelope, SliceEstimateInfo } fro
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
-import { SetupPage, SetupPageHeader } from './components/SetupPage';
+import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
@@ -103,7 +103,7 @@ export function App({
   // the host cares which credentials it was asked to check, not which panel
   // is on screen, so navigating setup costs no bridge traffic.
   const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey' | 'localTool'>('offer');
-  const [view, setView] = useState<'chat' | 'list' | 'setup' | 'setupDetails'>('chat');
+  const [view, setView] = useState<'chat' | 'list' | 'setup' | 'allSettings'>('chat');
   const [commandError, setCommandError] = useState<string | null>(null);
   const [confirmChatRestore, setConfirmChatRestore] = useState(false);
   const setupReturn = useRef<'chat' | 'list'>('chat');
@@ -218,6 +218,16 @@ export function App({
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
   useEffect(() => { if (state.navigation.focused) setView('chat'); }, [state.navigation.focused]);
+
+  // The All settings panel's table: asked for when the panel opens, and
+  // again whenever the project moves on under it. A saved chat shows its
+  // own summary and asks for nothing.
+  const canListSettings = state.hostCapabilities.includes('all_settings');
+  const viewingActive = (state.viewedConversationId || state.activeConversationId) === state.activeConversationId;
+  useEffect(() => {
+    if (view !== 'allSettings' || !canListSettings || !viewingActive || state.connection !== 'connected') return;
+    client.send('settings_catalog_request', {});
+  }, [view, canListSettings, viewingActive, state.connection, state.context?.sessionId, state.context?.revision, client]);
 
   useEffect(() => {
     if (state.needsResync) {
@@ -479,7 +489,7 @@ export function App({
         const current = stateRef.current.context;
         if (current) client.send('shell_action', { action: 'undo_setup_change', sessionId: current.sessionId, changeSeq });
       }}
-      onViewSetup={() => setView('setupDetails')} />
+      onViewSetup={() => setView('allSettings')} />
   </div>;
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&
@@ -505,11 +515,10 @@ export function App({
   // setup screen. Setup replaces the body rather than covering it, so backing
   // out returns to exactly what was there before.
   const body = () => {
-    if (!embedded && view === 'setupDetails' && cardContext)
-      return <SetupPage context={cardContext} historical={historical} working={!historical && busy} agentAvailable={!unavailable}
-        changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
-        now={now} savedAt={historical ? state.chatResume.savedAt : undefined}
-        sent={sentBuild?.sentAt ? { at: sentBuild.sentAt, printer: sentBuild.printer } : undefined} />;
+    if (!embedded && view === 'allSettings' && cardContext)
+      return <AllSettings context={cardContext} saved={historical} unsupported={!historical && !canListSettings}
+        catalog={historical ? catalogFromContext(cardContext)
+          : state.settingsCatalog?.sessionId === cardContext.sessionId ? state.settingsCatalog.catalog : null} />;
     // An embedded, setup-only instance never has a conversation to show, so
     // it always renders one of the setup screens below regardless of view.
     if (!embedded && !notConfigured && view !== 'setup')
@@ -679,13 +688,13 @@ export function App({
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
-      {notConfigured && state.conversations.length === 1 && view !== 'setup' && view !== 'setupDetails' && !state.navigation.focused ? (
+      {notConfigured && state.conversations.length === 1 && view !== 'setup' && view !== 'allSettings' && !state.navigation.focused ? (
         <>
           <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
           {setupCard}
         </>
-      ) : view === 'setupDetails' ? (
-        <SetupPageHeader onBack={() => setView('chat')} onCollapse={collapseAgentPane} />
+      ) : view === 'allSettings' ? (
+        <AllSettingsHeader onBack={() => setView('chat')} onCollapse={collapseAgentPane} />
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
           <button type="button" className="panel-link-button panel-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}

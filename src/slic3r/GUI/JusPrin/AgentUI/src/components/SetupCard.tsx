@@ -1,7 +1,7 @@
 // A compact, chat-owned account of the setup: what the chat asked for, the
 // selected presets, how the agent means to print (its plan's headline), and
 // the estimates. Native code supplies the facts; this page presents them.
-// The settings that differ from the presets are on the setup page.
+// Every setting, and what differs from the presets, is on the All settings panel.
 
 import { ReactNode, useState } from 'react';
 import { ChangeInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
@@ -329,7 +329,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
       <span>You set {editedText} outside the agent. Your current settings are preserved.</span></p>
       <hr className="current-setup-divider" /></>}
     <Attention findings={findings} />
-    <button type="button" className="current-setup-link" onClick={onViewSetup}>View setup</button>
+    <button type="button" className="current-setup-link" onClick={onViewSetup}>All settings</button>
     {historical && <><hr className="current-setup-divider" />
       {sent && <p className="current-setup-sent">{[formatMoment(sent.at), sent.printer && `sent to ${sent.printer}`]
         .filter(Boolean).join(' · ')}</p>}

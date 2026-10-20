@@ -154,13 +154,13 @@ describe('presets and differences', () => {
     expect(show(value).querySelector('.current-setup-note')).toBeNull();
   });
 
-  it('opens the setup page from one link and never grows itself', async () => {
+  it('opens the All settings panel from one link and never grows itself', async () => {
     const onViewSetup = vi.fn();
     const value = context();
     value.presetDeltas = [delta('a', 'A', '1 → 2')];
     const card = show(value, { onViewSetup });
     expect(within(card).queryByRole('button', { name: /details/i })).toBeNull();
-    await userEvent.click(within(card).getByRole('button', { name: 'View setup' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'All settings' }));
     expect(onViewSetup).toHaveBeenCalledOnce();
     expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
   });

@@ -1,4 +1,4 @@
-// One state input per frame of the setup card and the setup page. The
+// One state input per frame of the setup card and the All settings panel. The
 // acceptance tests and the review page both render the production components
 // from these, so a state is covered only if it can be produced from real
 // inputs. A1, A2 and B are the three frames of the "setup card shows
@@ -8,9 +8,9 @@
 // whose frame each names. Every setting value below is written the way the
 // host's formatter writes it.
 
-import { ChangeInfo, PresetDeltaInfo, WorkspaceContext } from '../bridge/protocol';
+import { CatalogSettingInfo, ChangeInfo, PresetDeltaInfo, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
 import { Finding, SetupCard, SetupCardProps } from './SetupCard';
-import { SetupPage, SetupPageHeader } from './SetupPage';
+import { AllSettings, AllSettingsHeader, catalogFromContext } from './AllSettings';
 
 type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onUndo' | 'onViewSetup'> &
   { compute?: boolean; undo?: boolean };
@@ -133,7 +133,9 @@ const dense = variant((value) => {
 
 const threeObjects = variant((value) => {
   const names = ['bracket.stl', 'cover.stl', 'spacer.stl'];
-  value.plates[0].objects = names.map((name, index) => ({ id: String(index), name, instances: 1, selected: false }));
+  value.plates[0].objects = names.map((name, index) => ({ id: String(index), name, instances: 1, selected: index === 0 }));
+  // The 3D view has the bracket, so the panel opens on it.
+  value.selection = { status: 'objects', objectIds: ['0'] };
   value.appliedSetup!.printableObjects = 3;
   value.appliedSetup!.objects = names;
   value.appliedSetup!.spiralMode = true;
@@ -153,7 +155,7 @@ const risk: Finding[] = [{ title: 'Coarse layers may leave visible surface lines
 export const setupVisualCases: SetupVisualCase[] = [
   { id: 'A1', name: 'Card · headline', kind: 'card', context: setupWorkspace(), props: { changes: visualChanges } },
   { id: 'A2', name: 'Card · nothing changed', kind: 'card', context: untouched, props: { compute: true } },
-  { id: 'B', name: 'Setup page', kind: 'page', context: setupWorkspace(), props: { changes: visualChanges } },
+  { id: 'B', name: 'All settings · whole project', kind: 'page', context: setupWorkspace(), props: { changes: visualChanges } },
 
   { id: 'earlier', name: 'Earlier · saved', kind: 'card', frame: '1291:1731', context: setupWorkspace(),
     props: { historical: true, savedAt: saved } },
@@ -181,22 +183,67 @@ export const setupVisualCases: SetupVisualCase[] = [
   { id: 'no-plan', name: 'Card · no plan pinned', kind: 'card',
     context: variant((value) => { value.planHeadline = ''; }), props: { changes: visualChanges } },
 
-  { id: 'page-untouched', name: 'Page · nothing changed', kind: 'page', context: untouched, props: {} },
-  { id: 'page-objects', name: 'Page · three objects', kind: 'page', frame: '1312:5982', context: threeObjects,
+  { id: 'page-untouched', name: 'All settings · nothing changed', kind: 'page', context: untouched, props: {} },
+  { id: 'page-objects', name: 'All settings · one object', kind: 'page', context: threeObjects,
     props: { changes: visualChanges } },
-  { id: 'page-dense', name: 'Page · long and dense', kind: 'page', context: dense, props: {} },
+  { id: 'page-dense', name: 'All settings · six slots', kind: 'page', context: dense, props: {} },
 ];
 
+// The host's table for a panel case: the changed settings the context
+// counts, in the company of a few unchanged ones so every group reads as a
+// table, each filament slot with a colour and the rows the Filament group
+// draws, and the shown plate with a plate type of its own.
+export function visualCatalog(context: WorkspaceContext): SettingsCatalogPayload {
+  const base = catalogFromContext(context);
+  const row = (key: string, label: string, page: string, group: string, display: string): CatalogSettingInfo =>
+    ({ key, label, page, group, value: display, display });
+  const stock: CatalogSettingInfo[] = [
+    row('fixture_layer', 'Layer height', 'Quality', 'Layer height', '0.2 mm'),
+    row('fixture_seam', 'Seam position', 'Quality', 'Seam', 'Aligned'),
+    row('fixture_walls', 'Wall loops', 'Strength', 'Walls', '2'),
+    row('fixture_top', 'Top shell layers', 'Strength', 'Top/bottom shells', '5'),
+    row('fixture_infill', 'Sparse infill density', 'Strength', 'Infill', '15%'),
+    row('fixture_outer', 'Outer wall speed', 'Speed', 'Other layers speed', '200 mm/s'),
+    row('fixture_support', 'Enable support', 'Support', 'Support', 'Off'),
+    row('fixture_skirt', 'Skirt loops', 'Others', 'Skirt', '1'),
+  ];
+  const filamentRows = (slot: number): CatalogSettingInfo[] => [
+    row('fixture_nozzle', 'Nozzle temperature', 'Filament', 'Temperatures', slot === 1 ? '255 °C' : '220 °C'),
+    row('fixture_bed', 'Bed temperature', 'Filament', 'Temperatures', slot === 1 ? '70 °C' : '65 °C'),
+    row('fixture_fan', 'Fan speed', 'Cooling', 'Cooling', slot === 1 ? '40%' : '100%'),
+    { ...row('filament_fixture_retraction', 'Retraction length', 'Setting Overrides', 'Retraction', slot === 3 ? '1.2 mm' : 'Not set'),
+      ...(slot === 3 ? {} : { inherited: true, inheritedDisplay: '0.8 mm' }) },
+    ...(slot === 1 ? base.filaments[0]?.settings ?? [] : []),
+  ];
+  const colours = ['#D96A1F', '#2E6FB6', '#8BC34A', '#F2C94C', '#9B51E0', '#333333'];
+  // The project's value of every setting an object sets itself, so the
+  // object's view can say what it overrides.
+  const overridden: CatalogSettingInfo[] = base.objects.flatMap((object) => object.overrides)
+    .filter((local, index, all) => local.key && local.key !== 'extruder' && all.findIndex((other) => other.key === local.key) === index)
+    .map((local) => row(local.key, local.label ?? local.key, 'Strength', 'Walls', '2'));
+  return {
+    ...base,
+    process: { ...base.process, settings: [...stock, ...overridden, ...base.process.settings] },
+    printer: { ...base.printer, settings: [row('fixture_retract', 'Retraction length', 'Extruder', 'Retraction', '0.8 mm'),
+      ...base.printer.settings] },
+    filaments: base.filaments.map((filament) => ({ ...filament, colour: colours[filament.slot - 1] ?? '',
+      settings: filamentRows(filament.slot) })),
+    plates: context.plates.map((plate) => ({ id: plate.id, name: plate.name, active: plate.active,
+      bedType: plate.active ? 'Textured PEI Plate' : '', ownBedType: plate.active, bedTempKey: 'fixture_bed', bedTempInitialKey: '',
+      own: plate.active ? [row('fixture_plate_type', 'Bed type', 'Plate', '', 'Textured PEI Plate')] : [] })),
+  };
+}
+
 // The production component for one case. The handlers exist exactly when the
-// case says the host could carry the action out. A page comes with the header
-// the panel gives it.
+// case says the host could carry the action out. A panel comes with the
+// header it has in the pane.
 export function renderVisualCase(entry: SetupVisualCase, handlers: {
   onViewSetup?: () => void; onCompute?: () => void; onUndo?: (changeSeq: number) => void; onBack?: () => void;
   onCollapse?: () => void } = {}) {
   const { compute, undo, ...props } = entry.props;
   if (entry.kind === 'page')
-    return <><SetupPageHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
-      <SetupPage context={entry.context} now={VISUAL_NOW} {...props} /></>;
+    return <><AllSettingsHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
+      <AllSettings context={entry.context} catalog={visualCatalog(entry.context)} /></>;
   return <SetupCard context={entry.context} now={VISUAL_NOW} {...props}
     onViewSetup={handlers.onViewSetup ?? (() => {})}
     onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined}

@@ -11,14 +11,14 @@ import { applyPixelTokens, applySharedStaticTokens, pixelVariableNames, sharedSt
 
 export { applyAppearance } from '@shared/tokens';
 
-// The menus, the search field, the segmented control and the tooltip, as the design system
+// The menus, the search field, the segmented control, the select and the tooltip, as the design system
 // draws them. A section's text role is a name, not a length, so only its
 // numbers become variables.
 type Section = Record<string, number | string>;
 const shared = (tokens as unknown as { component: Record<string, Section> }).component;
 const SECTIONS: [string, string][] = [
   ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
-  ['focus', 'focus'], ['field-search', 'fieldSearch'],
+  ['focus', 'focus'], ['field-search', 'fieldSearch'], ['select', 'select'],
 ];
 
 function lengths(section: Section): Record<string, number> {

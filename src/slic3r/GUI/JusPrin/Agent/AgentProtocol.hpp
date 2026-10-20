@@ -31,7 +31,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
-                                                 "model_choice"};
+                                                 "model_choice", "all_settings"};
     return values;
 }
 
@@ -71,6 +71,10 @@ inline constexpr const char* kPickAttachment     = "pick_attachment";
 // pickers: {provider, model, effort}. It applies from the next turn. Added
 // additively; the model_choice capability advertises it.
 inline constexpr const char* kSetChatModel       = "set_chat_model";
+// The All settings panel asks for every setting in force, in one message;
+// the host answers with settings_catalog. Added additively; the all_settings
+// capability advertises it.
+inline constexpr const char* kSettingsCatalogRequest = "settings_catalog_request";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -103,6 +107,11 @@ inline constexpr const char* kOpenSetup          = "open_setup";
 inline constexpr const char* kModelCatalog       = "model_catalog";
 // The active chat's choice after a set_chat_model: {conversationId, chatModel}.
 inline constexpr const char* kChatModel          = "chat_model";
+// Every setting in force, for the All settings panel, in answer to
+// settings_catalog_request: the process, printer and each filament slot's
+// settings under OrcaSlicer's tab pages, each plate's own settings and each
+// object's customizations. all_settings capability.
+inline constexpr const char* kSettingsCatalog    = "settings_catalog";
 // The printer panel's own: what its surface shows above and inside the
 // thread, a tap on one of the cards it draws there, and the model's
 // instructions, which the page writes.

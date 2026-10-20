@@ -6139,6 +6139,9 @@ private:
     // Waits until `ready`, a script expression over the element `scope`,
     // holds, then reports the scope's visible text through the draft, one
     // line per row.
+    // While the text is not ready, the page's current text (or that the
+    // scope is missing) is written under "name?=" and printed once per
+    // change, so a run that never gets ready says what the page drew.
     void await_setup_text(const std::string& name, const std::string& scope, const std::string& ready,
                           std::function<void()> next)
     {
@@ -6146,17 +6149,44 @@ private:
         const std::string script =
             "(function(){"
             "  var scope = document.querySelector('" + scope + "');"
-            "  if (scope && (" + ready + ") && window.__jusprinTest)"
-            "    window.__jusprinTest.setDraft('" + name + "=' + scope.innerText.replace(/\\n+/g, ' | '));"
+            "  if (!window.__jusprinTest) return;"
+            "  if (!scope) { window.__jusprinTest.setDraft('" + name + "?=(no " + scope + ")'); return; }"
+            "  window.__jusprinTest.setDraft('" + name + ((ready == "true") ? "=" : "' + ((" + ready + ") ? '=' : '?=') + '") +
+            "' + scope.innerText.replace(/\\n+/g, ' | '));"
             "})()";
+        auto last_waiting = std::make_shared<std::string>();
         wait_until([this, name] { return persistence().draft().rfind(name + "=", 0) == 0; },
                    "setup_differences_" + name + "_rendered", std::move(next),
-                   [script] { WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script); });
+                   [this, script, name, last_waiting] {
+                       const std::string draft = persistence().draft();
+                       if (draft.rfind(name + "?=", 0) == 0 && draft != *last_waiting) {
+                           *last_waiting = draft;
+                           std::cout << "HARNESS SETUP WAITING " << draft.substr(0, 1200) << std::endl;
+                       }
+                       WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script);
+                   });
     }
 
     void run_in_agent_page(const std::string& script)
     {
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script);
+    }
+
+    // The panel follows the 3D view's selection, and the fixture has the cube
+    // selected; these captures read the whole project, so the ready script
+    // first chooses it from the Showing select (opening the menu on one tick,
+    // picking the row on the next) and is ready only once a changed row shows.
+    static std::string whole_project_ready(const std::string& rows)
+    {
+        return "(function(){"
+               "  if (scope.dataset.scope !== 'project') {"
+               "    var row = Array.prototype.find.call(document.querySelectorAll('.all-settings-scope .chat-menu button'),"
+               "                                        function(b){ return b.textContent.trim() === 'Whole project'; });"
+               "    if (row) row.click(); else document.querySelector('.all-settings-scope .jp-select').click();"
+               "    return false;"
+               "  }"
+               "  return " + rows + ";"
+               "})()";
     }
 
     void capture_setup_differences_card()
@@ -6176,8 +6206,9 @@ private:
         check(card.find("1 object with overrides") != std::string::npos, "setup_card_counts_the_object_override");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
-                          "function(link){return link.textContent==='View setup';}).click()");
-        await_setup_text("page", "[data-testid=\"current-setup-page\"]", "scope.querySelector('.current-setup-row--change')",
+                          "function(link){return link.textContent==='All settings';}).click()");
+        // The All settings panel opens with the changed groups open.
+        await_setup_text("page", "[data-testid=\"all-settings\"]", whole_project_ready("!!scope.querySelector('.all-settings-row--changed')"),
                          [self = shared_from_this()] { self->capture_setup_differences_page(); });
     }
 
@@ -6185,11 +6216,16 @@ private:
     {
         const std::string page = persistence().draft();
         std::cout << "HARNESS SETUP " << page << std::endl;
-        for (const char* expected : {"Brim width", "Brim type", "First layer height", "Wall loops", "Bed temperature"})
+        for (const char* expected : {"Brim width", "Brim type", "First layer height", "Bed temperature"})
             check(page.find(expected) != std::string::npos, std::string("setup_page_names_") + expected);
+        // The object's own setting is the object's view's; the project view
+        // says the object has one.
+        check(page.find("has settings of its own") != std::string::npos, "setup_page_notes_the_object_override");
         // The page and group come from Orca's settings tabs, in every user
-        // mode: "First layer" alone names four settings.
-        for (const char* caption : {"Others \xC2\xB7 Brim", "Quality \xC2\xB7 Layer height", "Speed \xC2\xB7 First layer speed"})
+        // mode: "First layer" alone names four settings. The panel's groups
+        // are the pages, and each run of rows is headed by its group.
+        for (const char* caption : {"Others | ", "Quality | ", "Speed | ", "Brim | Brim width", "Layer height | Layer height | ",
+                                    "First layer speed | First layer"})
             check(page.find(caption) != std::string::npos, std::string("setup_page_groups_under_") + caption);
         check(page.find("Bed temperature | Bed temperature") != std::string::npos, "setup_page_groups_a_filament_setting");
         check(page.find("Retraction | Retraction Length | ") != std::string::npos, "setup_page_groups_a_printer_setting");
@@ -6200,12 +6236,12 @@ private:
         check(page.find("0.28 mm") != std::string::npos, "setup_page_shows_a_number_with_its_unit");
         check(page.find("Ask about this print") == std::string::npos, "setup_page_has_no_message_box");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page");
-        run_in_agent_page("document.querySelector('[data-testid=\"current-setup-page\"]').scrollTop = 100000");
+        run_in_agent_page("document.querySelector('[data-testid=\"all-settings\"]').scrollTop = 100000");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page-end");
 
         // Put every value back to the preset's and the card has nothing left
         // to report.
-        run_in_agent_page("document.querySelector('.panel-back-link').click()");
+        run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
         m_plater->model().objects.front()->config.erase("wall_loops");
         const auto restore = [](Preset::Type type, const PresetCollection& presets, std::initializer_list<const char*> keys) {
             DynamicPrintConfig saved;
@@ -6325,8 +6361,10 @@ private:
         check(card.find("~") != std::string::npos && card.find(" g | ") != std::string::npos, "setup_card_shows_the_slice_estimate");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
-                          "function(link){return link.textContent==='View setup';}).click()");
-        await_setup_text("agentpage", "[data-testid=\"current-setup-page\"]", "scope.querySelector('.current-setup-row--change')",
+                          "function(link){return link.textContent==='All settings';}).click()");
+        // The agent's three edits and the hand edit: four changed rows.
+        await_setup_text("agentpage", "[data-testid=\"all-settings\"]",
+                         whole_project_ready("scope.querySelectorAll('.all-settings-row--changed').length === 4"),
                          [self = shared_from_this()] { self->finish_setup_differences_capture(); });
     }
 
@@ -6339,10 +6377,10 @@ private:
     {
         const std::string page = persistence().draft();
         std::cout << "HARNESS SETUP " << page << std::endl;
-        check(page.find("Changed from presets \xC2\xB7 4") != std::string::npos, "setup_page_counts_the_agents_and_the_hand_edit");
+        check(page.find("changed") != std::string::npos, "setup_page_counts_the_agents_and_the_hand_edit");
         check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
-        run_in_agent_page("document.querySelector('.panel-back-link').click()");
+        run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
         // A person's edit after the agent's: the card keeps the headline
         // under its own notice, and the model reads the plan as in doubt.
         DynamicPrintConfig edited;

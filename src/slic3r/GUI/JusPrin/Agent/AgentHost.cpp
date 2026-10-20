@@ -1059,6 +1059,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_setup_cancel();
     else if (type == Protocol::kMcpCatalog)
         handle_mcp_catalog(envelope_id);
+    else if (type == Protocol::kSettingsCatalogRequest)
+        handle_settings_catalog(envelope_id);
     else if (type == Protocol::kMcpPreview)
         handle_mcp_preview(envelope_id, payload);
     else if (type == Protocol::kMcpConnect)
@@ -3197,6 +3199,69 @@ void AgentHost::send_mcp_status(const std::string& phase, const std::string& too
     if (!diagnostic.empty()) payload["diagnostic"] = diagnostic;
     if (error) payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
     send_envelope(Protocol::kMcpStatus, payload.dump(), correlation_id);
+}
+
+namespace {
+
+json catalog_settings_json(const std::vector<Workspace::CatalogSetting>& settings)
+{
+    json rows = json::array();
+    for (const Workspace::CatalogSetting& setting : settings) {
+        json row{{"key", setting.key}, {"label", setting.label}, {"page", setting.page}, {"group", setting.group},
+                 {"value", setting.value}, {"display", setting.display}};
+        if (setting.preset) {
+            row["preset"]        = *setting.preset;
+            row["presetDisplay"] = setting.preset_display.value_or(*setting.preset);
+        }
+        if (setting.inherited) {
+            row["inherited"]        = true;
+            row["inheritedDisplay"] = setting.inherited_display;
+        }
+        rows.push_back(std::move(row));
+    }
+    return rows;
+}
+
+// The All settings panel's table, as the page reads it (SettingsCatalogPayload
+// in protocol.ts).
+json settings_catalog_json(const Workspace::SettingsCatalog& catalog)
+{
+    json filaments = json::array();
+    for (const Workspace::CatalogFilament& filament : catalog.filaments)
+        filaments.push_back({{"slot", filament.slot}, {"preset", filament.preset}, {"material", filament.material},
+                             {"colour", filament.colour}, {"settings", catalog_settings_json(filament.settings)}});
+    json plates = json::array();
+    for (const Workspace::CatalogPlate& plate : catalog.plates)
+        plates.push_back({{"id", std::to_string(plate.id.value())}, {"name", plate.name}, {"active", plate.active},
+                          {"bedType", plate.bed_type}, {"ownBedType", plate.own_bed_type},
+                          {"bedTempKey", plate.bed_temp_key}, {"bedTempInitialKey", plate.bed_temp_initial_key},
+                          {"own", catalog_settings_json(plate.own)}});
+    json objects = json::array();
+    for (const Workspace::CatalogObject& object : catalog.objects) {
+        json overrides = json::array();
+        for (const Workspace::SetupLocalOverride& local : object.overrides) {
+            json entry{{"target", local.target}, {"kind", local.kind}, {"key", local.key}, {"value", local.value}};
+            if (!local.label.empty()) entry["label"] = local.label;
+            if (!local.display.empty()) entry["display"] = local.display;
+            overrides.push_back(std::move(entry));
+        }
+        json entry{{"id", std::to_string(object.id.value())}, {"name", object.name}, {"overrides", std::move(overrides)}};
+        if (object.plate) entry["plateId"] = std::to_string(object.plate->value());
+        objects.push_back(std::move(entry));
+    }
+    return json{{"available", catalog.available},
+                {"process", {{"name", catalog.process.name}, {"settings", catalog_settings_json(catalog.process.settings)}}},
+                {"printer", {{"name", catalog.printer.name}, {"settings", catalog_settings_json(catalog.printer.settings)}}},
+                {"filaments", std::move(filaments)},
+                {"plates", std::move(plates)},
+                {"objects", std::move(objects)}};
+}
+
+} // namespace
+
+void AgentHost::handle_settings_catalog(const std::string& envelope_id)
+{
+    send_envelope(Protocol::kSettingsCatalog, settings_catalog_json(m_workspace.settings_catalog()).dump(), envelope_id);
 }
 
 void AgentHost::handle_mcp_catalog(const std::string& envelope_id)

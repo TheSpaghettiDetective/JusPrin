@@ -1,7 +1,7 @@
-// Acceptance for the setup card and the setup page: the three designed
-// frames, with the plan's headline in the card where the differences were,
-// every remaining state of the card, and the two guards that keep the card
-// and the page from sliding back to a list of settings somebody picked.
+// Acceptance for the setup card and the All settings panel: the three
+// designed frames, with the plan's headline in the card where the differences
+// were, every remaining state of the card, and the two guards that keep the
+// card and the panel from sliding back to a list of settings somebody picked.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,14 +11,14 @@ import userEvent from '@testing-library/user-event';
 import { PresetDeltaInfo } from '../bridge/protocol';
 import { renderVisualCase, setupVisualCases, setupWorkspace } from './SetupCard.visual-cases';
 import { SetupCard } from './SetupCard';
-import { SetupPage } from './SetupPage';
+import { AllSettings, catalogFromContext } from './AllSettings';
 
 function visual(id: string) {
   const entry = setupVisualCases.find((item) => item.id === id);
   if (!entry) throw new Error(`Missing visual case ${id}`);
   const handlers = { onViewSetup: vi.fn(), onCompute: vi.fn(), onUndo: vi.fn(), onBack: vi.fn() };
   render(renderVisualCase(entry, handlers));
-  return { ...handlers, root: screen.getByTestId(entry.kind === 'page' ? 'current-setup-page' : 'current-setup') };
+  return { ...handlers, root: screen.getByTestId(entry.kind === 'page' ? 'all-settings' : 'current-setup') };
 }
 
 // Every setting OrcaSlicer defines, read from the definitions libslic3r
@@ -50,7 +50,7 @@ describe('the three designed frames', () => {
     expect(card.querySelector('.current-setup-note')).toHaveTextContent(/^1 object with overrides$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('41 g');
-    await userEvent.click(within(card).getByRole('button', { name: 'View setup' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'All settings' }));
     expect(onViewSetup).toHaveBeenCalledOnce();
   });
 
@@ -63,20 +63,30 @@ describe('the three designed frames', () => {
     expect(card.querySelector('.current-setup-strategy')).toBeNull();
     await userEvent.click(within(card).getByRole('button', { name: 'Compute estimates' }));
     expect(onCompute).toHaveBeenCalledOnce();
-    expect(within(card).getByRole('button', { name: 'View setup' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'All settings' })).toBeInTheDocument();
   });
 
-  it('B · the page holds what the card counts', async () => {
-    const { root: page, onBack } = visual('B');
-    expect([...page.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
-      'Presets', 'Changed from presets · 5', 'Objects on Plate 1 · 2', 'Plates']);
-    expect(page).toHaveTextContent('Process0.20mm Standard @MyKlipper');
-    expect(page).toHaveTextContent('Others · Brim');
-    expect(page).toHaveTextContent('3x3_cali_RL.stl · 2 overrides');
-    expect(page).toHaveTextContent('bracket.stlUses plate settings');
-    expect(page).toHaveTextContent('Plate 2Not sliced');
+  it('B · the panel holds what the card counts', async () => {
+    const { root: panel, onBack } = visual('B');
+    // The whole project: the presets in use, the object with settings of its
+    // own, and the groups in OrcaSlicer's order with what changed in each.
+    expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
+    expect(within(panel).getByTestId('all-settings-presets')).toHaveTextContent('MyKlipper 0.4 nozzle');
+    expect(within(panel).getByTestId('all-settings-presets')).toHaveTextContent('Slot 1 · Generic ABS');
+    expect(within(panel).getByTestId('all-settings-presets')).toHaveTextContent('0.20mm Standard4 changes from the preset');
+    expect(within(panel).getByTestId('all-settings-presets')).toHaveTextContent('Plate 1Textured PEI PlateBed type set on this plate');
+    expect(panel).toHaveTextContent('3x3_cali_RL.stl has settings of its own in 1 region: Corner tab.');
+    expect([...panel.querySelectorAll('.all-settings-group-name')].map((name) => name.textContent)).toEqual([
+      'Quality', 'Strength', 'Speed', 'Support', 'Multimaterial', 'Others', 'Filament', 'Printer']);
+    expect(panel).toHaveTextContent('Quality1 changed');
+    expect(panel).toHaveTextContent('Others2 changed');
+    expect(panel).toHaveTextContent('Filament3 slots, side by side');
+    // An open group lists its rows under OrcaSlicer's own groups; a changed
+    // value is bold with the preset's under it.
+    expect(panel).toHaveTextContent('First layer height0.28 mmPreset: 0.2 mm');
+    expect(panel.querySelector('.all-settings-row--changed')).not.toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chat' }));
     expect(onBack).toHaveBeenCalledOnce();
   });
 });
@@ -97,10 +107,13 @@ describe('the card\'s other states', () => {
     dense: ['Extra-wide brim, a slow first layer and a cooler bed so the long fixture stays flat on the plate',
       '1 object with overrides'],
     'no-plan': ['Stop the corners lifting', '1 object with overrides', 'Current'],
-    'page-untouched': ['No changes from presets', 'bracket.stlUses plate settings', 'Plate 1 · shownNot sliced'],
-    'page-objects': ['Objects on Plate 1 · 3', 'Mounting tabs · modifier', 'Screw holes · support blocker',
-      'Support painting', 'cover.stlUses plate settings', 'Spiral vase'],
-    'page-dense': ['Changed from presets · 20', 'Filament 6Generic PLA @System', 'Page 4 · Group 2'],
+    'page-untouched': ['0.20mm Standardfrom the preset', 'Qualityfrom the preset', 'Strengthfrom the preset'],
+    'page-objects': ['Shown: only what bracket.stl sets itself.',
+      'bracket.stl uses the project’s settings, except in 2 regions: Mounting tabs and Screw holes.',
+      'Wall loops6RegionMounting tabs · project: 2', 'Support blockerOnRegionScrew holes', 'Support paintingOnObjectbracket.stl',
+      'Qualitysame as project'],
+    'page-dense': ['20 changes from the preset', '6 slots', 'Slot 1 · Workshop PETG carbon fibre reinforced high temperature',
+      'Slot 6 · Generic PLA'],
   };
 
   it('has an expectation for every state that is not one of the three frames', () => {
@@ -150,7 +163,7 @@ describe('the card\'s other states', () => {
   it('a saved card offers no live action', () => {
     for (const id of ['earlier', 'sent']) {
       const { root } = visual(id);
-      expect(within(root).getAllByRole('button').map((button) => button.textContent)).toEqual(['View setup']);
+      expect(within(root).getAllByRole('button').map((button) => button.textContent)).toEqual(['All settings']);
       cleanup();
     }
   });
@@ -162,34 +175,34 @@ describe('any setting, not a chosen few', () => {
     expect(settingKeys).toEqual(expect.arrayContaining(['layer_height', 'hot_plate_temp', 'retraction_length', 'extruder']));
   });
 
-  it.each([7, 19, 43, 101, 20261008])('shows five settings drawn at random (seed %i) on the page and none on the card', (seed) => {
+  it.each([7, 19, 43, 101, 20261008])('shows five settings drawn at random (seed %i) on the panel and none on the card', (seed) => {
     const context = setupWorkspace();
     const types = ['process', 'filament', 'printer'] as const;
     context.presetDeltas = draw(seed, 5).map((key, index): PresetDeltaInfo => ({ key, label: `Label of ${key}`,
       preset: 'a', value: 'b', display: `before ${key} → after ${key}`,
       presetType: types[index % 3], presetName: `Preset ${index % 3}`, page: `Page ${index}`, group: `Group ${index}` }));
-    const page = render(<SetupPage context={context} />);
+    const panel = render(<AllSettings context={context} catalog={catalogFromContext(context)} />);
     for (const setting of context.presetDeltas) {
       expect(screen.getByText(setting.label)).toBeInTheDocument();
-      expect(screen.getByText(setting.display!)).toBeInTheDocument();
+      expect(screen.getByTestId('all-settings')).toHaveTextContent(`after ${setting.key}`);
+      expect(screen.getByTestId('all-settings')).toHaveTextContent(`before ${setting.key}`);
     }
-    expect(screen.getByTestId('current-setup-page').querySelectorAll('.current-setup-row--change')).toHaveLength(
-      5 + context.appliedSetup!.localOverrides.length);
-    page.unmount();
+    expect(screen.getByTestId('all-settings').querySelectorAll('.all-settings-row--changed')).toHaveLength(5);
+    panel.unmount();
     render(<SetupCard context={context} onViewSetup={() => {}} />);
     const card = screen.getByTestId('current-setup');
     expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
     for (const setting of context.presetDeltas) expect(card).not.toHaveTextContent(setting.label);
   });
 
-  it('names no setting in the card\'s or the page\'s source, but an object\'s filament slot', () => {
+  it('names no setting in the card\'s or the panel\'s source, but an object\'s filament slot', () => {
     // A key with an underscore is unmistakable wherever it stands; a one-word
     // key is one only as a quoted string.
     const mentions = (source: string) => settingKeys.filter((key) => key.includes('_')
       ? new RegExp(`(^|[^A-Za-z0-9_])${key}([^A-Za-z0-9_]|$)`).test(source)
       : new RegExp(`['"\`]${key}['"\`]`).test(source));
     expect(mentions(readFileSync(resolve(__dirname, 'SetupCard.tsx'), 'utf8'))).toEqual([]);
-    expect(mentions(readFileSync(resolve(__dirname, 'SetupPage.tsx'), 'utf8'))).toEqual(['extruder']);
+    expect(mentions(readFileSync(resolve(__dirname, 'AllSettings.tsx'), 'utf8'))).toEqual(['extruder']);
     // The guard can see a key: these are how a fixed list would be written.
     expect(mentions("const KEYS = ['layer_height', 'wipe'];")).toEqual(expect.arrayContaining(['layer_height', 'wipe']));
     expect(mentions('settingOf(setup, "wall_loops")')).toEqual(['wall_loops']);

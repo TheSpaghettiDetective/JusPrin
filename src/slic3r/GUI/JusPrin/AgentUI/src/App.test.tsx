@@ -956,57 +956,132 @@ describe('App', () => {
     expect(card()).toHaveTextContent('Current');
   });
 
-  it('opens the setup page in place of the chat and returns to the thread as it was', async () => {
+  // A host that can list the settings says so in its hello.
+  function connectListing(statePayload: StatePayload) {
+    expect(host.lastOfType('hello')).toBeTruthy();
+    host.deliver('hello_ack', { version: PROTOCOL_VERSION, agent: statePayload.agent, appearance: statePayload.appearance,
+      capabilities: ['all_settings'] });
+    host.deliver('state', statePayload);
+  }
+  const catalog = (settings: { key: string; label: string; page: string; group: string; display: string; preset?: string }[]) => ({
+    available: true,
+    process: { name: 'Test Printer 0.4', settings: settings.map((setting) => ({ ...setting, value: setting.display,
+      presetDisplay: setting.preset })) },
+    printer: { name: 'MyKlipper 0.2 nozzle', settings: [] },
+    filaments: [{ slot: 1, preset: 'Generic PLA', material: 'PLA', colour: '#1E90FF', settings: [] }],
+    plates: [{ id: '11', name: 'Plate 1', active: true, bedType: 'Textured PEI Plate', ownBedType: false, bedTempKey: '',
+      bedTempInitialKey: '', own: [] }],
+    objects: [{ id: '21', name: 'cube-a', plateId: '11', overrides: [] }, { id: '22', name: 'cube-b', plateId: '11', overrides: [] }],
+  });
+
+  it('opens the All settings panel in place of the chat and returns to the thread as it was', async () => {
     render(<App getTransport={() => host.transport} draftDebounceMs={0} />);
-    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong enough to bear weight' },
+    connectListing(emptyState({ context: { ...applied, selection: { status: 'none', objectIds: [] }, setupIntent: 'Strong enough to bear weight' },
       conversation: [{ id: 'm-1', role: 'user', state: 'complete', text: 'make it strong', attempt: 1 }] }));
     await userEvent.type(screen.getByRole('textbox'), 'half a thought');
 
-    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
-    const page = screen.getByTestId('current-setup-page');
-    expect(page).toHaveTextContent('Strong enough to bear weight');
-    expect(page).toHaveTextContent('ProcessTest Printer 0.4');
-    expect(page).toHaveTextContent('No changes from presets');
-    // The page is not a place to chat: no thread, no card, no message box.
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    const panel = screen.getByTestId('all-settings');
+    // The panel asks the host for the table and says so until it arrives.
+    expect(host.lastOfType('settings_catalog_request')).toBeTruthy();
+    expect(panel).toHaveTextContent('Reading the settings…');
+    host.deliver('settings_catalog', catalog([{ key: 'wall_loops', label: 'Wall loops', page: 'Strength', group: 'Walls', display: '2' }]));
+    expect(panel).toHaveTextContent('Showing');
+    expect(panel).toHaveTextContent('MyKlipper 0.2 nozzle · 0.2 mm nozzle');
+    expect(panel).toHaveTextContent('Slot 1 · Generic PLA');
+    expect(panel).toHaveTextContent('Test Printer 0.4from the preset');
+    expect(panel).toHaveTextContent('Strengthfrom the preset');
+    // Back takes the focus the "All settings" link had, so the keyboard is
+    // never left on nothing.
+    expect(screen.getByRole('button', { name: 'Back to chat' })).toHaveFocus();
+    await userEvent.click(within(panel).getByRole('button', { name: /^Strength/ }));
+    expect(panel).toHaveTextContent('WallsWall loops2');
+    // The panel is not a place to chat: no thread, no card, no message box.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByText('make it strong')).not.toBeInTheDocument();
     expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus();
     // The panel can still be put away from here.
     await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.queryByTestId('current-setup-page')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to chat' }));
+    expect(screen.queryByTestId('all-settings')).not.toBeInTheDocument();
     expect(screen.getByText('make it strong')).toBeInTheDocument();
     expect(screen.getByTestId('current-setup')).toBeInTheDocument();
     // What was being typed is still there.
     expect(screen.getByRole('textbox')).toHaveValue('half a thought');
   });
 
-  it('keeps the setup page on the facts as they change under it', async () => {
+  it('asks for the table again as the project changes under the panel', async () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ context: applied }));
-    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
-    expect(screen.getByTestId('current-setup-page')).toHaveTextContent('No changes from presets');
+    const unselected = { ...applied, selection: { status: 'none' as const, objectIds: [] } };
+    connectListing(emptyState({ context: unselected }));
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    const requests = () => host.received.filter((envelope) => envelope.type === 'settings_catalog_request').length;
+    expect(requests()).toBe(1);
+    host.deliver('settings_catalog', catalog([{ key: 'wall_loops', label: 'Wall loops', page: 'Strength', group: 'Walls', display: '2' }]));
+    expect(screen.getByTestId('all-settings')).toHaveTextContent('Strengthfrom the preset');
 
-    host.deliver('context', { context: { ...applied, revision: 3,
+    host.deliver('context', { context: { ...unselected, revision: 3,
       presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', display: '2 → 4',
         presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }] } });
-    const page = screen.getByTestId('current-setup-page');
-    expect(page).toHaveTextContent('Changed from presets · 1');
-    expect(page).toHaveTextContent('Strength · Walls');
-    expect(page).toHaveTextContent('Wall loops2 → 4');
+    expect(requests()).toBe(2);
+    host.deliver('settings_catalog', catalog([{ key: 'wall_loops', label: 'Wall loops', page: 'Strength', group: 'Walls',
+      display: '4', preset: '2' }]));
+    const panel = screen.getByTestId('all-settings');
+    expect(panel).toHaveTextContent('Test Printer 0.41 change from the preset');
+    expect(panel).toHaveTextContent('Strength1 changed');
+    expect(panel).toHaveTextContent('Wall loops4Preset: 2');
   });
 
-  it('leaves the setup page when the project under it is replaced', async () => {
+  it('follows the 3D view into one object', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connectListing(emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    host.deliver('settings_catalog', { ...catalog([]), objects: [{ id: '21', name: 'cube-a', plateId: '11',
+      overrides: [{ target: 'cube-a / Rim', kind: 'modifier', key: 'wall_loops', value: '6', label: 'Wall loops', display: '6' }] },
+      { id: '22', name: 'cube-b', plateId: '11', overrides: [] }] });
+    // cube-a is selected in the fixture, so the panel opens on it.
+    const panel = screen.getByTestId('all-settings');
+    expect(screen.getByRole('button', { name: 'Showing: cube-a' })).toBeInTheDocument();
+    expect(panel).toHaveTextContent('cube-a uses the project’s settings, except in 1 region: Rim.');
+    expect(panel).toHaveTextContent('Wall loops6RegionRim · project: preset');
+    host.deliver('context', { context: { ...applied, revision: 3, selection: { status: 'none', objectIds: [] } } });
+    expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
+  });
+
+  it('shows a saved chat its own summary, and asks the host for nothing', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connectListing(emptyState({ context: applied, conversations: [
+      { id: 'conv-1', title: 'Conversation 1', createdAt: 't' }, { id: 'conv-0', title: 'Earlier', createdAt: 's' }],
+      viewedConversationId: 'conv-0',
+      chatResume: { status: 'unchanged', savedAt: 'Oct 8', summary: { ...applied, selection: { status: 'none', objectIds: [] },
+        presetDeltas: [{ key: 'brim_width', label: 'Brim width', preset: '0', value: '8', display: '0 → 8 mm',
+          presetType: 'process', presetName: 'Test Printer 0.4', page: 'Others', group: 'Brim' }] } } }));
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    expect(host.lastOfType('settings_catalog_request')).toBeUndefined();
+    const panel = screen.getByTestId('all-settings');
+    expect(panel).toHaveTextContent('A saved chat’s setup');
+    expect(panel).toHaveTextContent('Brim width8 mmPreset: 0 mm');
+    expect(screen.getByRole('radio', { name: 'All' })).toBeDisabled();
+  });
+
+  it('says so when the host cannot list the settings', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ context: applied }));
-    await userEvent.click(screen.getByRole('button', { name: 'View setup' }));
-    expect(screen.getByTestId('current-setup-page')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    expect(host.lastOfType('settings_catalog_request')).toBeUndefined();
+    expect(screen.getByTestId('all-settings')).toHaveTextContent('This JusPrin build cannot list the settings.');
+  });
+
+  it('leaves the panel when the project under it is replaced', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connectListing(emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    expect(screen.getByTestId('all-settings')).toBeInTheDocument();
 
     host.deliver('context', { context: { ...applied, sessionId: 'another-project', revision: 1 } });
-    expect(screen.queryByTestId('current-setup-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('all-settings')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 

@@ -343,7 +343,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
-                                              Protocol::kSkills});
+                                              Protocol::kSkills, Protocol::kSettingsCatalogRequest});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -355,7 +355,97 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kOpenSetup,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
-                                              Protocol::kPrinterSession});
+                                              Protocol::kPrinterSession, Protocol::kSettingsCatalog});
+}
+
+TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
+{
+    Harness harness;
+    harness.handshake();
+    REQUIRE(std::find(Protocol::capabilities().begin(), Protocol::capabilities().end(), "all_settings") !=
+            Protocol::capabilities().end());
+
+    Workspace::SettingsCatalog catalog;
+    catalog.available    = true;
+    catalog.process.name = "0.20mm Standard";
+    Workspace::CatalogSetting walls;
+    walls.key            = "wall_loops";
+    walls.label          = "Wall loops";
+    walls.page           = "Strength";
+    walls.group          = "Walls";
+    walls.value          = "4";
+    walls.display        = "4";
+    walls.preset         = "2";
+    walls.preset_display = "2";
+    catalog.process.settings.push_back(walls);
+    Workspace::CatalogFilament filament;
+    filament.slot     = 1;
+    filament.preset   = "Generic PETG";
+    filament.material = "PETG";
+    filament.colour   = "#FF8000";
+    Workspace::CatalogSetting retraction;
+    retraction.key               = "filament_retraction_length";
+    retraction.label             = "Retraction length";
+    retraction.value             = "nil";
+    retraction.display           = "Not set";
+    retraction.inherited         = true;
+    retraction.inherited_display = "0.8 mm";
+    filament.settings.push_back(retraction);
+    catalog.filaments.push_back(filament);
+    Workspace::CatalogPlate plate;
+    plate.id                   = Workspace::PlateId(harness.workspace.snapshot().session, 7);
+    plate.name                 = "Plate 1";
+    plate.active               = true;
+    plate.bed_type             = "Textured PEI Plate";
+    plate.own_bed_type         = true;
+    plate.bed_temp_key         = "textured_plate_temp";
+    plate.bed_temp_initial_key = "textured_plate_temp_initial_layer";
+    catalog.plates.push_back(plate);
+    Workspace::CatalogObject object;
+    object.id    = Workspace::ObjectId(harness.workspace.snapshot().session, 3);
+    object.name  = "bracket v3";
+    object.plate = plate.id;
+    object.overrides.push_back({"bracket v3 / Mounting tabs", "modifier", "wall_loops", "6", 0, "Wall loops", "6"});
+    catalog.objects.push_back(object);
+    harness.workspace.catalog = catalog;
+
+    harness.deliver("settings_catalog_request");
+    const json* answer = harness.last_of_type("settings_catalog");
+    REQUIRE(answer != nullptr);
+    CHECK((*answer)["correlationId"].is_string());
+    const json& payload = (*answer)["payload"];
+    CHECK(payload["available"] == true);
+    CHECK(payload["process"]["name"] == "0.20mm Standard");
+    REQUIRE(payload["process"]["settings"].size() == 1);
+    const json& row = payload["process"]["settings"][0];
+    CHECK(row["key"] == "wall_loops");
+    CHECK(row["page"] == "Strength");
+    CHECK(row["group"] == "Walls");
+    CHECK(row["display"] == "4");
+    CHECK(row["presetDisplay"] == "2");
+    CHECK(!row.contains("inherited"));
+    REQUIRE(payload["filaments"].size() == 1);
+    CHECK(payload["filaments"][0]["slot"] == 1);
+    CHECK(payload["filaments"][0]["colour"] == "#FF8000");
+    const json& inherited = payload["filaments"][0]["settings"][0];
+    CHECK(inherited["inherited"] == true);
+    CHECK(inherited["inheritedDisplay"] == "0.8 mm");
+    CHECK(!inherited.contains("preset"));
+    REQUIRE(payload["plates"].size() == 1);
+    CHECK(payload["plates"][0]["id"] == "7");
+    CHECK(payload["plates"][0]["ownBedType"] == true);
+    CHECK(payload["plates"][0]["bedTempKey"] == "textured_plate_temp");
+    REQUIRE(payload["objects"].size() == 1);
+    CHECK(payload["objects"][0]["id"] == "3");
+    CHECK(payload["objects"][0]["plateId"] == "7");
+    CHECK(payload["objects"][0]["overrides"][0]["target"] == "bracket v3 / Mounting tabs");
+    CHECK(payload["objects"][0]["overrides"][0]["label"] == "Wall loops");
+
+    // A non-FFF printer has no table; the page says so rather than drawing
+    // an empty one.
+    harness.workspace.catalog = {};
+    harness.deliver("settings_catalog_request");
+    CHECK((*harness.last_of_type("settings_catalog"))["payload"]["available"] == false);
 }
 
 TEST_CASE("handshake negotiates version and reports capabilities, agent status, and state", "[agent][bridge]")

@@ -24,7 +24,8 @@
     "project_instructions",
     "project_skills",
     "native_file_picker",
-    "model_choice"
+    "model_choice",
+    "all_settings"
   ],
   "pageMessageTypes": [
     "hello",
@@ -56,7 +57,8 @@
     "filament_instructions",
     "shell_action",
     "project_instructions",
-    "skills"
+    "skills",
+    "settings_catalog_request"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -84,6 +86,7 @@
     "open_setup",
     "model_catalog",
     "chat_model",
-    "printer_session"
+    "printer_session",
+    "settings_catalog"
   ]
 }
