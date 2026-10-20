@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5D92BGESG7J17VKV0RSE48A",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/Canvas/ToolValuePanel.cpp",
+    "src/slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.cpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/PrintIssues/IssueOverlay.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/LeftPane.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/LeftPaneProject.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellRecipes.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp",
+    "src/slic3r/GUI/JusPrin/WebShared/tokens.ts",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/jusprin/test_shell_theme.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1112,
+    "cache_creation_tokens": 3233343,
+    "cache_read_tokens": 247989056,
+    "output_tokens": 549590,
+    "api_call_count": 557,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
