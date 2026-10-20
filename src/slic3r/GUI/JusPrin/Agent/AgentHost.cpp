@@ -518,17 +518,12 @@ bool asks_setup_check(const std::vector<AgentSkillUse>& skills)
 constexpr const char* kNoPurposeSentence =
     "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
 
-// setup_intent belongs to a chat, not to the workspace, so it is passed in
-// rather than read from the snapshot. The agent-facing copy of this payload
-// omits it: those are the agent's own words coming back at it.
-//
-// agent_authored names the deltas the agent can prove it wrote, so the card can
-// count your hand edits apart from its own. The agent-facing copy carries it
-// too, but only the copy returned with a tool result: an ordinary turn is
-// built from the snapshot struct, which has no notion of an agent.
-json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>& agent_authored,
-                  const std::string& setup_intent = {}, const std::string& plan_validity = "current",
-                  const std::string& plan_invalidated_by = {},
+// The workspace as the setup card and the model read it. What a chat holds
+// (its setup title, its plan) is not the workspace's, and each reader adds
+// what it needs: the card its own chat's title and headline (card_context),
+// the model the plan's validity with a tool result. A chat checkpoint saves
+// this alone, so a saved card reads the title and headline from its chat.
+json context_json(const WorkspaceSnapshot& snapshot,
                   const std::optional<Workspace::ConfiguredPrinter>& configured = std::nullopt,
                   const json& printer_review = nullptr)
 {
@@ -573,10 +568,7 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
     json preset_deltas = json::array();
     for (const Workspace::PresetDelta& delta : snapshot.preset_deltas) {
         json entry{{"key", delta.key}, {"label", delta.label},
-                   {"preset", delta.preset}, {"value", delta.value},
-                   // Yours unless the agent can prove it put this exact
-                   // value in force. Unprovable provenance counts as yours.
-                   {"origin", agent_authored.count(delta.preset_type + ":" + delta.key) != 0 ? "agent" : "user"}};
+                   {"preset", delta.preset}, {"value", delta.value}};
         if (!delta.preset_type.empty()) entry["presetType"] = delta.preset_type;
         if (!delta.preset_name.empty()) entry["presetName"] = delta.preset_name;
         if (!delta.display.empty()) entry["display"] = delta.display;
@@ -637,10 +629,17 @@ json context_json(const WorkspaceSnapshot& snapshot, const std::set<std::string>
                 {"appliedSetup", std::move(applied_setup)},
                 {"setupIdentity", std::move(setup_identity)},
                 {"printerReview", printer_review},
-                {"currency", snapshot.currency},
-                {"setupIntent", setup_intent},
-                {"planValidity", plan_validity},
-                {"planInvalidatedBy", plan_invalidated_by}};
+                {"currency", snapshot.currency}};
+}
+
+// The card's context: the workspace, under the setup title and the plan
+// headline of the chat the card belongs to. A saved card reads its own
+// chat's, never the active chat's; an inactive chat's plan cannot change.
+json card_context(json context, const ProjectStateDocument& document, const std::string& conversation_id)
+{
+    context["setupIntent"]  = document.setup_intent(conversation_id);
+    context["planHeadline"] = document.plan(conversation_id).headline;
+    return context;
 }
 
 json current_printer_review(Workspace::IWorkspace& workspace, IProductState& product_state)
@@ -714,16 +713,14 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
-        if (activity.state == ToolState::Succeeded &&
-            (activity.tool == "settings_apply_patch" || activity.tool == "intent_update")) {
-            const bool authored = activity.tool == "settings_apply_patch" && remember_agent_authored(activity);
-            // intent_update records the chat's setup title, which the card
-            // shows; one written on a chat you are not looking at changes
-            // nothing on screen, so it is not worth a push of its own.
+        // intent_update and plan_set write the chat's setup title and plan
+        // headline, which the card shows, and change nothing in the
+        // workspace, so no workspace change pushes them. One written on a
+        // chat you are not looking at changes nothing on screen.
+        if (m_handshake && activity.state == ToolState::Succeeded &&
+            (activity.tool == "intent_update" || activity.tool == "plan_set")) {
             const ProjectStateDocument& document = m_persistence.document();
-            const bool restated = activity.tool == "intent_update" &&
-                                  document.conversation_of_message(activity.correlation_id) == document.active_conversation_id();
-            if ((authored || restated) && m_handshake)
+            if (document.conversation_of_message(activity.correlation_id) == document.active_conversation_id())
                 send_context();
         }
         if (m_handshake && activity.state == ToolState::Succeeded &&
@@ -733,9 +730,6 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         if (tool_state_terminal(activity.state))
             continue_after_tool(activity);
     });
-    // A host built over an already-restored project inherits its history, so
-    // the attribution starts from that history rather than from empty.
-    rebuild_agent_authored();
     m_persistence.set_document_replaced_listener([this]() { on_document_replaced(); });
     m_persistence.set_change_listener([this](const ChangeEntry& change) {
         if (m_handshake)
@@ -790,7 +784,6 @@ std::vector<ConversationMessage> AgentHost::conversation() const
 void AgentHost::on_document_replaced()
 {
     m_chat_transition_blocked = false;
-    rebuild_agent_authored();
     m_title.reset();
     if (m_mcp) m_mcp->detach_calls();
     if (m_agent)
@@ -862,13 +855,13 @@ void AgentHost::send_state(const std::string& correlation_id)
         resume["status"] = "unavailable";
         if (const auto checkpoint = document.chat_checkpoint(viewed)) {
             const std::string version = checkpoint->value("versionId", "");
-            resume["summary"] = (*checkpoint)["summary"];
+            resume["summary"] = card_context((*checkpoint)["summary"], document, viewed);
             resume["savedAt"] = checkpoint->value("savedAt", "");
             if (m_chat_version_exists && m_chat_version_exists(version)) {
+                // The chat's intent and plan never left it; only the model
+                // version can have moved on.
                 const bool same_model = m_current_chat_version && m_current_chat_version() == version;
-                const bool same_planning = (*checkpoint)["planning"] == document.planning_snapshot();
-                const bool same_intent = (*checkpoint)["summary"].value("setupIntent", "") == document.setup_intent(active);
-                resume["status"] = same_model && same_planning && same_intent ? "unchanged" : "changed";
+                resume["status"] = same_model ? "unchanged" : "changed";
                 resume["versionId"] = version;
             }
         }
@@ -942,10 +935,9 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"physicalPrints", std::move(physical_prints)},
                  {"changes", std::move(changes)},
                  {"work", std::move(work)},
-                 {"context", context_json(snapshot, agent_authored_keys(snapshot),
-                                          document.setup_intent(active), document.plan().validity,
-                                          document.plan().invalidated_by, m_workspace.configured_printer(),
-                                          current_printer_review(m_workspace, m_product_state))}};
+                 {"context", card_context(context_json(snapshot, m_workspace.configured_printer(),
+                                                       current_printer_review(m_workspace, m_product_state)),
+                                          document, active)}};
     if (m_session_state_provider)
         payload["session"] = m_session_state_provider();
     if (m_navigation_state_provider)
@@ -960,14 +952,11 @@ void AgentHost::send_context()
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
     m_last_session  = snapshot.session.value();
     m_last_revision = snapshot.revision;
+    const ProjectStateDocument& document = m_persistence.document();
     send_envelope(Protocol::kContext,
-                  json{{"context", context_json(snapshot, agent_authored_keys(snapshot),
-                                                m_persistence.document().setup_intent(
-                                                    m_persistence.document().active_conversation_id()),
-                                                m_persistence.document().plan().validity,
-                                                m_persistence.document().plan().invalidated_by,
-                                                m_workspace.configured_printer(),
-                                                current_printer_review(m_workspace, m_product_state))}}
+                  json{{"context", card_context(context_json(snapshot, m_workspace.configured_printer(),
+                                                             current_printer_review(m_workspace, m_product_state)),
+                                                document, document.active_conversation_id())}}
                       .dump());
 }
 
@@ -1815,9 +1804,7 @@ bool AgentHost::checkpoint_active_chat()
     const std::string active = document.active_conversation_id();
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
     if (!document.save_chat_checkpoint(active, version,
-            context_json(snapshot, agent_authored_keys(snapshot), document.setup_intent(active),
-                         document.plan().validity, document.plan().invalidated_by,
-                         m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
+            context_json(snapshot, m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
             m_persistence.timestamp()))
         return false;
     m_persistence.flush();
@@ -1847,9 +1834,7 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
     const std::string created = document.create_conversation(title, m_persistence.timestamp());
     if (const auto prior = document.chat_checkpoint(previous))
         document.save_chat_checkpoint(created, prior->value("versionId", ""),
-            context_json(m_workspace.snapshot(), agent_authored_keys(m_workspace.snapshot()),
-                         document.setup_intent(created), document.plan().validity,
-                         document.plan().invalidated_by, m_workspace.configured_printer(),
+            context_json(m_workspace.snapshot(), m_workspace.configured_printer(),
                          current_printer_review(m_workspace, m_product_state)), m_persistence.timestamp());
     m_persistence.flush();
     if (m_save_chat_document && !m_save_chat_document()) {
@@ -1907,7 +1892,7 @@ void AgentHost::handle_restore_conversation(const std::string& envelope_id, cons
         send_bridge_error("save_failed", "The current project could not be saved before restoration.", envelope_id);
         return;
     }
-    if (!m_restore_chat_version(checkpoint->value("versionId", ""), (*checkpoint)["planning"], target)) {
+    if (!m_restore_chat_version(checkpoint->value("versionId", ""), target)) {
         m_chat_transition_blocked = true;
         send_bridge_error("restore_failed", "The saved project could not be restored.", envelope_id);
         send_state();
@@ -2694,71 +2679,6 @@ void AgentHost::handle_agent_tool_call(AgentToolCall call)
     send_conversations();
 }
 
-bool AgentHost::remember_agent_authored(const ToolActivity& activity)
-{
-    const json result = json::parse(activity.result_json, nullptr, false);
-    // A patch that changed nothing wrote nothing, so it authored nothing.
-    if (result.is_discarded() || !result.is_object() || !result.value("applied", false) ||
-        result.value("scope", "").empty())
-        return false;
-    const std::string scope = result.value("scope", "");
-    const auto changes = result.find("changes");
-    if (changes == result.end() || !changes->is_array())
-        return false;
-    // Both the requested changes and the dependencies Orca normalized as a
-    // consequence: the reader did not type either of them. The requested ones
-    // are serialized first, so the tool result's 64-entry cap can only ever
-    // cost us a dependency, never a setting the agent was asked for.
-    for (const json& change : *changes)
-        if (change.is_object() && change.contains("key") && change["key"].is_string() &&
-            change.contains("after") && change["after"].is_string())
-            m_agent_authored[scope + ":" + change["key"].get<std::string>()] = change["after"].get<std::string>();
-    return true;
-}
-
-void AgentHost::rebuild_agent_authored()
-{
-    m_agent_authored.clear();
-    // Left unbound so the next context adopts whatever preset is in force
-    // without mistaking the rebuild itself for a preset switch.
-    m_agent_authored_presets.clear();
-    for (const ToolActivity& activity : m_persistence.document().activities())
-        if (activity.state == ToolState::Succeeded && activity.tool == "settings_apply_patch")
-            remember_agent_authored(activity);
-}
-
-std::set<std::string> AgentHost::agent_authored_keys(const Workspace::WorkspaceSnapshot& snapshot)
-{
-    // Switching a preset changes the baseline its deltas are measured from, so
-    // what the agent wrote against the old one does not carry over. The
-    // selected names are read from the setup itself: a preset with nothing
-    // edited has no delta to carry its name, and is switched all the same.
-    const std::pair<const char*, const std::string&> selected[] = {{"process", snapshot.setup.process_preset},
-                                                                   {"filament", snapshot.setup.filament_preset},
-                                                                   {"printer", snapshot.setup.printer_preset}};
-    for (const auto& [type, name] : selected) {
-        const auto bound = m_agent_authored_presets.find(type);
-        if (bound == m_agent_authored_presets.end()) {
-            m_agent_authored_presets.emplace(type, name);
-        } else if (bound->second != name) {
-            const std::string prefix = std::string(type) + ":";
-            for (auto authored = m_agent_authored.begin(); authored != m_agent_authored.end();)
-                if (authored->first.rfind(prefix, 0) == 0) authored = m_agent_authored.erase(authored); else ++authored;
-            bound->second = name;
-        }
-    }
-    std::set<std::string> keys;
-    for (const Workspace::PresetDelta& delta : snapshot.preset_deltas) {
-        const std::string scoped_key = delta.preset_type + ":" + delta.key;
-        const auto found = m_agent_authored.find(scoped_key);
-        // The agent's only while the value it applied is the value in force.
-        // Edit that setting by hand and the delta becomes yours again.
-        if (found != m_agent_authored.end() && found->second == delta.value)
-            keys.insert(scoped_key);
-    }
-    return keys;
-}
-
 // What the model reads for a call's outcome: the host's envelope, or the
 // session's own words for its tools.
 json AgentHost::tool_output_json(const ToolActivity& activity) const
@@ -2792,12 +2712,13 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         const WorkspaceSnapshot current_workspace = m_workspace.snapshot();
         output["actionId"]          = activity.action_id;
         output["workspaceRevision"] = current_workspace.revision;
-        // The plan's real validity, which an edit since plan_set may have
-        // put in doubt; the chat's setup title is the agent's own words.
+        // The plan's real validity, which a person's or another client's
+        // edit since plan_set may have put in doubt. The chat's setup title
+        // and headline are the agent's own words, so they are not repeated.
         const PlanRecord plan = m_persistence.document().plan();
-        output["workspace"] = context_json(current_workspace, agent_authored_keys(current_workspace), {}, plan.validity,
-                                           plan.invalidated_by);
-        output["workspace"].erase("setupIntent");
+        output["workspace"] = context_json(current_workspace);
+        output["workspace"]["planValidity"]      = plan.validity;
+        output["workspace"]["planInvalidatedBy"] = plan.invalidated_by;
         // A call that opened or imported a file brings its load report back
         // in this result, which is where the model first reads it.
         if (brings_load_report(activity))

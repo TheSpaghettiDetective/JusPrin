@@ -312,8 +312,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 });
             },
             [this] { return m_autosave->save_now(); },
-            [this](const std::string& version, const nlohmann::json& planning, const std::string& chat) {
-                return m_autosave->restore_chat(version, planning, chat);
+            [this](const std::string& version, const std::string& chat) {
+                return m_autosave->restore_chat(version, chat);
             });
         project_host.checkpoint_active_chat();
         project_host.set_restore_points_provider([this] {

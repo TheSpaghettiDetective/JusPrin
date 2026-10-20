@@ -1,9 +1,10 @@
-// A compact, chat-owned account of the selected presets and every value that
-// differs from them. Native code supplies facts and formatted values; this
-// page only orders and presents them.
+// A compact, chat-owned account of the setup: what the chat asked for, the
+// selected presets, how the agent means to print (its plan's headline), and
+// the estimates. Native code supplies the facts; this page presents them.
+// The settings that differ from the presets are on the setup page.
 
 import { ReactNode, useState } from 'react';
-import { ChangeInfo, PresetDeltaInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
+import { ChangeInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
 
 export interface SetupCardProps {
   context: WorkspaceContext | null;
@@ -156,31 +157,8 @@ export function presetsLine(context: WorkspaceContext, title: string): string {
   return parts.filter(Boolean).join(' · ');
 }
 
-// The order the card and the page list differences in: the agent's before the
-// person's, and within each the most recently changed first. Settings changed
-// in one go -- one patch from the agent, one profile loaded by hand -- are
-// equally new: the log holds them in the host's order, and which of them was
-// written last says nothing. They, and differences this chat's log does not
-// mention, keep the host's order, which is OrcaSlicer's own.
-export function orderedPresetDeltas(deltas: PresetDeltaInfo[], changes?: ChangeInfo[]): PresetDeltaInfo[] {
-  const changedAt = new Map<string, number>();
-  let batch = 0;
-  let previous: ChangeInfo | undefined;
-  for (const change of [...(changes ?? [])].sort((a, b) => a.seq - b.seq)) {
-    if (change.kind !== 'setting' || !change.key) { previous = undefined; continue; }
-    const together = previous && previous.actor === change.actor &&
-      Math.abs(Date.parse(change.createdAt) - Date.parse(previous.createdAt)) <= 1000;
-    if (!together) batch = change.seq;
-    changedAt.set(change.key, batch);
-    previous = change;
-  }
-  return deltas.map((delta, index) => ({ delta, index })).sort((left, right) => {
-    if (left.delta.origin !== right.delta.origin) return left.delta.origin === 'agent' ? -1 : 1;
-    const newer = (changedAt.get(right.delta.key) ?? -1) - (changedAt.get(left.delta.key) ?? -1);
-    return newer !== 0 ? newer : left.index - right.index;
-  }).map(({ delta }) => delta);
-}
-
+// Objects that print with settings of their own. The headline cannot say so,
+// and nothing else on the card does.
 export function overrideObjectCount(context: WorkspaceContext): number {
   return new Set((context.appliedSetup?.localOverrides ?? [])
     .map((local) => local.object).filter((object): object is number => object !== undefined)).size;
@@ -264,20 +242,6 @@ function Attention({ findings }: { findings: Finding[] }) {
   </>;
 }
 
-// One row per setting that differs: its name, and "preset → value" as the
-// host formatted it. A summary saved before the host formatted values has
-// only the raw pair. The name gives way on a narrow dock, with the setting's
-// place in OrcaSlicer's tabs in its tooltip; the value is never cut.
-export function ChangeRows({ deltas }: { deltas: PresetDeltaInfo[] }) {
-  return <dl className="current-setup-rows">{deltas.map((delta) => {
-    const name = delta.label || delta.key;
-    return <div className="current-setup-row current-setup-row--change" key={`${delta.presetType ?? ''}:${delta.key}`}>
-      <dt title={[delta.page, delta.group, name].filter(Boolean).join(' · ')}>{name}</dt>
-      <dd>{delta.display || `${delta.preset} → ${delta.value}`}</dd>
-    </div>;
-  })}</dl>;
-}
-
 export function SetupCard({ context, working: busy = false, historical = false, savedAt, agentAvailable = true,
   changes, now = Date.now(), estimateBefore, sent, attention = [], onCompute, onUndo, onViewSetup }: SetupCardProps) {
   if (!context) return null;
@@ -300,12 +264,11 @@ export function SetupCard({ context, working: busy = false, historical = false, 
   }
 
   const { estimate, justChanged, edited, editedByYou, outOfDate } = presentation;
-  const ordered = orderedPresetDeltas(context.presetDeltas, changes);
-  const shown = ordered.slice(0, 2);
-  const remaining = ordered.length - shown.length;
+  // The plan's headline in every state the card has: the state label and the
+  // notices say how far the card can be trusted. With no plan pinned there is
+  // no line at all.
+  const headline = context.planHeadline.trim();
   const objects = overrideObjectCount(context);
-  const note = [remaining > 0 ? plural(remaining, 'more change', 'more changes') : '',
-    objects > 0 ? plural(objects, 'object with overrides', 'objects with overrides') : ''].filter(Boolean).join(' · ');
   const presets = presetsLine(context, presentation.title);
 
   const withheld = editedByYou && estimate.status === 'stale';
@@ -315,10 +278,10 @@ export function SetupCard({ context, working: busy = false, historical = false, 
     : 'Estimate unavailable for these edits') : estimate.description;
   const canCompute = !historical && !working && !!onCompute && estimate.status === 'none';
   // What the card adds for the minute a change is new. The settings the
-  // agent changed are not repeated: they lead the rows above, and the thread
-  // lists them under the card. A project step is not a difference from any
-  // preset, so it is named here, and it is the one thing Orca can undo: its
-  // undo takes the top of its own stack, and a preset edit is not on it.
+  // agent changed are not listed: the thread's change rows under its turn
+  // name them, and the setup page lists every difference. A project step is
+  // named here, and it is the one thing Orca can undo: its undo takes the top
+  // of its own stack, and a preset edit is not on it.
   const last = justChanged.at(-1);
   const step = !working && last?.kind === 'step' ? last : undefined;
   const undoable = !!onUndo && !!step && context.history.canUndo;
@@ -338,8 +301,9 @@ export function SetupCard({ context, working: busy = false, historical = false, 
       {presentation.state && <span className="current-setup-state">{presentation.state}</span>}</div>
     {presentation.title && <h2 className="current-setup-title" title={presentation.title}>{presentation.title}</h2>}
     {presets && <p className="current-setup-line current-setup-line--single" title={presets}>{presets}</p>}
-    {shown.length > 0 ? <ChangeRows deltas={shown} /> : <p className="current-setup-line">No changes from presets</p>}
-    {note && <p className="current-setup-note">{note}</p>}
+    {headline && <p className="current-setup-strategy">{headline}</p>}
+    {objects > 0 && <p className="current-setup-note">
+      {plural(objects, 'object with overrides', 'objects with overrides')}</p>}
     {heading && <p className="current-setup-heading">{heading}</p>}
     {!withheld && estimate.metrics.length > 0 && <Metrics estimate={estimate} />}
     {description && <p className="current-setup-line">{description}</p>}

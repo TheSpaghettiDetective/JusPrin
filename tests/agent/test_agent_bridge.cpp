@@ -776,94 +776,42 @@ TEST_CASE("an intent-only update titles its chat without applying settings", "[a
     CHECK(harness.of_type("context").back()["payload"]["context"]["presetDeltas"].empty());
 }
 
-TEST_CASE("the card counts your hand edits apart from the agent's changes", "[agent][context][setup-card]")
+TEST_CASE("the plan's headline reaches the card when plan_set succeeds", "[agent][context][setup-card]")
 {
     Harness harness;
     harness.handshake();
-    const std::string message_id = harness.send_user_message("make it strong", "c-1");
+    const std::string chat = harness.persistence.document().active_conversation_id();
+    REQUIRE(harness.persistence.document().rename_conversation(chat, "Bracket chat"));
+    const std::string message_id = harness.send_user_message("make it strong", "c-plan");
     harness.pump_all();
-
-    auto apply = [&](json changes) {
-        json arguments{{"scope", "process"}, {"changes", std::move(changes)}};
-        arguments["expectedSessionId"] = std::to_string(harness.workspace.snapshot().session.value());
-        arguments["expectedRevision"]  = harness.workspace.snapshot().revision;
-        const std::string action =
-            harness.host.tools().submit({"settings_apply_patch", arguments.dump()}, message_id).action_id;
+    const auto run = [&](const char* tool, const json& arguments) {
+        const std::string action = harness.host.tools().submit({tool, arguments.dump()}, message_id).action_id;
         for (int tick = 0; tick < 20 && !tool_state_terminal(harness.host.tools().find(action)->state); ++tick)
             harness.host.pump_tools();
         REQUIRE(harness.host.tools().find(action)->state == ToolState::Succeeded);
     };
-    auto origins = [&](const json& context) {
-        std::map<std::string, std::string> result;
-        for (const json& delta : context["presetDeltas"])
-            result[delta["key"].get<std::string>()] = delta["origin"].get<std::string>();
-        return result;
-    };
-    auto pushed = [&] { return origins(harness.of_type("context").back()["payload"]["context"]); };
+    CHECK((*harness.last_of_type("state"))["payload"]["context"]["planHeadline"] == "");
 
-    SECTION("what the agent applied is the agent's; what you typed is yours")
-    {
-        apply(json{{"wall_loops", 4}});
-        harness.workspace.set_setting_for_testing("brim_width", "8");
-        CHECK(pushed() == std::map<std::string, std::string>{{"wall_loops", "agent"}, {"brim_width", "user"}});
-    }
-
-    SECTION("editing a setting the agent wrote takes it back")
-    {
-        apply(json{{"wall_loops", 4}});
-        REQUIRE(pushed().at("wall_loops") == "agent");
-        harness.workspace.set_setting_for_testing("wall_loops", "6");
-        // The card describes the project, so the last hand on a setting owns
-        // it. Restoring the agent's exact value would read as the agent's
-        // again: the card compares values, it does not watch keystrokes.
-        CHECK(pushed().at("wall_loops") == "user");
-    }
-
-    SECTION("switching the process preset drops attribution with the baseline")
-    {
-        apply(json{{"wall_loops", 4}});
-        REQUIRE(pushed().at("wall_loops") == "agent");
-        harness.workspace.set_process_preset_for_testing("Another process");
-        // The same key against a different preset is a different claim, and
-        // nothing the agent did says who put this value in force.
-        CHECK(pushed().at("wall_loops") == "user");
-    }
-
-    SECTION("a preset switched with nothing edited drops attribution all the same")
-    {
-        apply(json{{"wall_loops", 4}});
-        // Back at the preset's value there is no delta left to carry the
-        // preset's name, and the switch away and back happens unseen by any.
-        harness.workspace.set_setting_for_testing("wall_loops", "2");
-        harness.workspace.set_process_preset_for_testing("Another process");
-        harness.workspace.set_process_preset_for_testing("Fixture process");
-        harness.workspace.set_setting_for_testing("wall_loops", "4");
-        CHECK(pushed().at("wall_loops") == "user");
-    }
-
-    SECTION("reopening the project reads the attribution back out of its history")
-    {
-        apply(json{{"wall_loops", 4}});
-        harness.workspace.set_setting_for_testing("brim_width", "8");
-
-        // A second host over the same project is what reopening it looks like:
-        // the settings survive in the preset, and the only record of who wrote
-        // them is the persisted tool history.
-        std::vector<json> sent;
-        AgentHost         reopened(harness.workspace, harness.persistence, AgentAvailability::Ready, false,
-                                   std::make_unique<DeterministicMockAgent>());
-        reopened.set_send([&sent](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
-        reopened.on_page_message(harness.page_envelope("hello",
-            json{{"protocolVersions", json::array({Protocol::kVersion})},
-                 {"capabilities", json::array({"streaming"})}}).dump());
-
-        const json* state = nullptr;
-        for (const json& envelope : sent)
-            if (envelope["type"] == "state") state = &envelope;
-        REQUIRE(state != nullptr);
-        CHECK(origins((*state)["payload"]["context"]) ==
-              std::map<std::string, std::string>{{"wall_loops", "agent"}, {"brim_width", "user"}});
-    }
+    run("intent_update", json{{"setupTitle", "A strong bracket"}, {"fields", json::array()}});
+    const std::size_t pushes = harness.of_type("context").size();
+    const auto revision = harness.workspace.snapshot().revision;
+    run("plan_set", json{{"headline", "Four walls and gyroid infill for strength"}});
+    // plan_set changes nothing in the workspace, so only its own push brings
+    // the headline to the card.
+    CHECK(harness.workspace.snapshot().revision == revision);
+    REQUIRE(harness.of_type("context").size() == pushes + 1);
+    const json context = harness.of_type("context").back()["payload"]["context"];
+    CHECK(context["planHeadline"] == "Four walls and gyroid infill for strength");
+    // The purpose and the chat's title are separate records, left as they were.
+    CHECK(context["setupIntent"] == "A strong bracket");
+    CHECK(harness.persistence.document().conversations().front().title == "Bracket chat");
+    // The card reads no plan validity, and no delta says who wrote it.
+    CHECK_FALSE(context.contains("planValidity"));
+    harness.workspace.set_setting_for_testing("wall_loops", "4");
+    const json edited = harness.of_type("context").back()["payload"]["context"];
+    REQUIRE(edited["presetDeltas"].size() == 1);
+    CHECK_FALSE(edited["presetDeltas"][0].contains("origin"));
+    CHECK(edited["planHeadline"] == "Four walls and gyroid infill for strength");
 }
 
 TEST_CASE("reload reconstructs the page from native state, mid-stream included", "[agent][reload]")
@@ -1549,7 +1497,7 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     }
 }
 
-TEST_CASE("inactive chat resume checks authority, revision and saved planning", "[agent][conversations]")
+TEST_CASE("inactive chat resume checks authority and revision, and each chat keeps its own plan", "[agent][conversations]")
 {
     Harness harness;
     std::string current_version = "v-1";
@@ -1557,26 +1505,49 @@ TEST_CASE("inactive chat resume checks authority, revision and saved planning", 
         [&] { return current_version; }, [&] { return current_version; },
         [](const std::string& version) { return version == "v-1" || version == "v-2"; },
         [] { return true; },
-        [&](const std::string& version, const json& planning, const std::string& chat) {
-            harness.persistence.document().restore_planning_snapshot(planning);
+        [&](const std::string& version, const std::string& chat) {
             harness.persistence.document().set_active_conversation(chat);
             harness.persistence.document().set_viewed_conversation(chat);
             current_version = version;
             return true;
         });
     harness.handshake();
+    auto& document = harness.persistence.document();
+    const std::string first = document.active_conversation_id();
+    REQUIRE(document.set_setup_intent(first, "Quick print"));
+    PlanRecord quick;
+    quick.headline = "Coarse layers and low infill for a quick fit check";
+    document.set_plan(quick, harness.persistence.timestamp());
     REQUIRE(harness.host.checkpoint_active_chat());
-    const std::string first = harness.persistence.document().active_conversation_id();
+    // The checkpoint holds the moment's card, without the chat's own records.
+    CHECK_FALSE(document.chat_checkpoint(first)->contains("planning"));
+    CHECK_FALSE((*document.chat_checkpoint(first))["summary"].contains("setupIntent"));
+    CHECK_FALSE((*document.chat_checkpoint(first))["summary"].contains("planHeadline"));
+
     harness.deliver("create_conversation", json{{"title", "Strong"}});
-    const std::string second = harness.persistence.document().active_conversation_id();
+    const std::string second = document.active_conversation_id();
     REQUIRE(first != second);
+    // A new chat starts from the intent it came from, with no plan, and the
+    // model is sent none.
+    CHECK(document.setup_intent(second) == "Quick print");
+    CHECK(document.plan().headline.empty());
+    CHECK((*harness.last_of_type("state"))["payload"]["context"]["planHeadline"] == "");
     current_version = "v-2";
-    REQUIRE(harness.persistence.document().set_setup_intent(second, "Strong print"));
+    REQUIRE(document.set_setup_intent(second, "Strong print"));
+    PlanRecord strong;
+    strong.headline = "Four walls and gyroid infill for strength";
+    document.set_plan(strong, harness.persistence.timestamp());
+
     harness.deliver("switch_conversation", json{{"conversationId", first}});
     const json payload = (*harness.last_of_type("state"))["payload"];
     CHECK(payload["activeConversationId"] == second);
     CHECK(payload["chatResume"]["status"] == "changed");
-    CHECK(payload["chatResume"]["summary"]["setupIntent"] == "");
+    // The saved card reads its own chat's title and headline, never the
+    // active chat's.
+    CHECK(payload["chatResume"]["summary"]["setupIntent"] == "Quick print");
+    CHECK(payload["chatResume"]["summary"]["planHeadline"] == "Coarse layers and low infill for a quick fit check");
+    CHECK(payload["context"]["setupIntent"] == "Strong print");
+    CHECK(payload["context"]["planHeadline"] == "Four walls and gyroid infill for strength");
 
     harness.deliver("restore_conversation", json{{"conversationId", first},
                                                   {"activeConversationId", second},
@@ -1592,6 +1563,11 @@ TEST_CASE("inactive chat resume checks authority, revision and saved planning", 
     CHECK(harness.persistence.document().viewed_conversation_id() == first);
     CHECK(current_version == "v-1");
     CHECK(harness.persistence.document().chat_checkpoint(second)->at("versionId") == "v-2");
+    // Resuming copies nothing: the chat's plan never left it.
+    CHECK(document.plan().headline == "Coarse layers and low infill for a quick fit check");
+    CHECK(document.plan(second).headline == "Four walls and gyroid infill for strength");
+    CHECK((*harness.last_of_type("state"))["payload"]["context"]["planHeadline"] ==
+          "Coarse layers and low infill for a quick fit check");
 }
 
 TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conversations]")
@@ -1600,7 +1576,7 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     harness.host.set_chat_checkpoint_callbacks(
         [] { return std::string("v-1"); }, [] { return std::string("v-1"); },
         [](const std::string&) { return true; }, [] { return true; },
-        [](const std::string&, const json&, const std::string&) { return false; });
+        [](const std::string&, const std::string&) { return false; });
     harness.handshake();
     REQUIRE(harness.host.checkpoint_active_chat());
     const std::string first = harness.persistence.document().active_conversation_id();
@@ -2877,7 +2853,7 @@ TEST_CASE("work cut off when its project was closed reads as interrupted", "[age
     CHECK_FALSE(saved[0].contains("progress"));
 }
 
-TEST_CASE("the work log survives a save, and a project saved before it existed has none", "[agent][work][persistence]")
+TEST_CASE("the work log survives a save", "[agent][work][persistence]")
 {
     ProjectStateDocument written;
     WorkEntry entry;
@@ -2893,14 +2869,6 @@ TEST_CASE("the work log survives a save, and a project saved before it existed h
     CHECK(read.work()[0].id == started.id);
     CHECK(read.work()[0].state == "done");
     CHECK(read.work()[0].ended_at == "2026-10-13T10:00:05Z");
-
-    json older = json::parse(written.dump());
-    older.erase("work");
-    ProjectStateDocument before;
-    before.load(older.dump());
-    CHECK(before.work().empty());
-    // And it can start keeping one.
-    CHECK(before.begin_work(entry, "2026-10-13T11:00:00Z").state == "running");
 }
 
 // --- Project skills ----------------------------------------------------------
@@ -4070,6 +4038,40 @@ TEST_CASE("a purpose recorded for the first time or changed fires the setup skil
         harness, *agent, intent_call({{"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}}), "Use ASA.");
     CHECK(json::parse(changed.output_json)["result"]["purposeChange"] == "changed");
     CHECK(fires_setup_skill(changed));
+}
+
+TEST_CASE("the model reads its plan as current after its own changes and in doubt after a person's",
+          "[agent][plan]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const auto validity = [](const AgentToolResult& result) {
+        return json::parse(result.output_json)["workspace"]["planValidity"].get<std::string>();
+    };
+
+    const AgentToolResult planned = run_call(harness, *agent,
+        ToolRequest{"plan_set", json{{"headline", "Four walls and gyroid infill for strength"}}.dump()}, "Make it strong.");
+    REQUIRE(planned.state == "succeeded");
+    CHECK(validity(planned) == "current");
+    const auto snapshot = harness.workspace.snapshot();
+    const AgentToolResult applied = run_call(harness, *agent,
+        ToolRequest{"settings_apply_patch", json{{"scope", "process"}, {"changes", {{"wall_loops", 4}}},
+                                                 {"expectedSessionId", std::to_string(snapshot.session.value())},
+                                                 {"expectedRevision", snapshot.revision}}.dump()},
+        "Go ahead.");
+    REQUIRE(applied.state == "succeeded");
+    REQUIRE(harness.persistence.document().changes().back().actor == "agent");
+    CHECK(validity(applied) == "current");
+    CHECK(harness.persistence.document().plan().validity == "current");
+
+    harness.workspace.set_setting_for_testing("brim_width", "8");
+    REQUIRE(harness.persistence.document().changes().back().actor == "person");
+    const AgentToolResult after = run_call(harness, *agent,
+        intent_call({{"setupTitle", "A strong bracket"}, {"fields", json::array()}}), "Anything else?");
+    CHECK(validity(after) == "needs_reassessment");
+    CHECK_FALSE(json::parse(after.output_json)["workspace"]["planInvalidatedBy"].get<std::string>().empty());
 }
 
 TEST_CASE("the model's own printer_setup never fires the setup skill, and its setup counts as checked",

@@ -20,8 +20,12 @@ const context = {
   selection: { status: 'none' as const, objectIds: [] },
   history: { canUndo: false, canRedo: false },
   presetDeltas: [],
+  appliedSetup: null,
+  setupIdentity: null,
+  printerReview: null,
   currency: 'USD',
   setupIntent: '',
+  planHeadline: '',
 };
 
 function toolActivity(overrides: Partial<ToolActivityInfo> = {}): ToolActivityInfo {

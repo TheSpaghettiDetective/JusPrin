@@ -68,8 +68,12 @@ const context: WorkspaceContext = {
   selection: { status: 'objects', objectIds: ['21'] },
   history: { canUndo: false, canRedo: false },
   presetDeltas: [],
+  appliedSetup: null,
+  setupIdentity: null,
+  printerReview: null,
   currency: 'USD',
   setupIntent: '',
+  planHeadline: '',
 };
 
 // The same project as reported by a host that reads the applied settings.
@@ -563,9 +567,9 @@ describe('App', () => {
 
   it('shows saved historical setup and requires a scoped restore confirmation', async () => {
     render(<App getTransport={() => host.transport} />);
-    const earlier = { ...context, setupIntent: 'Quick print', presetDeltas: [
-      { key: 'sparse_infill_density', label: 'Sparse infill density', value: '5%', preset: '15%', origin: 'agent' as const },
-    ] };
+    const earlier = { ...context, setupIntent: 'Quick print', planHeadline: 'Coarse layers and 5% infill for a quick print',
+      presetDeltas: [{ key: 'sparse_infill_density', label: 'Sparse infill density', value: '5%', preset: '15%',
+        presetType: 'process' as const, presetName: 'Test Printer 0.4' }] };
     connect(host, emptyState({
       conversations: [
         { id: 'conv-a', title: 'Quick print', createdAt: 't' },
@@ -576,10 +580,15 @@ describe('App', () => {
       conversation: toolCallConversation(),
       toolActivities: [toolActivity()],
       draft: 'Keep my current draft',
-      context: { ...context, setupIntent: 'Strong print' },
+      context: { ...context, setupIntent: 'Strong print', planHeadline: 'Four walls and gyroid infill for strength' },
     }));
 
-    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('5%');
+    // The saved card is its own chat's: its title and headline, never the
+    // active chat's.
+    const saved = screen.getByLabelText('Earlier setup — saved with this conversation');
+    expect(saved).toHaveTextContent('Quick print');
+    expect(saved).toHaveTextContent('Coarse layers and 5% infill for a quick print');
+    expect(saved).not.toHaveTextContent(/Strong print|Four walls/);
     expect(screen.getAllByText(/The canvas shows your current project\./)).toHaveLength(1);
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
     await userEvent.click(screen.getAllByRole('button', { name: 'Restore and resume' })[0]);
@@ -688,13 +697,13 @@ describe('App', () => {
   it('does not let a live workspace update rewrite the saved card', () => {
     render(<App getTransport={() => host.transport} />);
     const saved: WorkspaceContext = {
-      ...context, setupIntent: 'Earlier bracket',
+      ...context, setupIntent: 'Earlier bracket', planHeadline: 'Two walls for a light bracket',
       plates: [{ ...context.plates[0], sliced: true,
         estimate: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } }],
       appliedSetup: { version: 1, plateId: '11', printableObjects: 1, spiralMode: false,
-        variableLayerHeight: false, localOverrides: [] },
+        variableLayerHeight: false, objects: ['cube-a'], localOverrides: [] },
       presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '3', value: '2', display: '3 → 2',
-        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
+        presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
     };
     connect(host, emptyState({
       conversations: [
@@ -705,13 +714,17 @@ describe('App', () => {
       chatResume: { status: 'changed', versionId: 'saved-1', summary: saved },
     }));
     const earlier = screen.getByLabelText('Earlier setup — saved with this conversation');
-    expect(earlier).toHaveTextContent('Wall loops3 → 2');
+    expect(earlier).toHaveTextContent('Two walls for a light bracket');
     expect(earlier).toHaveTextContent('~42 min');
 
     host.deliver('context', { context: { ...context, revision: 3, setupIntent: 'Live project',
-      presetDeltas: [{ ...saved.presetDeltas[0], value: '5', display: '3 → 5' }] } });
-    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).toHaveTextContent('Wall loops3 → 2');
-    expect(screen.getByLabelText('Earlier setup — saved with this conversation')).not.toHaveTextContent('3 → 5');
+      planHeadline: 'Four walls and gyroid infill for strength',
+      plates: [{ ...context.plates[0], sliced: true,
+        estimate: { printTimeSeconds: 6000, materialGrams: 30, materialCost: null } }] } });
+    const after = screen.getByLabelText('Earlier setup — saved with this conversation');
+    expect(after).toHaveTextContent('Two walls for a light bracket');
+    expect(after).toHaveTextContent('~42 min');
+    expect(after).not.toHaveTextContent(/Four walls|Live project|~1h 40m/);
   });
 
   it('returns to the active chat without restoring the historical project', async () => {
@@ -874,23 +887,26 @@ describe('App', () => {
     connect(host, emptyState({ context: applied }));
     const card = () => screen.getByTestId('current-setup');
     expect(card()).toHaveTextContent('Test Printer 0.4');
-    expect(card()).toHaveTextContent('No changes from presets');
+    expect(card()).not.toHaveTextContent('No changes from presets');
     expect(card()).toHaveTextContent('Not sliced');
 
-    // A hand edit in Orca, a slice, and an intent: no chat turn in between.
+    // A hand edit in Orca, a slice, an intent and a plan: no chat turn in
+    // between.
     const changed: WorkspaceContext = {
       ...applied,
       revision: 3,
       setupIntent: "Strong - it'll bear weight",
+      planHeadline: 'Four walls and gyroid infill for strength',
       presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', display: '2 → 4',
-        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
+        presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }],
       plates: [{ ...applied.plates[0], sliced: true, estimate: { printTimeSeconds: 13800, materialGrams: 47, materialCost: null } }],
     };
     host.deliver('context', { context: changed });
 
     expect(card()).toHaveAccessibleName('Current setup');
     expect(card()).toHaveTextContent("Strong - it'll bear weight");
-    expect(card()).toHaveTextContent('Wall loops2 → 4');
+    expect(card()).toHaveTextContent('Four walls and gyroid infill for strength');
+    expect(card()).not.toHaveTextContent('Wall loops');
     expect(card()).toHaveTextContent('~3h 50m');
     expect(card()).toHaveTextContent('47 g');
     expect(card()).toHaveTextContent('Current');
@@ -932,7 +948,7 @@ describe('App', () => {
 
     host.deliver('context', { context: { ...applied, revision: 3,
       presetDeltas: [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', display: '2 → 4',
-        origin: 'user', presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }] } });
+        presetType: 'process', presetName: 'Test Printer 0.4', page: 'Strength', group: 'Walls' }] } });
     const page = screen.getByTestId('current-setup-page');
     expect(page).toHaveTextContent('Changed from presets · 1');
     expect(page).toHaveTextContent('Strength · Walls');

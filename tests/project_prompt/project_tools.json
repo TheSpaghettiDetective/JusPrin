@@ -463,7 +463,7 @@
     "type": "function"
   },
   {
-    "description": "State how you mean to print this project and why: the headline, one entry per decision with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first. Replaces the whole plan and runs immediately; project Undo does not undo this.",
+    "description": "State how you mean to print this project and why. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, assumptions and risks. Give one decision per entry with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first, and again whenever the strategy changes, so the headline stays true. Replaces the whole plan and runs immediately; project Undo does not undo this.",
     "name": "plan_set",
     "parameters": {
       "additionalProperties": false,

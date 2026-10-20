@@ -8,7 +8,7 @@
 import { ReactNode, useState } from 'react';
 import { AppliedSetupInfo, ChangeInfo, PresetDeltaInfo, SetupIdentityInfo, WorkspaceContext } from '../bridge/protocol';
 import { AgentPaneToggle } from './ChatNavigation';
-import { ChangeRows, formatGrams, formatPrintTime, orderedPresetDeltas, setupPresentation } from './SetupCard';
+import { formatGrams, formatPrintTime, setupPresentation } from './SetupCard';
 
 interface SetupPageProps {
   context: WorkspaceContext;
@@ -53,19 +53,19 @@ function runs<T>(items: T[], heading: (item: T) => string): [string, T[]][] {
 
 const PRESET_ORDER = ['process', 'filament', 'printer'];
 
-function PresetChanges({ deltas, changes }: { deltas: PresetDeltaInfo[]; changes?: ChangeInfo[] }) {
-  // The card's own order inside a preset, so its two rows lead here too; the
-  // presets themselves keep one order whatever was edited last.
-  const ordered = orderedPresetDeltas(deltas, changes);
+// One order whatever was edited last or by whom: process, filament, printer,
+// and within a preset the host's, which is OrcaSlicer's own order of its
+// settings, so its page and group runs read as its tabs do.
+function PresetChanges({ deltas }: { deltas: PresetDeltaInfo[] }) {
   const rank = (delta: PresetDeltaInfo) => {
     const index = PRESET_ORDER.indexOf(delta.presetType ?? 'process');
     return index < 0 ? PRESET_ORDER.length : index;
   };
-  const byPreset = runs([...ordered].sort((left, right) => rank(left) - rank(right)),
+  const byPreset = runs([...deltas].sort((left, right) => rank(left) - rank(right)),
     (delta) => `${delta.presetType ?? ''}\u0000${delta.presetName ?? ''}`);
   return <><hr className="current-setup-divider" /><section className="current-setup-section">
-    <h3>{ordered.length > 0 ? `Changed from presets · ${ordered.length}` : 'Changed from presets'}</h3>
-    {ordered.length === 0 && <p className="current-setup-note">No changes from presets</p>}
+    <h3>{deltas.length > 0 ? `Changed from presets · ${deltas.length}` : 'Changed from presets'}</h3>
+    {deltas.length === 0 && <p className="current-setup-note">No changes from presets</p>}
     {byPreset.map(([preset, inPreset]) => <PresetGroup key={preset} name={inPreset[0].presetName ?? ''} deltas={inPreset} />)}
   </section></>;
 }
@@ -74,8 +74,22 @@ function PresetGroup({ name, deltas }: { name: string; deltas: PresetDeltaInfo[]
   return <>
     {name && <p className="current-setup-object-name">{name}</p>}
     {runs(deltas, (delta) => [delta.page, delta.group].filter(Boolean).join(' · ')).map(([location, rows]) =>
-      <Group key={location} heading={location}><ChangeRows deltas={rows} /></Group>)}
+      <Group key={location} heading={location}><DeltaRows deltas={rows} /></Group>)}
   </>;
+}
+
+// One row per setting that differs: its name, and "preset → value" as the
+// host formatted it, or the raw pair when the formatter had nothing to say.
+// The name gives way on a narrow dock, with the setting's place in
+// OrcaSlicer's tabs in its tooltip; the value is never cut.
+function DeltaRows({ deltas }: { deltas: PresetDeltaInfo[] }) {
+  return <dl className="current-setup-rows">{deltas.map((delta) => {
+    const name = delta.label || delta.key;
+    return <div className="current-setup-row current-setup-row--change" key={`${delta.presetType ?? ''}:${delta.key}`}>
+      <dt title={[delta.page, delta.group, name].filter(Boolean).join(' · ')}>{name}</dt>
+      <dd>{delta.display || `${delta.preset} → ${delta.value}`}</dd>
+    </div>;
+  })}</dl>;
 }
 
 function Group({ heading, children }: { heading: string; children: ReactNode }) {
@@ -128,7 +142,7 @@ function ObjectOverrides({ object, name, locals, identity, open, onToggle }: { o
         const valued = rows.filter((local) => local.key && (local.display || local.value));
         return <Group key={heading} heading={heading}>
           {valued.length > 0 && <dl className="current-setup-rows">{valued.map((local, index) => {
-            // A summary saved before the host named settings has the key.
+            // A customization OrcaSlicer has no setting name for shows its key.
             const name = local.label || sentence(local.key);
             return <div className="current-setup-row current-setup-row--change" key={`${local.key}-${index}`}>
               <dt title={name}>{name}</dt><dd>{overrideValue(local, identity)}</dd>
@@ -205,7 +219,7 @@ export function SetupPage({ context, historical, working, agentAvailable, change
         {presentation.state && <span className="current-setup-state">{presentation.state}</span>}</div>
       {presentation.title && <h2 className="current-setup-title" title={presentation.title}>{presentation.title}</h2>}
       <Presets context={context} />
-      <PresetChanges deltas={context.presetDeltas} changes={changes} />
+      <PresetChanges deltas={context.presetDeltas} />
       <Objects context={context} />
       <Plates context={context} />
     </section>

@@ -2,7 +2,6 @@
 
 #include "ProjectAutosave.hpp"
 #include "DialogListeners.hpp"
-#include "Regions.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
@@ -141,31 +140,17 @@ bool authored_head(const std::filesystem::path& project)
     std::ifstream head(project / "HEAD", std::ios::binary);
     std::string content((std::istreambuf_iterator<char>(head)), std::istreambuf_iterator<char>());
     if (content.empty()) return false;
-    std::string id;
-    if (content.front() == '{')
-        id = nlohmann::json::parse(content).at("current").get<std::string>();
-    else {
-        id = content;
-        if (!id.empty() && id.back() == '\n') id.pop_back();
-    }
+    const std::string id = nlohmann::json::parse(content).at("current").get<std::string>();
     const auto version = project / "versions" / id;
     std::ifstream manifest_file(version / "manifest.json", std::ios::binary);
     const auto manifest = nlohmann::json::parse(manifest_file);
     if (!manifest.at("objects").empty())
         return true;
     const auto current_path = project / "current-state.json";
-    if (std::filesystem::exists(current_path)) {
-        std::ifstream current_file(current_path, std::ios::binary);
-        const auto current = nlohmann::json::parse(current_file);
-        if (current.value("schema", 0) == 2 ||
-            (current.value("schema", 0) == 1 && current.value("baseVersion", std::string()) == id))
-            return current.at("state").value("docRevision", std::uint64_t{0}) > 1;
-    }
-    const auto legacy_path = version / "state.json";
-    if (!std::filesystem::exists(legacy_path))
+    if (!std::filesystem::exists(current_path))
         return false;
-    std::ifstream legacy_file(legacy_path, std::ios::binary);
-    return nlohmann::json::parse(legacy_file).value("docRevision", std::uint64_t{0}) > 1;
+    std::ifstream current_file(current_path, std::ios::binary);
+    return nlohmann::json::parse(current_file).at("state").value("docRevision", std::uint64_t{0}) > 1;
 }
 
 // The MD5 of a file's content; empty when it cannot be read.
@@ -770,24 +755,15 @@ std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
             const std::string id = entry.path().filename().string();
             const auto add = [&result, &entry, &id](const ProjectVersionStore::Version& version) {
                 const auto source = std::filesystem::u8path(version.source_path);
-                std::string name = !version.project_name.empty() ? version.project_name : source.stem().u8string();
-                if (name.empty() && !version.objects.empty()) {
-                    // Versions written before projectName was added still have
-                    // the original object name in their Orca resource entry.
-                    const auto& object = version.objects.front();
-                    name = std::filesystem::u8path(object.entry).filename().u8string();
-                    const std::string suffix = "_" + std::to_string(object.backup_id) + ".model";
-                    if (name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
-                        name.erase(name.size() - suffix.size());
-                    name = std::filesystem::u8path(name).stem().u8string();
-                }
+                const std::string name = !version.project_name.empty() ? version.project_name : source.stem().u8string();
                 ManagedProject project{id, name, version.created_at, version.source_path, entry.path().u8string()};
                 try {
                     project.thumbnail_url = saved_preview(entry.path(), version.id);
                     if (project.thumbnail_url.empty()) {
-                        // Older local projects have no preview sidecar. Orca's
-                        // original 3MF thumbnail keeps their Home cards useful
-                        // until the project is next opened and rendered locally.
+                        // A project whose latest version was never rendered
+                        // here has no preview sidecar for it. Orca's original
+                        // 3MF thumbnail keeps its Home card useful until the
+                        // project is next opened and rendered locally.
                         project.thumbnail_url = source_preview(version.source_path);
                         if (!project.thumbnail_url.empty())
                             write_preview(entry.path(), version.id, project.thumbnail_url);
@@ -1113,53 +1089,40 @@ void ProjectAutosave::record_agent_operation(const std::string& action_id, const
 
 bool ProjectAutosave::restore(const std::string& version_id)
 {
-    return restore_impl(version_id, nullptr, {});
+    return restore_impl(version_id, {});
 }
 
-bool ProjectAutosave::restore_chat(const std::string& version_id, const nlohmann::json& planning,
-                                   const std::string& conversation_id)
+bool ProjectAutosave::restore_chat(const std::string& version_id, const std::string& conversation_id)
 {
-    return restore_impl(version_id, &planning, conversation_id);
+    return restore_impl(version_id, conversation_id);
 }
 
-bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann::json* planning,
-                                   const std::string& conversation_id)
+bool ProjectAutosave::restore_impl(const std::string& version_id, const std::string& conversation_id)
 {
+    const bool chat = !conversation_id.empty();
     std::string before_id;
     std::string before_state;
     std::optional<ProjectVersionStore::Materialization> materialized;
     bool replacement_started = false;
     bool marker_written = false;
-    const auto validate_regions = [&] {
-        if (!planning)
-            return;
-        std::vector<RegionRecord> regions;
-        for (const auto& entry : planning->at("regions"))
-            regions.push_back(region_record_from(entry));
-        for (const RegionStatus& status : m_workspace.region_status(regions))
-            if (status.binding_lost)
-                throw std::runtime_error("a saved region no longer matches this model");
-    };
     try {
         if (!save_now())
             return false;
-        if (version_id == m_committed_head && planning == nullptr)
+        if (version_id == m_committed_head && !chat)
             return true;
         before_id = m_committed_head;
         before_state = m_persistence.document().dump();
         m_store->pin(before_id);
         m_store->pin(version_id);
-        if (planning) {
+        if (chat) {
             m_store->begin_chat_restore(before_id, version_id, conversation_id);
             marker_written = true;
         }
         if (version_id == before_id) {
-            // Planning-only resume keeps the same committed model version.
-            // The document transition still has to be durable before input
+            // Resuming on the committed model version moves no model. The
+            // document transition still has to be durable before input
             // moves to the resumed chat.
-            validate_regions();
-            m_persistence.record_chat_restore(before_state, before_id, version_id,
-                                              *planning, conversation_id);
+            m_persistence.record_chat_restore(before_state, before_id, version_id, conversation_id);
             if (!persist_document(true))
                 throw std::runtime_error(m_error);
             m_store->finish_chat_restore();
@@ -1187,15 +1150,16 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann
                 throw std::runtime_error("the empty project version restored geometry unexpectedly");
             m_plater.set_project_filename(wxString::FromUTF8(version->source_path));
             m_persistence.adopt_managed_state(before_state);
+            // The regions come back with the model they label.
+            m_persistence.document().restore_regions(materialized->regions);
+            const std::string kept_state = m_persistence.document().dump();
             m_last_edit = Clock::now();
-            validate_regions();
             if (!capture(true))
                 throw std::runtime_error(m_error);
-            if (planning) {
-                m_persistence.record_chat_restore(before_state, before_id, version_id,
-                                                  *planning, conversation_id);
-            } else
-                m_persistence.record_managed_restore(before_state, before_id, version_id);
+            if (chat)
+                m_persistence.record_chat_restore(kept_state, before_id, version_id, conversation_id);
+            else
+                m_persistence.record_managed_restore(kept_state, before_id, version_id);
             if (!persist_document(true))
                 throw std::runtime_error(m_error);
         });
@@ -1209,7 +1173,7 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const nlohmann
         }
         m_active_materialization = *materialized;
         m_active_materialization_project = m_store->project_id();
-        if (planning) {
+        if (chat) {
             m_store->finish_chat_restore();
             m_persistence.notify_chat_restore_published();
         }

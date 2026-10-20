@@ -2,6 +2,8 @@
 
 #include "libslic3r/Model.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -39,17 +41,21 @@ public:
     {
         std::string id;
         std::uint64_t revision{0};
-        // Last raw change included in this immutable model snapshot. Zero
-        // means an older manifest without a known timeline boundary.
+        // Last raw change included in this immutable model snapshot; zero
+        // when the change log was empty.
         std::uint64_t change_seq{0};
         std::string created_at;
         std::string source_path;
         std::vector<ObjectResource> objects;
         std::string project_name;
         // The file the project was opened from, and its MD5 then; empty for
-        // a project started empty, and for versions saved before 2026-10-14.
+        // a project started empty.
         std::string opened_from;
         std::string opened_digest;
+        // The region annotations of this model (the project document's
+        // "regions" when it was saved): they label modifiers, paint and
+        // overrides in the model, so they are versioned with it.
+        nlohmann::json regions = nlohmann::json::array();
     };
 
     struct Capture
@@ -67,6 +73,7 @@ public:
         std::filesystem::path metadata;
         std::filesystem::path absent_original;
         std::string semantic_state;
+        nlohmann::json regions; // the version's own
         bool empty{false};
     };
 
@@ -129,8 +136,9 @@ private:
     std::map<std::uint64_t, std::string> m_last_signatures;
     std::shared_ptr<Model> m_last_model;
     std::string m_last_metadata_digest;
+    nlohmann::json m_last_regions;
     std::string m_last_semantic_state;
-    int m_document_schema{0};
+    bool m_document_durable{false};
     bool m_head_needs_sync{false};
     std::function<void(PublishStage)> m_publish_stage_hook;
 #ifdef _WIN32

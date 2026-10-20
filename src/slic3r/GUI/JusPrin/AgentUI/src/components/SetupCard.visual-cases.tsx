@@ -2,10 +2,11 @@
 // acceptance tests and the review page both render the production components
 // from these, so a state is covered only if it can be produced from real
 // inputs. A1, A2 and B are the three frames of the "setup card shows
-// differences from presets" design; the card's remaining states are the ones
-// first drawn on the Figma page "Current Setup Card", sections 6 and 7, whose
-// frame each names. Every setting value below is written the way the host's
-// formatter writes it.
+// differences from presets" design, whose card now carries the plan's
+// headline in place of the differences; the card's remaining states are the
+// ones first drawn on the Figma page "Current Setup Card", sections 6 and 7,
+// whose frame each names. Every setting value below is written the way the
+// host's formatter writes it.
 
 import { ChangeInfo, PresetDeltaInfo, WorkspaceContext } from '../bridge/protocol';
 import { Finding, SetupCard, SetupCardProps } from './SetupCard';
@@ -32,7 +33,7 @@ const PROCESS = '0.20mm Standard @MyKlipper';
 const FILAMENT = 'Generic ABS @System';
 
 const delta = (key: string, label: string, display: string, extra: Partial<PresetDeltaInfo> = {}): PresetDeltaInfo => ({
-  key, label, display, preset: '', value: '', origin: 'agent', presetType: 'process', presetName: PROCESS,
+  key, label, display, preset: '', value: '', presetType: 'process', presetName: PROCESS,
   page: 'Others', group: 'Brim', ...extra });
 
 export function setupWorkspace(): WorkspaceContext {
@@ -58,7 +59,7 @@ export function setupWorkspace(): WorkspaceContext {
         { preset: '50', value: '25', page: 'Speed', group: 'First layer speed' }),
       delta('brim_width', 'Brim width', '0 → 8 mm', { preset: '0', value: '8' }),
       delta('brim_type', 'Brim type', 'Auto → Outer brim only', { preset: 'auto_brim', value: 'outer_only' }),
-      delta('hot_plate_temp', 'Bed temperature', '100 → 105 ℃', { preset: '100', value: '105', origin: 'user',
+      delta('hot_plate_temp', 'Bed temperature', '100 → 105 ℃', { preset: '100', value: '105',
         presetType: 'filament', presetName: FILAMENT, page: 'Filament', group: 'Bed temperature' }),
     ],
     appliedSetup: { version: 1, plateId: 'plate-1', printableObjects: 2, spiralMode: false,
@@ -73,6 +74,7 @@ export function setupWorkspace(): WorkspaceContext {
       { preset: 'Generic PLA @System', material: 'PLA' },
     ] },
     printerReview: { mismatches: [] }, currency: '', setupIntent: 'Stop the corners lifting',
+    planHeadline: 'Wide brim and a slow first layer for adhesion',
   };
 }
 
@@ -87,7 +89,7 @@ const change = (seq: number, patch: Partial<ChangeInfo>): ChangeInfo => ({
   conversationId: 'visual-chat', afterId: 'message-1', ...patch });
 
 // The agent's latest turn: one patch of the two brim settings, logged in the
-// host's order. They lead the card ahead of what it changed in earlier turns.
+// host's order.
 export const visualChanges: ChangeInfo[] = [
   change(1, { key: 'brim_width', label: 'Brim width', from: '0 mm', to: '8 mm' }),
   change(2, { key: 'brim_type', label: 'Brim type', from: 'Auto', to: 'Outer brim only' }),
@@ -104,6 +106,7 @@ const handChanges: ChangeInfo[] = [...visualChanges,
 // A new project nobody has touched: no purpose, nothing changed, never sliced.
 const untouched = variant((value) => {
   value.setupIntent = '';
+  value.planHeadline = '';
   value.presetDeltas = [];
   value.appliedSetup!.localOverrides = [];
   value.plates[0].sliced = false;
@@ -117,6 +120,7 @@ const stale = variant((value) => {
 
 const dense = variant((value) => {
   value.setupIntent = 'Keep the corners of this unusually long workshop fixture flat through the entire print';
+  value.planHeadline = 'Extra-wide brim, a slow first layer and a cooler bed so the long fixture stays flat on the plate';
   value.printer.process = 'Draft quality profile for the large enclosure panels with thick walls';
   value.printer.filament = 'Workshop PETG carbon fibre reinforced high temperature';
   value.setupIdentity!.filaments = Array.from({ length: 6 }, (_, index) =>
@@ -124,7 +128,7 @@ const dense = variant((value) => {
   value.presetDeltas = Array.from({ length: 20 }, (_, index) => delta(`setting_${index}`,
     index === 0 ? 'Stamping distance measured from the center of the cooling tube' : `Setting ${index + 1}`,
     `${index} → ${index + 1} mm`, { presetName: value.printer.process, page: `Page ${Math.floor(index / 5) + 1}`,
-      group: `Group ${index % 2 + 1}`, origin: 'user' }));
+      group: `Group ${index % 2 + 1}` }));
 });
 
 const threeObjects = variant((value) => {
@@ -143,22 +147,11 @@ const threeObjects = variant((value) => {
   ];
 });
 
-// What a chat saved before the host formatted values still carries: the raw
-// pair for each difference and the raw key of each override.
-const legacy = variant((value) => {
-  value.presetDeltas = [
-    { key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' },
-    { key: 'brim_type', label: 'Brim type', preset: 'auto_brim', value: 'outer_only', origin: 'agent' },
-  ];
-  value.appliedSetup!.localOverrides = [
-    { object: 0, target: '3x3_cali_RL.stl', kind: 'object', key: 'sparse_infill_density', value: '30%' }];
-});
-
 const saved = '2026-10-08T10:42:00';
 const risk: Finding[] = [{ title: 'Coarse layers may leave visible surface lines.' }];
 
 export const setupVisualCases: SetupVisualCase[] = [
-  { id: 'A1', name: 'Card · changes', kind: 'card', context: setupWorkspace(), props: { changes: visualChanges } },
+  { id: 'A1', name: 'Card · headline', kind: 'card', context: setupWorkspace(), props: { changes: visualChanges } },
   { id: 'A2', name: 'Card · nothing changed', kind: 'card', context: untouched, props: { compute: true } },
   { id: 'B', name: 'Setup page', kind: 'page', context: setupWorkspace(), props: { changes: visualChanges } },
 
@@ -184,15 +177,13 @@ export const setupVisualCases: SetupVisualCase[] = [
   { id: 'missing', name: 'Nothing read', kind: 'card', frame: '1312:6081',
     context: variant((value) => { value.setupIntent = ''; value.appliedSetup = null; value.setupIdentity = null;
       value.printerReview = null; value.presetDeltas = []; value.plates[0].estimate = null; }), props: {} },
-  { id: 'legacy', name: 'Saved before values were formatted', kind: 'card', context: legacy,
-    props: { historical: true, savedAt: saved } },
   { id: 'dense', name: 'Card · long and dense', kind: 'card', frame: '1312:5791', context: dense, props: {} },
+  { id: 'no-plan', name: 'Card · no plan pinned', kind: 'card',
+    context: variant((value) => { value.planHeadline = ''; }), props: { changes: visualChanges } },
 
   { id: 'page-untouched', name: 'Page · nothing changed', kind: 'page', context: untouched, props: {} },
   { id: 'page-objects', name: 'Page · three objects', kind: 'page', frame: '1312:5982', context: threeObjects,
     props: { changes: visualChanges } },
-  { id: 'page-legacy', name: 'Page · saved before values were formatted', kind: 'page', context: legacy,
-    props: { historical: true, savedAt: saved } },
   { id: 'page-dense', name: 'Page · long and dense', kind: 'page', context: dense, props: {} },
 ];
 

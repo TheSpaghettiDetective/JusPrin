@@ -139,7 +139,7 @@ TEST_CASE("the document round-trips its semantic state", "[project-state][schema
     }
 }
 
-TEST_CASE("external tool activity source survives storage and legacy records migrate", "[project-state][schema][mcp]")
+TEST_CASE("external tool activity source survives storage", "[project-state][schema][mcp]")
 {
     ProjectStateDocument document;
     ToolActivity activity;
@@ -152,13 +152,11 @@ TEST_CASE("external tool activity source survives storage and legacy records mig
     REQUIRE(restored.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
     REQUIRE(restored.activities().size() == 1);
     CHECK(restored.activities()[0].source == ToolSource::Mcp);
-    auto legacy = nlohmann::json::parse(document.dump());
-    legacy["toolActivities"][0].erase("source");
-    REQUIRE(restored.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    CHECK(restored.activities()[0].source == ToolSource::Mcp);
-    legacy["toolActivities"][0]["correlationId"] = "m-42";
-    REQUIRE(restored.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    CHECK(restored.activities()[0].source == ToolSource::Agent);
+    // A record with no source is not guessed at.
+    auto unsourced = nlohmann::json::parse(document.dump());
+    unsourced["toolActivities"][0].erase("source");
+    REQUIRE(restored.load(unsourced.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK_THROWS(restored.activities());
 }
 
 TEST_CASE("chat metadata follows activity and manual titles survive reload", "[project-state][conversations]")
@@ -185,16 +183,6 @@ TEST_CASE("chat metadata follows activity and manual titles survive reload", "[p
     CHECK(loaded.conversations().front().title == "My frame");
     CHECK_FALSE(loaded.needs_conversation_title(first));
     CHECK(loaded.needs_conversation_title(second));
-
-    SECTION("numbered titles from older projects remain eligible") {
-        auto legacy = json::parse(document.dump());
-        for (auto& chat : legacy["conversations"]) {
-            chat.erase("titleSource");
-            chat["title"] = "Conversation " + chat["id"].get<std::string>().substr(2);
-        }
-        REQUIRE(loaded.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
-        CHECK(loaded.needs_conversation_title(first));
-    }
 }
 
 TEST_CASE("deleting chats removes their content and preserves manufacturing history", "[project-state][conversations]")
@@ -245,16 +233,17 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     CHECK(loaded.builds().size() == 1);
 }
 
-TEST_CASE("viewing history never changes authority and checkpoints bind planning to a model", "[project-state][conversations]")
+TEST_CASE("viewing history never changes authority and checkpoints bind a chat to a model", "[project-state][conversations]")
 {
     ProjectStateDocument document;
     document.initialize_identity("p", "l", kT);
     const std::string first = document.active_conversation_id();
-    REQUIRE(document.save_chat_checkpoint(first, "v-1", nlohmann::json{{"setupIntent", "Quick print"}}, kT));
+    REQUIRE(document.save_chat_checkpoint(first, "v-1", nlohmann::json{{"estimate", "saved"}}, kT));
     const auto saved = document.chat_checkpoint(first);
     REQUIRE(saved);
     CHECK((*saved)["versionId"] == "v-1");
-    CHECK((*saved)["planning"] == document.planning_snapshot());
+    // The checkpoint holds what only it can; the chat keeps its intent and plan.
+    CHECK_FALSE(saved->contains("planning"));
 
     const std::string second = document.create_conversation("Strong print", kT);
     REQUIRE(document.set_viewed_conversation(first));
@@ -267,38 +256,131 @@ TEST_CASE("viewing history never changes authority and checkpoints bind planning
     CHECK(reloaded.active_conversation_id() == second);
     CHECK(reloaded.viewed_conversation_id() == first);
     REQUIRE(reloaded.chat_checkpoint(first));
-    CHECK((*reloaded.chat_checkpoint(first))["summary"]["setupIntent"] == "Quick print");
-
-    auto legacy = nlohmann::json::parse(document.dump());
-    legacy.erase("viewedConversationId");
-    legacy["conversations"][0].erase("resumeCheckpoint");
-    REQUIRE(reloaded.load(legacy.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    CHECK(reloaded.viewed_conversation_id() == second);
-    CHECK_FALSE(reloaded.chat_checkpoint(first));
+    CHECK((*reloaded.chat_checkpoint(first))["summary"]["estimate"] == "saved");
 }
 
 TEST_CASE("the setup a purpose was recorded under travels with the intent", "[project-state][intent]")
 {
     ProjectStateDocument document;
     document.initialize_identity("p", "l", kT);
-    const std::string chat = document.active_conversation_id();
+    const std::string first = document.active_conversation_id();
     CHECK(document.purpose_setup().empty());
-    // A checkpoint from before anything was recorded matches a document that
-    // has recorded nothing, as a checkpoint written by an older build does.
-    REQUIRE(document.save_chat_checkpoint(chat, "v-1", json::object(), kT));
-    CHECK_FALSE(document.planning_snapshot().contains("purposeSetup"));
 
     const json setup{{"printerPreset", "Bambu Lab X1 Carbon 0.4 nozzle"}, {"filamentPreset", "Bambu PLA Basic @BBL X1C"}};
     document.set_purpose_setup(setup);
     CHECK(document.purpose_setup() == setup);
-    CHECK(document.planning_snapshot()["purposeSetup"] == setup);
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
     CHECK(reloaded.purpose_setup() == setup);
 
-    // Restoring the earlier checkpoint takes its planning whole: no setup.
-    document.restore_planning_snapshot((*document.chat_checkpoint(chat))["planning"]);
+    // A new chat starts from the active chat's intent, the setup included,
+    // and then owns its copy.
+    const std::string second = document.create_conversation({}, kT);
+    CHECK(document.purpose_setup() == setup);
+    document.set_purpose_setup(json::object());
     CHECK(document.purpose_setup().empty());
+    REQUIRE(document.set_active_conversation(first));
+    CHECK(document.purpose_setup() == setup);
+    (void) second;
+}
+
+TEST_CASE("each chat owns its intent and plan, and the active chat's are the project's", "[project-state][intent][plan]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const std::string first = document.active_conversation_id();
+    REQUIRE(document.set_setup_intent(first, "Load-bearing bracket"));
+    IntentField purpose;
+    purpose.field = "purpose";
+    purpose.value = "final part";
+    document.set_print_intent({purpose}, kT);
+    PlanRecord plan;
+    plan.headline = "Four walls and gyroid infill for strength";
+    document.set_plan(plan, kT);
+
+    SECTION("a new chat copies the intent and starts with no plan") {
+        const std::string second = document.create_conversation({}, kT);
+        CHECK(document.setup_intent(second) == "Load-bearing bracket");
+        REQUIRE(document.print_intent().size() == 1);
+        CHECK(document.print_intent()[0].value == "final part");
+        CHECK(document.plan().headline.empty());
+        CHECK(document.plan().seq == 0);
+
+        // The copy is the new chat's own: changing it leaves the first alone.
+        purpose.value = "quick fit check";
+        document.set_print_intent({purpose}, kT);
+        REQUIRE(document.set_setup_intent(second, "Quick fit check"));
+        PlanRecord quick;
+        quick.headline = "Coarse layers and low infill for a quick fit check";
+        document.set_plan(quick, kT);
+        CHECK(document.plan(first).headline == "Four walls and gyroid infill for strength");
+        CHECK(document.setup_intent(first) == "Load-bearing bracket");
+
+        // Switching the active chat switches the project's intent and plan.
+        REQUIRE(document.set_active_conversation(first));
+        CHECK(document.print_intent()[0].value == "final part");
+        CHECK(document.plan().headline == "Four walls and gyroid infill for strength");
+        REQUIRE(document.set_active_conversation(second));
+        CHECK(document.print_intent()[0].value == "quick fit check");
+        CHECK(document.plan().headline == "Coarse layers and low infill for a quick fit check");
+
+        // Each is stored once, on its chat: nothing at the top of the document.
+        const json raw = json::parse(document.dump());
+        CHECK_FALSE(raw.contains("printIntent"));
+        CHECK_FALSE(raw.contains("plan"));
+        CHECK_FALSE(raw.contains("purposeSetup"));
+        CHECK(raw["conversations"][0]["plan"]["headline"] == "Four walls and gyroid infill for strength");
+        CHECK(raw["conversations"][1]["plan"]["headline"] == "Coarse layers and low infill for a quick fit check");
+    }
+
+    SECTION("only the active chat's plan is ever marked") {
+        const std::string second = document.create_conversation({}, kT);
+        PlanRecord other;
+        other.headline = "Fine layers with supports away from visible surfaces";
+        document.set_plan(other, kT);
+        CHECK(document.mark_plan_needs_reassessment("Sparse infill density"));
+        CHECK(document.plan(second).validity == "needs_reassessment");
+        CHECK(document.plan(first).validity == "current");
+    }
+
+    SECTION("a chat with no plan has nothing to mark") {
+        document.create_conversation({}, kT);
+        CHECK_FALSE(document.mark_plan_needs_reassessment("Sparse infill density"));
+        CHECK(document.plan().validity == "current");
+    }
+
+    SECTION("deleting the active chat starts its replacement from its intent, with no plan") {
+        const auto removed = document.delete_conversation(first, kT);
+        REQUIRE(removed);
+        const std::string replacement = document.active_conversation_id();
+        REQUIRE(replacement != first);
+        CHECK(document.setup_intent(replacement) == "Load-bearing bracket");
+        REQUIRE(document.print_intent().size() == 1);
+        CHECK(document.print_intent()[0].value == "final part");
+        CHECK(document.plan().headline.empty());
+    }
+
+    SECTION("deleting an inactive chat leaves the active one's as they are") {
+        const std::string second = document.create_conversation({}, kT);
+        PlanRecord other;
+        other.headline = "Spiral vase with a continuous single wall";
+        document.set_plan(other, kT);
+        REQUIRE(document.delete_conversation(first, kT));
+        CHECK(document.active_conversation_id() == second);
+        CHECK(document.plan().headline == "Spiral vase with a continuous single wall");
+    }
+}
+
+TEST_CASE("a model version's regions are put back whole", "[project-state][regions]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    const json regions = json::array({{{"id", "r-1"}, {"kind", "reinforce"}, {"seq", 3}, {"futureField", 1}}});
+    const auto before = document.doc_revision();
+    document.restore_regions(regions);
+    CHECK(json::parse(document.dump())["regions"] == regions);
+    CHECK(document.doc_revision() > before);
+    CHECK_THROWS_AS(document.restore_regions(json::object()), std::invalid_argument);
 }
 
 TEST_CASE("a restore counts until the model next replies", "[project-state][changes]")
@@ -372,18 +454,18 @@ TEST_CASE("corrupt, foreign, and future documents are refused safely", "[project
     CHECK(document.has_identity());
 }
 
-TEST_CASE("an older schema is migrated and keeps its content", "[project-state][schema]")
+TEST_CASE("a document of any other schema version is not read", "[project-state][schema]")
 {
-    json old_doc = json{{"schemaVersion", 0},
-                        {"project", json{{"projectId", "p-old"}, {"lineageId", "l-old"}, {"createdAt", kT}}},
-                        {"conversations", json::array()}};
-    ProjectStateDocument document;
-    REQUIRE(document.load(old_doc.dump()) == ProjectStateDocument::LoadResult::Migrated);
-    CHECK(document.project_id() == "p-old");
-    CHECK(json::parse(document.dump())["schemaVersion"] == ProjectStateDocument::kSchemaVersion);
-    // Structure the old version predates exists and works.
-    document.create_conversation("New", kT);
-    CHECK(document.conversations().size() == 1);
+    ProjectStateDocument written;
+    written.initialize_identity("p-old", "l-old", kT);
+    CHECK(json::parse(written.dump())["schemaVersion"] == 1);
+    for (const int version : {0, 2, 3, 4}) {
+        json other = json::parse(written.dump());
+        other["schemaVersion"] = version;
+        ProjectStateDocument document;
+        CHECK(document.load(other.dump()) == ProjectStateDocument::LoadResult::Corrupt);
+        CHECK_FALSE(document.has_identity());
+    }
 }
 
 TEST_CASE("manufacturing hashes ignore presentation state and change with manufacturing input",
@@ -472,35 +554,6 @@ TEST_CASE("build copy and print records serialize with immutable provenance", "[
 // revision list, a current-revision pointer and revisionId on every record.
 // No such file shipped outside the team, so nothing migrates them: the extra
 // fields are simply never read again, and the chat they sit beside is intact.
-TEST_CASE("a document from the revision-timeline era loads with its chat intact", "[project-state][schema]")
-{
-    const json old_doc = json{
-        {"schemaVersion", ProjectStateDocument::kSchemaVersion},
-        {"project", json{{"projectId", "p-old"}, {"lineageId", "l-old"}, {"createdAt", kT}}},
-        {"counters", json{{"nextSeq", 5}, {"nextMessage", 2}, {"nextRevision", 3}, {"nextBuild", 2}}},
-        {"activeConversationId", "c-1"},
-        {"currentRevisionId", "r-2"},
-        {"conversations", json::array({json{{"id", "c-1"}, {"seq", 1}, {"title", "Bracket"}, {"createdAt", kT},
-                                            {"messages", json::array({json{{"id", "m-1"}, {"seq", 2},
-                                                                           {"role", "user"}, {"text", "hello"},
-                                                                           {"createdAt", kT}}})}}})},
-        {"revisions", json::array({json{{"id", "r-1"}, {"seq", 3}, {"cause", "initial"},
-                                        {"snapshotFile", "revisions/r-1.snapshot.3mf"}}})},
-        {"builds", json::array({json{{"id", "b-1"}, {"seq", 4}, {"revisionId", "r-1"}, {"plateName", "Plate 1"}}})}};
-
-    ProjectStateDocument document;
-    REQUIRE(document.load(old_doc.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    REQUIRE(document.messages("c-1").size() == 1);
-    CHECK(document.messages("c-1")[0].text == "hello");
-    REQUIRE(document.builds().size() == 1);
-    CHECK(document.builds()[0].plate_name == "Plate 1");
-    // The old revisions draw no rows: the change log starts empty.
-    CHECK(document.changes().empty());
-    // New entries continue the saved sequence rather than reusing it.
-    document.append_message("c-1", user_message(document.allocate_message_id(), "again", "c-2"), kT);
-    CHECK(json::parse(document.dump())["conversations"][0]["messages"][1]["seq"] == 5);
-}
-
 TEST_CASE("interrupted streams and runs are normalized on recovery", "[project-state][recovery]")
 {
     ProjectStateDocument document;
@@ -915,6 +968,79 @@ TEST_CASE("the change log records each edit after the conversation item it follo
     }
 }
 
+TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[persistence][plan]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    persistence.attach();
+    ProjectStateDocument& document = persistence.document();
+    const auto cube = workspace.snapshot().plates[0].objects[0].id;
+    const auto pin = [&document]() {
+        PlanRecord plan;
+        plan.headline = "Four walls and gyroid infill for strength";
+        document.set_plan(plan, kT);
+        REQUIRE(document.plan().validity == "current");
+    };
+    pin();
+
+    SECTION("the in-app agent carrying out its plan leaves it current") {
+        {
+            const Workspace::IWorkspace::AgentEdit agent(workspace);
+            REQUIRE(workspace.duplicate_object(cube).succeeded());
+            REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
+        }
+        CHECK(document.changes().size() == 2);
+        CHECK(document.plan().validity == "current");
+        CHECK(document.plan().invalidated_by.empty());
+    }
+
+    SECTION("a person's edit marks it") {
+        REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
+        CHECK(document.plan().validity == "needs_reassessment");
+        CHECK(document.plan().invalidated_by == "Rename Object");
+    }
+
+    SECTION("a person's Undo and Redo mark it, even of the agent's own step") {
+        {
+            const Workspace::IWorkspace::AgentEdit agent(workspace);
+            REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
+        }
+        REQUIRE(document.plan().validity == "current");
+        REQUIRE(workspace.undo().succeeded());
+        CHECK(document.plan().validity == "needs_reassessment");
+        CHECK(document.changes().back().kind == "undo");
+        pin();
+        REQUIRE(workspace.redo().succeeded());
+        CHECK(document.plan().validity == "needs_reassessment");
+        CHECK(document.changes().back().kind == "redo");
+    }
+
+    SECTION("another agent's edit through MCP marks it") {
+        {
+            const Workspace::IWorkspace::AgentEdit external(workspace, Workspace::EditActor::ExternalTool);
+            REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
+        }
+        CHECK(document.changes().back().external);
+        CHECK(document.plan().validity == "needs_reassessment");
+    }
+}
+
+TEST_CASE("restoring a model version marks the active chat's plan", "[persistence][plan][managed]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence::Config config = config_with_recovery(unique_temp_dir("recovery"));
+    config.managed_root = unique_temp_dir("managed");
+    ProjectPersistence persistence(workspace, config);
+    persistence.attach();
+    PlanRecord plan;
+    plan.headline = "Four walls and gyroid infill for strength";
+    persistence.document().set_plan(plan, kT);
+    persistence.record_managed_restore(persistence.document().dump(), "v-2", "v-1");
+    CHECK(persistence.document().plan().validity == "needs_reassessment");
+    CHECK(persistence.document().plan().invalidated_by == "An earlier model version was restored");
+    CHECK(persistence.document().changes().back().kind == "restore");
+}
+
 TEST_CASE("settings changes and preset switches are logged", "[persistence][changes]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
@@ -1026,32 +1152,32 @@ TEST_CASE("the plan is replaced whole and survives a round trip", "[project-stat
     CHECK(reloaded.plan().assumptions.empty());
 }
 
-TEST_CASE("a document written before intent and plan existed gains them", "[project-state][schema]")
+TEST_CASE("an unknown key inside a stored intent field survives the next write to it", "[project-state][schema]")
 {
-    ProjectStateDocument document;
-    document.initialize_identity("p-1", "l-1", kT);
-    json raw = json::parse(document.dump());
-    raw.erase("printIntent");
-    raw.erase("plan");
-    raw["printIntent-unrelated"] = "kept";
-
     ProjectStateDocument loaded;
-    REQUIRE(loaded.load(raw.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    CHECK(loaded.print_intent().empty());
-    CHECK(loaded.plan().headline.empty());
+    loaded.initialize_identity("p-1", "l-1", kT);
     const auto written = loaded.set_print_intent({{"useCase", "functional", "", Provenance::AgentInferred}}, kT);
     REQUIRE(written.size() == 1);
 
-    // An unknown key inside a stored field survives the next write to it.
     json edited = json::parse(loaded.dump());
-    CHECK(edited["printIntent-unrelated"] == "kept");
-    edited["printIntent"][0]["futureAnnotation"] = "keep me";
+    edited["conversations"][0]["printIntent"][0]["futureAnnotation"] = "keep me";
     ProjectStateDocument reopened;
     REQUIRE(reopened.load(edited.dump()) == ProjectStateDocument::LoadResult::Loaded);
     reopened.set_print_intent({{"useCase", "decorative", "", Provenance::UserConfirmed}}, kT);
     const json round = json::parse(reopened.dump());
-    CHECK(round["printIntent"][0]["futureAnnotation"] == "keep me");
-    CHECK(round["printIntent"][0]["value"] == "decorative");
+    CHECK(round["conversations"][0]["printIntent"][0]["futureAnnotation"] == "keep me");
+    CHECK(round["conversations"][0]["printIntent"][0]["value"] == "decorative");
+}
+
+TEST_CASE("intent and plan writes need an active chat to hold them", "[project-state][intent][plan]")
+{
+    ProjectStateDocument document;
+    CHECK(document.plan().headline.empty());
+    CHECK(document.print_intent().empty());
+    CHECK_THROWS_AS(document.set_plan(PlanRecord{}, kT), std::logic_error);
+    CHECK_THROWS_AS(document.set_print_intent({{"useCase", "functional", "", Provenance::AgentInferred}}, kT),
+                    std::logic_error);
+    CHECK_THROWS_AS(document.set_purpose_setup(json{{"printerPreset", "X1C"}}), std::logic_error);
 }
 
 TEST_CASE("every ledger subscriber hears a ledger change, and releasing one leaves the others", "[persistence][ledger]")

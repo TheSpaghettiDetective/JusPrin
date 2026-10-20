@@ -145,7 +145,11 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     entry.preset = edit.preset;
     entry.key    = edit.key;
     const ChangeEntry stored = m_document.add_change(std::move(entry), m_config.clock());
-    m_document.mark_plan_needs_reassessment(stored.label.empty() ? "The project changed" : stored.label);
+    // The in-app agent's own edits carry out its plan; they do not put it in
+    // doubt. A person's edit, Undo and Redo, and an external MCP client's
+    // edit do.
+    if (edit.actor != Workspace::EditActor::Agent)
+        m_document.mark_plan_needs_reassessment(stored.label.empty() ? "The project changed" : stored.label);
     // A paint session is a burst of edits; the owner's pacing timer writes them.
     commit();
     if (m_change_added)
@@ -424,7 +428,6 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
 void ProjectPersistence::record_chat_restore(const std::string& current_state,
                                               const std::string& from_version,
                                               const std::string& selected_version,
-                                              const nlohmann::json& planning,
                                               const std::string& conversation_id)
 {
     if (m_config.managed_root.empty())
@@ -433,20 +436,23 @@ void ProjectPersistence::record_chat_restore(const std::string& current_state,
     if (current.load(current_state) == ProjectStateDocument::LoadResult::Corrupt || !current.has_identity())
         throw std::runtime_error("chat checkpoint is unavailable during restore");
     const auto checkpoint = current.chat_checkpoint(conversation_id);
-    if (!checkpoint || checkpoint->value("versionId", "") != selected_version ||
-        (*checkpoint)["planning"] != planning)
+    if (!checkpoint || checkpoint->value("versionId", "") != selected_version)
         throw std::runtime_error("chat checkpoint changed during restore");
     current.normalize_interrupted_state();
-    current.restore_planning_snapshot(planning);
+    // The chat's intent and plan never left it; making it active makes them
+    // the project's again, with the validity they had when it was left.
     if (!current.set_active_conversation(conversation_id) || !current.set_viewed_conversation(conversation_id))
         throw std::runtime_error("chat disappeared during restore");
-    ChangeEntry change;
-    change.kind = "restore";
-    change.actor = "person";
-    change.label = "Restored this chat's saved project setup";
-    change.from = from_version;
-    change.to = selected_version;
-    current.add_change(std::move(change), m_config.clock());
+    // Resuming on the model already in place restores nothing.
+    if (from_version != selected_version) {
+        ChangeEntry change;
+        change.kind = "restore";
+        change.actor = "person";
+        change.label = "Restored this chat's saved project setup";
+        change.from = from_version;
+        change.to = selected_version;
+        current.add_change(std::move(change), m_config.clock());
+    }
     m_document = std::move(current);
     m_draft = m_document.draft();
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();

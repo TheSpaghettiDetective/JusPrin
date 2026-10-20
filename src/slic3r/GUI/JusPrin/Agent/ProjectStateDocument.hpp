@@ -4,7 +4,7 @@
 // their messages and tool activity records, attachments, and the
 // manufacturing history (builds, exported copies, physical prints).
 // Managed projects save it independently of model checkpoints in
-// current-state.json. Legacy imports can still read auxiliary state.json.
+// current-state.json.
 //
 // The document is backed by one JSON tree that is edited in place, so
 // optional fields written by other (newer) builds survive a load-edit-save
@@ -50,7 +50,7 @@ struct ChangeEntry
     std::string   label;           // as the workspace reported it; may be empty
     std::string   location;        // optional place of a hand edit, when known
     std::string   from, to, preset; // setting only
-    std::string   key;              // setting only; absent in older documents
+    std::string   key;              // setting only
     std::string   conversation_id; // the conversation active at the time
     std::string   after_id;        // the conversation item it follows; empty before the first
 };
@@ -175,18 +175,17 @@ struct PlanRecord
 class ProjectStateDocument
 {
 public:
-    static constexpr int kSchemaVersion = 3;
+    // One schema, no migration (the project is not live yet).
+    static constexpr int kSchemaVersion = 1;
 
-    enum class LoadResult { Loaded, Migrated, Corrupt };
+    enum class LoadResult { Loaded, Corrupt };
 
     ProjectStateDocument();
 
-    // Corrupt input keeps a fresh empty document (the caller decides whether
-    // to adopt a new identity); an older schema is migrated in place.
+    // Corrupt input, or a document of another schema version, keeps a fresh
+    // empty document; the caller decides whether to adopt a new identity.
     LoadResult load(const std::string& json_text);
     std::string dump() const;
-    // Model history leaves this document current. Chat checkpoints explicitly
-    // bind selected planning fields to a saved model version for chat resume.
 
     // Monotonic per-document change counter, bumped by every mutating call.
     // The recovery mirror with the higher value is the newer state.
@@ -198,8 +197,8 @@ public:
 
     // Creates the identity and the first conversation.
     void initialize_identity(const std::string& project_id, const std::string& lineage_id, const std::string& timestamp);
-    // An imported copy starts a distinct managed project while preserving its
-    // migrated conversation and manufacturing history.
+    // An imported copy starts a distinct managed project while keeping its
+    // conversations and manufacturing history.
     void fork_identity(const std::string& project_id, const std::string& timestamp);
     void set_draft(const std::string& draft);
     std::string draft() const;
@@ -208,16 +207,20 @@ public:
     std::vector<ConversationInfo> conversations() const;
     std::string                   active_conversation_id() const;
     std::string                   viewed_conversation_id() const;
-    std::string create_conversation(const std::string& title, const std::string& timestamp); // returns id, makes it active
+    // Returns the id and makes the chat active. It starts with a copy of the
+    // active chat's intent (setup title, print intent, purpose setup), which
+    // is then its own to change, and with no plan.
+    std::string create_conversation(const std::string& title, const std::string& timestamp);
     bool        set_active_conversation(const std::string& conversation_id);
     bool        set_viewed_conversation(const std::string& conversation_id);
-    // A missing checkpoint means historical state is unknown, including for
-    // migrated chats. Model versions do not contain this data.
+    // What only a checkpoint can hold: the model version the chat was left
+    // on, the conversation item it was left after, when, and the card's
+    // summary of that moment. The chat's intent and plan stay on the chat,
+    // which nothing edits while it is inactive. A missing checkpoint means
+    // the chat was left with no model version to bind it to.
     std::optional<nlohmann::json> chat_checkpoint(const std::string& conversation_id) const;
     bool save_chat_checkpoint(const std::string& conversation_id, const std::string& version_id,
                               const nlohmann::json& summary, const std::string& timestamp);
-    nlohmann::json planning_snapshot() const;
-    void restore_planning_snapshot(const nlohmann::json& snapshot);
     bool        needs_conversation_title(const std::string& conversation_id) const;
     bool        rename_conversation(const std::string& conversation_id, const std::string& title, bool generated = false);
     // The agent's restatement of what this chat asked the setup to be, in the
@@ -228,7 +231,8 @@ public:
     bool        set_setup_intent(const std::string& conversation_id, const std::string& intent);
     // Erases chat content and returns orphaned attachment directories. Builds,
     // exported copies and physical prints retain their historical
-    // conversation IDs.
+    // conversation IDs. Deleting the active chat makes a replacement that
+    // starts as create_conversation's does, from the deleted chat's intent.
     std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,
                                                                const std::string& timestamp);
 
@@ -281,8 +285,11 @@ public:
     std::optional<BuildRecord>       latest_build() const;
 
     // -- Print intent and plan ------------------------------------------------
-    // Product state with no Orca owner: it travels in the project archive
-    // because it describes this print, and it is not in Orca's undo stack.
+    // Product state with no Orca owner, and not in Orca's undo stack. Each
+    // chat owns its own intent and plan; the project's current ones are the
+    // active chat's, read through activeConversationId and stored nowhere
+    // else. Every call below reads or writes the active chat; writing with no
+    // active chat is a logic error.
     std::vector<IntentField> print_intent() const; // ordered by field name
     // Upserts by field name and returns the fields as stored. A field the call
     // does not mention keeps the value, provenance, and seq it had.
@@ -291,8 +298,8 @@ public:
     // when the model was last asked to check it against the purpose: when
     // intent_update recorded a purpose for the first time or changed it, or
     // a request carried the setup or file-loaded skill under a recorded
-    // purpose. An empty object when that is not known. It travels with the
-    // intent in a chat checkpoint.
+    // purpose. An empty object when that is not known. It belongs with the
+    // intent, and a new chat copies it with the intent.
     nlohmann::json purpose_setup() const;
     void           set_purpose_setup(nlohmann::json setup);
     // Whether the person restored an earlier version after the model last
@@ -302,15 +309,23 @@ public:
     bool restored_since_reply(const std::string& except_message_id) const;
     // The pinned plan, or a default record when the agent has not written one.
     PlanRecord plan() const;
+    // A given chat's plan, for its saved card.
+    PlanRecord plan(const std::string& conversation_id) const;
     // Replaces the plan wholesale: it is one statement, not a list of edits.
     PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
     bool mark_plan_needs_reassessment(const std::string& reason);
-    // Region annotations. The list is replaced whole; a record with no seq is
-    // new or changed and is stamped on the way in.
+    // Region annotations of the model in the workspace. They label modifier
+    // volumes, paint and overrides that live in the model, so they belong
+    // with it, not with a chat: every saved model version records the list it
+    // was saved with (ProjectVersionStore), and restoring or resuming that
+    // version puts its list back here. The list is replaced whole; a record
+    // with no seq is new or changed and is stamped on the way in.
     std::vector<Workspace::RegionRecord> regions() const;
     std::vector<Workspace::RegionRecord> set_regions(std::vector<Workspace::RegionRecord> records, const std::string& timestamp);
-    // Version restore keeps the current conversation and manufacturing audit
-    // while taking the earlier version's project-specific intent and plan.
+    // Puts back the list a model version recorded, as it was stored.
+    void restore_regions(const nlohmann::json& regions);
+    // Restoring a model version otherwise keeps this document as it is: the
+    // chats with their intent and plans, and the manufacturing audit.
 
     // -- Change log -----------------------------------------------------------
     // Appends with the next seq, placed in the active conversation after its
@@ -337,6 +352,9 @@ public:
 private:
     nlohmann::json*       conversation_json(const std::string& conversation_id);
     const nlohmann::json* conversation_json(const std::string& conversation_id) const;
+    // The active chat, which every intent and plan write goes to.
+    nlohmann::json&       active_chat();
+    std::string           add_conversation(const std::string& title, const std::string& timestamp, nlohmann::json intent);
     std::uint64_t         next_seq();
     void                  touch();
 

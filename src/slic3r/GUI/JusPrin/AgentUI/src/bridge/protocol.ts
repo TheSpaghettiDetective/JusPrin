@@ -274,25 +274,19 @@ export interface SliceEstimateInfo {
   materialAvailable?: boolean;
 }
 
-// One process setting whose value in force differs from the preset it came
-// from. The length of the list is the setup card's "N changes"; the entries
-// are what the card shows when it is opened.
+// One setting whose value in force differs from the preset it came from, as
+// the setup page lists it.
 export interface PresetDeltaInfo {
   key: string;
   label: string;
   preset: string;
   value: string;
-  // Who put this value in force. 'user' unless the host can prove the agent
-  // wrote this exact value, so a setting the agent once set and you have since
-  // edited by hand reads as yours again.
-  origin: 'agent' | 'user';
-  // Everything below is absent from a summary saved before the setup card
-  // showed differences; the card then falls back to the raw pair above.
   // Which preset the setting belongs to, and that preset's full name.
-  presetType?: 'process' | 'filament' | 'printer';
-  presetName?: string;
+  presetType: 'process' | 'filament' | 'printer';
+  presetName: string;
   // "0 → 8 mm": the change as the host's formatter writes it, from the
-  // setting's own type, unit and choice labels.
+  // setting's own type, unit and choice labels. Absent when the formatter
+  // has nothing to say; the page then shows the raw pair above.
   display?: string;
   // Where the setting sits in OrcaSlicer's settings tabs. Absent when
   // OrcaSlicer files the setting under no group.
@@ -318,8 +312,7 @@ export interface AppliedSetupInfo {
   spiralMode: boolean;
   variableLayerHeight: boolean;
   // Names of the printable objects, in the order `object` indexes them.
-  // Absent from checkpoints saved before the card grouped by object.
-  objects?: string[];
+  objects: string[];
   localOverrides: {
     object?: number;
     target: string;
@@ -328,7 +321,7 @@ export interface AppliedSetupInfo {
     key: string;
     value: string;
     // The setting's name and its value as the host's formatter writes it.
-    // Absent from a summary saved before the host sent them.
+    // Absent for a customization OrcaSlicer defines no setting for.
     label?: string;
     display?: string;
   }[];
@@ -381,19 +374,22 @@ export interface WorkspaceContext {
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };
   history: { canUndo: boolean; canRedo: boolean };
   presetDeltas: PresetDeltaInfo[];
-  // Optional for checkpoints written before the setup-card read model existed.
-  appliedSetup?: AppliedSetupInfo | null;
-  setupIdentity?: SetupIdentityInfo | null;
-  printerReview?: PrinterReviewInfo | null;
+  // Null when the host could not read them.
+  appliedSetup: AppliedSetupInfo | null;
+  setupIdentity: SetupIdentityInfo | null;
+  printerReview: PrinterReviewInfo | null;
   // ISO 4217 code from the machine's regional settings, empty when the OS does
   // not say. OrcaSlicer itself has no currency concept, so this is the only
   // thing that says what a cost is denominated in.
   currency: string;
+  // The card's chat's own records, which the host adds to the workspace for
+  // the card: they are never saved with a checkpoint's summary.
   // The agent's restatement of what this chat asked the setup to be, in the
-  // user's words. Empty until a change is applied: talking does not write it.
+  // user's words. Empty until the agent records one.
   setupIntent: string;
-  planValidity?: 'current' | 'needs_reassessment';
-  planInvalidatedBy?: string;
+  // How the agent means to print, in a few words: the headline of the plan
+  // it pinned with plan_set. Empty until it pins one.
+  planHeadline: string;
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',

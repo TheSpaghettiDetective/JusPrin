@@ -339,7 +339,7 @@ json version_json(const ProjectVersionStore::Version& version)
             {"changeSeq", version.change_seq},
             {"createdAt", version.created_at}, {"sourcePath", version.source_path},
             {"projectName", version.project_name}, {"openedFrom", version.opened_from},
-            {"openedDigest", version.opened_digest}, {"objects", std::move(objects)}};
+            {"openedDigest", version.opened_digest}, {"regions", version.regions}, {"objects", std::move(objects)}};
 }
 
 ProjectVersionStore::Version parse_version(const std::string& text)
@@ -350,12 +350,14 @@ ProjectVersionStore::Version parse_version(const std::string& text)
     ProjectVersionStore::Version version;
     version.id = value.at("id").get<std::string>();
     version.revision = value.at("revision").get<std::uint64_t>();
-    version.change_seq = value.value("changeSeq", std::uint64_t{0});
+    version.change_seq = value.at("changeSeq").get<std::uint64_t>();
     version.created_at = value.at("createdAt").get<std::string>();
-    version.source_path = value.value("sourcePath", "");
-    version.project_name = value.value("projectName", "");
-    version.opened_from = value.value("openedFrom", "");
-    version.opened_digest = value.value("openedDigest", "");
+    version.source_path = value.at("sourcePath").get<std::string>();
+    version.project_name = value.at("projectName").get<std::string>();
+    version.opened_from = value.at("openedFrom").get<std::string>();
+    version.opened_digest = value.at("openedDigest").get<std::string>();
+    version.regions = value.at("regions");
+    require(version.regions.is_array(), "invalid regions in version manifest");
     require(safe_component(version.id), "invalid version id");
     for (const json& item : value["objects"]) {
         ProjectVersionStore::ObjectResource object;
@@ -561,52 +563,34 @@ fs::path ProjectVersionStore::pending_metadata_path(const std::string& id) const
 void ProjectVersionStore::load_head()
 {
     if (fs::exists(m_root / "HEAD")) {
-        const std::string head = read_file(m_root / "HEAD");
-        if (!head.empty() && head.front() == '{') {
-            const json value = json::parse(head);
-            require(value.value("schema", 0) == 1 && value.contains("versions") && value["versions"].is_array(),
-                    "unsupported current-version index");
-            m_head_id = value.at("current").get<std::string>();
-            std::set<std::string> seen;
-            for (const json& item : value["versions"]) {
-                const std::string id = item.get<std::string>();
-                require(safe_component(id) && seen.insert(id).second, "invalid committed-version index");
-                m_committed_ids.push_back(id);
-            }
-            require(!m_committed_ids.empty() && m_committed_ids.back() == m_head_id,
-                    "current version does not match committed-version index");
-        } else {
-            // Upgrade indexes written by the first implementation of the local
-            // store. Its HEAD was a single version ID.
-            m_head_id = head;
-            if (!m_head_id.empty() && m_head_id.back() == '\n') m_head_id.pop_back();
-            for (const auto& entry : fs::directory_iterator(m_root / "versions"))
-                if (entry.is_directory() && entry.path().filename().string() <= m_head_id)
-                    m_committed_ids.push_back(entry.path().filename().string());
-            std::sort(m_committed_ids.begin(), m_committed_ids.end());
+        const json value = json::parse(read_file(m_root / "HEAD"));
+        require(value.is_object() && value.value("schema", 0) == 1 && value.contains("versions") &&
+                value["versions"].is_array(), "unsupported current-version index");
+        m_head_id = value.at("current").get<std::string>();
+        std::set<std::string> seen;
+        for (const json& item : value["versions"]) {
+            const std::string id = item.get<std::string>();
+            require(safe_component(id) && seen.insert(id).second, "invalid committed-version index");
+            m_committed_ids.push_back(id);
         }
+        require(!m_committed_ids.empty() && m_committed_ids.back() == m_head_id,
+                "current version does not match committed-version index");
         require(safe_component(m_head_id), "invalid current version id");
         const Version version = read_version(m_head_id);
         m_last_metadata_digest = archive_digest(version_dir(m_head_id) / "metadata.3mf");
-        if (fs::exists(version_dir(m_head_id) / "state.json"))
-            m_last_semantic_state = read_file(version_dir(m_head_id) / "state.json");
+        m_last_regions = version.regions;
         for (const ObjectResource& object : version.objects)
             m_last_resources[object.object_id] = object;
     }
     if (fs::exists(m_root / "current-state.json")) {
         const json current = json::parse(read_file(m_root / "current-state.json"));
-        require(current.is_object() && (current.value("schema", 0) == 1 || current.value("schema", 0) == 2),
-                "current project document index is invalid");
-        const int schema = current["schema"].get<int>();
-        if (schema == 2 || (current.contains("baseVersion") && current["baseVersion"].is_string() &&
-                            current["baseVersion"] == m_head_id)) {
-            require(current.contains("state") && current["state"].is_object() &&
-                    current["state"].contains("project") && current["state"]["project"].is_object() &&
-                    current["state"]["project"].value("projectId", std::string()) == m_project_id,
-                    "current project document does not match the project");
-            m_last_semantic_state = current["state"].dump(2);
-            m_document_schema = schema;
-        }
+        require(current.is_object() && current.value("schema", 0) == 2 && current.contains("state") &&
+                current["state"].is_object() && current["state"].contains("project") &&
+                current["state"]["project"].is_object(), "current project document index is invalid");
+        require(current["state"]["project"].value("projectId", std::string()) == m_project_id,
+                "current project document does not match the project");
+        m_last_semantic_state = current["state"].dump(2);
+        m_document_durable = true;
     }
     if (!m_head_id.empty())
         require(!m_last_semantic_state.empty(), "current project document is missing");
@@ -646,9 +630,12 @@ ProjectVersionStore::Capture ProjectVersionStore::freeze(Model& live, const std:
     const fs::path pending = m_root / "pending" / version_id;
     require(fs::exists(pending / "metadata.3mf"), "project metadata was not captured");
     require(valid_zip_entry(pending / "metadata.3mf", ""), "project metadata archive is invalid");
+    json regions = json::parse(semantic_state).value("regions", json::array());
+    require(regions.is_array(), "project document regions are not a list");
     publish_document(std::move(semantic_state));
     Capture capture;
     capture.version = {version_id, revision, 0, std::move(created_at), std::move(source_path), {}};
+    capture.version.regions = std::move(regions);
     capture.pending_dir = pending;
     capture.frozen = std::make_shared<Model>(live);
     for (std::size_t index = 0; index < live.objects.size(); ++index) {
@@ -682,6 +669,7 @@ ProjectVersionStore::Capture ProjectVersionStore::freeze(Model& live, const std:
 bool ProjectVersionStore::unchanged(const Capture& capture) const
 {
     return !m_head_id.empty() && capture.signatures == m_last_signatures &&
+           capture.version.regions == m_last_regions &&
            archive_digest(capture.pending_dir / "metadata.3mf") == m_last_metadata_digest;
 }
 
@@ -694,7 +682,7 @@ void ProjectVersionStore::discard(const Capture& capture) const
 void ProjectVersionStore::publish(Capture capture)
 {
     require(capture.frozen != nullptr, "capture has no model");
-    require(m_document_schema == 2, "project document must be durable before a model checkpoint");
+    require(m_document_durable, "project document must be durable before a model checkpoint");
     const fs::path pending = capture.pending_dir;
     validate_metadata(pending / "metadata.3mf", capture.version);
     fs::create_directories(pending / "new-resources");
@@ -778,6 +766,7 @@ void ProjectVersionStore::publish(Capture capture)
     m_last_signatures = std::move(capture.signatures);
     m_last_model = std::move(capture.frozen);
     m_last_metadata_digest.swap(next_digest);
+    m_last_regions = capture.version.regions;
     m_head_needs_sync = true;
     ensure_durable_head();
     if (m_publish_stage_hook) m_publish_stage_hook(PublishStage::HeadPublished);
@@ -791,14 +780,14 @@ void ProjectVersionStore::publish_document(std::string semantic_state)
     const std::string document_id = state["project"].value("projectId", std::string());
     require(document_id == m_project_id,
             "project document " + document_id + " does not match local project " + m_project_id);
-    if (m_document_schema == 2 && semantic_state == m_last_semantic_state)
+    if (m_document_durable && semantic_state == m_last_semantic_state)
         return;
     validate_attachments(m_root, semantic_state);
     checked_write(m_root / "current-state.pending",
                   json{{"schema", 2}, {"state", state}}.dump());
     atomic_replace(m_root / "current-state.pending", m_root / "current-state.json");
     m_last_semantic_state = std::move(semantic_state);
-    m_document_schema = 2;
+    m_document_durable = true;
 }
 
 void ProjectVersionStore::ensure_durable_head()
@@ -834,6 +823,7 @@ ProjectVersionStore::Materialization ProjectVersionStore::materialize(const std:
     result.metadata = result.directory / ".3mf";
     result.absent_original = result.directory / "source-unavailable.3mf";
     result.empty = version.objects.empty();
+    result.regions = version.regions;
     fs::create_directories(result.directory / "3D" / "Objects");
     const fs::path stored_metadata = version_dir(version_id) / "metadata.3mf";
     validate_metadata(stored_metadata, version);
@@ -916,10 +906,6 @@ void ProjectVersionStore::prune(std::size_t max_versions, std::uintmax_t max_byt
                 if (entry.is_regular_file()) bytes += entry.file_size();
             for (const ObjectResource& object : version.objects)
                 resources.insert(object.resource.id);
-            if (fs::exists(version_dir(version.id) / "state.json")) {
-                const auto paths = attachment_paths(read_file(version_dir(version.id) / "state.json"));
-                attachments.insert(paths.begin(), paths.end());
-            }
         }
         for (const std::string& id : resources)
             bytes += fs::file_size(resource_path(id));

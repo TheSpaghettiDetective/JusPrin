@@ -1,6 +1,7 @@
-// Acceptance for "the setup card shows differences from presets": the three
-// designed frames, every remaining state of the card, and the two guards that
-// keep the card from sliding back to a list of settings somebody picked.
+// Acceptance for the setup card and the setup page: the three designed
+// frames, with the plan's headline in the card where the differences were,
+// every remaining state of the card, and the two guards that keep the card
+// and the page from sliding back to a list of settings somebody picked.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -37,15 +38,16 @@ function draw(seed: number, count: number): string[] {
 }
 
 describe('the three designed frames', () => {
-  it('A1 · the card names the two newest changes and counts the rest', async () => {
+  it('A1 · the card says how the agent means to print, not what differs', async () => {
     const { root: card, onViewSetup } = visual('A1');
     expect(card).toHaveTextContent('Setup summary');
     expect(card).toHaveTextContent('Current');
     expect(within(card).getByRole('heading')).toHaveTextContent('Stop the corners lifting');
     expect(card).toHaveTextContent('0.20mm Standard · Generic ABS +2');
-    expect([...card.querySelectorAll('.current-setup-row--change')].map((row) => row.textContent)).toEqual([
-      'Brim width0 → 8 mm', 'Brim typeAuto → Outer brim only']);
-    expect(card).toHaveTextContent('3 more changes · 1 object with overrides');
+    expect(card.querySelector('.current-setup-strategy')).toHaveTextContent(
+      'Wide brim and a slow first layer for adhesion');
+    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
+    expect(card.querySelector('.current-setup-note')).toHaveTextContent(/^1 object with overrides$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('41 g');
     await userEvent.click(within(card).getByRole('button', { name: 'View setup' }));
@@ -57,7 +59,8 @@ describe('the three designed frames', () => {
     expect(card).toHaveTextContent('Not sliced');
     expect(within(card).getByRole('heading')).toHaveTextContent('0.20mm Standard @MyKlipper');
     expect([...card.querySelectorAll('.current-setup-line')].map((line) => line.textContent)).toEqual([
-      'Generic ABS +2', 'No changes from presets', 'Not sliced yet · estimates unavailable · Plate 1']);
+      'Generic ABS +2', 'Not sliced yet · estimates unavailable · Plate 1']);
+    expect(card.querySelector('.current-setup-strategy')).toBeNull();
     await userEvent.click(within(card).getByRole('button', { name: 'Compute estimates' }));
     expect(onCompute).toHaveBeenCalledOnce();
     expect(within(card).getByRole('button', { name: 'View setup' })).toBeInTheDocument();
@@ -80,7 +83,7 @@ describe('the three designed frames', () => {
 
 describe('the card\'s other states', () => {
   const expected: Record<string, (string | RegExp)[]> = {
-    earlier: ['Earlier setup', 'Saved Oct 8, 10:42', 'First layer height0.2 → 0.28 mm', 'Saved with this chat.'],
+    earlier: ['Earlier setup', 'Saved Oct 8, 10:42', 'Wide brim and a slow first layer for adhesion', 'Saved with this chat.'],
     'just-changed': ['Updated', 'Add modifier: Corner tab', 'Estimate: ~2h 00m / 38 g → ~2h 18m / 41 g', 'Undo'],
     working: ['Agent working', 'Last confirmed estimates', 'Shown settings remain the last confirmed setup.'],
     recomputing: ['Confirmed', 'Time & material estimates recomputing…', 'Settings confirmed · Plate 1'],
@@ -91,12 +94,12 @@ describe('the card\'s other states', () => {
     sent: ['Saved sliced snapshot', 'Sliced & sent', 'Saved pre-slice estimates', 'Oct 8, 10:42 · sent to MyKlipper'],
     'with-currency': [/1\.12/],
     missing: ['Preset fallback', 'Estimate unavailable'],
-    legacy: ['Wall loops2 → 4', 'Brim typeauto_brim → outer_only'],
-    dense: ['18 more changes', 'Stamping distance measured from the center of the cooling tube0 → 1 mm'],
+    dense: ['Extra-wide brim, a slow first layer and a cooler bed so the long fixture stays flat on the plate',
+      '1 object with overrides'],
+    'no-plan': ['Stop the corners lifting', '1 object with overrides', 'Current'],
     'page-untouched': ['No changes from presets', 'bracket.stlUses plate settings', 'Plate 1 · shownNot sliced'],
     'page-objects': ['Objects on Plate 1 · 3', 'Mounting tabs · modifier', 'Screw holes · support blocker',
       'Support painting', 'cover.stlUses plate settings', 'Spiral vase'],
-    'page-legacy': ['Brim typeauto_brim → outer_only', 'Earlier setup'],
     'page-dense': ['Changed from presets · 20', 'Filament 6Generic PLA @System', 'Page 4 · Group 2'],
   };
 
@@ -111,10 +114,30 @@ describe('the card\'s other states', () => {
     expect(root).not.toHaveTextContent(/undefined|NaN/);
   });
 
-  it('a change that is new is not listed a second time under the estimate', () => {
+  it('a change that is new is not listed on the card', () => {
     const { root } = visual('just-changed');
-    expect(root.textContent!.match(/Brim width/g)).toHaveLength(1);
-    expect(root).not.toHaveTextContent('0 mm → 8 mm');
+    expect(root).not.toHaveTextContent(/Brim width|0 mm → 8 mm/);
+  });
+
+  it('no card lists a difference or counts them', () => {
+    for (const entry of setupVisualCases.filter((item) => item.kind === 'card')) {
+      const { root } = visual(entry.id);
+      expect(root.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
+      // A hand edit's notice names the setting from the change log; the
+      // difference itself, preset value to value, is the page's.
+      for (const delta of entry.context.presetDeltas)
+        expect(root).not.toHaveTextContent(delta.display || `${delta.preset} → ${delta.value}`);
+      expect(root).not.toHaveTextContent(/more change|No changes from presets/);
+      cleanup();
+    }
+  });
+
+  it('a card with no plan has no strategy line, and no stand-in for one', () => {
+    for (const id of ['no-plan', 'A2']) {
+      const { root } = visual(id);
+      expect(root.querySelector('.current-setup-strategy')).toBeNull();
+      cleanup();
+    }
   });
 
   it('a card that claims nothing offers nothing to open', () => {
@@ -125,7 +148,7 @@ describe('the card\'s other states', () => {
   });
 
   it('a saved card offers no live action', () => {
-    for (const id of ['earlier', 'sent', 'legacy']) {
+    for (const id of ['earlier', 'sent']) {
       const { root } = visual(id);
       expect(within(root).getAllByRole('button').map((button) => button.textContent)).toEqual(['View setup']);
       cleanup();
@@ -139,11 +162,11 @@ describe('any setting, not a chosen few', () => {
     expect(settingKeys).toEqual(expect.arrayContaining(['layer_height', 'hot_plate_temp', 'retraction_length', 'extruder']));
   });
 
-  it.each([7, 19, 43, 101, 20261008])('shows five settings drawn at random (seed %i) on the page and counts them on the card', (seed) => {
+  it.each([7, 19, 43, 101, 20261008])('shows five settings drawn at random (seed %i) on the page and none on the card', (seed) => {
     const context = setupWorkspace();
     const types = ['process', 'filament', 'printer'] as const;
     context.presetDeltas = draw(seed, 5).map((key, index): PresetDeltaInfo => ({ key, label: `Label of ${key}`,
-      preset: 'a', value: 'b', display: `before ${key} → after ${key}`, origin: index % 2 ? 'user' : 'agent',
+      preset: 'a', value: 'b', display: `before ${key} → after ${key}`,
       presetType: types[index % 3], presetName: `Preset ${index % 3}`, page: `Page ${index}`, group: `Group ${index}` }));
     const page = render(<SetupPage context={context} />);
     for (const setting of context.presetDeltas) {
@@ -155,8 +178,8 @@ describe('any setting, not a chosen few', () => {
     page.unmount();
     render(<SetupCard context={context} onViewSetup={() => {}} />);
     const card = screen.getByTestId('current-setup');
-    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(2);
-    expect(card).toHaveTextContent('3 more changes');
+    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
+    for (const setting of context.presetDeltas) expect(card).not.toHaveTextContent(setting.label);
   });
 
   it('names no setting in the card\'s or the page\'s source, but an object\'s filament slot', () => {

@@ -7,7 +7,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChangeInfo, PresetDeltaInfo, WorkspaceContext } from '../bridge/protocol';
 import { SetupCard, SetupCardProps, deterministicAttention, estimateView, formatCost, formatGrams, formatPrintTime,
-  handEdits, orderedPresetDeltas, overrideObjectCount, presetsLine, recentAgentChange } from './SetupCard';
+  handEdits, overrideObjectCount, presetsLine, recentAgentChange } from './SetupCard';
 
 function context(): WorkspaceContext {
   return {
@@ -18,6 +18,7 @@ function context(): WorkspaceContext {
       estimateStatus: 'current', invalidatedBy: '', objects: [] }],
     selection: { status: 'none', objectIds: [] },
     history: { canUndo: true, canRedo: false }, presetDeltas: [], currency: '', setupIntent: 'Quick fit check',
+    planHeadline: '', printerReview: null,
     appliedSetup: { version: 1, plateId: 'plate-1', printableObjects: 1, spiralMode: false,
       variableLayerHeight: false, objects: ['Bracket'], localOverrides: [] },
     setupIdentity: { printer: 'Bambu A1', nozzles: [0.4], plateType: 'Textured PEI',
@@ -26,7 +27,7 @@ function context(): WorkspaceContext {
 }
 
 const delta = (key: string, label: string, display: string, extra: Partial<PresetDeltaInfo> = {}): PresetDeltaInfo => ({
-  key, label, display, preset: '', value: '', origin: 'user', presetType: 'process', presetName: '0.20 mm Standard',
+  key, label, display, preset: '', value: '', presetType: 'process', presetName: '0.20 mm Standard',
   page: 'Strength', group: 'Walls', ...extra });
 
 const NOW = Date.parse('2026-10-05T20:00:30');
@@ -100,82 +101,39 @@ describe('presets and differences', () => {
     expect(presetsLine(value, 'Quick fit check')).toBe('');
   });
 
-  it('says so when nothing differs from the presets', () => {
-    const card = show(context());
-    expect(card).toHaveTextContent('No changes from presets');
-    expect(card.querySelector('.current-setup-row--change')).toBeNull();
-    expect(card).not.toHaveTextContent(/more change|with overrides/);
-  });
-
-  it('shows two differences as the host formatted them and counts the rest', () => {
+  it('shows the plan headline under the presets and none of the differences', () => {
     const value = context();
+    value.planHeadline = 'Four walls and gyroid infill for strength';
     value.presetDeltas = [delta('a', 'Wall loops', '2 → 4'), delta('b', 'Brim type', 'Auto → Outer brim only'),
-      delta('c', 'Brim width', '0 → 8 mm'), delta('d', 'First layer height', '0.2 → 0.28 mm')];
+      delta('c', 'G-code thumbnails', '48x48/PNG,300x300/PNG → 48x48/PNG, 300x300/PNG')];
     const card = show(value);
-    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(2);
-    expect(card).toHaveTextContent('Wall loops2 → 4');
-    expect(card).toHaveTextContent('Brim typeAuto → Outer brim only');
-    expect(card).toHaveTextContent('2 more changes');
-    expect(card).not.toHaveTextContent('Brim width');
-    expect(card).not.toHaveTextContent('No changes from presets');
+    const headline = card.querySelector('.current-setup-strategy')!;
+    expect(headline).toHaveTextContent('Four walls and gyroid infill for strength');
+    expect(card.querySelector('.current-setup-line--single')!.compareDocumentPosition(headline) &
+      Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.querySelector('.current-setup-row--change')).toBeNull();
+    expect(card).not.toHaveTextContent(/Wall loops|thumbnails|→|more change|No changes from presets/);
   });
 
-  it('counts one more change in the singular and none not at all', () => {
+  it('has no strategy line at all without a headline', () => {
+    for (const headline of ['', '   ']) {
+      const value = context();
+      value.planHeadline = headline;
+      value.presetDeltas = [delta('a', 'Wall loops', '2 → 4')];
+      const card = show(value);
+      expect(card.querySelector('.current-setup-strategy')).toBeNull();
+      expect(card).not.toHaveTextContent(/Wall loops|No changes from presets|Quick fit check.*Quick fit check/);
+      cleanup();
+    }
+  });
+
+  it('wraps a long or localized headline whole instead of cutting it', () => {
     const value = context();
-    value.presetDeltas = [delta('a', 'A', '1 → 2'), delta('b', 'B', '1 → 2'), delta('c', 'C', '1 → 2')];
-    expect(show(value)).toHaveTextContent('1 more change');
-    cleanup();
-    value.presetDeltas.pop();
-    expect(show(value)).not.toHaveTextContent('more change');
-  });
-
-  it('puts the place a setting has in the settings tabs in its tooltip', () => {
-    const value = context();
-    // Two settings OrcaSlicer both labels "Brim width".
-    value.presetDeltas = [delta('brim_width', 'Brim width', '0 → 8 mm', { page: 'Others', group: 'Brim' }),
-      delta('prime_tower_brim_width', 'Brim width', '3 → 5 mm', { page: 'Multimaterial', group: 'Prime tower' })];
-    const names = [...show(value).querySelectorAll('dt')].map((name) => name.getAttribute('title'));
-    expect(names).toEqual(['Others · Brim · Brim width', 'Multimaterial · Prime tower · Brim width']);
-  });
-
-  it('shows the raw pair for a difference saved before the host formatted it', () => {
-    const value = context();
-    value.presetDeltas = [{ key: 'wall_loops', label: 'Wall loops', preset: '2', value: '4', origin: 'agent' }];
-    expect(show(value, { historical: true })).toHaveTextContent('Wall loops2 → 4');
-  });
-
-  it('leads with what the agent changed, newest first, then what the person did', () => {
-    const deltas = [delta('a', 'A', ''), delta('b', 'B', '', { origin: 'agent' }), delta('c', 'C', '', { origin: 'agent' }),
-      delta('d', 'D', ''), delta('e', 'E', '', { origin: 'agent' })];
-    const at = (minute: number) => `2026-10-05T20:0${minute}:00`;
-    const log = [change(1, { key: 'b', createdAt: at(1) }), change(2, { key: 'c', createdAt: at(2) }),
-      change(3, { key: 'd', actor: 'person', createdAt: at(3) }), change(4, { key: 'c', createdAt: at(4) })];
-    // c was changed last; e has no entry in this chat's log and keeps the
-    // host's own order after the ones that do; then the person's, newest first.
-    expect(orderedPresetDeltas(deltas, log).map((item) => item.key)).toEqual(['c', 'b', 'e', 'd', 'a']);
-    expect(orderedPresetDeltas(deltas).map((item) => item.key)).toEqual(['b', 'c', 'e', 'a', 'd']);
-  });
-
-  it('keeps settings changed in one go in the host\'s order', () => {
-    // One patch writes its settings in the same instant, in OrcaSlicer's
-    // order. Which of them the log happens to list last means nothing.
-    const deltas = [delta('speed', 'First layer', '', { origin: 'agent' }), delta('width', 'Brim width', '', { origin: 'agent' }),
-      delta('type', 'Brim type', '', { origin: 'agent' }), delta('walls', 'Wall loops', '', { origin: 'agent' })];
-    const patch = [change(1, { key: 'walls', createdAt: '2026-10-05T19:00:00' }),
-      change(2, { key: 'speed' }), change(3, { key: 'width' }), change(4, { key: 'type' })];
-    expect(orderedPresetDeltas(deltas, patch).map((item) => item.key)).toEqual(['speed', 'width', 'type', 'walls']);
-    // The same three edited by hand a minute apart are three moments.
-    const byHand = patch.map((entry, index) => ({ ...entry, createdAt: `2026-10-05T20:0${index}:00` }));
-    expect(orderedPresetDeltas(deltas, byHand).map((item) => item.key)).toEqual(['type', 'width', 'speed', 'walls']);
-  });
-
-  it('tells apart a process and a filament setting that share a key', () => {
-    const deltas = [delta('x', 'Process X', '', { origin: 'agent' }),
-      delta('x', 'Filament X', '', { origin: 'agent', presetType: 'filament' })];
-    const value = context();
-    value.presetDeltas = deltas;
-    expect(show(value)).toHaveTextContent('Process X');
-    expect(screen.getByTestId('current-setup')).toHaveTextContent('Filament X');
+    value.planHeadline = 'Vier Wände, Gyroid-Füllung mit 25 % und ein breiter Rand gegen das Ablösen der Ecken auf dem Druckbett';
+    const headline = show(value).querySelector('.current-setup-strategy')!;
+    expect(headline).toHaveTextContent(value.planHeadline);
+    expect(headline).not.toHaveClass('current-setup-line--single');
+    expect(headline).not.toHaveAttribute('title');
   });
 
   it('counts the objects that carry overrides, not the overrides', () => {
@@ -186,10 +144,14 @@ describe('presets and differences', () => {
       { object: 0, target: 'a / tab', kind: 'modifier', key: 'wall_loops', value: '7' },
       { object: 2, target: 'c', kind: 'support painting', key: '', value: '' }];
     expect(overrideObjectCount(value)).toBe(2);
-    expect(show(value)).toHaveTextContent('2 objects with overrides');
+    expect(show(value).querySelector('.current-setup-note')).toHaveTextContent(/^2 objects with overrides$/);
     cleanup();
     value.appliedSetup!.localOverrides.length = 1;
-    expect(show(value)).toHaveTextContent('1 object with overrides');
+    value.planHeadline = 'Four walls and gyroid infill for strength';
+    expect(show(value).querySelector('.current-setup-note')).toHaveTextContent(/^1 object with overrides$/);
+    cleanup();
+    value.appliedSetup!.localOverrides.length = 0;
+    expect(show(value).querySelector('.current-setup-note')).toBeNull();
   });
 
   it('opens the setup page from one link and never grows itself', async () => {
@@ -200,7 +162,7 @@ describe('presets and differences', () => {
     expect(within(card).queryByRole('button', { name: /details/i })).toBeNull();
     await userEvent.click(within(card).getByRole('button', { name: 'View setup' }));
     expect(onViewSetup).toHaveBeenCalledOnce();
-    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(1);
+    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
   });
 });
 
@@ -241,7 +203,6 @@ describe('time and material', () => {
     expect(card).toHaveTextContent('Confirmed');
     expect(card).toHaveTextContent('Time & material estimates recomputing…');
     expect(card).toHaveTextContent('Settings confirmed · Plate 1');
-    expect(card).toHaveTextContent('No changes from presets');
     expect(card).not.toHaveTextContent('~2h 18m');
   });
 
@@ -308,14 +269,13 @@ describe('activity and authorship', () => {
     expect(recentAgentChange([...log, change(4, { actor: 'person' })], NOW)).toEqual([]);
   });
 
-  it('marks a completed change as new without listing it a second time', () => {
+  it('marks a completed change as new without listing it', () => {
     const value = context();
-    value.presetDeltas = [delta('wall_loops', 'Wall loops', '2 → 4', { origin: 'agent' })];
+    value.presetDeltas = [delta('wall_loops', 'Wall loops', '2 → 4')];
     const card = show(value, { changes: [change(1, { key: 'wall_loops' })], now: NOW });
     expect(card).toHaveTextContent('Updated');
-    // The change is the card's own row; nothing repeats it under the estimate.
-    expect(card.textContent!.match(/Wall loops/g)).toHaveLength(1);
-    expect(card).toHaveTextContent('Wall loops2 → 4');
+    // The thread's change rows name the setting under the agent's turn.
+    expect(card).not.toHaveTextContent('Wall loops');
     // With no step and no estimate to compare, the minute adds no block.
     expect(card.querySelectorAll('.current-setup-divider')).toHaveLength(1);
   });
@@ -323,12 +283,10 @@ describe('activity and authorship', () => {
   it('does not grow with the number of settings the agent just changed', () => {
     const value = context();
     const keys = Array.from({ length: 19 }, (_, index) => `setting_${index}`);
-    value.presetDeltas = keys.map((key) => delta(key, `Setting ${key}`, '1 → 2', { origin: 'agent' }));
+    value.presetDeltas = keys.map((key) => delta(key, `Setting ${key}`, '1 → 2'));
     const card = show(value, { changes: keys.map((key, index) => change(index + 1, { key, label: `Setting ${key}` })), now: NOW });
     expect(card).toHaveTextContent('Updated');
-    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(2);
-    expect(card).toHaveTextContent('17 more changes');
-    expect(card).not.toHaveTextContent('Setting setting_18');
+    expect(card).not.toHaveTextContent(/Setting setting_|more change/);
   });
 
   it('names a project step the agent just made, which no row shows', () => {
@@ -424,6 +382,62 @@ describe('activity and authorship', () => {
   });
 });
 
+describe('the strategy headline in each state', () => {
+  const HEADLINE = 'Four walls and gyroid infill for strength';
+  const withHeadline = () => ({ ...context(), planHeadline: HEADLINE });
+  const strategy = (card: HTMLElement) => card.querySelector('.current-setup-strategy')?.textContent;
+  const edits = [change(1, { createdAt: '2026-10-05T19:00:00' }),
+    change(2, { actor: 'person', label: 'Wall loops', from: '4', to: '3' })];
+
+  it.each([
+    ['Agent working', () => show(withHeadline(), { working: true })],
+    ['Updated', () => show(withHeadline(), { changes: [change(1, {})], now: NOW })],
+    ['Confirmed', () => {
+      const value = withHeadline();
+      value.plates[0].estimateStatus = 'recomputing';
+      return show(value);
+    }],
+    ['Current', () => show(withHeadline())],
+    ['Not sliced', () => {
+      const value = withHeadline();
+      value.plates[0].estimate = null;
+      value.plates[0].sliced = false;
+      return show(value);
+    }],
+    ['Edited by you', () => show(withHeadline(), { changes: edits, now: NOW })],
+    ['Out of date', () => {
+      const value = withHeadline();
+      value.plates[0].estimateStatus = 'stale';
+      return show(value);
+    }],
+    ['Saved', () => show(withHeadline(), { historical: true, savedAt: '2026-10-03T10:42:00' })],
+    ['Sliced & sent', () => show(withHeadline(), { historical: true, sent: { at: '2026-10-03T10:42:00', printer: 'A1' } })],
+  ])('shows it under %s', (state, render) => {
+    const card = render();
+    expect(card.querySelector('.current-setup-state')).toHaveTextContent(state);
+    expect(strategy(card)).toBe(HEADLINE);
+  });
+
+  it('keeps it beside the notice a hand edit raises', () => {
+    const card = show(withHeadline(), { changes: edits, now: NOW });
+    expect(card).toHaveTextContent('You set Wall loops 3 outside the agent.');
+    expect(strategy(card)).toBe(HEADLINE);
+  });
+
+  it('keeps it on an out-of-date card that offers a refresh', () => {
+    const value = withHeadline();
+    value.plates[0].estimateStatus = 'stale';
+    const card = show(value, { onCompute: () => {} });
+    expect(card).toHaveTextContent('Earlier setup');
+    expect(within(card).getByRole('button', { name: 'Refresh setup & recompute' })).toBeInTheDocument();
+    expect(strategy(card)).toBe(HEADLINE);
+  });
+
+  it('has none on the preset fallback', () => {
+    expect(strategy(show(withHeadline(), { agentAvailable: false }))).toBeUndefined();
+  });
+});
+
 describe('needs attention', () => {
   it('shows nothing, and no all-clear, when no check produced a finding', () => {
     const card = show(context());
@@ -477,15 +491,15 @@ describe('needs attention', () => {
     expect(screen.getByTestId('current-setup')).not.toHaveTextContent('differs');
   });
 
-  it('makes no finding out of a question, a plan, or a time in the intent', () => {
+  it('makes no finding out of a question or a time in the intent, or out of the plan', () => {
     const value = context();
     value.setupIntent = 'Could this finish under 1 hour?';
-    value.planValidity = 'needs_reassessment';
-    value.planInvalidatedBy = 'Is PETG right for this?';
+    value.planHeadline = 'Fast draft layers to finish within the hour';
     const card = show(value);
     expect(deterministicAttention(value)).toEqual([]);
     expect(card).toHaveTextContent('Could this finish under 1 hour?');
-    expect(card).not.toHaveTextContent(/within|exceeds|target|reassess|PETG right/i);
+    expect(card.querySelector('.current-setup-attention')).toBeNull();
+    expect(card).not.toHaveTextContent(/exceeds|target|reassess/i);
   });
 });
 
@@ -522,18 +536,6 @@ describe('saved and fallback cards', () => {
     expect(card).toHaveTextContent('Oct 3, 10:42 · sent to Bambu A1');
   });
 
-  it('fills a summary saved before the read model with nothing from today', () => {
-    const value = context();
-    delete value.appliedSetup;
-    delete value.setupIdentity;
-    value.presetDeltas = [{ key: 'sparse_infill_density', label: 'Sparse infill density', preset: '15%', value: '5%', origin: 'agent' }];
-    const card = show(value, { historical: true });
-    expect(card).toHaveTextContent('Sparse infill density15% → 5%');
-    // The filament it names is the one saved with the chat's own summary.
-    expect(card).toHaveTextContent('0.20 mm Standard · PETG Basic');
-    expect(card).not.toHaveTextContent(/with overrides|Preset fallback/);
-  });
-
   it('is a plain preset label when no agent is configured', () => {
     const value = context();
     value.printerReview = { observed: { observedAt: '2026-10-05T20:00:00' },
@@ -552,7 +554,7 @@ describe('saved and fallback cards', () => {
     value.setupIntent = '   ';
     const card = show(value);
     expect(within(card).getByRole('heading', { name: '0.20 mm Standard' })).toBeInTheDocument();
-    expect(card).toHaveTextContent('No changes from presets');
+    expect(card).not.toHaveTextContent('No changes from presets');
   });
 
   it('renders no empty heading when there is neither intent nor preset', () => {
@@ -576,8 +578,10 @@ describe('saved and fallback cards', () => {
     value.appliedSetup = null;
     value.setupIdentity = null;
     value.plates[0].estimate = null;
+    value.planHeadline = 'Four walls and gyroid infill for strength';
     const card = show(value);
     expect(card).toHaveTextContent('Preset fallback');
+    expect(card).not.toHaveTextContent('Four walls');
     expect(card).toHaveTextContent('Estimate unavailable');
     expect(card).not.toHaveTextContent(/No changes from presets|with overrides|Current|0 g/);
     expect(within(card).queryByRole('button')).toBeNull();

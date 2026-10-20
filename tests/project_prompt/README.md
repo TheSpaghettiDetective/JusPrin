@@ -206,7 +206,13 @@ those. Recorded again for the change that added each plate's type to the
 point's block names it, and nothing else changed but timestamps and a
 temporary path. Recorded again when the app began asking for several calls
 per response (`parallel_tool_calls: true`): only that flag, ids, timestamps
-and a temporary path changed.
+and a temporary path changed. Recorded again on 2026-10-19 when the setup
+card's headline replaced its preset differences, two intentional changes to
+the model's input: no preset difference carries `origin` any more, and the
+in-app agent's own edits no longer mark its plan `needs_reassessment` (the
+recording's 240 such values are now `current`); the `plan_set` description
+asks for a short strategy headline. Beyond those and timestamps, only the
+`after-slice` point's known timing noise changed.
 
 The app streams its requests and this script does not.
 

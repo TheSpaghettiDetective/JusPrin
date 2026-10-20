@@ -127,8 +127,7 @@ public:
                                        std::function<std::string()> current_version,
                                        std::function<bool(const std::string&)> version_exists,
                                        std::function<bool()> save_document,
-                                       std::function<bool(const std::string&, const nlohmann::json&,
-                                                          const std::string&)> restore)
+                                       std::function<bool(const std::string&, const std::string&)> restore)
     {
         m_pin_chat_version = std::move(pin_current);
         m_current_chat_version = std::move(current_version);
@@ -373,15 +372,6 @@ private:
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);
     void continue_after_tool(const ToolActivity& activity);
-    // Records which process settings the agent itself put in force, and to
-    // what, so the card can count your hand edits separately from its own.
-    bool remember_agent_authored(const ToolActivity& activity);
-    // Rebuilds that record from the persisted activities of the document in
-    // hand. Without it a restart would relabel every change the agent made as
-    // yours -- a loud, wrong claim rather than a quiet missing one.
-    void rebuild_agent_authored();
-    // The subset of a snapshot's deltas the agent can prove it wrote.
-    std::set<std::string> agent_authored_keys(const Workspace::WorkspaceSnapshot& snapshot);
     void begin_tool_followup(const PendingToolContinuation& continuation);
     void start_next_queued_reply();
     void refresh_workspace_identity() const;
@@ -481,7 +471,7 @@ private:
     std::function<std::string()> m_current_chat_version;
     std::function<bool(const std::string&)> m_chat_version_exists;
     std::function<bool()> m_save_chat_document;
-    std::function<bool(const std::string&, const nlohmann::json&, const std::string&)> m_restore_chat_version;
+    std::function<bool(const std::string&, const std::string&)> m_restore_chat_version;
     bool m_chat_transition_blocked{false};
     std::function<void()> m_setup_completed_listener;
 
@@ -537,17 +527,6 @@ private:
     bool                            m_mcp_busy{false};
     std::deque<std::string>     m_queued_user_message_ids;
     std::map<std::string, PendingToolContinuation> m_tool_continuations;
-    // Every preset setting the agent has applied, as "<preset type>:<key>",
-    // mapped to the value it applied. A key stays the agent's only while that
-    // value is still in force: hand-edit the setting and it becomes yours
-    // again, because the card describes the project rather than the agent's
-    // turns.
-    std::map<std::string, std::string> m_agent_authored;
-    // The preset of each type the map above was recorded against. Switching
-    // one changes the baseline its deltas are measured from, so the
-    // attribution of that type's settings does not carry over. A type is
-    // absent until the first context binds it.
-    std::map<std::string, std::string> m_agent_authored_presets;
 
     std::uint64_t m_next_envelope_id{1};
     std::uint64_t m_messages_sent{0};

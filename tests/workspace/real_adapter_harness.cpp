@@ -1485,6 +1485,24 @@ private:
         const auto unchanged = store.freeze(m_plater->model(), unchanged_id, 2, document_state, "", "semantic-only");
         check(store.unchanged(unchanged), "versions_document_update_does_not_change_checkpoint_equality");
         store.discard(unchanged);
+        // Region annotations label the model, so each version records the
+        // list it was saved with, a change to it is a new version, and a
+        // restore gets the version's own list back.
+        check(store.history().front().regions == nlohmann::json::array(), "versions_record_their_regions");
+        const auto initial_materialized = store.materialize(initial.first);
+        check(initial_materialized.regions == nlohmann::json::array(), "versions_materialize_their_regions");
+        store.remove_materialization(initial_materialized);
+        nlohmann::json regioned_state = nlohmann::json::parse(document_state);
+        regioned_state["regions"] = nlohmann::json::array({{{"id", "r-1"}, {"kind", "reinforce"}, {"seq", 4}}});
+        const std::string regioned_id = ProjectVersionStore::new_id();
+        check(m_plater->export_3mf(fs::path(store.pending_metadata_path(regioned_id).string()),
+                                   SaveStrategy::Backup | SaveStrategy::Silence) >= 0,
+              "versions_regioned_metadata_captured");
+        auto regioned = store.freeze(m_plater->model(), regioned_id, 2, regioned_state.dump(), "", "regions");
+        check(!store.unchanged(regioned) && regioned.version.regions == regioned_state["regions"],
+              "versions_region_change_is_a_new_version");
+        store.discard(regioned);
+        store.publish_document(document_state);
         check(m_plater->rename_object(0, "Renamed cube"), "versions_rename");
         const auto renamed = capture("renamed");
         check(renamed.second == 0, "versions_rename_reuses_resource");
@@ -1577,18 +1595,6 @@ private:
     void verify_reopened_local_versions()
     {
         const auto root = std::filesystem::path(data_dir()) / "version-test" / "p-harness";
-        nlohmann::json head, current;
-        std::ifstream head_file(root / "HEAD");
-        head_file >> head;
-        std::ifstream current_file(root / "current-state.json");
-        current_file >> current;
-        // Windows will not replace a file that is still open for reading.
-        head_file.close();
-        current_file.close();
-        const std::string legacy_head = head.at("current").get<std::string>();
-        std::ofstream(root / "versions" / legacy_head / "state.json") << current.at("state").dump(2);
-        std::ofstream(root / "current-state.json") <<
-            nlohmann::json{{"schema", 1}, {"baseVersion", legacy_head}, {"state", current.at("state")}}.dump();
         std::filesystem::create_directories(root / "pending" / "interrupted-write");
         std::filesystem::create_directories(root / "versions" / "uncommitted-version");
         std::filesystem::create_directories(root / "materialized" / "stale-restore");
@@ -1612,13 +1618,6 @@ private:
               "versions_restart_removes_uncommitted_work");
         check(versions.size() == 3 && reopened.head_id() == versions.back().id,
               "versions_restart_reads_committed_history");
-        reopened.publish_document(current.at("state").dump(2));
-        nlohmann::json upgraded;
-        std::ifstream upgraded_file(root / "current-state.json");
-        upgraded_file >> upgraded;
-        upgraded_file.close();
-        check(upgraded.value("schema", 0) == 2 && !upgraded.contains("baseVersion"),
-              "versions_legacy_document_upgrades_without_model_checkpoint");
         const auto current_document = reopened.materialize(reopened.head_id());
         check(current_document.semantic_state.find("partial reply") != std::string::npos,
               "versions_restart_reads_current_document_overlay");

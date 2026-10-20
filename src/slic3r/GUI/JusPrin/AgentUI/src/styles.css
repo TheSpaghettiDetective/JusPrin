@@ -151,6 +151,14 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* How the agent means to print: its plan's headline, a few words that wrap
+   rather than being cut. */
+.current-setup-strategy {
+  font: var(--font-label);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
 /* The presets stay on one line: the card does not grow for a long name. The
    whole of it is in the tooltip, and on the setup page. */
 .current-setup-line--single {

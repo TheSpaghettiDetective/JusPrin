@@ -50,13 +50,15 @@ describe('setup page', () => {
     expect(section(show(context), 'Presets')).toHaveTextContent('FilamentGeneric ABS @System');
   });
 
-  it('groups differences by preset, then by their place in the settings tabs', () => {
+  it('groups differences by preset, then by their place in the settings tabs, in OrcaSlicer\'s order', () => {
+    // The agent changed the brim last; the page lists in the host's order,
+    // OrcaSlicer's own, whoever changed what when.
     const changed = section(show(setupWorkspace(), { changes: visualChanges }), 'Changed from presets · 5');
     expect(texts(changed, '.current-setup-object-name, .current-setup-group, .current-setup-row')).toEqual([
       '0.20mm Standard @MyKlipper',
-      'Others · Brim', 'Brim width0 → 8 mm', 'Brim typeAuto → Outer brim only',
       'Quality · Layer height', 'First layer height0.2 → 0.28 mm',
       'Speed · First layer speed', 'First layer50 → 25 mm/s',
+      'Others · Brim', 'Brim width0 → 8 mm', 'Brim typeAuto → Outer brim only',
       'Generic ABS @System',
       'Filament · Bed temperature', 'Bed temperature100 → 105 ℃',
     ]);
@@ -65,7 +67,7 @@ describe('setup page', () => {
   it('keeps process, filament, printer in that order whichever was edited last', () => {
     const context = setupWorkspace();
     const printer: PresetDeltaInfo = { key: 'retraction_length', label: 'Retraction Length', preset: '0.8', value: '1.2',
-      display: '0.8 → 1.2 mm', origin: 'agent', presetType: 'printer', presetName: 'MyKlipper 0.4 nozzle',
+      display: '0.8 → 1.2 mm', presetType: 'printer', presetName: 'MyKlipper 0.4 nozzle',
       page: 'Extruder 1', group: 'Retraction' };
     context.presetDeltas = [printer, ...context.presetDeltas.reverse()];
     const changed = section(show(context), /Changed from presets/);
@@ -131,17 +133,6 @@ describe('setup page', () => {
     context.appliedSetup!.localOverrides = [{ object: 0, target: '3x3_cali_RL.stl', kind: 'object', key: 'extruder',
       value: '2', label: 'Filament slot', display: '2' }];
     expect(section(show(context), /Objects on Plate 1/)).toHaveTextContent('Filament slot2 · Generic PLA @System');
-  });
-
-  it('reads a summary saved before the host named settings and formatted values', () => {
-    const context = setupWorkspace();
-    context.presetDeltas = [{ key: 'brim_type', label: 'Brim type', preset: 'auto_brim', value: 'outer_only', origin: 'agent' }];
-    context.appliedSetup!.localOverrides = [{ object: 0, target: '3x3_cali_RL.stl', kind: 'object',
-      key: 'sparse_infill_density', value: '30%' }];
-    const page = show(context, { historical: true });
-    expect(page).toHaveTextContent('Brim typeauto_brim → outer_only');
-    expect(page).toHaveTextContent('Sparse infill density30%');
-    expect(page.querySelector('.current-setup-group')).toHaveTextContent('Whole object');
   });
 
   it('leaves out the sections a summary has nothing for', () => {

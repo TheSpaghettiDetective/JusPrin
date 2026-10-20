@@ -91,11 +91,12 @@ public:
     void commit() { m_dirty = true; }
     void flush();
     void flush_if_dirty();
+    // Both take the document to keep, which already holds the restored model
+    // version's regions when that version recorded them.
     void record_managed_restore(const std::string& current_state, const std::string& from_version,
                                 const std::string& selected_version);
     void record_chat_restore(const std::string& current_state, const std::string& from_version,
-                             const std::string& selected_version, const nlohmann::json& planning,
-                             const std::string& conversation_id);
+                             const std::string& selected_version, const std::string& conversation_id);
     void notify_chat_restore_published() { notify_document_replaced(); }
     void adopt_managed_state(const std::string& state);
 

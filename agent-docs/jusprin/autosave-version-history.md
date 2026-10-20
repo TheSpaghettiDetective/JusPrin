@@ -19,21 +19,25 @@ state remains available. Each older timestamp has a separate Restore button;
 clicking the timestamp does nothing, and Restore asks for confirmation. A blank authored project gets one empty baseline
 version so it can be reopened; later document edits do not add versions. A
 first Agent model operation pins that baseline as its before-version.
-Conversation, intent, plan, region descriptions,
-audit, and completed print records remain in the current document. Restoring a
-model does not undo physical prints or change global printer facts. Agent
+Conversations with each chat's intent and plan, audit, and completed print
+records remain in the current document; restoring a model marks the active
+chat's plan for reassessment. Region descriptions follow the model: each
+version records the list it was saved with, and restoring it brings that list
+back. Restoring a model does not undo physical prints or change
+global printer facts. Agent
 mutations save and pin their actual
 before-state, then link an after-version and outcome in an operation record.
 
 ## Storage and recovery contract
 
 The restoration rules above describe ordinary Version history. **Restore and
-resume** is a separate chat transition. Each active chat keeps a checkpoint
-with a model-version reference, matching print intent, plan and region
-annotations, and a structured setup summary. Browsing an older chat does not
-change the working project. Resuming it saves and pins the outgoing state,
-restores the model and matching planning fields, and activates that chat only
-after the new document is durable. Other conversations, audit and print
+resume** is a separate chat transition. Each chat owns its print intent and
+plan; the project's current ones are the active chat's. A chat's checkpoint
+holds a model-version reference and a structured setup summary of the moment
+it was left. Browsing an older chat does not change the working project.
+Resuming it saves and pins the outgoing state, restores the model with its
+region descriptions, and activates that chat, whose intent and plan never left
+it, only after the new document is durable. Other conversations, audit and print
 records, and global printer facts remain. This does not add a full project-
 document copy to model versions or make document edits create model versions.
 Ordinary Version history remains model-only and does not activate an older
@@ -62,9 +66,10 @@ ensures the current document is durable before it publishes a new `HEAD`.
 The autosave controller observes two independent kinds of change. Native
 geometry, transforms, paint, plates, and effective project settings can change
 what an earlier printable project reconstructs and therefore create a model
-version. Document changes, including streamed Agent messages, drafts, intent,
-plans, region descriptions, audit records, and print facts, update only the
-current document. `docRevision` is a signal to coalesce that write; neither
+version. A change to the region descriptions makes one too, since a version
+records them. Document changes, including streamed Agent messages, drafts,
+intent, plans, audit records, and print facts, update only the current
+document. `docRevision` is a signal to coalesce that write; neither
 it nor document contents participate in model-version equality. A workspace
 event can prompt a model check, but cannot make unchanged checkpoint content
 into a new version.
@@ -96,13 +101,13 @@ Every way a person opens a .3mf asks, because the check sits in
 agent's `project_open` returns the question as `opened_before` and takes the
 answer as `openedBefore`. A file whose MD5 differs is a likely new export, so
 the question says so and defaults to a new project; otherwise it defaults to
-the saved one. Versions saved before 2026-10-14 have no digest and are asked
-about as unchanged. Importing a file into a project never asks. If several
+the saved one. Importing a file into a project never asks. If several
 projects match, it continues the current one when it came from that file;
 otherwise it opens the most recently updated match.
-Earlier local versions with `state.json` and a model-bound document sidecar
-remain readable; the first new document write upgrades them to the independent
-current-document format without rewriting historical versions.
+The project document has one schema version and no migration (the project is
+not live yet): a document of any other version, like a corrupt one, is
+replaced by a fresh document. The local store reads only its current index,
+manifest and current-document formats.
 Recent projects appear on Home and in the header menu. Selecting one
 opens its managed version even when its imported source file has been removed.
 The most recently authored local project resumes on startup.

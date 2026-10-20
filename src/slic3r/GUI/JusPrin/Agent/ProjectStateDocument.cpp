@@ -53,9 +53,9 @@ ToolState tool_state_from(const std::string& name)
         return ToolState::Failed;
     if (name == "cancelled")
         return ToolState::Cancelled;
-    // Older documents may contain pending, approved, or input_required.
-    // They are all interrupted work and normalize_interrupted_state cancels them.
-    return ToolState::Running;
+    if (name == "running")
+        return ToolState::Running;
+    throw std::invalid_argument("Unknown tool activity state");
 }
 
 const char* action_class_name(ActionClass action_class)
@@ -344,9 +344,7 @@ ToolActivity read_activity(const json& entry)
     ToolActivity activity;
     activity.action_id         = entry.value("actionId", "");
     activity.correlation_id    = entry.value("correlationId", "");
-    // Older records predate the explicit source field. Only that migration
-    // uses the old adapter prefix; new records carry their native source.
-    const auto source = entry.value("source", activity.correlation_id.rfind("mcp-", 0) == 0 ? "mcp" : "agent");
+    const auto source = entry.at("source").get<std::string>();
     if (source != "mcp" && source != "agent") throw std::invalid_argument("Unknown tool activity source");
     activity.source = source == "mcp" ? ToolSource::Mcp : ToolSource::Agent;
     activity.call_id           = entry.value("callId", "");
@@ -391,8 +389,6 @@ json fresh_document()
                 {"builds", json::array()},
                 {"exportedCopies", json::array()},
                 {"physicalPrints", json::array()},
-                {"printIntent", json::array()},
-                {"plan", json::object()},
                 {"regions", json::array()},
                 {"changes", json::array()},
                 {"work", json::array()}};
@@ -433,6 +429,44 @@ ChangeEntry read_change(const json& entry)
     return change;
 }
 
+// What a new chat copies from the chat it starts from: its intent, and none
+// of its plan.
+json chat_intent(const json& chat)
+{
+    json intent{{"setupIntent", chat.value("setupIntent", "")},
+                {"printIntent", chat.value("printIntent", json::array())}};
+    const json setup = chat.value("purposeSetup", json::object());
+    if (setup.is_object() && !setup.empty())
+        intent["purposeSetup"] = setup;
+    return intent;
+}
+
+PlanRecord read_plan(const json& stored)
+{
+    PlanRecord record;
+    if (!stored.is_object())
+        return record;
+    record.seq            = stored.value("seq", std::uint64_t(0));
+    record.updated_at     = stored.value("updatedAt", "");
+    record.headline       = stored.value("headline", "");
+    record.validity       = stored.value("validity", "current");
+    record.invalidated_by = stored.value("invalidatedBy", "");
+    if (stored.contains("decisions") && stored["decisions"].is_array())
+        for (const json& entry : stored["decisions"])
+            record.decisions.push_back({entry.value("topic", ""), entry.value("statement", ""),
+                                        entry.value("confidence", ""), entry.value("alternative", "")});
+    const auto read_lines = [&stored](const char* key, std::vector<std::string>& into) {
+        if (!stored.contains(key) || !stored[key].is_array())
+            return;
+        for (const json& entry : stored[key])
+            if (entry.is_string())
+                into.push_back(entry.get<std::string>());
+    };
+    read_lines("assumptions", record.assumptions);
+    read_lines("risks", record.risks);
+    return record;
+}
+
 } // namespace
 
 ProjectStateDocument::ProjectStateDocument() : m_doc(fresh_document()) {}
@@ -445,24 +479,15 @@ ProjectStateDocument::LoadResult ProjectStateDocument::load(const std::string& j
         m_doc = fresh_document();
         return LoadResult::Corrupt;
     }
-    const int version = parsed["schemaVersion"].get<int>();
-    if (version > kSchemaVersion) {
-        // A newer document must not be edited by an older build that would
-        // silently drop meaning; treat it like corrupt state.
+    if (parsed["schemaVersion"].get<int>() != kSchemaVersion) {
+        // There is one schema and no migration: the project is not live yet.
+        // Another version's document is not read, so nothing written by a
+        // different build can be edited with its meaning silently dropped.
         m_doc = fresh_document();
         return LoadResult::Corrupt;
     }
-
-    // Merge onto the fresh skeleton so documents from older schema versions
-    // gain any structure they predate while keeping everything they carry.
-    json result = fresh_document();
-    for (auto& [key, value] : parsed.items())
-        result[key] = std::move(value);
-    result["schemaVersion"] = kSchemaVersion;
-    if (!parsed.contains("viewedConversationId"))
-        result["viewedConversationId"] = result.value("activeConversationId", "");
-    m_doc                   = std::move(result);
-    return version < kSchemaVersion ? LoadResult::Migrated : LoadResult::Loaded;
+    m_doc = std::move(parsed);
+    return LoadResult::Loaded;
 }
 
 std::string ProjectStateDocument::dump() const { return m_doc.dump(2); }
@@ -544,21 +569,30 @@ std::vector<ConversationInfo> ProjectStateDocument::conversations() const
 
 std::string ProjectStateDocument::active_conversation_id() const { return m_doc.value("activeConversationId", ""); }
 
-std::string ProjectStateDocument::viewed_conversation_id() const { return m_doc.value("viewedConversationId", active_conversation_id()); }
+std::string ProjectStateDocument::viewed_conversation_id() const { return m_doc.value("viewedConversationId", ""); }
 
 std::string ProjectStateDocument::create_conversation(const std::string& title, const std::string& timestamp)
 {
-    const std::string inherited_intent = setup_intent(active_conversation_id());
+    const json* active = conversation_json(active_conversation_id());
+    return add_conversation(title, timestamp, active ? chat_intent(*active) : json::object());
+}
+
+std::string ProjectStateDocument::add_conversation(const std::string& title, const std::string& timestamp, json intent)
+{
     const std::uint64_t number = m_doc["counters"].value("nextConversation", std::uint64_t(1));
     m_doc["counters"]["nextConversation"] = number + 1;
     const std::string id = "c-" + std::to_string(number);
-    m_doc["conversations"].push_back(json{{"id", id},
-                                          {"seq", next_seq()},
-                                          {"title", title.empty() ? "New chat" : title},
-                                          {"titleSource", title.empty() ? "default" : "manual"},
-                                          {"createdAt", timestamp},
-                                          {"setupIntent", inherited_intent},
-                                          {"messages", json::array()}});
+    json chat{{"id", id},
+              {"seq", next_seq()},
+              {"title", title.empty() ? "New chat" : title},
+              {"titleSource", title.empty() ? "default" : "manual"},
+              {"createdAt", timestamp},
+              {"setupIntent", intent.value("setupIntent", "")},
+              {"printIntent", intent.value("printIntent", json::array())},
+              {"messages", json::array()}};
+    if (intent.contains("purposeSetup"))
+        chat["purposeSetup"] = intent["purposeSetup"];
+    m_doc["conversations"].push_back(std::move(chat));
     m_doc["activeConversationId"] = id;
     m_doc["viewedConversationId"] = id;
     touch();
@@ -595,23 +629,11 @@ std::optional<json> ProjectStateDocument::chat_checkpoint(const std::string& con
         return std::nullopt;
     const json& record = (*conversation)["resumeCheckpoint"];
     if (!record.contains("versionId") || !record["versionId"].is_string() ||
-        record["versionId"].get<std::string>().empty() || !record.contains("planning") ||
-        !record["planning"].is_object() || !record.contains("summary") ||
+        record["versionId"].get<std::string>().empty() || !record.contains("summary") ||
         !record["summary"].is_object() || !record.contains("boundaryId") ||
         !record["boundaryId"].is_string())
         return std::nullopt;
     return std::optional<json>(std::in_place, record);
-}
-
-json ProjectStateDocument::planning_snapshot() const
-{
-    json snapshot{{"printIntent", m_doc["printIntent"]}, {"plan", m_doc["plan"]},
-                  {"regions", m_doc["regions"]}};
-    // Absent until recorded, so a checkpoint taken before it existed still
-    // matches a document that has none.
-    if (!purpose_setup().empty())
-        snapshot["purposeSetup"] = purpose_setup();
-    return snapshot;
 }
 
 bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_id,
@@ -623,7 +645,6 @@ bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_
     if (!conversation || conversation_id != active_conversation_id() || version_id.empty() || !summary.is_object())
         return false;
     (*conversation)["resumeCheckpoint"] = json{{"versionId", version_id},
-                                                  {"planning", planning_snapshot()},
                                                   {"summary", summary},
                                                   {"boundaryId", last_item_id(conversation_id)},
                                                   {"savedAt", timestamp}};
@@ -631,28 +652,10 @@ bool ProjectStateDocument::save_chat_checkpoint(const std::string& conversation_
     return true;
 }
 
-void ProjectStateDocument::restore_planning_snapshot(const json& snapshot)
-{
-    if (!snapshot.is_object() || !snapshot.contains("printIntent") || !snapshot["printIntent"].is_array() ||
-        !snapshot.contains("plan") || !snapshot["plan"].is_object() ||
-        !snapshot.contains("regions") || !snapshot["regions"].is_array())
-        throw std::invalid_argument("invalid chat planning snapshot");
-    m_doc["printIntent"] = snapshot["printIntent"];
-    m_doc["plan"] = snapshot["plan"];
-    m_doc["regions"] = snapshot["regions"];
-    set_purpose_setup(snapshot.value("purposeSetup", json::object()));
-    touch();
-}
-
 bool ProjectStateDocument::needs_conversation_title(const std::string& conversation_id) const
 {
     const json* conversation = conversation_json(conversation_id);
-    if (!conversation) return false;
-    if (conversation->contains("titleSource"))
-        return (*conversation)["titleSource"] == "default";
-    // Older projects used numbered placeholder titles and had no source flag.
-    const std::string id = conversation->value("id", "");
-    return id.rfind("c-", 0) == 0 && conversation->value("title", "") == "Conversation " + id.substr(2);
+    return conversation && conversation->value("titleSource", "") == "default";
 }
 
 bool ProjectStateDocument::rename_conversation(const std::string& conversation_id, const std::string& title, bool generated)
@@ -701,8 +704,7 @@ std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversatio
 {
     const json* conversation = conversation_json(conversation_id);
     if (!conversation) return std::nullopt;
-    const std::string inherited_intent = conversation_id == active_conversation_id()
-        ? setup_intent(conversation_id) : std::string();
+    const json inherited = conversation_id == active_conversation_id() ? chat_intent(*conversation) : json::object();
     std::set<std::string> message_ids;
     std::set<std::string> attachment_ids;
     for (const json& message : (*conversation)["messages"]) {
@@ -730,11 +732,8 @@ std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversatio
         removed_dirs.push_back("attachments/" + id);
         return true;
     }), attachments.end());
-    if (chats.empty() || active_conversation_id() == conversation_id) {
-        const std::string replacement = create_conversation({}, timestamp);
-        if (!inherited_intent.empty())
-            set_setup_intent(replacement, inherited_intent);
-    }
+    if (chats.empty() || active_conversation_id() == conversation_id)
+        add_conversation({}, timestamp, inherited);
     if (viewed_conversation_id() == conversation_id)
         m_doc["viewedConversationId"] = active_conversation_id();
     touch();
@@ -755,6 +754,14 @@ const nlohmann::json* ProjectStateDocument::conversation_json(const std::string&
         if (entry.value("id", "") == conversation_id)
             return &entry;
     return nullptr;
+}
+
+nlohmann::json& ProjectStateDocument::active_chat()
+{
+    json* chat = conversation_json(active_conversation_id());
+    if (chat == nullptr)
+        throw std::logic_error("the project has no active chat to hold its intent and plan");
+    return *chat;
 }
 
 std::uint64_t ProjectStateDocument::next_seq()
@@ -1075,7 +1082,10 @@ std::optional<BuildRecord> ProjectStateDocument::latest_build() const
 std::vector<IntentField> ProjectStateDocument::print_intent() const
 {
     std::vector<IntentField> fields;
-    for (const json& entry : m_doc["printIntent"])
+    const json* chat = conversation_json(active_conversation_id());
+    if (chat == nullptr || !chat->contains("printIntent"))
+        return fields;
+    for (const json& entry : (*chat)["printIntent"])
         fields.push_back(read_intent_field(entry));
     return fields;
 }
@@ -1083,19 +1093,22 @@ std::vector<IntentField> ProjectStateDocument::print_intent() const
 std::vector<IntentField> ProjectStateDocument::set_print_intent(const std::vector<IntentField>& fields,
                                                                 const std::string&              timestamp)
 {
+    json& intent = active_chat()["printIntent"];
+    if (!intent.is_array())
+        intent = json::array();
     for (const IntentField& field : fields) {
         if (field.field.empty())
             continue;
         json* stored = nullptr;
-        for (json& entry : m_doc["printIntent"])
+        for (json& entry : intent)
             if (entry.value("field", "") == field.field)
                 stored = &entry;
         if (stored == nullptr) {
             // Ordered by field name so two builds that record the same answers
             // in a different order still write the same document.
-            const auto after = std::find_if(m_doc["printIntent"].begin(), m_doc["printIntent"].end(),
+            const auto after = std::find_if(intent.begin(), intent.end(),
                                             [&field](const json& entry) { return entry.value("field", "") > field.field; });
-            stored = &*m_doc["printIntent"].insert(after, json::object());
+            stored = &*intent.insert(after, json::object());
         }
         IntentField written = field;
         written.seq         = next_seq();
@@ -1108,16 +1121,18 @@ std::vector<IntentField> ProjectStateDocument::set_print_intent(const std::vecto
 
 json ProjectStateDocument::purpose_setup() const
 {
-    const json setup = m_doc.value("purposeSetup", json::object());
+    const json* chat = conversation_json(active_conversation_id());
+    const json setup = chat ? chat->value("purposeSetup", json::object()) : json::object();
     return setup.is_object() ? setup : json::object();
 }
 
 void ProjectStateDocument::set_purpose_setup(json setup)
 {
+    json& chat = active_chat();
     if (setup.is_object() && !setup.empty())
-        m_doc["purposeSetup"] = std::move(setup);
+        chat["purposeSetup"] = std::move(setup);
     else
-        m_doc.erase("purposeSetup");
+        chat.erase("purposeSetup");
     touch();
 }
 
@@ -1137,36 +1152,19 @@ bool ProjectStateDocument::restored_since_reply(const std::string& except_messag
     return true;
 }
 
-PlanRecord ProjectStateDocument::plan() const
+PlanRecord ProjectStateDocument::plan() const { return plan(active_conversation_id()); }
+
+PlanRecord ProjectStateDocument::plan(const std::string& conversation_id) const
 {
-    const json& stored = m_doc["plan"];
-    PlanRecord  record;
-    record.seq        = stored.value("seq", std::uint64_t(0));
-    record.updated_at = stored.value("updatedAt", "");
-    record.headline   = stored.value("headline", "");
-    record.validity = stored.value("validity", "current");
-    record.invalidated_by = stored.value("invalidatedBy", "");
-    if (stored.contains("decisions") && stored["decisions"].is_array())
-        for (const json& entry : stored["decisions"])
-            record.decisions.push_back({entry.value("topic", ""), entry.value("statement", ""),
-                                        entry.value("confidence", ""), entry.value("alternative", "")});
-    const auto read_lines = [&stored](const char* key, std::vector<std::string>& into) {
-        if (!stored.contains(key) || !stored[key].is_array())
-            return;
-        for (const json& entry : stored[key])
-            if (entry.is_string())
-                into.push_back(entry.get<std::string>());
-    };
-    read_lines("assumptions", record.assumptions);
-    read_lines("risks", record.risks);
-    return record;
+    const json* chat = conversation_json(conversation_id);
+    return chat && chat->contains("plan") ? read_plan((*chat)["plan"]) : PlanRecord{};
 }
 
 PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& timestamp)
 {
+    json& stored      = active_chat()["plan"];
     record.seq        = next_seq();
     record.updated_at = timestamp;
-    json& stored      = m_doc["plan"];
     if (!stored.is_object())
         stored = json::object();
     stored["seq"]         = record.seq;
@@ -1188,7 +1186,12 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
 
 bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason)
 {
-    json& stored = m_doc["plan"];
+    // Only the active chat's plan can go stale: nothing edits the project for
+    // an inactive chat.
+    json* chat = conversation_json(active_conversation_id());
+    if (chat == nullptr || !chat->contains("plan"))
+        return false;
+    json& stored = (*chat)["plan"];
     if (!stored.is_object() || (stored.value("headline", "").empty() &&
                                 (!stored.contains("decisions") || stored["decisions"].empty())))
         return false;
@@ -1225,6 +1228,14 @@ std::vector<Workspace::RegionRecord> ProjectStateDocument::set_regions(std::vect
     m_doc["regions"] = std::move(stored);
     touch();
     return records;
+}
+
+void ProjectStateDocument::restore_regions(const json& regions)
+{
+    if (!regions.is_array())
+        throw std::invalid_argument("a model version's regions are not a list");
+    m_doc["regions"] = regions;
+    touch();
 }
 
 ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::string& timestamp)

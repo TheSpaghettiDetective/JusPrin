@@ -71,16 +71,21 @@
 //              recomputing-shell.png to the directory (handoff item 6)
 //   --setup-differences-capture <output-directory>
 //              edits process, filament and per-object settings the way a
-//              person does, asserts the setup card and the setup page name
-//              every one of them, writes setup-differences-card.png,
+//              person does, asserts the setup card lists none of them but
+//              counts the object override, and the setup page names every
+//              one; writes setup-differences-card.png,
 //              setup-differences-page.png and setup-differences-page-end.png
 //              to the directory, then puts the values back and asserts the
-//              card reports no changes. It then records a purpose and applies
-//              a patch through the agent's own tools, slices, and writes the
-//              card just after the change (setup-differences-agent-updated),
-//              the card a minute later (setup-differences-agent-card) and its
-//              page (setup-differences-agent-page): the state the design's
-//              first frame draws. That minute makes the run about two long.
+//              override note goes. It then records a purpose, pins a plan and
+//              applies a patch through the agent's own tools, slices, and
+//              writes the card just after the change, headline under
+//              "Updated" (setup-differences-agent-updated), the card a minute
+//              later under "Current" (setup-differences-agent-card) and its
+//              page (setup-differences-agent-page); the plan stays current
+//              through the agent's own patch. A hand edit then shows the
+//              headline under "Edited by you"
+//              (setup-differences-edited-card) and marks the plan
+//              needs_reassessment. That minute makes the run about two long.
 //   --timeline-capture <output-directory>
 //              records a build, mirrors the object three times and edits a
 //              print setting by hand, asserts the thread's change rows, and writes
@@ -1751,6 +1756,12 @@ private:
         Agent::PlanRecord quick_plan;
         quick_plan.headline = "Quick plan";
         document.set_plan(quick_plan, persistence().timestamp());
+        // Region annotations are versioned with the model they label; these
+        // records bind to nothing here, which no longer matters to a restore.
+        Workspace::RegionRecord quick_region;
+        quick_region.id = "r-quick";
+        quick_region.kind = "reinforce";
+        document.set_regions({quick_region}, persistence().timestamp());
         const bool quick_saved = host.checkpoint_active_chat();
         check(quick_saved, "chat_restore_quick_checkpoint");
         if (!quick_saved) {
@@ -1768,10 +1779,17 @@ private:
             DynamicPrintConfig strong;
             strong.set_deserialize_strict("sparse_infill_density", "80%");
             wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(strong);
+            // A new chat starts from the intent it came from, with no plan.
+            self->check(document.setup_intent(second) == "Quick print" && document.plan().headline.empty(),
+                        "chat_restore_new_chat_copies_intent_without_plan");
             document.set_setup_intent(second, "Strong print");
             Agent::PlanRecord strong_plan;
             strong_plan.headline = "Strong plan";
             document.set_plan(strong_plan, self->persistence().timestamp());
+            Workspace::RegionRecord strong_region;
+            strong_region.id = "r-strong";
+            strong_region.kind = "flexible";
+            document.set_regions({strong_region}, self->persistence().timestamp());
             const bool strong_saved = installed_shell()->agent_pane()->web_view().host().checkpoint_active_chat();
             self->check(strong_saved, "chat_restore_strong_checkpoint");
             if (!strong_saved) {
@@ -1791,8 +1809,10 @@ private:
                 self->check(wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize(
                                 "sparse_infill_density") == "80%", "chat_restore_browsing_preserves_live_settings");
                 const auto checkpoint = document.chat_checkpoint(first);
-                self->check(checkpoint && (*checkpoint)["summary"]["setupIntent"] == "Quick print",
-                            "chat_restore_saved_card_keeps_quick_intent");
+                self->check(checkpoint && !checkpoint->contains("planning") &&
+                            !(*checkpoint)["summary"].contains("setupIntent") &&
+                            document.setup_intent(first) == "Quick print" && document.plan(first).headline == "Quick plan",
+                            "chat_restore_saved_chat_keeps_its_own_intent_and_plan");
                 self->capture_chat_pane("chat-history-quick-with-strong-project");
                 const std::size_t old_messages = document.messages(first).size();
                 auto& view = installed_shell()->agent_pane()->web_view();
@@ -1820,8 +1840,11 @@ private:
                         }, "chat_restore_confirmed_transition", [self, first, second, quick_version] {
                             auto& document = self->persistence().document();
                             self->check(document.viewed_conversation_id() == first &&
-                                        document.plan().headline == "Quick plan",
+                                        document.plan().headline == "Quick plan" &&
+                                        document.plan(second).headline == "Strong plan",
                                         "chat_restore_matching_planning_and_authority");
+                            self->check(document.regions().size() == 1 && document.regions()[0].id == "r-quick",
+                                        "chat_restore_brings_back_the_versions_regions");
                             self->check(wxGetApp().preset_bundle->prints.get_edited_preset().config.opt_serialize(
                                             "sparse_infill_density") == "5%",
                                         "chat_restore_quick_settings_restored");
@@ -1837,6 +1860,23 @@ private:
                             self->check(installed_shell()->autosave()->save_now(),
                                         "chat_restore_transition_durable");
                             self->capture_chat_pane("chat-restored-quick-setup");
+                            // A plain version restore takes the model, and
+                            // with it its regions, and leaves the chats'
+                            // records where they are, marking the active
+                            // chat's plan.
+                            const std::string strong_version =
+                                document.chat_checkpoint(second)->at("versionId").get<std::string>();
+                            self->check(installed_shell()->autosave()->restore(strong_version),
+                                        "chat_restore_version_restore_succeeds");
+                            auto& restored = self->persistence().document();
+                            self->check(restored.regions().size() == 1 && restored.regions()[0].id == "r-strong",
+                                        "version_restore_brings_back_the_versions_regions");
+                            self->check(restored.active_conversation_id() == first &&
+                                        restored.plan().headline == "Quick plan" &&
+                                        restored.plan().validity == "needs_reassessment" &&
+                                        restored.plan(second).headline == "Strong plan" &&
+                                        restored.plan(second).validity == "current",
+                                        "version_restore_keeps_each_chats_plan_and_marks_the_active_one");
                             self->finish();
                         });
                 });
@@ -6092,7 +6132,7 @@ private:
         DynamicPrintConfig printer;
         printer.set_deserialize_strict("retraction_length", "1.2");
         wxGetApp().get_tab(Preset::TYPE_PRINTER)->load_config(printer);
-        await_setup_text("card", "[data-testid=\"current-setup\"]", "scope.querySelector('.current-setup-row--change')",
+        await_setup_text("card", "[data-testid=\"current-setup\"]", "scope.querySelector('.current-setup-note')",
                          [self = shared_from_this()] { self->capture_setup_differences_card(); });
     }
 
@@ -6128,9 +6168,11 @@ private:
         for (const Agent::ChangeEntry& change : persistence().document().changes())
             if (change.key == "brim_type") readable = change.from == "Auto" && change.to == "Outer brim only";
         check(readable, "change_log_records_values_as_a_person_reads_them");
-        // Two of the six, whichever were edited last.
-        check(card.find(" \xE2\x86\x92 ") != std::string::npos, "setup_card_shows_a_changed_setting");
-        check(card.find("more change") != std::string::npos, "setup_card_counts_the_changes_it_does_not_show");
+        // The differences are the setup page's. The card counts the object
+        // that prints with its own settings, which nothing else on it says.
+        check(card.find(" \xE2\x86\x92 ") == std::string::npos, "setup_card_lists_no_preset_difference");
+        check(card.find("more change") == std::string::npos && card.find("No changes from presets") == std::string::npos,
+              "setup_card_counts_no_differences");
         check(card.find("1 object with overrides") != std::string::npos, "setup_card_counts_the_object_override");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
@@ -6177,20 +6219,20 @@ private:
         restore(Preset::TYPE_PRINT, bundle.prints,
                 {"brim_type", "brim_width", "initial_layer_print_height", "initial_layer_speed"});
         await_setup_text("restored", "[data-testid=\"current-setup\"]",
-                         "!scope.querySelector('.current-setup-row--change')", [self = shared_from_this()] {
+                         "!scope.querySelector('.current-setup-note')", [self = shared_from_this()] {
             const std::string card = self->persistence().draft();
             std::cout << "HARNESS SETUP " << card << std::endl;
-            self->check(card.find("No changes from presets") != std::string::npos, "setup_card_reports_no_changes_after_restore");
+            self->check(card.find("No changes from presets") == std::string::npos, "setup_card_has_no_difference_fallback");
             self->check(card.find("with overrides") == std::string::npos, "setup_card_drops_the_object_override_after_restore");
             self->begin_setup_differences_agent_turn();
         });
     }
 
     // The state the design's first frame draws: a purpose the agent recorded
-    // for the chat, settings the agent changed, a hand edit to another preset
-    // made before it, an object override, and a sliced plate. The purpose and
-    // the patch go through the tools the model calls, so the title, the
-    // attribution and the change log are the app's own.
+    // for the chat, the plan it pinned, settings it changed, a hand edit to
+    // another preset made before it, an object override, and a sliced plate.
+    // The purpose, the plan and the patch go through the tools the model
+    // calls, so the title, the headline and the change log are the app's own.
     void begin_setup_differences_agent_turn()
     {
         DynamicPrintConfig filament;
@@ -6227,6 +6269,8 @@ private:
         };
         run("intent_update", {{"fields", nlohmann::json::array()}, {"setupTitle", "Stop the corners lifting"}},
             "setup_differences_agent_records_the_purpose");
+        run("plan_set", {{"headline", "Wide brim and a slow first layer for adhesion"}},
+            "setup_differences_agent_pins_the_plan");
         const auto snapshot = installed_workspace_snapshot();
         run("settings_apply_patch",
             {{"scope", "process"},
@@ -6238,7 +6282,7 @@ private:
         installed_shell()->status_row()->request_slice();
         wait_until([this] { return active_plate_sliced_and_idle(); }, "setup_differences_plate_sliced", [self = shared_from_this()] {
             self->await_setup_text("updated", "[data-testid=\"current-setup\"]",
-                                   "scope.querySelector('.current-setup-metric') && scope.querySelector('.current-setup-row--change')",
+                                   "scope.querySelector('.current-setup-metric') && scope.querySelector('.current-setup-strategy')",
                                    [self] { self->capture_setup_differences_updated(); });
         });
     }
@@ -6250,9 +6294,13 @@ private:
         std::cout << "HARNESS SETUP " << card << std::endl;
         check(card.find("updated=Setup summary | Updated | Stop the corners lifting | ") == 0,
               "setup_card_is_titled_by_the_purpose_the_agent_recorded");
-        // The rows already lead with what the agent changed, and the thread
-        // lists it under the card: the card does not say it a third time.
+        check(card.find("Wide brim and a slow first layer for adhesion") != std::string::npos,
+              "setup_card_shows_the_headline_when_updated");
+        // The thread lists what the agent changed under its turn; the card
+        // does not.
         check(card.find("50 mm/s \xE2\x86\x92 25 mm/s") == std::string::npos, "setup_card_does_not_repeat_the_change_it_just_made");
+        // The agent's own patch carried out its plan; it did not put it in doubt.
+        check(persistence().document().plan().validity == "current", "agent_patch_leaves_its_plan_current");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-updated");
         // A change stays "just changed" for a minute. After it the card is
         // the design's first frame.
@@ -6269,15 +6317,12 @@ private:
         const std::string filament = short_preset(wxGetApp().preset_bundle->filaments.get_edited_preset().name);
         const std::string lead = "current=Setup summary | Current | Stop the corners lifting | " + process + " \xC2\xB7 " + filament + " | ";
         check(card.find(lead) == 0, "setup_card_names_the_process_and_the_filament_under_the_purpose");
-        // The two rows are the agent's, ahead of the bed temperature edited
-        // by hand: the last two of the three it changed.
-        const std::string rows = card.substr(std::min(card.size(), lead.size()), card.find("more change") - std::min(card.size(), lead.size()));
-        check(rows.find("Bed temperature") == std::string::npos, "setup_card_leads_with_the_agents_changes");
-        int agent_rows = 0;
-        for (const char* label : {"Brim type", "Brim width", "First layer"})
-            if (rows.find(label) != std::string::npos) ++agent_rows;
-        check(agent_rows == 2, "setup_card_shows_two_of_the_agents_changes");
-        check(card.find("2 more changes \xC2\xB7 1 object with overrides") != std::string::npos, "setup_card_counts_the_rest");
+        // The headline in place of the differences, and the override note
+        // on its own.
+        check(card.find(lead + "Wide brim and a slow first layer for adhesion | 1 object with overrides | ") == 0,
+              "setup_card_shows_the_headline_then_the_override_note");
+        for (const char* label : {"Brim type", "Brim width", "First layer", "Bed temperature", "more change"})
+            check(card.find(label) == std::string::npos, std::string("setup_card_does_not_list_") + label);
         check(card.find("~") != std::string::npos && card.find(" g | ") != std::string::npos, "setup_card_shows_the_slice_estimate");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
@@ -6298,6 +6343,29 @@ private:
         check(page.find("Changed from presets \xC2\xB7 4") != std::string::npos, "setup_page_counts_the_agents_and_the_hand_edit");
         check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
+        run_in_agent_page("document.querySelector('.panel-back-link').click()");
+        // A person's edit after the agent's: the card keeps the headline
+        // under its own notice, and the model reads the plan as in doubt.
+        DynamicPrintConfig edited;
+        edited.set_deserialize_strict("sparse_infill_density", "40%");
+        wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(edited);
+        await_setup_text("edited", "[data-testid=\"current-setup\"]",
+                         "scope.querySelector('.current-setup-state') && "
+                         "scope.querySelector('.current-setup-state').textContent === 'Edited by you'",
+                         [self = shared_from_this()] { self->capture_setup_differences_edited(); });
+    }
+
+    void capture_setup_differences_edited()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        check(card.find("Wide brim and a slow first layer for adhesion") != std::string::npos,
+              "setup_card_shows_the_headline_when_edited_by_you");
+        check(card.find("outside the agent") != std::string::npos, "setup_card_names_the_hand_edit");
+        const Agent::PlanRecord plan = persistence().document().plan();
+        check(plan.validity == "needs_reassessment" && plan.invalidated_by == "Sparse infill density",
+              "hand_edit_marks_the_plan_for_the_model");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-edited-card");
         run_in_agent_page("document.querySelector('.agent-pane-toggle').click()");
         wait_until([] { return !installed_shell()->agent_pane()->IsShown(); }, "setup_page_can_hide_the_agent_panel",
                    [self = shared_from_this()] {
