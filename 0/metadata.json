@@ -1,0 +1,90 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5CTYXKK5NHTHC7ACKPQEEBY",
+  "session_id": "184d4aaf-cfcf-432d-ac3c-191a0b1f6a05",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T14:20:35.870594Z",
+  "branch": "claude/opus-recorded-reads",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "86766ae7792f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 608,
+    "cache_creation_tokens": 2454917,
+    "cache_read_tokens": 157405768,
+    "output_tokens": 361005,
+    "api_call_count": 305
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Rx7tKJM79w5pUhN7UkKxUQ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "figma-agent-design"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "86766ae7792f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1311,
+        "end": 1312,
+        "entry_ids": [
+          "6c452456-671f-4a9c-8631-01c98d2bec88"
+        ],
+        "tool_use_id": "toolu_01Rx7tKJM79w5pUhN7UkKxUQ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Rx7tKJM79w5pUhN7UkKxUQ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: figma-agent-design",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 572,
+      "user_lines_removed": 1,
+      "agent_lines_added": 499,
+      "agent_lines_removed": 325,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 90,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 130,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 101,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".codex/config.toml": 4
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}
