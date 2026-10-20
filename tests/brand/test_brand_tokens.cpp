@@ -453,6 +453,56 @@ TEST_CASE("the shared chat attachment geometry is explicit", "[brand]")
         {{"maxWidth", 320}, {"thumbnailSize", 48}, {"kindSize", 32}}, "component.chatAttachment");
 }
 
+// The Agent message box: one bordered box whose text field grows a line at a
+// time up to maxLines of Body Small, then scrolls. Its insets are layout
+// spacing, so they stay on the spacing scale.
+TEST_CASE("the composer geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& composer = tokens.at("component").at("composer");
+    require_exact_table<int>(composer, {{"padding", 8}, {"gap", 4}, {"inputPadding", 4}, {"maxLines", 8}},
+                             "component.composer");
+    std::set<int> scale;
+    for (const auto& [name, value] : tokens.at("dimension").at("space").items())
+        scale.insert(value.get<int>());
+    for (const char* inset : {"padding", "gap", "inputPadding"}) {
+        INFO("component.composer." << inset << " is not a dimension.space value");
+        CHECK(scale.count(composer.at(inset).get<int>()) == 1);
+    }
+}
+
+// The composer's Send and Stop: Button/Primary and Button/Secondary at 28 DIP,
+// so they sit inside the toolbar beside the 32 DIP + without growing it.
+TEST_CASE("the small button recipes are explicit", "[brand]")
+{
+    const json tokens  = load_tokens();
+    const json& button = tokens.at("component").at("button");
+    require_exact_table<int>(button.at("primarySmall"),
+        {{"height", 28}, {"paddingX", 16}, {"paddingY", 4}, {"radius", 8}}, "component.button.primarySmall", {"textRole"});
+    CHECK(button.at("primarySmall").at("textRole") == "bodySmallBold");
+    require_exact_table<int>(button.at("secondarySmall"),
+        {{"height", 28}, {"paddingX", 12}, {"paddingY", 4}, {"radius", 4}}, "component.button.secondarySmall", {"textRole"});
+    CHECK(button.at("secondarySmall").at("textRole") == "bodySmall");
+    CHECK(button.at("primarySmall").at("height") < button.at("icon").at("height"));
+    // The composer's model and thinking pickers: a label and a chevron.
+    require_exact_table<int>(button.at("picker"),
+        {{"height", 24}, {"paddingX", 8}, {"paddingY", 4}, {"radius", 4}, {"iconGap", 4}}, "component.button.picker", {"textRole"});
+    CHECK(button.at("picker").at("textRole") == "label");
+}
+
+// Field/Search, the box at the top of a long menu: taller than a form field,
+// with a 16 DIP glyph, and a stroke that thickens while it has the focus.
+TEST_CASE("the search field geometry is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& field = tokens.at("component").at("fieldSearch");
+    require_exact_table<int>(field,
+        {{"height", 38}, {"paddingX", 10}, {"iconSize", 16}, {"iconGap", 6}, {"radius", 4}, {"borderWidth", 1},
+         {"focusBorderWidth", 2}},
+        "component.fieldSearch", {"textRole"});
+    CHECK(field.at("textRole") == "body");
+}
+
 TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
@@ -478,7 +528,7 @@ TEST_CASE("the menu geometry is explicit", "[brand]")
         {{"width", 32}, {"height", 32}, {"iconSize", 16}, {"radius", 4}}, "component.button.icon");
     require_exact_table<int>(component.at("menuRow"), {{"height", 36}, {"radius", 0}, {"sideInset", 0}},
         "component.menuRow");
-    require_exact_table<int>(component.at("popover"), {{"paddingY", 8}, {"rowGap", 2}, {"radius", 8}, {"borderWidth", 1}},
+    require_exact_table<int>(component.at("popover"), {{"paddingY", 8}, {"rowGap", 2}, {"radius", 8}, {"borderWidth", 1}, {"width", 280}},
         "component.popover");
     require_exact_table<int>(component.at("chip"), {{"height", 28}, {"radius", 4}}, "component.chip");
     require_exact_table<int>(component.at("timelineRevert"), {{"width", 320}}, "component.timelineRevert");

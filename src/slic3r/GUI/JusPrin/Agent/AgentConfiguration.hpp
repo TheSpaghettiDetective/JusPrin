@@ -3,11 +3,15 @@
 #include "AgentService.hpp"
 #include "AgentSetup.hpp"
 
+#include <functional>
+#include <memory>
 #include <string>
 
 namespace Slic3r { class AppConfig; }
 
 namespace Slic3r::GUI::JusPrin::Agent {
+
+class IChatModelSource;
 
 struct AgentRuntime
 {
@@ -35,5 +39,12 @@ std::string load_provider_api_key(const AppConfig* config, const std::string& pr
 // against the live provider and, on success, stores it and records the
 // non-secret choices load_agent_runtime() reads on the next launch.
 AgentSetupServicePtr make_agent_setup(AppConfig* config);
+
+// The docked Agent's per-chat models: every provider with a stored key, the
+// default provider setup recorded, agents built from those keys, and each
+// provider's model list fetched from the provider. `post` runs a callback on
+// the GUI thread; the lists arrive through it.
+std::shared_ptr<IChatModelSource> make_chat_model_source(AppConfig* config,
+                                                         std::function<void(std::function<void()>)> post);
 
 } // namespace Slic3r::GUI::JusPrin::Agent

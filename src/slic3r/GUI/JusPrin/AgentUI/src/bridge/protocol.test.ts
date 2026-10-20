@@ -43,6 +43,8 @@ describe('protocol constants', () => {
       'mcp_preview',
       'mcp_connect',
       'reveal_path',
+      'pick_attachment',
+      'set_chat_model',
       'printer_action',
       'printer_instructions',
       'printer_opening',

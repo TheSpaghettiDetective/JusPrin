@@ -130,6 +130,9 @@ ProviderRequest ResponsesCodec::build(const TurnTranscript& transcript, const Pr
     // all, in order).
     request.body = json{{"model", profile.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", true},
                         {"instructions", transcript.instructions}, {"tools", tools_json(transcript.tools)}, {"input", std::move(input)}};
+    // OpenAI and OpenRouter read the same field.
+    if (!profile.effort.empty())
+        request.body["reasoning"] = json{{"effort", profile.effort}};
     return request;
 }
 

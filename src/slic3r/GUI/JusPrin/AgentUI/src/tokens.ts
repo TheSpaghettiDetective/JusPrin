@@ -11,13 +11,14 @@ import { applyPixelTokens, applySharedStaticTokens, pixelVariableNames, sharedSt
 
 export { applyAppearance } from '@shared/tokens';
 
-// The menus, the segmented control and the tooltip, as the design system
+// The menus, the search field, the segmented control and the tooltip, as the design system
 // draws them. A section's text role is a name, not a length, so only its
 // numbers become variables.
 type Section = Record<string, number | string>;
 const shared = (tokens as unknown as { component: Record<string, Section> }).component;
 const SECTIONS: [string, string][] = [
   ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
+  ['focus', 'focus'], ['field-search', 'fieldSearch'],
 ];
 
 function lengths(section: Section): Record<string, number> {
@@ -35,7 +36,22 @@ export function staticVariableNames(): string[] {
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
     '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size',
-    ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key])))];
+    ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key]))),
+    '--composer-padding', '--composer-gap', '--composer-input-padding'];
+}
+
+interface ComposerTokens { padding: number; gap: number; inputPadding: number; maxLines: number }
+
+function composerTokens(): ComposerTokens {
+  return (tokens as unknown as { component: { composer: ComposerTokens } }).component.composer;
+}
+
+// The tallest the message field grows before its text scrolls: maxLines of
+// Body Small, the field's role, plus the field's own inset above and below.
+export function composerInputMaxHeight(): number {
+  const { typography } = tokens as unknown as { typography: { roles: { bodySmall: { lineHeight: number } } } };
+  const { maxLines, inputPadding } = composerTokens();
+  return maxLines * typography.roles.bodySmall.lineHeight + 2 * inputPadding;
 }
 
 // In addition to the shared radii, fonts, and button paddings:
@@ -56,6 +72,10 @@ export function staticVariableNames(): string[] {
 //   --menu-row-*, --popover-*  the header's menu geometry, so the chat's
 //                          menus are the same control
 //   --segmented-*, --tooltip-*  Segmented Control and Tooltip
+//   --focus-width, --focus-offset  the keyboard focus ring every control draws
+//   --composer-padding,    the message box: its inset, the gap between its
+//   --composer-gap,        attachments, field and toolbar, and the field's
+//   --composer-input-padding own text inset.
 export function applyStaticTokens(): void {
   applySharedStaticTokens();
   for (const [prefix, key] of SECTIONS) applyPixelTokens(prefix, lengths(shared[key]));
@@ -98,4 +118,8 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--field-height', `${component.field.height}px`);
   document.documentElement.style.setProperty('--field-padding-x', `${component.field.paddingX}px`);
   document.documentElement.style.setProperty('--printer-card-picture-size', `${component.printerCard.pictureSize}px`);
+  const composer = composerTokens();
+  document.documentElement.style.setProperty('--composer-padding', `${composer.padding}px`);
+  document.documentElement.style.setProperty('--composer-gap', `${composer.gap}px`);
+  document.documentElement.style.setProperty('--composer-input-padding', `${composer.inputPadding}px`);
 }

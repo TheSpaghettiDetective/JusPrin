@@ -148,6 +148,31 @@ describe('App', () => {
     expect(screen.getAllByRole('button', { name: 'Hide the Agent panel' })).toHaveLength(1);
   });
 
+  // The project chat's composer shows the host's models; a pick goes to the
+  // host for the active chat, and the photo composer has no pickers.
+  it('sends the chat\'s model and thinking choice to the host', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'openai', model: 'gpt-5.4-mini', effort: '' } }));
+    expect(screen.queryByRole('button', { name: /^Model:/ })).toBeNull();
+    host.deliver('model_catalog', {
+      defaultProvider: 'openai',
+      providers: [
+        { id: 'openai', label: 'OpenAI', defaultModel: 'gpt-5.4-mini', state: 'ready',
+          models: [{ id: 'gpt-5.4-mini', label: 'GPT-5.4 mini', efforts: ['low', 'medium', 'high'] }] },
+        { id: 'anthropic', label: 'Anthropic', defaultModel: 'claude-opus-5-5', state: 'ready',
+          models: [{ id: 'claude-opus-5-5', label: 'Claude Opus 5.5', efforts: ['low', 'medium', 'high', 'xhigh', 'max'] }] },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Model: GPT-5.4 mini' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Claude Opus 5.5' }));
+    expect(host.lastOfType('set_chat_model')?.payload).toEqual({ provider: 'anthropic', model: 'claude-opus-5-5', effort: '' });
+
+    host.deliver('chat_model', { conversationId: 'conv-1', chatModel: { provider: 'anthropic', model: 'claude-opus-5-5', effort: '' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Thinking: Default' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Extra high' }));
+    expect(host.lastOfType('set_chat_model')?.payload).toEqual({ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'xhigh' });
+  });
+
   it('offers only Back and manual settings from a temporary filament chat', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ navigation: { focused: true } }));

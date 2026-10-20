@@ -26,6 +26,23 @@
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
+// Which provider and model a chat talks to, and at what thinking level. The
+// person changes it from the composer at any point between turns. A chat
+// without one uses the app's default provider and that provider's default
+// model.
+struct ChatModelChoice
+{
+    std::string provider;
+    std::string model;
+    std::string effort; // empty: the model's own default
+
+    bool operator==(const ChatModelChoice& other) const
+    {
+        return provider == other.provider && model == other.model && effort == other.effort;
+    }
+    bool operator!=(const ChatModelChoice& other) const { return !(*this == other); }
+};
+
 struct ConversationInfo
 {
     std::string id;
@@ -226,6 +243,10 @@ public:
     // description of the current config. Empty until the first change.
     std::string setup_intent(const std::string& conversation_id) const;
     bool        set_setup_intent(const std::string& conversation_id, const std::string& intent);
+    // The chat's own model choice, kept with the chat so reopening the
+    // project resumes it. Absent until the person picks one.
+    std::optional<ChatModelChoice> chat_model(const std::string& conversation_id) const;
+    bool                           set_chat_model(const std::string& conversation_id, const ChatModelChoice& choice);
     // Erases chat content and returns orphaned attachment directories. Builds,
     // exported copies and physical prints retain their historical
     // conversation IDs.

@@ -261,6 +261,7 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.popover.row_gap   = parse_int(popover, "component.popover", "rowGap");
     m.popover.radius    = parse_int(popover, "component.popover", "radius");
     m.popover.border_width = parse_int(popover, "component.popover", "borderWidth");
+    m.popover.width        = parse_int(popover, "component.popover", "width");
 
     m.status_row.height = parse_int(component.at("statusRow"), "component.statusRow", "height");
 

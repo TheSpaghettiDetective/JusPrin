@@ -171,6 +171,36 @@ describe('attachments reducer', () => {
     previewText: 'hello',
   };
 
+  it('keeps the model catalog and the active chat\'s choice', () => {
+    const catalog = {
+      defaultProvider: 'openai',
+      providers: [{ id: 'openai', label: 'OpenAI', defaultModel: 'gpt-5.4-mini', state: 'loading', models: [] }],
+    };
+    const withCatalog = apply(initialState, 'model_catalog', catalog);
+    expect(withCatalog.modelCatalog).toEqual(catalog);
+
+    const choice = { provider: 'openai', model: 'gpt-5.4-mini', effort: '' };
+    const withState = apply(withCatalog, 'state', { ...statePayload, activeConversationId: 'c-1', chatModel: choice });
+    expect(withState.chatModel).toEqual(choice);
+
+    const switched = { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' };
+    expect(apply(withState, 'chat_model', { conversationId: 'c-1', chatModel: switched }).chatModel).toEqual(switched);
+    // A reply about another chat leaves the active chat's choice alone.
+    expect(apply(withState, 'chat_model', { conversationId: 'c-2', chatModel: switched }).chatModel).toEqual(choice);
+  });
+
+  it('keeps the capabilities the host announced', () => {
+    expect(initialState.hostCapabilities).toEqual([]);
+    const connected = apply(initialState, 'hello_ack', { capabilities: ['attachments', 'native_file_picker'] });
+    expect(connected.hostCapabilities).toEqual(['attachments', 'native_file_picker']);
+  });
+
+  // A file the host's own dialog chose arrives with no page-side record.
+  it('adds an attachment the host staged by itself', () => {
+    const picked = apply(initialState, 'attachment_updated', { attachment: { ...staged, id: 'a-9', clientId: undefined } });
+    expect(picked.attachments.map((a) => a.id)).toEqual(['a-9']);
+  });
+
   it('adds then updates an attachment in place on attachment_updated', () => {
     const added = apply(initialState, 'attachment_updated', { attachment: staged });
     expect(added.attachments).toHaveLength(1);

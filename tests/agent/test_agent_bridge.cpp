@@ -340,7 +340,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills});
@@ -353,6 +353,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kOpenSetup,
+                                              Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession});
 }
@@ -1748,6 +1749,200 @@ json attach(Harness& h, const std::string& client_id, const std::string& name, c
 }
 
 } // namespace
+
+// The composer's + menu asks the host's own file dialog for one kind; the
+// host filters it to the extensions it files under that kind and stages what
+// was chosen exactly as it stages a file the page read itself.
+TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen files", "[agent][attachments]")
+{
+    Harness h;
+    JusPrinTest::McpDirectory directory;
+    const auto photo = directory.root / "bracket.png";
+    const auto notes = directory.root / "notes.gcode";
+    const auto other = directory.root / "readme.docx";
+    { std::ofstream(photo, std::ios::binary) << std::string("\x89PNG\r\n", 6); }
+    { std::ofstream(notes) << "G1 X0\n"; }
+    { std::ofstream(other) << "not readable"; }
+
+    std::vector<AgentHost::FilePickerRequest> requests;
+    std::vector<std::string> answer;
+    h.host.set_file_picker([&](const AgentHost::FilePickerRequest& request,
+                               std::function<void(std::vector<std::string>)> done) {
+        requests.push_back(request);
+        done(answer);
+    });
+    h.handshake();
+
+    answer = {photo.u8string()};
+    h.deliver("pick_attachment", json{{"kind", "image"}});
+    REQUIRE(requests.size() == 1);
+    CHECK(requests.back().description == "Photo or image");
+    CHECK(requests.back().extensions == std::vector<std::string>{"png", "jpg", "jpeg", "gif", "webp"});
+    const json* updated = h.last_of_type("attachment_updated");
+    REQUIRE(updated != nullptr);
+    CHECK((*updated)["payload"]["attachment"]["name"] == "bracket.png");
+    CHECK((*updated)["payload"]["attachment"]["kind"] == "image");
+    CHECK((*updated)["payload"]["attachment"]["source"] == "picker");
+    CHECK((*updated)["payload"]["attachment"]["state"] == "staged");
+
+    // Every chosen file is judged by the attach_file rules, one update each.
+    const auto before = h.sent.size();
+    answer = {notes.u8string(), other.u8string(), (directory.root / "gone.png").u8string()};
+    h.deliver("pick_attachment", json{{"kind", "gcode"}});
+    CHECK(requests.back().extensions == std::vector<std::string>{"gcode", "g", "gco"});
+    std::vector<json> attachments;
+    for (std::size_t i = before; i < h.sent.size(); ++i)
+        if (h.sent[i]["type"] == "attachment_updated")
+            attachments.push_back(h.sent[i]["payload"]["attachment"]);
+    REQUIRE(attachments.size() == 3);
+    CHECK(attachments[0]["kind"] == "gcode");
+    CHECK(attachments[0]["state"] == "staged");
+    CHECK(attachments[0]["previewText"] == "G1 X0\n");
+    CHECK(attachments[1]["state"] == "error");
+    CHECK(attachments[1]["error"]["code"] == "unsupported_type");
+    CHECK(attachments[2]["state"] == "error");
+    CHECK(attachments[2]["error"]["code"] == "unreadable");
+
+    // The model filter is the classifier's own list, so nothing it offers is
+    // a file the Agent cannot read.
+    answer = {};
+    h.deliver("pick_attachment", json{{"kind", "model"}});
+    for (const char* extension : {"stl", "3mf", "step", "obj"})
+        CHECK(std::count(requests.back().extensions.begin(), requests.back().extensions.end(), extension) == 1);
+
+    // Cancelling the dialog sends nothing.
+    const auto after_cancel = h.sent.size();
+    h.deliver("pick_attachment", json{{"kind", "pdf"}});
+    CHECK(requests.back().extensions == std::vector<std::string>{"pdf"});
+    CHECK(h.sent.size() == after_cancel);
+
+    // The menu's list is fixed; any other kind can only come from a broken page.
+    CHECK_THROWS_AS(h.deliver("pick_attachment", json{{"kind", "anything"}}), Slic3r::RuntimeError);
+    CHECK_THROWS_AS(h.deliver("pick_attachment", json::object()), Slic3r::RuntimeError);
+}
+
+namespace {
+
+// Keys for some providers, an agent built per choice, and model lists that
+// arrive when the test answers them.
+struct FakeModelSource final : IChatModelSource
+{
+    std::vector<std::string>             providers{"openai", "anthropic"};
+    std::string                          fallback{"openai"};
+    bool                                 refuse_to_build{false};
+    std::vector<ChatModelChoice>         built;
+    std::map<std::string, ModelsDone>    asked;
+
+    std::vector<std::string> configured_providers() const override { return providers; }
+    std::string              default_provider() const override { return fallback; }
+    AgentServicePtr make_agent(const ChatModelChoice& choice) override
+    {
+        if (refuse_to_build)
+            return nullptr;
+        built.push_back(choice);
+        return std::make_unique<DeterministicMockAgent>();
+    }
+    void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
+};
+
+} // namespace
+
+// The composer's pickers: each chat picks its provider, model and thinking
+// level, switchable between any two turns, and every turn runs on an agent
+// built for the chat's current choice.
+TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][models]")
+{
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+
+    const json* ack = h.last_of_type("hello_ack");
+    REQUIRE(ack != nullptr);
+    const auto capabilities = (*ack)["payload"]["capabilities"].get<std::vector<std::string>>();
+    CHECK(std::count(capabilities.begin(), capabilities.end(), "model_choice") == 1);
+
+    // A chat with no choice talks to the default provider's default model.
+    const json* state = h.last_of_type("state");
+    REQUIRE(state != nullptr);
+    CHECK((*state)["payload"]["chatModel"] == json{{"provider", "openai"}, {"model", "gpt-5.4-mini"}, {"effort", ""}});
+
+    // Every configured provider's list is asked for once, and the catalog
+    // says which are still loading.
+    REQUIRE(source->asked.size() == 2);
+    const json* catalog = h.last_of_type("model_catalog");
+    REQUIRE(catalog != nullptr);
+    CHECK((*catalog)["payload"]["defaultProvider"] == "openai");
+    REQUIRE((*catalog)["payload"]["providers"].size() == 2);
+    CHECK((*catalog)["payload"]["providers"][0]["state"] == "loading");
+    CHECK((*catalog)["payload"]["providers"][1]["label"] == "Anthropic");
+
+    source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}});
+    source->asked["openai"](false, {});
+    catalog = h.last_of_type("model_catalog");
+    CHECK((*catalog)["payload"]["providers"][0]["state"] == "failed");
+    const json& anthropic = (*catalog)["payload"]["providers"][1];
+    CHECK(anthropic["state"] == "ready");
+    CHECK(anthropic["models"][0] == json{{"id", "claude-sonnet-5-5"}, {"label", "Claude Sonnet 5.5"},
+                                         {"efforts", json::array({"low", "medium", "high"})}});
+
+    // The agent the host was handed is the default choice's: a chat that
+    // never picked a model keeps using it.
+    h.send_user_message("first", "c-1");
+    h.pump_all();
+    CHECK(source->built.empty());
+    CHECK(h.last_of_type("assistant_completed") != nullptr);
+
+    // Switched mid-chat: the choice is the chat's, and the next turn uses it.
+    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", "high"}});
+    const json* chosen = h.last_of_type("chat_model");
+    REQUIRE(chosen != nullptr);
+    CHECK((*chosen)["payload"]["chatModel"] == json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", "high"}});
+    const std::string chat = h.persistence.document().active_conversation_id();
+    CHECK(h.persistence.document().chat_model(chat) == ChatModelChoice{"anthropic", "claude-sonnet-5-5", "high"});
+    h.send_user_message("second", "c-2");
+    h.pump_all();
+    REQUIRE(source->built.size() == 1);
+    CHECK(source->built.back() == ChatModelChoice{"anthropic", "claude-sonnet-5-5", "high"});
+    // The same choice keeps the same agent.
+    h.send_user_message("third", "c-3");
+    h.pump_all();
+    CHECK(source->built.size() == 1);
+
+    // The pickers list configured providers only.
+    CHECK_THROWS_AS(h.deliver("set_chat_model", json{{"provider", "openrouter"}, {"model", "x"}}), Slic3r::RuntimeError);
+
+    // A provider whose key is gone leaves its chats on the default.
+    source->providers = {"openai"};
+    h.deliver("state_request", json::object());
+    CHECK((*h.last_of_type("state"))["payload"]["chatModel"]["provider"] == "openai");
+}
+
+TEST_CASE("a turn whose provider cannot be built fails with the reason", "[agent][models]")
+{
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-opus-5-5"}, {"effort", ""}});
+    source->refuse_to_build = true;
+    h.send_user_message("hello", "c-1");
+    const json* failed = h.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["code"] == "provider_not_set_up");
+    CHECK_FALSE(h.host.stream_active());
+}
+
+TEST_CASE("pick_attachment without a dialog says so", "[agent][attachments]")
+{
+    Harness h;
+    h.handshake();
+    h.deliver("pick_attachment", json{{"kind", "image"}});
+    const json* error = h.last_of_type("bridge_error");
+    REQUIRE(error != nullptr);
+    CHECK((*error)["payload"]["code"] == "unsupported");
+    CHECK(h.last_of_type("attachment_updated") == nullptr);
+}
 
 TEST_CASE("a text attachment is staged, decoded, and previewed", "[agent][attachments]")
 {

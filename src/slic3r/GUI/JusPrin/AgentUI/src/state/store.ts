@@ -9,6 +9,8 @@ import {
   Appearance,
   AttachmentInfo,
   BuildInfo,
+  ChatModelChoice,
+  ModelCatalogPayload,
   ChangeInfo,
   WorkInfo,
   RestorePointInfo,
@@ -38,6 +40,13 @@ export interface AgentUiState {
   connectionDetail?: string;
   agentStatus: AgentStatus;
   appearance: Appearance;
+  // What the host said it can do in hello_ack, for the additive features a
+  // page uses only when its host has them.
+  hostCapabilities: string[];
+  // Each configured provider's models, and the active chat's choice; both
+  // absent from hosts without the model_choice capability.
+  modelCatalog?: ModelCatalogPayload;
+  chatModel?: ChatModelChoice;
   conversations: ConversationInfo[];
   activeConversationId: string;
   viewedConversationId: string;
@@ -81,6 +90,7 @@ export interface AgentUiState {
 export const initialState: AgentUiState = {
   connection: 'connecting',
   agentStatus: 'ready',
+  hostCapabilities: [],
   appearance: 'light',
   conversations: [],
   activeConversationId: '',
@@ -151,10 +161,12 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     case 'hello_ack': {
       const agent = payload.agent as { status: AgentStatus } | undefined;
       const appearance = payload.appearance as Appearance | undefined;
+      const capabilities = payload.capabilities as string[] | undefined;
       return {
         ...state,
         agentStatus: agent?.status ?? state.agentStatus,
         appearance: appearance ?? state.appearance,
+        hostCapabilities: capabilities ?? state.hostCapabilities,
       };
     }
     case 'hello_reject':
@@ -165,6 +177,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         ...state,
         agentStatus: full.agent.status,
         appearance: full.appearance,
+        chatModel: full.chatModel ?? state.chatModel,
         conversations: full.conversations ?? [],
         activeConversationId: full.activeConversationId ?? '',
         viewedConversationId: full.viewedConversationId ?? full.activeConversationId ?? '',
@@ -208,6 +221,12 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, setup: envelope.payload as SetupStatusPayload };
     case 'open_setup':
       return { ...state, setupRequests: state.setupRequests + 1 };
+    case 'model_catalog':
+      return { ...state, modelCatalog: envelope.payload as ModelCatalogPayload };
+    case 'chat_model': {
+      const update = envelope.payload as { conversationId: string; chatModel: ChatModelChoice };
+      return update.conversationId === state.activeConversationId ? { ...state, chatModel: update.chatModel } : state;
+    }
     case 'mcp_catalog':
       return { ...state, mcpCatalog: envelope.payload as McpCatalogPayload };
     case 'mcp_preview':

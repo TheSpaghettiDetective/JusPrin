@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import { AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol';
+import { AttachmentPickKind, AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
@@ -258,6 +258,11 @@ export function App({
         });
     }
   };
+
+  // The host's own file dialog, filtered to one kind, where the host has one.
+  const pickFiles = state.hostCapabilities.includes('native_file_picker')
+    ? (kind: AttachmentPickKind) => client.send('pick_attachment', { kind })
+    : undefined;
 
   const removeAttachment = (attachmentId: string) => {
     client.send('remove_attachment', { attachmentId });
@@ -645,6 +650,7 @@ export function App({
                 if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
               }}
               onAttachFiles={attachFiles}
+              onPickFiles={pickFiles}
               onRemoveAttachment={removeAttachment}
             />
           )}
@@ -734,7 +740,11 @@ export function App({
           if (state.streamingMessageId) client.send('stop_generation', { messageId: state.streamingMessageId });
         }}
         onAttachFiles={attachFiles}
+        onPickFiles={pickFiles}
         onRemoveAttachment={removeAttachment}
+        models={state.modelCatalog}
+        chatModel={state.chatModel}
+        onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}

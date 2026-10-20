@@ -767,7 +767,7 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     // The first build fixes the width; later rebuilds keep it so swapping to
     // the search view does not make the popup jump under the pointer.
     if (m_width == 0)
-        m_width = std::clamp(GetSize().x,FromDIP(280),FromDIP(420));
+        m_width = std::clamp(GetSize().x,FromDIP(m_theme.metrics().popover.width),FromDIP(420));
     SetSize(wxSize(m_width,GetSize().y));
     Layout();
 #if defined(__WXOSX__) || defined(__WXMSW__)

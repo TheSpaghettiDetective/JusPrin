@@ -51,8 +51,8 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
+  outline: var(--focus-width) solid var(--border-focus);
+  outline-offset: var(--focus-offset);
 }
 
 /* Compact workspace context header */
@@ -554,6 +554,7 @@ body {
 .jp-icon-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
 .jp-icon-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
 .jp-icon-chevron-up { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg'); }
+.jp-icon-search { -webkit-mask-image: url('@resources/jusprin/ui/icons/search.svg'); mask-image: url('@resources/jusprin/ui/icons/search.svg'); }
 .jp-icon-settings { -webkit-mask-image: url('@resources/jusprin/ui/icons/settings.svg'); mask-image: url('@resources/jusprin/ui/icons/settings.svg'); }
 .jp-icon-printer { -webkit-mask-image: url('@resources/jusprin/ui/icons/printer.svg'); mask-image: url('@resources/jusprin/ui/icons/printer.svg'); }
 .jp-icon-circle-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); }
@@ -590,7 +591,8 @@ button.chat-icon:disabled { color: var(--action-disabled-text); }
 .agent-pane-toggle-fill { fill: currentColor; stroke: none; }
 .chat-actions { position: relative; }
 /* The design system's Menu/Popover and Menu/Row: the header menus' own
-   geometry, so the chat's menus are the same control. */
+   geometry, so the chat's menus are the same control. The rows sit in a
+   list of their own, which scrolls under a search field when there is one. */
 .chat-menu {
   position: absolute;
   top: calc(100% + 16px);
@@ -598,7 +600,7 @@ button.chat-icon:disabled { color: var(--action-disabled-text); }
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: var(--popover-row-gap);
+  gap: 4px;
   min-width: 128px;
   padding: var(--popover-padding-y) 0;
   border: var(--popover-border-width) solid var(--border-subtle);
@@ -606,9 +608,19 @@ button.chat-icon:disabled { color: var(--action-disabled-text); }
   background: var(--surface-raised);
   box-shadow: var(--elevation-medium);
 }
+.chat-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-row-gap);
+  min-height: 0;
+  overflow-y: auto;
+}
 .chat-menu button {
   display: flex;
+  flex: 0 0 auto;
+  align-items: center;
   justify-content: flex-start;
+  gap: 8px;
   height: var(--menu-row-height);
   margin: 0 var(--menu-row-side-inset);
   padding: 0 12px;
@@ -620,7 +632,8 @@ button.chat-icon:disabled { color: var(--action-disabled-text); }
 .chat-menu button:disabled { color: var(--action-disabled-text); }
 .chat-menu button:hover:enabled,
 .chat-menu button:active:enabled,
-.chat-menu button:focus-visible { border: 0; background: var(--surface-raised-hover); }
+.chat-menu button:focus-visible,
+.chat-menu button.active { border: 0; background: var(--surface-raised-hover); }
 /* A menu row has no focus state of its own: the keyboard's row looks like the
    hovered one. The outside ring would stick out past the popover's edge. */
 .chat-menu button:focus-visible { outline: none; }
@@ -1673,7 +1686,8 @@ input[type='radio']:checked {
   background: radial-gradient(circle at center, var(--action-primary) 4px, var(--surface-canvas) 5px);
 }
 
-/* Composer */
+/* Composer: the band under the thread, holding any notice and the message
+   box. */
 .composer {
   display: flex;
   flex-direction: column;
@@ -1683,39 +1697,260 @@ input[type='radio']:checked {
   background: var(--surface-canvas);
 }
 
-/* A file held over the composer: a 2 DIP strong stroke inside its box. */
-.composer.dragging {
-  border-radius: var(--radius-small);
-  box-shadow: inset 0 0 0 2px var(--border-strong);
-}
-
-/* The Figma Composer is one bordered field, 50 DIP tall: the attachment
-   action, the text field, and Send share a single container whose stroke is
-   drawn inside it. */
-.composer-row {
+/* The message box (the Composer proposal on the "JusPrin v2" canvas): staged
+   files, the field, and the toolbar in one box whose stroke is drawn inside
+   it. While the text field has the focus the whole box carries the focus
+   ring, as the Composer's Focus variant draws it; the field itself draws
+   none. The + button keeps its own ring. */
+.composer-box {
+  position: relative;
   display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 12px 8px 12px 12px;
-  border-radius: var(--radius-small);
+  flex-direction: column;
+  gap: var(--composer-gap);
+  padding: var(--composer-padding);
+  border-radius: var(--radius-medium);
   background: var(--surface-canvas);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-/* The field gave up its own outline to the container, so the container
-   carries a ring of the weight the global :focus-visible rule draws. */
-.composer-row:focus-within {
-  box-shadow: inset 0 0 0 2px var(--border-focus);
+.composer-box:has(textarea:focus) {
+  box-shadow: inset 0 0 0 var(--focus-width) var(--border-focus);
 }
 
+/* A file held over the composer: a 2 DIP strong stroke inside its box. */
+.composer.dragging .composer-box {
+  box-shadow: inset 0 0 0 2px var(--border-strong);
+}
+
+/* Staged files stack above the text, each as wide as the box. */
 .composer-attachments {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--composer-gap);
+}
+
+.composer-attachments .attachment-chip {
+  max-width: none;
+}
+
+/* The choices on the left; Send and Stop share the slot on the right, so
+   a reply starting does not move anything else. */
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-/* Button/Link on the left; Send and Stop share the slot on the right, so
-   streaming does not move the field or its attachment action. */
+.composer-choices {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--composer-gap);
+  min-width: 0;
+}
+
+/* + is Button/Icon without a stroke: the box around it is the boundary. */
+.composer-choices button.chat-icon {
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.composer-choices button.chat-icon:hover:enabled {
+  border-color: transparent;
+  background: var(--surface-subtle);
+}
+
+.composer-choices button.chat-icon:active:enabled,
+.composer-choices button.chat-icon[aria-expanded='true'] {
+  border-color: transparent;
+  background: var(--surface-selected);
+}
+
+.composer-choices button.chat-icon:disabled {
+  color: var(--action-disabled-text);
+}
+
+/* The + menu opens upward from its button, over the thread, as wide as its
+   longest row. */
+/* The composer's three menus (+, model, thinking) all open above the box at
+   its left edge, not at their own button: a 280 DIP menu opened at the
+   thinking picker would run past the pane's right edge. The buttons'
+   wrappers are left unpositioned so the box is what the menu is placed in,
+   and a menu is never wider than the box. */
+.composer-choices .chat-actions {
+  position: static;
+  flex: 0 0 auto;
+}
+
+/* A narrow pane (Composer measures it) first drops the thinking picker's
+   "Thinking:", then cuts the model's name; + and Send keep their size. */
+.composer-choices .composer-model-menu {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.composer-choices .composer-picker {
+  max-width: 100%;
+}
+
+.composer-choices--narrow .composer-picker-prefix {
+  display: none;
+}
+
+/* While measuring, every label is at full length and nothing shrinks. */
+.composer-choices--measuring .composer-picker-prefix {
+  display: inline;
+}
+
+.composer-choices.composer-choices--measuring .composer-model-menu {
+  flex: none;
+}
+
+.composer-choices--measuring .composer-picker {
+  max-width: none;
+}
+
+.chat-actions--above .chat-menu {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: max-content;
+  min-width: var(--popover-width);
+  max-width: 100%;
+  /* A provider's model list can be long; its rows scroll inside the menu
+     rather than running off the top of the pane. */
+  max-height: 60vh;
+}
+
+/* The model menu with search: as wide as a popover whatever the filter
+   leaves, so it does not change width under the typing. */
+.chat-actions--above .chat-menu--search {
+  width: var(--popover-width);
+}
+
+/* Field/Search at the top of a long menu, inset from its sides. */
+.chat-menu-search {
+  flex: 0 0 auto;
+  margin: 0 8px;
+}
+
+.field-search {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--field-search-icon-gap);
+  height: var(--field-search-height);
+  padding: 0 var(--field-search-padding-x);
+  border-radius: var(--field-search-radius);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 var(--field-search-border-width) var(--border-subtle);
+  font: var(--font-body);
+  color: var(--text-primary);
+}
+
+/* The field's stroke thickens with the focus, Field/Search's own focus
+   state, in place of the outside ring. */
+.field-search:focus-within {
+  box-shadow: inset 0 0 0 var(--field-search-focus-border-width) var(--border-strong);
+}
+
+.field-search .jp-icon {
+  width: var(--field-search-icon-size);
+  height: var(--field-search-icon-size);
+  color: var(--text-secondary);
+}
+
+.field-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.field-search input::placeholder {
+  color: var(--text-secondary);
+}
+
+.field-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* What a search that matches nothing says, in place of the rows. */
+.chat-menu-empty {
+  margin: 0;
+  padding: 8px 12px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+/* A row's label takes the width; the current choice's tick sits at the end
+   (Menu/Row, Current). */
+.chat-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu/Section Title: the provider a group of models belongs to. */
+.chat-menu-section {
+  flex: 0 0 auto;
+  padding: 12px 12px 4px;
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* The model and thinking pickers: the choice and a chevron, quiet at rest,
+   filled while their menu is open. */
+.composer-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--button-picker-icon-gap);
+  min-width: 0;
+  height: var(--button-picker-height);
+  padding: var(--button-picker-padding);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-primary);
+  font: var(--font-label);
+}
+
+.composer-picker:hover:enabled {
+  border: 0;
+  background: var(--surface-subtle);
+}
+
+.composer-picker[aria-expanded='true'] {
+  background: var(--surface-selected);
+}
+
+.composer-picker:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.composer-picker-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .attach-button,
 .composer-send {
   flex: 0 0 auto;
@@ -1723,7 +1958,6 @@ input[type='radio']:checked {
   cursor: pointer;
 }
 
-.composer-send { min-height: var(--button-icon-height); }
 
 .attach-button {
   min-height: var(--button-link-height);
@@ -1742,8 +1976,11 @@ input[type='radio']:checked {
   cursor: default;
 }
 
+/* Send is Button/Primary at the small recipe's 28 DIP, so it sits inside
+   the toolbar beside the 32 DIP +. */
 .composer-send {
-  padding: 4px 16px;
+  height: var(--button-primary-small-height);
+  padding: var(--button-primary-small-padding);
   border-radius: var(--radius-medium);
   background: var(--action-primary);
   color: var(--action-primary-text);
@@ -1766,7 +2003,8 @@ input[type='radio']:checked {
 
 /* Stop is Button/Secondary: it ends the reply, it does not send. */
 .composer-send.composer-stop {
-  padding: 4px 12px;
+  height: var(--button-secondary-small-height);
+  padding: var(--button-secondary-small-padding);
   border-radius: var(--radius-small);
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--border-subtle);
@@ -1910,23 +2148,26 @@ input[type='radio']:checked {
   border-radius: var(--radius-medium);
 }
 
-/* The container owns the border and the padding; the field is transparent. */
+/* The box owns the border; the field is transparent. Composer.tsx sets its
+   height to its text, up to component.composer.maxLines, and past that the
+   text scrolls inside it. */
 .composer textarea {
-  flex: 1;
+  display: block;
+  width: 100%;
   min-width: 0;
   resize: none;
   font: var(--font-body-small);
-  padding: 0;
+  padding: var(--composer-input-padding);
   border: none;
   background: transparent;
   color: var(--text-primary);
-  max-height: 120px;
+  overflow-y: auto;
 }
 
 /* One line, cut with an ellipsis: an invitation never wraps the field. */
 .composer textarea::placeholder {
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -6,6 +6,7 @@ add_executable(agent_bridge_tests
     test_openai_responses_agent.cpp
     test_provider_agent.cpp
     test_provider_configuration.cpp
+    test_model_catalog.cpp
     test_anthropic_codec.cpp
     test_provider_conformance.cpp
     test_project_state.cpp
@@ -34,6 +35,7 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AnthropicCodec.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderFactory.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ModelCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ResponsesCodec.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp

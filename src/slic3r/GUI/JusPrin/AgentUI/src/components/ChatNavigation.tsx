@@ -30,24 +30,100 @@ export interface MenuItem {
   onSelect: () => void;
   disabled?: boolean;
   danger?: boolean;
+  // The option now in effect, marked with a tick (Menu/Row's Current state).
+  current?: boolean;
+  // Distinguishes rows whose labels repeat, as models of two providers can.
+  key?: string;
+  // What a search of the menu matches the row on; its label when absent.
+  matches?: string[];
 }
 
-// A header's ⋯ menu: opens on click, moves with the arrow keys, closes on
+// A heading over the rows after it (Menu/Section Title): not a stop for the
+// keyboard and not clickable. `detail` follows the name while the menu is
+// not being searched ("OpenRouter · 312 models").
+export interface MenuSection {
+  section: string;
+  detail?: string;
+}
+
+// A search field at the top of a long menu (the model menu's): `label` is
+// its placeholder and name, `noMatch` what the menu says when nothing fits.
+export interface MenuSearch {
+  label: string;
+  noMatch: (query: string) => string;
+}
+
+const MENU_ROWS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
+
+function isSection(entry: MenuItem | MenuSection): entry is MenuSection {
+  return 'section' in entry;
+}
+
+const rowKey = (item: MenuItem) => item.key ?? item.label;
+
+// The entries a query leaves: the rows that match, ignoring case, under the
+// headings of their groups; a heading whose rows all drop out goes too.
+export function filterMenu(items: (MenuItem | MenuSection)[], query: string): (MenuItem | MenuSection)[] {
+  const wanted = query.trim().toLowerCase();
+  if (!wanted) return items;
+  const kept: (MenuItem | MenuSection)[] = [];
+  let heading: MenuSection | undefined;
+  for (const entry of items) {
+    if (isSection(entry)) { heading = entry; continue; }
+    if (!(entry.matches ?? [entry.label]).some((name) => name.toLowerCase().includes(wanted))) continue;
+    if (heading) { kept.push(heading); heading = undefined; }
+    kept.push(entry);
+  }
+  return kept;
+}
+
+// A button that opens a menu: the header's ⋯ menu, the composer's + menu,
+// and the composer's model and thinking pickers, which show their choice as
+// `text` with a chevron, after the menu's name when `prefixed` (which a
+// narrow pane hides). The composer's open upward because they sit at the bottom of
+// the pane. A menu opens on click, moves with the arrow keys, closes on
 // Escape, a pick, or a click anywhere else. `buttonRef` lets the owner put
 // focus back on the button once something the menu opened is done.
-export function ActionMenu({ label, items, buttonRef }: {
+//
+// With `search`, the menu starts with a field that has the focus: typing
+// filters the rows, the first match is highlighted, Up and Down move the
+// highlight, Enter picks it, and Escape clears the field before it closes
+// the menu.
+export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, prefixed = false, above = false,
+  disabled = false, search, className }: {
   label: string;
-  items: MenuItem[];
+  items: (MenuItem | MenuSection)[];
   buttonRef?: React.RefObject<HTMLButtonElement>;
+  icon?: 'ellipsis' | 'plus';
+  text?: string;
+  prefixed?: boolean;
+  above?: boolean;
+  disabled?: boolean;
+  search?: MenuSearch;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeKey, setActiveKey] = useState<string>();
   const container = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLInputElement>(null);
   const ownButton = useRef<HTMLButtonElement>(null);
   const button = buttonRef ?? ownButton;
+  const menuId = useId();
+
+  const shownEntries = search ? filterMenu(items, query) : items;
+  const rows = shownEntries.filter((entry): entry is MenuItem => !isSection(entry) && !entry.disabled);
+  // The row Enter picks: the current choice until something is typed, then
+  // the first match, until the arrows move it.
+  const active = rows.find((row) => rowKey(row) === activeKey) ?? rows[0];
+  const rowId = (item: MenuItem) => `${menuId}-${shownEntries.indexOf(item)}`;
 
   useEffect(() => {
     if (!open) return;
-    container.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    if (field.current) field.current.focus();
+    // The current choice when there is one, else the first row.
+    else (container.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]') ??
+      container.current?.querySelector<HTMLButtonElement>(MENU_ROWS))?.focus();
     const dismiss = (event: PointerEvent) => {
       if (!container.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -55,23 +131,95 @@ export function ActionMenu({ label, items, buttonRef }: {
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [open]);
 
-  return <div className="chat-actions" ref={container} onKeyDown={(event) => {
+  useEffect(() => {
+    if (search && open && active) document.getElementById(rowId(active))?.scrollIntoView({ block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active && rowKey(active), open]);
+
+  // A menu closes when its button is disabled under it, as when a reply
+  // starts, and stays closed when the button comes back.
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  const shown = open && !disabled;
+
+  const current = items.find((entry): entry is MenuItem => !isSection(entry) && !!entry.current);
+  const restart = () => { setQuery(''); setActiveKey(current && rowKey(current)); };
+  const toggle = () => { restart(); setOpen(!open); };
+  const pick = (item: MenuItem) => { setOpen(false); item.onSelect(); };
+  const name = text === undefined ? label : `${label}: ${text}`;
+
+  return <div className={['chat-actions', above && 'chat-actions--above', className].filter(Boolean).join(' ')}
+    ref={container} onKeyDown={(event) => {
     if (event.key === 'Escape') { setOpen(false); button.current?.focus(); }
-    if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    // The search field keeps its own keys; Home and End move its cursor.
+    if (shown && event.target !== field.current && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
-      const buttons = Array.from(container.current!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
+      const buttons = Array.from(container.current!.querySelectorAll<HTMLButtonElement>(MENU_ROWS));
       const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
       buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 :
         (index + (event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length]?.focus();
     }
   }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-    <button ref={button} className="chat-icon" aria-label={label} title={label}
-      aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-      <span className="jp-icon jp-icon-ellipsis" aria-hidden="true" />
-    </button>
-    {open && <div className="chat-menu" role="menu" aria-label={label}>
-      {items.map((item) => <button key={item.label} role="menuitem" className={item.danger ? 'danger' : undefined}
-        disabled={item.disabled} onClick={() => { setOpen(false); item.onSelect(); }}>{item.label}</button>)}
+    {text === undefined
+      ? <button ref={button} className="chat-icon" aria-label={label} title={label} disabled={disabled}
+          aria-haspopup="menu" aria-expanded={shown} onClick={toggle}>
+          <span className={`jp-icon jp-icon-${icon}`} aria-hidden="true" />
+        </button>
+      // Named, and titled, in full even when a narrow pane shortens it.
+      : <button ref={button} className="composer-picker" disabled={disabled} aria-label={name} title={name}
+          aria-haspopup="menu" aria-expanded={shown} onClick={toggle}>
+          <span className="composer-picker-text">
+            {prefixed && <span className="composer-picker-prefix">{label}: </span>}{text}
+          </span>
+          <span className="jp-icon jp-icon-chevron-down" aria-hidden="true" />
+        </button>}
+    {shown && <div className={search ? 'chat-menu chat-menu--search' : 'chat-menu'}>
+      {search && <div className="chat-menu-search">
+        <label className="field-search">
+          <span className="jp-icon jp-icon-search" aria-hidden="true" />
+          <input ref={field} type="search" placeholder={search.label} aria-label={search.label} value={query}
+            aria-controls={rows.length > 0 ? menuId : undefined}
+            aria-activedescendant={active ? rowId(active) : undefined}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveKey(undefined);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && query) {
+                event.stopPropagation();
+                restart();
+              } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && rows.length > 0) {
+                event.preventDefault();
+                const index = active ? rows.indexOf(active) : -1;
+                setActiveKey(rowKey(rows[(index + (event.key === 'ArrowUp' ? -1 : 1) + rows.length) % rows.length]));
+              } else if (event.key === 'Enter' && active) {
+                event.preventDefault();
+                pick(active);
+                button.current?.focus();
+              }
+            }} />
+        </label>
+      </div>}
+      {search && rows.length === 0
+        ? <p className="chat-menu-empty" role="status">{search.noMatch(query.trim())}</p>
+        // A press on a row must not move the focus: WebKit focuses nothing
+        // on a click, so the focused row would blur to nothing, closing the
+        // menu before the click arrived.
+        : <div id={menuId} className="chat-menu-list" role="menu" aria-label={label}
+            onMouseDown={(event) => event.preventDefault()}>
+          {shownEntries.map((item, index) => isSection(item)
+            ? <div key={`section-${index}`} className="chat-menu-section" role="presentation">
+                {item.detail && !query.trim() ? `${item.section} · ${item.detail}` : item.section}
+              </div>
+            : <button key={rowKey(item)} id={rowId(item)}
+                role={item.current === undefined ? 'menuitem' : 'menuitemradio'}
+                className={[item.danger && 'danger', search && item === active && 'active'].filter(Boolean).join(' ') || undefined}
+                aria-checked={item.current === undefined ? undefined : item.current}
+                disabled={item.disabled} onClick={() => pick(item)}
+                onMouseEnter={search && !item.disabled ? () => setActiveKey(rowKey(item)) : undefined}>
+                <span className="chat-menu-label">{item.label}</span>
+                {item.current && <span className="jp-icon jp-icon-check" aria-hidden="true" />}
+              </button>)}
+        </div>}
     </div>}
   </div>;
 }

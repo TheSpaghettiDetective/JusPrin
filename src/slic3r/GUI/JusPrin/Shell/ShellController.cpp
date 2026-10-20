@@ -268,6 +268,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());
+        m_agent_pane->web_view().enable_chat_model_choice(wxGetApp().app_config);
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.width);
         m_agent_resize_handle = new PaneResizeHandle(
             &frame, *m_theme, PaneResizeHandle::PaneSide::Right,

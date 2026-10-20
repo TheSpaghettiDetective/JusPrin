@@ -90,7 +90,7 @@ struct ButtonMetrics
 struct ChipMetrics      { int height{0}; int radius{0}; };
 struct MenuRowMetrics   { int height{0}; int radius{0}; int side_inset{0}; };
 // Rows sit inside the popover's border, so a full-width row never covers it.
-struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; int border_width{0}; };
+struct PopoverMetrics   { int padding_y{0}; int row_gap{0}; int radius{0}; int border_width{0}; int width{0}; };
 struct StatusRowMetrics { int height{0}; };
 struct AgentPaneMetrics {
     int width{0};

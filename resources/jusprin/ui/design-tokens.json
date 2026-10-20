@@ -304,6 +304,14 @@
         "radius": 4,
         "textRole": "labelBold"
       },
+      "picker": {
+        "height": 24,
+        "paddingX": 8,
+        "paddingY": 4,
+        "radius": 4,
+        "iconGap": 4,
+        "textRole": "label"
+      },
       "expanded": {
         "minHeight": 32,
         "paddingX": 12,
@@ -318,11 +326,25 @@
         "iconGap": 6,
         "textRole": "bodySmall"
       },
+      "secondarySmall": {
+        "height": 28,
+        "paddingX": 12,
+        "paddingY": 4,
+        "radius": 4,
+        "textRole": "bodySmall"
+      },
       "primary": {
         "paddingX": 16,
         "paddingY": 8,
         "radius": 8,
         "iconGap": 6,
+        "textRole": "bodySmallBold"
+      },
+      "primarySmall": {
+        "height": 28,
+        "paddingX": 16,
+        "paddingY": 4,
+        "radius": 8,
         "textRole": "bodySmallBold"
       }
     },
@@ -339,7 +361,8 @@
       "paddingY": 8,
       "rowGap": 2,
       "radius": 8,
-      "borderWidth": 1
+      "borderWidth": 1,
+      "width": 280
     },
     "segmented": {
       "height": 30,
@@ -446,6 +469,12 @@
       "thumbnailSize": 48,
       "kindSize": 32
     },
+    "composer": {
+      "padding": 8,
+      "gap": 4,
+      "inputPadding": 4,
+      "maxLines": 8
+    },
     "printerCard": {
       "columnWidth": 320,
       "pictureSize": 32,
@@ -468,6 +497,16 @@
       "minWidth": 72,
       "textRole": "body",
       "unitTextRole": "label"
+    },
+    "fieldSearch": {
+      "height": 38,
+      "paddingX": 10,
+      "iconSize": 16,
+      "iconGap": 6,
+      "radius": 4,
+      "borderWidth": 1,
+      "focusBorderWidth": 2,
+      "textRole": "body"
     },
     "select": {
       "height": 26,

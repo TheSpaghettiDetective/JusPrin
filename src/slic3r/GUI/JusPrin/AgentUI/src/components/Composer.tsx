@@ -1,18 +1,40 @@
-// Composer input rules from the handoff: Enter sends, Shift+Enter inserts a
-// newline, and Enter during IME composition accepts the composition without
-// sending. Normal selection, clipboard, and focus behavior are left to the
-// browser engine. The in-progress draft is reported (debounced) so the host
-// can keep it in the local recovery store; reconnecting restores it via
-// initialText.
+// The Agent message box (the Composer proposal on the "JusPrin v2" canvas):
+// one bordered box holding the staged attachments, the text field, and a
+// toolbar with + on the left and Send on the right. The field starts one
+// line high and grows a line at a time up to component.composer.maxLines,
+// then scrolls inside the box; the toolbar stays.
 //
-// Attachments enter through a file picker, drag-and-drop, or pasting an image;
-// staged attachments render as removable chips, and a message may be sent with
-// attachments and no text. The host owns decoding and storage — the composer
-// only hands it files.
+// Input rules from the handoff: Enter sends, Shift+Enter inserts a newline,
+// and Enter during IME composition accepts the composition without sending.
+// Normal selection, clipboard, and focus behavior are left to the browser
+// engine. The in-progress draft is reported (debounced) so the host can keep
+// it in the local recovery store; reconnecting restores it via initialText.
+//
+// Attachments enter through the + menu's file picker, drag-and-drop, or
+// pasting an image; staged attachments render as removable rows, and a
+// message may be sent with attachments and no text. The host owns decoding
+// and storage -- the composer only hands it files.
 
-import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
-import { AttachmentInfo, AttachmentSource } from '../bridge/protocol';
+import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AttachmentInfo, AttachmentPickKind, AttachmentSource, ChatModelChoice, ModelCatalogPayload } from '../bridge/protocol';
+import { composerInputMaxHeight } from '../tokens';
 import { AttachmentChip } from './AttachmentChip';
+import { ActionMenu } from './ChatNavigation';
+import { ModelPickers } from './ModelPickers';
+
+// What the + menu offers: the four kinds the design names. In the app each
+// opens the operating system's file dialog through the host, which filters
+// it to the extensions it files under that kind. `accept` is the browser
+// input's copy of the same lists, used only where the page runs without
+// that host (review pages, tests). Text and SVG files are accepted too, by
+// dropping them.
+export const ATTACHMENT_CHOICES: readonly { label: string; kind: AttachmentPickKind; accept: string }[] = [
+  { label: 'Photo or image', kind: 'image', accept: '.png,.jpg,.jpeg,.gif,.webp' },
+  { label: '3D model (STL, 3MF, STEP)', kind: 'model',
+    accept: '.stl,.3mf,.step,.stp,.obj,.amf,.oltp,.drc,.ply,.usd,.usda,.usdc,.usdz,.abc' },
+  { label: 'G-code', kind: 'gcode', accept: '.gcode,.g,.gco' },
+  { label: 'Document (PDF)', kind: 'pdf', accept: '.pdf' },
+];
 
 interface Props {
   disabled: boolean;
@@ -23,6 +45,9 @@ interface Props {
   onSend: (text: string) => void;
   onStop: () => void;
   onAttachFiles: (files: File[], source: AttachmentSource) => void;
+  // Opens the host's own file dialog for one kind; absent where the host
+  // cannot, and the browser's file input is used instead.
+  onPickFiles?: (kind: AttachmentPickKind) => void;
   onRemoveAttachment: (id: string) => void;
   onDraftChange?: (text: string) => void;
   draftDebounceMs?: number;
@@ -32,8 +57,8 @@ interface Props {
   // A likely answer to what was just asked, rather than the standing
   // invitation. The printer panel writes one per turn.
   placeholder?: string;
-  // Labelled "Photo" instead of a bare paperclip: in the printer panel a
-  // picture is a primary way to say which printer this is, not an extra.
+  // Labelled "Photo" instead of the + menu: in the printer panel a picture
+  // is a primary way to say which printer this is, not an extra.
   photoButton?: boolean;
   // What the band says above the field when the field cannot be used as it
   // is: the notice on an earlier chat, or a recovery alert.
@@ -41,6 +66,10 @@ interface Props {
   // False where nothing can be attached at all, so the action is left out
   // rather than shown disabled: a read-only shell has only its field and Send.
   attachable?: boolean;
+  // The chat's model and thinking pickers, where the host offers them.
+  models?: ModelCatalogPayload;
+  chatModel?: ChatModelChoice;
+  onChooseModel?: (choice: ChatModelChoice) => void;
 }
 
 export function Composer({
@@ -52,6 +81,7 @@ export function Composer({
   onSend,
   onStop,
   onAttachFiles,
+  onPickFiles,
   onRemoveAttachment,
   onDraftChange,
   draftDebounceMs = 300,
@@ -60,6 +90,9 @@ export function Composer({
   photoButton,
   notice,
   attachable = true,
+  models,
+  chatModel,
+  onChooseModel,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
@@ -67,6 +100,41 @@ export function Composer({
   const pendingDraft = useRef(false);
   const latestText = useRef(initialText ?? '');
   const fileInput = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
+  const choices = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+
+  // Grow the field to its text, up to the line limit; past it the field
+  // scrolls. A field that is not laid out (inside a hidden view) measures 0
+  // and keeps its height until its text next changes.
+  useLayoutEffect(() => {
+    const element = field.current;
+    if (!element) return;
+    const previous = element.style.height;
+    element.style.height = 'auto';
+    const content = element.scrollHeight;
+    element.style.height = content > 0 ? `${Math.min(content, composerInputMaxHeight())}px` : previous;
+  }, [text]);
+
+  // A narrow pane: when the choices at full length do not fit beside Send,
+  // the thinking picker drops "Thinking:", and the model picker's name is
+  // cut if it still does not fit. Measured with the labels in full (the
+  // measuring class undoes the narrow one and the shrinking) so the answer
+  // follows the labels' real lengths, not a fixed breakpoint.
+  useLayoutEffect(() => {
+    const element = choices.current;
+    if (!element) return;
+    const measure = () => {
+      element.classList.add('composer-choices--measuring');
+      const needed = element.scrollWidth;
+      element.classList.remove('composer-choices--measuring');
+      setNarrow(needed > element.clientWidth);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [models, chatModel]);
 
   // A recovered draft arrives after the first connect; apply it only while
   // the composer is untouched so it never clobbers active typing.
@@ -110,6 +178,18 @@ export function Composer({
     send();
   };
 
+  // The host's dialog when there is one: a web view's file input shows every
+  // file on macOS whatever `accept` says.
+  const pickFiles = (choice: (typeof ATTACHMENT_CHOICES)[number]) => {
+    if (onPickFiles) {
+      onPickFiles(choice.kind);
+      return;
+    }
+    if (!fileInput.current) return;
+    fileInput.current.accept = choice.accept;
+    fileInput.current.click();
+  };
+
   const handleFiles = (files: FileList | null, source: AttachmentSource) => {
     if (!files || files.length === 0) return;
     onAttachFiles(Array.from(files), source);
@@ -146,27 +226,16 @@ export function Composer({
       onDrop={handleDrop}
     >
       {notice}
-      <div className="composer-row">
-        {attachable && <button
-          type="button"
-          className={photoButton ? 'attach-button attach-button-photo' : 'attach-button'}
-          aria-label={photoButton ? 'Add a photo' : 'Attach a file'}
-          disabled={disabled}
-          onClick={() => fileInput.current?.click()}
-        >
-          {photoButton ? 'Photo' : 'Attach a file'}
-        </button>}
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          className="attach-input"
-          aria-hidden="true"
-          tabIndex={-1}
-          style={{ display: 'none' }}
-          onChange={handlePickerChange}
-        />
+      <div className="composer-box">
+        {attachments.length > 0 && (
+          <div className="composer-attachments" aria-label="Staged attachments">
+            {attachments.map((attachment) => (
+              <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
+            ))}
+          </div>
+        )}
         <textarea
+          ref={field}
           aria-label="Message the Agent"
           placeholder={
             disabled
@@ -176,7 +245,7 @@ export function Composer({
                 // A staged photo waits for the person; it never sends itself.
                 : photoButton && hasSendable
                   ? 'add a note, or just send'
-                  : placeholder ?? 'Ask about this print…'
+                  : placeholder ?? 'Ask about this print or request a change…'
           }
           value={text}
           disabled={disabled}
@@ -191,29 +260,56 @@ export function Composer({
           onPaste={handlePaste}
           rows={1}
         />
-        {streaming ? (
-          <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label="Stop generating">
-            Stop
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="composer-send"
-            onClick={send}
-            disabled={!canSend}
-            aria-label="Send message"
-          >
-            Send
-          </button>
-        )}
-      </div>
-      {attachments.length > 0 && (
-        <div className="composer-attachments" aria-label="Staged attachments">
-          {attachments.map((attachment) => (
-            <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
-          ))}
+        <div className="composer-toolbar">
+          <div ref={choices} className={narrow ? 'composer-choices composer-choices--narrow' : 'composer-choices'}>
+            {attachable && (photoButton ? (
+              <button
+                type="button"
+                className="attach-button attach-button-photo"
+                aria-label="Add a photo"
+                disabled={disabled}
+                onClick={() => pickFiles(ATTACHMENT_CHOICES[0])}
+              >
+                Photo
+              </button>
+            ) : (
+              // Disabled while the Agent responds, like every choice in the
+              // toolbar; the field stays open for the next message.
+              <ActionMenu label="Attach a file" icon="plus" above disabled={disabled || streaming}
+                items={ATTACHMENT_CHOICES.map((choice) => ({ label: choice.label, onSelect: () => pickFiles(choice) }))} />
+            ))}
+            {!photoButton && models && chatModel && onChooseModel && (
+              <ModelPickers catalog={models} choice={chatModel} disabled={disabled || streaming}
+                onChoose={onChooseModel} />
+            )}
+          </div>
+          {streaming ? (
+            <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label="Stop generating">
+              Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="composer-send"
+              onClick={send}
+              disabled={!canSend}
+              aria-label="Send message"
+            >
+              Send
+            </button>
+          )}
         </div>
-      )}
+      </div>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        className="attach-input"
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{ display: 'none' }}
+        onChange={handlePickerChange}
+      />
     </div>
   );
 }

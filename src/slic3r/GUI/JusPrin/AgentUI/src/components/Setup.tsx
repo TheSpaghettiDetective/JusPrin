@@ -188,7 +188,7 @@ export function SetupApiKey({ setup, onCheck, onCancel, onBack }: SetupApiKeyPro
         </div>
 
         <p className="footnote">
-          Which model to use is decided for you.
+          Each chat starts on this provider’s recommended model. You can switch the model, or the provider, in any chat.
         </p>
       </div>
     </div>

@@ -21,6 +21,8 @@ class wxWebViewEvent;
 class wxStaticText;
 class wxBoxSizer;
 
+namespace Slic3r { class AppConfig; }
+
 namespace Slic3r::GUI::JusPrin {
 
 // Which of the page's surfaces this view is. The page reads it from the query
@@ -54,6 +56,10 @@ public:
                                     std::function<void()> on_manual);
 
     Agent::AgentHost&    host() { return *m_host; }
+    // The docked project chat's model, provider and thinking pickers: keys
+    // and lists from AppConfig and the providers. The printer panel's view
+    // does not call it, so its photo composer shows no pickers.
+    void enable_chat_model_choice(AppConfig* config);
     wxWebView*           webview() const { return m_webview; }
     bool                 bridge_error_shown() const { return m_error_panel != nullptr && m_error_panel->IsShown(); }
 

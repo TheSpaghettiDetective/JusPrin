@@ -1,5 +1,6 @@
 #include "AgentWebView.hpp"
 
+#include "AgentConfiguration.hpp"
 #include "ImageThumbnail.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI.hpp"
@@ -15,6 +16,7 @@
 
 #include <cstdlib>
 
+#include <wx/filedlg.h>
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -81,6 +83,31 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     // pump. Nothing here depends on the reveal having happened.
     m_host->set_reveal_path_handler([this](const std::string& path) {
         CallAfter([path] { desktop_open_any_folder(path); });
+    });
+    // The composer's + menu asks for one kind of file; the host names the
+    // extensions and the dialog filters to them, upper case too, since some
+    // platforms match the wildcard case-sensitively. Deferred like the reveal
+    // above: a modal dialog must not run inside the script-message handler.
+    m_host->set_file_picker([this](const Agent::AgentHost::FilePickerRequest& request,
+                                   std::function<void(std::vector<std::string>)> done) {
+        CallAfter([this, request, done = std::move(done)] {
+            wxString patterns;
+            for (const std::string& extension : request.extensions) {
+                const wxString lower = wxString::FromUTF8(extension);
+                patterns += (patterns.empty() ? "" : ";") + ("*." + lower) + ";*." + lower.Upper();
+            }
+            const wxString wildcard = wxString::FromUTF8(request.description) + " (" + patterns + ")|" + patterns;
+            wxFileDialog dialog(this, _L("Attach files"), wxEmptyString, wxEmptyString, wildcard,
+                                wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE);
+            std::vector<std::string> chosen;
+            if (dialog.ShowModal() == wxID_OK) {
+                wxArrayString paths;
+                dialog.GetPaths(paths);
+                for (const wxString& path : paths)
+                    chosen.push_back(path.ToUTF8().data());
+            }
+            done(std::move(chosen));
+        });
     });
     m_host->set_image_thumbnail_maker(
         [](const std::string& bytes) { return Agent::image_thumbnail_data_url(bytes); });
@@ -245,6 +272,15 @@ void AgentWebView::show_bridge_error(const wxString& reason)
         m_webview->Hide();
     m_error_panel->Show();
     Layout();
+}
+
+void AgentWebView::enable_chat_model_choice(AppConfig* config)
+{
+    // A list arrives on Http's thread; CallAfter brings it to this window's
+    // thread, and drops it if the window is gone by then.
+    m_host->set_chat_model_source(Agent::make_chat_model_source(config, [this](std::function<void()> deliver) {
+        CallAfter(std::move(deliver));
+    }));
 }
 
 void AgentWebView::hide_bridge_error()

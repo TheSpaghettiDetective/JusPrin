@@ -273,6 +273,12 @@ ProviderRequest AnthropicCodec::build(const TurnTranscript& transcript, const Pr
                         {"messages", std::move(messages)}};
     if (!title && !transcript.tools.empty())
         request.body["tools"] = tools_json(transcript.tools);
+    // The model list offers levels only for models with adaptive thinking,
+    // where the level is effort and thinking stays adaptive.
+    if (!title && !profile.effort.empty()) {
+        request.body["thinking"]      = json{{"type", "adaptive"}};
+        request.body["output_config"] = json{{"effort", profile.effort}};
+    }
     // An empty system text is not accepted; the loop never builds one for a
     // reply (the page supplies the instructions), but a test may.
     if (request.body["system"][0]["text"] == "")
