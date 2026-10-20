@@ -1,0 +1,5 @@
+read @/Users/kenneth/Projects/JusPrin/handoff-composer-redesign.md and tell me if you have everything to do this task. also tell me if this handoff tells you how to access the artifact
+
+---
+
+Do the token sync here first, following handoff-design-token-sync.md, then continue with the composer.
