@@ -1,4 +1,5 @@
 #include "AgentSetup.hpp"
+#include "ProviderFactory.hpp"
 
 #include <utility>
 
@@ -19,7 +20,7 @@ AgentRequest probe_request()
 
 } // namespace
 
-bool setup_provider_supported(const std::string& provider) { return provider == "openai"; }
+bool setup_provider_supported(const std::string& provider) { return profile_for(provider) != nullptr; }
 
 ProviderKeySetup::ProviderKeySetup(TransportFactory transport,
                                    CommitFn         commit,
@@ -39,16 +40,9 @@ bool ProviderKeySetup::start_check(const SetupCredentials& credentials)
     if (busy() || credentials.api_key.empty() || !setup_provider_supported(credentials.provider))
         return false;
 
-    OpenAIResponsesConfig config;
-    config.api_key = credentials.api_key;
-    if (!credentials.model.empty())
-        config.model = credentials.model;
-    if (!m_endpoint_override.empty())
-        config.endpoint = m_endpoint_override;
-    if (!credentials.endpoint.empty())
-        config.endpoint = credentials.endpoint;
-
-    auto candidate = std::make_unique<OpenAIResponsesAgent>(std::move(config), m_transport_factory());
+    const std::string endpoint = credentials.endpoint.empty() ? m_endpoint_override : credentials.endpoint;
+    AgentServicePtr   candidate = make_provider_agent(*profile_for(credentials.provider), credentials.api_key, credentials.model,
+                                                      endpoint, m_transport_factory());
     if (!candidate->ready())
         return false;
 

@@ -9,6 +9,9 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentService.hpp
     GUI/JusPrin/Agent/AgentSetup.cpp
     GUI/JusPrin/Agent/AgentSetup.hpp
+    GUI/JusPrin/Agent/AnthropicCodec.cpp
+    GUI/JusPrin/Agent/AnthropicCodec.hpp
+    GUI/JusPrin/Agent/AgentTransport.hpp
     GUI/JusPrin/Agent/AgentWebView.cpp
     GUI/JusPrin/Agent/AgentWebView.hpp
     GUI/JusPrin/Agent/ImageThumbnail.cpp
@@ -18,6 +21,14 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp
+    GUI/JusPrin/Agent/ProviderAgent.cpp
+    GUI/JusPrin/Agent/ProviderAgent.hpp
+    GUI/JusPrin/Agent/ProviderCodec.hpp
+    GUI/JusPrin/Agent/ProviderFactory.cpp
+    GUI/JusPrin/Agent/ProviderFactory.hpp
+    GUI/JusPrin/Agent/ProviderProfile.hpp
+    GUI/JusPrin/Agent/ResponsesCodec.cpp
+    GUI/JusPrin/Agent/ResponsesCodec.hpp
     GUI/JusPrin/Agent/ProductState.hpp
     GUI/JusPrin/Agent/ProjectPersistence.cpp
     GUI/JusPrin/Agent/ProjectPersistence.hpp

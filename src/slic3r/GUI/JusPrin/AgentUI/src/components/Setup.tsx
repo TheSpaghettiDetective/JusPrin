@@ -18,12 +18,14 @@ interface ProviderOption {
 }
 
 export const PROVIDERS: ProviderOption[] = [
-  { id: 'anthropic', label: 'Anthropic', placeholder: 'sk-ant-…', available: false },
+  { id: 'anthropic', label: 'Anthropic', placeholder: 'sk-ant-…', available: true },
   { id: 'openai', label: 'OpenAI', placeholder: 'sk-…', available: true },
+  { id: 'openrouter', label: 'OpenRouter', placeholder: 'sk-or-…', available: true },
   { id: 'other', label: 'Other…', placeholder: '', available: false },
 ];
 
-export const DEFAULT_PROVIDER = PROVIDERS.find((provider) => provider.available)!.id;
+// OpenAI stays the tab a new setup opens on; the others are a click away.
+export const DEFAULT_PROVIDER = 'openai';
 
 export function providerLabel(id: string | undefined): string {
   return PROVIDERS.find((provider) => provider.id === id)?.label ?? 'your provider';

@@ -1,11 +1,10 @@
 #include "AgentConfiguration.hpp"
 
 #include "OpenAIResponsesAgent.hpp"
+#include "ProviderFactory.hpp"
 #include "libslic3r/AppConfig.hpp"
 
 #include <boost/log/trivial.hpp>
-
-#include <cstdlib>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -32,44 +31,22 @@ std::string load_provider_api_key(const AppConfig* config, const std::string& pr
 
 AgentRuntime load_agent_runtime(AppConfig* config)
 {
-    AgentRuntime runtime;
-    runtime.setup = make_agent_setup(config);
-    runtime.provider = config == nullptr ? std::string() : config->get(kSection, "provider");
-    if (runtime.provider.empty())
-        runtime.provider = "openai";
-
-    if (!configured_true(config, "enabled")) {
-        runtime.unavailable_reason = "The Agent is not enabled.";
-        return runtime;
+    AgentSettings settings;
+    settings.enabled       = configured_true(config, "enabled");
+    settings.cloud_consent = configured_true(config, "cloud_consent");
+    if (config != nullptr) {
+        settings.provider = config->get(kSection, "provider");
+        settings.model    = config->get(kSection, "model");
     }
-    if (runtime.provider != "openai") {
-        runtime.unavailable_reason = "The configured Agent provider is not supported.";
-        return runtime;
-    }
-    if (!configured_true(config, "cloud_consent")) {
-        runtime.unavailable_reason = "Cloud Agent access requires explicit consent.";
-        return runtime;
-    }
-
-    OpenAIResponsesConfig openai;
-    openai.api_key = load_provider_api_key(config, runtime.provider);
-    if (config != nullptr && !config->get(kSection, "model").empty())
-        openai.model = config->get(kSection, "model");
-    if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
-        openai.endpoint = endpoint;
+    settings.api_key = load_provider_api_key(config, settings.provider.empty() ? "openai" : settings.provider);
+    ProviderListeners listeners;
     // Refused tool calls never reach a card or the activity list; the log is
     // where a wrong call can be read afterwards.
-    openai.refusal_listener = [](const std::string& tool, const std::string& arguments, const std::string& code) {
+    listeners.refusal = [](const std::string& tool, const std::string& arguments, const std::string& code) {
         BOOST_LOG_TRIVIAL(warning) << "Agent tool call refused (" << code << "): " << tool << " " << arguments.substr(0, 1024);
     };
-    if (openai.api_key.empty()) {
-        runtime.unavailable_reason = "No OpenAI API key is configured.";
-        return runtime;
-    }
-    runtime.service = std::make_unique<OpenAIResponsesAgent>(std::move(openai), make_openai_http_transport());
-    runtime.availability = runtime.service->ready() ? AgentAvailability::Ready : AgentAvailability::Unavailable;
-    if (runtime.availability == AgentAvailability::Unavailable)
-        runtime.unavailable_reason = "The OpenAI Agent could not be initialized.";
+    AgentRuntime runtime = resolve_agent_runtime(settings, agent_endpoint_override(), &make_openai_http_transport, std::move(listeners));
+    runtime.setup        = make_agent_setup(config);
     return runtime;
 }
 
@@ -94,11 +71,7 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
         config->save();
         return true;
     };
-    std::string endpoint_override;
-    if (const char* endpoint = std::getenv("JUSPRIN_OPENAI_ENDPOINT"); endpoint != nullptr && *endpoint != '\0')
-        endpoint_override = endpoint;
-    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit),
-                                              std::move(endpoint_override));
+    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), agent_endpoint_override());
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

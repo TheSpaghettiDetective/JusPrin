@@ -7257,9 +7257,9 @@ private:
             "})()");
         wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
                    "setup_key_screen_reported", [self = shared_from_this()] {
-                       self->check(self->persistence().draft() == "key-screen|OpenAI",
+                       self->check(self->persistence().draft() == "key-screen|Anthropic,OpenAI,OpenRouter",
                                    "key_screen_offers_only_verifiable_providers");
-                       if (self->persistence().draft() != "key-screen|OpenAI")
+                       if (self->persistence().draft() != "key-screen|Anthropic,OpenAI,OpenRouter")
                            std::cerr << "HARNESS DETAIL key screen was " << self->persistence().draft() << '\n';
                        self->verify_setup_key_check_round_trips();
                    });

@@ -4,6 +4,10 @@ add_executable(agent_bridge_tests
     test_agent_bridge.cpp
     test_agent_setup.cpp
     test_openai_responses_agent.cpp
+    test_provider_agent.cpp
+    test_provider_configuration.cpp
+    test_anthropic_codec.cpp
+    test_provider_conformance.cpp
     test_project_state.cpp
     test_tool_coordinator.cpp
     test_tool_registry.cpp
@@ -27,6 +31,10 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AnthropicCodec.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderFactory.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ResponsesCodec.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
@@ -47,3 +55,14 @@ target_link_libraries(agent_bridge_tests PRIVATE Catch2WithMain nlohmann_json Op
 target_link_libraries(agent_bridge_tests PRIVATE jusprin_mcp_bridge_core)
 
 orcaslicer_discover_tests(agent_bridge_tests)
+
+# Live smoke against real providers. It links the GUI library for the app's
+# own HTTP transport. Every case is hidden and skips without a key, and none
+# is registered with ctest: it runs only when asked for by tag, because every
+# run is billed (see the file's header).
+if (SLIC3R_GUI)
+    add_executable(agent_live_tests test_provider_live.cpp)
+    target_include_directories(agent_live_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(agent_live_tests PRIVATE Catch2WithMain libslic3r_gui)
+    orcaslicer_copy_test_dlls()
+endif()

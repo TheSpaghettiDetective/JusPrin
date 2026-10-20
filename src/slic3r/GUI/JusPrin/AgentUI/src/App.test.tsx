@@ -1224,8 +1224,19 @@ describe('App agent setup', () => {
 
     expect(screen.getByRole('tab', { name: 'OpenAI' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'OpenAI' })).toBeEnabled();
-    expect(screen.getByRole('tab', { name: 'Anthropic' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Anthropic' })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: 'Anthropic' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'Other…' })).toBeDisabled();
+  });
+
+  it('sends an Anthropic key under its own id', async () => {
+    openApiKeyScreen();
+    fireEvent.click(screen.getByRole('tab', { name: 'Anthropic' }));
+    const field = screen.getByLabelText('Anthropic API key');
+    expect(field).toHaveAttribute('placeholder', 'sk-ant-…');
+    await userEvent.type(field, 'sk-ant-test');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-test' });
   });
 
   it('sends the key to the host and reports the round trip it measured', async () => {
@@ -1247,6 +1258,26 @@ describe('App agent setup', () => {
 
     host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 812 });
     expect(screen.getByTestId('setup-verified')).toHaveTextContent('replied in 0.8 s');
+  });
+
+  it('offers OpenRouter as a second provider and sends its key under its own id', async () => {
+    openApiKeyScreen();
+
+    // OpenAI stays the default; OpenRouter is a tab beside it.
+    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toHaveAttribute('aria-selected', 'false');
+    fireEvent.click(screen.getByRole('tab', { name: 'OpenRouter' }));
+    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toHaveAttribute('aria-selected', 'true');
+
+    const field = screen.getByLabelText('OpenRouter API key');
+    expect(field).toHaveAttribute('placeholder', 'sk-or-…');
+    await userEvent.type(field, 'sk-or-test');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'openrouter', apiKey: 'sk-or-test' });
+
+    host.deliver('setup_status', { phase: 'verified', provider: 'openrouter', elapsedMs: 640 });
+    host.deliver('agent_status', { status: 'ready' });
+    expect(screen.getByTestId('setup-connected')).toHaveTextContent('your own OpenRouter key');
   });
 
   it('turns into a working chat once the host reports the Agent ready', () => {

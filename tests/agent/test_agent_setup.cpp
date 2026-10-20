@@ -4,6 +4,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -127,7 +128,7 @@ TEST_CASE("the check carries the candidate key and no project data", "[agent][se
 
     REQUIRE(fixture.log.requests.size() == 1);
     const AgentHttpRequest& request = fixture.log.requests.front();
-    CHECK(request.authorization == "Bearer sk-secret");
+    CHECK(request.header("Authorization") == "Bearer sk-secret");
 
     // A provider the user has not chosen yet must not receive their workspace
     // just to prove that a key works: the probe is one fixed sentence with an
@@ -168,10 +169,10 @@ TEST_CASE("setup refuses what this build cannot verify", "[agent][setup]")
 {
     Fixture fixture;
 
-    SetupCredentials anthropic;
-    anthropic.provider = "anthropic";
-    anthropic.api_key  = "sk-ant-test";
-    CHECK_FALSE(fixture.setup->start_check(anthropic));
+    SetupCredentials other;
+    other.provider = "other";
+    other.api_key  = "sk-other-test";
+    CHECK_FALSE(fixture.setup->start_check(other));
 
     SetupCredentials blank = fixture.openai_key("");
     CHECK_FALSE(fixture.setup->start_check(blank));
@@ -179,7 +180,7 @@ TEST_CASE("setup refuses what this build cannot verify", "[agent][setup]")
     CHECK(fixture.log.requests.empty());
     CHECK_FALSE(fixture.setup->busy());
     CHECK(setup_provider_supported("openai"));
-    CHECK_FALSE(setup_provider_supported("anthropic"));
+    CHECK_FALSE(setup_provider_supported("other"));
 }
 
 TEST_CASE("a second check cannot start while one is in flight", "[agent][setup]")
@@ -213,4 +214,52 @@ TEST_CASE("committing reports whether the credential was actually stored", "[age
 
     fixture.commit_succeeds = false;
     CHECK_FALSE(fixture.setup->commit(fixture.openai_key()));
+}
+
+TEST_CASE("an OpenRouter key is checked against OpenRouter, and only the table decides what is supported", "[agent][setup][openrouter]")
+{
+    CHECK(setup_provider_supported("openrouter"));
+    for (const ProviderProfile& profile : provider_profiles())
+        CHECK(setup_provider_supported(profile.id));
+    CHECK_FALSE(setup_provider_supported("other"));
+    CHECK_FALSE(setup_provider_supported(""));
+
+    Fixture fixture;
+    SetupCredentials credentials;
+    credentials.provider = "openrouter";
+    credentials.api_key  = "sk-or-secret";
+    REQUIRE(fixture.setup->start_check(credentials));
+    REQUIRE(fixture.log.requests.size() == 1);
+    const AgentHttpRequest& request = fixture.log.requests.front();
+    CHECK(request.url == "https://openrouter.ai/api/v1/responses");
+    CHECK(request.header("Authorization") == "Bearer sk-or-secret");
+    CHECK(request.header("X-Title") == "JusPrin");
+    // The probe is the same fixed sentence, with the OpenRouter default model.
+    const json body = json::parse(request.body);
+    CHECK(body["model"] == "openai/gpt-5.4-mini");
+    REQUIRE(body["input"].size() == 1);
+    CHECK(body["input"][0]["content"][0]["text"] == "Reply with the single word: ready.");
+
+    deliver(fixture.log, AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, "unauthorized", 401});
+    const std::optional<SetupOutcome> outcome = fixture.setup->poll();
+    REQUIRE(outcome.has_value());
+    CHECK_FALSE(outcome->ok);
+    CHECK(outcome->error.message.find("The OpenRouter API key was rejected") == 0);
+}
+
+TEST_CASE("the endpoint override redirects whichever provider is being checked", "[agent][setup][openrouter]")
+{
+    TransportLog log;
+    ProviderKeySetup setup([&log]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<FakeTransport>(log); },
+                           [](const SetupCredentials&) { return true; }, "http://127.0.0.1:1/v1/responses");
+    SetupCredentials credentials;
+    credentials.provider = "openrouter";
+    credentials.api_key  = "k";
+    REQUIRE(setup.start_check(credentials));
+    CHECK(log.requests.back().url == "http://127.0.0.1:1/v1/responses");
+    setup.cancel();
+    // An endpoint the page sends wins over the override, as before.
+    credentials.endpoint = "http://127.0.0.1:2/v1/responses";
+    REQUIRE(setup.start_check(credentials));
+    CHECK(log.requests.back().url == "http://127.0.0.1:2/v1/responses");
 }

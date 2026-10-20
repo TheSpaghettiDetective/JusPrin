@@ -14,7 +14,7 @@
 // linkable into the GUI-free contract tests.
 
 #include "AgentService.hpp"
-#include "OpenAIResponsesAgent.hpp"
+#include "AgentTransport.hpp"
 
 #include <chrono>
 #include <functional>
@@ -26,7 +26,7 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 struct SetupCredentials
 {
-    std::string provider; // "openai"
+    std::string provider; // a provider_profiles() id
     std::string api_key;
     std::string model;    // optional; empty keeps the adapter's default
     std::string endpoint; // optional; empty keeps the adapter's default
@@ -75,9 +75,9 @@ public:
     using CommitFn         = std::function<bool(const SetupCredentials&)>;
     using Clock            = std::function<std::chrono::steady_clock::time_point()>;
 
-    // endpoint_override redirects the check the way JUSPRIN_OPENAI_ENDPOINT
-    // redirects the live Agent, so a developer or a harness can point setup
-    // at a stand-in instead of the real provider.
+    // endpoint_override redirects the check the way JUSPRIN_AGENT_ENDPOINT
+    // redirects the live Agent (agent_endpoint_override()), so a developer or
+    // a harness can point setup at a stand-in instead of the real provider.
     ProviderKeySetup(TransportFactory transport,
                      CommitFn         commit,
                      std::string      endpoint_override = {},

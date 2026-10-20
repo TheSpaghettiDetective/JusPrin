@@ -1,4 +1,5 @@
 #include "OpenAIResponsesAgent.hpp"
+#include "AgentTransport.hpp"
 
 #include "slic3r/Utils/Http.hpp"
 
@@ -21,9 +22,11 @@ public:
         m_state = state;
 
         auto http = Slic3r::Http::post(std::move(request.url));
-        http.header("Authorization", request.authorization)
-            .header("Idempotency-Key", request.idempotency_key)
-            .header("Content-Type", "application/json")
+        // The credential and the codec's own headers, then what every
+        // JSON-over-SSE provider is sent.
+        for (const AgentHttpHeader& header : request.headers)
+            http.header(header.name, header.value);
+        http.header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
             .tls_verify(true)
             .timeout_connect(request.connect_timeout_seconds)
