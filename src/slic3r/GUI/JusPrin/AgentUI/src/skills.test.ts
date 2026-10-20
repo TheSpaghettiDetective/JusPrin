@@ -73,10 +73,13 @@ describe('the skill for a file opened or imported', () => {
     expect(text).not.toContain('They have asked for nothing yet');
     expect(text).toContain('The picture, when present, is the active plate after the load');
     expect(text).toContain('Look at the attached picture when there is one');
-    expect(text).toContain('make an educated guess at what the object is, what it is likely for, and how it should be sliced');
-    expect(text).toContain('against the presets available (presets_list)');
+    expect(text).toContain('Say what you take the object to be, and how it should be printed, only when that changes the advice');
+    expect(text).not.toContain('make an educated guess');
     expect(text).toContain('suggest the one to use, without changing it');
-    expect(text).toContain('End with your best guess at what the person wants to do next');
+    expect(text).toContain('name a set-up printer it fits, from fitsSetupPrinters');
+    expect(text).toContain('Write a short message, a few sentences');
+    expect(text).toContain('Do not explain routine loading');
+    expect(text).toContain('End with one question or offer about the next step, not a menu of alternatives');
     expect(text).not.toContain('90 words');
   });
 
