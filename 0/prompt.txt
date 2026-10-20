@@ -1,0 +1,55 @@
+Background (from the session that started this one):
+Kenneth (JusPrin, a fork of OrcaSlicer whose built-in AI agent chats about the project) wants prompt testing to stop depending on paid per-token API models. In a 2026-10-19 session we tested the file-loaded skill a different way: we recorded the exact requests the app sends (pointing JUSPRIN_OPENAI_ENDPOINT at a local recorder), and had fresh Opus 5.5 subagents in a Claude Code session answer them. That surfaced prompt-caused problems clearly. Kenneth's reasoning: production users will often use stronger models than DeepSeek V4 Flash, testing strong models over the API is too expensive to do routinely, and the coding subscription already pays for a strong model. Those subagents read a Markdown dump and could not make real tool calls, and they knew they were being tested. Headless `claude -p` with a custom system prompt and an MCP stub fixes most of that and can be driven from the existing Python runner.
+
+Task:
+Add a backend to tests/project_prompt/run_prompt_tests.py (and, if it shares the code, tests/printer_prompt/run_prompt_tests.py) that answers each recorded step with the locally installed Claude Code CLI in headless mode, instead of POSTing to OpenRouter (model) and OpenAI (judge). The goal is prompt iteration that bills the developer's Claude subscription, not API usage.
+
+What exists: the runner replays requests recorded from the app (tests/project_prompt/requests.json, recorded by the shell harness). It sends each one to deepseek/deepseek-v4-flash on OpenRouter (MODEL, ENDPOINT, post()). It answers read-only tool calls from recorded results, at most three reads (recorded_answer, answers_for, run_once, MAX_READS). It judges the step with JUDGE_MODEL gpt-5.5 over the OpenAI API (judge(), judge_response()). The README in tests/project_prompt explains the step rules. test_steps.py checks them offline.
+
+Design to implement, keeping all of today's step rules:
+- New flag, e.g. `--backend claude-cli [--claude-model opus]`. The default stays as today.
+- Per run: `claude -p --model <m> --system-prompt <the request's instructions> --tools "" --strict-mcp-config --mcp-config <generated json> --output-format stream-json --no-session-persistence`. The 2.1.283 CLI has all of these flags; verify the exact behaviour, and whether `--bare` keeps subscription auth.
+- Real tool calling through a small stdio MCP stub server written in Python under tests/project_prompt/. It exposes the 28 tools from project_tools.json with their real schemas. Read-only calls are answered with today's recorded answers. The first change call is recorded as the step and ends the run, exactly as today. Parse which tool calls happened from the stream-json output.
+- Render the recorded input items (user text parts, the <workspace> block, images if the CLI accepts image input in stream-json, and the app's developer-role notes) into the prompt. Claude has no developer role, so render those notes as clearly labelled app text and say so in the README. This is the same fidelity question the README already describes for DeepSeek hosts.
+- Judge on the subscription too (`claude -p --json-schema` for a yes/no verdict), behind its own flag, because changing the judge resets the baselines (see the "confirmed results become the baseline" convention in the README/handoffs).
+- Run several cases in parallel with a small cap, so the subscription's rate limits aren't hit all at once.
+- README: when to use which backend. Opus on the subscription measures what the prompt itself causes, and is cheap to iterate with. The app's default model is gpt-5.4-mini (OpenAIResponsesAgent.hpp), which scored about like DeepSeek in the README's model table. So a strong model can paper over ambiguities a weaker one trips on, and a small paid run on the app's default stays the pre-release check.
+
+Constraints:
+- Never run live paid API batches without Kenneth approving a specific batch (tests/project_prompt/README.md).
+- Show the subscription runs to Kenneth before running many: start with one case, end to end.
+- Don't commit handoff or working docs.
+
+Done = `--backend claude-cli` runs one recorded case end to end with real MCP tool calls answered from recordings and a verdict; test_steps.py still passes; the README documents it. Report the per-case wall-clock time.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_806299bd-703a-4d7a-b3c3-bdcc8063ca5e
+
+---
+
+<cross-session-message from="local_806299bd-703a-4d7a-b3c3-bdcc8063ca5e" name="Chat panel width and import messaging">
+I confirmed the standalone claude CLI is logged out (loggedIn false) and have asked Kenneth to run `claude auth login`. Keep building the MCP stub and runner; I'll tell you when he says it's done.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_806299bd-703a-4d7a-b3c3-bdcc8063ca5e" name="Chat panel width and import messaging">
+Kenneth has logged the claude CLI in; I checked that `claude auth status` now shows loggedIn true, authMethod claude.ai. Go ahead with the one-case end-to-end run you planned (one case, one run, on the subscription only, with no paid API calls) and report the result and wall-clock time.
+</cross-session-message>
+
+---
+
+Run loaded-vs-configured once on the subscription, model and judge both claude-cli, and report the verdict and time.
+
+---
+
+run all cases 3 runs. compare the result with the baseline.  We should expect some improvement over the baseline, whcih was run with deepseek v4, right?
+
+---
+
+<task-notification>
+<task-id>bet0u37zb</task-id>
+<tool-use-id>toolu_01A6XcGfo6TMdg3poGiQfqtg</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-cranky-mendel-0c57dd/97ccdfed-2649-48b7-a618-1b3b36a7aa09/tasks/bet0u37zb.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-cranky-mendel-0c57dd/97ccdfed-2649-48b7-a618-1b3b36a7aa09/scratchpad; cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/cranky-mendel-0c57dd &amp;&amp; rm -rf $S/full1 &amp;&amp; mkdir -p $S/full1/keep &amp;&amp; date &amp;&amp; time env -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u ANTHROPIC_API_KEY PATH=$HOME/.nvm/versions/node/v24.13.0/bin:$PATH python3 tests/project_prompt/run_prompt_tests.py --backend claude-cli --judge claude-cli --runs 3 --claude-keep $S/full1/keep &gt; $S/full1/out.txt 2&gt; $S/full1/err.txt; echo exit $?; date" completed (exit code 0)</summary>
+</task-notification>
