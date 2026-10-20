@@ -1,0 +1,202 @@
+<task-notification>
+<task-id>b9jfh9fzo</task-id>
+<summary>Monitor event: "token-sync worktree build: progress every 10 min, errors, exit"</summary>
+<event>[9/877]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a84bce21399103c26</task-id>
+<tool-use-id>toolu_01JTRSbKyAs2viubKPCSuEns</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/a84bce21399103c26.output</output-file>
+<status>completed</status>
+<summary>Agent "Survey code sizes vs Figma components" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found four gaps between the design spec and the code. The search field is not built anywhere. Native code has no link button, segmented control, custom tooltip or dialog of its own. Many buttons render taller than Figma because a 1px border is added on top of padding and line height. And no code reads `primitive.status.*Dark`.
+
+## A) What the code renders
+
+**1. Link button** (Figma: 26 high, 0/4 padding, radius 4, Label Bold 12/16)
+
+| Where | Height | Padding | Radius | Text | file:line |
+|---|---|---|---|---|---|
+| AgentUI `button.link` | ≈20, nothing sets it (padding 0 + 20 line height, border none) | 0, literal | 0, literal | `--font-body-bold` (14/20), no underline | `AgentUI/src/styles.css:1635-1648`; used in `SetupLocalTool.tsx:70,75,80,246` and `Setup.tsx:172,183` (Agent setup page) |
+| AgentUI `.panel-link-button` | ≈16, nothing sets it | 0, literal | inherits base `button` `--radius-standard` (4) from `:1552` | `--font-label-bold` 12/16, underline on hover; `.panel-back-link` gap 4 literal | `styles.css:2670-2682`; used in `App.tsx:590,593,681,683` (printer and focused-chat headers), `PrinterPanel.tsx:59`, `SetupPage.tsx:192` |
+| AgentUI `.current-setup-link` | 26, literal | 0 4, literal | `--radius-standard` | label-bold, underline on hover | `styles.css:242-261`; `SetupCard.tsx` |
+| AgentUI `.project-updates-link` | `var(--button-icon-height)` = 26 (borrows the icon-button token) | 0 4, literal | `--radius-standard` | label-bold, underline on hover | `styles.css:469-488`; `App.tsx:442-443` |
+| AgentUI `.attach-button` | min-height `--button-icon-height` (26) | 0 4 | `--radius-standard` | label-bold, no underline | `styles.css:1712-1725` |
+| HomeUI | none found | | | | |
+| Native | There is no real link button. The closest are: `IssueOverlay` `link()`, height = ImGui text line (or 26 icon-button height when paged), padding 0, `text_secondary` colour, ImGui font, underline on hover. And the header "‹ Home" button (`HeaderStyle::Quiet`): 34 high from `status_row.height`, 12 left inset literal. | | | | `PrintIssues/IssueOverlay.cpp:153-165, 664, 765-768`; `Shell/StatusRow.cpp:141`; `Shell/HeaderControls.cpp:375,413` |
+
+So two of the four Agent link styles match Figma (`.current-setup-link`, `.project-updates-link`). The two you named (`button.link`, `.panel-link-button`) are 20 and 16 high with 0 padding. `button.link` also uses Body Bold, not Label Bold.
+
+**2. Search field**: not built anywhere. There is no `type="search"` or search CSS in AgentUI or HomeUI, and no native `wxTextCtrl` or `wxSearchCtrl` in the shell. `style_text_field` (`Shell/ShellRecipes.cpp:16`, sets font, colours and Body text) has no callers. The "search view" comment at `HeaderControls.cpp:755` is out of date (inferred).
+
+**3. Segmented control**: only AgentUI's provider switch, `.setup-tabs` (`Setup.tsx:141`).
+
+| Part | Height | Padding | Radius | Text | file:line |
+|---|---|---|---|---|---|
+| Container | ≈34 (32 segment + 1px border top and bottom), inferred | none | `--radius-compact` (8), `overflow: hidden` | | `styles.css:2128-2135` |
+| Segment | ≈32 | `--button-secondary-padding` (6/12) | 0, literal | inherits base `button` `--font-body` (14/20) | `styles.css:2136-2163` |
+
+The selected segment is filled with `--action-primary`. HomeUI and native have no segmented control (the left pane's tabs are 36-high tabs with an underline indicator).
+
+**4. Tooltip**
+
+| Where | What renders | file:line |
+|---|---|---|
+| Native, wx | OS `wxToolTip` through `SetToolTip`, so no token styling | `Shell/PrinterFilamentChip.cpp:66,82`, `StatusRow.cpp:135,150,153,225,235,335,362`, `LeftPane.cpp:66`, `FilamentMenu.cpp:167`, `ShellController.cpp:82` |
+| Native, canvas | Stock ImGui tooltip with Orca's ImGui style. I saw no token style vars pushed (inferred). | `Canvas/ViewportToolStrip.cpp:167`, `Canvas/ToolValuePanel.cpp:619` |
+| AgentUI `.change-revert-tooltip` | ≈26 high (4+16+4+2 border); padding 4/8 literal; `--radius-standard`; fill `--surface-raised` (not neutral ink); 1px `--border-subtle`; `--font-label` (12/16, not Metadata); no shadow | `styles.css:1109-1125`; `ChangeRows.tsx:235` |
+| AgentUI and HomeUI elsewhere | `title=` attributes, so the browser's own tooltip | e.g. `ChatNavigation.tsx:9,68,132`, `HomeUI/.../PrinterMenu.tsx:131` |
+
+**5. Sheet / dialog** (Figma: padding 24, gap 16, radius 12, elevation strong)
+
+| Where | Padding | Gap | Radius | Elevation | Other | file:line |
+|---|---|---|---|---|---|---|
+| AgentUI `.chat-dialog` | 24, literal | 16, literal (flex column; form gap also 16) | `--printer-dialog-radius` (12) | `--elevation-strong` | max-width `--printer-dialog-width` (500); scrim `--printer-dialog-scrim` | `styles.css:688-709`; component `ChatNavigation.tsx:81` |
+| HomeUI `.printer-dialog` | 24, literal | no flex gap: h2 margin-bottom 12, p margin-top 8, buttons margin-top 24 | `--printer-dialog-radius` | `--elevation-strong` | adds a 1px `--border-subtle` | `HomeUI/src/styles.css:591-651` |
+| Native | No native sheet. The printer dialog is a web view: `PrinterSetup/PrinterPanel.cpp:80` creates an `AgentWebView`, so it renders AgentUI's `.chat-dialog`. ShellTheme does not read `component.printerDialog`. It parses `radius_window` (`ShellTheme.cpp:191`), but nothing uses it. | | | | | |
+
+**6. Primary and secondary buttons.** Heights are derived (padding + line height + border) unless a row says "fixed".
+
+| Where | Primary | Secondary | file:line |
+|---|---|---|---|
+| AgentUI generic `button.primary` / `button` | 38: padding `8px 16px` literal + body-bold 20 + 1px transparent border ×2 | 34: `--button-secondary-padding` 6/12 + body 20 + 1px border ×2 | `styles.css:1546-1592` |
+| AgentUI dialog, tool card, failure, file notes, pane state | 34: `--button-primary-padding` + body-small-bold 18, border 0 | 32: 6/12 + body-small 18 + 1px border | `styles.css:701-709, 951, 1202-1213, 1531, 1952` |
+| HomeUI `.button-primary` / `.button-secondary` | 36: 8/16 + 18 + 1px border ×2 | 32 | `HomeUI/src/styles.css:351-384`; `.button-danger` `:653` (also 36) |
+| Native header "Slice" (`PrimaryLeft`) | fixed 34 from `status_row.height`; BodyBold 14/20; radius compact 8; 12 left inset literal | n/a | `HeaderControls.cpp:290, 375, 427` |
+| Native `IssueOverlay` buttons | ImGui line + 2×max(6,8): both buttons the same height, line height depends on the ImGui font (inferred) | same | `IssueOverlay.cpp:659-663` |
+| Native `AgentWebView` buttons | n/a | `style_button` with the **compact** recipe; Orca `Button` sizes from padding + text (inferred) | `Agent/AgentWebView.cpp:267-269`; `Shell/ShellRecipes.cpp:23-36` |
+
+Only the AgentUI context-specific buttons and HomeUI secondary hit Figma's 34 and 32. `style_primary_button` has no callers.
+
+## B) Token consumers
+
+**`component.button.icon`** (26×26, icon 16, radius 4)
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | `HeaderControls.cpp:353-354, 431, 457` | header Outline buttons: pane toggles, overflow, Agent toggle (`StatusRow.cpp:133,148,151`; `LeftPane.cpp:64`); menu icons |
+| Native | `Canvas/ViewportToolStrip.cpp:64, 92, 123` | Prepare canvas tool strip |
+| Native | `Canvas/ToolValuePanel.cpp:607-608` | tool value reset buttons |
+| Native | `IssueOverlay.cpp:422-423, 718` | print-issue bubble |
+| Web shared | `WebShared/tokens.ts:78, 111-114` emits width, height and icon size | |
+| HomeUI | `HomeUI/src/tokens.ts:79, 99` also emits `--button-icon-radius` | |
+| AgentUI | height: `styles.css:470` (.project-updates-link), `1094` (.change-revert-button), `1714` (.composer-send), `2514` (.printer-added-detail) | Agent chat |
+| AgentUI | icon size: `581-582, 630, 1036, 1042, 1056-57, 1103-04, 1184-85, 1331-32, 1972-73, 2576, 2637` | Agent chat |
+| HomeUI | `styles.css:500-512` `.printer-menu-button` | Home printer card kebab |
+| Tests | `tests/brand/test_brand_tokens.cpp:404-405`; `tests/jusprin/test_shell_theme.cpp:158-160, 208-209` | |
+
+The Agent chat header does **not** use this token: `button.chat-icon` is literal 26×26 (`styles.css:614-626`), and `button.icon` is literal 32×32 (`:1594`).
+
+**`component.menuRow`** (height 32, radius 4, side inset 4)
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | `HeaderControls.cpp:374, 430, 650, 681, 727` | every `HeaderMenu`: header printer menu, filament menu, overflow, left-pane plate and object menus |
+| Native | `IssueOverlay.cpp:448, 578, 607` | print-issue list |
+| HomeUI | `tokens.ts:80, 100`; `styles.css:540-549` | Home printer-card menu |
+| AgentUI | not emitted, not used. `.chat-menu button` (`styles.css:645`) is 32 high only by coincidence (6+20+6), not from the token | Agent chat header menu |
+| Tests | `test_brand_tokens.cpp:406-407`; `test_shell_theme.cpp:93-95`. HomeUI `styles.test.ts:85` only checks the variable exists | |
+
+**`component.popover`** (padding Y 4, row gap 0, radius 8)
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | `HeaderControls.cpp:632-638` (radius, 1px border, no shadow), `649, 664, 724, 752` | header menus |
+| Native | `ToolValuePanel.cpp:125` | tool panel popups |
+| Native | `IssueOverlay.cpp:449, 578, 580` | print-issue list |
+| HomeUI | `tokens.ts:81, 101`; `styles.css:528-533` | Home printer menu |
+| AgentUI | not used. `.chat-menu` is literal padding 4 plus `--radius-container` (`styles.css:633-644`) | Agent chat header menu |
+| Tests | `test_brand_tokens.cpp:408-409`; `test_shell_theme.cpp:96-98` | |
+
+**`component.chip`** (height 26, radius 4)
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | `HeaderControls.cpp:375, 429` | header printer/filament chip (`PrinterFilamentChip.cpp:25,28`) |
+| Native | `IssueOverlay.cpp:451, 538` | Prepare print-issue pill |
+| Web | none (reply chips use `component.replyChip`) | |
+| Tests | `test_shell_theme.cpp:91-92, 197-198`. Not in `test_brand_tokens.cpp` | |
+
+**`dimension.radius.pill`** (9999)
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | parsed at `ShellTheme.cpp:192`, never used | |
+| Web shared | emitted as `--radius-pill` (`WebShared/tokens.ts:95-96`) | |
+| AgentUI | `styles.css:1224, 1227` (progress bar), `2035` (`.agent-badge`, the "NOT SET UP" badge from `Panels.tsx:63`), `2375` (setup progress) | Agent pane |
+| HomeUI | `styles.css:212` (status dot), `292` (printer progress), `436` (scrollbar thumb) | Home |
+| Tests | `test_brand_tokens.cpp:196`; `test_shell_theme.cpp:79` | |
+
+**`primitive.status.successDark` / `dangerDark` / `warningDark`**: no code or test reads them. The same hex values are repeated by hand in `semantic.dark.status.success/danger/warning`, `dark.action.dangerText/dangerBorder`, and `light.status.successOnAction` (#58B894) (`design-tokens.json:83, 131-141`).
+
+**Dark semantic status colours** reach code only through the mode switch:
+
+| Side | Consumers | Screen |
+|---|---|---|
+| Native | `ShellTheme.cpp:50-53`, then `palette(dark)` | |
+| Native | `HeaderControls.cpp:144-146` | printer menu status dots (`PrinterMenu.cpp:39,49,94`) |
+| Native | `HeaderControls.cpp:414` | danger menu rows (`LeftPane.cpp:344,407,445,471`) |
+| Native | `HeaderControls.cpp:612` | Slice button status dot |
+| Native | `LeftPane.cpp:1077, 1110`; `LeftPaneProject.cpp:379, 564` | left pane |
+| Native | `IssueOverlay.cpp:185, 496-498, 528` | print-issue overlay |
+| Web | `applyAppearance` writes `--status-*` (`WebShared/tokens.ts:167-175`) | |
+| AgentUI | about 35 uses, e.g. `styles.css:225, 495, 649, 698, 711, 946, 1191-1192, 1362-1363, 2208-2228, 2404-2415, 2506, 2540` | chat errors, tool status, setup, printer notices |
+| HomeUI | `styles.css:142, 205, 217, 224, 228, 287, 300, 564, 572-574, 626` | project cards, printer cards, menu, dialog |
+| Tests | No test pins a status value. `test_brand_tokens.cpp:52-64` (hex), `120` (successOnAction contrast), `153-171` (light/dark mirror) cover them generically. `HomeUI/src/styles.test.ts:171` checks that the printing card uses `var(--status-success)` | |
+
+Inferred, not read: the rendered heights for web text-only boxes (padding + font line height + border), the Orca `Button` and ImGui sizing, and which `HeaderMenu`s appear on which screen beyond the call sites cited.</result>
+<usage><subagent_tokens>152161</subagent_tokens><tool_uses>55</tool_uses><duration_ms>402564</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9jfh9fzo</task-id>
+<summary>Monitor event: "token-sync worktree build: progress every 10 min, errors, exit"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbpdzj29v</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/bbpdzj29v.output</output-file>
+<status>completed</status>
+<summary>Monitor "token-sync worktree build: finish or first error" stream ended</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bad2ipuq6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b4c59a23-a9b3-44f2-825e-df7409bab7ee/tasks/bad2ipuq6.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the native build to finish or fail" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/44528.sock" from-session="local_be7b8a24-4adf-4c51-ac5b-329a4d1851c0" from-name="Building design systems from Figma" from-mode="bypass">
+Kenneth approved a fix in your design-token-sync worktree: a keyboard-focused menu row should get the hover grey fill, not the purple outline.
+
+Why: your token change set menuRow radius 4 → 0 and sideInset 4 → 0. When a menu opens (e.g. the chat header's Rename/Delete menu), focus lands on the first row and the global rule `:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }` (AgentUI/src/styles.css:53) now draws a square outline that sticks out past the popover's rounded edges. Kenneth called it ugly. The design (Menu/Row card in the Design System artifact) has Default, Current, Hovered (fill surface-subtle, full width, no radius), Disabled, Danger — no focus state. I'm adding a "Focused" state, drawn the same as Hovered, to that card.
+
+What he approved for code (I'm not editing your worktree's uncommitted files, so please do it there):
+1. `.chat-menu button:focus-visible` gets `background: var(--surface-subtle)` and `outline: none`.
+2. Check HomeUI menus and the native header menus (Shell/HeaderControls.cpp) for the same problem; give them the same treatment.
+3. Keep the guard tests passing, and add a guard that menu rows don't use the outside focus ring. Prove it fails first (inject the violation, see it fail, restore from a saved copy, never `git checkout`).
+4. Capture before/after pictures of the Rename/Delete menu with the first row focused, light and dark, and send them to Kenneth (SendUserFile), saying which is before and which is after.
+
+Also from Kenneth today: Figma is retired. The two Claude artifacts (canvas https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v, Design System https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL) are the design source of truth. Don't cite Figma nodes or propose Figma edits. Memory: design-source-is-claude-artifacts.md.
+
+If this worktree isn't yours, tell me and I'll find the owner.
+</cross-session-message>
