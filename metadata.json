@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5D006N0NQ4B6E6XF5ZZ3V67",
+  "strategy": "manual-commit",
+  "branch": "claude/setup-card-headline",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProductState.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/filamentInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/project-setup-changed/SKILL.md",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/agent/test_tool_registry.cpp",
+    "tests/jusprin_support/FakeProductState.hpp",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/project_tools.json",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/script.json",
+    "tests/project_prompt/test_steps.py",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 6696,
+    "cache_read_tokens": 3482483,
+    "output_tokens": 6038,
+    "api_call_count": 4
+  }
+}
