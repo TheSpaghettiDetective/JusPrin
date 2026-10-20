@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5BE8Y3S4B32TGCFGB825QM7",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentSetup.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx",
+    "tests/agent/test_provider_live.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1449,
+    "cache_read_tokens": 1202270,
+    "output_tokens": 755,
+    "api_call_count": 2
+  }
+}
