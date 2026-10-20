@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5BR72K23RWHX7HMGTDYXF10",
+  "session_id": "766fa048-c0f4-49cd-941a-aa4a0dc315a8",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T04:13:24.654048Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "4e2e77274626",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 384,
+    "cache_creation_tokens": 974302,
+    "cache_read_tokens": 52422539,
+    "output_tokens": 142443,
+    "api_call_count": 192
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T04:13:24.433849Z",
+    "agent_lines": 15,
+    "agent_removed": 0,
+    "human_added": 2,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 18,
+    "total_lines_changed": 18,
+    "agent_percentage": 83.33333333333334,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
