@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5D006N0NQ4B6E6XF5ZZ3V67",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
@@ -49,13 +49,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 928,
-    "cache_creation_tokens": 2735201,
-    "cache_read_tokens": 205943208,
-    "output_tokens": 493294,
-    "api_call_count": 465
+    "input_tokens": 1530,
+    "cache_creation_tokens": 5200855,
+    "cache_read_tokens": 363049066,
+    "output_tokens": 854285,
+    "api_call_count": 767
   }
 }
