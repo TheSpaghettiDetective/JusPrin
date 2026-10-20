@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5DS928XP4FM6NQXD546NDBD",
+  "session_id": "02e53b87-341c-44d5-a54b-0f4dd9d4b761",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T23:10:27.712401Z",
+  "branch": "claude/sharp-snyder-2d935e",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AllSettings.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AllSettings.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.visual-cases.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "80d65e9c9b4e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 166,
+    "cache_creation_tokens": 188297,
+    "cache_read_tokens": 14091098,
+    "output_tokens": 48854,
+    "api_call_count": 83
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T23:10:27.494972Z",
+    "agent_lines": 0,
+    "agent_removed": 22,
+    "human_added": 965,
+    "human_modified": 36,
+    "human_removed": 0,
+    "total_committed": 1001,
+    "total_lines_changed": 1023,
+    "agent_percentage": 2.1505376344086025,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
