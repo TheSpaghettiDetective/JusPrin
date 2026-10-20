@@ -1,0 +1,14 @@
+Background (from the session that started this one):
+Branch claude/setup-card-headline (commit f964221268, not pushed, cut from jusprin-newui 8913319cac) replaced the setup card's preset-difference rows with the plan headline and made each chat store its own intent and plan. In a 12-journey live batch on DeepSeek V4 Flash, all 12 runs called plan_set and every changed-strategy run rewrote its headline. But in two runs the purpose title (intent_update) stayed on the old goal, so the card contradicted itself. This is a separate prompt problem from the headline work, and it predates that branch.
+
+Task:
+In JusPrin's agent chat, the setup card's title is the chat's recorded print purpose (setupTitle, stored as setupIntent and written by the intent_update tool). Its headline is the plan headline written by plan_set. In a live evaluation on 2026-10-19, two of three "changed strategy" journeys left the title stale. The user first asked for a spiral-mode dried-flower vase, then said it must be watertight and carryable. The model rewrote the plan headline to a multi-wall strategy but never called intent_update, so the card's title still said "spiral vase for dried flowers" above the new headline.
+
+Task:
+1. Find what the project prompt (src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts), the intent_update and plan_set tool descriptions (src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp), and the skills under AgentUI/src/skills/ say about updating the purpose when the user changes their goal. Follow AGENTS.md and Kenneth's rules: standing prompt text states principles only, situational text comes from state channels, and a rule lives next to what it governs.
+2. Propose the smallest wording or state change that makes the model update the purpose when the goal changes. Explain it to Kenneth before any live-model test.
+3. Run no live-model calls without Kenneth approving a specific batch (runs x estimated tokens). The journey transcripts showing the problem are saved in the shared notes folder as plan-journey-batch-b/ (runs changed-2 and changed-3). The temporary --plan-journey harness mode is plan-journey-harness-mode.patch in the same folder. Keep that patch out of any commit.
+
+Done means: a proposed change with its reasoning, implemented and covered by the existing prompt fixtures and tests once Kenneth agrees, plus a live check of the changed-strategy journey if he approves one.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_e78f817e-dfbf-4d43-8f9b-f15ee63b4baf
