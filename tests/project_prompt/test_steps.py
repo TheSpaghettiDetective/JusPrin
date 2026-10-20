@@ -164,7 +164,7 @@ class Steps(unittest.TestCase):
 
     def test_the_unrun_result_is_the_apps_own(self):
         """The runner's "not run" text is the app's, byte for byte."""
-        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp").read_text(encoding="utf-8")
+        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp").read_text(encoding="utf-8")
         block = source[source.index('"Not run:'):source.index('still needed."') + len('still needed."')]
         head, *rest = re.findall(r'"((?:[^"\\]|\\.)*)"', block)
         step = runner.Step([call("printer_list", {}, "call-p")])
