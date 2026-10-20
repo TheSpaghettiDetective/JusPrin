@@ -23,7 +23,10 @@ exceeded` means stop; do not switch keys.
 
 The model, hosts and judge are the printer suite's (`tests/printer_prompt`,
 "Which model"): DeepSeek V4 Flash through OpenRouter, pinned to Alibaba,
-Novita, Baidu and AtlasCloud, with a pinned OpenAI judge.
+Novita, Baidu and AtlasCloud, with a pinned OpenAI judge. `--backend
+claude-cli` runs the same cases on the developer's Claude subscription
+instead, for iterating on a prompt without API cost (see "Running on the
+Claude subscription").
 
 ## One step, with its reads answered
 
@@ -356,6 +359,112 @@ tests/project_prompt/run_prompt_tests.py --render-only --prompt-rev 6b4b8b6188 >
 ```
 
 prints every request body it would send and their sizes, and sends nothing.
+
+All runs of all the cases run share one pool of `--jobs` workers (5 by
+default, 3 for the claude-cli backend below), and each run's line gives its
+wall-clock time.
+
+## Running on the Claude subscription (`--backend claude-cli`)
+
+`--backend claude-cli` answers every step with the locally installed Claude
+Code CLI in headless mode (`claude -p`), billed to the developer's Claude
+subscription instead of a per-token API key. `--judge claude-cli` moves the
+judge there as well. Neither needs a key; both need the CLI logged in once
+with `claude auth login`. The runner refuses to start a run the CLI would bill
+to an API key (`apiKeySource` other than the login).
+
+```bash
+tests/project_prompt/run_prompt_tests.py --backend claude-cli --judge claude-cli --case advice-infill --runs 1
+```
+
+The model defaults to `claude-opus-5-5` at effort `medium`, both pinned so a
+count moves only when the prompt does (`--claude-model`, `--claude-effort`,
+`--claude-judge-model`). `--claude-keep DIR` keeps each run's session file,
+tool list, MCP config and the CLI's event stream for reading afterwards.
+
+### Which backend for what
+
+- **Iterating on a prompt or skill: the subscription.** A strong model
+  answering the app's real requests, with real tool calls, shows what the
+  prompt itself causes: an ambiguous sentence, a rule two sections disagree
+  on, a skill that invites the wrong call. It costs no API money, so it can
+  be run as often as the subscription's usage limits allow. Those limits are
+  shared with the developer's own Claude Code work; start with one case and
+  keep `--jobs` small.
+- **Before a release: a small paid run on the app's default model.** The app
+  defaults to `gpt-5.4-mini` (the OpenAI provider's default in
+  `ProviderProfile.hpp`), which scored about like DeepSeek V4 Flash in the
+  printer suite's model table (82 and 79 of 87, `tests/printer_prompt`,
+  "Which model"). A strong model
+  can paper over an ambiguity a weaker one trips on, so a pass on Opus does
+  not show the shipped default will pass. That run needs Kenneth's approval
+  like every paid batch.
+- **The baselines below** are DeepSeek V4 Flash with the OpenAI judge. A
+  claude-cli count is never compared with them. Changing the judge changes
+  what every judged case counts, so `--judge claude-cli` results start their
+  own baseline, under the same "confirmed results become the baseline" rule.
+
+### How a recorded request reaches the CLI
+
+`claude_cli.py` turns each recorded request into a CLI run, and
+`claude_mcp_stub.py` serves the tools:
+
+- **System prompt**: the rendered prompt, as `--system-prompt`.
+- **Tools**: the stub is a stdio MCP server with the case's tools (the 28 of
+  `project_tools.json`, or the point's own list), with their real
+  descriptions and schemas. Every call the model makes reaches the runner
+  through it, and the step rules above apply unchanged: a read is answered
+  with the recorded answer, a change ends the run (the runner stops the CLI;
+  nothing is answered), a response of reads decides or is answered whole.
+- **History**: the request's items before its last turn are written as a
+  session file the CLI resumes (`--resume <file>`), so earlier messages,
+  calls and results reach the model as its own turns, tool calls and tool
+  results, not as a transcript. The last turn's message (the person's words,
+  the `<workspace>` block, the plate's picture) goes in as one stream-json
+  user message.
+- **A point recorded mid-turn**, after a tool result (`after-preview`,
+  `after-apply`, `after-slice`, `after-intent`, `direct-change-applied`,
+  `direct-change-failed`, `first-person`, `slice-refused-by-tool`): the
+  session ends on that turn's last call, marked as a deferred call. The CLI
+  runs it through the stub, which returns the recorded result, and then asks
+  the model.
+
+Nothing from the developer's own Claude Code setup reaches the model: no
+CLAUDE.md, auto-memory, settings, hooks, output style, skills, other MCP
+servers or built-in tools, a minimal environment, and an empty temporary
+working directory. `test_claude_cli.py` checks that, and the shapes above,
+by running the installed CLI against a fake Messages endpoint on localhost
+(no login, nothing sent; about 10 seconds). Run it after a CLI update: the
+session file is the CLI's internal format, verified against 2.1.283.
+
+What differs from the app's request, beyond the model:
+
+- **Developer messages.** The Messages API has no developer role, so each of
+  the app's developer items (its notes after a file-load report, the skills)
+  is a user text block wrapped in `<developer_message>` tags. Hosts that
+  drop or demote the developer role raise the same question for the API
+  backend.
+- **The CLI's own text.** Before the prompt, the CLI sends a billing header
+  and "You are a Claude agent, built on Anthropic's Claude Agent SDK."; after
+  the first message it adds a short environment note (the temporary working
+  directory, platform, date and model name) and an empty system turn
+  carrying the effort setting.
+- **Tool names** carry the CLI's MCP prefix: the model sees
+  `mcp__jusprin__settings_get`, while descriptions, which name other tools
+  bare, are unchanged. The runner strips the prefix.
+- **Mid-turn points**: after the deferred call's result, the CLI adds
+  "Continue from where you left off." as a user message. The app's notes
+  that follow the result there (the setup skill in `after-intent`, the
+  slice-failed skill in `slice-refused-by-tool`) are further text blocks of
+  that same tool result, since the CLI resumes no message after it.
+- **Notes sent once** (a point's `once`) stay in the history after the
+  first answered read; the app leaves them out of the turn's later requests.
+- **Pictures** reach the model, unlike on the pinned DeepSeek hosts, so
+  `model-opened-unnamed`, `model-imported-by-tool` and `model-opened-by-tool`
+  can be measured here.
+
+The usage the runner logs is the CLI's token count; on the subscription it is
+not billed per token.
 
 ## Judging a prompt or skill change
 

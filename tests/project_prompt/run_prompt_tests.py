@@ -37,7 +37,14 @@ Usage:
   OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/project_prompt/run_prompt_tests.py
       [--runs N] [--must-pass N] [--case NAME] [--jobs 5] [--verbose] [--prompt-rev REV]
       [--model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
+  tests/project_prompt/run_prompt_tests.py --backend claude-cli [--claude-model M] [--claude-effort E]
+      [--judge claude-cli [--claude-judge-model M]] [--claude-keep DIR] [other flags as above]
   tests/project_prompt/run_prompt_tests.py --render-only [--case NAME] [--runs N] [--prompt-rev REV]
+
+--backend claude-cli answers each step with the local Claude Code CLI in
+headless mode, on the developer's Claude subscription (claude_cli.py says
+how a request reaches it); --judge claude-cli moves the judge there too. Both
+need `claude auth login` done once; neither needs an API key.
 
 --render-only sends nothing: it prints each case's full request body, one JSON
 object per line, and on stderr the size of each and of the batch.
@@ -68,6 +75,9 @@ import urllib.error
 import urllib.request
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import claude_cli  # noqa: E402
+
 RENDERER = HERE.parent / "printer_prompt" / "render_prompt.mjs"
 # The model and hosts prompt changes are judged on, as tests/printer_prompt.
 MODEL = "deepseek/deepseek-v4-flash"
@@ -76,6 +86,11 @@ KEY_ENV = "OPENROUTER_API_KEY"
 PROVIDERS = ["Alibaba", "Novita", "Baidu", "AtlasCloud"]
 JUDGE_ENDPOINT = "https://api.openai.com/v1/responses"
 JUDGE_MODEL = "gpt-5.5-2026-04-23"  # pinned, so a count moves only when the prompt does
+# The claude-cli backend's defaults, pinned for the same reason.
+CLAUDE_MODEL = "claude-opus-5-5"
+CLAUDE_EFFORT = "medium"
+# The judge's backend: None for OpenAI, or the CLI's (model, effort).
+CLAUDE_JUDGE = None
 TOOLS = json.loads((HERE / "project_tools.json").read_text(encoding="utf-8"))
 _RECORDING = json.loads((HERE / "requests.json").read_text(encoding="utf-8"))
 REQUESTS = _RECORDING["cases"]
@@ -136,8 +151,13 @@ def post(body, key, endpoint=ENDPOINT):
 
 
 def count(usage, judge=False):
-    """Adds a response's token usage to the totals and logs it on stderr."""
+    """Adds a response's token usage to the totals and logs it on stderr.
+    Takes the Responses API's usage or the Messages API's."""
     usage = usage or {}
+    if "cache_read_input_tokens" in usage or "cache_creation_input_tokens" in usage:
+        cached = usage.get("cache_read_input_tokens") or 0
+        usage = {"input_tokens": (usage.get("input_tokens") or 0) + cached + (usage.get("cache_creation_input_tokens") or 0),
+                 "input_tokens_details": {"cached_tokens": cached}, "output_tokens": usage.get("output_tokens") or 0}
     cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)
     with USAGE_LOCK:
         prefix = "judge_" if judge else ""
@@ -164,10 +184,14 @@ def judge(log, question):
     for what no string test can check. Returns (yes, why)."""
     schema = {"type": "object", "additionalProperties": False, "required": ["answer", "why"],
               "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}, "why": {"type": "string"}}}
-    response = post({"model": JUDGE_MODEL, "store": False,
-                     "instructions": "You read a chat between a 3D printing app's assistant and a person, and answer one "
-                                     "question about it strictly as written, judging only what the messages say.",
-                     "input": "\n".join(log) + "\n\nQuestion: " + question,
+    instructions = ("You read a chat between a 3D printing app's assistant and a person, and answer one "
+                    "question about it strictly as written, judging only what the messages say.")
+    prompt = "\n".join(log) + "\n\nQuestion: " + question
+    if CLAUDE_JUDGE:
+        verdict, usage = claude_cli.judge(instructions, prompt, schema, *CLAUDE_JUDGE)
+        count(usage, judge=True)
+        return verdict["answer"] == "yes", verdict["why"]
+    response = post({"model": JUDGE_MODEL, "store": False, "instructions": instructions, "input": prompt,
                      "text": {"format": {"type": "json_schema", "name": "verdict", "strict": True, "schema": schema}}},
                     os.environ["OPENAI_API_KEY"], JUDGE_ENDPOINT)
     count(response.get("usage"), judge=True)
@@ -880,7 +904,7 @@ def recorded_answer(name, step):
 
 def not_run(step):
     """The result the app gives a call after one in the same response did not
-    succeed (OpenAIResponsesAgent::next_call), byte for byte."""
+    succeed (ProviderAgent::next_call), byte for byte."""
     return dump({"state": "failed", "error": {"code": "not_run", "message":
                  f"Not run: an earlier call in the same response, {step.tool} ({step.call_id}), did not succeed. "
                  "Nothing was queued. Call it again if it is still needed."}})
@@ -921,6 +945,35 @@ def answers_for(name, step):
 
 
 def run_once(name, instructions, key, model, endpoint, providers):
+    def respond(input):
+        response = post(body_for(name, instructions, model, providers, input), key, endpoint)
+        count(response.get("usage"))
+        return response.get("output", [])
+    return run_steps(name, respond)
+
+
+def run_once_claude(name, instructions, model, effort, keep=None):
+    """run_once on the Claude Code CLI: the recorded request goes in once, as
+    claude_cli.py describes, and each answered read reaches the model as its
+    calls' tool results."""
+    try:
+        run = claude_cli.Run(instructions, REQUESTS[name]["body"].get("tools", TOOLS), REQUESTS[name]["body"]["input"],
+                             model, effort, keep)
+    except Exception as error:  # as a failed request: a failed run, reported as such
+        return FAIL, f"ERROR {error}", []
+
+    def respond(_input):
+        output, usage = run.next_response()
+        count(usage)
+        return output
+
+    with run:
+        return run_steps(name, respond, lambda step, results: run.answer(step.calls, results))
+
+
+def run_steps(name, respond, deliver=lambda step, results: None):
+    """One run of a case: respond(input) is the model's output for the
+    request so far, deliver(step, results) hands it its reads' results."""
     input = list(REQUESTS[name]["body"]["input"])
     # The recorded request's last items that the app sends on it alone (a
     # skill and its picture): a continuation of the turn leaves them out.
@@ -929,9 +982,7 @@ def run_once(name, instructions, key, model, endpoint, providers):
     try:
         for _ in range(MAX_READS + 1):
             log = [line for line in map(readable, input) if line]
-            response = post(body_for(name, instructions, model, providers, input), key, endpoint)
-            count(response.get("usage"))
-            step = Step(response.get("output", []))
+            step = Step(respond(input))
             verdict, detail = judge_response(CASES[name](REQUESTS[name], log), step)
             if verdict != CONTINUE:
                 break
@@ -941,6 +992,7 @@ def run_once(name, instructions, key, model, endpoint, providers):
                 detail = (f"no recorded answer for {missing}" if results is None else f"still reading after answers: {step}")
                 break
             path.append(" + ".join(call["name"] for call in step.calls))
+            deliver(step, results)
             # As the app continues a turn: the history without what was sent
             # once, the model's output, then a result for every call, in the
             # order the calls were written.
@@ -962,18 +1014,35 @@ def main():
     parser.add_argument("--runs", type=int, help=f"runs per case (default: {RUN_BUDGET} shared by the cases run, "
                                                  f"at most {MAX_RUNS} each)")
     parser.add_argument("--must-pass", type=int, help="runs per case that must pass (default: all)")
-    parser.add_argument("--jobs", type=int, default=5, help="runs in parallel (default 5)")
+    parser.add_argument("--jobs", type=int, help="runs in parallel, across cases (default 5; 3 for claude-cli)")
     parser.add_argument("--model", help=f"the model under test (default {MODEL})")
     parser.add_argument("--endpoint", help=f"its Responses API endpoint (default {ENDPOINT})")
     parser.add_argument("--key-env", help=f"environment variable holding that endpoint's key (default {KEY_ENV})")
     parser.add_argument("--provider", action="append",
                         help="OpenRouter only: serve every request from this host (repeatable, in order of preference; "
                              f"default for {MODEL}: {', '.join(PROVIDERS)})")
+    parser.add_argument("--backend", choices=("api", "claude-cli"), default="api",
+                        help="api: the model over its Responses API (default); claude-cli: the local Claude Code CLI "
+                             "on the developer's Claude subscription")
+    parser.add_argument("--claude-model", default=CLAUDE_MODEL, help=f"claude-cli's model (default {CLAUDE_MODEL})")
+    parser.add_argument("--claude-effort", default=CLAUDE_EFFORT, help=f"claude-cli's effort (default {CLAUDE_EFFORT})")
+    parser.add_argument("--judge", choices=("openai", "claude-cli"), default="openai",
+                        help=f"openai: {JUDGE_MODEL} (default, the baselines' judge); claude-cli: the local Claude Code "
+                             "CLI. Changing the judge starts a new baseline")
+    parser.add_argument("--claude-judge-model", default=CLAUDE_MODEL,
+                        help=f"the claude-cli judge's model (default {CLAUDE_MODEL})")
+    parser.add_argument("--claude-keep", metavar="DIR",
+                        help="claude-cli: keep each run's session, tools, MCP config and CLI stream under DIR")
     parser.add_argument("--prompt-rev", metavar="REV",
                         help="run the prompt as the page's source had it at this git revision (6b4b8b6188 or later)")
     parser.add_argument("--render-only", action="store_true", help="print the request bodies and their sizes; send nothing")
     parser.add_argument("--verbose", action="store_true", help="print every run's conversation, not only failures")
     args = parser.parse_args()
+    global CLAUDE_JUDGE
+    if args.judge == "claude-cli":
+        CLAUDE_JUDGE = (args.claude_judge_model, args.claude_effort)
+    if args.jobs is None:
+        args.jobs = 3 if args.backend == "claude-cli" else 5
     model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
     providers = args.provider or (PROVIDERS if model == MODEL else None)
     names = args.case or list(CASES)
@@ -994,28 +1063,52 @@ def main():
         return
 
     key = os.environ.get(key_env)
-    if not key or not os.environ.get("OPENAI_API_KEY"):
-        sys.exit(f"{key_env} is required, and OPENAI_API_KEY for the judge")
+    if args.backend == "api" and not key:
+        sys.exit(f"{key_env} is required")
+    if args.judge == "openai" and not os.environ.get("OPENAI_API_KEY"):
+        sys.exit("OPENAI_API_KEY is required for the judge (or --judge claude-cli)")
     must_pass = args.runs if args.must_pass is None else args.must_pass
-    print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else "") +
-          f"; prompt from {args.prompt_rev or 'the checkout'}")
+    if args.backend == "claude-cli":
+        print(f"model {args.claude_model} (effort {args.claude_effort}) through the Claude Code CLI")
+
+        def once(name):
+            return run_once_claude(name, instructions, args.claude_model, args.claude_effort, args.claude_keep)
+    else:
+        print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else ""))
+
+        def once(name):
+            return run_once(name, instructions, key, model, endpoint, providers)
+    print(f"judge {args.claude_judge_model + ' through the Claude Code CLI' if CLAUDE_JUDGE else JUDGE_MODEL}; "
+          f"prompt from {args.prompt_rev or 'the checkout'}")
+
+    def timed(name):
+        started = time.monotonic()
+        return once(name) + (time.monotonic() - started,)
+
     ok = True
-    for name in names:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-            results = list(pool.map(lambda _: run_once(name, instructions, key, model, endpoint, providers), range(args.runs)))
-        tally = {outcome: sum(1 for result in results if result[0] == outcome) for outcome in (PASS, FAIL, UNOBSERVED)}
-        for index, (verdict, detail, log) in enumerate(results, 1):
-            print(f"{name} run {index}/{args.runs}: {verdict}: {detail}")
-            if args.verbose or verdict != PASS:
-                for line in log[-6:] if not args.verbose else log:
-                    print("    " + line.replace("\n", "\n    "))
-        print(f"{name}: {tally[PASS]} of {args.runs} passed, {tally[FAIL]} failed, {tally[UNOBSERVED]} unobserved "
-              f"(needs {must_pass})")
-        ok = ok and tally[PASS] >= must_pass
+    # Every run of every case shares one pool, so --jobs caps the requests in
+    # flight; the report keeps the cases' order.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        futures = {name: [pool.submit(timed, name) for _ in range(args.runs)] for name in names}
+        for name in names:
+            results = [future.result() for future in futures[name]]
+            tally = {outcome: sum(1 for result in results if result[0] == outcome) for outcome in (PASS, FAIL, UNOBSERVED)}
+            report(name, results, tally, must_pass, args)
+            ok = ok and tally[PASS] >= must_pass
     print(f"usage: {USAGE['requests']} requests, {USAGE['input_tokens']} input tokens ({USAGE['cached_tokens']} cached), "
           f"{USAGE['output_tokens']} output; judge {USAGE['judge_requests']} requests, {USAGE['judge_input_tokens']} input, "
           f"{USAGE['judge_output_tokens']} output", file=sys.stderr)
     sys.exit(0 if ok else 1)
+
+
+def report(name, results, tally, must_pass, args):
+    for index, (verdict, detail, log, seconds) in enumerate(results, 1):
+        print(f"{name} run {index}/{args.runs}: {verdict} ({seconds:.0f} s): {detail}")
+        if args.verbose or verdict != PASS:
+            for line in log[-6:] if not args.verbose else log:
+                print("    " + line.replace("\n", "\n    "))
+    print(f"{name}: {tally[PASS]} of {args.runs} passed, {tally[FAIL]} failed, {tally[UNOBSERVED]} unobserved "
+          f"(needs {must_pass})")
 
 
 if __name__ == "__main__":
