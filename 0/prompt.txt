@@ -1,0 +1,55 @@
+Task (from the session that started this one):
+Continue the task you were in the middle of in this conversation - it was handed to you so the user could keep talking in the original session. Pick up exactly where the work stopped and finish it. If this session runs in its own fresh worktree it was normally cut from the original session's branch tip (check `git log -1` if unsure); anything the original session left uncommitted is not there — re-create it from the remaining plan. Remaining plan:
+
+Kenneth approved (2026-10-19) building the facts chosen in the round-2 experiment into the file-load report. Write-up: /Users/kenneth/Projects/JusPrin/file-loaded-opening-experiment.md (untracked; never commit it). No more skill refinement and no model runs (neither live API nor subagent runs).
+
+Nothing is implemented yet. Decided design:
+
+1. Report-only structs in src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp, leaving ObjectDetails/workspace_inspect rows alone except point 5:
+   - LoadSetupPrinter gains `bed`: printable_area bounding-box width and depth plus printable_height, mm. LoadReport gains `selected_bed`.
+   - Per arrived object, LoadedObjectFacts:
+     - `placed_on_bed`: every instance belongs to a plate and !PartPlate::check_outside, as analyze_object's fit block does in OrcaWorkspaceAdapter.cpp.
+     - `fits_selected_bed`, `fits_setup_printers`.
+     - Mesh: triangles (sum over model parts), shells (stats.number_of_parts), open_edges, repaired_errors (sum of repaired_errors fields), units_suspicion (only when not none; same code as analyze_object).
+     - customizations: is_fdm_support_painted / is_seam_painted / is_mm_painted / is_fuzzy_skin_painted, non-empty layer_height_profile, non-empty layer_config_ranges.
+   - LoadedFileFacts for each .3mf, read by a small fork-owned miniz reader, never OrcaSlicer's importer (even config-only, it parses all geometry XML):
+     - file name
+     - application: the `Application` metadata tag from the first ~16 KB of 3D/3dmodel.model
+     - made-for printer_model and nozzle_diameter[0], from Metadata/project_settings.config (JSON; PrusaSlicer files carry Metadata/Slic3r_PE.config, an ini)
+     - filament type/colour list
+   Fill everything in OrcaWorkspaceAdapter::take_load_report.
+
+2. Bed fit helper in a new fork file (e.g. Workspace/BedFit.hpp/.cpp, added to src/slic3r/GUI/JusPrin/sources.cmake):
+   - usable region = diff_ex(printable_area polygon, bed_exclude_area polygon), nonzero fill. Kobra 3's exclusion is a 2 mm frame drawn as one polygon, so 255 nominal is 251 usable. Qidi X-Plus 4 has two corner notches. P1S has an 18×28 corner.
+   - The object's XY bounding box fits if, at 0° or 90°, a rectangle placed at the region's centre or aligned to any bbox corner lies inside the region (diff empty), and its height ≤ printable_height.
+   - Read each set-up printer's config from wxGetApp().preset_bundle->printers.find_preset(named.name).
+   - I was checking how OrcaSlicer interprets bed_exclude_area (Plater.cpp:17016 set_bed_shape, PartPlate get_exclude_areas). Confirm the fill rule there.
+   - Unit-test the helper with those three beds and the headband (253.9×252×10): fits A1 256 and Qidi 305; not A1 mini 180, Kobra 3, K1 220.
+
+3. Serialize in src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp load_report_result:
+   - setupPrinters[].bedMm and selectedPrinterBedMm.
+   - Merge into each objects item by objectId: placedOnBed, fitsSelectedBed, fitsSetupPrinters, mesh {triangles, shells, openEdges, repairedErrors, unitsSuspicion?}, customized [...] when non-empty.
+   - fileFacts [{file, application, madeFor {printerModel, nozzleMm}, filaments [{type, colour}]}].
+   - Update the TypeScript FileReport type in AgentUI/src/bridge/protocol.ts and the report schema in ToolRegistry.cpp (~870-905) if it describes these fields.
+
+4. Noise:
+   - (a) In orca_messages_result, drop a message identical (source, title, text, buttons, answer) to an earlier one. OrcaSlicer pushes the boundary error 2–3 times.
+   - (b) OrcaSlicer's object-info popup (NotificationType::BBLObjectInfo, built at Plater.cpp:18464) is captured by the fork hook in NotificationManager.cpp push_notification_data (~line 2969). That hook line is fork-owned (blame 832bb47c31). Change it to skip BBLObjectInfo, so the popup shows as upstream does and its numbers stay out of the report.
+   - This touches an OrcaSlicer-owned file. Follow agent-docs/jusprin/fork-stewardship.md "Before you finish": run git merge-tree against upstream/main, record what the fork owns (a narrowed existing neutral seam), and note that no upstream line changed.
+
+5. overrideCount: object_details() sets overrides = object.config.size(). OrcaSlicer stores every object's "extruder" there, so every fresh STL reads 1, and four experiment runs puzzled over it. Exclude "extruder", which is already its own field. Check tests that pin overrideCount.
+
+6. Skill: update the setupPrinters sentence of src/slic3r/GUI/JusPrin/AgentUI/src/skills/file-loaded/SKILL.md to describe the new fields, as tested in v2 (text in the write-up, "Skill text tested (v2)"), adapted to the final field names (bedMm, selectedPrinterBedMm, placedOnBed, fitsSelectedBed, fitsSetupPrinters, mesh, customized, fileFacts). Key sentence: "an object that is off the bed but fits it needs moving, not resizing". skills.test.ts checks phrases in the skill; keep it passing.
+   - Then a SEPARATE commit applying the full v2 skill rewrite (replacing the "make an educated guess…" and "Write one useful message… Explain where a warning came from…" paragraphs). Kenneth said "no more refining", which I read as "the v2 text is final". Tell him it is a separate commit he can drop.
+
+7. Orientation (asPlaced / betterOrientation) is deferred. object_analyze orientations took minutes on the 1.26M-triangle YodaFigure.stl.
+
+8. Tests:
+   - tests/agent/test_agent_bridge.cpp: the file-report cases near prusa_open().
+   - The real-adapter checks in tests/shell/shell_harness.cpp: LoadReport around lines 8219-8760.
+   - Build per CLAUDE.md: `cmake --build build/arm64 --config RelWithDebInfo --target ...`, with /Applications/CMake.app/Contents/bin/cmake, in the background with nohup. Kenneth's own JusPrin runs from build/arm64; relinking is fine, but never kill it.
+   - Verify end to end by recording a real request. The scratchpad tools under /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/766fa048-c0f4-49cd-941a-aa4a0dc315a8/scratchpad/exp work like this: recorder.py on port 47999, record_case.sh <case> <file> with tmpl/ as the data template (placeholder key, A1 mini selected) and JusPrinTest.app as a re-signed copy of the build. Rebuild that copy from the new build. Check the headband (~/Downloads/arrow_headband.3mf via Import, or the STL path), ~/Downloads/stls/little_boxes_two_color.3mf (expect placedOnBed false, fitsSelectedBed true) and ~/Downloads/stls/Battery_Holder_AAAandAA.stl.
+
+9. Commit to jusprin-newui (local; don't push). Commit the code and tests only; never the untracked docs. The commit message carries the fork-stewardship evidence for the NotificationManager.cpp line.
+
+Done = the build passes, the agent bridge tests and the shell-harness report checks pass, a recorded real request shows the new fields with correct values for those three files, two commits are made, and Kenneth gets a summary.
