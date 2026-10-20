@@ -1,0 +1,149 @@
+Background (from the session that started this one):
+The suite replays app requests recorded by the shell harness and answers only reads, only from recordings. A new --backend claude-cli (branch claude/claude-cli-backend, commit ddc771948a, on jusprin-newui) runs it on Opus 5.5 through the Claude Code CLI. Its first full batch (2026-10-19) had 10 of 63 comparable runs unobserved, nearly all because Opus asked for these two reads, which DeepSeek V4 Flash never did. Base the work on claude/claude-cli-backend so the backend is available.
+
+Task:
+In JusPrin's project prompt suite (tests/project_prompt), extend the recorder's "answers" lists so that two read patterns Opus 5.5 makes on the Claude subscription backend have recorded answers, then re-record requests.json.
+
+1. settings_search with scope "object", a target {"objectId": ...} for every object on every plate, query "" and changedOnly: true. Today the runner returns no answer for any changedOnly search (recorded_answer in run_prompt_tests.py refuses it), and Opus sends exactly this first in file-note-not-instructions, print-this-no-purpose and the three model-opened/imported cases. The runner's recorded_answer has to match changedOnly searches too (scope, target, query, changedOnly; whatever limit).
+2. slice_report for every plate, not only the active one (slice-refused-then-ready: Opus asks for Plate 1, id 2162, which sliced; only Plate 2's report is recorded).
+
+Recording: the shell harness's --project-prompt-requests mode (README "What keeps it faithful to the app"); it needs the built shell harness (build/arm64/tests/shell/...). The script.json "answers" list and the harness code in tests/shell/shell_harness.cpp decide what is recorded. Keep test_steps.py and test_claude_cli.py passing, and test_openai_responses_agent.cpp's schema checks of recorded answers. Update the README's recorded-answers list. Do not run any paid API batch; checking with `--backend claude-cli --judge claude-cli` on the five affected cases (3 runs each) is fine and needs no approval beyond Kenneth's go-ahead for subscription runs. Done = those five cases have no unobserved run caused by these two reads.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f024afad-757d-4c80-ba8d-848ac2da8e00
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[156/912] Building CXX object src/libslic3r/CMakeFiles/libslic3r.dir/Release/Fea</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[425/912] Building CXX object src/slic3r/CMakeFiles/libslic3r_gui.dir/Release/GU</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>22 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>23 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>13 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>16 warnings generated.</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5g36iezu</task-id>
+<summary>Monitor event: "worktree harness build progress and errors"</summary>
+<event>[Monitor expired after 30m with 6 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvbtkyh1e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/bvbtkyh1e.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 47265 2&gt;/dev/null; do sleep 30; done; tail -5 /tmp/claude/build-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj0ggwe4k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/bj0ggwe4k.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 61699 2&gt;/dev/null; do sleep 10; done; grep -E "FAIL|failed|_kept|exit" /tmp/claude/record-opus-reads.log | grep -v "=1\b" | tail -15; tail -3 /tmp/claude/record-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>beni5ufor</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/beni5ufor.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/scratchpad; while kill -0 63497 2&gt;/dev/null; do sleep 15; done; tail -40 $S/cli-run.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_f024afad-757d-4c80-ba8d-848ac2da8e00" name="Run prompt tests on the Claude subscription">
+Follow-up from Kenneth on your print-this-no-purpose finding. He decided: "The model should ask first. intent_update's description should say not to record a purpose the person hasn't stated, assumed or not, and print-this-no-purpose stays as it is."
+
+Context: I re-ran print-this-no-purpose 3 times at 24303e3a67 and all 3 failed the same way. Opus called intent_update with fields like {"field":"purpose","value":"20 mm cube, likely a calibration/test print","assumed":true,"question":"Is this a calibration cube ...?"} and setupTitle "20 mm test cube in PLA". The schema's assumed/question fields (ToolRegistry.cpp around line 1046; ToolExecutionCoordinator.cpp around line 1839 stores assumed as AgentInferred) invite this, while the description says "Record the user's explicit purpose as setupTitle...".
+
+Please, in your worktree on a new commit on top of 24303e3a67 (branch claude/opus-recorded-reads is fine):
+1. Change intent_update's description in ToolRegistry.cpp so it says to record only a purpose the person has stated, and never one they haven't, even marked assumed: ask them first. Keep the rest of the description, and keep it short. Don't change the schema or the case.
+2. Regenerate tests/project_prompt/project_tools.json with `JUSPRIN_UPDATE_PROJECT_TOOLS=1 agent_bridge_tests '[project]'` from your build. model-imported-by-tool keeps its own tool list in requests.json: either re-record, or make sure its intent_update description matches the new one.
+3. Run test_steps.py, test_claude_cli.py and agent_bridge_tests '[project]'.
+4. Run print-this-no-purpose 3 times with `--backend claude-cli --judge claude-cli` (subscription only, no paid API), plus prepare-petg-strong and after-intent 3 times each, since they test that intent_update is still called when the person did state a purpose. Report the counts and what each failing run did.
+Commit, don't push.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b8dvgy8db</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/b8dvgy8db.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 85604 2&gt;/dev/null; do sleep 15; done; grep -E "FAILED|error:" /tmp/claude/build2-opus-reads.log | head -5; tail -2 /tmp/claude/build2-opus-reads.log | cut -c1-200; grep -c "ToolRegistry.cpp.o" /tmp/claude/build2-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb84yc93k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/bb84yc93k.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 86933 2&gt;/dev/null; do sleep 10; done; grep "HARNESS CHECK" /tmp/claude/record2-opus-reads.log | grep -vc " PASS$"; grep "HARNESS RESULT" /tmp/claude/record2-opus-reads.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brhsf32kf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/tasks/brhsf32kf.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 87615 2&gt;/dev/null; do sleep 15; done; grep -E "run [0-9]/3:|of 3 passed|^usage: [0-9]+ requests" /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-mystifying-mahavira-d0b4d8/7cb24cf3-f099-4588-a9d0-3751f4d03010/scratchpad/cli-run2.log | cut -c1-400" completed (exit code 0)</summary>
+</task-notification>
