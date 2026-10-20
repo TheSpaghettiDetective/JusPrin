@@ -110,6 +110,9 @@ export function App({
   // The one-time confirmation after setup succeeds. The page knows what it
   // just submitted, so this needs nothing from the host.
   const [connected, setConnected] = useState<{ provider: string; warning?: string } | null>(null);
+  // Whether the thread is scrolled under the pinned setup band, which then
+  // lifts off it.
+  const [threadScrolled, setThreadScrolled] = useState(false);
 
   const client = useMemo(() => {
     const created: BridgeClient = new BridgeClient({
@@ -455,9 +458,9 @@ export function App({
   // A saved summary belongs to a send when this chat sent the plate it shows.
   const sentBuild = historical ? [...state.builds].reverse().find((record) => record.conversationId === viewedId &&
     !!record.sentAt && record.plateIndex === cardContext?.plates.findIndex((plate) => plate.active)) : undefined;
-  // The card sits in its own pinned band above the thread, as the design has
-  // it: the band is the canvas the tinted card sits on.
-  const setupCard = view === 'chat' && cardContext && <div className="pinned-setup">
+  // The card is a band docked under the chat header, as the design has it,
+  // with a divider below; it lifts while the thread is scrolled under it.
+  const setupCard = view === 'chat' && cardContext && <div className={threadScrolled ? 'pinned-setup pinned-setup--scrolled' : 'pinned-setup'}>
     <SetupCard context={cardContext} historical={historical} savedAt={historical ? state.chatResume.savedAt : undefined}
       agentAvailable={!unavailable} working={!historical && busy}
       changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
@@ -532,6 +535,7 @@ export function App({
           readOnly={historical || state.projectChatBlocked}
           onDiscussFailure={(text) => sendMessage(text, false)}
           onSetUpAgent={openSetup}
+          onScrolledChange={setThreadScrolled}
         />
       );
     if (setupScreen === 'chooser')

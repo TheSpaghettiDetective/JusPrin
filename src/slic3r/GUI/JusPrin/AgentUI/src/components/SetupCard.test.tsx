@@ -244,7 +244,7 @@ describe('time and material', () => {
     expect(card).not.toHaveTextContent('Setup summary');
     expect(card).toHaveTextContent('Out of date');
     expect(card).toHaveTextContent('Wall loops changed');
-    // Standing down: the card no longer carries the live edge.
+    // Standing down: the card's header is no longer in the live colour.
     expect(card).not.toHaveClass('current-setup--live');
     await userEvent.click(within(card).getByRole('button', { name: 'Refresh setup & recompute' }));
     expect(onCompute).toHaveBeenCalledOnce();

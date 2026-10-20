@@ -5,7 +5,7 @@
 // the manufacturing history render after the conversation item they follow,
 // in the order they happened.
 
-import { Fragment, ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AttachmentInfo,
   BuildInfo,
@@ -62,6 +62,9 @@ interface Props {
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
   // Set up on the card of a file's notes, when the Agent could not speak.
   onSetUpAgent?: () => void;
+  // Whether any of the thread is scrolled out under what is pinned above it,
+  // reported as it changes and as false when the thread goes away.
+  onScrolledChange?: (scrolled: boolean) => void;
 }
 
 // What follows one conversation item: history cards and runs of changes, in
@@ -141,6 +144,7 @@ export function MessageList({
   onInstallPlugin,
   renderActivity,
   onSetUpAgent,
+  onScrolledChange,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
   const listRef = useRef<HTMLDivElement>(null);
@@ -151,7 +155,10 @@ export function MessageList({
     if (!list) return;
     const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
     setFollowBottom(distanceFromBottom < 24);
+    onScrolledChange?.(list.scrollTop > 0);
   };
+
+  useEffect(() => () => onScrolledChange?.(false), [onScrolledChange]);
 
   useLayoutEffect(() => {
     const list = listRef.current;

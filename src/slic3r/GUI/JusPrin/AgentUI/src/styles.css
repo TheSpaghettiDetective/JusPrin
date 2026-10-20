@@ -69,16 +69,24 @@ body {
   font: var(--font-label-bold);
 }
 
-/* Setup card. Measured from the Figma "Current Setup Card" page, sections 5
-   to 7: a 405px card inset 12px inside the dock, surface/subtle, container
-   radius, 12/16 padding and a 4px row gap. A live card carries a 2px
-   action/primary edge and an action/primary header; a saved or out-of-date
-   card drops the edge and greys the header. The card never grows: what it
-   counts is listed on the setup page, which takes the thread's place. */
+/* Setup card. Drawn from the "Current Setup Card" page of the JusPrin v2
+   canvas: a band docked under the chat header, the pane's full width, square
+   corners, surface/subtle, 12/16 padding and a 4px row gap. A divider sits
+   below it at rest; while messages are scrolled under it, elevation/subtle is
+   added below the divider. A live card's header is action/primary; a saved or
+   out-of-date card greys it. The card never grows: what it counts is listed on
+   the setup page, which takes the thread's place. */
 .pinned-setup {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
-  padding: 12px;
-  background: var(--surface-canvas);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* The thread's own scroll position sets this; see MessageList. The shadow
+   falls outside the band, below the divider. */
+.pinned-setup--scrolled {
+  box-shadow: var(--elevation-subtle);
 }
 
 .current-setup {
@@ -87,14 +95,7 @@ body {
   gap: 4px;
   min-width: 0;
   padding: 12px 16px;
-  border-radius: var(--radius-medium);
   background: var(--surface-subtle);
-}
-
-/* Drawn inside the box, as Figma's stroke is: the edge follows the corner
-   radius and takes no width from the rows. */
-.current-setup--live {
-  box-shadow: inset 2px 0 0 var(--action-primary);
 }
 
 .current-setup p,

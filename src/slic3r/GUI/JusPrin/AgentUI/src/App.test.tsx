@@ -907,6 +907,25 @@ describe('App', () => {
     expect((draft!.payload as { text: string }).text).toBe('recovered draft plus more');
   });
 
+  // The card is a band docked under the header: a divider at rest, and a
+  // shadow too only while the thread is scrolled under it.
+  it('lifts the setup band only while messages are scrolled under it', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: toolCallConversation() }));
+    const band = screen.getByTestId('current-setup').parentElement!;
+    const thread = screen.getByRole('log', { name: 'Agent conversation' });
+    expect(band).toHaveClass('pinned-setup');
+    expect(band).not.toHaveClass('pinned-setup--scrolled');
+
+    thread.scrollTop = 40;
+    fireEvent.scroll(thread);
+    expect(band).toHaveClass('pinned-setup--scrolled');
+
+    thread.scrollTop = 0;
+    fireEvent.scroll(thread);
+    expect(band).not.toHaveClass('pinned-setup--scrolled');
+  });
+
   it('rebuilds the setup card when the native workspace changes', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ context: applied }));

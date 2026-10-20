@@ -182,6 +182,21 @@ describe('styles.css stays on the design tokens', () => {
     expect(rule('.chat-menu-search')).toMatch(/flex:\s*0 0 auto/);
   });
 
+  // The design's docked band (canvas "Current Setup Card", 2026-10-20): the
+  // card runs edge to edge under the header with square corners and no
+  // stripe; a divider below it always, elevation only while scrolled.
+  it('docks the setup card as a full-width band', () => {
+    const rule = (selector: string) => css.split('}').map((block) => block.split('{'))
+      .filter(([selectors]) => selectors.split(',').some((name) => name.trim() === selector))
+      .map(([, body]) => body).join(';');
+    expect(rule('.pinned-setup')).not.toMatch(/padding/);
+    expect(rule('.pinned-setup')).toMatch(/border-bottom:\s*1px solid var\(--border-subtle\)/);
+    expect(rule('.pinned-setup')).not.toMatch(/elevation/);
+    expect(rule('.pinned-setup--scrolled')).toMatch(/var\(--elevation-subtle\)/);
+    expect(rule('.current-setup')).not.toMatch(/border-radius/);
+    expect(rule('.current-setup--live')).not.toMatch(/box-shadow/);
+  });
+
   it('keeps the setup card header on one line', () => {
     const rule = css.match(/\.current-setup-header\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
