@@ -1,0 +1,3 @@
+> Build all three pickers now, including storing more than one provider key?
+
+you didn't mean storing the keys in the chat right? they are stored in the app local settings, right?
