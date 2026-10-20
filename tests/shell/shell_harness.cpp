@@ -9428,6 +9428,8 @@ private:
             };
 
             const int original_pane_width = pane->GetSize().x;
+            // A new window opens the pane at the chat dock's design width, not its minimum.
+            check(original_pane_width == pane->FromDIP(429), "agent_panel_opens_at_the_design_width");
             drag(-divider->FromDIP(120));
             check(pane->GetSize().x > original_pane_width, "agent_panel_mouse_drag_grows_width");
 
@@ -9468,7 +9470,7 @@ private:
             press_toggle();
             check(!installed_shell()->is_agent_pane_collapsed() && pane->IsShown() && divider->IsShown(),
                   "agent_panel_toggle_reopens_the_pane");
-            check(pane->GetSize().x == pane->FromDIP(320), "agent_panel_reopens_at_a_usable_width");
+            check(pane->GetSize().x == original_pane_width, "agent_panel_reopens_at_its_width");
 
             press_toggle();
             check(installed_shell()->is_agent_pane_collapsed(), "agent_panel_toggle_closes_the_pane");
