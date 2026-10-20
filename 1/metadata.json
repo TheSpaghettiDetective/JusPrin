@@ -1,0 +1,74 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5BBF8E95QZHBMJD1WPX4XS8",
+  "session_id": "178cf2ff-5467-4d0a-bb3c-9702373ed5d4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-20T00:30:40.344285Z",
+  "branch": "claude/provider-agent-extract",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx",
+    "tests/agent/test_provider_live.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "8456fbb2a7d5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1286,
+    "cache_creation_tokens": 799177,
+    "cache_read_tokens": 49757755,
+    "output_tokens": 261262,
+    "api_call_count": 133
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01EN1qoc4YqzamgUW1vFJeSh",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "8456fbb2a7d5",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 905,
+        "end": 906,
+        "entry_ids": [
+          "35906e57-eec8-402a-8f4d-8c6ef68acc2b"
+        ],
+        "tool_use_id": "toolu_01EN1qoc4YqzamgUW1vFJeSh"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01EN1qoc4YqzamgUW1vFJeSh"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-20T00:30:40.126536Z",
+    "agent_lines": 474,
+    "agent_removed": 2,
+    "human_added": 1369,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1843,
+    "total_lines_changed": 1880,
+    "agent_percentage": 25.319148936170212,
+    "metric_version": 2
+  }
+}
