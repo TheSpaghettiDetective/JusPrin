@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5D6NZDV80WSSTEXAF31B9P2",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 5,
+  "checkpoints_count": 8,
   "files_touched": [
     "tests/agent/CMakeLists.txt",
     "tests/agent/tool_call_check.cpp",
@@ -39,14 +39,21 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": "/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2278,
-    "cache_creation_tokens": 7204676,
-    "cache_read_tokens": 509430371,
-    "output_tokens": 1095872,
-    "api_call_count": 1141,
+    "input_tokens": 2464,
+    "cache_creation_tokens": 7639100,
+    "cache_read_tokens": 549033062,
+    "output_tokens": 1173961,
+    "api_call_count": 1234,
     "subagent_tokens": {
       "input_tokens": 14,
       "cache_creation_tokens": 183490,
