@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5D7CH6R9JYNSVG0DJGS3N5X",
+  "strategy": "manual-commit",
+  "branch": "claude/composer-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/ui/design-tokens.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChatNavigation.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/test/setup.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/authoring.visual-cases.tsx",
+    "tests/brand/test_brand_tokens.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 68252,
+    "cache_read_tokens": 17591779,
+    "output_tokens": 34821,
+    "api_call_count": 56,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
