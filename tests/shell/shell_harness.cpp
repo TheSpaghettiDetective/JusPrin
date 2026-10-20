@@ -391,6 +391,20 @@ bool preview_has_subject(const std::string& url)
     });
 }
 
+// Managed project folders holding no saved state: what a blank project that
+// nothing was saved for would leave behind.
+std::vector<std::string> unsaved_project_folders()
+{
+    std::vector<std::string> unsaved;
+    const fs::path root = fs::path(data_dir()) / "jusprin" / "projects";
+    if (!fs::is_directory(root))
+        return unsaved;
+    for (const auto& entry : fs::directory_iterator(root))
+        if (!fs::exists(entry.path() / "HEAD") && !fs::exists(entry.path() / "current-state.json"))
+            unsaved.push_back(entry.path().filename().string());
+    return unsaved;
+}
+
 // Labels reach the widgets through _L, which decodes its narrow literal as
 // UTF-8 explicitly (I18N.hpp). wxString's own narrow constructor instead
 // decodes through the locale's encoding: UTF-8 on macOS, but the ANSI code
@@ -1886,6 +1900,9 @@ private:
 
     void verify_autosave_seed()
     {
+        // Neither the shell's first project nor Orca's startup new project
+        // had anything saved, so neither has a folder.
+        check(unsaved_project_folders().empty(), "startup_blank_projects_leave_no_folder");
         check(!installed_shell()->autosave()->pin_current().empty(),
               "restart_blank_agent_before_state_pinned");
         const fs::path source = fs::path(data_dir()) / "restart-source.stl";
@@ -2006,6 +2023,7 @@ private:
         }, "restart_project_resumed", [self = shared_from_this(), project_id, version_id] {
             self->check(installed_shell()->autosave()->current_version() == version_id,
                         "restart_head_preserved");
+            self->check(unsaved_project_folders().empty(), "restart_blank_startup_project_leaves_no_folder");
             self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n') ==
                             wxString::FromUTF8("restart-source \xE2\x80\x94 ") + wxGetTranslation("Saved"),
                         "restart_title_uses_local_project_name_and_save_state");

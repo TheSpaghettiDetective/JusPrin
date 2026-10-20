@@ -1236,8 +1236,7 @@ TEST_CASE("a printer conversation writes nothing into the project", "[printer-co
     const std::filesystem::path project = workspace.auxiliary_data_dir();
 
     Agent::ProjectPersistence::Config config;
-    config.in_memory     = true;
-    config.recovery_root = (project / "recovery").string();
+    config.in_memory = true;
     Agent::ProjectPersistence persistence(workspace, std::move(config));
     persistence.attach();
 
@@ -1249,8 +1248,6 @@ TEST_CASE("a printer conversation writes nothing into the project", "[printer-co
 
     CHECK(persistence.read_attachment_blob("attachments/a-1/photo.png") == "bytes");
     CHECK_FALSE(std::filesystem::exists(project / "JusPrin"));
-    CHECK_FALSE(std::filesystem::exists(project / "recovery"));
-    CHECK(persistence.recovery_dir().empty());
 }
 
 // -- Inside a real host --------------------------------------------------------

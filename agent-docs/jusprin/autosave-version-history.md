@@ -74,7 +74,10 @@ it nor document contents participate in model-version equality. A workspace
 event can prompt a model check, but cannot make unchanged checkpoint content
 into a new version.
 
-A single writer owns each project through an OS file lock. It writes and
+A project's directory and its lock are created by its first write, so a
+blank project nothing was saved for leaves no directory behind. That first
+write fails if another instance saved the same project identity in the
+meantime. A single writer owns each project through an OS file lock. It writes and
 flushes the current document and changed resources before publishing a version directory,
 then atomically replaces `HEAD` with the ordered committed-version index.
 POSIX also synchronizes containing directories; Windows flushes individual
@@ -86,8 +89,7 @@ and the next save retries it. Project replacement is blocked until the live
 state is saved. Explicit export validates a temporary 3MF before replacing
 its destination.
 
-Older projects may still contain `Auxiliaries/JusPrin/state.json` and a
-recovery mirror. On first adoption, JusPrin reads that state and copies its
+Older projects may still contain `Auxiliaries/JusPrin/state.json`. On first adoption, JusPrin reads that state and copies its
 attachments to the managed store; it does not delete the old source. Once a
 managed version exists, local state is authoritative. Reopening a copied
 external 3MF with an already managed identity forks a new project identity.

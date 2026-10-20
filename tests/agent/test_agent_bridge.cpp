@@ -20,13 +20,11 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <deque>
 #include <functional>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <random>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -66,26 +64,7 @@ Workspace::WorkspaceSnapshot two_object_snapshot()
 
 ProjectPersistence::Config test_persistence_config()
 {
-    static std::random_device random;
-
     ProjectPersistence::Config config;
-    for (int attempt = 0; attempt < 10; ++attempt) {
-        const auto candidate =
-            std::filesystem::temp_directory_path() /
-            ("jusprin-bridge-recovery-" +
-             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "-" +
-             std::to_string(random()));
-        std::error_code error;
-        if (std::filesystem::create_directory(candidate, error)) {
-            config.recovery_root = candidate.string();
-            break;
-        }
-        if (error && error != std::errc::file_exists)
-            throw std::runtime_error("Unable to create a test recovery directory: " + error.message());
-    }
-    if (config.recovery_root.empty())
-        throw std::runtime_error("Unable to allocate a unique test recovery directory");
-
     config.clock = []() { return "2026-08-30T00:00:00Z"; };
     config.uuid  = []() {
         static int next_uuid = 0;
@@ -1696,7 +1675,7 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "recovery_required");
 }
 
-TEST_CASE("the draft lives in the recovery store and clears when sent", "[agent][draft]")
+TEST_CASE("the draft is kept until it is sent", "[agent][draft]")
 {
     Harness harness;
     harness.handshake();

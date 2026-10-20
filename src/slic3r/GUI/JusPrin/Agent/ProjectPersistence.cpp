@@ -1,8 +1,6 @@
 #include "ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
-#include <nlohmann/json.hpp>
-
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -15,12 +13,10 @@ namespace Slic3r::GUI::JusPrin::Agent {
 namespace {
 
 namespace fs = std::filesystem;
-using nlohmann::json;
 using Workspace::WorkspaceChangeReasons;
 
 constexpr const char* kJusPrinDirName  = "JusPrin";
 constexpr const char* kStateFileName   = "state.json";
-constexpr const char* kRecoveryMeta    = "recovery.json";
 
 std::string default_clock() { return Workspace::utc_now(); }
 
@@ -118,10 +114,8 @@ ProjectPersistence::ProjectPersistence(Workspace::IWorkspace& workspace, Config 
     if (!m_config.uuid)
         m_config.uuid = default_uuid;
     if (m_config.in_memory) {
-        // No project to follow and nowhere to mirror to: this session is its
-        // own boundary, and it needs an identity now because ids are minted
-        // from it.
-        m_config.recovery_root.clear();
+        // No project to follow: this session is its own boundary, and it
+        // needs an identity now because ids are minted from it.
         m_document.initialize_identity("p-" + m_config.uuid(), "l-" + m_config.uuid(), m_config.clock());
         return;
     }
@@ -176,15 +170,6 @@ std::string ProjectPersistence::jusprin_data_dir() const
 std::string ProjectPersistence::state_file_path() const
 {
     return (fs::path(jusprin_data_dir()) / kStateFileName).string();
-}
-
-std::string ProjectPersistence::recovery_dir() const
-{
-    if (!m_config.managed_root.empty())
-        return {};
-    if (m_config.recovery_root.empty() || !m_document.has_identity())
-        return {};
-    return (fs::path(m_config.recovery_root) / m_document.project_id()).string();
 }
 
 void ProjectPersistence::on_workspace_changed(const Workspace::WorkspaceChanged& change)
@@ -285,23 +270,6 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     }
     m_document = std::move(loaded);
 
-    // The recovery mirror may hold state newer than the last explicit save
-    // (messages, tool activity, a partial reply from before a crash).
-    const std::string recovery = m_config.managed_root.empty() ? recovery_dir() :
-        (m_config.recovery_root.empty() ? std::string() :
-            (fs::path(m_config.recovery_root) / m_document.project_id()).string());
-    if (!recovery.empty()) {
-        const std::string mirror_text = read_file(fs::path(recovery) / kStateFileName);
-        if (!mirror_text.empty()) {
-            ProjectStateDocument mirror;
-            if (mirror.load(mirror_text) != ProjectStateDocument::LoadResult::Corrupt &&
-                mirror.project_id() == m_document.project_id() && mirror.doc_revision() > m_document.doc_revision())
-                m_document = std::move(mirror);
-        }
-        if (m_config.managed_root.empty())
-            load_recovery_meta();
-    }
-
     if (!m_config.managed_root.empty()) {
         // A copied or reopened external archive is an import, even when it
         // carries an identity that already has a managed head on this host.
@@ -367,11 +335,6 @@ void ProjectPersistence::flush()
         return;
     }
     write_state_to(jusprin_data_dir());
-    const std::string recovery = recovery_dir();
-    if (!recovery.empty()) {
-        write_state_to(recovery);
-        write_recovery_meta();
-    }
     m_dirty = false;
 }
 
@@ -476,26 +439,6 @@ void ProjectPersistence::set_draft(const std::string& text)
         m_document.set_draft(text);
         commit();
     }
-    write_recovery_meta();
-}
-
-void ProjectPersistence::write_recovery_meta() const
-{
-    const std::string recovery = recovery_dir();
-    if (recovery.empty())
-        return;
-    write_file(fs::path(recovery) / kRecoveryMeta,
-               json{{"draft", m_draft}, {"updatedAt", m_config.clock()}}.dump(2));
-}
-
-void ProjectPersistence::load_recovery_meta()
-{
-    const std::string recovery = recovery_dir();
-    if (recovery.empty())
-        return;
-    const json meta = json::parse(read_file(fs::path(recovery) / kRecoveryMeta), nullptr, false);
-    if (meta.is_object())
-        m_draft = meta.value("draft", "");
 }
 
 Workspace::CommandResult ProjectPersistence::export_clean_copy(const std::string& file_path)

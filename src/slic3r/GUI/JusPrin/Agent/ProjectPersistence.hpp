@@ -4,7 +4,7 @@
 // mode the local store commits this document independently of Orca's model;
 // attachment bytes live under the same stable project ID. External 3MF files
 // are imports/exports and do not carry the managed conversation. The old
-// auxiliary state and newer recovery mirror are read once during migration.
+// auxiliary state is read once during migration.
 // A configuration without managed_root retains the legacy contract for older
 // hosts and its focused tests.
 //
@@ -30,11 +30,9 @@ public:
     struct Config
     {
         // Managed projects keep semantic state beside their version store.
-        // Empty preserves the legacy auxiliary/recovery behavior for tests
-        // and older hosts that have not installed the local version store.
+        // Empty preserves the legacy auxiliary behavior for tests and older
+        // hosts that have not installed the local version store.
         std::string managed_root;
-        // Root directory of the local recovery store; empty disables it.
-        std::string recovery_root;
         // Injectable for deterministic tests.
         std::function<std::string()> clock; // ISO-8601 UTC timestamp
         std::function<std::string()> uuid;  // opaque unique identifier
@@ -42,7 +40,7 @@ public:
         // temporary task chat -- keeps everything in memory: nothing it
         // says belongs in this project's archive, and the session is gone
         // when the panel closes. Such an instance follows no project
-        // boundary, writes no state.json and no recovery mirror, and holds
+        // boundary, writes no state.json, and holds
         // attachment bytes for its own lifetime only.
         bool in_memory{false};
     };
@@ -101,7 +99,7 @@ public:
     void adopt_managed_state(const std::string& state);
 
     // The composer draft is a document field in managed mode; legacy mode
-    // continues to keep it in the recovery mirror.
+    // keeps it in memory only.
     void               set_draft(const std::string& text);
     const std::string& draft() const { return m_draft; }
 
@@ -126,7 +124,6 @@ public:
     // Storage locations resolved for the active managed or legacy project.
     std::string jusprin_data_dir() const;
     std::string state_file_path() const;
-    std::string recovery_dir() const; // empty when disabled or no identity
 
 private:
     void notify_document_replaced();
@@ -136,8 +133,6 @@ private:
     void adopt_current_project(bool in_place_reset);
     void start_fresh_identity();
     void write_state_to(const std::string& directory) const;
-    void write_recovery_meta() const;
-    void load_recovery_meta();
 
     Workspace::IWorkspace&           m_workspace;
     Config                           m_config;

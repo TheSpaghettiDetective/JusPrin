@@ -1522,6 +1522,29 @@ private:
             second_writer_refused = true;
         }
         check(second_writer_refused, "versions_concurrent_writer_refused");
+        // A project nothing was saved for gets its folder on the first write,
+        // which refuses a project another instance saved in the meantime.
+        const auto store_root = std::filesystem::path(data_dir()) / "version-test";
+        {
+            ProjectVersionStore untouched(store_root, "p-untouched");
+            check(!std::filesystem::exists(store_root / "p-untouched"), "versions_untouched_project_has_no_folder");
+        }
+        check(!std::filesystem::exists(store_root / "p-untouched"), "versions_closed_untouched_project_leaves_no_folder");
+        {
+            const std::string raced_state = "{\"project\":{\"projectId\":\"p-raced\"},\"attachments\":[]}";
+            ProjectVersionStore late(store_root, "p-raced");
+            {
+                ProjectVersionStore early(store_root, "p-raced");
+                early.publish_document(raced_state);
+            }
+            bool late_write_refused = false;
+            try {
+                late.publish_document(raced_state);
+            } catch (const std::exception&) {
+                late_write_refused = true;
+            }
+            check(late_write_refused, "versions_first_write_refuses_another_instances_save");
+        }
         const auto resource = std::filesystem::path(data_dir()) / "version-test" / "p-harness" / "resources" /
                               (versions[0].objects[0].resource.id + ".zip");
         const auto original_resource = resource.string() + ".original";

@@ -8,7 +8,7 @@
 // and Enter during IME composition accepts the composition without sending.
 // Normal selection, clipboard, and focus behavior are left to the browser
 // engine. The in-progress draft is reported (debounced) so the host can keep
-// it in the local recovery store; reconnecting restores it via initialText.
+// it with the project's saved state; reconnecting restores it via initialText.
 //
 // Attachments enter through the + menu's file picker, drag-and-drop, or
 // pasting an image; staged attachments render as removable rows, and a

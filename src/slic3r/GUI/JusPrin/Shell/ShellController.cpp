@@ -254,11 +254,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     try {
         m_workspace = std::make_unique<Workspace::OrcaWorkspaceAdapter>(*plater);
 
-        // Conversation state, stored inside the project's
-        // auxiliary directory and mirrored to a per-project local recovery
-        // store under the application data dir.
+        // Conversation state, stored beside each project's local versions
+        // under the application data dir.
         Agent::ProjectPersistence::Config persistence_config;
-        persistence_config.recovery_root = (boost::filesystem::path(data_dir()) / "jusprin" / "recovery").string();
         persistence_config.managed_root = (boost::filesystem::path(data_dir()) / "jusprin" / "projects").string();
         m_persistence = std::make_unique<Agent::ProjectPersistence>(*m_workspace, std::move(persistence_config));
 

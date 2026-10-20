@@ -205,7 +205,6 @@ public:
     std::string dump() const;
 
     // Monotonic per-document change counter, bumped by every mutating call.
-    // The recovery mirror with the higher value is the newer state.
     std::uint64_t doc_revision() const;
 
     bool        has_identity() const;

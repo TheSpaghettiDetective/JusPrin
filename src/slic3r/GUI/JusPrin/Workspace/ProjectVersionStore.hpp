@@ -84,7 +84,7 @@ public:
 
     const std::string& project_id() const { return m_project_id; }
     const std::string& head_id() const { return m_head_id; }
-    std::filesystem::path pending_metadata_path(const std::string& version_id) const;
+    std::filesystem::path pending_metadata_path(const std::string& version_id);
 
     // export_3mf(Backup | Silence) must have completed at metadata_path before
     // freeze() is called. freeze() preserves Orca backup IDs in its copy.
@@ -125,6 +125,9 @@ private:
     Version read_version(const std::string& id) const;
     void load_head();
     void recover_uncommitted();
+    void create_and_lock();
+    void create_on_first_write();
+    bool locked() const;
     void lock();
     void unlock();
 

@@ -1,7 +1,7 @@
 // Contract tests for the project state document (schema round-trip,
 // unknown-field preservation, migration, corruption) and for
 // ProjectPersistence against the fake workspace (project-boundary adoption,
-// recovery merge, attachments). GUI-free.
+// attachments). GUI-free.
 
 #include <catch2/catch_all.hpp>
 
@@ -69,10 +69,9 @@ Workspace::WorkspaceSnapshot small_snapshot()
     return snapshot;
 }
 
-ProjectPersistence::Config config_with_recovery(const std::string& recovery_root)
+ProjectPersistence::Config test_config()
 {
     ProjectPersistence::Config config;
-    config.recovery_root = recovery_root;
     config.clock         = []() { return std::string(kT); };
     config.uuid          = []() {
         static int next = 0;
@@ -602,11 +601,10 @@ TEST_CASE("interrupted streams and runs are normalized on recovery", "[project-s
     CHECK_FALSE(document.normalize_interrupted_state());
 }
 
-TEST_CASE("adoption creates identity and both stores", "[persistence][adoption]")
+TEST_CASE("adoption creates identity and the state file", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    const std::string recovery_root = unique_temp_dir("recovery");
-    ProjectPersistence persistence(workspace, config_with_recovery(recovery_root));
+    ProjectPersistence persistence(workspace, test_config());
 
     int replaced = 0;
     persistence.set_document_replaced_listener([&replaced]() { ++replaced; });
@@ -616,7 +614,6 @@ TEST_CASE("adoption creates identity and both stores", "[persistence][adoption]"
     CHECK(persistence.document().has_identity());
     CHECK(persistence.document().conversations().size() == 1);
     CHECK(fs::is_regular_file(persistence.state_file_path()));
-    CHECK(fs::is_regular_file(fs::path(persistence.recovery_dir()) / "state.json"));
     // JusPrin keeps no copy of the project: the JusPrin data dir holds the
     // state file alone.
     CHECK(std::distance(fs::directory_iterator(persistence.jusprin_data_dir()), fs::directory_iterator()) == 1);
@@ -625,7 +622,7 @@ TEST_CASE("adoption creates identity and both stores", "[persistence][adoption]"
 TEST_CASE("model edits write no project copies", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     REQUIRE(workspace.select_object(workspace.snapshot().plates[0].objects[0].id).succeeded());
@@ -634,71 +631,46 @@ TEST_CASE("model edits write no project copies", "[persistence][adoption]")
     CHECK(std::distance(fs::directory_iterator(persistence.jusprin_data_dir()), fs::directory_iterator()) == 1);
 }
 
-TEST_CASE("saved state is adopted on reopen and merged with newer recovery", "[persistence][recovery]")
+TEST_CASE("saved state is adopted on reopen", "[persistence][adoption]")
 {
-    const std::string recovery_root = unique_temp_dir("recovery");
-
-    // First session: chat state exists; a "save" snapshots state.json as of
-    // that moment; then more work arrives (only the recovery mirror has it).
     Workspace::FakeWorkspace first_workspace(small_snapshot());
-    ProjectPersistence first(first_workspace, config_with_recovery(recovery_root));
+    ProjectPersistence first(first_workspace, test_config());
     first.attach();
     const std::string project_id   = first.document().project_id();
     const std::string conversation = first.document().active_conversation_id();
     first.document().append_message(conversation, user_message(first.document().allocate_message_id(), "saved message", "c-1"),
                                     kT);
     first.flush();
-    const std::string saved_state = read_text(first.state_file_path()); // the explicit save
+    const std::string saved_state = read_text(first.state_file_path());
 
-    ConversationMessage partial = user_message(first.document().allocate_message_id(), "reply after save", "");
-    partial.role                = MessageRole::Assistant;
-    partial.state               = MessageState::Streaming;
-    first.document().append_message(conversation, partial, kT);
-    first.set_draft("half-typed");
-    first.flush();
-
-    // Second session: a reopened project carries only the saved state.json in
-    // its extracted auxiliary dir; the recovery store is local and newer.
+    // A reopened project carries the saved state.json in its extracted
+    // auxiliary dir.
     Workspace::FakeWorkspace second_workspace(small_snapshot());
     write_text(fs::path(second_workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", saved_state);
-    ProjectPersistence second(second_workspace, config_with_recovery(recovery_root));
+    ProjectPersistence second(second_workspace, test_config());
     second.attach();
 
     CHECK(second.document().project_id() == project_id);
     const std::vector<ConversationMessage> messages = second.document().messages(conversation);
-    REQUIRE(messages.size() == 2); // the recovery mirror won
+    REQUIRE(messages.size() == 1);
     CHECK(messages[0].text == "saved message");
-    // The interrupted reply is visible and honestly stopped.
-    CHECK(messages[1].state == MessageState::Stopped);
-    CHECK(second.draft() == "half-typed");
-
-    SECTION("without a recovery mirror the saved state stands alone") {
-        Workspace::FakeWorkspace third_workspace(small_snapshot());
-        write_text(fs::path(third_workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", saved_state);
-        ProjectPersistence third(third_workspace, config_with_recovery(unique_temp_dir("other-recovery")));
-        third.attach();
-        CHECK(third.document().project_id() == project_id);
-        CHECK(third.document().messages(conversation).size() == 1);
-    }
 }
 
 TEST_CASE("managed import moves semantic state and attachments into the local store", "[persistence][managed]")
 {
     const std::string root = unique_temp_dir("managed-projects");
-    const std::string recovery = unique_temp_dir("legacy-recovery");
     ProjectStateDocument legacy;
     legacy.initialize_identity("p-imported", "l-imported", kT);
     const std::string conversation = legacy.active_conversation_id();
     legacy.append_message(conversation, user_message(legacy.allocate_message_id(), "old conversation", "c-1"), kT);
-    const std::string saved = legacy.dump();
     legacy.set_draft("unfinished draft");
-    write_text(fs::path(recovery) / "p-imported" / "state.json", legacy.dump());
+    const std::string saved = legacy.dump();
 
     Workspace::FakeWorkspace workspace(small_snapshot());
     const fs::path auxiliary = fs::path(workspace.auxiliary_data_dir()) / "JusPrin";
     write_text(auxiliary / "state.json", saved);
     write_text(auxiliary / "attachments" / "a-1" / "note.txt", "attached");
-    ProjectPersistence::Config config = config_with_recovery(recovery);
+    ProjectPersistence::Config config = test_config();
     config.managed_root = root;
     ProjectPersistence imported(workspace, config);
     imported.attach();
@@ -724,7 +696,7 @@ TEST_CASE("a corrupt state file is preserved for inspection and replaced", "[per
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
     write_text(fs::path(workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", "{{{ not json");
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     CHECK(persistence.document().has_identity());
@@ -735,7 +707,7 @@ TEST_CASE("a corrupt state file is preserved for inspection and replaced", "[per
 TEST_CASE("an in-place reset starts a new project boundary", "[persistence][lifecycle]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
     const std::string old_identity = persistence.document().project_id();
     persistence.document().append_message(persistence.document().active_conversation_id(),
@@ -765,7 +737,7 @@ TEST_CASE("a replacement whose event outruns its directory move still adopts the
     // adopts the new auxiliary directory. Simulated here: an in-place-looking
     // event, after which the directory turns out to have moved.
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
     const std::string old_identity = persistence.document().project_id();
     persistence.document().append_message(persistence.document().active_conversation_id(),
@@ -785,7 +757,7 @@ TEST_CASE("a replacement whose event outruns its directory move still adopts the
 TEST_CASE("a project replacement adopts the new project's own state", "[persistence][lifecycle]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
     const std::string old_identity = persistence.document().project_id();
 
@@ -797,7 +769,7 @@ TEST_CASE("a project replacement adopts the new project's own state", "[persiste
 TEST_CASE("a clean-sharing copy carries no JusPrin state", "[persistence][clean-share]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     const fs::path copy = fs::path(unique_temp_dir("clean")) / "clean-copy.archive";
@@ -927,15 +899,13 @@ TEST_CASE("a note keeps the colour that leads it across a round-trip", "[project
 TEST_CASE("attachment blobs are written under the project and cleaned up", "[persistence][attachments]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     REQUIRE(persistence.write_attachment_blob("attachments/a-1/notes.txt", "hello"));
     const fs::path blob = fs::path(persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt";
     REQUIRE(fs::is_regular_file(blob));
     CHECK(read_text(blob) == "hello");
-    // Blobs live only in the project's auxiliary dir, not the recovery mirror.
-    CHECK_FALSE(fs::exists(fs::path(persistence.recovery_dir()) / "attachments" / "a-1" / "notes.txt"));
 
     persistence.remove_attachment_dir("attachments/a-1");
     CHECK_FALSE(fs::exists(blob));
@@ -944,7 +914,7 @@ TEST_CASE("attachment blobs are written under the project and cleaned up", "[per
 TEST_CASE("the change log records each edit after the conversation item it follows", "[persistence][changes]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     std::vector<ChangeEntry> pushed;
     persistence.set_change_listener([&pushed](const ChangeEntry& change) { pushed.push_back(change); });
     persistence.attach();
@@ -999,7 +969,7 @@ TEST_CASE("the change log records each edit after the conversation item it follo
 TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[persistence][plan]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
     ProjectStateDocument& document = persistence.document();
     const auto cube = workspace.snapshot().plates[0].objects[0].id;
@@ -1056,7 +1026,7 @@ TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[pe
 TEST_CASE("restoring a model version marks the active chat's plan", "[persistence][plan][managed]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence::Config config = config_with_recovery(unique_temp_dir("recovery"));
+    ProjectPersistence::Config config = test_config();
     config.managed_root = unique_temp_dir("managed");
     ProjectPersistence persistence(workspace, config);
     persistence.attach();
@@ -1072,7 +1042,7 @@ TEST_CASE("restoring a model version marks the active chat's plan", "[persistenc
 TEST_CASE("settings changes and preset switches are logged", "[persistence][changes]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     workspace.set_setting_for_testing("wall_loops", "5");
@@ -1211,7 +1181,7 @@ TEST_CASE("intent and plan writes need an active chat to hold them", "[project-s
 TEST_CASE("every ledger subscriber hears a ledger change, and releasing one leaves the others", "[persistence][ledger]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     int first = 0, second = 0;
@@ -1231,7 +1201,7 @@ TEST_CASE("every ledger subscriber hears a ledger change, and releasing one leav
 TEST_CASE("a ledger subscriber may release itself or another during dispatch", "[persistence][ledger]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
-    ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+    ProjectPersistence persistence(workspace, test_config());
     persistence.attach();
 
     int self_calls = 0, other_calls = 0;
@@ -1255,7 +1225,7 @@ TEST_CASE("a ledger subscription outliving its persistence does nothing", "[pers
     Workspace::WorkspaceSubscription survivor;
     {
         Workspace::FakeWorkspace workspace(small_snapshot());
-        ProjectPersistence persistence(workspace, config_with_recovery(unique_temp_dir("recovery")));
+        ProjectPersistence persistence(workspace, test_config());
         survivor = persistence.subscribe_ledger([]() {});
     }
     REQUIRE_NOTHROW(survivor.reset());

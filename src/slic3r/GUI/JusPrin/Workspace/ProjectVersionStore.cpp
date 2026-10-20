@@ -405,12 +405,11 @@ ProjectVersionStore::ProjectVersionStore(fs::path root, std::string project_id)
     : m_root(std::move(root) / project_id), m_project_id(std::move(project_id))
 {
     require(safe_component(m_project_id), "invalid project id");
-    fs::create_directories(m_root / "versions");
-    fs::create_directories(m_root / "resources");
-    fs::create_directories(m_root / "pending");
-    fs::create_directories(m_root / "materialized");
-    fs::create_directories(m_root / "operations");
-    lock();
+    // A project nothing was saved for yet gets its directory on the first
+    // write, so a blank project that is left untouched leaves nothing behind.
+    if (!fs::exists(m_root))
+        return;
+    create_and_lock();
     try {
         require(!fs::exists(m_root / "chat-restore.pending.json"),
                 "an interrupted chat restoration requires recovery before this project can be edited");
@@ -428,6 +427,7 @@ void ProjectVersionStore::begin_chat_restore(const std::string& from_version,
 {
     require(safe_component(from_version) && safe_component(to_version) && safe_component(conversation_id),
             "invalid chat restoration identity");
+    create_on_first_write();
     const fs::path pending = m_root / "chat-restore.writing.json";
     checked_write(pending, json{{"fromVersion", from_version}, {"toVersion", to_version},
                                 {"conversationId", conversation_id}}.dump(2));
@@ -475,6 +475,38 @@ void ProjectVersionStore::recover_uncommitted()
 }
 
 ProjectVersionStore::~ProjectVersionStore() { unlock(); }
+
+void ProjectVersionStore::create_and_lock()
+{
+    fs::create_directories(m_root / "versions");
+    fs::create_directories(m_root / "resources");
+    fs::create_directories(m_root / "pending");
+    fs::create_directories(m_root / "materialized");
+    fs::create_directories(m_root / "operations");
+    lock();
+}
+
+void ProjectVersionStore::create_on_first_write()
+{
+    if (locked())
+        return;
+    create_and_lock();
+    // This store opened before anything was saved, so it loaded no history.
+    // Another instance with the same project identity may have saved since.
+    if (fs::exists(m_root / "HEAD") || fs::exists(m_root / "current-state.json")) {
+        unlock();
+        throw std::runtime_error("project was saved by another JusPrin instance");
+    }
+}
+
+bool ProjectVersionStore::locked() const
+{
+#ifdef _WIN32
+    return m_lock_handle != nullptr;
+#else
+    return m_lock_fd >= 0;
+#endif
+}
 
 void ProjectVersionStore::lock()
 {
@@ -551,9 +583,10 @@ void ProjectVersionStore::publish_export_archive(const fs::path& temporary, cons
 
 fs::path ProjectVersionStore::version_dir(const std::string& id) const { return m_root / "versions" / id; }
 fs::path ProjectVersionStore::resource_path(const std::string& id) const { return m_root / "resources" / (id + ".zip"); }
-fs::path ProjectVersionStore::pending_metadata_path(const std::string& id) const
+fs::path ProjectVersionStore::pending_metadata_path(const std::string& id)
 {
     require(safe_component(id), "invalid version id");
+    create_on_first_write();
     const fs::path directory = m_root / "pending" / id;
     require(!fs::exists(directory), "version id already in use");
     fs::create_directories(directory);
@@ -782,6 +815,7 @@ void ProjectVersionStore::publish_document(std::string semantic_state)
             "project document " + document_id + " does not match local project " + m_project_id);
     if (m_document_durable && semantic_state == m_last_semantic_state)
         return;
+    create_on_first_write();
     validate_attachments(m_root, semantic_state);
     checked_write(m_root / "current-state.pending",
                   json{{"schema", 2}, {"state", state}}.dump());

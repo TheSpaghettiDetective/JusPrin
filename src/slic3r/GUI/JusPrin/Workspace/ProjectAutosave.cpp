@@ -688,8 +688,8 @@ bool ProjectAutosave::resume_latest()
         }
         if (latest.empty())
             return false;
-        // The untouched startup draft has no authored state. Release its
-        // lock before opening the durable project selected by the store.
+        // The untouched startup draft has no authored state. Release it
+        // before opening the durable project selected by the store.
         settle(true);
         m_store.reset();
         auto opened = std::make_unique<ProjectVersionStore>(m_root, latest.filename().string());
@@ -746,6 +746,9 @@ std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
     // project once here; the preview is independent of the frequent backups.
     ensure_current_preview();
     std::vector<ManagedProject> result;
+    // Nothing has been saved yet on a new installation.
+    if (!std::filesystem::is_directory(m_root))
+        return result;
     for (const auto& entry : std::filesystem::directory_iterator(m_root)) {
         if (!entry.is_directory() || !std::filesystem::exists(entry.path() / "HEAD"))
             continue;
