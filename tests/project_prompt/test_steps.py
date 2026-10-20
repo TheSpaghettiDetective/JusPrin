@@ -93,8 +93,9 @@ class Steps(unittest.TestCase):
 
     def test_a_change_beside_a_passing_read_still_decides(self):
         verdict, detail, _ = self.run_case("issue-fix", [
-            call("settings_get", {"scope": "print", "keys": [runner.ISSUE_SETTING]}),
-            call("settings_apply_patch", {"scope": "process", "changes": {"layer_height": 0.2}})])
+            call("settings_get", {"scope": "process", "keys": [runner.ISSUE_SETTING]}),
+            call("settings_apply_patch", {"scope": "process", "changes": {"layer_height": 0.2},
+                                          "expectedSessionId": "1", "expectedRevision": 1})])
         self.assertEqual(verdict, runner.FAIL)
         self.assertTrue(detail.startswith("OUT OF SCOPE: settings_apply_patch"), detail)
 
@@ -102,7 +103,7 @@ class Steps(unittest.TestCase):
 
     def test_a_read_the_case_decides_on_counts_in_second_place(self):
         verdict, detail, _ = self.run_case("issue-fix", [
-            call("workspace_inspect"), call("settings_get", {"scope": "print", "keys": [runner.ISSUE_SETTING]})])
+            call("workspace_inspect"), call("settings_get", {"scope": "process", "keys": [runner.ISSUE_SETTING]})])
         self.assertEqual(verdict, runner.PASS)
         self.assertTrue(detail.startswith("settings_get"), detail)
 
@@ -188,7 +189,7 @@ class Steps(unittest.TestCase):
 
     def test_one_unrecorded_read_leaves_the_whole_response_unanswered(self):
         verdict, detail, bodies = self.run_case("advice-infill", [
-            call("workspace_inspect"), call("settings_search", {"scope": "print", "query": "no such wording zzz"})])
+            call("workspace_inspect"), call("settings_search", {"scope": "process", "query": "no such wording zzz"})])
         self.assertEqual(verdict, runner.UNOBSERVED)
         self.assertTrue(detail.startswith("no recorded answer for settings_search"), detail)
         self.assertEqual(len(bodies), 1)
@@ -222,6 +223,82 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.UNOBSERVED)
         self.assertIn("still reading after answers", detail)
         self.assertEqual(len(bodies), runner.MAX_READS + 1)
+
+    # --- A call the app refuses gets the app's refusal ---------------------
+
+    def test_a_read_the_app_refuses_gets_its_refusal(self):
+        """The 2026-10-20 run of model-opened-unnamed: a settings_search with a
+        sessionId the tool does not take was answered from the recording."""
+        verdict, detail, bodies = self.run_case("advice-infill", [
+            call("settings_search", {"scope": "process", "query": "infill", "sessionId": "1"}, "call-s")], [reply("ok")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(len(bodies), 2)
+        result = json.loads(bodies[1]["input"][-1]["output"])
+        self.assertEqual(result["state"], "failed")
+        self.assertEqual(result["error"]["code"], "invalid_arguments")
+        self.assertIn("Not a parameter of this tool: sessionId.", result["error"]["message"])
+        self.assertTrue(detail.startswith("after settings_search (refused): "), detail)
+
+    def test_a_rule_beyond_the_schema_is_the_apps_too(self):
+        """settings_search takes a limit of 1 to 25, a rule of the registry's
+        own check rather than of the schema the model is shown."""
+        _, _, bodies = self.run_case("advice-infill", [
+            call("settings_search", {"scope": "process", "query": "infill", "limit": 40})], [reply("ok")])
+        self.assertEqual(json.loads(bodies[1]["input"][-1]["output"])["error"]["code"], "invalid_arguments")
+
+    def test_a_tool_not_offered_is_refused(self):
+        _, _, bodies = self.run_case("advice-infill", [call("no_such_tool", {}, "call-x")], [reply("ok")])
+        result = json.loads(bodies[1]["input"][-1]["output"])
+        self.assertEqual(result["error"]["code"], "unknown_tool")
+        self.assertIn('There is no tool named "no_such_tool" here.', result["error"]["message"])
+
+    def test_a_call_after_a_refused_one_is_not_run(self):
+        _, _, bodies = self.run_case("advice-infill", [
+            call("settings_get", {"scope": "print", "keys": ["layer_height"]}, "call-g"),
+            call("workspace_inspect", {}, "call-w")], [reply("ok")])
+        results = bodies[1]["input"][-2:]
+        self.assertEqual(json.loads(results[0]["output"])["error"]["code"], "invalid_arguments")
+        self.assertEqual(json.loads(results[1]["output"])["error"]["code"], "not_run")
+        self.assertIn("settings_get (call-g)", results[1]["output"])
+
+    def test_a_refused_change_is_never_judged(self):
+        """setup_record without its required purpose: the app refuses it, so it
+        changed nothing and the case does not count it as a change."""
+        verdict, detail, bodies = self.run_case("advice-infill", [call("setup_record", {})], [reply("Use 15% infill.")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(len(bodies), 2)
+
+    def test_a_change_after_a_refused_read_is_never_judged(self):
+        """The app answers the change unrun; it is not the step."""
+        verdict, detail, _ = self.run_case("advice-infill", [
+            call("settings_get", {"scope": "print", "keys": ["layer_height"]}),
+            call("setup_record", {"purpose": "Strong bracket"})], [reply("ok")])
+        self.assertEqual(verdict, runner.PASS, detail)
+
+    def test_a_third_refused_call_fails_the_run(self):
+        """ProviderAgent answers two refused calls a turn; the third fails it."""
+        bad = [call("settings_get", {"scope": "print", "keys": ["layer_height"]})]
+        verdict, detail, bodies = self.run_case("advice-infill", bad, bad, bad, [reply("ok")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("after settings_get (refused), settings_get (refused): malformed_tool_call"), detail)
+        self.assertEqual(len(bodies), 3)
+
+    def test_the_refusals_are_the_apps_own(self):
+        """The runner's refusal words are the app's, byte for byte, around the
+        registry's own message."""
+        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp").read_text(encoding="utf-8")
+        block = source[source.index("validation.error->message +"):source.index('listed tools."') + len('listed tools."')]
+        words = [text.replace('\\"', '"') for text in re.findall(r'"((?:[^"\\]|\\.)*)"', block)]
+        invalid_tail = next(text for text in words if text.startswith(" Nothing was queued."))
+        unknown_head = next(text for text in words if text.startswith("There is no tool named"))
+        unknown_tail = next(text for text in words if text.endswith("listed tools."))
+        step = runner.Step([call("settings_get", {}, "call-g")])
+        verdict = {"valid": False, "code": "invalid_arguments", "message": "The registry's words."}
+        self.assertEqual(runner.refusal(step, verdict), runner.dump(
+            {"state": "failed", "error": {"code": "invalid_arguments", "message": "The registry's words." + invalid_tail}}))
+        step = runner.Step([call("no_such_tool", {}, "call-x")])
+        self.assertEqual(runner.refusal(step, {"valid": False, "code": "unknown_tool"}), runner.dump(
+            {"state": "failed", "error": {"code": "unknown_tool", "message": unknown_head + "no_such_tool" + unknown_tail}}))
 
     # --- A skill is sent on one request ------------------------------------
 
@@ -257,7 +334,7 @@ class Steps(unittest.TestCase):
             self.assertNotIn("input_image", json.dumps(recorded), name)
             self.assertIn("is not suggested for use printing filament", json.dumps(recorded), name)
             first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("slice_start", {"wait": True})])
+            verdict, detail, bodies = self.run_case(name, first, [call("slice_start", {})])
             self.assertEqual(verdict, runner.FAIL, detail)
             self.assertIn("SLICED AGAIN UNCHANGED", detail)
             sent = bodies[1]["input"]
@@ -313,8 +390,10 @@ class Steps(unittest.TestCase):
 
     def test_the_setup_case_passes_on_a_check_and_fails_on_a_slice(self):
         """A slice straight after the first purpose skips the check."""
+        checks = {"settings_get": {"scope": "process", "keys": ["layer_height"]}, "presets_list": {"kind": "filament"},
+                  "printer_setup_preview": {"processPreset": "0.20mm Standard @BBL X1C"}}
         for tool in runner.SETUP_CHECKS:
-            self.assertEqual(self.run_case("after-intent", [call(tool, {"kind": "filament"})])[0], runner.PASS, tool)
+            self.assertEqual(self.run_case("after-intent", [call(tool, checks[tool])])[0], runner.PASS, tool)
         self.assertEqual(self.run_case("after-intent", [call("slice_start")])[0], runner.FAIL)
 
     def test_no_other_point_sends_anything_once(self):

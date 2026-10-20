@@ -51,8 +51,17 @@ order the model wrote it, so every call is judged here:
   the run ends unobserved, so the history never holds a call without its
   result. A fourth response of reads ends it unobserved too.
 
-A call with arguments the registry would refuse is never answered either; it
-is the step, reported beside it, and refusals are the C++ tests' business.
+A call the app would refuse gets the app's refusal, as ProviderAgent gives
+it: a tool not offered on the request is `unknown_tool`, and arguments that
+`ToolRegistry::validate_call` does not accept get its own code and message
+(`tests/agent/tool_call_check` runs that check, so the runner refuses exactly
+what the app refuses, schema rules and the registry's own alike). Every
+later call of that response is answered "not run", and the run goes on. A
+refused call is never judged, read or change: the case sees only the calls
+before it. The app answers two refused calls a turn and fails the turn on
+the third (`malformed_tool_call`); so does a run. Before 2026-10-20 the
+runner answered such reads from the recording, so earlier counts could pass
+a call the app would have refused.
 A run's report names every call of the response it ended on. `test_steps.py`
 checks these rules offline against written model outputs, with no key and
 nothing sent (`python3 tests/project_prompt/test_steps.py`).
@@ -385,6 +394,11 @@ naming its sentence and a `check()`, a `record` for it in `script.json`, and a
 new recording.
 
 ## Running it
+
+The runner and `test_steps.py` need the app's argument check built:
+`cmake --build <build dir> --config <config> --target tool_call_check`. The
+runner takes the newest one under `build/` (or `JUSPRIN_TOOL_CALL_CHECK`) and
+stops when it is older than `ToolRegistry.cpp`.
 
 By default every case runs 3 times (`RUN_BUDGET` 60 shared by the cases run,
 at most 20 for one case alone); `--runs N` sets it. `--verbose` prints every

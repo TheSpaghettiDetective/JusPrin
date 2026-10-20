@@ -154,7 +154,8 @@ class ThroughTheCli(unittest.TestCase):
         verdict, detail, bodies = self.run_case(
             "after-preview", [tool("workspace_inspect", {})],
             [tool("settings_apply_patch", {"expectedSessionId": preview["sessionId"],
-                                           "expectedRevision": preview["revision"], "changes": {}, "scope": "process"})])
+                                           "expectedRevision": preview["revision"], "scope": "process",
+                                           "changes": {change["key"]: change["after"] for change in preview["changes"]}})])
         self.assertEqual(verdict, runner.PASS, detail)
         self.assertEqual(len(bodies), 2)
         self.assertIsolated(bodies[0], runner.TOOLS)
@@ -168,6 +169,18 @@ class ThroughTheCli(unittest.TestCase):
         answered = conversation(bodies[1])[-1]["content"][-1]
         recorded = next(answer["output"] for answer in request["answers"] if answer["tool"] == "workspace_inspect")
         self.assertEqual([block["text"] for block in answered["content"]], [recorded])
+
+    def test_a_refused_call_gets_the_apps_refusal_through_the_stub(self):
+        """advice-infill: a settings_search with a sessionId it does not take
+        reaches the model as the app's refusal, through the stub, and the
+        reply that follows is the step."""
+        verdict, detail, bodies = self.run_case(
+            "advice-infill", [tool("settings_search", {"scope": "process", "query": "infill", "sessionId": "1"})],
+            [{"type": "text", "text": "Use 15% infill."}])
+        self.assertEqual(verdict, runner.PASS, detail)
+        refused = json.loads(conversation(bodies[1])[-1]["content"][-1]["content"][0]["text"])
+        self.assertEqual(refused["error"]["code"], "invalid_arguments")
+        self.assertIn("Not a parameter of this tool: sessionId.", refused["error"]["message"])
 
     def test_a_point_on_a_new_message(self):
         """model-opened-unnamed: the person's message goes in whole, the

@@ -116,6 +116,50 @@ MAX_RUNS = 20
 READS = {"workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "presets_list", "printer_list",
          "printer_setup_preview", "slice_report", "slice_inspect", "view_render", "object_analyze",
          "object_divide_preview", "project_attachment_read"}
+# ProviderAgent::next_call's kRejectedCallLimit: refused calls answered in one
+# turn; the next one fails the turn (malformed_tool_call).
+REFUSAL_LIMIT = 2
+
+
+class CallCheck:
+    """The app's own check of a call's arguments: tests/agent/tool_call_check,
+    ToolRegistry::validate_call as a command, so a call is refused exactly
+    when the app refuses it and in its words. Found under build/ (the newest
+    one), or named by JUSPRIN_TOOL_CALL_CHECK; built with
+    `cmake --build <build dir> --target tool_call_check`."""
+
+    def __init__(self):
+        self.process, self.lock = None, threading.Lock()
+
+    @staticmethod
+    def path():
+        if os.environ.get("JUSPRIN_TOOL_CALL_CHECK"):
+            return pathlib.Path(os.environ["JUSPRIN_TOOL_CALL_CHECK"])
+        root = HERE.parents[1]
+        found = [path for pattern in ("build/*/tests/agent/*/", "build/*/tests/agent/", "build/tests/agent/*/",
+                                      "build/tests/agent/")
+                 for name in ("tool_call_check", "tool_call_check.exe") for path in root.glob(pattern + name)]
+        if not found:
+            raise RuntimeError("tool_call_check is not built: run `cmake --build <build dir> --target tool_call_check` "
+                               "or set JUSPRIN_TOOL_CALL_CHECK")
+        newest = max(found, key=lambda path: path.stat().st_mtime)
+        registry = root / "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp"
+        if registry.stat().st_mtime > newest.stat().st_mtime:
+            raise RuntimeError(f"{newest} is older than ToolRegistry.cpp: rebuild the tool_call_check target")
+        return newest
+
+    def __call__(self, tool, arguments):
+        """{"valid": true}, or the app's {"valid": false, "code", "message"}."""
+        with self.lock:
+            if self.process is None:
+                self.process = subprocess.Popen([str(self.path())], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                                encoding="utf-8")
+            self.process.stdin.write(json.dumps({"tool": tool, "arguments": arguments}) + "\n")
+            self.process.stdin.flush()
+            return json.loads(self.process.stdout.readline())
+
+
+CHECK_CALL = CallCheck()
 assert READS <= {tool["name"] for tool in TOOLS}
 
 PASS, FAIL, UNOBSERVED, CONTINUE = "pass", "fail", "unobserved", "continue"
@@ -244,7 +288,6 @@ class Step:
         self.tool = call["name"] if call else None
         self.call_id = call.get("call_id") if call else None
         self.arguments = self.parsed(call) if call else {}
-        self.problem = self.invalid() if call else ""
 
     @staticmethod
     def parsed(call):
@@ -258,15 +301,16 @@ class Step:
         order the model wrote them."""
         return [Step(self.output, index) for index in range(len(self.calls))]
 
-    def invalid(self):
-        """Arguments the registry would refuse, as far as the schema says. The
-        refusal is not this suite's to test; it is reported beside the call."""
-        schema = next((tool["parameters"] for tool in TOOLS if tool["name"] == self.tool), None)
-        if schema is None:
-            return "unknown tool"
-        missing = [name for name in schema.get("required", []) if name not in self.arguments]
-        extra = [name for name in self.arguments if name not in schema.get("properties", {})]
-        return f"invalid arguments: missing {missing}, unexpected {extra}" if missing or extra else ""
+    def before(self, index):
+        """The response as far as the app runs it when its call at index is
+        refused: the calls before it, and no reply, since the turn goes on."""
+        kept, seen = [], 0
+        for item in self.output:
+            if item.get("type") == "function_call":
+                if seen < index:
+                    kept.append(item)
+                seen += 1
+        return Step(kept)
 
     def keys(self):
         """The settings a settings call names."""
@@ -281,7 +325,7 @@ class Step:
     def __str__(self):
         if not self.tool:
             return "reply: " + (self.reply.replace("\n", " ")[:160] or "(empty)")
-        text = f"{self.tool} {json.dumps(self.arguments, ensure_ascii=False)}" + (f" ({self.problem})" if self.problem else "")
+        text = f"{self.tool} {json.dumps(self.arguments, ensure_ascii=False)}"
         others = [f"{call['name']} {json.dumps(self.parsed(call), ensure_ascii=False)}"
                   for index, call in enumerate(self.calls) if index != self.index]
         return text + (f" [same response: {'; '.join(others)}]" if others else "")
@@ -894,8 +938,6 @@ def recorded_answer(name, step):
                 return answer["output"]
         return None
     target = arguments.get("target") or {}
-    if not isinstance(target, dict):
-        return None  # a target the registry refuses; the refusal is not this suite's
     same = [answer for answer in answers if answer["arguments"].get("scope") == arguments.get("scope") and
             (answer["arguments"].get("target") or {}) == target]
     if step.tool == "settings_get":
@@ -930,6 +972,32 @@ def not_run(step):
                  "Nothing was queued. Call it again if it is still needed."}})
 
 
+def refusal(step, verdict):
+    """The result the app gives a call it refuses (ProviderAgent::next_call),
+    byte for byte: a tool not offered on this request, or arguments
+    ToolRegistry::validate_call does not accept, in its own message."""
+    if verdict["code"] == "unknown_tool":
+        error = {"code": "unknown_tool", "message": f'There is no tool named "{step.tool}" here. Nothing was queued. '
+                                                    "Use one of the listed tools."}
+    else:
+        error = {"code": verdict["code"], "message": verdict["message"] + " Nothing was queued. Check the arguments "
+                                                                         "against this tool's parameters and call it again."}
+    return dump({"state": "failed", "error": error})
+
+
+def first_refused(name, step):
+    """The first call of a response the app would refuse, as (index, its
+    result), or None. Only the calls up to it are checked, as the app runs
+    them in order."""
+    offered = {tool["name"] for tool in REQUESTS[name]["body"].get("tools", TOOLS)}
+    for index, call in enumerate(step.calls):
+        verdict = CHECK_CALL(call["name"], call.get("arguments") or "{}") if call["name"] in offered else \
+            {"valid": False, "code": "unknown_tool"}
+        if not verdict["valid"]:
+            return index, refusal(Step(step.output, index), verdict)
+    return None
+
+
 def judge_response(case, step):
     """The verdict on one response. A change decides it; a response of reads
     is decided by the first read the case decides on, and answered only when
@@ -945,15 +1013,20 @@ def judge_response(case, step):
     return CONTINUE, str(step)
 
 
-def answers_for(name, step):
-    """The results the app would give the reads of one response, in order,
+def answers_for(name, step, refused=None):
+    """The results the app would give the calls of one response, in order,
     or None when one the app would run has no recorded answer. As the app
-    does, a read after one that did not succeed is answered without being
+    does, a refused call (refused: its index and result) gets the refusal,
+    and a call after one that did not succeed is answered without being
     run."""
     results, failed = [], None
-    for read in step.each_read():
+    for index, read in enumerate(step.each_read()):
         if failed:
             results.append(not_run(failed))
+            continue
+        if refused and index == refused[0]:
+            results.append(refused[1])
+            failed = read
             continue
         answer = recorded_answer(name, read)
         if answer is None:
@@ -999,19 +1072,32 @@ def run_steps(name, respond, deliver=lambda step, results: None):
     # skill and its picture): a continuation of the turn leaves them out.
     once = REQUESTS[name].get("once", 0)
     path = []  # the reads answered, one entry per response, for the report
+    refusals = 0
     try:
         for _ in range(MAX_READS + 1):
             log = [line for line in map(readable, input) if line]
             step = Step(respond(input))
-            verdict, detail = judge_response(CASES[name](REQUESTS[name], log), step)
+            # A call the app refuses is never judged, read or change: the
+            # case sees only the calls before it, and with none the turn
+            # simply goes on with the refusal as that call's result.
+            refused = first_refused(name, step)
+            view = step if refused is None else step.before(refused[0])
+            verdict, detail = (CONTINUE, str(step)) if refused and not view.calls else \
+                judge_response(CASES[name](REQUESTS[name], log), view)
             if verdict != CONTINUE:
                 break
-            results, missing = answers_for(name, step)
+            results, missing = answers_for(name, step, refused)
             if results is None or len(path) == MAX_READS:
                 verdict = UNOBSERVED
                 detail = (f"no recorded answer for {missing}" if results is None else f"still reading after answers: {step}")
                 break
-            path.append(" + ".join(call["name"] for call in step.calls))
+            if refused and json.loads(results[refused[0]])["error"]["code"] != "not_run":
+                refusals += 1
+                if refusals > REFUSAL_LIMIT:
+                    verdict, detail = FAIL, f"malformed_tool_call: a refused call after {REFUSAL_LIMIT} in this turn: {Step(step.output, refused[0])}"
+                    break
+            path.append(" + ".join(call["name"] + (" (refused)" if refused and index == refused[0] else "")
+                                   for index, call in enumerate(step.calls)))
             deliver(step, results)
             # As the app continues a turn: the history without what was sent
             # once, the model's output, then a result for every call, in the

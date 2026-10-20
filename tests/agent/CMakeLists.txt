@@ -56,6 +56,21 @@ target_link_libraries(agent_bridge_tests PRIVATE jusprin_mcp_bridge_core)
 
 orcaslicer_discover_tests(agent_bridge_tests)
 
+# The registry's own argument check as a line-oriented command, so the prompt
+# test runner refuses a model's call exactly as ProviderAgent does.
+add_executable(tool_call_check
+    tool_call_check.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp
+)
+set_target_properties(tool_call_check PROPERTIES MACOSX_BUNDLE OFF)
+target_include_directories(tool_call_check PRIVATE
+    ${CMAKE_BINARY_DIR}/src/libslic3r
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/deps_src
+)
+target_link_libraries(tool_call_check PRIVATE nlohmann_json)
+
 # Live smoke against real providers. It links the GUI library for the app's
 # own HTTP transport. Every case is hidden and skips without a key, and none
 # is registered with ctest: it runs only when asked for by tag, because every
