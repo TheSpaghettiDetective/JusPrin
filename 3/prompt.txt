@@ -1,0 +1,3 @@
+> What Figma specifies. Menu/Row has five states: Default, Current, Hovered, Disabled and Danger. None of them has rounded corners. Each row is 36 px tall and spans the full 280 px width of the popover. The only highlight is the Hovered state, which is a grey fill (surface/subtle) edge to edge, so square corners look right there. There is no focused state. In the “Actions open” example Rename is a plain Default row with no outline.
+
+where can I see it?
