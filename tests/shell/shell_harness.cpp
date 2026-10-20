@@ -6267,10 +6267,9 @@ private:
                 std::cout << "HARNESS SETUP tool " << tool << " ended " << int(done->state) << " " << done->result_json << std::endl;
             check(done->state == Agent::ToolState::Succeeded, name);
         };
-        run("intent_update", {{"fields", nlohmann::json::array()}, {"setupTitle", "Stop the corners lifting"}},
-            "setup_differences_agent_records_the_purpose");
-        run("plan_set", {{"headline", "Wide brim and a slow first layer for adhesion"}},
-            "setup_differences_agent_pins_the_plan");
+        run("setup_record", {{"purpose", "Stop the corners lifting"},
+                             {"headline", "Wide brim and a slow first layer for adhesion"}},
+            "setup_differences_agent_records_the_purpose_and_plan");
         const auto snapshot = installed_workspace_snapshot();
         run("settings_apply_patch",
             {{"scope", "process"},

@@ -296,7 +296,7 @@ public:
     std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields, const std::string& timestamp);
     // The setup in force (setup_in_force's shape: presets and plate type)
     // when the model was last asked to check it against the purpose: when
-    // intent_update recorded a purpose for the first time or changed it, or
+    // setup_record recorded a purpose for the first time or changed it, or
     // a request carried the setup or file-loaded skill under a recorded
     // purpose. An empty object when that is not known. It belongs with the
     // intent, and a new chat copies it with the intent.

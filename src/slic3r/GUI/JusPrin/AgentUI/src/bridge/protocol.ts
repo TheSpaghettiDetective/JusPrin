@@ -388,7 +388,7 @@ export interface WorkspaceContext {
   // user's words. Empty until the agent records one.
   setupIntent: string;
   // How the agent means to print, in a few words: the headline of the plan
-  // it pinned with plan_set. Empty until it pins one.
+  // it pinned with setup_record. Empty until it pins one.
   planHeadline: string;
 }
 

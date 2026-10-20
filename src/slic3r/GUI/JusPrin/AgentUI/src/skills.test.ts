@@ -217,7 +217,7 @@ describe('the skill for a setup to check against the print\'s purpose', () => {
     expect(text).toContain('A material and its saved filament preset are separate choices');
     expect(text).toContain('Keep customizations that still fit');
     expect(text).toContain('recommend a material, a compatible preset or a focused setting change');
-    expect(text).toContain('record the plan and its assumptions with plan_set first');
+    expect(text).toContain('record the plan, with what is unverified, using setup_record first');
     expect(text).toContain('restores an earlier version, the plan may be stale');
   });
 

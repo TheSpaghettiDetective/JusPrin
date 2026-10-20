@@ -105,7 +105,7 @@ struct AgentRequest
     Workspace::WorkspaceSnapshot          workspace;
     // The chat's own record of this print, sent with the workspace: the
     // purpose the person gave (the setup card's title and the intent fields)
-    // and the plan the model pinned with plan_set.
+    // and the plan the model pinned, both recorded with setup_record.
     std::string                           setup_title;
     std::vector<IntentField>              intent;
     PlanRecord                            plan;

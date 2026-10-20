@@ -290,7 +290,7 @@ TEST_CASE("OpenRouter honours the instructions with the project tools offered, s
     const json body = json::parse(sent.front().body);
     CHECK(body["parallel_tool_calls"] == true);
     CHECK(std::any_of(body["tools"].begin(), body["tools"].end(), [](const json& tool) { return tool["strict"] == true; }));
-    CHECK(body["tools"].size() == 28);
+    CHECK(body["tools"].size() == 27);
     // Honoured: the instructions, not the person, decided the words.
     CHECK(turn.text.find("PINEAPPLE") != std::string::npos);
     CHECK(usage.size() == 1);
@@ -432,11 +432,11 @@ TEST_CASE("Anthropic honours the instructions with the project tools offered, st
     report(usage);
 
     INFO("reply: " << turn.text << (turn.error ? " error: " + turn.error->code + " " + turn.error->message : ""));
-    // Accepted at all: 28 tools on projected schemas, the closed ones strict.
+    // Accepted at all: 27 tools on projected schemas, the closed ones strict.
     REQUIRE_FALSE(turn.error);
     REQUIRE(turn.completed);
     const json body = json::parse(sent.front().body);
-    CHECK(body["tools"].size() == 28);
+    CHECK(body["tools"].size() == 27);
     CHECK(std::any_of(body["tools"].begin(), body["tools"].end(), [](const json& tool) { return tool["strict"] == true; }));
     for (const char* keyword : {"\"minimum\":", "\"maximum\":", "\"minLength\":", "\"maxLength\":", "\"maxItems\":"})
         CHECK(body["tools"].dump().find(keyword) == std::string::npos);

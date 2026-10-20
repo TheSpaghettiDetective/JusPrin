@@ -1,7 +1,7 @@
 # Project chat prompt tests
 
 The project chat's assistant is a system prompt
-(`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`), the 28 project
+(`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`), the 27 project
 tools and the chat. `run_prompt_tests.py` asks the live model for its next
 step at a known point of a project chat and checks that step against one
 sentence of the prompt. It is run against the prompt before an edit and after it, and the
@@ -211,7 +211,23 @@ card's headline replaced its preset differences, two intentional changes to
 the model's input: no preset difference carries `origin` any more, and the
 in-app agent's own edits no longer mark its plan `needs_reassessment` (the
 recording's 240 such values are now `current`); the `plan_set` description
-asks for a short strategy headline. Beyond those and timestamps, only the
+asks for a short strategy headline. Recorded again the same day when
+`intent_update` and `plan_set` became one tool, `setup_record` (the title
+required on every call, the plan optional and replaced whole when given):
+the scripted calls and the tool list changed with it. Recorded again when
+its title argument became `purpose` (also the name in each turn's
+`<workspace>` intent block and in the result's purpose objects), at most 60
+characters and described as the person's goal rather than how to print it,
+and the prompt's print-request line became "the print's purpose recorded
+with setup_record, a setup that suits it". Recorded again when the plan's
+`headline`, `decisions`, `assumptions` and `risks` moved from a nested
+`plan` object to the top level of `setup_record`'s arguments: in the
+2026-10-19 runs DeepSeek V4 Flash sent the nested object as a string of
+JSON, which the app refuses. Recorded again when the plan's `assumptions`
+became `unverified` (in the tool's arguments, its results and each turn's
+`<workspace>` plan block): on 2026-10-20 DeepSeek V4 Flash put intent-field
+objects (`field`, `value`, `assumed`) under `assumptions` in two of three
+journeys, and the app refused the call. Beyond those and timestamps, only the
 `after-slice` point's known timing noise changed.
 
 The app streams its requests and this script does not.
@@ -221,7 +237,7 @@ The app streams its requests and this script does not.
 Each case names the sentence of `projectInstructions.ts` it tests (line
 numbers at 6b4b8b6188) in its docstring, and observes one step. "A change" is
 any tool the registry does not mark read-only: applying settings, slicing,
-printer setup, `intent_update`, `plan_set`, object edits, export. A run is a
+printer setup, `setup_record`, object edits, export. A run is a
 pass, a fail, or unobserved: a step the case can say nothing about, most often
 a read with no recorded answer. Unobserved runs are reported beside the
 passes, never counted as either. Except where the table says a read decides
@@ -230,15 +246,15 @@ the case, a read is answered and the run goes on.
 | Case | Point in the chat | Sentence | Pass | Fail |
 |---|---|---|---|---|
 | `advice-infill` | "what infill should I use for this?" | 14: advice calls for recommendations, not project changes | reply | a change |
-| `prepare-petg-strong` | "prepare this for PETG, strong" | When to act: a print request's setup suits its purpose, recorded with `intent_update`; `intent_update`'s description | `intent_update` or reads first (the first response decides) | anything else |
-| `after-intent` | that turn, after `intent_update` recorded the first purpose; the request ends with the setup skill | the setup skill: check the setup in force against the purpose with `settings_get`, `presets_list`, `printer_setup_preview` | one of those three | `slice_start`, or a reply claiming readiness (judged) |
-| `after-preview` | that turn, after `settings_preview_patch` | Grounding: use only IDs from tool results; `plan_set`'s description (the plan was recorded first) | apply with the preview's `sessionId` and `revision` | anything else |
+| `prepare-petg-strong` | "prepare this for PETG, strong" | When to act: the print's purpose recorded with `setup_record`; `setup_record`'s description of `purpose` (the person's goal, not how to print it) | `setup_record` whose purpose names no setting, print mode, preset or printer (`SETUP_WORDS`; PETG is allowed, the person named it), or reads first (the first response decides) | anything else, or a purpose that says how to print |
+| `after-intent` | that turn, after `setup_record` recorded the first purpose; the request ends with the setup skill | the setup skill: check the setup in force against the purpose with `settings_get`, `presets_list`, `printer_setup_preview` | one of those three | `slice_start`, or a reply claiming readiness (judged) |
+| `after-preview` | that turn, after `settings_preview_patch` | Grounding: use only IDs from tool results; `setup_record`'s description (the plan was recorded first) | apply with the preview's `sessionId` and `revision` | anything else |
 | `after-apply` | after the apply; the slice is out of date | When to act: verified by a slice whose findings you have read before you call it ready | `slice_start`, or a reply not claiming readiness (judged) | a readiness claim |
 | `after-slice` | after `slice_start` started a run, still in flight | as above | `slice_report`, or a reply not claiming readiness (judged) | a readiness claim |
 | `issue-fix` | canvas issue, "Help fix this issue."; the request carries the print-issues skill | the print-issues skill: change what the issue names, and only that | read or preview naming only `initial_layer_print_height` | a change or preview naming anything else |
 | `issue-explain` | the same issue, "Explain this issue and my options."; the request carries the print-issues skill | the print-issues skill: a question, so answer and leave the project as it is | reply | a change |
 | `troubleshoot-first-layer` | "why isn't my first layer sticking?" | 12, as above, nor to run the preparation sequence | reply | a change |
-| `direct-change` | "set layer height to 0.28" | 14: a clear specific request uses its tools directly | `settings_get` or preview naming `layer_height` | a change, `intent_update` and `plan_set` included |
+| `direct-change` | "set layer height to 0.28" | 14: a clear specific request uses its tools directly | `settings_get` or preview naming `layer_height` | a change, `setup_record` included |
 | `direct-change-applied` | after a successful apply of 0.28 | 12: explain the actual result | reply saying 0.28 applied, not saved or re-sliced (judged) | a reply that does not |
 | `direct-change-failed` | the person edited a setting, the apply failed (`stale_workspace`) | Replies: after a tool result, say what actually happened | new preview or `settings_get`, or a reply not claiming it (judged) | a reply claiming it |
 | `answer-from-context` | "which printer and filament is this set up for?" | 12: use the workspace context | reply naming X1 and PLA | any tool call, a read included |
@@ -333,7 +349,7 @@ Notes on the cases:
   fixture every run also asked which plate to print, a fair second question.
 - `after-intent` starts at the request of the prepare turn that carries
   the setup skill (`AgentUI/src/skills/project-setup-changed/SKILL.md`): the
-  result of the `intent_update` that recorded "PETG, strong" while Bambu PLA
+  result of the `setup_record` that recorded "PETG, strong" while Bambu PLA
   Basic was selected (its result states the first purpose and the setup in
   force). The setup skill carries no picture, so its `once` is 1.
   `after-filament-change`, at the result of the model's own `printer_setup`,
@@ -341,7 +357,7 @@ Notes on the cases:
   setup change (Kenneth), and the recorder has no step for the person
   changing the filament or plate by hand. Any other change, and in `after-intent` a reply that does not claim
   readiness, is unobserved: the skill also allows a question for the person
-  or `plan_set` first.
+  or `setup_record` with the plan first.
 - `model-opened-unnamed`, `model-imported-by-tool` and `model-opened-by-tool`
   start at the request carrying the file-loaded skill, both on the `"single"` fixture with no
   purpose recorded, so the skill ends with the app's sentence about that.
@@ -432,7 +448,7 @@ tool list, MCP config and the CLI's event stream for reading afterwards.
 `claude_mcp_stub.py` serves the tools:
 
 - **System prompt**: the rendered prompt, as `--system-prompt`.
-- **Tools**: the stub is a stdio MCP server with the case's tools (the 28 of
+- **Tools**: the stub is a stdio MCP server with the case's tools (the 27 of
   `project_tools.json`, or the point's own list), with their real
   descriptions and schemas. Every call the model makes reaches the runner
   through it, and the step rules above apply unchanged: a read is answered

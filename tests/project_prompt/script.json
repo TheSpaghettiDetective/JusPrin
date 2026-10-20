@@ -596,9 +596,9 @@
      "replies": [
       {
        "record": "prepare-petg-strong",
-       "call": "intent_update",
+       "call": "setup_record",
        "arguments": {
-        "setupTitle": "PETG, strong",
+        "purpose": "PETG, strong",
         "fields": [
          {
           "field": "material",
@@ -635,8 +635,9 @@
        }
       },
       {
-       "call": "plan_set",
+       "call": "setup_record",
        "arguments": {
+        "purpose": "PETG, strong",
         "headline": "Switch to Bambu PETG HF and make the print stronger",
         "decisions": [
          {
@@ -652,7 +653,7 @@
           "statement": "Print on the Textured PEI Plate"
          }
         ],
-        "assumptions": [
+        "unverified": [
          "The spool to be loaded is Bambu PETG HF."
         ]
        }

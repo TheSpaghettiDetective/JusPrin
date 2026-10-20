@@ -65,52 +65,6 @@
     "type": "function"
   },
   {
-    "description": "Record the purpose the user stated as setupTitle, including when no setting changes. Never record one they have not stated, even marked assumed: ask them first. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
-    "name": "intent_update",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {
-        "fields": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "assumed": {
-                "type": "boolean"
-              },
-              "field": {
-                "type": "string"
-              },
-              "question": {
-                "maxLength": 2048,
-                "type": "string"
-              },
-              "value": {
-                "maxLength": 2048,
-                "type": "string"
-              }
-            },
-            "required": [
-              "field"
-            ],
-            "type": "object"
-          },
-          "maxItems": 32,
-          "type": "array"
-        },
-        "setupTitle": {
-          "maxLength": 120,
-          "type": "string"
-        }
-      },
-      "required": [
-        "fields"
-      ],
-      "type": "object"
-    },
-    "strict": false,
-    "type": "function"
-  },
-  {
     "description": "Geometry facts for one object, by include: mesh (size, volume, facet and part counts, each part with its id and kind, open and repaired edges, and whether OrcaSlicer thinks it was modelled in inches or metres), features (the largest flat faces, each with a handle, area, sizeMm -- its two side lengths, longest first, which is how to find \"the 25 by 6 mm face\" -- centre and outward normal (0,0,-1 is the face on the bed), and hole mouths with a handle, diameter, centre and axis; millimetres in the world frame), fit (which plate holds each instance and whether it is inside it, objects whose footprint overlaps it, likely duplicates), orientations (OrcaSlicer's auto-orient cost for each of up to 8 candidates -- an up direction or a face handle to put down -- or for its own best candidates when none are given, with overhang and bed-contact area and the face handles that would rest on the bed; lower unprintability is better), measure (distance and angle between two feature handles, given as measure.from and measure.to), regions (the region annotations on this object, what each generated, and whether its geometry is still there -- bindingLost -- or project Undo or an edit removed what it generated -- artifactsMissing; region_annotate with the regionId regenerates it). Handles are valid until the project changes; afterwards a measure fails with feature_expired and the features must be read again.",
     "name": "object_analyze",
     "parameters": {
@@ -460,69 +414,6 @@
       "type": "object"
     },
     "strict": true,
-    "type": "function"
-  },
-  {
-    "description": "State how you mean to print this project and why. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, assumptions and risks. Give one decision per entry with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first, and again whenever the strategy changes, so the headline stays true. Replaces the whole plan and runs immediately; project Undo does not undo this.",
-    "name": "plan_set",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {
-        "assumptions": {
-          "items": {
-            "maxLength": 2048,
-            "type": "string"
-          },
-          "maxItems": 16,
-          "type": "array"
-        },
-        "decisions": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "alternative": {
-                "maxLength": 2048,
-                "type": "string"
-              },
-              "confidence": {
-                "type": "string"
-              },
-              "statement": {
-                "maxLength": 2048,
-                "type": "string"
-              },
-              "topic": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "topic",
-              "statement"
-            ],
-            "type": "object"
-          },
-          "maxItems": 16,
-          "type": "array"
-        },
-        "headline": {
-          "maxLength": 2048,
-          "type": "string"
-        },
-        "risks": {
-          "items": {
-            "maxLength": 2048,
-            "type": "string"
-          },
-          "maxItems": 16,
-          "type": "array"
-        }
-      },
-      "required": [
-        "headline"
-      ],
-      "type": "object"
-    },
-    "strict": false,
     "type": "function"
   },
   {
@@ -1207,6 +1098,100 @@
       "required": [
         "scope",
         "query"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not, even marked assumed: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. fields record what they told you about the print: assumed marks your own inference, question something you asked and have no answer to. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+    "name": "setup_record",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "decisions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "alternative": {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "statement": {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              "topic": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic",
+              "statement"
+            ],
+            "type": "object"
+          },
+          "maxItems": 16,
+          "type": "array"
+        },
+        "fields": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "assumed": {
+                "type": "boolean"
+              },
+              "field": {
+                "type": "string"
+              },
+              "question": {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              "value": {
+                "maxLength": 2048,
+                "type": "string"
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "type": "object"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "headline": {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 60,
+          "type": "string"
+        },
+        "risks": {
+          "items": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        },
+        "unverified": {
+          "items": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [
+        "purpose"
       ],
       "type": "object"
     },

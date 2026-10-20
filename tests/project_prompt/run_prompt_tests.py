@@ -66,6 +66,7 @@ import concurrent.futures
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -331,27 +332,45 @@ class AdviceInfill(Case):
         return self.reply_or_read(step)
 
 
+# How a purpose that says how to print reads: a quantity with a unit, or a
+# setting, print mode, preset or printer word. "PETG" is not here: the person
+# in prepare-petg-strong named it, which makes it part of their goal.
+SETUP_WORDS = re.compile(
+    r"\d+(\.\d+)?\s*(mm|%|°|walls?|layers?)\b|"
+    r"\b(walls|wall loops|infill|layer height|supports|brim|spiral|vase mode|nozzle|preset|"
+    r"(textured|smooth|cool|engineering|PEI) plate|orientation|PLA|X1C?|Bambu)\b", re.IGNORECASE)
+
+
 class PreparePetgStrong(Case):
     """"prepare this for PETG, strong" with no history. When to act: "A print
-    request: a setup that suits the print's purpose, recorded with
-    intent_update, checked, and verified by a slice before you call it
-    ready."; intent_update's description: "Record the user's explicit
-    purpose as setupTitle". Judges the first response: passes when its
-    change is intent_update or it holds only reads; fails on any other
-    change, or a reply."""
+    request: the print's purpose recorded with setup_record, a setup that
+    suits it, checked, and verified by a slice before you call it ready.";
+    setup_record's description: "purpose is what the person wants the print
+    to be or do, in a few words and in their terms ... It is not how to print
+    it". Judges the first response: passes when its change is setup_record
+    with a purpose that names no setting, print mode, preset or printer
+    (SETUP_WORDS), or when it holds only reads; fails on any other change, a
+    purpose that says how to print, or a reply."""
 
     name = "prepare-petg-strong"
 
     def check(self, step):
-        if step.tool == "intent_update" or step.reads():
+        if step.tool == "setup_record":
+            purpose = str(step.arguments.get("purpose", ""))
+            found = SETUP_WORDS.search(purpose)
+            if found:
+                return FAIL, f"purpose says how to print ({found.group(0)!r}): {step}"
+            return PASS, str(step)
+        if step.reads():
             return PASS, str(step)
         return FAIL, str(step)
 
 
 class AfterPreview(Case):
     """The prepare turn after settings_preview_patch returned a valid preview
-    of the change plan_set recorded. Grounding: "use only IDs from it or tool
-    results"; plan_set's description: "Call it before applying several
+    of the change setup_record's plan recorded. Grounding: "use only IDs from
+    it or tool results"; setup_record's description: "Call it with the plan
+    before applying several
     changes for one request" (it was). Passes on settings_apply_patch with
     the preview's sessionId and revision; fails on any other change or a
     reply."""
@@ -420,7 +439,7 @@ READY_QUESTION = ("Does the assistant's last message say or imply that the print
 
 
 class AfterIntent(Case):
-    """The prepare turn after intent_update recorded "PETG, strong" as the
+    """The prepare turn after setup_record recorded "PETG, strong" as the
     first purpose; its result states the purpose and the setup in force
     (Bambu PLA Basic), and the request ends with the setup skill
     (skills/project-setup-changed/SKILL.md): "check that the printer,
@@ -484,7 +503,7 @@ class TroubleshootFirstLayer(Case):
     """"why isn't my first layer sticking?" with no history. Line 12, as
     issue-explain: not a request to change the project "or to run the full
     preparation sequence". Passes on a reply; fails on a change,
-    intent_update and plan_set included."""
+    setup_record included."""
 
     name = "troubleshoot-first-layer"
 
@@ -496,7 +515,7 @@ class DirectChange(Case):
     """"set layer height to 0.28" with no history. Line 14: "A clear request
     for a specific supported change can use its tools directly." Passes on
     settings_get or settings_preview_patch naming layer_height; fails on a
-    change (intent_update and plan_set included); a reply is unobserved."""
+    change (setup_record included); a reply is unobserved."""
 
     name = "direct-change"
 
@@ -661,7 +680,7 @@ class PrintThisNoPurpose(Case):
     changes or slices anything. Passes on a reply the judge reads as asking
     exactly one question, about what the object is for or something else
     only the person can answer; fails on any change (slice_start,
-    intent_update with a purpose it made up, plan_set, a setup or setting
+    setup_record with a purpose it made up or a plan, a setup or setting
     change) or a reply that does not ask so."""
 
     name = "print-this-no-purpose"

@@ -672,39 +672,53 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
                (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
 
-    if (definition.handler == ToolHandler::IntentUpdate) {
-        if (!has_only(arguments, {"fields", "setupTitle"}) || !arguments.contains("fields") || !arguments["fields"].is_array() ||
-            arguments["fields"].size() > 32 || !optional_text(arguments, "setupTitle") ||
-            (arguments["fields"].empty() && arguments.value("setupTitle", std::string()).empty()))
+    if (definition.handler == ToolHandler::SetupRecord) {
+        if (!has_only(arguments, {"purpose", "fields", "headline", "decisions", "unverified", "risks"}) ||
+            !arguments.contains("purpose") ||
+            !optional_text(arguments, "purpose"))
             return false;
-        return std::all_of(arguments["fields"].begin(), arguments["fields"].end(), [](const json& field) {
-            if (!has_only(field, {"field", "value", "question", "assumed"}) || !field.contains("field") ||
-                !field["field"].is_string() || field["field"].get_ref<const std::string&>().empty() ||
-                !optional_text(field, "value") || !optional_text(field, "question") ||
-                (field.contains("assumed") && !field["assumed"].is_boolean()))
+        // A few words that title the card: at most 60 characters, counted as
+        // a person reads them rather than as UTF-8 bytes.
+        const std::string& purpose = arguments["purpose"].get_ref<const std::string&>();
+        const auto characters = std::count_if(purpose.begin(), purpose.end(),
+                                              [](unsigned char byte) { return (byte & 0xc0) != 0x80; });
+        if (purpose.empty() || characters > 60)
+            return false;
+        if (arguments.contains("fields")) {
+            const json& fields = arguments["fields"];
+            if (!fields.is_array() || fields.size() > 32 ||
+                !std::all_of(fields.begin(), fields.end(), [](const json& field) {
+                    if (!has_only(field, {"field", "value", "question", "assumed"}) || !field.contains("field") ||
+                        !field["field"].is_string() || field["field"].get_ref<const std::string&>().empty() ||
+                        !optional_text(field, "value") || !optional_text(field, "question") ||
+                        (field.contains("assumed") && !field["assumed"].is_boolean()))
+                        return false;
+                    // An entry that neither answers nor asks records nothing.
+                    return !field.value("value", std::string()).empty() || !field.value("question", std::string()).empty();
+                }))
                 return false;
-            // An entry that neither answers nor asks records nothing.
-            return !field.value("value", std::string()).empty() || !field.value("question", std::string()).empty();
-        });
-    }
-
-    if (definition.handler == ToolHandler::PlanSet) {
-        if (!has_only(arguments, {"headline", "decisions", "assumptions", "risks"}) || !arguments.contains("headline") ||
-            !optional_text(arguments, "headline") || arguments["headline"].get_ref<const std::string&>().empty())
+        }
+        // The plan is the rest, flat beside the purpose (a nested object came
+        // back as a string of JSON from some models). It needs its headline:
+        // decisions, unverified or risks without one are no plan to pin.
+        const json& plan = arguments;
+        if (!plan.contains("headline"))
+            return !plan.contains("decisions") && !plan.contains("unverified") && !plan.contains("risks");
+        if (!optional_text(plan, "headline") || plan["headline"].get_ref<const std::string&>().empty())
             return false;
-        for (const char* key : {"assumptions", "risks"}) {
-            if (!arguments.contains(key))
+        for (const char* key : {"unverified", "risks"}) {
+            if (!plan.contains(key))
                 continue;
-            const json& lines = arguments[key];
+            const json& lines = plan[key];
             if (!lines.is_array() || lines.size() > 16 ||
                 !std::all_of(lines.begin(), lines.end(), [](const json& line) {
                     return line.is_string() && line.get_ref<const std::string&>().size() <= kToolTextLimit;
                 }))
                 return false;
         }
-        if (!arguments.contains("decisions"))
+        if (!plan.contains("decisions"))
             return true;
-        const json& decisions = arguments["decisions"];
+        const json& decisions = plan["decisions"];
         if (!decisions.is_array() || decisions.size() > 16)
             return false;
         return std::all_of(decisions.begin(), decisions.end(), [](const json& decision) {
@@ -715,7 +729,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                    !decision["statement"].get_ref<const std::string&>().empty();
         });
     }
-
 
     if (definition.handler == ToolHandler::RecordBuild) {
         if (!has_only(arguments, {"slicerVersion", "configurationProvenance", "printTimeSeconds", "filamentMm",
@@ -964,29 +977,26 @@ std::vector<ToolDefinition> make_definitions()
                                               {"alternative", text}},
                                              {"topic", "statement", "confidence", "alternative"});
     const json plan_section = object_schema({{"headline", text}, {"decisions", array_schema(plan_decision, 16)},
-                                             {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)},
+                                             {"unverified", array_schema(text, 16)}, {"risks", array_schema(text, 16)},
                                              {"updatedAt", id}, {"validity", id},
                                              {"invalidatedBy", string_schema()}, {"truncated", boolean_schema()}},
-                                            {"headline", "decisions", "assumptions", "risks", "updatedAt",
+                                            {"headline", "decisions", "unverified", "risks", "updatedAt",
                                              "validity", "invalidatedBy", "truncated"});
     // The purpose is the chat's title and the answered fields: what the call
     // did to it, and the presets and plate type in force when it did.
-    const json purpose = object_schema({{"setupTitle", text},
+    const json purpose = object_schema({{"purpose", text},
                                         {"fields", array_schema(object_schema({{"field", id}, {"value", text}},
                                                                               {"field", "value"}), 64)}});
     const json setup_presets = object_schema({{"printerPreset", string_schema()}, {"filamentPreset", string_schema()},
                                                {"processPreset", string_schema()}, {"plateType", string_schema()}});
-    const json intent_output = object_schema({{"intent", intent_section},
-                                              {"purposeChange", {{"type", "string"},
-                                                                 {"enum", json::array({"first", "changed", "title_only", "unchanged"})}}},
-                                              {"purposeBefore", purpose}, {"purposeAfter", purpose},
-                                              {"setupInForce", setup_presets},
-                                              {"sessionId", id}, {"revision", revision},
-                                              {"projectUndo", boolean_schema()}},
-                                             {"intent", "setupInForce", "sessionId", "revision", "projectUndo"});
-    const json plan_output = object_schema({{"plan", plan_section}, {"sessionId", id}, {"revision", revision},
-                                            {"projectUndo", boolean_schema()}},
-                                           {"plan", "sessionId", "revision", "projectUndo"});
+    const json setup_record_output = object_schema({{"intent", intent_section},
+                                                    {"purposeChange", {{"type", "string"},
+                                                                       {"enum", json::array({"first", "changed", "title_only", "unchanged"})}}},
+                                                    {"purposeBefore", purpose}, {"purposeAfter", purpose},
+                                                    {"setupInForce", setup_presets}, {"plan", plan_section},
+                                                    {"sessionId", id}, {"revision", revision},
+                                                    {"projectUndo", boolean_schema()}},
+                                                   {"intent", "setupInForce", "plan", "sessionId", "revision", "projectUndo"});
 
     // What the slicer is doing, and what each plate currently holds. One
     // background process serves the whole application, so "running" is not a
@@ -1058,26 +1068,22 @@ std::vector<ToolDefinition> make_definitions()
              {"savedAs", string_schema()}, {"presetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
              {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
-        {"intent_update", "Record what this print is for",
-         // In-app only, like plan_set: the record is the chat's own, its setup
-         // card's title and what the user told it. An external agent keeps
-         // what its user said, and its plan, in its own conversation.
-         "Record the purpose the user stated as setupTitle, including when no setting changes. Never record one they have not stated, even marked assumed: ask them first. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
-         object_schema({{"setupTitle", json{{"type", "string"}, {"maxLength", 120}}},
+        {"setup_record", "Record what this print is for and how to print it",
+         // In-app only: the records are the chat's own, the title and headline
+         // of its setup card and what the user told it. An external agent
+         // keeps what its user said, and its plan, in its own conversation.
+         "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not, even marked assumed: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. fields record what they told you about the print: assumed marks your own inference, question something you asked and have no answer to. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+         object_schema({{"purpose", json{{"type", "string"}, {"maxLength", 60}}},
                         {"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
-                                                               {"assumed", boolean_schema()}}, {"field"}), 32)}},
-                       {"fields"}),
-         intent_output,
-         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::IntentUpdate},
-        {"plan_set", "Pin your plan for this print",
-         "State how you mean to print this project and why. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, assumptions and risks. Give one decision per entry with the alternative you rejected, what you assumed without being able to check, and what could still go wrong. Call it before applying several changes for one request, so the person sees the plan and its assumptions first, and again whenever the strategy changes, so the headline stays true. Replaces the whole plan and runs immediately; project Undo does not undo this.",
-         object_schema({{"headline", text}, {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
-                                                                                      {"confidence", id}, {"alternative", text}},
-                                                                                     {"topic", "statement"}), 16)},
-                        {"assumptions", array_schema(text, 16)}, {"risks", array_schema(text, 16)}},
-                       {"headline"}),
-         plan_output,
-         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::PlanSet},
+                                                               {"assumed", boolean_schema()}}, {"field"}), 32)},
+                        {"headline", text},
+                        {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
+                                                                  {"confidence", id}, {"alternative", text}},
+                                                                 {"topic", "statement"}), 16)},
+                        {"unverified", array_schema(text, 16)}, {"risks", array_schema(text, 16)}},
+                       {"purpose"}),
+         setup_record_output,
+         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::SetupRecord},
         {"printer_list", "List the printers this app knows",
          "List the physical printers this application knows about: what each is doing, the nozzle and loaded materials it last reported, and when it last said anything (ISO 8601, UTC). A printer it has not heard from is listed as offline, which is a statement about what can be observed rather than a claim about the machine; fields it has not reported are absent rather than zero.",
          object_schema(json::object()),
@@ -1808,19 +1814,15 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
 
 std::string ToolRegistry::activity_title(const ToolDefinition& definition, const std::string& arguments_json) const
 {
-    if (definition.handler == ToolHandler::IntentUpdate) {
+    if (definition.handler == ToolHandler::SetupRecord) {
         // Show the interpreted answer rather than the field names.
         const auto arguments = json::parse(arguments_json);
-        std::string title = "Record what this print is for: ";
-        if (arguments.contains("setupTitle") && arguments["setupTitle"].is_string())
-            title += arguments["setupTitle"].get<std::string>();
-        bool first = true;
-        for (const auto& field : arguments.at("fields")) {
-            if (!first || arguments.contains("setupTitle")) title += "; ";
-            title += field.at("field").get<std::string>() + " = " +
+        std::string title = "Record what this print is for: " + arguments.at("purpose").get<std::string>();
+        for (const auto& field : arguments.value("fields", json::array()))
+            title += "; " + field.at("field").get<std::string>() + " = " +
                      (field.value("value", "").empty() ? "(asked) " + field.value("question", "") : field.value("value", ""));
-            first = false;
-        }
+        if (arguments.contains("headline"))
+            title += "; plan: " + arguments["headline"].get<std::string>();
         if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
         return title;
     }

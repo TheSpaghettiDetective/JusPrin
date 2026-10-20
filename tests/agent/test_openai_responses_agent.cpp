@@ -126,7 +126,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["parallel_tool_calls"] == true);
     // Exactly what the page sent, with no words of the app's own.
     CHECK(body["instructions"] == kPageProjectInstructions);
-    REQUIRE(body["tools"].size() == 28);
+    REQUIRE(body["tools"].size() == 27);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
@@ -138,7 +138,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     // The person's words exactly as typed, then the app's snapshot in its own
     // tag, then the attachments: one part each.
     const json& content = body["input"].back()["content"];
@@ -307,7 +307,7 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
         REQUIRE_FALSE(workspace.is_discarded());
         CHECK(workspace["processPreset"] == "0.20mm Standard @BBL X1C");
         CHECK(workspace["intent"] ==
-              json{{"setupTitle", "Strong PETG shelf bracket"},
+              json{{"purpose", "Strong PETG shelf bracket"},
                    {"fields", json::array({json{{"field", "load"}, {"question", "How heavy is the shelf when full?"},
                                                 {"provenance", "agent_inferred"}},
                                            json{{"field", "purpose"}, {"value", "holds a shelf of books"},
@@ -318,7 +318,7 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
                    {"decisions", json::array({json{{"topic", "orientation"},
                                                    {"statement", "On its side so the layers run along the arm."},
                                                    {"confidence", "high"}}})},
-                   {"assumptions", json::array({"The shelf is under 10 kg."})},
+                   {"unverified", json::array({"The shelf is under 10 kg."})},
                    {"validity", "current"}});
         CHECK(workspace.dump().find("null") == std::string::npos);
         CHECK(workspace.dump().size() < 1024);
@@ -593,7 +593,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
@@ -683,8 +683,8 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     const json reasoning{{"type", "reasoning"}, {"id", "reasoning-1"}, {"summary", json::array()}};
     const json read{{"type", "function_call"}, {"call_id", "call-read"}, {"name", "workspace_inspect"},
                     {"arguments", R"({"sections":["summary"]})"}};
-    const json change{{"type", "function_call"}, {"call_id", "call-intent"}, {"name", "intent_update"},
-                      {"arguments", R"({"fields":[{"field":"material","value":"PETG"}],"setupTitle":"Strong PETG bracket"})"}};
+    const json change{{"type", "function_call"}, {"call_id", "call-intent"}, {"name", "setup_record"},
+                      {"arguments", R"({"fields":[{"field":"material","value":"PETG"}],"purpose":"Strong PETG bracket"})"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({reasoning, read, change})}}}}));
     fake->complete();
 
@@ -699,7 +699,7 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     const auto second = poll_until(agent, AgentEventKind::ToolCall);
     REQUIRE(second);
     CHECK(second->tool->call_id == "call-intent");
-    CHECK(second->tool->request.tool == "intent_update");
+    CHECK(second->tool->request.tool == "setup_record");
     CHECK(agent.busy());
 
     REQUIRE(agent.continue_after_tool({"call-intent", "succeeded", R"({"state":"succeeded"})"}));

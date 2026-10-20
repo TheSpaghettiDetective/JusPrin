@@ -201,7 +201,7 @@ json plan_section_result(const PlanRecord& plan)
         return items;
     };
     return {{"headline", text(plan.headline, truncated)}, {"decisions", std::move(decisions)},
-            {"assumptions", lines(plan.assumptions)}, {"risks", lines(plan.risks)},
+            {"unverified", lines(plan.assumptions)}, {"risks", lines(plan.risks)},
             {"updatedAt", plan.updated_at}, {"validity", plan.validity},
             {"invalidatedBy", plan.invalidated_by}, {"truncated", truncated}};
 }

@@ -50,7 +50,7 @@ describe('the filament instructions', () => {
 
   it('leave out the project assistant\'s print journey', () => {
     const text = filamentInstructions(shipped);
-    for (const word of ['intent_update', 'plan_set', 'slice_start', 'export_file', 'workspace_inspect']) expect(text).not.toContain(word);
+    for (const word of ['setup_record', 'slice_start', 'export_file', 'workspace_inspect']) expect(text).not.toContain(word);
   });
 
   it('offer reply choices the page parses', () => {

@@ -72,7 +72,7 @@ json workspace_json(const AgentRequest& request)
     // sections return, less their timestamps: on the next turn it reads what
     // it recorded without spending a call on it.
     json intent = intent_section_result(request.intent);
-    intent["setupTitle"] = request.setup_title;
+    intent["purpose"] = request.setup_title;
     for (json& field : intent["fields"])
         field.erase("updatedAt");
     drop_empty(intent);
@@ -82,7 +82,7 @@ json workspace_json(const AgentRequest& request)
         result["intent"] = std::move(intent);
     const json full_plan = plan_section_result(request.plan);
     json plan{{"headline", full_plan["headline"]}, {"decisions", full_plan["decisions"]},
-              {"assumptions", full_plan["assumptions"]}, {"truncated", full_plan["truncated"]}};
+              {"unverified", full_plan["unverified"]}, {"truncated", full_plan["truncated"]}};
     drop_empty(plan);
     // Whether the plan still holds, and the edit that put it in doubt.
     if (!plan.empty()) {

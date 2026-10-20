@@ -50,7 +50,9 @@ public:
 
     bool set_setup_title(const std::string& message_id, const std::string& title) override
     {
-        if (chatless_messages.count(message_id) != 0 || title.empty())
+        // The document's rule: one line of at most 120 characters.
+        if (chatless_messages.count(message_id) != 0 || title.empty() || title.size() > 120 ||
+            title.find_first_of("\r\n") != std::string::npos)
             return false;
         ++writes;
         m_setup_title = title;

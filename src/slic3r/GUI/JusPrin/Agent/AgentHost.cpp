@@ -491,11 +491,12 @@ bool has_handler(const std::string& tool, ToolHandler handler)
     return definition != nullptr && definition->handler == handler;
 }
 
-// An intent_update that recorded a purpose for the first time or changed it,
-// as its own result says; a new title alone or the same purpose again is not.
+// A setup_record that recorded a purpose for the first time or changed its
+// fields, as its own result says; a new title alone, the same purpose again,
+// or a call that only changes the plan is not.
 bool purpose_changed(const ToolActivity& activity)
 {
-    if (!has_handler(activity.tool, ToolHandler::IntentUpdate))
+    if (!has_handler(activity.tool, ToolHandler::SetupRecord))
         return false;
     const std::string change = parsed_or_object(activity.result_json).value("purposeChange", "");
     return change == "first" || change == "changed";
@@ -713,12 +714,11 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             m_persistence.commit();
         if (m_handshake)
             send_tool_activity(activity);
-        // intent_update and plan_set write the chat's setup title and plan
-        // headline, which the card shows, and change nothing in the
-        // workspace, so no workspace change pushes them. One written on a
-        // chat you are not looking at changes nothing on screen.
-        if (m_handshake && activity.state == ToolState::Succeeded &&
-            (activity.tool == "intent_update" || activity.tool == "plan_set")) {
+        // setup_record writes the chat's setup title and plan headline, which
+        // the card shows, and changes nothing in the workspace, so no
+        // workspace change pushes them. One written on a chat you are not
+        // looking at changes nothing on screen.
+        if (m_handshake && activity.state == ToolState::Succeeded && has_handler(activity.tool, ToolHandler::SetupRecord)) {
             const ProjectStateDocument& document = m_persistence.document();
             if (document.conversation_of_message(activity.correlation_id) == document.active_conversation_id())
                 send_context();
@@ -2713,7 +2713,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         output["actionId"]          = activity.action_id;
         output["workspaceRevision"] = current_workspace.revision;
         // The plan's real validity, which a person's or another client's
-        // edit since plan_set may have put in doubt. The chat's setup title
+        // edit since setup_record pinned it may have put in doubt. The chat's setup title
         // and headline are the agent's own words, so they are not repeated.
         const PlanRecord plan = m_persistence.document().plan();
         output["workspace"] = context_json(current_workspace);

@@ -123,7 +123,7 @@ inline constexpr const char* kSliceFailed  = "slice_failed";
 // slice did not report, whoever sliced it.
 inline constexpr const char* kPrintIssues  = "print_issues";
 // The setup is to be checked against a purpose recorded for this print:
-// intent_update recorded one for the first time or changed it, the printer,
+// setup_record recorded one for the first time or changed it, the printer,
 // filament, process or plate type changed since the model last checked them
 // under a recorded one (by the person; the model's own printer_setup counts
 // as checked and fires nothing), or the person restored an earlier version

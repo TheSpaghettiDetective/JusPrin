@@ -60,23 +60,35 @@ class Steps(unittest.TestCase):
         looked at."""
         verdict, detail, bodies = self.run_case("advice-infill", [
             call("workspace_inspect", {"sections": ["summary"]}),
-            call("intent_update", {"fields": [], "setupTitle": "Print 20mm calibration box in PETG HF"})])
+            call("setup_record", {"purpose": "Print 20mm calibration box in PETG HF"})])
         self.assertEqual(verdict, runner.FAIL)
-        self.assertTrue(detail.startswith("CHANGED: intent_update"), detail)
+        self.assertTrue(detail.startswith("CHANGED: setup_record"), detail)
         self.assertIn("[same response: workspace_inspect", detail)
         self.assertEqual(len(bodies), 1)  # nothing answered, no second request
 
     def test_a_change_before_a_read_is_judged(self):
         verdict, detail, _ = self.run_case("troubleshoot-first-layer", [
-            call("plan_set", {"headline": "Fix adhesion"}), call("workspace_inspect")])
+            call("setup_record", {"purpose": "Stop the corners lifting", "headline": "Fix adhesion"}), call("workspace_inspect")])
         self.assertEqual(verdict, runner.FAIL)
-        self.assertTrue(detail.startswith("CHANGED: plan_set"), detail)
+        self.assertTrue(detail.startswith("CHANGED: setup_record"), detail)
+
+    def test_a_purpose_that_says_how_to_print_fails(self):
+        for purpose in ["Strong PETG bracket, 4 walls", "PETG hook, 0.20mm Standard @BBL X1C",
+                        "Vase, spiral vase mode", "Strong part with 40% infill"]:
+            verdict, detail, _ = self.run_case("prepare-petg-strong", [call("setup_record", {"purpose": purpose})])
+            self.assertEqual(verdict, runner.FAIL, purpose)
+            self.assertIn("purpose says how to print", detail)
+
+    def test_a_purpose_in_the_persons_terms_passes(self):
+        for purpose in ["Strong PETG part", "PETG, strong", "Wall hook for a 5 kg backpack"]:
+            verdict, _, _ = self.run_case("prepare-petg-strong", [call("setup_record", {"purpose": purpose})])
+            self.assertEqual(verdict, runner.PASS, purpose)
 
     def test_the_first_change_is_the_step(self):
         verdict, detail, _ = self.run_case("prepare-petg-strong", [
-            call("workspace_inspect"), call("intent_update", {"fields": []}), call("slice_start")])
+            call("workspace_inspect"), call("setup_record", {"purpose": "A strong bracket"}), call("slice_start")])
         self.assertEqual(verdict, runner.PASS)
-        self.assertTrue(detail.startswith("intent_update"), detail)
+        self.assertTrue(detail.startswith("setup_record"), detail)
         self.assertIn("slice_start", detail)
 
     def test_a_change_beside_a_passing_read_still_decides(self):
@@ -224,7 +236,7 @@ class Steps(unittest.TestCase):
             self.assertTrue(recorded[-1]["content"].startswith("# The first message after a file is opened or imported"), name)
             self.assertEqual([part["type"] for part in recorded[-2]["content"]], ["input_image"], name)
             first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("plan_set", {"headline": "Print it"})])
+            verdict, detail, bodies = self.run_case(name, first, [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
             self.assertEqual(verdict, runner.FAIL, detail)
             sent = bodies[1]["input"]
             self.assertEqual(sent[:len(recorded) - 2], recorded[:-2], name)
@@ -266,7 +278,7 @@ class Steps(unittest.TestCase):
             self.assertTrue(recorded[-1]["content"].startswith("# Issues I report about the print"), name)
             self.assertNotIn("input_image", json.dumps(recorded[-2]), name)
             first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("plan_set", {"headline": "Print it"})])
+            verdict, detail, bodies = self.run_case(name, first, [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
             self.assertEqual(verdict, runner.FAIL, detail)
             sent = bodies[1]["input"]
             self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)

@@ -259,7 +259,7 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         names.push_back(tool["name"].get<std::string>());
         CHECK(tool["description"] == ToolRegistry::instance().find(tool["name"].get<std::string>())->description);
     }
-    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "intent_update", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plan_set", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     // The person's words, the workspace in its tag, the attachment listing,
     // then the image and the PDF as parts of their own; the model file has
     // no part, it is listed only.
@@ -299,7 +299,7 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         request.session.include_workspace = false;
         REQUIRE(h.agent->start(request));
         CHECK(h.last_body()["user"].empty());
-        CHECK(h.last_body()["tools"].size() == 28);
+        CHECK(h.last_body()["tools"].size() == 27);
     }
 
     SECTION("the request sequence counts every request of the turn")
@@ -362,9 +362,9 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     const json turn = json{{"opaque", json::array({"reasoning", "call", "call"})}};
     h.fake->data(frame(json{{"turn", turn},
                             {"calls", json::array({call("call-read", "workspace_inspect", json{{"sections", json::array({"summary"})}}),
-                                                   call("call-intent", "intent_update",
+                                                   call("call-intent", "setup_record",
                                                         json{{"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})},
-                                                             {"setupTitle", "Strong PETG bracket"}})})}}));
+                                                             {"purpose", "Strong PETG bracket"}})})}}));
     h.fake->complete();
 
     const auto first = h.poll_until(AgentEventKind::ToolCall);
@@ -379,7 +379,7 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     const auto second = h.poll_until(AgentEventKind::ToolCall);
     REQUIRE(second);
     CHECK(second->tool->call_id == "call-intent");
-    CHECK(second->tool->request.tool == "intent_update");
+    CHECK(second->tool->request.tool == "setup_record");
     CHECK(h.agent->busy());
 
     REQUIRE(h.agent->continue_after_tool({"call-intent", "succeeded", R"({"state":"succeeded"})"}));

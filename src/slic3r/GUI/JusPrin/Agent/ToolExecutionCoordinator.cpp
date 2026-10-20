@@ -267,8 +267,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::SettingsSearch:
     case ToolHandler::SettingsGet:
     case ToolHandler::SettingsPreviewPatch:
-    case ToolHandler::IntentUpdate:
-    case ToolHandler::PlanSet:
+    case ToolHandler::SetupRecord:
     case ToolHandler::PresetsList:
     case ToolHandler::ObjectAnalyze:
     case ToolHandler::ObjectDividePreview:
@@ -1803,76 +1802,85 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    if (definition->handler == ToolHandler::IntentUpdate || definition->handler == ToolHandler::PlanSet) {
+    if (definition->handler == ToolHandler::SetupRecord) {
         if (m_product_state == nullptr) {
             fail(activity, "unavailable_operation", "This build cannot record the intent or the plan.");
             return;
         }
         const auto arguments = json::parse(activity.arguments_json);
         const auto snapshot  = m_workspace.snapshot();
-        json       result{{"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision},
-                          // Neither record is in Orca's undo stack: say so where
-                          // every other mutation says it.
-                          {"projectUndo", false}};
-        if (definition->handler == ToolHandler::IntentUpdate) {
-            // The purpose is the chat's title and the answered fields; what
-            // this call did to it is stated in the reply, beside the setup in
-            // force now, which was chosen before a first or changed purpose.
-            const auto purpose = [this, &activity]() {
-                json answered = json::array();
-                for (const IntentField& field : m_product_state->print_intent())
-                    if (field.answered())
-                        answered.push_back(json{{"field", field.field}, {"value", field.value}});
-                json stated = json::object();
-                if (const auto title = m_product_state->setup_title(activity.correlation_id); title && !title->empty())
-                    stated["setupTitle"] = *title;
-                if (!answered.empty())
-                    stated["fields"] = std::move(answered);
-                return stated;
-            };
-            const json before = purpose();
-            std::vector<IntentField> fields;
-            for (const auto& field : arguments.at("fields")) {
-                IntentField written;
-                written.field    = field.at("field").get<std::string>();
-                written.value    = field.value("value", "");
-                written.question = field.value("question", "");
-                // An answer is confirmed unless the agent says it only
-                // assumed it.
-                written.provenance = field.value("assumed", false) || written.value.empty() ?
-                    Provenance::AgentInferred : Provenance::UserConfirmed;
-                fields.push_back(std::move(written));
-            }
-            result["intent"] = intent_section_result(fields.empty() ? m_product_state->print_intent() :
-                                                         m_product_state->set_print_intent(fields));
-            if (arguments.contains("setupTitle"))
-                m_product_state->set_setup_title(activity.correlation_id, arguments["setupTitle"].get<std::string>());
-            const json after = purpose();
-            // Nothing recorded before or after: there is no purpose to speak of.
-            if (!after.empty()) {
-                const bool changed = !before.empty() && before.value("fields", json()) != after.value("fields", json());
-                result["purposeChange"] = before.empty() ? "first" : changed ? "changed" :
-                                          before != after ? "title_only" : "unchanged";
-                if (changed)
-                    result["purposeBefore"] = before;
-                if (before.empty() || changed) {
-                    result["purposeAfter"] = after;
-                    m_product_state->set_purpose_setup(setup_in_force(snapshot));
-                }
-            }
-            result["setupInForce"] = setup_in_force(snapshot);
-        } else {
+        // The purpose is the chat's title and the answered fields; what this
+        // call did to it is stated in the reply, beside the setup in force
+        // now, which was chosen before a first or changed purpose.
+        const auto purpose = [this, &activity]() {
+            json answered = json::array();
+            for (const IntentField& field : m_product_state->print_intent())
+                if (field.answered())
+                    answered.push_back(json{{"field", field.field}, {"value", field.value}});
+            json stated = json::object();
+            if (const auto title = m_product_state->setup_title(activity.correlation_id); title && !title->empty())
+                stated["purpose"] = *title;
+            if (!answered.empty())
+                stated["fields"] = std::move(answered);
+            return stated;
+        };
+        // The records are a chat's own; a call no chat holds has none.
+        if (!m_product_state->setup_title(activity.correlation_id)) {
+            fail(activity, "unavailable_operation", "Only a chat's own call records its purpose and plan.");
+            return;
+        }
+        const json before = purpose();
+        // The purpose goes first: one the chat refuses records nothing at all.
+        if (!m_product_state->set_setup_title(activity.correlation_id, arguments.at("purpose").get<std::string>())) {
+            fail(activity, "invalid_argument", "purpose must be one line.");
+            return;
+        }
+        std::vector<IntentField> fields;
+        for (const auto& field : arguments.value("fields", json::array())) {
+            IntentField written;
+            written.field    = field.at("field").get<std::string>();
+            written.value    = field.value("value", "");
+            written.question = field.value("question", "");
+            // An answer is confirmed unless the agent says it only assumed it.
+            written.provenance = field.value("assumed", false) || written.value.empty() ?
+                Provenance::AgentInferred : Provenance::UserConfirmed;
+            fields.push_back(std::move(written));
+        }
+        // Neither record is in Orca's undo stack: say so where every other
+        // mutation says it.
+        json result{{"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision},
+                    {"projectUndo", false},
+                    {"intent", intent_section_result(fields.empty() ? m_product_state->print_intent() :
+                                                                      m_product_state->set_print_intent(fields))}};
+        const json after = purpose();
+        // A new title alone, or a call that only restates the purpose to
+        // change the plan, is no new purpose: only a first purpose or changed
+        // fields ask for the setup to be checked against it.
+        const bool changed = !before.empty() && before.value("fields", json()) != after.value("fields", json());
+        result["purposeChange"] = before.empty() ? "first" : changed ? "changed" :
+                                  before != after ? "title_only" : "unchanged";
+        if (changed)
+            result["purposeBefore"] = before;
+        if (before.empty() || changed) {
+            result["purposeAfter"] = after;
+            m_product_state->set_purpose_setup(setup_in_force(snapshot));
+        }
+        result["setupInForce"] = setup_in_force(snapshot);
+        if (arguments.contains("headline")) {
+            const json& stated = arguments;
             PlanRecord plan;
-            plan.headline = arguments.at("headline").get<std::string>();
-            for (const auto& decision : arguments.value("decisions", json::array()))
+            plan.headline = stated.at("headline").get<std::string>();
+            for (const auto& decision : stated.value("decisions", json::array()))
                 plan.decisions.push_back({decision.at("topic").get<std::string>(),
                                           decision.at("statement").get<std::string>(),
                                           decision.value("confidence", ""), decision.value("alternative", "")});
-            for (const auto& line : arguments.value("assumptions", json::array()))
+            for (const auto& line : stated.value("unverified", json::array()))
                 plan.assumptions.push_back(line.get<std::string>());
-            for (const auto& line : arguments.value("risks", json::array()))
+            for (const auto& line : stated.value("risks", json::array()))
                 plan.risks.push_back(line.get<std::string>());
             result["plan"] = plan_section_result(m_product_state->set_plan(std::move(plan)));
+        } else {
+            result["plan"] = plan_section_result(m_product_state->plan());
         }
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
