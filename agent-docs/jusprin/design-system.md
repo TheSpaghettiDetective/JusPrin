@@ -131,7 +131,7 @@ Avoid web-only assumptions such as oversized controls, blur-heavy or glass surfa
 
 ## Components and states
 
-Use the existing native component density and Lucide `v1.47.0` SVG artwork for generic functional icons. Pin the artwork in `resources/jusprin/ui/icons` and use the same SVG geometry in Figma, the React pages, and the native shell; a package or plugin alone is not the cross-surface source of truth. Keep the JusPrin mark and product-specific symbols custom. Functional clarity comes before logo-derived decoration.
+Use the existing native component density and Lucide `v1.47.0` SVG artwork for generic functional icons. Pin the artwork in `resources/jusprin/ui/icons` and use the same SVG geometry in the design artifacts, the React pages, and the native shell; a package or plugin alone is not the cross-surface source of truth. Keep the JusPrin mark and product-specific symbols custom. Functional clarity comes before logo-derived decoration.
 
 - Functional icons: Lucide artwork at 16, 20, or 24 DIP, colored through the surrounding semantic token, with PNG fallback when the platform path requires it. Do not create a separate UI component for each glyph.
 - Setup card fact glyphs: 14 DIP from `component.setupCard.iconSize`, the one size below the icon scale. The clock, material, plate, warning, and info glyphs sit inside a row of Label or Metadata text, 14 to 16 DIP tall, and a 16 DIP glyph makes that row taller than its text. The card's disclosure chevron is an ordinary 16 DIP icon. Do not use this size on another surface; it is not a step of the icon scale.
@@ -151,7 +151,7 @@ Use the existing native component density and Lucide `v1.47.0` SVG artwork for g
 - Tooltip: 24 DIP high, 4×8 DIP padding, Metadata, inverse (`text.primary` fill, `surface.canvas` text) with the subtle elevation (`component.tooltip`). Native tooltips are the operating system's own.
 - Header chip: 28 DIP high, `chip` radius (`component.chip`).
 - Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
-- Plates / Project pane: 200 DIP wide on `surface.subtle`, a 12 DIP band above a 36 DIP tab strip (the active tab is Label Bold with a 2 DIP `action.primary` rule; the other is Label in `text.secondary`). Plate rows are 32 DIP, object rows 36 DIP, both on `surface.canvas` blocks with the standard radius and a 2 DIP gap; a folded plate adds a 20 DIP Metadata summary line indented 32 DIP. Every number is under `component.leftPane`, taken from the Figma frames on the Plates & Project Pane page.
+- Plates / Project pane: 200 DIP wide on `surface.subtle`, a 12 DIP band above a 36 DIP tab strip (the active tab is Label Bold with a 2 DIP `action.primary` rule; the other is Label in `text.secondary`). Plate rows are 32 DIP, object rows 36 DIP, both on `surface.canvas` blocks with the standard radius and a 2 DIP gap; a folded plate adds a 20 DIP Metadata summary line indented 32 DIP. Every number is under `component.leftPane`, taken from the boards on the canvas's Plates & Project Pane page.
 - Agent-pane divider: transparent 8 DIP pointer target with a centered 2 DIP line; the line changes from subtle to strong on hover and to the primary action color while dragging.
 - Agent-pane width: minimum 320 DIP; its maximum follows the window width while preserving at least 320 DIP for the workspace.
 - Printer setup, connecting, printer settings, and filament settings help use the same temporary conversation layer over the originating workspace. The underlying Home, Prepare, or Preview screen stays selected and constructed so Back returns to it. The conversation keeps the centered content width from `component.printerSetup.contentWidth` and the existing task header controls; manual settings remain available from that header. The saved project Agent pane remains a separate persistent conversation.
@@ -172,8 +172,8 @@ Every interactive component must define normal, hover, pressed, disabled, focuse
 ## Writing UI code
 
 Rules for anyone, human or agent, adding or changing a JusPrin surface. They
-exist because every value that is typed by hand drifts from Figma and from
-the other side of the app within weeks; today's guards catch most of it, but
+exist because every value that is typed by hand drifts from the design system and
+from the other side of the app within weeks; today's guards catch most of it, but
 only if the code goes through the token file in the first place.
 
 1. **Never type a color, radius, font, or control size.** Every one comes
@@ -190,7 +190,7 @@ only if the code goes through the token file in the first place.
    later edit cannot silently move it, then read it from code. Do not write
    the number "for now": the guards cannot see a literal that is already
    there, and the next reader cannot tell a decision from an accident. A
-   value that exists in Figma but not in the roles or scales is a design
+   value that exists in the design artifacts but not in the roles or scales is a design
    decision to raise, not a reason to type it.
 3. **Layout spacing may stay literal, on the scale.** Padding between
    regions, gaps, and margins use 4, 8, 12, 16, 20, 24, 32, 40, or 48 DIP.
@@ -314,7 +314,7 @@ Every high-fidelity product frame must:
    rather than duplicating every application screen.
 2. State the mode, viewport, component variants, keyboard focus, and any deliberate exception.
 3. Use DIP, native density, and the design system's radius scale.
-4. Use HarmonyOS Sans SC for product UI, and monospace only for code (Figma's Code style uses Roboto Mono as a stand-in for the system font).
+4. Use HarmonyOS Sans SC for product UI, and monospace only for code (the design system's `code` style uses the system monospace font).
 5. Show normal, hover, pressed, disabled, focus, error, warning, and success states as applicable.
 6. Test long filenames, localized labels, dense settings, empty states, and narrow windows.
 7. Use the original logo and existing functional icon system.

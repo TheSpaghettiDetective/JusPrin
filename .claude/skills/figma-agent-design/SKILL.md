@@ -1,9 +1,11 @@
 ---
 name: figma-agent-design
-description: Create, revise, and review JusPrin product UI in Figma with Figma Agent from wireframes, screenshots, specifications, or open briefs. Use for future JusPrin design work that must follow the repository's product guidance and semantic design system without polluting the shared component library.
+description: "Retired 2026-10-20: JusPrin design no longer happens in Figma, which is out of date. Do not use this skill to design in Figma. JusPrin design work happens in the two Claude design artifacts (the Design System and the JusPrin v2 canvas); see agent-docs/jusprin/design-system.md, Writing UI code, rule 5."
 ---
 
 # JusPrin Figma Agent Design
+
+> **Retired on 2026-10-20.** Figma is out of date and is no longer edited. The up-to-date JusPrin design is the two Claude design artifacts: the Design System (https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL) and the "JusPrin v2" canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v). Make design changes there, not in Figma, and do not cite Figma frames or node ids as the source of a design. The governance rules in `references/design-system-governance.md` (reuse shared primitives, keep feature compositions local, no value without a repository role) still apply to work in the artifacts. The rest of this file is kept as history.
 
 Use Figma Agent to produce coherent, reviewable JusPrin product design while keeping the Figma file maintainable. Treat the user's request as the source of scope and use attached wireframes, screenshots, documents, and existing frames as design input.
 
