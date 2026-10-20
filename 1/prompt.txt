@@ -1,0 +1,13 @@
+<!-- reply 2 -->
+> The project-state file went from schema 3 to schema 4, with a migration for older projects.
+
+Are you talking about a schema version for the project state file?  If so, reset the version to 1 and remove all the migration.  The project is not live yet.
+
+<!-- reply -->
+> Still to do: compile and run the native and shell-harness tests, re-record the prompt-eval requests, run the live evaluation batch (which needs your approval of the specific batch), and commit. A temporary harness mode for the live runs is saved as a patch and will stay out of the commit.
+
+tell me your plan for runnign the live batch. how many runs will you run?
+
+---
+
+Run only batch B, the 12 headline journeys with the pilot first. Skip the standard 75-run evaluation for now.
