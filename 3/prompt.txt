@@ -1,0 +1,32 @@
+check the new commits on jusprin-newui branch to see if they addressed other items
+
+---
+
+check again
+
+---
+
+<!-- reply 1 -->
+> The prompt runner answers reads the app would refuse. That card is still waiting.
+
+in sidechat: Prompt runner answering refused reads. Found by the session building the subscription test backend, which I proposed. The test runner answers some tool reads from the recording even when the real app would reject their arguments, so a test can pass on a call that would fail in the app. I believe this was already in the runner, but I haven’t confirmed that.
+
+confirm and then report
+
+
+skip other things.
+
+---
+
+<cross-session-message from="local_7653407d-8077-4981-9846-b07b086c53a8" name="btw: Repeat that in plain English under 100 words.">
+Kenneth asked (in a side chat forked from you): "tell the main session to make the change. then test iwth opus". The change is the prompt-runner fix for answering reads the app would refuse, in tests/project_prompt/run_prompt_tests.py on local jusprin-newui. You already confirmed the bug: Step.problem is only printed (line 284), and answers_for/recorded_answer never check it. It dates from 5ae439525b, and the first version had the same gap.
+
+Make the runner mirror the app (ProviderAgent.cpp ~385-420), not the README's "end the run":
+1. Port the app's schema check (ToolRegistry.cpp matches_schema / validate_call: type, properties, required, additionalProperties, items, minimum, maxItems, enum, maxLength) to Python, against project_tools.json. Use no new dependency; jsonschema is not installed.
+2. Process a response's calls in order. A call that fails the check, or names a tool not offered, gets the app's refusal as its result: {"state":"failed","error":{"code":<validation code>,"message":<validate_call message> + " Nothing was queued. Check the arguments against this tool's parameters and call it again."}}, or the unknown_tool text. Every later call in that response gets not_run. The run continues. At most 2 refusals per run; a third fails the run, as the app fails the turn with malformed_tool_call.
+3. A test case never judges a refused call, read or change. judge_response and case.check only see calls before the first refused one.
+4. Read the refusal wording from the C++ source, as test_steps.py already does for not_run, so it cannot drift. Add test_steps.py tests for each keyword and for the refusal flow, and show the new ones fail on the old code.
+5. Fix the README sentence ("A call with arguments the registry would refuse is never answered…"). Fold the recorded_answer special case for a non-object target into the general rule.
+
+Then test with Opus: run all cases, 3 runs each, with --backend claude-cli --judge claude-cli on the subscription (no paid API runs). Compare with the README's current subscription baseline (69/3/0; 70/2/0 on the setup_record merge). Read every new failure or unobserved run, and say whether each comes from the stricter runner or from something else. Commit code, tests and README on jusprin-newui (local, unpushed). Keep the new result out of the baseline table until Kenneth confirms it.
+</cross-session-message>
