@@ -840,9 +840,9 @@ def recorded_answer(name, step):
       recorded reads of the same scope and target -- its item, or the app's
       unknownKeys entry for a name it does not know -- with the rest of the
       first such result; None if any key was not recorded;
-    - settings_search: the recording of the same scope, target and query
-      (case, spacing and word order aside), whatever limit or writable the
-      model gave; not for changedOnly or a cursor;
+    - settings_search: the recording of the same scope, target, query
+      (case, spacing and word order aside) and changedOnly, whatever limit or
+      writable the model gave; not for a cursor;
     - object_analyze: the recording for that object and session, with every
       include but measure, whichever the model named; not with measure or
       candidates;
@@ -894,10 +894,11 @@ def recorded_answer(name, step):
         base["result"]["items"] = [items[key] for key in keys if key in items]
         base["result"]["unknownKeys"] = [unknown[key] for key in keys if key in unknown]
         return dump(base)
-    if step.tool == "settings_search" and not arguments.get("changedOnly") and not arguments.get("cursor"):
+    if step.tool == "settings_search" and not arguments.get("cursor"):
         query = sorted(str(arguments.get("query", "")).lower().split())
         for answer in same:
-            if sorted(answer["arguments"]["query"].lower().split()) == query:
+            if sorted(answer["arguments"]["query"].lower().split()) == query and \
+                    bool(answer["arguments"].get("changedOnly")) == bool(arguments.get("changedOnly")):
                 return answer["output"]
     return None
 

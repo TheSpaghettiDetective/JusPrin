@@ -31,6 +31,23 @@
    }
   },
   {
+   "call": "slice_report",
+   "eachPlate": true,
+   "arguments": {
+    "plateId": "{{plate}}",
+    "sections": [
+     "summary",
+     "findings",
+     "material",
+     "supports",
+     "seams",
+     "firstLayer",
+     "islands",
+     "intent"
+    ]
+   }
+  },
+  {
    "call": "printer_list",
    "arguments": {}
   },
@@ -47,6 +64,18 @@
      "orientations",
      "regions"
     ]
+   }
+  },
+  {
+   "call": "settings_search",
+   "eachObject": true,
+   "arguments": {
+    "scope": "object",
+    "target": {
+     "objectId": "{{object}}"
+    },
+    "query": "",
+    "changedOnly": true
    }
   },
   {

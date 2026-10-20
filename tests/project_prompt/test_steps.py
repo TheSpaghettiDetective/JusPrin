@@ -141,6 +141,39 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.UNOBSERVED)
         self.assertIn("no recorded answer for view_render", detail)
 
+    def test_an_objects_changed_settings_are_answered(self):
+        """A changedOnly search of each object, the first read Opus 5.5
+        sends in file-note-not-instructions, is answered whatever its limit;
+        the same search without changedOnly is a different read."""
+        answers = runner.REQUESTS["file-note-not-instructions"]["answers"]
+        objects = [answer["arguments"]["objectId"] for answer in answers if answer["tool"] == "object_analyze"]
+        self.assertGreater(len(objects), 1)
+        for object_id in objects:
+            arguments = {"scope": "object", "target": {"objectId": object_id}, "query": "", "changedOnly": True, "limit": 25}
+            verdict, detail, bodies = self.run_case("file-note-not-instructions", [call("settings_search", arguments, "call-s")],
+                                                    [reply("Here is the file's note.")])
+            self.assertEqual(len(bodies), 2, (object_id, detail))
+            result = json.loads(bodies[1]["input"][-1]["output"])
+            self.assertEqual(result["state"], "succeeded")
+            del arguments["changedOnly"]
+            verdict, detail, _ = self.run_case("file-note-not-instructions", [call("settings_search", arguments)])
+            self.assertEqual(verdict, runner.UNOBSERVED)
+            self.assertIn("no recorded answer for settings_search", detail)
+
+    def test_every_plates_slice_report_is_answered(self):
+        """slice_report of a plate that is not the active one gets that
+        plate's own report (slice-refused-then-ready: Opus 5.5 asks for the
+        sliced Plate 1 while Plate 2 is active)."""
+        plates = [json.loads(answer["output"])["result"]["plateId"]
+                  for answer in runner.REQUESTS["slice-refused-then-ready"]["answers"] if answer["tool"] == "slice_report"]
+        self.assertGreater(len(set(plates)), 1)
+        for plate in set(plates):
+            verdict, detail, bodies = self.run_case("slice-refused-then-ready",
+                                                    [call("slice_report", {"plateId": plate, "sections": ["summary"]}, "call-r")],
+                                                    [call("slice_start")])
+            self.assertEqual(len(bodies), 2, (plate, detail))
+            self.assertEqual(json.loads(bodies[1]["input"][-1]["output"])["result"]["plateId"], plate)
+
     def test_one_unrecorded_read_leaves_the_whole_response_unanswered(self):
         verdict, detail, bodies = self.run_case("advice-infill", [
             call("workspace_inspect"), call("settings_search", {"scope": "print", "query": "no such wording zzz"})])

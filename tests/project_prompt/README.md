@@ -61,10 +61,15 @@ The recorded answers, kept beside each request, are the reads the script's
 `answers` list names:
 
 - `workspace_inspect` and `slice_report` with every section, given whatever
-  sections the model asked for, and `printer_list`;
+  sections the model asked for, and `printer_list`; `slice_report` of the
+  active plate (no plate named) and of every plate by its `plateId`;
 - `object_analyze` for every object on every plate with every `include`
   but `measure`, given for that object and session whatever it included;
   never with `measure` or `candidates`;
+- a `changedOnly` `settings_search` with an empty query of every object on
+  every plate (its own changed settings), given for that object whatever
+  `limit` the model passed; Opus 5.5 sends it first in the file-loaded and
+  print-this cases;
 - `view_render` of every plate, and of the active plate with no plate named,
   in the `iso` and `plate` views, given for that plate and view whatever
   size the model asked for. Only the result's text is kept and replayed: the
@@ -83,7 +88,9 @@ The recorded answers, kept beside each request, are the reads the script's
   of the same scope and target, around the rest of the first such result;
 - `settings_search` for 49 queries, given when the scope, target and
   words of the query match (case, spacing and word order aside), whatever
-  `limit` or `writable` the model passed; never for `changedOnly`. A search
+  `limit` or `writable` the model passed. A search with `changedOnly` is
+  answered only by a recorded search with it, and one without by one
+  without; never one with a `cursor`. A search
   result is the app's ranking for that query, so a wording not recorded has
   no answer.
 
@@ -99,7 +106,15 @@ string of JSON (which the app refuses), ends the run unobserved. Of the 38
 distinct reads that ended runs unobserved in the runs of 2026-10-15, 26 are
 now recorded; the other 12 are string targets, `changedOnly` searches,
 search wordings not recorded, and setting names that do not exist in
-OrcaSlicer.
+OrcaSlicer. The first `--backend claude-cli` batch (Opus 5.5, 2026-10-19)
+left 10 of 63 runs unobserved, nearly all on two reads DeepSeek V4 Flash
+never sent: a `changedOnly` search of each object and `slice_report` of a
+plate other than the active one. With both recorded, the six cases that
+sent them (`file-note-not-instructions`, `print-this-no-purpose`,
+`model-opened-unnamed`, `model-imported-by-tool`, `model-opened-by-tool`,
+`slice-refused-then-ready`) ran 3 times each on the subscription with no
+unobserved run; `print-this-no-purpose` failed all three, on an
+`intent_update` with a purpose the model assumed.
 
 This is not the design that failed on 2026-10-10. That one answered every
 call, changes included, with stand-in results that did not hold what the

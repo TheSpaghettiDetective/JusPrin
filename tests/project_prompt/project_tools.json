@@ -65,7 +65,7 @@
     "type": "function"
   },
   {
-    "description": "Record the user's explicit purpose as setupTitle, including when no setting changes. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
+    "description": "Record the purpose the user stated as setupTitle, including when no setting changes. Never record one they have not stated, even marked assumed: ask them first. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
     "name": "intent_update",
     "parameters": {
       "additionalProperties": false,

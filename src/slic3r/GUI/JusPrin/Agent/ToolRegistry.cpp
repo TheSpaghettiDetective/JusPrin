@@ -1062,7 +1062,7 @@ std::vector<ToolDefinition> make_definitions()
          // In-app only, like plan_set: the record is the chat's own, its setup
          // card's title and what the user told it. An external agent keeps
          // what its user said, and its plan, in its own conversation.
-         "Record the user's explicit purpose as setupTitle, including when no setting changes. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
+         "Record the purpose the user stated as setupTitle, including when no setting changes. Never record one they have not stated, even marked assumed: ask them first. Send fields as an empty array for a title-only update. Project Undo does not undo this.",
          object_schema({{"setupTitle", json{{"type", "string"}, {"maxLength", 120}}},
                         {"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
                                                                {"assumed", boolean_schema()}}, {"field"}), 32)}},
