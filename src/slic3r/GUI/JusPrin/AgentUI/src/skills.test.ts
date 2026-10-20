@@ -89,6 +89,10 @@ describe('the skill for a file opened or imported', () => {
 
   it('keeps app outcomes, physical uncertainty, and file advice distinct', () => {
     expect(text).toContain('setupPrinters');
+    // The app's own fit check: a placement problem is not a size problem.
+    for (const field of ['bedMm', 'selectedPrinterBedMm', 'placedOnBed', 'fitsSelectedBed', 'fitsSetupPrinters', 'mesh', 'customized', 'fileFacts'])
+      expect(text).toContain(field);
+    expect(text).toContain('an object that is off the bed but fits it needs moving, not resizing');
     expect(text).toContain('name both its from and to selections');
     expect(text).toContain('state its final numeric size');
     expect(text).toContain('Neither a selection nor that list proves which physical machine');

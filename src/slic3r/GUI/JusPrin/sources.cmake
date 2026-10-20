@@ -160,6 +160,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/Regions.hpp
     GUI/JusPrin/Workspace/SliceBounds.hpp
     GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp
+    GUI/JusPrin/Workspace/LoadFacts.cpp
+    GUI/JusPrin/Workspace/LoadFacts.hpp
     GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     GUI/JusPrin/Workspace/PrinterFactsStore.hpp
     GUI/JusPrin/Workspace/PlaterProjectState.cpp

@@ -140,8 +140,10 @@ export interface FileReport {
   projectPath?: string;
   uiLanguage?: string;
   loads: { files: string[]; withSettings: boolean }[];
-  setupPrinters?: { name: string; model: string; nozzleMm: number }[];
+  // bedMm: the printable area's width and depth and the printable height.
+  setupPrinters?: { name: string; model: string; nozzleMm: number; bedMm?: [number, number, number] }[];
   setupPrintersTruncated?: boolean;
+  selectedPrinterBedMm?: [number, number, number];
   connectedPrinter?: string;
   messages: { items: OrcaMessage[]; truncated: boolean };
   loadFacts?: {
@@ -151,8 +153,27 @@ export interface FileReport {
     selectedSetupChange: Partial<Record<'printerPreset' | 'filamentPreset' | 'processPreset', { from: string; to: string }>>;
   };
   details?: Record<string, { value: string; provenance: 'project_file' }>;
-  objects: { items: { objectId: string; name: string; sizeMm: [number, number, number] }[]; truncated: boolean };
+  objects: { items: LoadedObject[]; truncated: boolean };
+  // What each loaded 3MF states about itself.
+  fileFacts?: {
+    file: string;
+    application?: string;
+    madeFor?: { printerModel?: string; nozzleMm?: number };
+    filaments?: { type: string; colour: string }[];
+  }[];
   truncated: boolean;
+}
+
+// An arrived object, with what the app checked about it.
+interface LoadedObject {
+  objectId: string;
+  name: string;
+  sizeMm: [number, number, number];
+  placedOnBed?: boolean;
+  fitsSelectedBed?: boolean;
+  fitsSetupPrinters?: string[];
+  mesh?: { triangles: number; shells: number; openEdges: number; repairedErrors: number; unitsSuspicion?: 'inches' | 'meters' };
+  customized?: string[];
 }
 
 // How a file entered the composer.

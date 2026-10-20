@@ -142,6 +142,8 @@ private:
     bool file_load_message(const std::string& text, const char* source) override;
     LoadSelectedSetup selected_load_setup() const;
     LoadReport take_load_report(bool started_by_agent);
+    LoadedObjectFacts loaded_object_facts(std::size_t model_index, const BedShape& selected_bed,
+                                          const std::vector<std::pair<std::string, BedShape>>& beds) const;
     void deliver_load_report();
     void on_slice_status_changed(wxCommandEvent& event);
     void on_process_completed(SlicingProcessCompletedEvent& event);

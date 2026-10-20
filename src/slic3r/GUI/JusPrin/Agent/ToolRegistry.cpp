@@ -800,12 +800,25 @@ std::vector<ToolDefinition> make_definitions()
                                            {"geometry", id}, {"artifacts", {{"type", "array"}, {"items", region_text}, {"maxItems", 8}}},
                                            {"bindingLost", boolean_schema()}, {"artifactsMissing", boolean_schema()}},
                                           {"regionId", "kind", "label", "geometry", "artifacts"});
-    const json objects_section = list_schema(object_schema(
+    const json object_row = object_schema(
         {{"objectId", id}, {"name", string_schema()}, {"plateIds", {{"type", "array"}, {"items", id}}},
          {"instanceCount", integer_schema()}, {"partCount", integer_schema()}, {"modifierCount", integer_schema()},
          {"negativePartCount", integer_schema()}, {"supportVolumeCount", integer_schema()}, {"printable", boolean_schema()},
          {"extruder", integer_schema()}, {"sizeMm", vector3}, {"overrideCount", integer_schema()}},
-        {"objectId", "name", "plateIds", "instanceCount", "partCount", "modifierCount", "printable", "sizeMm", "overrideCount"}));
+        {"objectId", "name", "plateIds", "instanceCount", "partCount", "modifierCount", "printable", "sizeMm", "overrideCount"});
+    const json objects_section = list_schema(object_row);
+    // A load report's rows add what the app checked about each arrived object.
+    json loaded_object_row = object_row;
+    loaded_object_row["properties"]["placedOnBed"]       = boolean_schema();
+    loaded_object_row["properties"]["fitsSelectedBed"]   = boolean_schema();
+    loaded_object_row["properties"]["fitsSetupPrinters"] = {{"type", "array"}, {"items", string_schema()}, {"maxItems", 32}};
+    loaded_object_row["properties"]["mesh"] = object_schema(
+        {{"triangles", integer_schema()}, {"shells", integer_schema()}, {"openEdges", integer_schema()},
+         {"repairedErrors", integer_schema()},
+         {"unitsSuspicion", {{"type", "string"}, {"enum", json::array({"inches", "meters"})}}}},
+        {"triangles", "shells", "openEdges", "repairedErrors"});
+    loaded_object_row["properties"]["customized"] = {{"type", "array"}, {"items", string_schema()}, {"maxItems", 6}};
+    const json bed_mm = {{"type", "array"}, {"items", number_schema()}, {"maxItems", 3}};
     const json sourced_text = object_schema({{"value", string_schema()}, {"provenance", {{"type", "string"}, {"enum", json::array({"project_file"})}}}},
                                             {"value", "provenance"});
     json details_schema = object_schema({});
@@ -840,8 +853,14 @@ std::vector<ToolDefinition> make_definitions()
                                                  {"processPreset", preset_change}})}},
         {"settingsOutcome", "selectedSetupBefore", "selectedSetupAfter", "selectedSetupChange"});
     const json setup_printer = object_schema(
-        {{"name", string_schema()}, {"model", string_schema()}, {"nozzleMm", {{"type", "number"}}}},
+        {{"name", string_schema()}, {"model", string_schema()}, {"nozzleMm", {{"type", "number"}}}, {"bedMm", bed_mm}},
         {"name", "model", "nozzleMm"});
+    const json file_facts = object_schema(
+        {{"file", string_schema()}, {"application", string_schema()},
+         {"madeFor", object_schema({{"printerModel", string_schema()}, {"nozzleMm", number_schema()}})},
+         {"filaments", {{"type", "array"}, {"maxItems", 32},
+                        {"items", object_schema({{"type", string_schema()}, {"colour", string_schema()}}, {"type", "colour"})}}}},
+        {"file"});
     const json load_report = object_schema(
         {{"startedBy", {{"type", "string"}, {"enum", json::array({"agent", "user"})}}},
          {"projectOpened", boolean_schema()},
@@ -854,10 +873,12 @@ std::vector<ToolDefinition> make_definitions()
          {"loadFacts", load_facts},
          {"setupPrinters", {{"type", "array"}, {"items", setup_printer}, {"maxItems", 32}}},
          {"setupPrintersTruncated", boolean_schema()},
+         {"selectedPrinterBedMm", bed_mm},
          {"connectedPrinter", string_schema()},
          {"details", details_schema},
          {"attachments", project_section["properties"]["attachments"]},
-         {"objects", objects_section},
+         {"objects", list_schema(loaded_object_row)},
+         {"fileFacts", {{"type", "array"}, {"items", file_facts}}},
          {"truncated", boolean_schema()}},
         {"startedBy", "projectOpened", "uiLanguage", "loads", "messages", "loadFacts", "setupPrinters",
          "setupPrintersTruncated", "objects", "truncated"});

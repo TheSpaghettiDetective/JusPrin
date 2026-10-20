@@ -2966,7 +2966,7 @@ bool NotificationManager::push_notification_data(const NotificationData& notific
 }
 bool NotificationManager::push_notification_data(std::unique_ptr<NotificationManager::PopNotification> notification, int timestamp)
 {
-    if (!notification->get_data().text1.empty() &&
+    if (!notification->get_data().text1.empty() && notification->get_type() != NotificationType::BBLObjectInfo &&
         report_file_load_message(notification->get_data().text1, "notification"))
         return false;
 	// if timestamped notif, push only new one

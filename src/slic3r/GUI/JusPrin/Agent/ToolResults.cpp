@@ -418,6 +418,10 @@ json orca_messages_result(const Workspace::LoadReport& report)
                      {"answer", message.answer}};
             if (!message.recognized)
                 row["recognized"] = false;
+            // Orca repeats some notices while one load runs (the plate
+            // boundary error comes two or three times); once says it.
+            if (std::find(items.begin(), items.end(), row) != items.end())
+                continue;
             items.push_back(std::move(row));
         }
     return {{"items", std::move(items)}, {"truncated", truncated}};
@@ -431,6 +435,54 @@ json selected_load_setup_result(const Workspace::LoadSelectedSetup& setup, bool&
             {"processPreset", label(setup.process_preset, truncated)},
             {"printerOrigin", setup.printer_origin}, {"filamentOrigin", setup.filament_origin},
             {"processOrigin", setup.process_origin}, {"materialType", setup.material_type}};
+}
+
+// Width, depth and height, to a tenth of a millimetre.
+json bed_mm(const Workspace::BedSize& bed)
+{
+    const auto round = [](double x) { return std::round(x * 10.0) / 10.0; };
+    return json::array({round(bed.width), round(bed.depth), round(bed.height)});
+}
+
+void add_loaded_object_facts(const Workspace::LoadedObjectFacts& facts, json& row, bool& truncated)
+{
+    row["placedOnBed"]     = facts.placed_on_bed;
+    row["fitsSelectedBed"] = facts.fits_selected_bed;
+    json fits = json::array();
+    for (const std::string& name : facts.fits_setup_printers)
+        if (fits.size() < 32)
+            fits.push_back(label(name, truncated));
+    row["fitsSetupPrinters"] = std::move(fits);
+    json mesh{{"triangles", facts.triangles}, {"shells", facts.shells}, {"openEdges", facts.open_edges},
+              {"repairedErrors", facts.repaired_errors}};
+    if (!facts.units_suspicion.empty())
+        mesh["unitsSuspicion"] = facts.units_suspicion;
+    row["mesh"] = std::move(mesh);
+    if (!facts.customizations.empty())
+        row["customized"] = facts.customizations;
+}
+
+// Only what the file states; every value came from it.
+json loaded_file_facts_result(const Workspace::LoadedFileFacts& facts, bool& truncated)
+{
+    json result{{"file", label(facts.file, truncated)}};
+    if (!facts.application.empty())
+        result["application"] = label(facts.application, truncated);
+    if (!facts.printer_model.empty() || facts.nozzle_mm > 0) {
+        json made_for = json::object();
+        if (!facts.printer_model.empty())
+            made_for["printerModel"] = label(facts.printer_model, truncated);
+        if (facts.nozzle_mm > 0)
+            made_for["nozzleMm"] = facts.nozzle_mm;
+        result["madeFor"] = std::move(made_for);
+    }
+    json filaments = json::array();
+    for (const auto& filament : facts.filaments)
+        if (filaments.size() < 32)
+            filaments.push_back({{"type", label(filament.type, truncated)}, {"colour", label(filament.colour, truncated)}});
+    if (!filaments.empty())
+        result["filaments"] = std::move(filaments);
+    return result;
 }
 
 json selected_setup_change(const Workspace::LoadSelectedSetup& before,
@@ -476,10 +528,25 @@ json load_report_result(const Workspace::LoadReport& report)
             truncated = true;
             break;
         }
-        setup_printers.push_back({{"name", label(printer.name, truncated)},
-                                  {"model", label(printer.model, truncated)}, {"nozzleMm", printer.nozzle_mm}});
+        json row{{"name", label(printer.name, truncated)}, {"model", label(printer.model, truncated)},
+                 {"nozzleMm", printer.nozzle_mm}};
+        if (printer.bed.width > 0)
+            row["bedMm"] = bed_mm(printer.bed);
+        setup_printers.push_back(std::move(row));
     }
     result["setupPrinters"] = std::move(setup_printers);
+    if (report.selected_bed.width > 0)
+        result["selectedPrinterBedMm"] = bed_mm(report.selected_bed);
+    // The app's own checks of each arrived object, beside its row.
+    for (json& row : result["objects"]["items"])
+        for (const Workspace::LoadedObjectFacts& facts : report.object_facts)
+            if (row["objectId"] == std::to_string(facts.id.value()))
+                add_loaded_object_facts(facts, row, truncated);
+    json file_facts = json::array();
+    for (const Workspace::LoadedFileFacts& facts : report.file_facts)
+        file_facts.push_back(loaded_file_facts_result(facts, truncated));
+    if (!file_facts.empty())
+        result["fileFacts"] = std::move(file_facts);
     result["setupPrintersTruncated"] = report.setup_printers.size() > 32;
     if (!report.connected_printer.empty())
         result["connectedPrinter"] = label(report.connected_printer, truncated);

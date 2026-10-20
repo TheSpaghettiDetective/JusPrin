@@ -16,6 +16,7 @@
 #include "libslic3r/Orient.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/miniz_extension.hpp"
 #include "slic3r/GUI/BackgroundSlicingProcess.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
@@ -409,6 +410,57 @@ struct OrcaWorkspaceAdapter::ActiveLoad
 };
 
 namespace {
+// A printer's bed as its config states it, for the fit facts of a load report.
+BedShape bed_shape_of(const DynamicPrintConfig& config)
+{
+    BedShape bed;
+    if (const auto* area = config.option<ConfigOptionPoints>("printable_area"))
+        for (const Vec2d& point : area->values)
+            bed.area.push_back({point.x(), point.y()});
+    if (const auto* excluded = config.option<ConfigOptionPoints>("bed_exclude_area"))
+        for (const Vec2d& point : excluded->values)
+            bed.excluded.push_back({point.x(), point.y()});
+    if (const auto* height = config.option<ConfigOptionFloat>("printable_height"))
+        bed.height = height->value;
+    return bed;
+}
+
+// What a 3MF states about the printer and filaments it was made for, read
+// straight from the archive: Orca's importer, even asked for settings only,
+// walks every object's geometry, which on a large file costs the load again.
+// An archive this cannot open states nothing here; Orca's own messages about
+// the load already say what went wrong with it.
+LoadedFileFacts read_3mf_facts(const std::string& path)
+{
+    LoadedFileFacts facts;
+    facts.file = path.substr(path.find_last_of("/\\") + 1);
+    mz_zip_archive zip;
+    mz_zip_zero_struct(&zip);
+    if (!open_zip_reader(&zip, path))
+        return facts;
+    // A whole small entry, or the start of a large one.
+    const auto read = [&zip](const char* name, std::size_t limit) {
+        std::string text;
+        const int index = mz_zip_reader_locate_file(&zip, name, nullptr, 0);
+        if (index < 0)
+            return text;
+        mz_zip_reader_extract_iter_state* entry = mz_zip_reader_extract_iter_new(&zip, static_cast<mz_uint>(index), 0);
+        if (entry == nullptr)
+            return text;
+        text.resize(limit);
+        text.resize(mz_zip_reader_extract_iter_read(entry, text.data(), limit));
+        mz_zip_reader_extract_iter_free(entry);
+        return text;
+    };
+    facts.application = application_from_model_head(read("3D/3dmodel.model", 16 * 1024));
+    if (const std::string settings = read("Metadata/project_settings.config", 4 * 1024 * 1024); !settings.empty())
+        read_project_settings(settings, facts);
+    else if (const std::string prusa = read("Metadata/Slic3r_PE.config", 4 * 1024 * 1024); !prusa.empty())
+        read_prusa_config(prusa, facts);
+    close_zip_reader(&zip);
+    return facts;
+}
+
 std::string load_preset_origin(const Preset* preset)
 {
     if (preset == nullptr) return "unknown";
@@ -562,11 +614,20 @@ LoadReport OrcaWorkspaceAdapter::take_load_report(bool started_by_agent)
     report.ui_language      = wxGetApp().app_config->get("language");
     report.selected_setup_before = std::move(m_setup_before_loads);
     report.selected_setup_after  = selected_load_setup();
+    // Each bed beside its printer, so an object the selected printer cannot
+    // hold can be matched to one the person has.
+    std::vector<std::pair<std::string, BedShape>> beds;
     for (const Printers::NamedPrinter& named : Printers::named_printers()) {
         const Preset* preset = wxGetApp().preset_bundle->printers.find_preset(named.name, false);
-        report.setup_printers.push_back({named.name, preset != nullptr ? preset->config.opt_string("printer_model") : "",
-                                         named.nozzle});
+        LoadSetupPrinter printer{named.name, preset != nullptr ? preset->config.opt_string("printer_model") : "", named.nozzle};
+        if (preset != nullptr) {
+            beds.emplace_back(named.name, bed_shape_of(preset->config));
+            printer.bed = bed_size(beds.back().second);
+        }
+        report.setup_printers.push_back(std::move(printer));
     }
+    const BedShape selected_bed = bed_shape_of(wxGetApp().preset_bundle->printers.get_selected_preset().config);
+    report.selected_bed         = bed_size(selected_bed);
     if (DeviceManager* devices = wxGetApp().getDeviceManager())
         if (MachineObject* machine = devices->get_selected_machine(); machine != nullptr &&
             PrinterSetup::has_recent_printer_data(*machine))
@@ -588,7 +649,73 @@ LoadReport OrcaWorkspaceAdapter::take_load_report(bool started_by_agent)
         }
         report.objects.push_back(std::move(row));
     }
+    const ModelObjectPtrs& model_objects = m_plater.model().objects;
+    for (const ObjectDetails& row : report.objects)
+        for (std::size_t index = 0; index < model_objects.size(); ++index)
+            if (model_objects[index]->id().id == row.id.value())
+                report.object_facts.push_back(loaded_object_facts(index, selected_bed, beds));
+    for (const FileLoadRecord& load : report.loads)
+        for (const std::string& file : load.files)
+            if (boost::iends_with(file, ".3mf"))
+                if (LoadedFileFacts facts = read_3mf_facts(file); !facts.empty())
+                    report.file_facts.push_back(std::move(facts));
     return report;
+}
+
+LoadedObjectFacts OrcaWorkspaceAdapter::loaded_object_facts(std::size_t model_index, const BedShape& selected_bed,
+                                                            const std::vector<std::pair<std::string, BedShape>>& beds) const
+{
+    const ModelObject& object = *m_plater.model().objects[model_index];
+    PartPlateList&     plates = m_plater.get_partplate_list();
+    const int          index  = static_cast<int>(model_index);
+    LoadedObjectFacts  facts;
+    facts.id = ObjectId(m_session, object.id().id);
+    // Where it is: the check analyze_object's fit makes, for every copy.
+    for (std::size_t instance = 0; instance < object.instances.size(); ++instance) {
+        const int plate = plates.find_instance_belongs(index, static_cast<int>(instance));
+        if (plate < 0 || plates.get_plate(plate)->check_outside(index, static_cast<int>(instance))) {
+            facts.placed_on_bed = false;
+            break;
+        }
+    }
+    // Whether it could stand anywhere on each bed. Its outline is the first
+    // copy's convex hull, the shape the plate tests against an excluded area.
+    if (!object.instances.empty()) {
+        std::vector<BedPoint> footprint;
+        for (const Point& point : object.instances.front()->convex_hull_2d().points)
+            footprint.push_back({unscale<double>(point.x()), unscale<double>(point.y())});
+        const double height = object.instance_bounding_box(0).size().z();
+        facts.fits_selected_bed = fits_bed(selected_bed, footprint, height);
+        for (const auto& [name, bed] : beds)
+            if (fits_bed(bed, footprint, height))
+                facts.fits_setup_printers.push_back(name);
+    }
+    // Orca's mesh check, as object_analyze's mesh reports it.
+    const TriangleMeshStats stats = object.get_object_stl_stats();
+    for (const ModelVolume* volume : object.volumes)
+        if (volume->is_model_part())
+            facts.triangles += volume->mesh().facets_count();
+    facts.shells          = static_cast<std::size_t>(std::max(stats.number_of_parts, 0));
+    facts.open_edges      = static_cast<std::size_t>(std::max(stats.open_edges, 0));
+    facts.repaired_errors = static_cast<std::size_t>(stats.repaired_errors.edges_fixed + stats.repaired_errors.degenerate_facets +
+                                                     stats.repaired_errors.facets_removed + stats.repaired_errors.facets_reversed +
+                                                     stats.repaired_errors.backwards_edges);
+    Model single;
+    single.add_object(object);
+    facts.units_suspicion = single.looks_like_saved_in_meters() ? "meters" :
+                            single.looks_like_imperial_units()  ? "inches" : "";
+    // What the file already prepared for printing.
+    const auto any_volume = [&object](bool (ModelVolume::*painted)() const) {
+        return std::any_of(object.volumes.begin(), object.volumes.end(),
+                           [painted](const ModelVolume* volume) { return (volume->*painted)(); });
+    };
+    if (any_volume(&ModelVolume::is_fdm_support_painted)) facts.customizations.push_back("supportPainting");
+    if (any_volume(&ModelVolume::is_seam_painted)) facts.customizations.push_back("seamPainting");
+    if (any_volume(&ModelVolume::is_mm_painted)) facts.customizations.push_back("colourPainting");
+    if (any_volume(&ModelVolume::is_fuzzy_skin_painted)) facts.customizations.push_back("fuzzySkinPainting");
+    if (!object.layer_height_profile.empty()) facts.customizations.push_back("variableLayerHeight");
+    if (!object.layer_config_ranges.empty()) facts.customizations.push_back("layerHeightRanges");
+    return facts;
 }
 
 void OrcaWorkspaceAdapter::deliver_load_report()
@@ -1824,9 +1951,13 @@ std::vector<ObjectDetails> OrcaWorkspaceAdapter::object_details() const
         row.name      = object.name;
         row.instances = object.instances.size();
         row.printable = object.printable;
+        // Orca keeps every object's extruder in its config; that is the
+        // extruder field below, not a setting the object overrides.
         row.overrides = object.config.size();
-        if (object.config.has("extruder"))
+        if (object.config.has("extruder")) {
             row.extruder = object.config.opt_int("extruder");
+            --row.overrides;
+        }
         for (const ModelVolume* volume : object.volumes) {
             if (volume->is_model_part()) ++row.parts;
             else if (volume->is_modifier()) ++row.modifiers;

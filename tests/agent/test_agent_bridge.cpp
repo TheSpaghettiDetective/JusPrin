@@ -1073,6 +1073,59 @@ TEST_CASE("the opening report retains every raw dialog without code classificati
     CHECK(load_report_result(report)["loadFacts"]["settingsOutcome"] == "not_applied");
 }
 
+TEST_CASE("the opening report carries the app's own fit, mesh and file facts", "[agent][file-report]")
+{
+    Workspace::LoadReport report = prusa_open(/*with_message=*/false);
+    // Orca pushes the plate-boundary error more than once in one load.
+    Workspace::OrcaMessage boundary;
+    boundary.text   = "Following objects are laid over the boundary of plate";
+    boundary.source = "notification";
+    report.loads.front().messages = {boundary, boundary, boundary};
+    report.objects.back().id = Workspace::ObjectId(Workspace::ProjectSessionId(1), 507);
+    report.setup_printers = {{"Bambu Lab A1", "Bambu Lab A1", 0.4, {256, 256, 256}},
+                             {"Bambu Lab A1 mini 2", "Bambu Lab A1 mini", 0.4, {180, 180, 180}}};
+    report.selected_bed = {180, 180, 180};
+    Workspace::LoadedObjectFacts facts;
+    facts.id                  = Workspace::ObjectId(Workspace::ProjectSessionId(1), 507);
+    facts.placed_on_bed       = false;
+    facts.fits_selected_bed   = false;
+    facts.fits_setup_printers = {"Bambu Lab A1"};
+    facts.triangles           = 12422;
+    facts.shells              = 1;
+    facts.customizations      = {"colourPainting"};
+    report.object_facts.push_back(facts);
+    Workspace::LoadedFileFacts file;
+    file.file          = "bracket.3mf";
+    file.application   = "BambuStudio-01.10.01.50";
+    file.printer_model = "Bambu Lab P1S";
+    file.nozzle_mm     = 0.4;
+    file.filaments     = {{"PLA", "#FD8008"}};
+    report.file_facts.push_back(file);
+
+    const json full = load_report_result(report);
+    REQUIRE(full["messages"]["items"].size() == 1);
+    CHECK(full["setupPrinters"][0]["bedMm"] == json::array({256, 256, 256}));
+    CHECK(full["selectedPrinterBedMm"] == json::array({180, 180, 180}));
+    const json& row = full["objects"]["items"][0];
+    CHECK(row["placedOnBed"] == false);
+    CHECK(row["fitsSelectedBed"] == false);
+    CHECK(row["fitsSetupPrinters"] == json::array({"Bambu Lab A1"}));
+    CHECK(row["mesh"] == json{{"triangles", 12422}, {"shells", 1}, {"openEdges", 0}, {"repairedErrors", 0}});
+    CHECK(row["customized"] == json::array({"colourPainting"}));
+    REQUIRE(full["fileFacts"].size() == 1);
+    CHECK(full["fileFacts"][0]["madeFor"] == json{{"printerModel", "Bambu Lab P1S"}, {"nozzleMm", 0.4}});
+    CHECK(full["fileFacts"][0]["filaments"][0]["colour"] == "#FD8008");
+    CHECK(full["fileFacts"][0]["application"] == "BambuStudio-01.10.01.50");
+
+    // The registry's contract for an import result accepts it.
+    const ToolRegistry&   registry    = ToolRegistry::instance();
+    const ToolDefinition* import_tool = registry.find("object_import_file");
+    REQUIRE(import_tool != nullptr);
+    CHECK(registry.validate_output(*import_tool, json{{"objectIds", json::array({"507"})},
+                                                      {"objects", objects_section_result(report.objects)},
+                                                      {"report", full}, {"sessionId", "1"}, {"revision", 1}}));
+}
+
 TEST_CASE("a reopened project with its conversation is greeted only when Orca spoke", "[agent][file-report]")
 {
     auto agent_owner = std::make_unique<RecordingAgent>();

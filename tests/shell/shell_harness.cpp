@@ -8266,6 +8266,18 @@ private:
             check(!heard->started_by_agent && !heard->project_opened, "user_import_report_is_the_persons");
             check(asked_yes_no_answered_no(*heard), "user_import_records_object_too_small");
             check(heard->objects.size() == 1, "user_import_reports_what_arrived");
+            // The app's own checks of what arrived, beside Orca's words.
+            check(heard->object_facts.size() == 1 && heard->object_facts.front().id == heard->objects.front().id,
+                  "user_import_checks_what_arrived");
+            check(heard->selected_bed.width > 0 && heard->selected_bed.height > 0, "user_import_reports_the_selected_bed");
+            if (!heard->object_facts.empty()) {
+                const Workspace::LoadedObjectFacts& facts = heard->object_facts.front();
+                std::cout << "user import facts: placed " << facts.placed_on_bed << ", fits " << facts.fits_selected_bed
+                          << ", triangles " << facts.triangles << ", shells " << facts.shells << ", open edges "
+                          << facts.open_edges << ", units '" << facts.units_suspicion << "'" << std::endl;
+                check(facts.placed_on_bed && facts.fits_selected_bed, "user_import_tiny_object_fits_and_is_on_the_bed");
+                check(facts.triangles > 0 && facts.shells == 1 && facts.open_edges == 0, "user_import_reports_the_mesh");
+            }
         }
 
         // This refusal happens before Orca enters the inner model loader.
@@ -8326,6 +8338,10 @@ private:
             check(notice, "prusa_open_records_the_settings_notice");
             check(!heard->loads.empty() && heard->loads.front().with_settings, "prusa_open_was_asked_for_settings");
             check(heard->objects.size() == 1, "prusa_open_reports_what_arrived");
+            // Read from the archive itself: the file names the app that saved it.
+            check(heard->file_facts.size() == 1 && heard->file_facts.front().file == "prusaslicer_cube.3mf" &&
+                      heard->file_facts.front().application == "PrusaSlicer-2.8.1+win64",
+                  "prusa_open_reports_what_the_file_states");
         }
         // Back to the shell's own wiring.
         workspace->set_load_report_listener([pane = wxWeakRef<AgentPane>(installed_shell()->agent_pane())](const Workspace::LoadReport& delivered) {

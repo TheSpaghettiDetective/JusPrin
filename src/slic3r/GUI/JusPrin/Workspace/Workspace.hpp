@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "LoadFacts.hpp"
+
 namespace Slic3r::GUI::JusPrin::Agent {
 class ProjectPersistence;
 }
@@ -819,6 +821,24 @@ struct LoadSetupPrinter
     std::string name;  // the person's saved printer name
     std::string model; // the model its saved preset names
     double      nozzle_mm{0.};
+    BedSize     bed;   // the printable area's bounding box and printable height
+};
+
+// What the app checked about one arrived object, for the Agent's first
+// message: whether it can print where it is, on what, and whether the model
+// is sound. Report-only; workspace_inspect's rows stay as they are.
+struct LoadedObjectFacts
+{
+    ObjectId                 id;
+    bool                     placed_on_bed{true};      // every copy wholly on a plate, clear of excluded areas
+    bool                     fits_selected_bed{true};  // its size fits the selected printer's bed somewhere
+    std::vector<std::string> fits_setup_printers;      // the set-up printers whose beds its size fits
+    std::size_t              triangles{0};
+    std::size_t              shells{0};                // separate pieces in its mesh
+    std::size_t              open_edges{0};
+    std::size_t              repaired_errors{0};
+    std::string              units_suspicion;          // "inches" or "meters" when Orca's unit checks say so
+    std::vector<std::string> customizations;           // painting, layer heights and ranges it already carries
 };
 
 // What JusPrin knows once a file has been opened or imported: what Orca said
@@ -833,10 +853,13 @@ struct LoadReport
     LoadSelectedSetup           selected_setup_before;
     LoadSelectedSetup           selected_setup_after;
     std::vector<LoadSetupPrinter> setup_printers;
+    BedSize                     selected_bed; // the selected printer's, after the load
     std::string                 connected_printer; // only when fresh device data confirms a connection
     ProjectDetails              details;               // filled when project_opened
     std::vector<ObjectDetails>  objects;               // what arrived, at most kReportedObjectLimit
     bool                        objects_truncated{false};
+    std::vector<LoadedObjectFacts> object_facts; // one per reported object
+    std::vector<LoadedFileFacts> file_facts;     // one per loaded 3MF that states anything
 
     bool has_messages() const
     {
