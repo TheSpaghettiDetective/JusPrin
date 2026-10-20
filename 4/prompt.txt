@@ -1,0 +1,3 @@
+> Lighter dark-mode highlight: done in the design system. A new colour, surface-raised-hover (#3B3047 in dark mode, the same grey as before in light mode), now fills hovered and keyboard-focused menu rows. The Menu/Row card has the new “Focused” example drawn with it. I picked #3B3047 myself, between the menu background (#2B2336) and the selected-row colour (#4B3E57), so tell me if you want it lighter or darker.
+
+have you told the coding agent to make the correspondign change?
