@@ -1034,19 +1034,26 @@ describe('App', () => {
     expect(panel).toHaveTextContent('Wall loops4Preset: 2');
   });
 
-  it('follows the 3D view into one object', async () => {
+  it('opens on the whole project and then follows the 3D view into one object', async () => {
     render(<App getTransport={() => host.transport} />);
     connectListing(emptyState({ context: applied }));
     await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
-    host.deliver('settings_catalog', { ...catalog([]), objects: [{ id: '21', name: 'cube-a', plateId: '11',
+    const table = { ...catalog([]), objects: [{ id: '21', name: 'cube-a', plateId: '11',
       overrides: [{ target: 'cube-a / Rim', kind: 'modifier', key: 'wall_loops', value: '6', label: 'Wall loops', display: '6' }] },
-      { id: '22', name: 'cube-b', plateId: '11', overrides: [] }] });
-    // cube-a is selected in the fixture, so the panel opens on it.
+      { id: '22', name: 'cube-b', plateId: '11', overrides: [] }] };
+    host.deliver('settings_catalog', table);
+    // cube-a is selected in the fixture; the panel still opens on the project.
     const panel = screen.getByTestId('all-settings');
+    expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
+    host.deliver('context', { context: { ...applied, revision: 3, selection: { status: 'none', objectIds: [] } } });
+    host.deliver('settings_catalog', table);
+    expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
+    host.deliver('context', { context: { ...applied, revision: 4, selection: { status: 'objects', objectIds: ['21'] } } });
+    host.deliver('settings_catalog', table);
     expect(screen.getByRole('button', { name: 'Showing: cube-a' })).toBeInTheDocument();
     expect(panel).toHaveTextContent('cube-a uses the project’s settings, except in 1 region: Rim.');
     expect(panel).toHaveTextContent('Wall loops6RegionRim · project: preset');
-    host.deliver('context', { context: { ...applied, revision: 3, selection: { status: 'none', objectIds: [] } } });
+    host.deliver('context', { context: { ...applied, revision: 5, selection: { status: 'none', objectIds: [] } } });
     expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
   });
 

@@ -134,7 +134,6 @@ const dense = variant((value) => {
 const threeObjects = variant((value) => {
   const names = ['bracket.stl', 'cover.stl', 'spacer.stl'];
   value.plates[0].objects = names.map((name, index) => ({ id: String(index), name, instances: 1, selected: index === 0 }));
-  // The 3D view has the bracket, so the panel opens on it.
   value.selection = { status: 'objects', objectIds: ['0'] };
   value.appliedSetup!.printableObjects = 3;
   value.appliedSetup!.objects = names;
@@ -241,9 +240,11 @@ export function renderVisualCase(entry: SetupVisualCase, handlers: {
   onViewSetup?: () => void; onCompute?: () => void; onUndo?: (changeSeq: number) => void; onBack?: () => void;
   onCollapse?: () => void } = {}) {
   const { compute, undo, ...props } = entry.props;
+  // The one-object case is drawn on the object the 3D view has.
   if (entry.kind === 'page')
     return <><AllSettingsHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
-      <AllSettings context={entry.context} catalog={visualCatalog(entry.context)} /></>;
+      <AllSettings context={entry.context} catalog={visualCatalog(entry.context)}
+        initialScope={entry.id === 'page-objects' ? { kind: 'object', id: '0' } : undefined} /></>;
   return <SetupCard context={entry.context} now={VISUAL_NOW} {...props}
     onViewSetup={handlers.onViewSetup ?? (() => {})}
     onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined}

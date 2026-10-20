@@ -81,7 +81,13 @@ describe('Showing', () => {
       'Whole project', 'Plate 1', 'Plate 2', 'bracket v3', 'spacer']);
   });
 
-  it('follows the selection in the 3D view, and a choice made here holds until it changes', async () => {
+  it('opens on the whole project whatever the 3D view has selected', () => {
+    render(<AllSettings context={{ ...context(), selection: { status: 'objects', objectIds: ['o1'] } }} catalog={catalog()} />);
+    expect(panel()).toHaveAttribute('data-scope', 'project');
+    expect(panel()).toHaveTextContent('Follows the selection in the 3D view.');
+  });
+
+  it('follows a change of selection in the 3D view, and a choice made here holds until the next', async () => {
     const value = context();
     const { rerender } = render(<AllSettings context={value} catalog={catalog()} />);
     expect(panel()).toHaveAttribute('data-scope', 'project');
@@ -209,8 +215,7 @@ describe('the Filament group', () => {
 
 describe('one object', () => {
   it('lists only what the object sets itself, with what each overrides, and says the rest is the project\'s', async () => {
-    const value = { ...context(), selection: { status: 'objects' as const, objectIds: ['o1'] } };
-    render(<AllSettings context={value} catalog={catalog()} />);
+    render(<AllSettings context={context()} catalog={catalog()} initialScope={{ kind: 'object', id: 'o1' }} />);
     expect(panel()).toHaveTextContent('bracket v3 uses the project’s settings, except in 4 regions: 2 Mounting tabs and 2 Screw holes.');
     expect(panel()).toHaveTextContent('Strength1 own setting');
     expect(panel()).toHaveTextContent('Wall loops6RegionMounting tabs · 2 regions · project: 4');
@@ -229,7 +234,7 @@ describe('one object', () => {
   });
 
   it('says when an object sets nothing of its own', () => {
-    render(<AllSettings context={{ ...context(), selection: { status: 'objects', objectIds: ['o2'] } }} catalog={catalog()} />);
+    render(<AllSettings context={context()} catalog={catalog()} initialScope={{ kind: 'object', id: 'o2' }} />);
     expect(panel()).toHaveTextContent('spacer uses the project’s settings and sets nothing of its own.');
     expect(panel().querySelectorAll('.all-settings-group-header--empty')).toHaveLength(8);
   });

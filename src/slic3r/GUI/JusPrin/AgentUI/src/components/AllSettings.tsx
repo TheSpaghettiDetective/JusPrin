@@ -1,13 +1,13 @@
 // The All settings panel: every setting in force, in the Agent pane's place,
 // opened from the setup card's "All settings" link (the "JusPrin v2" canvas,
 // page "Current Setup Card", the four "All settings" boards). The host reads
-// the table (settings_catalog); this page only arranges it. Showing follows
-// the selection in the 3D view: the whole project, one plate when the project
-// has more than one, or one object, for which only what it sets itself is
-// listed. The first version is read-only: the design's "Use project value"
+// the table (settings_catalog); this page only arranges it. Showing opens on
+// the whole project and then follows the selection in the 3D view: one plate
+// when the project has more than one, or one object, for which only what it
+// sets itself is listed. The first version is read-only: the design's "Use project value"
 // and "Remove" actions are not offered yet.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CatalogFilamentInfo, CatalogObjectInfo, CatalogOverrideInfo, CatalogPlateInfo, CatalogSettingInfo,
   SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
 import { ActionMenu, AgentPaneToggle, MenuItem } from './ChatNavigation';
@@ -30,6 +30,8 @@ export interface AllSettingsProps {
   // The host cannot read the table (an older build, or a non-FFF printer
   // reports it itself through `available`).
   unsupported?: boolean;
+  // What Showing opens on; the whole project unless a fixture says otherwise.
+  initialScope?: SettingsScope;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -266,13 +268,18 @@ function scopeKey(scope: SettingsScope): string {
   return scope.kind === 'project' ? 'project' : `${scope.kind}:${scope.id}`;
 }
 
-export function AllSettings({ context, catalog, saved = false, unsupported = false }: AllSettingsProps) {
+export function AllSettings({ context, catalog, saved = false, unsupported = false, initialScope }: AllSettingsProps) {
   const selected = selectedObject(context);
-  const follow = (id: string | null): SettingsScope | null => id ? { kind: 'object', id } : null;
-  const [chosen, setChosen] = useState<SettingsScope | null>(() => follow(selected));
-  // The 3D view's selection wins whenever it changes; a choice made here
-  // holds until then.
-  useEffect(() => { setChosen(follow(selected)); }, [selected]);
+  const [chosen, setChosen] = useState<SettingsScope | null>(initialScope ?? null);
+  // The panel opens on the whole project whatever the 3D view has. From
+  // then on a change of selection there wins, and a choice made here holds
+  // until the next one.
+  const lastSelected = useRef(selected);
+  useEffect(() => {
+    if (selected === lastSelected.current) return;
+    lastSelected.current = selected;
+    setChosen(selected ? { kind: 'object', id: selected } : null);
+  }, [selected]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<SettingsFilter>(saved ? 'changed' : 'all');
   const [slot, setSlot] = useState(1);
