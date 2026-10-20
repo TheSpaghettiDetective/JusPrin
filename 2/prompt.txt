@@ -1,0 +1,7 @@
+> The model sees something different. Since the agent’s own edits no longer mark the plan stale, the model now sees its plan as current after it applies it. The recorded prompt-eval requests have to be re-recorded, and the commit should say the change is deliberate.
+
+ I have a feeling that you are turning the cheek here.  Are you trying to say something that made you afraid that I will disagree with?  I really don't know what you are trying to say here.  Can you just go straight up to the point?
+
+---
+
+What option results in a simpler code?
