@@ -1,0 +1,11 @@
+> creenshot is the “State=Actions open” example in the frame “header-states · chat navigation matrix” (Figma node 1540:3341), on the “Agent UI · States & Components” page. Its Rename and Delete rows are instances of the shared Menu/Row component (321:3113 on the Design System page).
+
+I can't find it on that page
+
+---
+
+Are you still looking at figma or your own design artifact now?
+
+---
+
+cant' find agent-ui-header-states-chat-navigation-matrix.dc.html on its “Agent UI · States & Components” page,
