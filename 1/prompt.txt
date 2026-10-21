@@ -1,0 +1,42 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an in-app AI agent and an MCP server; both run tool calls through the same ToolExecutionCoordinator and workspace adapter. A test session on 2026-10-21 (its report is untracked at mcp-experience-findings.md in the repo root) found that a wrong plate id gets three different error codes from three tools, and that the MCP layer turns "a slice is already running" into workspace_unavailable, which the server instructions define as "open JusPrin and a project". A follow-up reading in the parent session found this is a pattern, not one bug: the adapter uses UnavailableOperation 69 times and InvalidArgument 59 times for very different situations; the coordinator hand-writes about 25 codes of its own (including both invalid_argument and invalid_arguments); the settings tools have a separate twelve-code table that is the only documented one; error details are filled in only two places; and neither the project prompt nor any tool description names a code, so the in-app model reads only message text, written in several voices. Kenneth asked for a sweep to decide whether to consolidate. Repo conventions: temporary working docs stay untracked, never committed and never hidden through .gitignore; attribute behaviour to "OrcaSlicer" only when upstream ships it, otherwise "JusPrin"; decisions that are Kenneth's are written out in full with options and consequences; do not run paid live-model tests. This is a read-only sweep; no build is needed.
+
+Task:
+Sweep every place in the fork-owned code where a tool reports an error to a model, and write a decision document on whether error reporting should be consolidated into one contract. This is an assessment with a recommendation, not a fix: change no code.
+
+Scope: src/slic3r/GUI/JusPrin/ only. The places that produce errors are:
+- Workspace/Workspace.hpp (the WorkspaceError kinds and CommandResult), and every adapter file that returns CommandResult::failure: Workspace/OrcaWorkspaceAdapter.cpp, OrcaOutputs.cpp, OrcaReshape.cpp, OrcaRegions.cpp, OrcaOutline.cpp, OrcaSliceChecks.cpp, OrcaSettings.hpp.
+- Agent/ToolExecutionCoordinator.cpp (the workspace_error_code mapping near line 60 and every fail(activity, "<code>", ...) call), Agent/ToolRegistry.cpp (the contract check that returns invalid_arguments, and the settings tools' own code table), Agent/ToolResults.cpp, Agent/AgentHost.cpp (the error shape sent to the in-app model, around line 120), PrinterSetup/*.cpp (the printer tools' codes).
+- Mcp/McpProtocol.cpp activity_result() (the remapping to MCP codes) and the server instructions in discovery().
+- What the model is told about errors: AgentUI/src/projectInstructions.ts, AgentUI/src/printerInstructions.ts, AgentUI/src/skills/*/SKILL.md, and every tool description in ToolRegistry.cpp.
+- The documented contract: agent-docs/jusprin/mcp-tool-extension-guide.md, sections "Errors should teach the next valid call" and "Error codes" (the settings table).
+- Tests that pin codes: tests/agent/test_tool_coordinator.cpp, test_mcp_protocol.cpp, test_agent_bridge.cpp, tests/mcp/.
+
+What to produce:
+1. A complete inventory table: every distinct error code, which tool or tools emit it, the native WorkspaceError kind behind it when there is one, the exact message text or template, whether details are filled and with what, and what the MCP layer turns it into. Build it from grep, not memory, and give the file:line for each row.
+2. A classification of every row by what a model should do next: fix the arguments, read state again, wait and retry, ask the person, or stop. Flag every code that covers more than one of those (UnavailableOperation is the suspect) and every situation that gets different codes from different tools (a wrong plate id is the known example: slice_start gives invalid_id, view_render and export_file give StaleId, slice_report returns an empty "not sliced" report).
+3. A judgement of the three current vocabularies (adapter kinds, coordinator hand-written codes, settings-tool table): which parts are designed contracts with tests, which grew ad hoc, and what the in-app model actually reads (message text only, since no prompt names a code) versus what an MCP client reads (code plus server instructions).
+4. A recommendation: consolidate or not, and if so what the single contract would be (the code set, the next-action class per code, which details each must carry, where it lives, and how both adapters read from it), what it would cost in files touched and tests to change, and what would break for clients that already depend on today's codes. If the recommendation is not to consolidate, say what minimal fixes close the known inconsistencies instead. Follow the repo rule that a rule lives next to what it governs, and the tool guide's "Errors should teach the next valid call".
+
+Done looks like: an untracked file at the repo root named tool-error-reporting-sweep.md (do not commit it and do not add it to .gitignore), written in plain English for an engineer who did not see this session, in four parts: problem, what was swept and how, the inventory and findings, and the recommendation with open decisions that are Kenneth's to make, each written out with options and consequences.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_4d2d16a0-2e0b-4c7c-82a7-4af5985149fb
+
+---
+
+Documented contract. agent-docs/jusprin/mcp-tool-extension-guide.md, the sections "Errors should teach the next valid call" (line 353), "Error codes" (line 843), "Apply binds the previewed values" (line 1087) and "Per-object overrides" (line 1107).
+
+Do you think this is the most important criteria when it comes to defining the errors?
+
+---
+
+yes
+
+---
+
+confirm the Table E cases with a fake-workspace test
+
+---
+
+also make sure if your implementation is tested and confirmed, make corresponding changes to the relevant docs in @agent-docs
