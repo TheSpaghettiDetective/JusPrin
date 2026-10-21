@@ -586,3 +586,9 @@ Kenneth asked for two step-3 changes; the canvas boards (version 39) and Design 
 
 Other user-visible "OrcaSlicer" I found outside this form (FYI; I'm asking Kenneth whether to fix them, not asking you): FileNotesCard.tsx:50 "OrcaSlicer said more than fits here." (canvas board now says "JusPrin said…"); the agent prompts printerInstructions.ts:197 and filamentInstructions.ts:42/59 tell the model to call stock presets "the settings OrcaSlicer comes with", so the agent says that to people; and about 70 workspace tool error strings ("OrcaSlicer did not…") that reach the model. The onboarding boards' "Bring your Orca setup" refers to the separately installed OrcaSlicer app and is correct as is.
 </cross-session-message>
+
+---
+
+<cross-session-message from="local_19b23635-a213-44a0-acf4-ecf3aec645b6" name="Design the printer form's filament step">
+FYI: Kenneth approved changing "the settings OrcaSlicer comes with" to "the settings JusPrin comes with". It's commit 55bb065aeb on branch claude/filament-step-design-918d1e (fast-forwarded to jusprin-newui f9e43a605e, not pushed or merged). The commit also changes the stock_profile ToolError string in PrinterConversation.cpp (about line 345; line 348 in your worktree), which your uncommitted work edits too. If you merge this branch, expect a one-line conflict there and keep the JusPrin wording. The other files are FileNotesCard.tsx, printerInstructions.ts, filamentInstructions.ts and their tests, authoring.visual-cases.tsx, the protocol.ts comment and tests/printer_prompt/run_prompt_tests.py.
+</cross-session-message>
