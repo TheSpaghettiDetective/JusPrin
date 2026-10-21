@@ -2135,8 +2135,10 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
 {
     wxASSERT(wxIsMainThread());
     // Nothing in Orca records who started a run, so a slice in flight may be
-    // the person's. Taking it over is the caller's decision to state.
-    if (m_plater.is_background_process_slicing() && !preempt)
+    // the person's. Taking it over is the caller's decision to state, except
+    // for one the shell started on its own after an edit.
+    const bool automatic = m_automatic_slice_reader && m_automatic_slice_reader();
+    if (m_plater.is_background_process_slicing() && !preempt && !automatic)
         return CommandResult::failure(WorkspaceError::UnavailableOperation,
                                       "A slice is already running. Wait for it, or ask again with preempt.");
 

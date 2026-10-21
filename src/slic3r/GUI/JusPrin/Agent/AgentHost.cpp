@@ -546,8 +546,9 @@ json context_json(const WorkspaceSnapshot& snapshot,
                                    {"instances", object.instances.size()},
                                    {"selected", selected}});
         }
-        // Absent, not zeroed, when the plate holds no slice: there is no
-        // background slicing, so before Slice there is no honest number.
+        // Absent, not zeroed, when the plate holds no slice: until a slice
+        // finishes, whether the shell's own or a Slice press, there is no
+        // honest number.
         json estimate = json(nullptr);
         if (plate.estimate)
             estimate = json{{"printTimeSeconds", plate.estimate->print_time_seconds},

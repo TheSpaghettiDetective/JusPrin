@@ -204,6 +204,8 @@ ShellController::ShellController()
         }
         if (m_left_pane != nullptr && m_plater != nullptr && m_plater->is_background_process_slicing())
             m_left_pane->refresh_slicing_progress();
+        if (m_auto_slice)
+            m_auto_slice->tick();
         if (!m_agent_pane) return;
         auto& host = m_agent_pane->web_view().host();
         host.pump_stream();
@@ -679,6 +681,16 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     m_agent_pane->web_view().host().finish_work(id, state, detail);
             };
             m_work_feed = std::make_unique<PrintIssues::WorkFeed>(*plater, std::move(sink));
+            // Prepare's estimates follow the project without a Slice press.
+            // The shell slices only while the project is on screen, the
+            // window is not minimized and no Agent turn is running.
+            m_auto_slice = std::make_unique<AutoSlice>(*plater, *m_workspace, [this] {
+                return m_installed && !m_task_open && m_tabpanel->GetSelection() == MainFrame::tp3DEditor &&
+                       !m_frame->IsIconized() && !(m_agent_pane && m_agent_pane->web_view().host().busy());
+            });
+            const auto automatic_slice = [this] { return m_auto_slice && m_auto_slice->running(); };
+            m_work_feed->set_automatic_slice_reader(automatic_slice);
+            m_workspace->set_automatic_slice_reader(automatic_slice);
             m_print_issues->set_work_callback([this] {
                 if (m_work_feed && m_print_issues)
                     m_work_feed->sync(m_print_issues->snapshot());
@@ -762,6 +774,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_plater->set_external_project_open_handler({});
         m_autosave.reset();
         m_persistence.reset();
+        m_auto_slice.reset();
         m_work_feed.reset();
         m_issue_overlay.reset();
         m_print_issues.reset();
@@ -1079,6 +1092,7 @@ void ShellController::uninstall()
         m_plater->update_title_dirty_status();
     Slic3r::set_backup_suspended(false);
     m_persistence.reset();
+    m_auto_slice.reset();
     m_work_feed.reset();
     m_issue_overlay.reset();
     m_print_issues.reset();

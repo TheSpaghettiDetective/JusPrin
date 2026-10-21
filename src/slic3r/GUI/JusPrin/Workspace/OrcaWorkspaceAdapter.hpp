@@ -89,6 +89,10 @@ public:
     // of that plate. Without a reader no plate carries a warnings summary.
     using SliceWarningsReader = std::function<std::optional<std::vector<SliceWarningFinding>>(std::uint64_t plate)>;
     void set_slice_warnings_reader(SliceWarningsReader reader) { m_slice_warnings_reader = std::move(reader); }
+    // Answers whether the slice now running is one the shell started on its
+    // own after an edit (Shell/AutoSlice.hpp). start_slice takes such a run
+    // over without being told to preempt it: it is nobody's.
+    void set_automatic_slice_reader(std::function<bool()> reader) { m_automatic_slice_reader = std::move(reader); }
     // A tool's own open or import is running; it settles what the person
     // would otherwise be asked about the file.
     bool tool_load_active() const { return m_tool_loads != 0; }
@@ -221,6 +225,7 @@ private:
     };
     void read_slice_warnings(std::uint64_t plate, std::uint64_t result) const;
     SliceWarningsReader                            m_slice_warnings_reader;
+    std::function<bool()>                          m_automatic_slice_reader;
     mutable std::map<std::uint64_t, PlateWarnings> m_slice_warnings;
     mutable ProjectSessionId                       m_slice_warnings_session;
     mutable std::uint64_t                          m_next_slice_warnings{0};

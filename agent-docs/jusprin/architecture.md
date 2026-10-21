@@ -152,6 +152,19 @@ Rules that follow:
 
 Known limits: application and account notifications (update available, plug-in missing, preset sync conflict) are routed to `App` and drawn nowhere yet. A confirmation shows OrcaSlicer's words and a close button; the actions OrcaSlicer attached to its own notification (open folder, eject, cancel an upload) are not offered. Only a slice has a percentage and a known ending; other work shows a bar with no amount and is recorded as done unless its Cancel was pressed. Uploads and downloads have not been run. The tips and the object size card are not shown.
 
+### Slicing on its own
+
+JusPrin slices the active plate by itself, so Prepare's time and material estimates and the slice's warnings follow the project without a Slice press. It is JusPrin's decision, not a preference. `Shell/AutoSlice` makes it; the rule itself is plain data in `Shell/AutoSlicePolicy.hpp`, with its own tests.
+
+OrcaSlicer's "Auto slice after changes" preference is not used. It reacts only to settings changes and only while OrcaSlicer's Preview tab is on screen, which the shell never shows, so inside the shell it does nothing whatever its value. JusPrin leaves the preference and OrcaSlicer's dialog as they are.
+
+- **A slice starts once the project has been quiet for two seconds** and nothing is in the way: no slice or OrcaSlicer job running (OrcaSlicer's own slice stops a running job), no edit waiting to be applied, no drag in progress, and no tool open other than Move, Rotate and Scale. Moving to another plate waits the same two seconds. Only the active plate is sliced; Slice all stays a press.
+- **An Agent turn holds it.** A turn makes many edits in a row, and its end is when the result is wanted. The shell also waits while it is not showing the project in Prepare, and while the window is minimized.
+- **One try per change.** A run the person cancels, or one that fails, is not started again until the project changes.
+- **An automatic run is quiet and nobody's.** It goes through the toolbar event the header's Slice posts, so the run is OrcaSlicer's ordinary one and an edit stops it as it stops any other. It gets no entry in the chat and does not open the chat panel. A slice the person or the Agent asks for takes it over: `slice_start` does not refuse it as a run that may be the person's, and from then on it shows in the chat like any other.
+
+No OrcaSlicer file changes for this. The integration harness's other automated modes turn it off, because they press Slice themselves; `--auto-slice` covers it.
+
 ### Agent WebView
 
 The production Agent interface is a separate React/TypeScript package that runs locally inside a `wxWebView`. It needs:

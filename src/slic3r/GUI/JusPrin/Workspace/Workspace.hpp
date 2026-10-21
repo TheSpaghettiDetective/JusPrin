@@ -86,9 +86,10 @@ struct WorkspaceObject
     std::vector<ObjectTransform> instances;
 };
 
-// Time and material for one plate's current slice. OrcaSlicer has no
-// background slicing, so before the first Slice there is no honest number:
-// the estimate is absent rather than zero, and consumers omit the row.
+// Time and material for one plate's current slice. Until a slice finishes,
+// whether the shell's own once the project is quiet (Shell/AutoSlice.hpp) or
+// a Slice press, there is no honest number: the estimate is absent rather
+// than zero, and consumers omit the row.
 struct SliceEstimate
 {
     std::uint32_t print_time_seconds{0};

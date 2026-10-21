@@ -322,9 +322,9 @@ export interface McpStatusPayload {
 }
 
 // Time and material for one plate's current slice. Null whenever that plate
-// holds no valid slice result: OrcaSlicer has no background slicing, so there
-// is no honest estimate before Slice and the card omits the row rather than
-// showing a zero. materialCost is null on its own whenever the filament
+// holds no valid slice result: until a slice finishes, whether the shell's own
+// once the project is quiet or a Slice press, there is no honest estimate and
+// the card omits the row rather than showing a zero. materialCost is null on its own whenever the filament
 // profile carries no price, which is the default.
 export interface SliceEstimateInfo {
   printTimeSeconds: number;
