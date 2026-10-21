@@ -40,3 +40,7 @@ confirm the Table E cases with a fake-workspace test
 ---
 
 also make sure if your implementation is tested and confirmed, make corresponding changes to the relevant docs in @agent-docs
+
+---
+
+are you done with the impl and testing? if so, commit
