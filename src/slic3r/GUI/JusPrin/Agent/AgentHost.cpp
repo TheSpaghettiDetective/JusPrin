@@ -1061,6 +1061,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_setup_check_key(envelope_id, payload);
     else if (type == Protocol::kSetupCancel)
         handle_setup_cancel();
+    else if (type == Protocol::kSetupRemoveKey)
+        handle_setup_remove_key(envelope_id, payload);
     else if (type == Protocol::kMcpCatalog)
         handle_mcp_catalog(envelope_id);
     else if (type == Protocol::kSettingsCatalogRequest)
@@ -1286,6 +1288,7 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
                       .dump(),
                   envelope_id);
     send_state();
+    send_setup_keys();
     if (m_model_source) {
         send_model_catalog();
         request_model_lists();
@@ -2260,6 +2263,70 @@ void AgentHost::handle_setup_cancel()
     send_setup_status("idle");
 }
 
+void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json)
+{
+    // A chat title being written is not a reply; it gives way, as it does to
+    // a key check.
+    cancel_conversation_title();
+    if (!m_setup) {
+        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        return;
+    }
+    if (agent_busy()) {
+        send_bridge_error("busy", "Finish or stop the current reply before removing a key.", envelope_id);
+        return;
+    }
+    if (m_setup->busy()) {
+        send_bridge_error("setup_busy", "Finish or cancel the key check before removing a key.", envelope_id);
+        return;
+    }
+    const std::string provider = json::parse(payload_json).value("provider", "");
+    if (!m_setup->remove_key(provider)) {
+        send_bridge_error("remove_failed", "That key could not be removed.", envelope_id);
+        return;
+    }
+    m_rejected_keys.erase(provider);
+
+    // The agent in use may hold the removed key. It is rebuilt from the keys
+    // still stored, as a launch would build it; with none left, the dock is
+    // back to being unconfigured.
+    if (m_model_source) {
+        AgentServicePtr agent = m_model_source->configured_providers().empty() ? nullptr :
+                                m_model_source->make_agent(default_chat_model());
+        const AgentAvailability availability = agent ? AgentAvailability::Ready : AgentAvailability::Unavailable;
+        set_agent(std::move(agent), availability);
+    } else if (m_setup->saved_keys().empty()) {
+        set_agent(nullptr, AgentAvailability::Unavailable);
+    }
+    send_setup_keys(envelope_id);
+}
+
+void AgentHost::send_setup_keys(const std::string& correlation_id)
+{
+    if (!m_setup || !m_handshake)
+        return;
+    json keys = json::array();
+    for (const SavedKey& saved : m_setup->saved_keys()) {
+        const auto refused = m_rejected_keys.find(saved.provider);
+        keys.push_back(json{{"provider", saved.provider}, {"hint", saved.hint},
+                            {"rejected", refused != m_rejected_keys.end() && refused->second == saved.hint}});
+    }
+    send_envelope(Protocol::kSetupKeys, json{{"keys", std::move(keys)}}.dump(), correlation_id);
+}
+
+void AgentHost::note_key_rejected()
+{
+    // Only a chat's own agent says whose key it was; a host without per-chat
+    // models (the printer panel) cannot tell.
+    if (!m_setup || !m_agent_choice)
+        return;
+    for (const SavedKey& saved : m_setup->saved_keys())
+        if (saved.provider == m_agent_choice->provider) {
+            m_rejected_keys[saved.provider] = saved.hint;
+            send_setup_keys();
+        }
+}
+
 void AgentHost::pump_setup()
 {
     if (!m_setup)
@@ -2282,7 +2349,10 @@ void AgentHost::pump_setup()
         warning = "This key could not be saved, so it will have to be entered again next time JusPrin starts.";
 
     send_setup_status("verified", {}, outcome->elapsed_ms, std::nullopt, warning);
+    if (m_setup_pending)
+        m_rejected_keys.erase(m_setup_pending->provider);
     m_setup_pending.reset();
+    send_setup_keys();
     // Configuration starts only between turns; messages and retries stay
     // blocked while the credential check is pending.
     set_agent(std::move(outcome->service), AgentAvailability::Ready);
@@ -2907,8 +2977,11 @@ void AgentHost::pump_stream()
 
     if (next->kind == AgentEventKind::ToolCall && next->tool)
         handle_agent_tool_call(*next->tool);
-    else if (next->kind == AgentEventKind::Failed)
+    else if (next->kind == AgentEventKind::Failed) {
+        if (next->error && next->error->code == "invalid_credentials")
+            note_key_rejected();
         fail_stream(next->error.value_or(AgentError{"agent_error", "The Agent request failed.", true}));
+    }
     else if (next->kind == AgentEventKind::Completed)
         complete_stream();
 }

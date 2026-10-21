@@ -2393,29 +2393,95 @@ button.wide {
   cursor: default;
 }
 
+/* The key field is the design system's Field/Secret: one bordered control,
+   with the key (or its hint) and the links that act on it inside it. */
 .setup-key {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: var(--field-height);
+  padding: 0 var(--field-padding-x);
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-/* Shares the compact radius and height of the primary button beside it so
-   the key row reads as one control. A key is code. */
+/* The field, not the input inside it, draws the focus ring. */
+.setup-key:has(.setup-key-input:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--border-focus);
+}
+
+/* A saved key is read-only: shown, never edited, on a filled field. */
+.setup-key--saved {
+  background: var(--surface-subtle);
+}
+
+.setup-key--rejected {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}
+
+/* A key is code. */
 .setup-key-input {
   flex: 1;
   min-width: 0;
-  padding: var(--button-secondary-padding);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-medium);
-  background: var(--surface-canvas);
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   font: var(--font-code);
 }
 
-.setup-key-input:focus {
-  outline: 2px solid var(--border-focus);
-  outline-offset: -1px;
+.setup-key-input:focus,
+.setup-key-input:focus-visible {
+  outline: none;
+}
+
+.setup-key-input::placeholder {
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.setup-key-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: var(--font-code);
+  color: var(--text-primary);
+}
+
+.setup-key button.link.setup-key-remove,
+.setup-key button.link.setup-key-remove:hover:enabled,
+.setup-key button.link.setup-key-remove:active:enabled {
+  color: var(--status-danger);
+}
+
+.setup-key-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--font-label-bold);
+  color: var(--status-success);
+}
+
+.setup-key-status--rejected {
+  color: var(--status-danger);
+}
+
+.setup-card p.setup-key-note {
+  font: var(--font-label);
+}
+
+.setup-keeps {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.setup-actions button.link.setup-cancel,
+.setup-actions button.link.setup-cancel:hover:enabled,
+.setup-actions button.link.setup-cancel:active:enabled {
+  color: var(--text-primary);
 }
 
 .setup-actions {

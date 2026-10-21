@@ -1412,7 +1412,7 @@ describe('App agent setup', () => {
     openApiKeyScreen();
     fireEvent.click(screen.getByRole('tab', { name: 'Anthropic' }));
     const field = screen.getByLabelText('Anthropic API key');
-    expect(field).toHaveAttribute('placeholder', 'sk-ant-…');
+    expect(field).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
     await userEvent.type(field, 'sk-ant-test');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-test' });
@@ -1449,7 +1449,7 @@ describe('App agent setup', () => {
     expect(screen.getByRole('tab', { name: 'OpenRouter' })).toHaveAttribute('aria-selected', 'true');
 
     const field = screen.getByLabelText('OpenRouter API key');
-    expect(field).toHaveAttribute('placeholder', 'sk-or-…');
+    expect(field).toHaveAttribute('placeholder', 'Paste your OpenRouter key (sk-or-…)');
     await userEvent.type(field, 'sk-or-test');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'openrouter', apiKey: 'sk-or-test' });
@@ -1515,6 +1515,114 @@ describe('App agent setup', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
     expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
+  });
+
+  // A stored key: the host sends a hint of it, never the key.
+  const savedAnthropic = { provider: 'anthropic', hint: 'sk-ant-…a3F9', rejected: false };
+
+  function openAnthropicKey(keys: Array<{ provider: string; hint: string; rejected: boolean }>) {
+    openApiKeyScreen();
+    host.deliver('setup_keys', { keys });
+    fireEvent.click(screen.getByRole('tab', { name: 'Anthropic' }));
+  }
+
+  it('1. no key saved: placeholder text only, and Check key waits for a key', () => {
+    openAnthropicKey([]);
+
+    const field = screen.getByLabelText('Anthropic API key');
+    expect(field).toHaveValue('');
+    expect(field).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
+    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
+    expect(screen.queryByTestId('setup-key-status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Replace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+  });
+
+  it('2. key saved: its hint, read-only, with Replace and Remove; each provider shows its own', () => {
+    openAnthropicKey([savedAnthropic]);
+
+    expect(screen.getByTestId('setup-key-status')).toHaveTextContent('Key saved on this computer');
+    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.queryByLabelText('Anthropic API key')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
+    expect(screen.getByText('JusPrin uses this key for every chat. Replace it to use another one.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check key' })).not.toBeInTheDocument();
+
+    // OpenAI has no key here, so its tab is the empty field.
+    fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
+    expect(screen.getByLabelText('OpenAI API key')).toHaveValue('');
+    expect(screen.queryByTestId('setup-key-saved')).not.toBeInTheDocument();
+  });
+
+  it('3. replacing: an empty focused field, the saved key kept until the new one passes', async () => {
+    openAnthropicKey([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+
+    const field = screen.getByLabelText('Anthropic API key');
+    expect(field).toHaveValue('');
+    expect(field).toHaveAttribute('placeholder', 'Paste the new key');
+    expect(field).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
+    expect(screen.getByText('Keeps sk-ant-…a3F9')).toBeInTheDocument();
+
+    // Cancel goes back to the saved key without telling the host anything.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(host.received.filter((e) => e.type.startsWith('setup_'))).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-new');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-new' });
+  });
+
+  it('4. checking: the saved key stays on show, with Checking… and Cancel', async () => {
+    openAnthropicKey([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-new');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    host.deliver('setup_status', { phase: 'checking', provider: 'anthropic' });
+
+    expect(screen.getByTestId('setup-key-status')).toHaveTextContent('Key saved on this computer');
+    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.getByText('Checking…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Replace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('setup_cancel')).toBeTruthy();
+
+    // A new key that fails leaves the saved one, and the new one to correct.
+    host.deliver('setup_status', {
+      phase: 'error',
+      provider: 'anthropic',
+      error: { code: 'invalid_credentials', message: 'The Anthropic API key was rejected.', retryable: false },
+    });
+    expect(screen.getByTestId('setup-error')).toHaveTextContent('The Anthropic API key was rejected.');
+    expect(screen.getByLabelText('Anthropic API key')).toHaveValue('sk-ant-new');
+    expect(screen.getByText('Keeps sk-ant-…a3F9')).toBeInTheDocument();
+  });
+
+  it('5. key rejected: says so beside the refused key, with Replace and Remove', () => {
+    openAnthropicKey([{ ...savedAnthropic, rejected: true }]);
+
+    expect(screen.getByTestId('setup-key-rejected')).toHaveTextContent('The provider rejected this key');
+    expect(screen.queryByTestId('setup-key-status')).not.toBeInTheDocument();
+    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.getByTestId('setup-key-saved')).toHaveClass('setup-key--rejected');
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
+    expect(screen.getByText('Replace it with a working key, or remove it.')).toBeInTheDocument();
+  });
+
+  it('Remove asks the host to delete the key, and the screen follows what the host says is left', () => {
+    openAnthropicKey([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(host.lastOfType('setup_remove_key')!.payload).toEqual({ provider: 'anthropic' });
+
+    host.deliver('setup_keys', { keys: [] });
+    expect(screen.queryByTestId('setup-key-saved')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Anthropic API key')).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
   });
 
   it('opens the local AI tool catalog and connects a file-based client', () => {

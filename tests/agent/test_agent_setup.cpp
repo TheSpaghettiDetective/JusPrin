@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -251,7 +252,7 @@ TEST_CASE("the endpoint override redirects whichever provider is being checked",
 {
     TransportLog log;
     ProviderKeySetup setup([&log]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<FakeTransport>(log); },
-                           [](const SetupCredentials&) { return true; }, "http://127.0.0.1:1/v1/responses");
+                           [](const SetupCredentials&) { return true; }, {}, "http://127.0.0.1:1/v1/responses");
     SetupCredentials credentials;
     credentials.provider = "openrouter";
     credentials.api_key  = "k";
@@ -262,4 +263,84 @@ TEST_CASE("the endpoint override redirects whichever provider is being checked",
     credentials.endpoint = "http://127.0.0.1:2/v1/responses";
     REQUIRE(setup.start_check(credentials));
     CHECK(log.requests.back().url == "http://127.0.0.1:2/v1/responses");
+}
+
+// The setup screen is told a stored key exists through its hint. However the
+// key is shaped, the hint is the provider's fixed start, an ellipsis, and at
+// most the key's last 4 characters: nothing else of the key.
+TEST_CASE("a key's hint is its known start and last 4 characters, never more", "[agent][setup][saved_keys]")
+{
+    const std::string ellipsis = "…";
+    CHECK(api_key_hint("anthropic", "sk-ant-api03-TESTONLY000000000000000a3F9") == "sk-ant-" + ellipsis + "a3F9");
+    CHECK(api_key_hint("openai", "sk-proj-TESTONLY0000000000000000wxyz") == "sk-proj-" + ellipsis + "wxyz");
+    CHECK(api_key_hint("openai", "sk-TESTONLY0000000000000000wxyz") == "sk-" + ellipsis + "wxyz");
+    CHECK(api_key_hint("openrouter", "sk-or-v1-TESTONLY000000000000000000beef") == "sk-or-v1-" + ellipsis + "beef");
+    // A start the provider does not use is part of the key, so it is hidden.
+    CHECK(api_key_hint("anthropic", "TESTONLY-0000000000000000000000c0de") == ellipsis + "c0de");
+    CHECK(api_key_hint("other", "sk-ant-TESTONLY0000000000000000c0de") == ellipsis + "c0de");
+    // Too short to give away 4 characters: the end stays hidden too.
+    CHECK(api_key_hint("anthropic", "sk-ant-TESTONL") == "sk-ant-" + ellipsis);
+    CHECK(api_key_hint("openai", "short") == ellipsis);
+    CHECK(api_key_hint("openai", "") == ellipsis);
+
+    // Every length, every provider: what the hint shows of the key is a known
+    // start and the last 4 characters, and only for a key that keeps at least
+    // 8 characters hidden.
+    const std::vector<std::pair<std::string, std::string>> starts{
+        {"anthropic", "sk-ant-"}, {"openai", "sk-proj-"}, {"openai", "sk-"}, {"openrouter", "sk-or-v1-"}, {"openai", ""}};
+    for (const auto& [provider, start] : starts)
+        for (std::size_t length = 0; length < 48; ++length) {
+            std::string body;
+            for (std::size_t i = 0; i < length; ++i)
+                body += static_cast<char>('A' + i % 26);
+            const std::string key  = start + body;
+            const std::string hint = api_key_hint(provider, key);
+            CAPTURE(provider, key, hint);
+            const std::size_t mark = hint.find(ellipsis);
+            REQUIRE(mark != std::string::npos);
+            const std::string shown_start = hint.substr(0, mark);
+            const std::string shown_end   = hint.substr(mark + ellipsis.size());
+            CHECK(key.compare(0, shown_start.size(), shown_start) == 0);
+            CHECK(shown_start.size() <= start.size());
+            CHECK(shown_end.size() <= 4);
+            CHECK(key.size() >= shown_end.size());
+            CHECK(key.compare(key.size() - shown_end.size(), shown_end.size(), shown_end) == 0);
+            if (!shown_end.empty())
+                CHECK(key.size() - shown_start.size() - shown_end.size() >= 8);
+        }
+}
+
+TEST_CASE("setup lists stored keys by hint and Remove deletes one", "[agent][setup][saved_keys]")
+{
+    std::map<std::string, std::string> stored{{"anthropic", "sk-ant-api03-TESTONLY000000000000000a3F9"},
+                                              {"openai", "sk-proj-TESTONLY0000000000000000wxyz"}};
+    ProviderKeySetup::KeyStore keys;
+    keys.load = [&stored](const std::string& provider) {
+        const auto key = stored.find(provider);
+        return key == stored.end() ? std::string() : key->second;
+    };
+    keys.remove = [&stored](const std::string& provider) { return stored.erase(provider) > 0; };
+    TransportLog     log;
+    ProviderKeySetup setup([&log]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<FakeTransport>(log); },
+                           [](const SetupCredentials&) { return true; }, keys);
+
+    // In setup's order, by hint.
+    std::vector<SavedKey> saved = setup.saved_keys();
+    REQUIRE(saved.size() == 2);
+    CHECK(saved[0].provider == "openai");
+    CHECK(saved[0].hint == "sk-proj-…wxyz");
+    CHECK(saved[1].provider == "anthropic");
+    CHECK(saved[1].hint == "sk-ant-…a3F9");
+
+    REQUIRE(setup.remove_key("anthropic"));
+    CHECK(stored.count("anthropic") == 0);
+    saved = setup.saved_keys();
+    REQUIRE(saved.size() == 1);
+    CHECK(saved[0].provider == "openai");
+    // Nothing stored, or a provider this build does not have, is not removed.
+    CHECK_FALSE(setup.remove_key("anthropic"));
+    CHECK_FALSE(setup.remove_key("openai_api_key"));
+    CHECK(stored.count("openai") == 1);
+    // No request went anywhere.
+    CHECK(log.requests.empty());
 }

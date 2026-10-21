@@ -18,15 +18,53 @@ AgentRequest probe_request()
     return request;
 }
 
+// The fixed starts each provider gives its keys, longer ones first. They say
+// what kind of key it is, not which one.
+const std::vector<std::string>& key_prefixes(const std::string& provider)
+{
+    static const std::vector<std::string> anthropic{"sk-ant-"};
+    static const std::vector<std::string> openai{"sk-proj-", "sk-svcacct-", "sk-admin-", "sk-"};
+    static const std::vector<std::string> openrouter{"sk-or-v1-", "sk-or-"};
+    static const std::vector<std::string> none;
+    if (provider == "anthropic")
+        return anthropic;
+    if (provider == "openai")
+        return openai;
+    if (provider == "openrouter")
+        return openrouter;
+    return none;
+}
+
+// Keys shorter than this past their start keep their end to themselves too:
+// 4 characters of a short key would be a large part of it.
+constexpr std::size_t kMinHiddenForTail = 8;
+constexpr std::size_t kTailLength       = 4;
+constexpr const char* kEllipsis         = "\xE2\x80\xA6"; // U+2026
+
 } // namespace
+
+std::string api_key_hint(const std::string& provider, const std::string& key)
+{
+    std::string prefix;
+    for (const std::string& candidate : key_prefixes(provider))
+        if (key.size() > candidate.size() && key.compare(0, candidate.size(), candidate) == 0) {
+            prefix = candidate;
+            break;
+        }
+    std::string hint = prefix + kEllipsis;
+    if (key.size() >= prefix.size() + kMinHiddenForTail + kTailLength)
+        hint += key.substr(key.size() - kTailLength);
+    return hint;
+}
 
 bool setup_provider_supported(const std::string& provider) { return profile_for(provider) != nullptr; }
 
 ProviderKeySetup::ProviderKeySetup(TransportFactory transport,
                                    CommitFn         commit,
+                                   KeyStore         keys,
                                    std::string      endpoint_override,
                                    Clock            clock)
-    : m_transport_factory(std::move(transport)), m_commit(std::move(commit)),
+    : m_transport_factory(std::move(transport)), m_commit(std::move(commit)), m_keys(std::move(keys)),
       m_endpoint_override(std::move(endpoint_override)), m_clock(std::move(clock))
 {
     if (!m_clock)
@@ -89,6 +127,24 @@ std::optional<SetupOutcome> ProviderKeySetup::poll()
 bool ProviderKeySetup::commit(const SetupCredentials& credentials)
 {
     return m_commit && m_commit(credentials);
+}
+
+std::vector<SavedKey> ProviderKeySetup::saved_keys() const
+{
+    std::vector<SavedKey> saved;
+    if (!m_keys.load)
+        return saved;
+    for (const ProviderProfile& profile : provider_profiles()) {
+        const std::string key = m_keys.load(profile.id);
+        if (!key.empty())
+            saved.push_back(SavedKey{profile.id, api_key_hint(profile.id, key)});
+    }
+    return saved;
+}
+
+bool ProviderKeySetup::remove_key(const std::string& provider)
+{
+    return setup_provider_supported(provider) && m_keys.remove && m_keys.remove(provider);
 }
 
 int ProviderKeySetup::elapsed_ms() const

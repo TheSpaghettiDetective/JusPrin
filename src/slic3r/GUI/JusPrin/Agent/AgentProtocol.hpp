@@ -31,7 +31,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
-                                                 "model_choice", "all_settings", "settings_actions"};
+                                                 "model_choice", "all_settings", "settings_actions", "saved_keys"};
     return values;
 }
 
@@ -54,6 +54,10 @@ inline constexpr const char* kAttachFile         = "attach_file";
 inline constexpr const char* kRemoveAttachment   = "remove_attachment";
 inline constexpr const char* kSetupCheckKey      = "setup_check_key";
 inline constexpr const char* kSetupCancel        = "setup_cancel";
+// Deletes one provider's stored key: {provider}. The keys still stored follow
+// as setup_keys; a refusal comes back as bridge_error. Added additively; the
+// saved_keys capability advertises it.
+inline constexpr const char* kSetupRemoveKey     = "setup_remove_key";
 inline constexpr const char* kMcpCatalog         = "mcp_catalog";
 inline constexpr const char* kMcpPreview         = "mcp_preview";
 inline constexpr const char* kMcpConnect         = "mcp_connect";
@@ -100,6 +104,11 @@ inline constexpr const char* kToolActivity       = "tool_activity";
 inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 inline constexpr const char* kSetupStatus        = "setup_status";
+// Which providers have a stored key, never the key: {keys: [{provider, hint,
+// rejected}]}, hint as api_key_hint() writes it, rejected when the provider
+// refused that key in this session. Sent after the handshake and whenever one
+// of them changes. saved_keys capability.
+inline constexpr const char* kSetupKeys          = "setup_keys";
 inline constexpr const char* kMcpStatus          = "mcp_status";
 // One new change log entry; the full list travels in `state`.
 inline constexpr const char* kChangeAdded        = "change_added";

@@ -570,8 +570,10 @@ export function App({
       return (
         <SetupApiKey
           setup={state.setup}
+          savedKeys={state.savedKeys}
           onCheck={checkKey}
           onCancel={cancelCheck}
+          onRemove={(provider) => client.send('setup_remove_key', { provider })}
           onBack={() => {
             cancelCheck();
             setSetupScreen('chooser');

@@ -41,7 +41,8 @@ export type PageMessageType =
   | 'project_instructions'
   | 'skills'
   | 'settings_catalog_request'
-  | 'settings_action';
+  | 'settings_action'
+  | 'setup_remove_key';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -70,7 +71,8 @@ export type HostMessageType =
   | 'model_catalog'
   | 'chat_model'
   | 'printer_session'
-  | 'settings_catalog';
+  | 'settings_catalog'
+  | 'setup_keys';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -268,6 +270,19 @@ export interface SetupStatusPayload {
   elapsedMs?: number;
   error?: AgentErrorInfo;
   warning?: string;
+}
+
+// A provider with a stored key, as the host describes it: never the key, only
+// its hint ("sk-ant-…a3F9", its known start and last 4 characters), and
+// whether the provider refused that key in this session.
+export interface SavedKeyInfo {
+  provider: string;
+  hint: string;
+  rejected: boolean;
+}
+
+export interface SetupKeysPayload {
+  keys: SavedKeyInfo[];
 }
 
 export interface McpToolInfo {
