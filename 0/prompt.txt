@@ -1,0 +1,60 @@
+<task-notification>
+<task-id>a9886638278af8991</task-id>
+<tool-use-id>toolu_016Jct9a6cCJ67ZNZ3AwKvha</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/cf7654a6-1459-473e-98ee-62e9345c7849/tasks/a9886638278af8991.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement composer redesign" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I built the new message box: the growing text field, the + menu, the toolbar, Stop, and Photo mode. I did not build the model picker or the thinking-level picker, because the code has no list of models and no thinking-level data, so items 5 and 6 of the design are not done. Everything is uncommitted in the worktree (HEAD was 170d1ae080 as expected).
+
+**What the code has today (models and thinking)**
+- Only one provider is active at a time (`jusprin_agent/provider` in AppConfig). Keys are stored per provider, but each provider has just one default model in `ProviderProfile.hpp` (`gpt-5.4-mini`, `openai/gpt-5.4-mini`, `claude-opus-5-5`), plus one optional `model` setting for the whole app.
+- The C++ host picks the model once, when it builds the Agent. Nothing chooses a model per turn or per chat, and the page is never told the provider or the model. The setup page says "Which model to use is decided for you."
+- Neither the OpenAI nor the Anthropic request sends a thinking or reasoning-effort setting, and nothing records which models support which levels.
+
+To build the pickers we need: a model list with display names per provider; per-model thinking levels and defaults; a host change so each turn uses the chat's chosen model; and a saved per-chat field. That needs a product decision first.
+
+**What changed, by file**
+- `Composer.tsx`: one box holding staged files, then the field, then a toolbar. The field starts one line high, grows to 8 lines, then scrolls. Enter, Shift+Enter and IME typing work as before. The + menu offers the four types, each opening a picker filtered to the extensions the host accepts for that kind. Printer chat keeps Photo. While the Agent responds, + is disabled and the field stays usable. The default placeholder is now the design's wording.
+- `ChatNavigation.tsx`: the existing ⋯ menu now takes an icon, an "open upward" option and a disabled state, so + reuses it rather than adding a second menu.
+- `styles.css`: new box, toolbar and upward-menu styles; placeholder colour is now `text-tertiary`.
+- `design-tokens.json`: new `component.composer` group (padding 8, gap 4, field inset 4, maxLines 8).
+- `tokens.ts`: writes these as CSS variables and computes the height limit from them.
+- `test_brand_tokens.cpp` and `styles.test.ts`: guards for the new tokens and variables.
+- `Composer.test.tsx` (new), plus seven proposal states added to `authoring.visual-cases.tsx`, and one line in `design-system.md`.
+
+**Decisions**
+- All four menu types work end to end today (images go to the model, 3D models get a summary and can be imported, G-code goes as text, PDFs as files).
+- I used the existing token sizes where they disagree with the proposal: + and Send are 26 high instead of 32/28, and menu rows 32 high instead of 36. That makes the empty box 72 high against the proposal's 80.
+- The box border turns strong at 1 px while anything in it has focus, as the proposal shows. The old box drew a 2 px focus ring, which the design system's accessibility rule asks for; worth a look.
+- Photo mode stays enabled while the Agent responds, and dropping or pasting a file still works then. The design only names + as disabled.
+
+**Verification**
+- `npx vitest run`: 471 passed. That includes 23 new tests covering growth, the 8-line limit, Enter vs Shift+Enter, IME, the menu and its filters, drop and paste, file order inside the box, the responding state, and Photo mode.
+- `cmake --build build/arm64 --config Release --target brand_tokens_tests jusprin_web` built cleanly. `brand_tokens_tests`: 32 passed, plus the one case already marked as allowed to fail.
+- Fail-first checks:
+  - Setting maxLines to 9 and the field inset to 6 made the C++ guard fail, naming both values.
+  - A misspelled `--composer-pading` made `styles.test` fail.
+  - Removing the height cap failed the 8-line test.
+  - All three files were restored from copies.
+- In the built bundle with a fake host at 429 px:
+  - The field measured 26, 44, 62 … 152 and stopped there, then scrolled with the toolbar still visible. 62 and 152 match the proposal.
+  - Enter sent the message.
+  - The menu opened above +.
+  - While responding, + was disabled, Stop showed and the field stayed editable.
+  - Dark mode renders.
+- I compared screenshots against the proposal by eye; the structure and colours match. I skipped a pixel diff because the box heights differ by design (72 vs 80).
+
+**Left undone**
+- The model and thinking pickers and the per-chat model setting, for the reasons above.
+- On macOS the file picker will not filter by type. wxWidgets' WKWebView handler opens a plain file dialog with an "all files" filter and ignores the page's filter. Windows and Linux should honour it but are untested. Filtering on Mac would need a native picker message.
+- Not checked in the running app.
+- Text and SVG files have no menu entry but can still be dropped.
+
+The worktree now also has an ignored `build/arm64` (Release) and `node_modules`.</result>
+<usage><subagent_tokens>266987</subagent_tokens><tool_uses>93</tool_uses><duration_ms>632101</duration_ms></usage>
+</task-notification>
+
+---
+
+I want to drive the coding session myself.
