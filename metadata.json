@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5FS15QBB9C15MRPFG3NG20E",
   "strategy": "manual-commit",
   "branch": "claude/mcp-external-edits-visible",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.test.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/SetupCard.tsx"
@@ -22,13 +22,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 222,
+    "cache_creation_tokens": 507185,
+    "cache_read_tokens": 25120409,
+    "output_tokens": 74203,
+    "api_call_count": 111
   }
 }
