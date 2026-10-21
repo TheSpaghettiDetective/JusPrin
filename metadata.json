@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5G4GAQX08P1GG00BHEFMDAD",
+  "strategy": "manual-commit",
+  "branch": "claude/tool-error-contract",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ToolActivityCard.tsx",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaOutline.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaRegions.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaReshape.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/jusprin_support/FakeSettings.hpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/printer_prompt/run_prompt_tests.py",
+    "tests/workspace/test_project_outline.cpp",
+    "tests/workspace/test_workspace_contract.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1030,
+    "cache_creation_tokens": 3163365,
+    "cache_read_tokens": 295172536,
+    "output_tokens": 383577,
+    "api_call_count": 515
+  }
+}
