@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5F59EZBS01EPFAX18BTD559",
   "strategy": "manual-commit",
   "branch": "claude/add-printer-popup",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -28,14 +28,21 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 432,
-    "cache_creation_tokens": 229510,
-    "cache_read_tokens": 36287267,
-    "output_tokens": 38511,
-    "api_call_count": 51,
+    "input_tokens": 434,
+    "cache_creation_tokens": 775365,
+    "cache_read_tokens": 36328517,
+    "output_tokens": 38669,
+    "api_call_count": 52,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,
