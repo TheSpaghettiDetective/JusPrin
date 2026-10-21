@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5FSSY11KNKZCWPPYSW0MD80",
   "strategy": "manual-commit",
   "branch": "claude/mcp-external-edits-visible",
-  "checkpoints_count": 7,
+  "checkpoints_count": 9,
   "files_touched": [
     "resources/jusprin/ui/design-tokens.json",
     "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
@@ -37,6 +37,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
