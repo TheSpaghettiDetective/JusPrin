@@ -1,0 +1,5 @@
+the test session found about 75 bridge processes on your machine - why did this happen? is it a bug? will this happen to end users using released app too?
+
+---
+
+an bridge is an OS process, right? Is it fair to say that this happened because we don't have a way to reclaim those processes? There's no such thing as timeout or something. So once the bridge has started, it'll never be, it'll never exit until OS restarted.
