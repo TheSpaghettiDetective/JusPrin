@@ -154,6 +154,8 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
   return <div className={['chat-actions', above && 'chat-actions--above', appearance === 'select' && 'chat-actions--select', className]
     .filter(Boolean).join(' ')}
     ref={container} onKeyDown={(event) => {
+    // An open menu's Escape closes the menu only, not a dialog it sits in.
+    if (event.key === 'Escape' && shown) event.stopPropagation();
     if (event.key === 'Escape') { setOpen(false); button.current?.focus(); }
     // The search field keeps its own keys; Home and End move its cursor.
     if (shown && event.target !== field.current && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -231,8 +233,10 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
 
 // A modal question over the panel: focus starts on its first control and
 // stays inside it, and Escape is the same as `onClose` (its Cancel).
-export function Dialog({ title, onClose, children }: {
-  title: string; onClose: () => void; children: React.ReactNode;
+// `eyebrow` is a line over the title, such as a form's step; `className`
+// adds to the dialog's own.
+export function Dialog({ title, onClose, children, eyebrow, className }: {
+  title: string; onClose: () => void; children: React.ReactNode; eyebrow?: React.ReactNode; className?: string;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -241,7 +245,7 @@ export function Dialog({ title, onClose, children }: {
   useEffect(() => { controls()[0]?.focus(); }, []);
 
   return <div className="chat-dialog-shade">
-    <div ref={dialog} className="chat-dialog"
+    <div ref={dialog} className={className ? `chat-dialog ${className}` : 'chat-dialog'}
       role="dialog" aria-modal="true" aria-labelledby={titleId}
       onKeyDown={(event) => {
         if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
@@ -251,6 +255,7 @@ export function Dialog({ title, onClose, children }: {
           if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         }
       }}>
+      {eyebrow}
       <h2 id={titleId}>{title}</h2>
       {children}
     </div>

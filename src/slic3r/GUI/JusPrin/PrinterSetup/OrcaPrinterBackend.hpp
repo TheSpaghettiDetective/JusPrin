@@ -7,6 +7,7 @@
 
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
+#include "libslic3r/Preset.hpp"
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -22,6 +23,11 @@ public:
 
     const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
+    std::vector<DiscoveredPrinter> nearby_printers() const override;
+    SetupOptions                   setup_options(const std::string& catalog_id, double nozzle) const override;
+    void                           prepare_setup_options() override;
+    std::string start_with_filament(const std::string& printer, const std::string& filament, bool copy, std::string& used) override;
+    std::string create_filament_preset(const std::string& printer) override;
     std::vector<SavedPrinter>      saved_printers() const override;
     SavedPrinter                   stock_printer(const std::string& name) const override;
 
@@ -47,6 +53,12 @@ private:
 
     Plater&                     m_plater;
     PrinterCatalog              m_catalog;
+    // Where the catalogue was read from, which the printer form's options
+    // are read from too.
+    std::string                 m_profiles_directory;
+    // Copies of the person's own filament presets, taken on the GUI thread
+    // by prepare_setup_options for setup_options to read off it.
+    std::vector<Preset>         m_own_filaments;
     // One entry per model, built once from the catalogue's per-variant
     // candidates: the panel proposes printers, and a nozzle is a fact about
     // the printer rather than a printer of its own.

@@ -5,11 +5,14 @@
 #include "OrcaPrinterBackend.hpp"
 
 #include "PrinterDiscovery.hpp"
+#include "SetupOptionsLoader.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/ConfigWizard.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
@@ -25,6 +28,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
+#include <set>
 #include <thread>
 #include <wx/utils.h>
 
@@ -44,12 +48,28 @@ double nozzle_of(const std::string& variant)
 } // namespace
 
 OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog)
-    : m_plater(plater), m_catalog(std::move(catalog))
+    : m_plater(plater), m_catalog(std::move(catalog)), m_profiles_directory(Slic3r::resources_dir() + "/profiles")
 {
     m_models = m_catalog.panel_printers();
 }
 
 std::vector<DiscoveredPrinter> OrcaPrinterBackend::network_printers() const { return discover_printers(); }
+
+std::vector<DiscoveredPrinter> OrcaPrinterBackend::nearby_printers() const { return discover_nearby_printers(); }
+
+SetupOptions OrcaPrinterBackend::setup_options(const std::string& catalog_id, double nozzle) const
+{
+    // The catalogue and the options read the same files, so a model and size
+    // the catalogue offered has a machine profile there.
+    for (const PrinterCandidate& candidate : m_catalog.candidates())
+        if (candidate.vendor_id + "/" + candidate.model_id == catalog_id && nozzle_of(candidate.variant) == nozzle) {
+            SetupOptions options = load_setup_options(m_profiles_directory, candidate.vendor_id, candidate.preset_name, m_own_filaments);
+            options.catalog_id   = catalog_id;
+            options.nozzle       = nozzle;
+            return options;
+        }
+    throw std::logic_error("The printer form asked about a printer the catalogue does not offer: " + catalog_id);
+}
 
 const CatalogPrinter* OrcaPrinterBackend::model_of(const std::string& printer_name) const
 {
@@ -148,6 +168,77 @@ SavedPrinter OrcaPrinterBackend::stock_printer(const std::string& name) const
     return stock;
 }
 
+void OrcaPrinterBackend::prepare_setup_options()
+{
+    m_own_filaments.clear();
+    for (const Preset& preset : wxGetApp().preset_bundle->filaments)
+        if (preset.is_user())
+            m_own_filaments.push_back(preset);
+}
+
+std::string OrcaPrinterBackend::start_with_filament(const std::string& printer, const std::string& filament, bool copy,
+                                                    std::string& used)
+{
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets->printers.get_selected_preset_name() != printer)
+        throw std::logic_error("A filament was chosen for " + printer + ", which is not the selected printer");
+    const Preset* source  = presets->filaments.find_preset(filament, false);
+    if (source == nullptr || source->name != filament)
+        return "The filament " + filament + " is no longer there.";
+    std::string chosen = filament;
+    if (copy) {
+        // OrcaSlicer's own "Add preset for new printer"
+        // (CreatePresetForPrinterDialog): a copy named "<name> @<printer>",
+        // made for that printer alone, so a printer change keeps it.
+        const std::string name = source->alias.empty() ? source->name : source->alias;
+        chosen                 = name + " @" + printer;
+        if (const Preset* existing = presets->filaments.find_preset(chosen, false); existing == nullptr || existing->name != chosen) {
+            const auto first = [source](const char* key) {
+                const auto* values = source->config.option<ConfigOptionStrings>(key);
+                return values != nullptr && !values->values.empty() ? values->values.front() : std::string();
+            };
+            DynamicConfig made_for;
+            made_for.set_key_value("filament_vendor", new ConfigOptionStrings({first("filament_vendor")}));
+            made_for.set_key_value("compatible_printers", new ConfigOptionStrings({printer}));
+            made_for.set_key_value("filament_type", new ConfigOptionStrings({first("filament_type")}));
+            std::vector<std::string> failures;
+            if (!presets->filaments.clone_presets_for_filament(source, failures, name, source->filament_id, made_for, printer))
+                return "A copy of " + name + " for " + printer + " could not be saved.";
+            if (wxGetApp().mainframe)
+                wxGetApp().mainframe->update_side_preset_ui();
+        }
+    }
+    if (!SetupCommands::select_filament_preset(m_plater, 0, chosen))
+        return "The filament " + chosen + " could not be put in slot 1.";
+    used = chosen;
+    return {};
+}
+
+std::string OrcaPrinterBackend::create_filament_preset(const std::string& printer)
+{
+    PresetBundle*         presets = wxGetApp().preset_bundle;
+    if (presets->printers.get_selected_preset_name() != printer)
+        throw std::logic_error("A filament preset was to be made for " + printer + ", which is not the selected printer");
+    std::set<std::string> before;
+    for (const Preset& preset : presets->filaments)
+        if (preset.is_user())
+            before.insert(preset.name);
+    // OrcaSlicer's own handler, as its setup guide reaches it: its Create
+    // filament window, and its note when a preset was made.
+    SimpleEvent create(EVT_CREATE_FILAMENT);
+    m_plater.ProcessWindowEvent(create);
+    const PresetWithVendorProfile selected = presets->printers.get_edited_preset_with_vendor_profile();
+    for (const Preset& preset : presets->filaments)
+        if (preset.is_user() && before.count(preset.name) == 0 &&
+            is_compatible_with_printer(presets->filaments.get_preset_with_vendor_profile(preset), selected)) {
+            const std::string name = preset.name;
+            if (!SetupCommands::select_filament_preset(m_plater, 0, name))
+                return {};
+            return name;
+        }
+    return {};
+}
+
 std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, SavedPrinter& added)
 {
     // Installing and selecting the printer preset marks the open project
@@ -176,6 +267,11 @@ std::string OrcaPrinterBackend::add_printer(const AddPrinterRequest& request, Sa
 
     const std::string name =
         Printers::add_named_printer(m_plater, request.name.empty() ? request.model_id : request.name, request.device_id);
+    // With the new printer selected, the plate goes through the sidebar's
+    // own selection, which records it as this printer's plate
+    // (app_config printer_settings), as a pick in the sidebar would.
+    if (request.plate && !SetupCommands::select_bed_type(m_plater, *request.plate))
+        throw std::logic_error("The printer form offered a plate OrcaSlicer does not offer for " + name);
 
     for (const SavedPrinter& saved : saved_printers())
         if (saved.name == name)

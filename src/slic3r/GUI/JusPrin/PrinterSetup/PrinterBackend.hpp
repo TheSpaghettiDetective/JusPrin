@@ -85,6 +85,55 @@ struct AddPrinterRequest
     std::string material; // default filament preset, may be empty
     std::string name;     // display name; empty uses the model name
     std::string device_id;    // a discovered printer's id, when this is one
+    // The plate to start projects on, as OrcaSlicer's BedType value; absent
+    // leaves the plate OrcaSlicer picks for the profile.
+    std::optional<int> plate;
+};
+
+// One build plate OrcaSlicer offers for a printer: its BedType value and the
+// name OrcaSlicer shows for it.
+struct PlateOption
+{
+    int         type{0};
+    std::string label;
+};
+
+// One filament preset the printer form offers.
+struct FilamentOption
+{
+    std::string name;     // the preset's name, which installs and selects it
+    std::string label;    // the name OrcaSlicer shows in its lists (the alias)
+    std::string vendor;   // filament_vendor, e.g. "Generic", "eSUN"
+    std::string material; // filament_type, e.g. "PLA"
+    // Empty when OrcaSlicer counts it as fitting the printer; otherwise the
+    // printers its profile names, as a phrase: "the Prusa CORE One and
+    // Prusa XL", or "other printers" when it names none it can say.
+    std::string made_for;
+    // A person's own preset: the preset it was saved from, when it was.
+    std::string base;
+};
+
+// What the printer form offers for one model and nozzle, read from the
+// packaged profiles as OrcaSlicer would load them. Nothing in it is
+// installed until the person finishes the form.
+struct SetupOptions
+{
+    std::string catalog_id;
+    double      nozzle{0.};
+    // Empty when OrcaSlicer offers no plate choice for this printer.
+    std::vector<PlateOption> plates;
+    int                      default_plate{0}; // the plate OrcaSlicer starts it on
+    std::vector<FilamentOption> filaments;      // compatible, by label
+    // The chosen brand's and OrcaSlicer's library filaments that do not fit
+    // this printer, by label; picking one saves a copy for the printer.
+    std::vector<FilamentOption> others;
+    // The person's own filament presets, by name; `made_for` says which do
+    // not fit, and picking one of those saves a copy for the printer.
+    std::vector<FilamentOption> own;
+    std::vector<std::string>    suggested;      // the model's default_materials that are compatible
+    std::string                 default_filament; // the profile's own default; may be empty
+    // Set when the profiles could not be read; nothing else is then.
+    std::string error;
 };
 
 // A correction to a printer that already exists. Every field is optional;
@@ -138,6 +187,28 @@ public:
     // in a stable order.
     virtual const std::vector<CatalogPrinter>& catalog() const = 0;
     virtual std::vector<DiscoveredPrinter> network_printers() const = 0;
+    // Every Bambu Lab printer the app has found and could set up, including
+    // one it holds no access code for yet. network_printers() leaves those out.
+    virtual std::vector<DiscoveredPrinter> nearby_printers() const { return network_printers(); }
+    // The plates and filaments the printer form offers for one catalogue
+    // model and nozzle. Called off the GUI thread: it reads files, and what
+    // prepare_setup_options took of the person's own presets.
+    virtual SetupOptions setup_options(const std::string& catalog_id, double nozzle) const = 0;
+    // Takes what setup_options needs of the app's state, on the GUI thread,
+    // before any setup_options call it is for.
+    virtual void prepare_setup_options() {}
+    // Puts `filament` in slot 1 of the printer just added and selected. With
+    // `copy`, first saves a copy of it for that printer, which OrcaSlicer
+    // keeps in the slot across printer changes; `used` names the preset now
+    // in the slot. Returns a message for the person when it could not.
+    virtual std::string start_with_filament(const std::string& printer, const std::string& filament, bool copy, std::string& used)
+    {
+        return "Choosing a filament is unavailable.";
+    }
+    // Opens OrcaSlicer's Create filament window for the printer just added
+    // and selected, and puts a preset made there for it in slot 1. Returns
+    // that preset's name, or an empty one when none was made for it.
+    virtual std::string create_filament_preset(const std::string& printer) { return {}; }
     virtual std::vector<SavedPrinter>     saved_printers() const = 0;
     // A printer profile OrcaSlicer ships, by its preset name, as a person
     // could pick it; `stock` is set. An empty name when there is none.
@@ -152,8 +223,9 @@ public:
     // Deletes a saved printer the way Home's "Remove printer…" does.
     virtual std::string remove_printer(const std::string& name) = 0;
 
-    // The manual paths behind "Set it up myself": OrcaSlicer's own printer
-    // wizard for a new printer, its printer settings for an existing one.
+    // The ways to OrcaSlicer's own screens: its printer wizard for a new
+    // printer (only where the printer form cannot be shown), its printer
+    // settings for an existing one.
     virtual ManualPrinterResult run_manual_setup() = 0;
     virtual void open_printer_settings(const std::string& name) = 0;
 

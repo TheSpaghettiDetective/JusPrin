@@ -634,6 +634,16 @@ TEST_CASE("the status dot is one size", "[brand]")
     require_exact_table<int>(tokens.at("component").at("statusDot"), {{"size", 8}}, "component.statusDot");
 }
 
+// The printer form's step marker (the canvas's add-printer steps): one dot per
+// step, smaller than a status dot so the two never read as the same signal.
+TEST_CASE("the step dots are one size, smaller than a status dot", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("stepDots"), {{"size", 6}}, "component.stepDots");
+    REQUIRE(tokens.at("component").at("stepDots").at("size").get<int>() <
+            tokens.at("component").at("statusDot").at("size").get<int>());
+}
+
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
 // sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
 // the icon scale would make the row taller than its text, so the card has

@@ -3,12 +3,12 @@
 // a message, except the menu's two ways into OrcaSlicer's own screens and
 // the credential card's decision.
 
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from './App';
 import { PROTOCOL_NAME, PROTOCOL_VERSION } from './bridge/protocol';
-import type { Envelope, PrinterSessionPayload, StatePayload, ToolActivityInfo, WorkspaceContext } from './bridge/protocol';
+import type { Envelope, PrinterFormInfo, PrinterFormOptions, PrinterSessionPayload, StatePayload, ToolActivityInfo, WorkspaceContext } from './bridge/protocol';
 
 const context: WorkspaceContext = {
   sessionId: '1',
@@ -439,5 +439,250 @@ describe('a tool-only turn in the printer panel', () => {
     expect(screen.getByText('The Agent service could not start this request.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(host.lastOfType('retry_message')!.payload).toEqual({ messageId: 'm-2' });
+  });
+});
+
+// The printer form, which "Browse the full printer list" opens: the app sends
+// what it offers in the session, and the page sends back what was chosen.
+describe('the printer form', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  const catalog: PrinterFormInfo['catalog'] = [
+    { id: 'BBL/Bambu Lab P1S', vendorId: 'BBL', brand: 'Bambu Lab', model: 'P1S', nozzles: [0.2, 0.4, 0.6, 0.8] },
+    { id: 'Creality/Creality Ender-3 V2', vendorId: 'Creality', brand: 'Creality', model: 'Ender-3 V2', nozzles: [0.4] },
+    { id: 'Prusa/Prusa MK4', vendorId: 'Prusa', brand: 'Prusa', model: 'MK4', nozzles: [0.25, 0.4, 0.6, 0.8] },
+    // One vendor file whose model names spell the brand two ways.
+    { id: 'SecKit/SecKit SK-Tank', vendorId: 'SecKit', brand: 'SecKit', model: 'SK-Tank', nozzles: [0.4] },
+    { id: 'SecKit/Seckit Go3', vendorId: 'SecKit', brand: 'Seckit', model: 'Go3', nozzles: [0.4] },
+  ];
+  const p1sOptions: PrinterFormOptions = {
+    catalogId: 'BBL/Bambu Lab P1S', nozzle: 0.4,
+    plates: [{ type: 1, label: 'Smooth Cool Plate' }, { type: 3, label: 'Smooth High Temp Plate' }, { type: 4, label: 'Textured PEI Plate' }],
+    defaultPlate: 3,
+    filaments: [
+      { name: 'Bambu PLA Basic @BBL X1C', label: 'Bambu PLA Basic', vendor: 'Bambu Lab', material: 'PLA' },
+      { name: 'Bambu PETG HF @BBL X1C', label: 'Bambu PETG HF', vendor: 'Bambu Lab', material: 'PETG' },
+      { name: 'eSUN PLA+ @System', label: 'eSUN PLA+', vendor: 'eSUN', material: 'PLA' },
+    ],
+    suggested: ['Bambu PLA Basic @BBL X1C', 'Bambu PETG HF @BBL X1C'],
+    defaultFilament: 'Bambu PLA Basic @BBL X1C',
+    error: '',
+    others: [{ name: 'Bambu PLA Basic @BBL H2D', label: 'Bambu PLA Galaxy', vendor: 'Bambu Lab', material: 'PLA', madeFor: 'the Bambu Lab H2D' }],
+    own: [],
+  };
+  const mk4Options: PrinterFormOptions = {
+    catalogId: 'Prusa/Prusa MK4', nozzle: 0.4, plates: [], defaultPlate: 3,
+    filaments: [{ name: 'Prusa Generic PLA @MK4', label: 'Prusa Generic PLA @MK4', vendor: 'Generic', material: 'PLA' }],
+    suggested: ['Prusa Generic PLA @MK4'], defaultFilament: 'Prusa Generic PLA @MK4', error: '',
+    others: [
+      { name: 'Prusament PLA @CORE One', label: 'Prusament PLA', vendor: 'Prusament', material: 'PLA', madeFor: 'the Prusa CORE One and Prusa XL' },
+      { name: 'Prusament PETG @CORE One', label: 'Prusament PETG', vendor: 'Prusament', material: 'PETG', madeFor: 'the Prusa CORE One and Prusa XL' },
+    ],
+    own: [
+      { name: 'PETG fast walls', label: 'PETG fast walls', vendor: 'Generic', material: 'PETG', base: 'Prusa Generic PETG' },
+      { name: 'Matte PLA tuned', label: 'Matte PLA tuned', vendor: 'Bambu Lab', material: 'PLA', madeFor: 'the Bambu Lab X1 Carbon',
+        base: 'Bambu PLA Matte' },
+    ],
+  };
+
+  function form(overrides: Partial<PrinterFormInfo> = {}): PrinterFormInfo {
+    return { catalog, nearby: [], error: '', loading: false, ...overrides };
+  }
+  const withForm = (info: PrinterFormInfo) => session({ form: info });
+  const sentActions = (host: MockHost) =>
+    host.received.filter((envelope) => envelope.type === 'printer_action').map((envelope) => envelope.payload);
+
+  async function pick(menu: string, choice: string) {
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(`^${menu}:`) }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: choice }));
+  }
+
+  it('asks which printer, from one brand list per vendor and each model’s own nozzle sizes', async () => {
+    const host = open(state({ session: withForm(form()) }));
+    expect(screen.getByRole('dialog', { name: 'Which printer?' })).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Model: Choose a model' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Brand: Choose a brand' }));
+    expect(screen.getAllByRole('menuitemradio').map((row) => row.textContent)).toEqual(['Bambu Lab', 'Creality', 'Prusa', 'SecKit']);
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Prusa' }));
+    await pick('Model', 'MK4');
+    // 0.4 to start, as the chat assumes; the sizes are the MK4's own.
+    expect(screen.getAllByRole('radio').map((button) => button.textContent)).toEqual(['0.25', '0.4', '0.6', '0.8']);
+    expect(screen.getByRole('radio', { name: '0.4' })).toHaveAttribute('aria-checked', 'true');
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_options', catalogId: 'Prusa/Prusa MK4', nozzle: 0.4 });
+    await userEvent.click(screen.getByRole('radio', { name: '0.6' }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_options', catalogId: 'Prusa/Prusa MK4', nozzle: 0.6 });
+
+    // A model with one size says so instead of offering a choice.
+    await pick('Brand', 'Creality');
+    await pick('Model', 'Ender-3 V2');
+    expect(screen.queryByRole('radiogroup', { name: 'Nozzle' })).toBeNull();
+    expect(screen.getByText('0.4 mm, the only size it comes with')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  });
+
+  it('sets up a printer found on the network as the model it is, linked to it', async () => {
+    const host = open(state({ session: withForm(form({ nearby: [{ deviceId: '01P00A3B', name: 'Garage P1S', catalogId: 'BBL/Bambu Lab P1S' }] })) }));
+    expect(screen.getByText('Found on your network')).toBeInTheDocument();
+    expect(screen.getByText('You can connect it later.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Bambu Lab P1S · 01P00A3B/ }));
+    expect(screen.getByRole('button', { name: /Bambu Lab P1S · 01P00A3B/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Brand: Bambu Lab' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Model: P1S' })).toBeInTheDocument();
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_options', catalogId: 'BBL/Bambu Lab P1S', nozzle: 0.4 });
+
+    host.deliver('printer_session', withForm(form({ nearby: [{ deviceId: '01P00A3B', name: 'Garage P1S', catalogId: 'BBL/Bambu Lab P1S' }],
+      options: p1sOptions })));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // The plate OrcaSlicer starts this printer on is chosen, and named so.
+    expect(screen.getByRole('dialog', { name: 'Which plate is on it?' })).toBeInTheDocument();
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Smooth High Temp Plate/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Default for the P1S')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'Textured PEI Plate' }));
+
+    expect(screen.getByRole('dialog', { name: 'Which filament do you want to start with?' })).toBeInTheDocument();
+    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument();
+    expect(screen.getByText('Suggested for the P1S')).toBeInTheDocument();
+    // Every filament that fits follows the suggestions, without a search.
+    expect(screen.getByText('Every filament for the P1S')).toBeInTheDocument();
+    expect(screen.getByText('eSUN PLA+')).toBeInTheDocument();
+    // Search reads brand, material and name.
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search brand or material' }), 'esun');
+    expect(screen.getByText('eSUN PLA+')).toBeInTheDocument();
+    expect(screen.queryByText('Bambu PLA Basic')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /eSUN PLA\+/ }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_finish', catalogId: 'BBL/Bambu Lab P1S', nozzle: 0.4, plate: 4,
+      filament: 'eSUN PLA+ @System', deviceId: '01P00A3B' });
+  });
+
+  it('skips the plate where OrcaSlicer offers none, and Skip keeps the profile’s filament', async () => {
+    const host = open(state({ session: withForm(form()) }));
+    await pick('Brand', 'Prusa');
+    await pick('Model', 'MK4');
+    // Moving on before the profiles are read waits on the next step.
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Reading this printer’s profiles…')).toBeInTheDocument();
+    host.deliver('printer_session', withForm(form({ options: mk4Options })));
+    expect(screen.getByRole('dialog', { name: 'Which filament do you want to start with?' })).toBeInTheDocument();
+    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip — start with Prusa Generic PLA @MK4' }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_finish', catalogId: 'Prusa/Prusa MK4', nozzle: 0.4 });
+    // Back returns past the plate step that was never asked.
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('dialog', { name: 'Which printer?' })).toBeInTheDocument();
+  });
+
+  it('shows why a finish saved nothing, and lets the person try again', async () => {
+    const host = open(state({ session: withForm(form()) }));
+    await pick('Brand', 'Prusa');
+    await pick('Model', 'MK4');
+    host.deliver('printer_session', withForm(form({ options: mk4Options })));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // The default is both suggested and in the full list; the suggestion is first.
+    await userEvent.click(screen.getAllByRole('button', { name: /^Prusa Generic PLA @MK4/ })[0]);
+    expect(screen.getAllByRole('button', { name: /^Prusa Generic PLA @MK4/ })[0]).toBeDisabled();
+    host.deliver('printer_session', withForm(form({ options: mk4Options, error: 'This printer could not be installed.' })));
+    expect(screen.getByRole('alert')).toHaveTextContent('This printer could not be installed.');
+    expect(screen.getAllByRole('button', { name: /^Prusa Generic PLA @MK4/ })[0]).toBeEnabled();
+    expect(sentActions(host).filter((payload) => (payload as { action: string }).action === 'form_finish')).toHaveLength(1);
+  });
+
+  it('closes with Cancel or Escape, and Escape in an open list closes only the list', async () => {
+    const host = open(state({ session: withForm(form()) }));
+    await userEvent.click(screen.getByRole('button', { name: 'Brand: Choose a brand' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(sentActions(host)).toEqual([]);
+
+    await userEvent.keyboard('{Escape}');
+    expect(sentActions(host)).toEqual([{ action: 'form_close' }]);
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(sentActions(host)).toEqual([{ action: 'form_close' }, { action: 'form_close' }]);
+  });
+
+  async function openOnMk4(info: Partial<PrinterFormInfo> = {}) {
+    const host = open(state({ session: withForm(form(info)) }));
+    await pick('Brand', 'Prusa');
+    await pick('Model', 'MK4');
+    host.deliver('printer_session', withForm(form({ ...info, options: mk4Options })));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    return host;
+  }
+  const headings = () => Array.from(document.querySelectorAll('.printer-form-section')).map((node) => node.textContent);
+
+  it('lists the person’s own presets first, then the suggestions, then every filament that fits', async () => {
+    const host = await openOnMk4();
+    expect(headings()).toEqual(['Your filaments', 'Suggested for the MK4', 'Every filament for the MK4 · 1']);
+    expect(screen.getByText('Your preset, based on Prusa Generic PETG')).toBeInTheDocument();
+    expect(screen.getByText(/Your preset, made for the Bambu Lab X1 Carbon\. Picking it saves a copy for the MK4\./)).toBeInTheDocument();
+    expect(screen.getByText('The MK4 profile’s default')).toBeInTheDocument();
+    // Filaments made for other printers wait behind the tick box at the end.
+    expect(screen.queryByText('Prusament PLA')).toBeNull();
+    expect(screen.getByText(/Not in the list\?/)).toBeInTheDocument();
+    const toggle = screen.getByRole('checkbox', { name: /Show filaments made for other printers/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveTextContent('2 more. Picking one saves a copy for the MK4.');
+    await userEvent.click(toggle);
+    expect(headings()).toContain('Made for other printers · 2');
+    expect(screen.getAllByText(/Made for the Prusa CORE One and Prusa XL\. Picking it saves a copy for the MK4\./)).toHaveLength(2);
+    await userEvent.click(screen.getByRole('button', { name: /^Prusament PLA/ }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_finish', catalogId: 'Prusa/Prusa MK4', nozzle: 0.4,
+      filament: 'Prusament PLA @CORE One' });
+  });
+
+  it('says when only filaments made for other printers match a search, and offers them', async () => {
+    await openOnMk4();
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search brand or material' }), 'prusament');
+    expect(screen.getByText(/No filament for the MK4 matches “prusament”\./)).toBeInTheDocument();
+    expect(screen.getByText(/2 filaments made for other printers do\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create a filament preset/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Show them' }));
+    expect(headings()).toEqual(['Made for other printers · 2']);
+
+    // A search that matches here counts the near misses it leaves out.
+    await userEvent.clear(screen.getByRole('searchbox', { name: 'Search brand or material' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Show filaments made for other printers/ }));
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search brand or material' }), 'pla');
+    expect(headings()).toEqual(['Your filaments', 'For the MK4 · 1']);
+    // The tick box under the list says what it would add for this search.
+    expect(screen.getByRole('checkbox', { name: /Show filaments made for other printers/ }))
+      .toHaveTextContent('1 of them match your search. Picking one saves a copy for the MK4.');
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search brand or material' }), 'zzz');
+    expect(screen.getByRole('checkbox', { name: /Show filaments made for other printers/ }))
+      .toHaveTextContent('None of the 2 match your search either.');
+  });
+
+  it('offers to make a preset when nothing matches anywhere', async () => {
+    const host = await openOnMk4();
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search brand or material' }), 'zzz');
+    expect(screen.getByText(/No filament matches “zzz”,/).closest('p')).toHaveTextContent('any other printer JusPrin has profiles for.');
+    // The ways out stay under the list, outside it.
+    expect(document.querySelector('.printer-form-filaments')!.textContent).not.toContain('Not in the list?');
+    expect(document.querySelector('.printer-form-end')!.textContent).toContain('Create a filament preset…');
+    await userEvent.click(screen.getByRole('button', { name: 'Start with Prusa Generic PLA @MK4 instead' }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_finish', catalogId: 'Prusa/Prusa MK4', nozzle: 0.4 });
+  });
+
+  it('says what creating a preset does before it adds the printer', async () => {
+    const host = await openOnMk4();
+    await userEvent.click(screen.getByRole('button', { name: /Create a filament preset/ }));
+    expect(screen.getByRole('dialog', { name: 'Create a filament preset' })).toBeInTheDocument();
+    expect(screen.getByText(/so the MK4 is added first/)).toBeInTheDocument();
+    // The form speaks of JusPrin, never of OrcaSlicer.
+    expect(screen.getByRole('dialog').textContent).not.toContain('OrcaSlicer');
+    expect(sentActions(host).some((payload) => (payload as { action: string }).action === 'form_finish')).toBe(false);
+    // Back returns to the list with nothing done.
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('dialog', { name: 'Which filament do you want to start with?' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Create a filament preset/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add the MK4 and continue' }));
+    expect(sentActions(host).at(-1)).toEqual({ action: 'form_finish', catalogId: 'Prusa/Prusa MK4', nozzle: 0.4, create: true });
   });
 });

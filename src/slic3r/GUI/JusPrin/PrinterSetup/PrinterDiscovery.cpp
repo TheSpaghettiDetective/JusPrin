@@ -73,6 +73,37 @@ bool has_recent_printer_data(MachineObject& machine)
            std::chrono::system_clock::now() - observed < std::chrono::seconds(30);
 }
 
+namespace {
+
+DiscoveredPrinter snapshot(const std::string& id, MachineObject& machine, const MachineObject* selected)
+{
+    DiscoveredPrinter printer{id, machine.get_dev_name(), machine.get_dev_ip(), machine.printer_type,
+                              machine.connection_type(), has_recent_printer_data(machine)};
+    // Upstream's own predicate, never a copy of it: the list of states that
+    // count as printing has been got wrong here before.
+    printer.activity = !printer.connected              ? PrinterActivity::Offline :
+                       machine.is_in_printing()         ? PrinterActivity::Printing :
+                                                          PrinterActivity::Idle;
+    if (machine.last_update_time.time_since_epoch().count() != 0)
+        printer.observed_at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     machine.last_update_time.time_since_epoch())
+                                     .count();
+    printer.selected = &machine == selected;
+    read_reported_hardware(machine, printer);
+    return printer;
+}
+
+void sort_printers(std::vector<DiscoveredPrinter>& printers)
+{
+    std::sort(printers.begin(), printers.end(), [](const DiscoveredPrinter& a, const DiscoveredPrinter& b) {
+        if (a.connected != b.connected) return a.connected > b.connected;
+        if (a.name != b.name) return a.name < b.name;
+        return a.stable_id < b.stable_id;
+    });
+}
+
+} // namespace
+
 std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable)
 {
     std::vector<DiscoveredPrinter> result;
@@ -83,26 +114,30 @@ std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable)
         if (!machine) continue;
         const bool reachable = machine->is_online() || machine->is_connected();
         if (!reachable && !include_unreachable) continue;
-        DiscoveredPrinter printer{id, machine->get_dev_name(), machine->get_dev_ip(), machine->printer_type,
-                                  machine->connection_type(), has_recent_printer_data(*machine)};
-        // Upstream's own predicate, never a copy of it: the list of states that
-        // count as printing has been got wrong here before.
-        printer.activity = !printer.connected              ? PrinterActivity::Offline :
-                           machine->is_in_printing()        ? PrinterActivity::Printing :
-                                                              PrinterActivity::Idle;
-        if (machine->last_update_time.time_since_epoch().count() != 0)
-            printer.observed_at_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                         machine->last_update_time.time_since_epoch())
-                                         .count();
-        printer.selected = machine == selected;
-        read_reported_hardware(*machine, printer);
-        result.push_back(std::move(printer));
+        result.push_back(snapshot(id, *machine, selected));
     }
-    std::sort(result.begin(), result.end(), [](const DiscoveredPrinter& a, const DiscoveredPrinter& b) {
-        if (a.connected != b.connected) return a.connected > b.connected;
-        if (a.name != b.name) return a.name < b.name;
-        return a.stable_id < b.stable_id;
-    });
+    sort_printers(result);
+    return result;
+}
+
+std::vector<DiscoveredPrinter> discover_nearby_printers()
+{
+    std::vector<DiscoveredPrinter> result;
+    DeviceManager* devices = wxGetApp().getDeviceManager();
+    if (!devices) return result;
+    const MachineObject* selected = devices->get_selected_machine();
+    // What the network search answered, with or without an access code,
+    // and the printers bound to the signed-in account: the candidates
+    // OrcaPrinterBackend::connection() offers, by the same test.
+    auto machines = devices->get_local_machinelist();
+    for (const auto& [id, machine] : devices->get_my_cloud_machine_list())
+        machines[id] = machine;
+    for (const auto& [id, machine] : machines) {
+        if (!machine || (machine->is_lan_mode_printer() && !machine->is_avaliable())) continue;
+        if (!machine->is_lan_mode_printer() && !machine->is_online()) continue;
+        result.push_back(snapshot(id, *machine, selected));
+    }
+    sort_printers(result);
     return result;
 }
 

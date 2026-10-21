@@ -247,6 +247,7 @@
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
+#include "slic3r/Utils/NetworkAgent.hpp"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
@@ -260,7 +261,6 @@
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
-#include "slic3r/GUI/WebGuideDialog.hpp"
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
 #include "slic3r/GUI/Tab.hpp"
@@ -792,6 +792,9 @@ struct HarnessState
     // --printer-live-no-plugin: connecting a Bambu Lab printer without the
     // network plug-in, and without the fake printer standing in for it.
     bool no_plugin{false};
+    // --fake-printer: the in-process fake Bambu printer is on, and found
+    // on the network, in a hands-on run (Testing/README.md).
+    bool fake_printer{false};
     // --printer-settings-live, --filament-settings-live: a settings change to
     // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
     bool settings_live{false};
@@ -2292,6 +2295,8 @@ private:
         const bool tip = std::any_of(add["blocks"].begin(), add["blocks"].end(),
                                      [](const nlohmann::json& block) { return block.value("kind", "") == "tip"; });
         check(tip, "panel_offers_the_photo_path_in_words");
+        verify_printer_form(*panel);
+        verify_printer_chat_reopens_fresh(*panel);
 
         // A printer to change: the fixture's own profile saved under a name.
         // Back restores Home before its next printer action can be chosen.
@@ -2316,6 +2321,222 @@ private:
         check(Printers::remove_named_printer(*m_plater, named).empty(), "panel_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         verify_setup_install_commands();
+    }
+
+    // A printer chat closed by the person and opened again from Home is a new
+    // session: the old thread is gone and the panel stays open. No model is
+    // involved.
+    void verify_printer_chat_reopens_fresh(PrinterSetup::PrinterPanel& panel)
+    {
+        using namespace std::chrono_literals;
+        const auto loaded = [&panel] {
+            return panel.host() != nullptr && panel.host()->handshake_complete() && panel.instructions_ready();
+        };
+        const auto thread_says = [&panel](const std::string& text) {
+            const Agent::ProjectPersistence* persistence = panel.persistence();
+            if (panel.host() == nullptr || persistence == nullptr)
+                return false;
+            for (const Agent::ConversationMessage& message :
+                 persistence->document().messages(persistence->document().active_conversation_id()))
+                if (message.text.find(text) != std::string::npos)
+                    return true;
+            return false;
+        };
+        const std::string note = "A note from the first printer chat.";
+        check(wait_for(loaded, 60s), "reopen_first_chat_loaded");
+        panel.host()->post_note(note);
+        check(thread_says(note), "reopen_first_chat_holds_the_note");
+
+        // Close as the person does, then open again as soon as the panel is
+        // hidden -- the live run's "person closes the chat", then "open: add".
+        panel.host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                     {"version", Agent::Protocol::kVersion},
+                                                     {"id", "reopen-close"},
+                                                     {"type", "printer_action"},
+                                                     {"payload", {{"action", "close"}}}}
+                                          .dump());
+        check(!panel.IsShown(), "reopen_close_hides_the_panel");
+        // Home comes back once the close has finished; only then can the
+        // person open another chat.
+        Home::HomeWebView* home = installed_shell()->home_view();
+        check(wait_for([home] { return home->IsShownOnScreen(); }, 10s), "reopen_home_returns_after_the_close");
+        installed_shell()->open_printer_conversation(std::string(), false);
+        check(wait_for([&panel, &loaded] { return panel.IsShown() && loaded(); }, 60s), "reopen_second_chat_loaded");
+        // Whatever the close left for later has run by now.
+        wait_for([] { return false; }, 2000ms);
+        check(panel.IsShown() && panel.host() != nullptr, "reopen_second_chat_stays_open");
+        check(panel.host() != nullptr && !thread_says(note), "reopen_second_chat_starts_without_the_old_thread");
+
+        // The live run's way in, live_show, with the Add chat still open:
+        // it closes that chat and opens the one asked for.
+        const std::string selected = selected_printer();
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string named = Printers::add_named_printer(*m_plater, "Reopen Printer", {});
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        live_show(PrinterSetup::ConversationMode::Change, named);
+        const bool changed = wait_for([&panel, &loaded, &named] {
+            return panel.IsShown() && loaded() && panel.session_json().value("printerName", "") == named;
+        }, 60s);
+        std::cerr << "HARNESS NOTE reopen_live_show mode=" << panel.session_json().value("mode", "") << " printer="
+                  << panel.session_json().value("printerName", "") << " shown=" << panel.IsShown() << '\n';
+        check(changed, "reopen_live_show_replaces_an_open_chat");
+        panel.close();
+        wait_for([] { return false; }, 500ms);
+        check(Printers::remove_named_printer(*m_plater, named).empty(), "reopen_cleanup_removes_the_printer");
+        SetupCommands::select_printer_preset(*m_plater, selected);
+        installed_shell()->open_printer_conversation(std::string(), false);
+        check(wait_for([&panel, &loaded] { return panel.IsShown() && loaded(); }, 60s), "reopen_cleanup_reopens_add");
+    }
+
+    // "Browse the full printer list": the printer form, driven as its page
+    // sends it, against OrcaSlicer's own profiles and with the in-process
+    // fake Bambu printer on the network.
+    void verify_printer_form(PrinterSetup::PrinterPanel& panel)
+    {
+        using namespace std::chrono_literals;
+        const auto send = [&panel](const nlohmann::json& payload) {
+            static int next = 0;
+            panel.host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                         {"version", Agent::Protocol::kVersion},
+                                                         {"id", "form-" + std::to_string(++next)},
+                                                         {"type", "printer_action"},
+                                                         {"payload", payload}}
+                                              .dump());
+        };
+        const auto form = [&panel] { return panel.session_json().value("form", nlohmann::json()); };
+        const auto printer_count = [] { return std::distance(wxGetApp().preset_bundle->printers.begin(), wxGetApp().preset_bundle->printers.end()); };
+
+        // What the checks after this one start from, put back at the end: a
+        // project that holds a person's own filament makes OrcaSlicer ask
+        // about it when the project is loaded again.
+        const std::string slot_one = wxGetApp().preset_bundle->filament_presets.front();
+        // Linking the fake while it answers records a verified connection,
+        // which later checks expect to make themselves.
+        const bool was_verified = wxGetApp().app_config->get("jusprin_verified_connections", "FAKE001") == "true";
+
+        // The fake is found the way a printer on the network is: discovery
+        // starts for a Bambu Lab printer, saved for the purpose and removed
+        // again before the form opens.
+        wxGetApp().app_config->set("jusprin", "fake_printer", "true");
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        const std::string scout = Printers::add_named_printer(*m_plater, "Form discovery", {});
+        backend.prepare_connection(scout);
+        check(wait_for([&backend] {
+                  const auto found = backend.nearby_printers();
+                  return std::any_of(found.begin(), found.end(),
+                                     [](const PrinterSetup::DiscoveredPrinter& printer) { return printer.stable_id == "FAKE001"; });
+              }, 20s),
+              "form_fake_printer_found_on_the_network");
+        check(Printers::remove_named_printer(*m_plater, scout).empty(), "form_discovery_printer_removed");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+
+        // The page talks to the app only once it has said hello; writing the
+        // model's instructions is the sign it has.
+        check(wait_for([&panel] { return panel.instructions_ready(); }, 60s), "form_page_loaded");
+
+        // Opening and closing the form saves nothing.
+        const auto before = printer_count();
+        send({{"action", "manual_setup"}});
+        check(form().is_object() && form()["catalog"].size() > 300, "form_offers_the_whole_catalogue");
+        const nlohmann::json nearby = form().is_object() ? form().value("nearby", nlohmann::json::array()) : nlohmann::json::array();
+        check(nearby.size() == 1 && nearby[0].value("deviceId", "") == "FAKE001" &&
+                  nearby[0].value("catalogId", "") == "BBL/Bambu Lab A1 mini",
+              "form_offers_the_fake_as_the_a1_mini_it_is");
+        if (!form().is_object())
+            return;
+        send({{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
+        send({{"action", "form_close"}});
+        check(!panel.session_json().contains("form") && printer_count() == before && selected_printer() == kSetupFixturePrinter,
+              "form_closed_saves_nothing");
+
+        // OrcaSlicer's plates and compatible filaments for the A1 mini.
+        send({{"action", "manual_setup"}});
+        send({{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
+        check(wait_for([&form] { return form().contains("options"); }, 30s), "form_reads_the_a1_minis_options");
+        const nlohmann::json options = form().value("options", nlohmann::json::object());
+        check(options.value("error", "x").empty() && !options["plates"].empty() && !options["filaments"].empty() &&
+                  !options["suggested"].empty() && !options.value("defaultFilament", "").empty(),
+              "form_offers_plates_and_filaments_for_a_bambu_printer");
+        if (!options.contains("plates") || options["plates"].empty() || options["filaments"].size() < 2)
+            return;
+        // What the form was sent, for the page fixture that draws it
+        // (JUSPRIN_FORM_DUMP names the file): the A1 mini's options, and the
+        // MK4's, a printer OrcaSlicer offers no plate choice for.
+        if (const char* dump = std::getenv("JUSPRIN_FORM_DUMP")) {
+            nlohmann::json written{{"form", form()}};
+            send({{"action", "form_options"}, {"catalogId", "Prusa/Prusa MK4"}, {"nozzle", 0.4}});
+            check(wait_for([&form] { return form().contains("options") && form()["options"].value("catalogId", "") == "Prusa/Prusa MK4"; }, 30s),
+                  "form_reads_the_mk4s_options");
+            written["mk4"] = form().value("options", nlohmann::json());
+            std::ofstream(dump) << written.dump(1);
+            send({{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
+            wait_for([&form] { return form().contains("options") && form()["options"].value("catalogId", "") == "BBL/Bambu Lab A1 mini"; }, 30s);
+        }
+        int plate = 0;
+        for (const auto& entry : options["plates"])
+            if (entry.value("type", 0) != options.value("defaultPlate", 0))
+                plate = entry.value("type", 0);
+        std::string filament;
+        for (const auto& entry : options["filaments"])
+            if (entry.value("name", "") != options.value("defaultFilament", "") && filament.empty())
+                filament = entry.value("name", "");
+
+        send({{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", plate},
+              {"filament", filament}, {"deviceId", "FAKE001"}});
+        const std::string name = panel.session_json().value("printerName", "");
+        const Preset*     saved = printer_profile(name);
+        check(!panel.session_json().contains("form") && saved != nullptr && saved->is_user() &&
+                  saved->inherits() == "Bambu Lab A1 mini 0.4 nozzle" && selected_printer() == name,
+              "form_saves_the_printer_under_its_own_name");
+        check(wxGetApp().app_config->get("jusprin_printer_devices", "FAKE001") == name, "form_links_the_printer_found_on_the_network");
+        check(wxGetApp().app_config->get_printer_setting(name, "curr_bed_type") == std::to_string(plate) &&
+                  int(wxGetApp().preset_bundle->project_config.opt_enum<BedType>("curr_bed_type")) == plate,
+              "form_starts_the_printer_on_the_chosen_plate");
+        check(!wxGetApp().preset_bundle->filament_presets.empty() && wxGetApp().preset_bundle->filament_presets.front() == filament,
+              "form_starts_the_printer_with_the_chosen_filament");
+        std::cerr << "HARNESS FORM saved " << name << " plate=" << plate << " filament=" << filament << '\n';
+
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(Printers::remove_named_printer(*m_plater, name).empty() &&
+                  wxGetApp().app_config->get("jusprin_printer_devices", "FAKE001").empty(),
+              "form_cleanup_removes_the_printer_and_its_link");
+
+        // A filament made for other printers: OrcaSlicer would swap it out of
+        // the slot, so the form saves a copy made for the new printer.
+        send({{"action", "manual_setup"}});
+        send({{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
+        check(wait_for([&form] { return form().contains("options"); }, 30s), "form_reads_the_options_again");
+        const nlohmann::json others = form().value("options", nlohmann::json::object()).value("others", nlohmann::json::array());
+        check(!others.empty() && !others[0].value("madeFor", "").empty(), "form_offers_filaments_made_for_other_printers");
+        if (!others.empty()) {
+            const std::string other = others[0].value("name", "");
+            const std::string label = others[0].value("label", "");
+            send({{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", plate}, {"filament", other}});
+            const std::string added  = panel.session_json().value("printerName", "");
+            const std::string copy   = label + " @" + added;
+            const Preset*     copied = wxGetApp().preset_bundle->filaments.find_preset(copy, false);
+            const auto*       made_for = copied != nullptr ? copied->config.option<ConfigOptionStrings>("compatible_printers") : nullptr;
+            check(!added.empty() && copied != nullptr && copied->name == copy && copied->is_user() && made_for != nullptr &&
+                      made_for->values == std::vector<std::string>{added},
+                  "form_copies_a_filament_made_for_other_printers_for_the_new_one");
+            check(wxGetApp().preset_bundle->filament_presets.front() == copy, "form_starts_the_printer_with_the_copy");
+            std::cerr << "HARNESS FORM copied " << other << " as " << copy << '\n';
+            SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+            check(Printers::remove_named_printer(*m_plater, added).empty(), "form_cleanup_removes_the_second_printer");
+            SetupCommands::select_filament_preset(*m_plater, 0, slot_one);
+            check(wxGetApp().preset_bundle->filaments.delete_preset(copy), "form_cleanup_deletes_the_copy");
+        }
+        // The fake selects itself when it is found; left selected, OrcaSlicer
+        // asks to sync the project to it the next time one is loaded.
+        wxGetApp().app_config->set("jusprin", "fake_printer", "false");
+        wxGetApp().getDeviceManager()->set_selected_machine("");
+        if (!was_verified)
+            wxGetApp().app_config->erase("jusprin_verified_connections", "FAKE001");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        SetupCommands::select_filament_preset(*m_plater, 0, slot_one);
+        check(selected_printer() == kSetupFixturePrinter && wxGetApp().preset_bundle->filament_presets.front() == slot_one &&
+                  wxGetApp().getDeviceManager()->get_selected_machine() == nullptr,
+              "form_cleanup_restores_the_fixture_printer_filament_and_machine");
     }
 
     void verify_other_printers_menu()
@@ -2536,8 +2757,21 @@ private:
     // gives it the whole window.
     void live_show(PrinterSetup::ConversationMode mode, const std::string& printer)
     {
-        installed_shell()->open_printer_conversation(mode == PrinterSetup::ConversationMode::Add ? std::string() : printer,
-                                                     mode == PrinterSetup::ConversationMode::Connect);
+        // The shell refuses to open a chat while one is open, and a close
+        // finishes on a later event turn (PrinterPanel::close). So an open
+        // chat is closed first, as the person would, and the next is opened
+        // once that close has run. Each open step also waits for the panel to
+        // show, so it never proceeds on the session being closed.
+        const auto open = [mode, printer] {
+            installed_shell()->open_printer_conversation(mode == PrinterSetup::ConversationMode::Add ? std::string() : printer,
+                                                         mode == PrinterSetup::ConversationMode::Connect);
+        };
+        // Queued on the panel, where PrinterPanel::close queues its own
+        // finish, so the open runs after any close still waiting, this one's
+        // or an earlier step's. (The app's queue has no order with it.)
+        if (live_panel()->IsShown())
+            live_panel()->close();
+        live_panel()->CallAfter(open);
     }
 
     void live_send(const std::string& type, const nlohmann::json& payload)
@@ -2750,7 +2984,7 @@ private:
                                     live_show(mode, printer);
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                [this] { return live_panel()->IsShown() && live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
     }
 
@@ -2806,15 +3040,25 @@ private:
 
     void begin_printer_live()
     {
-        if (live_panel() == nullptr || std::getenv("OPENAI_API_KEY") == nullptr) {
-            fail("the printer panel or the OpenAI key is missing");
+        const char* anthropic = std::getenv("ANTHROPIC_API_KEY");
+        const char* openai    = std::getenv("OPENAI_API_KEY");
+        if (live_panel() == nullptr || (anthropic == nullptr && openai == nullptr)) {
+            fail("the printer panel or an Anthropic or OpenAI key is missing");
             return;
         }
         // The panel builds its own Agent from the app configuration, as the
         // shipped app does, so the key goes there: this run's throwaway data
-        // directory, never the person's.
+        // directory, never the person's. With ANTHROPIC_API_KEY the run uses
+        // Anthropic, and JUSPRIN_LIVE_MODEL names a cheaper model than the
+        // provider's default (claude-haiku-5-5, say).
         // As a std::string: a char* would pick AppConfig::set's bool overload.
-        wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(std::getenv("OPENAI_API_KEY")));
+        if (anthropic != nullptr) {
+            wxGetApp().app_config->set("jusprin_agent", "anthropic_api_key", std::string(anthropic));
+            wxGetApp().app_config->set("jusprin_agent", "provider", std::string("anthropic"));
+        } else
+            wxGetApp().app_config->set("jusprin_agent", "openai_api_key", std::string(openai));
+        if (const char* model = std::getenv("JUSPRIN_LIVE_MODEL"))
+            wxGetApp().app_config->set("jusprin_agent", "model", std::string(model));
         if (m_state->connect_capture) {
             queue_connect_capture();
             run_live_steps();
@@ -2945,13 +3189,17 @@ private:
             std::string reply = messages.empty() ? "" : messages.back().text;
             std::transform(reply.begin(), reply.end(), reply.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            // The instructions have it say so and offer to browse the full
+            // list (printerInstructions.ts); models word that "browse" as often
+            // as "manually".
             check(!messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
-                      reply.find("manual") != std::string::npos,
-                  "live_elegoo_mars_suggests_manual_setup");
+                      (reply.find("manual") != std::string::npos || reply.find("browse") != std::string::npos),
+                  "live_elegoo_mars_offers_the_full_list");
         });
 
-        // The person's menu action opens OrcaSlicer's own window. The model
-        // has no tool to open it. Close it here as a person would.
+        // The person's menu action opens the printer form over the
+        // conversation. The model has no tool to open it, and closing it
+        // tells the model nothing.
         live_open(Mode::Add);
         m_live_steps.push_back({"menu: browse the full printer list",
                                 [this] {
@@ -2961,34 +3209,16 @@ private:
                                     });
                                 },
                                 [this] {
-                                    // Closed only once its page has loaded: the window installs
-                                    // its page's script handler from a CallAfter that waits on the
-                                    // page, and closing it first leaves that wait hanging on a
-                                    // hidden view (see the old setup_manual check).
-                                    for (wxWindow* window : wxTopLevelWindows)
-                                        if (auto* guide = dynamic_cast<GuideFrame*>(window); guide != nullptr && guide->IsModal()) {
-                                            if (wxGetApp().is_adding_script_handler())
-                                                return false;
-                                            std::function<wxWebView*(wxWindow*)> find = [&](wxWindow* parent) -> wxWebView* {
-                                                if (auto* view = dynamic_cast<wxWebView*>(parent))
-                                                    return view;
-                                                for (wxWindow* child : parent->GetChildren())
-                                                    if (wxWebView* view = find(child))
-                                                        return view;
-                                                return nullptr;
-                                            };
-                                            wxWebView* page = find(guide);
-                                            if (page == nullptr || page->IsBusy() || page->GetCurrentURL().empty())
-                                                return false;
-                                            m_live_wizard_seen = true;
-                                            guide->EndModal(wxID_CANCEL);
-                                            return false;
-                                        }
-                                    return live_settled();
+                                    if (live_panel()->session_json().contains("form")) {
+                                        m_live_wizard_seen = true;
+                                        live_send("printer_action", {{"action", "form_close"}});
+                                        return false;
+                                    }
+                                    return m_live_wizard_seen && live_settled();
                                 },
                                 [this] {
                                     live_print_calls();
-                                    check(m_live_wizard_seen, "live_full_list_opens_orcas_window");
+                                    check(m_live_wizard_seen, "live_full_list_opens_the_printer_form");
                                     check(live_activities().empty(), "live_full_list_needs_no_model_tool");
                                 }});
 
@@ -3009,7 +3239,7 @@ private:
                                     live_show(Mode::Change, m_live_printer);
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                [this] { return live_panel()->IsShown() && live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
         const auto parent_is = [this](const std::string& profile) {
             const Preset* printer = printer_profile(m_live_printer);
@@ -3088,7 +3318,7 @@ private:
                                     live_show(Mode::Connect, m_live_added.empty() ? std::string() : m_live_added.front());
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                [this] { return live_panel()->IsShown() && live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 [this] { check(!m_live_added.empty(), "live_connect_has_the_added_printer"); }});
         // The model may request the credential at once, or first ask whether
         // this is the printer: the script answers only if it asked.
@@ -3151,7 +3381,7 @@ private:
                                         live_show(Mode::Connect, m_live_host_printer);
                                         m_live_printed = 0;
                                     },
-                                    [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                    [this] { return live_panel()->IsShown() && live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                     [this] { check_live_opening("Let’s connect " + m_live_host_printer + ".", "live_host_opening_asks_for_the_address"); }});
             live_say(address, [this] { live_print_calls(); });
             // It may ask which kind of server this is.
@@ -3411,7 +3641,7 @@ private:
                                     live_show(Mode::Connect, m_live_host_printer);
                                     m_live_printed = 0;
                                 },
-                                [this] { return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
+                                [this] { return live_panel()->IsShown() && live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() && live_panel()->instructions_ready(); },
                                 {}});
 
         connect_to(answering->address(), answering->address(), "1-credential");
@@ -3543,8 +3773,9 @@ private:
                                 },
                                 // Until the page's opening is posted, too.
                                 [this] {
-                                    return live_panel()->host() != nullptr && live_panel()->host()->handshake_complete() &&
-                                           live_panel()->instructions_ready() && !live_messages().empty();
+                                    return live_panel()->IsShown() && live_panel()->host() != nullptr &&
+                                           live_panel()->host()->handshake_complete() && live_panel()->instructions_ready() &&
+                                           !live_messages().empty();
                                 },
                                 [this] {
                                     check(!m_live_added.empty(), "no_plugin_connect_has_the_added_printer");
@@ -10212,6 +10443,16 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
         if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
         install_harness_agent(state->mode);
+        if (state->fake_printer) {
+            // The selected profile must be a Bambu Lab one for the fake to
+            // be the printer agent (GUI_App::switch_printer_agent).
+            app.app_config->set("jusprin", "fake_printer", "true");
+            app.switch_printer_agent();
+            if (NetworkAgent* agent = app.getAgent())
+                agent->start_discovery(true, false);
+            std::cerr << "HARNESS FAKE PRINTER on; selected printer "
+                      << app.preset_bundle->printers.get_selected_preset_name() << '\n';
+        }
         if (state->mode == HarnessState::Mode::Manual || state->mode == HarnessState::Mode::ManualLiveAgent ||
             state->mode == HarnessState::Mode::ManualUnconfigured)
             return;
@@ -10367,6 +10608,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Manual;
         else if (argument == "--manual-live-agent")
             state->mode = HarnessState::Mode::ManualLiveAgent;
+        else if (argument == "--fake-printer")
+            state->fake_printer = true;
         else if (argument == "--manual-unconfigured")
             state->mode = HarnessState::Mode::ManualUnconfigured;
         else if (argument == "--manual-tool-strip")

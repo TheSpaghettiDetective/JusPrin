@@ -18,7 +18,7 @@ type Section = Record<string, number | string>;
 const shared = (tokens as unknown as { component: Record<string, Section> }).component;
 const SECTIONS: [string, string][] = [
   ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
-  ['focus', 'focus'], ['field-search', 'fieldSearch'], ['select', 'select'],
+  ['focus', 'focus'], ['field-search', 'fieldSearch'], ['select', 'select'], ['checkbox', 'checkbox'], ['form-row', 'formRow'],
 ];
 
 function lengths(section: Section): Record<string, number> {
@@ -33,7 +33,7 @@ export function staticVariableNames(): string[] {
   return [...sharedStaticVariableNames(), '--thread-row-line-gap',
     '--timeline-summary-padding', '--timeline-summary-padding-x', '--timeline-summary-icon-gap', '--printer-setup-width',
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
-    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size',
+    '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size', '--step-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
     '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size',
     ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key]))),
@@ -67,6 +67,7 @@ export function composerInputMaxHeight(): number {
 //                          row of Label or Metadata text
 //   --swatch-size          a colour drawn beside a note, the design
 //                          system's Swatch
+//   --step-dot-size        the printer form's step marker, one dot a step
 //   --reply-chip-height,   a reply the assistant offers as a chip under its
 //   --reply-chip-padding-x message: its height and its text's inset.
 //   --menu-row-*, --popover-*  the header's menu geometry, so the chat's
@@ -87,6 +88,7 @@ export function applyStaticTokens(): void {
       printerDialog: { width: number; radius: number; scrimAlpha: number };
       timelineRevert: { width: number };
       statusDot: { size: number };
+      stepDots: { size: number };
       replyChip: { height: number; paddingX: number };
       chatAttachment: { maxWidth: number; thumbnailSize: number; kindSize: number };
       field: { height: number; paddingX: number };
@@ -115,6 +117,7 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--reply-chip-padding-x', `${component.replyChip.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-revert-width', `${component.timelineRevert.width}px`);
   document.documentElement.style.setProperty('--status-dot-size', `${component.statusDot.size}px`);
+  document.documentElement.style.setProperty('--step-dot-size', `${component.stepDots.size}px`);
   document.documentElement.style.setProperty('--setup-card-icon-size', `${component.setupCard.iconSize}px`);
   document.documentElement.style.setProperty('--swatch-size', `${component.swatch.size}px`);
   document.documentElement.style.setProperty('--chat-attachment-max-width', `${component.chatAttachment.maxWidth}px`);

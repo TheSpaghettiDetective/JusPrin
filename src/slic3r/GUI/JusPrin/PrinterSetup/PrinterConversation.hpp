@@ -7,8 +7,10 @@
 // which printer someone has, what changed on one they own, how to reach it --
 // and acts through the session's tools, which check requests against the
 // printer data and carry them out. printer_connect collects its credential in
-// a local form so it never passes through the model. The one other thing to tap is Undo on
-// an added printer's receipt, which the model then hears about in a note.
+// a local form so it never passes through the model. The other things to tap
+// are Undo on an added printer's receipt and the printer form, where the
+// person picks a printer from the lists themselves; the model hears about
+// either in a note.
 //
 // A session is opened for one printer question -- add a printer, change this
 // one, connect this one -- and is discarded when the panel closes. Nothing
@@ -26,6 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <future>
 #include <map>
 #include <optional>
 #include <string>
@@ -93,9 +96,10 @@ public:
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
 
-    // Called on the panel's pump. While a connection is being verified, looks
-    // at most once a second, and once it settles says how in a note and has
-    // the model answer.
+    // Called on the panel's pump. Picks up the printer form's options once
+    // they are read. While a connection is being verified, looks at most once
+    // a second, and once it settles says how in a note and has the model
+    // answer.
     void tick(std::chrono::steady_clock::time_point now);
 
     // A settings tool this session ran has settled. A copy of the printer
@@ -126,6 +130,12 @@ private:
     void abandon_connection();
     // Undo on an added printer's receipt: removes that printer.
     void undo_add(const std::string& block_id);
+    // The printer form: opened from the header, then asked for one model's
+    // options, then finished or closed. Only finishing saves anything.
+    void open_form();
+    void ask_form_options(const nlohmann::json& payload);
+    void finish_form(const nlohmann::json& payload);
+    nlohmann::json form_json() const;
 
     SavedPrinter          saved(const std::string& name) const;
     // The printer the session is about: a saved one, or the stock profile a
@@ -167,6 +177,22 @@ private:
     // The connection waiting for the printer to answer.
     std::string                           m_connecting;
     std::chrono::steady_clock::time_point m_last_look{};
+
+    // The printer form while it is open. Its options are read off the GUI
+    // thread, one model and nozzle at a time; a read still running when the
+    // form closes is waited for, and dropped.
+    struct PrinterForm
+    {
+        // The found printers it offers, with the catalogue model each is.
+        std::vector<std::pair<DiscoveredPrinter, std::string>> nearby;
+        std::optional<SetupOptions> options;
+        std::string                 asked_id;
+        double                      asked_nozzle{0.};
+        std::future<SetupOptions>   reading;
+        // Why the last finish did not save, for the person.
+        std::string error;
+    };
+    std::optional<PrinterForm> m_form;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup
