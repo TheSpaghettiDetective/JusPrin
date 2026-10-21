@@ -1,0 +1,123 @@
+caption is fine. remove the "Ask your agent about your print" card. it's useless and confusing. afterward, do 1 commit in the main checkout
+
+---
+
+<task-notification>
+<task-id>bwi5s48dc</task-id>
+<tool-use-id>toolu_014rYAcLgWzroUWYrEvcpWo8</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/bwi5s48dc.output</output-file>
+<status>failed</status>
+<summary>Monitor "worktree app build progress, errors, and low disk" script failed (exit 144)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8nhbzhvf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/b8nhbzhvf.output</output-file>
+<status>failed</status>
+<summary>Background command "until grep -qE "BUILD|LOW_DISK|^\[[3-9][0-9][0-9]/" &lt;(tail -3 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad/full.log) || ! pgrep -f "cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/mcp-external-edits/build/arm64" &gt;/dev/null; do sleep 15; done; tail -1 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad/full.log | cut -c1-80" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blu2ty9v6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/blu2ty9v6.output</output-file>
+<status>completed</status>
+<summary>Background command "git commit -q -F - &lt;&lt;'EOF'
+Show an external MCP tool's edits in the Agent panel when no agent is set up
+
+When no in-app agent was set up and an external MCP client (Claude Code,
+Codex, Claude Desktop) changed the project, the person saw nothing: the
+Agent panel kept the big "No agent connected" offer, and the setup card
+still said "No agent configured · using the selected preset". The edits were
+already recorded in the active chat's change log; the page just counted a
+chat with no messages as empty.
+
+What changes:
+
+- A chat counts as non-empty when it has any change or work entry, not only
+  messages (file notes still do not count). So the thread shows the change
+  rows and work cards, whoever made them: the person, an external tool, or a
+  slice.
+- With no agent set up, a "Set up the agent" bar replaces the composer under
+  the thread, with the line "Chatting here needs an agent." This covers the
+  existing saved-history case too. When the first entry arrives, the big
+  offer shrinks into the bar's button (component.setupOffer.shrinkMs, 320 ms;
+  skipped under reduced motion). The file-notes card's own setup button, its
+  prop chain, and the thread's "Ask the Agent about your print" card are
+  removed.
+- With no agent, the setup card stays "Preset fallback" only until a setting
+  changes; then it reads "Edited by Claude Code" (or "you", "an external
+  tool", "the Agent") and "Claude Code set Wall loops 3."
+- Change rows name the MCP client ("Claude Code, in 0.20mm Standard") instead
+  of "External tool". The jusprin-mcp bridge used to replace every client's
+  clientInfo with its own name; it now forwards the client's. The app keeps
+  the client's title, else its name, trimmed and capped at 48 bytes, in a new
+  optional "client" field on the saved change entry, written only when set,
+  so older project files read as before.
+
+Not included: work cards (a slice an MCP client starts) do not name the
+client, because work cards name no actor today.
+
+Tests: Agent page Vitest 579 passed, including App tests that failed before
+the fix; agent_bridge_tests 402 cases passed, including a save-and-reload
+test for the new field and a bridge test that fails with "jusprin-mcp"
+without the bridge change; brand_tokens_tests passed. Claude Code 2.1.283
+was observed sending clientInfo title "Claude Code" (stub server, no model
+calls).
+EOF
+git log --oneline -2; git status --short" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bo3rb1ga0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/bo3rb1ga0.output</output-file>
+<status>completed</status>
+<summary>Background command "PID=$(pgrep -f "cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/mcp-external-edits/build/arm64" | head -1); echo $PID; LOG=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad/full.log; while kill -0 $PID 2&gt;/dev/null; do sleep 20; done; tail -3 $LOG | cut -c1-120; grep -E "FAILED|error:" $LOG | head -5" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+did you do this? if so, why? 
+Four Release builds of JusPrin are running at once in the mcp-external-edits worktree, spawning 56 clang processes on 12 cores. They were started by the idle session "Show MCP edits without an agent", whose work is already committed. Nothing has been killed.
+
+---
+
+<task-notification>
+<task-id>b84on1g20</task-id>
+<tool-use-id>toolu_01U16UhP32vjzRp5YP8E3K3T</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/b84on1g20.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 73603 2&gt;/dev/null; do sleep 20; done; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad; tail -2 $S/full.log | cut -c1-150; grep -E "FAILED|error:" $S/full.log | head -5" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4lntonwy</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/b4lntonwy.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad; perl -e 'setpgrp(0,0); exec @ARGV' cmake --build $PWD/build/arm64 --config Release --target workspace_adapter_integration_harness -- -j4 &gt; $S/harness-build.log 2&gt;&amp;1; echo exit $?; tail -2 $S/harness-build.log | cut -c1-150; grep -E "error:|FAILED" $S/harness-build.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b70bcdzd3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/b70bcdzd3.output</output-file>
+<status>completed</status>
+<summary>Background command "until ! pgrep -f "ninja.*workspace_adapter_integration_harness" &gt;/dev/null; do sleep 15; done; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad; tail -2 $S/harness-build.log | cut -c1-150; grep -E "error:|FAILED" $S/harness-build.log | head -5" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Are you done with everything you need to do? If so, give me a summary in plain English under a hundred words.

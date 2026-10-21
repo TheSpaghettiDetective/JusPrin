@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5G1K73WFF3VZBV0FGTW81R8",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 6,
+  "checkpoints_count": 12,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
     "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
@@ -23,13 +23,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1030,
-    "cache_creation_tokens": 3163365,
-    "cache_read_tokens": 295172536,
-    "output_tokens": 383577,
-    "api_call_count": 515
+    "input_tokens": 1482,
+    "cache_creation_tokens": 3791143,
+    "cache_read_tokens": 365036685,
+    "output_tokens": 517531,
+    "api_call_count": 741
   }
 }
