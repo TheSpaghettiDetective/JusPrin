@@ -1,0 +1,9 @@
+Let's brainstorm on if all calibrations can be abstracted as just a skill, plus an entry point. I guess we can hardcode the entry point because there are only limited number of collaborations. But ideally, once the collocation project is opened, the rest of the things can be just handled by a skill file, and no other specific code.
+
+how is it currently implemente din upstream? can we borrow some ideas there?
+
+Also, can we abstract the outcome of a collaboration? Is it always just some change in the preset settings? If so, the outcome can be abstracted as a new preset, right?
+
+---
+
+Does it mean that we can have a general widgets to capture the output of the calibration? Basically, it's a widget stat. confirm with the user that a new preset has been saved and if the user should start using that preset from that point on.
