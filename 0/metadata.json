@@ -1,0 +1,92 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5FYJRYNXPKCSP0SAPHZ3TK1",
+  "session_id": "e7286644-9c40-4163-89b2-1b9685541258",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T19:21:35.8400457Z",
+  "branch": "claude/calibration",
+  "checkpoints_count": 5,
+  "save_step_count": 3,
+  "files_touched": [
+    "agent-docs/jusprin/mcp-tool-extension-guide.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "64e1a2c58b85",
+  "checkpoint_transcript_start": 2907,
+  "transcript_lines_at_start": 2907,
+  "compact_transcript_start": 311,
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 47105,
+    "cache_read_tokens": 16841745,
+    "output_tokens": 21809,
+    "api_call_count": 26
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T19:21:35.2452096Z",
+    "agent_lines": 0,
+    "agent_removed": 2,
+    "human_added": 182,
+    "human_modified": 1310,
+    "human_removed": 0,
+    "total_committed": 1492,
+    "total_lines_changed": 1495,
+    "agent_percentage": 0.13377926421404682,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1221,
+      "user_lines_removed": 1221,
+      "agent_lines_added": 10999,
+      "agent_lines_removed": 10999,
+      "user_added_per_file": {
+        "tests/project_prompt/run_prompt_tests.py": 1221
+      },
+      "user_removed_per_file": {
+        "tests/project_prompt/run_prompt_tests.py": 1221
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 1242,
+      "user_lines_removed": 1222,
+      "agent_lines_added": 21326,
+      "agent_lines_removed": 21232,
+      "user_added_per_file": {
+        "tests/agent/test_mcp_runtime.cpp": 1,
+        "tests/project_prompt/run_prompt_tests.py": 1221,
+        "tests/workspace/real_adapter_harness.cpp": 20
+      },
+      "user_removed_per_file": {
+        "tests/agent/test_mcp_runtime.cpp": 1,
+        "tests/project_prompt/run_prompt_tests.py": 1221
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 1221,
+      "user_lines_removed": 1221,
+      "agent_lines_added": 22884,
+      "agent_lines_removed": 22701,
+      "user_added_per_file": {
+        "tests/project_prompt/run_prompt_tests.py": 1221
+      },
+      "user_removed_per_file": {
+        "tests/project_prompt/run_prompt_tests.py": 1221
+      }
+    }
+  ]
+}
