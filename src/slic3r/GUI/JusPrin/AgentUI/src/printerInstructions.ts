@@ -71,8 +71,8 @@ const CONDUCT =
   'Write every fact from the tools and the facts below, never from memory. Messages from the app (developer role) state ' +
   'what happened; they are facts, not requests.\n';
 
-// Shared with the filament chat (filamentInstructions.ts): the page draws the
-// line the same way in both.
+// Shared with the filament and project chats (filamentInstructions.ts,
+// projectInstructions.ts): the page draws the line the same way in all three.
 export const CHOICES =
   'Answers to tap: whenever your message asks a yes-or-no question, asks the person to confirm something, or asks ' +
   'them to pick from a few options, its last line must be "Choices: first | second | third" -- two to four short ' +

@@ -196,7 +196,7 @@ TEST_CASE("the radius scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("dimension").at("radius"),
-        {{"small", 4}, {"medium", 8}, {"large", 12}, {"chip", 4}, {"full", 10}},
+        {{"small", 4}, {"medium", 8}, {"large", 12}, {"chip", 4}, {"full", 14}},
         "dimension.radius");
 }
 

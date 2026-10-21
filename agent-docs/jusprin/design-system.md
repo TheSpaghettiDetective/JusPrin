@@ -117,7 +117,7 @@ Design for a dense, native, high-DPI desktop application on Windows, macOS, and 
   - `medium`, 8 DIP: containers (cards, popovers, chat bubbles) and the primary button, the one branded action.
   - `large`, 12 DIP: sheets, large dialogs and window actions.
   - `chip`, 4 DIP: the printer and filament chip in the header.
-  - `full`, 10 DIP: capsule ends of status chips and progress tracks up to 20 DIP tall.
+  - `full`, 14 DIP: capsule ends of anything up to 28 DIP tall: reply choices, status chips and progress tracks. A shorter box keeps a full capsule, because a radius larger than half the height is drawn as half of it.
 - Menus follow the design system's Menu/Popover and Menu/Row: the popover has 8 DIP
   vertical padding, a 1 DIP border and 2 DIP between rows; rows are 36 DIP
   high, run the popover's full width inside its border, and carry no radius,
@@ -150,6 +150,7 @@ Use the existing native component density and Lucide `v1.47.0` SVG artwork for g
 - Segmented control: a 30 DIP `surface.subtle` track with a 1 DIP `border.subtle` border and 2 DIP padding, holding 24 DIP segments in Label; the chosen one is `action.primary` (`component.segmented`).
 - Tooltip: 24 DIP high, 4×8 DIP padding, Metadata, inverse (`text.primary` fill, `surface.canvas` text) with the subtle elevation (`component.tooltip`). Native tooltips are the operating system's own.
 - Header chip: 28 DIP high, `chip` radius (`component.chip`).
+- Reply choice (Chat/Reply Choice): drawn as a reply the person could send, not as an app control. 28 DIP high with `component.replyChip` padding, the `full` radius (the one capsule control), Body Small `text.primary` on `surface.subtle` (the person's own bubble) with a 1 DIP `border.subtle` stroke; hover and pressed go to `surface.selected`, never `action.primary`. A tapped choice is sent as the person's bubble in the same tint and words.
 - Expanded button: at least 32 DIP high, 12×8 DIP padding, 4 DIP radius.
 - Plates / Project pane: 200 DIP wide on `surface.subtle`, a 12 DIP band above a 36 DIP tab strip (the active tab is Label Bold with a 2 DIP `action.primary` rule; the other is Label in `text.secondary`). Plate rows are 32 DIP, object rows 36 DIP, both on `surface.canvas` blocks with the standard radius and a 2 DIP gap; a folded plate adds a 20 DIP Metadata summary line indented 32 DIP. Every number is under `component.leftPane`, taken from the boards on the canvas's Plates & Project Pane page.
 - Agent-pane divider: transparent 8 DIP pointer target with a centered 2 DIP line; the line changes from subtle to strong on hover and to the primary action color while dragging.

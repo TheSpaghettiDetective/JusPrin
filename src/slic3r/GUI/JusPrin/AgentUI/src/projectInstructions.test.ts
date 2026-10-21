@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { CHOICES } from './printerInstructions';
 import { projectInstructions } from './projectInstructions';
 
 describe('projectInstructions', () => {
@@ -32,6 +33,10 @@ describe('projectInstructions', () => {
   it('never words a change as needing the person\'s permission', () => {
     for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
       expect(projectInstructions()).not.toMatch(word);
+  });
+
+  it('asks for the Choices line the page draws as reply chips (replyChoices.ts)', () => {
+    expect(projectInstructions()).toContain(CHOICES);
   });
 
   it('renders the same text every time', () => {

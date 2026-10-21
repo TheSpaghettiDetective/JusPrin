@@ -77,7 +77,7 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.radius_medium == 8);
     CHECK(m.radius_large == 12);
     CHECK(m.radius_chip == 4);
-    CHECK(m.radius_full == 10);
+    CHECK(m.radius_full == 14);
     CHECK(m.space_1 == 4);
     CHECK(m.space_12 == 48);
 

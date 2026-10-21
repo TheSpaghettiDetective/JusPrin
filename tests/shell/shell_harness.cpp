@@ -91,6 +91,13 @@
 //              headline under "Edited by you"
 //              (setup-differences-edited-card) and marks the plan
 //              needs_reassessment. That minute makes the run about two long.
+//   --reply-choices-capture <output-directory>
+//              a stand-in project assistant ends its reply with a Choices
+//              line; asserts the page draws it as chips and not as text,
+//              taps one, and asserts it arrives as the person's message and
+//              the chips go once answered. Writes reply-choices-offered.png
+//              and reply-choices-answered.png (the Agent pane) and
+//              reply-choices-window.png (the window, from the screen)
 //   --timeline-capture <output-directory>
 //              records a build, mirrors the object three times and edits a
 //              print setting by hand, asserts the thread's change rows, and writes
@@ -653,6 +660,53 @@ private:
     bool                          m_called{false};
 };
 
+// --reply-choices-capture: a model that asks what the print is for, offering
+// answers on a Choices line as the project prompt tells it to, and
+// acknowledges the answer it is given without offering more.
+class ChoicesAgent final : public Agent::IAgentService
+{
+public:
+    static constexpr const char* kQuestion =
+        "This looks like a T-shaped bracket with a hole for a screw. What will it do once it's printed?\n"
+        "Choices: Hold a shelf | Decoration | Just a test";
+    static constexpr const char* kAnswer = "Hold a shelf";
+    static constexpr const char* kAcknowledgement =
+        "Then I'll set it up to carry weight: more walls and denser infill.";
+
+    bool ready() const override { return true; }
+    bool busy() const override { return m_active; }
+    bool start(const Agent::AgentRequest& request) override
+    {
+        m_active = true;
+        if (request.purpose == Agent::AgentRequest::Purpose::ConversationTitle)
+            m_events.push_back(Agent::AgentEvent::delta("Shelf bracket"));
+        else
+            m_events.push_back(Agent::AgentEvent::delta(request.user_text == kAnswer ? kAcknowledgement : kQuestion));
+        m_events.push_back(Agent::AgentEvent::completed());
+        return true;
+    }
+    bool continue_after_tool(const Agent::AgentToolResult&) override { return false; }
+    void cancel() override
+    {
+        m_active = false;
+        m_events.clear();
+    }
+    std::optional<Agent::AgentEvent> poll() override
+    {
+        if (m_events.empty())
+            return std::nullopt;
+        Agent::AgentEvent event = std::move(m_events.front());
+        m_events.pop_front();
+        if (event.kind == Agent::AgentEventKind::Completed || event.kind == Agent::AgentEventKind::Failed)
+            m_active = false;
+        return event;
+    }
+
+private:
+    std::deque<Agent::AgentEvent> m_events;
+    bool                          m_active{false};
+};
+
 // The recording agent the project chat was given in the print-issues modes,
 // for the scenario to read.
 RecordingAgent* g_issue_agent = nullptr;
@@ -742,6 +796,7 @@ struct HarnessState
         LiveAgentUnavailable,
         RecomputingCapture,
         SetupDifferencesCapture,
+        ReplyChoicesCapture,
         TimelineCapture,
         FigmaTimelineCapture,
         ToolStripCapture,
@@ -1025,6 +1080,11 @@ public:
             if (m_state->mode == HarnessState::Mode::SetupDifferencesCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("setup_differences", [self = shared_from_this()] { self->begin_setup_differences_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ReplyChoicesCapture) {
+                verify_canvas_interaction();
+                wait_for_agent_page("reply_choices", [self = shared_from_this()] { self->begin_reply_choices_capture(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::TimelineCapture) {
@@ -6192,6 +6252,85 @@ private:
                    });
     }
 
+    // A reply that ends with a Choices line offers its answers as chips, and
+    // a tapped chip is the person's next message. Read from the page itself:
+    // the host storing the line says nothing about what the reader sees.
+    // Both pictures are taken before the one probe, which reports through
+    // the composer draft and so would be drawn in them.
+    void begin_reply_choices_capture()
+    {
+        run_in_agent_page("window.__jusprinTest.send('I want to print this')");
+        wait_until([this] { return assistant_reply_complete(ChoicesAgent::kQuestion); }, "reply_choices_question_complete",
+                   [self = shared_from_this()] {
+            self->capture_chat_pane("reply-choices-offered");
+            self->blit_screen(wxGetApp().mainframe->GetScreenRect(), "reply-choices-window");
+            // Taps the first chip only when the page shows exactly the
+            // offered answers as chips and no Choices line as text, so a
+            // wrong drawing leaves the answer unsent and the wait below fails.
+            // Chips stay disabled while the app is still busy with the turn
+            // (naming the chat), so it waits for them to be enabled.
+            self->run_in_agent_page(
+                "(function(){"
+                "  var tries = 0;"
+                "  var timer = setInterval(function(){"
+                "    var chips = document.querySelectorAll('.reply-chip');"
+                "    var labels = Array.prototype.map.call(chips, function (c) { return c.textContent; }).join('|');"
+                "    var replies = Array.prototype.map.call(document.querySelectorAll('.message.assistant'),"
+                "                                           function (m) { return m.innerText; }).join(' ');"
+                "    if (labels === 'Hold a shelf|Decoration|Just a test' && !chips[0].disabled &&"
+                "        replies.indexOf('Choices:') < 0 && replies.indexOf('What will it do once') >= 0) {"
+                "      clearInterval(timer);"
+                "      chips[0].click();"
+                "    } else if (++tries > 100) clearInterval(timer);"
+                "  }, 100);"
+                "})()");
+            self->wait_until([self] { return self->assistant_reply_complete(ChoicesAgent::kAcknowledgement); },
+                             "reply_choices_drawn_as_chips_and_tapped", [self] {
+                std::string answer;
+                for (const auto& message : installed_shell()->agent_pane()->web_view().host().conversation())
+                    if (message.role == Agent::MessageRole::User) answer = message.text;
+                self->check(answer == ChoicesAgent::kAnswer, "reply_choices_tap_sends_the_chip_as_the_persons_message");
+                self->capture_chat_pane("reply-choices-answered");
+                self->probe_reply_choices([self](const std::string& probe) {
+                    self->check(probe.find("chips=;") == 0, "reply_choices_gone_once_answered");
+                    self->check(probe.find(";line_shown=false;") != std::string::npos, "reply_choices_line_never_shown_as_text");
+                    self->check(probe.find(";last_user=Hold a shelf") != std::string::npos,
+                                "reply_choices_answer_drawn_as_the_persons_bubble");
+                    self->finish();
+                });
+            });
+        });
+    }
+
+    bool assistant_reply_complete(const std::string& text)
+    {
+        for (const auto& message : installed_shell()->agent_pane()->web_view().host().conversation())
+            if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete &&
+                message.text == text)
+                return true;
+        return false;
+    }
+
+    // Reports through the composer draft, which the host owns, once React
+    // has drawn the latest message.
+    void probe_reply_choices(std::function<void(const std::string&)> then)
+    {
+        run_in_agent_page(
+            "setTimeout(function(){"
+            "  var text = function (s) { return Array.prototype.map.call(document.querySelectorAll(s), function (e) { return e.innerText; }); };"
+            "  var users = text('.message.user');"
+            "  window.__jusprinTest.setDraft('chips=' + text('.reply-chip').join('|') +"
+            "    ';line_shown=' + (text('.message.assistant').join(' ').indexOf('Choices:') >= 0) +"
+            "    ';last_user=' + (users.length ? users[users.length - 1] : ''));"
+            "}, 300)");
+        wait_until([this] { return persistence().draft().rfind("chips=", 0) == 0; }, "reply_choices_probe_reported",
+                   [self = shared_from_this(), then] {
+                       const std::string probe = self->persistence().draft();
+                       std::cout << "HARNESS REPLY CHOICES PROBE " << probe << std::endl;
+                       then(probe);
+                   });
+    }
+
     void run_in_agent_page(const std::string& script)
     {
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(), script);
@@ -8286,7 +8425,11 @@ private:
                 for (wxWindow* window : wxTopLevelWindows)
                     if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
                         capture.Stop();
+#ifdef __APPLE__
                         check(snapshot_native_window(dialog->GetHandle(), png.c_str()), std::string("reopen_prompt_") + variant + "_drawn");
+#else
+                        blit_screen(dialog->GetScreenRect(), std::string("reopen-") + variant);
+#endif
                         dialog->EndModal(wxID_CANCEL);
                         return;
                     }
@@ -10178,6 +10321,9 @@ void install_harness_agent(HarnessState::Mode mode)
                        Agent::AgentAvailability::Ready);
         return;
     }
+    case HarnessState::Mode::ReplyChoicesCapture:
+        host.set_agent(std::make_unique<ChoicesAgent>(), Agent::AgentAvailability::Ready);
+        return;
     case HarnessState::Mode::PrintIssues:
     case HarnessState::Mode::ManualPrintIssues: {
         if (g_issue_no_agent)
@@ -10469,6 +10615,14 @@ int main(int argc, char** argv)
                 return 2;
             }
             state->mode = HarnessState::Mode::SetupDifferencesCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--reply-choices-capture") {
+            if (++index == argc) {
+                std::cerr << "--reply-choices-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::ReplyChoicesCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
         else if (argument == "--timeline-capture") {

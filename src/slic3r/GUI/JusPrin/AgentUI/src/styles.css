@@ -2078,7 +2078,10 @@ input[type='radio']:checked {
 
 /* Replies the assistant offers under its newest message. Tapping one sends
    its text as the person's message; the global :focus-visible ring marks the
-   one Tab reached. */
+   one Tab reached. A chip is drawn as a reply the person could send, not as
+   an app control (Chat/Reply Choice): the person's bubble tint with a quiet
+   stroke, and the capsule no app control uses. Hover darkens the same tint,
+   keeping action-primary for the one primary action. */
 .reply-chips {
   display: flex;
   flex-wrap: wrap;
@@ -2089,20 +2092,16 @@ input[type='radio']:checked {
 .reply-chip {
   height: var(--reply-chip-height);
   padding: 0 var(--reply-chip-padding-x);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-small);
-  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--surface-subtle);
   cursor: pointer;
   font: var(--font-body-small);
-  color: var(--action-primary);
+  color: var(--text-primary);
 }
 
-.reply-chip:hover {
-  border-color: var(--action-primary-hover);
-  background: var(--action-primary-hover);
-  color: var(--action-primary-text);
-}
-.reply-chip:active { border-color: var(--action-primary-pressed); background: var(--action-primary-pressed); color: var(--action-primary-text); }
+.reply-chip:hover,
+.reply-chip:active { background: var(--surface-selected); }
 .reply-chip:disabled { border-color: var(--border-subtle); background: var(--action-disabled); color: var(--action-disabled-text); cursor: default; }
 
 /* A sent photo in the printer panel: the picture itself, with any typed
