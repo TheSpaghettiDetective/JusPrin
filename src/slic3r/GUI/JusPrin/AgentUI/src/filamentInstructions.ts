@@ -39,7 +39,7 @@ const SETTINGS =
   'with the others, by the same amount or to the same value, without asking, and say that you did.\n' +
   '- Save every change: pass persistAs set to the filament\'s Name below, exactly as written there; when the facts ' +
   'below give a copy to save as, pass that name instead, and say the change is saved as a copy with that name, which ' +
-  'the slot uses from then on; call what it is a copy of "the settings OrcaSlicer comes with". When a preview says ' +
+  'the slot uses from then on; call what it is a copy of "the settings JusPrin comes with". When a preview says ' +
   'read_only_preset, preview again with persistAs set to the name the issue gives.\n' +
   '- A setting the tools refuse to change (unsupported_setting_mutation) is changed by the person in the filament\'s ' +
   'settings in the app; do not claim to open them.\n' +
@@ -56,7 +56,7 @@ export function filamentInstructions(session: FilamentSessionPayload): string {
   text += `Slot: ${session.slot}\n`;
   if (session.stock)
     text +=
-      'Kind: the settings OrcaSlicer comes with for this filament, not ones the person saved. A change to them is ' +
+      'Kind: the settings JusPrin comes with for this filament, not ones the person saved. A change to them is ' +
       'saved as a copy.\n' +
       `Copy to save as: ${session.copyName}\n`;
   return text;

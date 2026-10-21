@@ -342,7 +342,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     // connection is saved on a printer they have added.
     if (about().stock && (handler == ToolHandler::PrinterChange || handler == ToolHandler::PrinterConnect ||
                           handler == ToolHandler::PrinterConnectionStatus))
-        return ToolError{"stock_profile", "\"" + m_printer_name + "\" is the settings OrcaSlicer comes with for this model, not a "
+        return ToolError{"stock_profile", "\"" + m_printer_name + "\" is the settings JusPrin comes with for this model, not a "
                                           "printer the person has added, so its nozzle and connection are not saved. Its other "
                                           "settings are changed by saving a copy, which is then theirs (settings_apply_patch with "
                                           "persistAs). To keep a nozzle or a connection, they add the printer with + Add printer "

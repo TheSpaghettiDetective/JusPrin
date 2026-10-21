@@ -194,7 +194,7 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     text += `\nThe printer this is about:\nName: ${printer.name}\n`;
     if (printer.stock)
       text +=
-        'Kind: the settings OrcaSlicer comes with for this model, selected in the project, not a printer the person ' +
+        'Kind: the settings JusPrin comes with for this model, selected in the project, not a printer the person ' +
         'added. Its nozzle size and connection are not saved here, and a change to its settings is saved as a copy.\n' +
         `Copy to save as: ${printer.copyName}\n`;
     if (printer.model) text += `Brand and model: ${printer.model}\n`;

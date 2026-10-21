@@ -184,12 +184,12 @@ describe('the instructions', () => {
       expect(text).toContain('pass persistAs set to the printer\'s Name below, exactly as written there, not its brand and model');
       expect(text).toContain('when the facts below give a copy to save as, pass that name instead');
       expect(text).toContain('When a preview says read_only_preset');
-      expect(text).not.toContain('Kind: the settings OrcaSlicer comes with');
+      expect(text).not.toContain('Kind: the settings JusPrin comes with');
     }
     expect(printerInstructions(add)).not.toContain('Rules for changing its settings');
     const stock = session({ ...change, context: { printer: { ...change.context.printer!, stock: true, copyName: 'Lab Printer - Copy' } } });
     expect(printerInstructions(stock)).toContain(
-      'Kind: the settings OrcaSlicer comes with for this model, selected in the project, not a printer the person added.');
+      'Kind: the settings JusPrin comes with for this model, selected in the project, not a printer the person added.');
     expect(printerInstructions(stock)).toContain('Copy to save as: Lab Printer - Copy\n');
     expect(printerInstructions(change)).not.toContain('Copy to save as');
   });

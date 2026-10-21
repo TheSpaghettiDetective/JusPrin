@@ -43,7 +43,7 @@ describe('the filament instructions', () => {
       'Never say something is done before a tool says so',
       'including one before a tool call: say "settings" instead',
       'change the first layer\'s with the others, by the same amount or to the same value, without asking',
-      'call what it is a copy of "the settings OrcaSlicer comes with"',
+      'call what it is a copy of "the settings JusPrin comes with"',
     ])
       expect(text).toContain(rule);
   });

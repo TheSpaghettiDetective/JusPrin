@@ -696,7 +696,7 @@ class SavedPrinterCase:
         # or connection of the person's own.
         if self.stock and name in ("printer_change", "printer_connect", "printer_connection_status"):
             return {"error": {"code": "stock_profile",
-                              "message": f'"{self.printer["name"]}" is the settings OrcaSlicer comes with for this model, not a '
+                              "message": f'"{self.printer["name"]}" is the settings JusPrin comes with for this model, not a '
                                          "printer the person has added, so its nozzle and connection are not saved. Its other "
                                          "settings are changed by saving a copy, which is then theirs (settings_apply_patch with "
                                          "persistAs). To keep a nozzle or a connection, they add the printer with + Add printer "

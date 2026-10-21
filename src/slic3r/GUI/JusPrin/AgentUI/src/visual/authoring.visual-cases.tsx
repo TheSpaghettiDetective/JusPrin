@@ -224,7 +224,7 @@ export const authoringCases: VisualCase[] = [
   thread('working', 'Assistant · Working on it', ['Working on it…', 'jp-icon-rotate-cw'], {
     messages: [message('m-1', 'assistant', '', { state: 'streaming' })], streamingMessageId: 'm-1', printerBlocks: [] }),
   notes('standard', 'File notes · Standard', ['Notes about this file', 'bracket-v3.3mf'], false, false),
-  notes('truncated', 'File notes · Truncated', ['OrcaSlicer said more than fits here.'], true, false),
+  notes('truncated', 'File notes · Truncated', ['JusPrin said more than fits here.'], true, false),
   notes('unavailable', 'File notes · Agent unavailable', ['Set up the Agent', 'it can explain them'], false, true),
   thread('empty', 'Empty conversation notice', ['Ask the Agent about your print'], {}),
   thread('swatch', 'Colored-swatch note', ['note-swatch', 'Filament color updated.'], {
