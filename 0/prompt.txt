@@ -182,3 +182,7 @@ I hit my usage limit while you were working, but it has reset now. Please contin
 <status>completed</status>
 <summary>Background command "Close the old fixture, relink the harness and re-record with the fix" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Tighten the skill's wording but don't run the model again yet.
