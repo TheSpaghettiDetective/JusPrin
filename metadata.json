@@ -3,10 +3,28 @@
   "checkpoint_id": "01M5G3G8Z61VYG40CGJSXPFV37",
   "strategy": "manual-commit",
   "branch": "claude/calibration",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
+    "resources/jusprin/home/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/calibration/SKILL.md",
+    "src/slic3r/GUI/JusPrin/Home/HomeBackend.hpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeHost.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrinterMenu.tsx",
+    "src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/jusprin/test_home_host.cpp",
     "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
@@ -16,13 +34,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 250,
-    "cache_creation_tokens": 279573,
-    "cache_read_tokens": 25243591,
-    "output_tokens": 93157,
-    "api_call_count": 123
+    "input_tokens": 1020,
+    "cache_creation_tokens": 1070893,
+    "cache_read_tokens": 211649843,
+    "output_tokens": 380032,
+    "api_call_count": 505
   }
 }
