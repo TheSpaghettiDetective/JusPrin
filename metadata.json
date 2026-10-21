@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5FMNVCV7DDER3QM638W1JDT",
+  "strategy": "manual-commit",
+  "branch": "claude/calibration",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/workspace/real_adapter_harness.cpp",
+    "tests/workspace/test_workspace_contract.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 779,
+    "cache_creation_tokens": 5814298,
+    "cache_read_tokens": 115496560,
+    "output_tokens": 326816,
+    "api_call_count": 269
+  }
+}
