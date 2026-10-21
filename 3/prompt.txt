@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b8w7ayhw7</task-id>
+<tool-use-id>toolu_01FhvxtQSxBqSxJBF1Ef2T3A</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/76cfae73-9bbb-4d38-9b41-2b6a0df916c5/tasks/b8w7ayhw7.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/76cfae73-9bbb-4d38-9b41-2b6a0df916c5/scratchpad; while kill -0 85060 2&gt;/dev/null; do sleep 20; done; tail -3 $S/build1.log | cut -c1-200; grep -E " error:|FAILED:" $S/build1.log | head -10" completed (exit code 0)</summary>
+</task-notification>
