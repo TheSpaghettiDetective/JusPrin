@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5G4GAQX08P1GG00BHEFMDAD",
   "strategy": "manual-commit",
   "branch": "claude/tool-error-contract",
-  "checkpoints_count": 12,
+  "checkpoints_count": 14,
   "files_touched": [
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
     "src/slic3r/GUI/JusPrin/Agent/ToolErrors.hpp",
@@ -60,6 +60,13 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {

@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5G4GAQX08P1GG00BHEFMDAD",
+  "session_id": "9ce2f3c8-7b6d-4ba7-99ce-889f9d9f192a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T21:05:09.23656Z",
+  "branch": "claude/tool-error-contract",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ToolActivityCard.tsx",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaOutline.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaRegions.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaReshape.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/jusprin_support/FakeSettings.hpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/workspace/test_project_outline.cpp",
+    "tests/workspace/test_workspace_contract.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "ed73069a057a",
+  "checkpoint_transcript_start": 1145,
+  "transcript_lines_at_start": 1145,
+  "compact_transcript_start": 185,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T21:05:08.830626Z",
+    "agent_lines": 184,
+    "agent_removed": 103,
+    "human_added": 435,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 619,
+    "total_lines_changed": 909,
+    "agent_percentage": 31.573157315731574,
+    "metric_version": 2
+  }
+}
