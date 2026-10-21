@@ -1,0 +1,11 @@
+I can `open /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app` to test UX. check the latest chat: I only responded "yes", and the chat history is now filled with a lto things that user may not care about. check it for yourself, and propoose how to fix it
+
+I can `open /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app` to test UX. check the latest chat: I only responded "yes", and the chat history is now filled with a lto things that user may not care about. check it for yourself, and propoose a new UX/UI
+
+---
+
+Try again
+
+---
+
+go ahead and run a live turn to verify
