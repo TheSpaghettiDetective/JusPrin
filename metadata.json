@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5GEFY3X5CQ9FZ7S9F1JD5AH",
   "strategy": "manual-commit",
   "branch": "claude/musing-wing-e808a9",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 164,
-    "cache_creation_tokens": 96572,
-    "cache_read_tokens": 42031508,
-    "output_tokens": 46878,
-    "api_call_count": 82
+    "input_tokens": 228,
+    "cache_creation_tokens": 161341,
+    "cache_read_tokens": 57187744,
+    "output_tokens": 70582,
+    "api_call_count": 113
   }
 }
