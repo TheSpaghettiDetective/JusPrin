@@ -192,3 +192,15 @@ use an isolated copy. also launch your current version so that I can test
 > Your impression is right for generic and other-brand filaments, but not for filaments made for a specific printer model.
 
 if it's the case, is it wrong for us to have the "show filaments for other printer" checkbox, as attached screenshot?
+
+---
+
+this dialog is full of "OrcaSlicer" here. Use "JusPrin" instead. check other places to see if there are similar problems
+
+---
+
+this part shouldn't be at the bottom of the scrollable view. it should be outside the scrollable view because the  scrollable view  is very long. if necessary, you can go back to the delegating agent to revise the design
+
+---
+
+fix the card now, change the agent wording too
