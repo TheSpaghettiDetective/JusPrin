@@ -1,0 +1,1 @@
+read @agent-docs to understand the goal of this fork. then look at the current code to list all the places wehere the current user experience is still falling short of the goal
