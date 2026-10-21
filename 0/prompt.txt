@@ -898,3 +898,7 @@ If this event is something the user would act on now, send a PushNotification. R
 ---
 
 can you amend the commit on jusprin-newui in main checkout?
+
+---
+
+1, fix the stale check
