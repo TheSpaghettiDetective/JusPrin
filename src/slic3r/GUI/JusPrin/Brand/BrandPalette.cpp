@@ -3,6 +3,8 @@
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/BitmapCache.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "libslic3r/Color.hpp"
+#include "slic3r/GUI/ImGuiWrapper.hpp"
 #include "slic3r/GUI/Widgets/StateColor.hpp"
 #include "libslic3r/Utils.hpp"
 
@@ -128,6 +130,14 @@ void apply_brand_palette()
     const ShellPalette& p = theme->palette(GUI_App::dark_mode());
     StateColor::SetColorOverrides(widget_overrides(p));
     BitmapCache::SetColorReplaces(icon_replaces(p));
+    // OrcaSlicer's own accent in the ImGui and GL layer: the preview sliders'
+    // handles, filled track and value text, gizmo highlights, the selection
+    // rectangle. Its readers evaluate it at use; ImGui's style table is the
+    // one copy made at start-up, before this runs, so it is filled again.
+    ColorRGB::orca_accent() = ColorRGB(p.action_primary.Red() / 255.f, p.action_primary.Green() / 255.f,
+                                       p.action_primary.Blue() / 255.f);
+    if (ImGuiWrapper* imgui = wxGetApp().imgui())
+        imgui->reset_style();
 }
 
 } // namespace Slic3r::GUI::JusPrin
