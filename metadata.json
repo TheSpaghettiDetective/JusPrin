@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5FJKY92TZ5ADRFM3SZY4R4T",
+  "strategy": "manual-commit",
+  "branch": "claude/api-key-saved-state",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentSetup.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentSetup.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/state/store.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/AgentUiStateMatrix.preview.test.tsx",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_agent_setup.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 990206,
+    "cache_read_tokens": 4538217,
+    "output_tokens": 3872,
+    "api_call_count": 12,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
