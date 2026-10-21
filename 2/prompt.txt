@@ -1,0 +1,3 @@
+> Generate. Calling the generator is code
+
+generating what? gcode?
