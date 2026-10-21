@@ -571,7 +571,9 @@ describe('App', () => {
     expect(screen.getByTestId('bridge-error')).toBeInTheDocument();
   });
 
-  it('explains a stale action distinctly from other failures', () => {
+  // stale_workspace is the code; stale_revision is what chats saved before the
+  // codes were unified still hold.
+  it.each(['stale_workspace', 'stale_revision'])('explains a stale action (%s) distinctly from other failures', (code) => {
     render(<App getTransport={() => host.transport} />);
     connect(
       host,
@@ -580,7 +582,7 @@ describe('App', () => {
         toolActivities: [
           toolActivity({
             state: 'failed',
-            error: { code: 'stale_revision', message: 'The project changed before this action could run.' },
+            error: { code, message: 'Nothing ran: the project changed after this call was made.' },
           }),
         ],
       }),

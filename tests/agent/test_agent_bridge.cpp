@@ -1484,7 +1484,7 @@ TEST_CASE("cancellation and deterministic failure surface over the bridge", "[ag
         pump_tools_to_completion(harness);
         const json failed = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(failed["state"] == "failed");
-        CHECK(failed["error"]["code"] == "missing_object");
+        CHECK(failed["error"]["code"] == "not_found");
         CHECK(workspace_object_count(harness.workspace) == objects_before);
     }
 
@@ -1494,7 +1494,8 @@ TEST_CASE("cancellation and deterministic failure surface over the bridge", "[ag
         pump_tools_to_completion(harness);
         const json stale = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
         CHECK(stale["state"] == "failed");
-        CHECK(stale["error"]["code"] == "stale_revision");
+        CHECK(stale["error"]["code"] == "stale_workspace");
+        CHECK(stale["error"]["details"]["currentRevision"] > stale["error"]["details"]["expectedRevision"]);
         CHECK(workspace_object_count(harness.workspace) == objects_before);
     }
 }

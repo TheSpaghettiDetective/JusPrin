@@ -38,6 +38,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ProjectPersistence.hpp
     GUI/JusPrin/Agent/ProjectStateDocument.cpp
     GUI/JusPrin/Agent/ProjectStateDocument.hpp
+    GUI/JusPrin/Agent/ToolErrors.hpp
     GUI/JusPrin/Agent/ToolExecution.hpp
     GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp
     GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp

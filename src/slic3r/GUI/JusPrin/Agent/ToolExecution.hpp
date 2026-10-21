@@ -16,7 +16,7 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 // Lifecycle of one tool action. Cancelled, Succeeded, and Failed are terminal.
 // A stale action fails with error code
-// "stale_revision" rather than getting its own state.
+// "stale_workspace" rather than getting its own state.
 enum class ToolState : std::uint8_t { Running, Succeeded, Failed, Cancelled };
 
 constexpr bool tool_state_terminal(ToolState state)

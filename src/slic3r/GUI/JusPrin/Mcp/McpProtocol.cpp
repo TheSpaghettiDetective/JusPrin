@@ -182,9 +182,13 @@ Reply discovery(const Request& request)
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
                                          {"instructions", "For a requested settings change, inspect the live workspace, search or read the relevant settings, then preview a patch. Apply with the "
-                                     "sessionId and revision from that preview. After stale_workspace, read and preview again. Project "
-                                     "Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable "
-                                     "error means you should open JusPrin and a project. Closing a response cancels pending work."}})};
+                                     "sessionId and revision from that preview. Project Undo does not reverse preset edits; apply an inverse "
+                                     "patch. An error code says what to do next: invalid_arguments, fix the call; not_found or "
+                                     "stale_workspace, read the workspace again (and preview again for settings), then call again; "
+                                     "feature_expired, analyze the object again; busy, wait and call again; needs_step, do the step the "
+                                     "message names first; workspace_unavailable, ask the person to open a project in JusPrin or select "
+                                     "an FFF printer; refused or failed, stop and tell the person. A failed call changed nothing unless "
+                                     "its message says what it already changed. Closing a response cancels pending work."}})};
 }
 
 Reply list_tools(const Request& request, std::size_t page_size)
@@ -244,22 +248,13 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
         result = tool_result(content);
         if (activity.image)
             result["content"].push_back({{"type", "image"}, {"data", activity.image->base64}, {"mimeType", activity.image->mime_type}});
+    } else if (activity.state == ToolState::Cancelled) {
+        result = tool_result(tool_error("cancelled", "The action was cancelled."), true);
     } else {
-        std::string code = "execution_failed", message = "Tool execution failed.";
-        if (activity.state == ToolState::Cancelled) { code = "cancelled"; message = "The action was cancelled."; }
-        else if (activity.error) { code = activity.error->code; message = activity.error->message; }
-        json details = activity.error ? json::parse(activity.error->details_json) : json::object();
-        if (code == "stale_revision" || code == "stale_id") {
-            std::string expected_session = std::to_string(activity.session);
-            if (code == "stale_id") {
-                const json arguments = json::parse(activity.arguments_json);
-                expected_session = arguments.value("sessionId", expected_session);
-            }
-            code = "stale_workspace";
-            details = {{"expectedSessionId", expected_session}, {"expectedRevision", activity.expected_revision},
-                       {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}};
-        } else if (code == "unavailable_operation") code = "workspace_unavailable";
-        result = tool_result(tool_error(code, message, std::move(details)), true);
+        // The codes are the in-app agent's own: one spelling on both surfaces.
+        if (activity.state != ToolState::Failed || !activity.error)
+            throw std::logic_error("Tool activity has no result to report: " + activity.tool);
+        result = tool_result(tool_error(activity.error->code, activity.error->message, json::parse(activity.error->details_json)), true);
     }
     result["_meta"]["io.jusprin/activity"] = {{"actionId", activity.action_id},
                                               {"sessionId", std::to_string(snapshot.session.value())},

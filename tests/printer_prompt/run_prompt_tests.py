@@ -754,7 +754,7 @@ class SavedPrinterCase:
             if key not in PRINTER_SETTINGS:
                 issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
             elif not PRINTER_SETTINGS[key][1]:
-                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "This printer setting is read-only."})
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this printer setting; the person changes it in OrcaSlicer."})
             else:
                 changes.append({"key": key, "before": PRINTER_SETTINGS[key][0], "after": str(value)})
         persist = arguments.get("persistAs")
@@ -1337,7 +1337,7 @@ class FilamentCase:
             if key not in FILAMENT_SETTINGS:
                 issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
             elif not FILAMENT_SETTINGS[key][1]:
-                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "This filament setting is read-only."})
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this filament setting; the person changes it in OrcaSlicer."})
             elif len(str(value).split(",")) != len(FILAMENT_SETTINGS[key][0].split(",")):
                 count = len(FILAMENT_SETTINGS[key][0].split(","))
                 issues.append({"key": key, "code": "invalid_setting_value",

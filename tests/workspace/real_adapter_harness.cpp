@@ -520,7 +520,7 @@ private:
               "pane_select_plate_publishes_a_plates_change");
         check(m_edits.size() == edits_before, "pane_select_plate_is_not_an_edit");
         check(m_workspace->select_plate(inactive).error == WorkspaceError::NoChange, "pane_select_plate_twice_is_no_change");
-        check(m_workspace->select_plate(PlateId(initial.session, 987654321)).error == WorkspaceError::MissingObject,
+        check(m_workspace->select_plate(PlateId(initial.session, 987654321)).error == WorkspaceError::NotFound,
               "pane_select_unknown_plate");
         check(m_workspace->select_plate(PlateId(ProjectSessionId(initial.session.value() + 1), inactive.value())).error ==
                   WorkspaceError::StaleId,
@@ -544,7 +544,7 @@ private:
               "setup_scope_ignores_object_selection");
         check(m_workspace->select_copy(copy_id).error == WorkspaceError::NoChange, "pane_select_copy_twice_is_no_change");
         check(m_workspace->select_volume(m_workspace->outline().objects.front().volumes.front().id).error ==
-                  WorkspaceError::UnavailableOperation,
+                  WorkspaceError::Refused,
               "pane_single_part_volume_is_not_selectable");
         m_plater->deselect_all();
         check(m_workspace->outline().selected_copies.empty(), "pane_canvas_deselect_is_read_back");
@@ -1207,6 +1207,7 @@ private:
         verify_legacy_delete_history();
         verify_disabled_gizmo_wheel();
         verify_plate_type();
+        verify_layout_checks_before_changing();
         verify_first_model_is_not_an_edit();
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
@@ -1821,6 +1822,71 @@ private:
         check(after.plates[0].bed_type == project_type, "plate_type_other_plate_unchanged");
     }
 
+    // A layout OrcaSlicer would refuse part-way is refused before any row is
+    // applied: both cases once failed after renaming, adding and disabling.
+    void verify_layout_checks_before_changing()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "layout_checks_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        for (int copy = 0; copy < 2; ++copy)
+            m_plater->load_files(std::vector<std::string>{cube},
+                                 LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(m_plater->model().objects.size() == 2, "layout_checks_two_cubes_loaded");
+        OrcaWorkspaceAdapter workspace(*m_plater);
+        const ObjectId first(workspace.snapshot().session, m_plater->model().objects[0]->id().id);
+        const ObjectId second(workspace.snapshot().session, m_plater->model().objects[1]->id().id);
+        const auto plate_count = [this] { return m_plater->get_partplate_list().get_plate_count(); };
+        const auto name_of = [this](std::size_t index) { return m_plater->model().objects[index]->name; };
+        const auto prints = [this](std::size_t index) { return m_plater->model().objects[index]->instances.front()->printable; };
+        const std::string first_name = name_of(0);
+
+        // A row that disables an object and asks for copies of it.
+        LayoutRequest disabling;
+        disabling.objects.push_back({first, std::nullopt, std::nullopt, std::nullopt, std::string("Renamed by a refused call"), std::nullopt});
+        disabling.objects.push_back({second, false, 3, std::nullopt, std::nullopt, std::nullopt});
+        disabling.plates.push_back({std::nullopt, std::string("Added by a refused call"), std::nullopt});
+        const int plates_before = plate_count();
+        LayoutResult result;
+        const CommandResult refused = workspace.lay_out(disabling, "layout-checks-1", result);
+        check(refused.error == WorkspaceError::Refused, "layout_copies_of_a_disabled_object_are_refused");
+        check(refused.message.find("disabled by this same row") != std::string::npos, "layout_refusal_names_the_row_that_disables");
+        check(plate_count() == plates_before, "layout_refused_adds_no_plate");
+        check(name_of(0) == first_name, "layout_refused_renames_nothing");
+        check(prints(1) && m_plater->model().objects[1]->instances.size() == 1, "layout_refused_leaves_the_object_enabled");
+
+        // An object already disabled is copied only when the same row enables it.
+        LayoutRequest disable;
+        disable.objects.push_back({second, false, std::nullopt, std::nullopt, std::nullopt, std::nullopt});
+        check(workspace.lay_out(disable, "layout-checks-2", result).succeeded() && !prints(1), "layout_disables_an_object");
+        LayoutRequest copies;
+        copies.objects.push_back({second, std::nullopt, 2, std::nullopt, std::nullopt, std::nullopt});
+        const CommandResult still_disabled = workspace.lay_out(copies, "layout-checks-3", result);
+        check(still_disabled.error == WorkspaceError::Refused &&
+                  still_disabled.message.find("Pass enabled: true") != std::string::npos,
+              "layout_copies_of_a_disabled_object_say_how_to_enable_it");
+        copies.objects.front().enabled = true;
+        check(workspace.lay_out(copies, "layout-checks-4", result).succeeded() &&
+                  m_plater->model().objects[1]->instances.size() == 2 && prints(1),
+              "layout_enabling_in_the_same_row_copies");
+
+        // More new plates than the project has room for.
+        while (plate_count() < int(PartPlateList::MAX_PLATES_COUNT) - 1)
+            m_plater->get_partplate_list().create_plate(false);
+        LayoutRequest crowded;
+        crowded.objects.push_back({first, std::nullopt, std::nullopt, std::nullopt, std::string("Renamed by a crowded call"), std::nullopt});
+        crowded.plates.push_back({std::nullopt, std::string("Room for this one"), std::nullopt});
+        crowded.plates.push_back({std::nullopt, std::string("Not for this one"), std::nullopt});
+        const int before_crowded = plate_count();
+        const CommandResult full = workspace.lay_out(crowded, "layout-checks-5", result);
+        check(full.error == WorkspaceError::Refused, "layout_past_the_plate_limit_is_refused");
+        check(full.message.find("it can take 1 more") != std::string::npos, "layout_plate_limit_says_how_many_fit");
+        check(plate_count() == before_crowded && name_of(0) == first_name, "layout_past_the_plate_limit_changes_nothing");
+        crowded.plates.pop_back();
+        check(workspace.lay_out(crowded, "layout-checks-6", result).succeeded() &&
+                  plate_count() == int(PartPlateList::MAX_PLATES_COUNT),
+              "layout_up_to_the_plate_limit_succeeds");
+    }
+
     void verify_disabled_gizmo_wheel()
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, "gizmo_wheel_new_project");
@@ -1934,7 +2000,7 @@ private:
             check(m_workspace->snapshot().session != old_session, "project_replacement_changes_session");
             check(m_workspace->select_object(old_id).error == WorkspaceError::StaleId, "prior_session_id_is_stale");
             const std::size_t before_unavailable = m_changes.size();
-            check(m_workspace->undo().error == WorkspaceError::UnavailableOperation, "unavailable_undo_reports_failure");
+            check(m_workspace->undo().error == WorkspaceError::Refused, "unavailable_undo_reports_failure");
             check(m_changes.size() == before_unavailable, "unavailable_undo_emits_no_event");
 
             auto teardown_workspace = std::make_shared<std::unique_ptr<OrcaWorkspaceAdapter>>(

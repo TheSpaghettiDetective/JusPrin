@@ -7,6 +7,7 @@
 #include <catch2/catch_all.hpp>
 
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolErrors.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
 #include "../jusprin_support/FakeProductState.hpp"
 #include "slic3r/GUI/JusPrin/Agent/IntentChecks.hpp"
@@ -16,6 +17,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -263,7 +265,7 @@ TEST_CASE("an execution failure is reported and changes nothing", "[tools][failu
     const ToolActivity* failed = harness.coordinator.find(action_id);
     REQUIRE(failed->state == ToolState::Failed);
     REQUIRE(failed->error.has_value());
-    CHECK(failed->error->code == "missing_object");
+    CHECK(failed->error->code == "not_found");
     CHECK(harness.object_count() == objects_before);
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
     // A failed execution is terminal for the action; no retry can re-run it.
@@ -365,7 +367,7 @@ TEST_CASE("object_import fails when the attachment can no longer be resolved", "
     harness.pump_to_completion(submitted.action_id);
 
     CHECK(harness.coordinator.find(submitted.action_id)->state == ToolState::Failed);
-    CHECK(harness.coordinator.find(submitted.action_id)->error->code == "unavailable_operation");
+    CHECK(harness.coordinator.find(submitted.action_id)->error->code == "not_found");
     CHECK(harness.object_count() == before);
 }
 
@@ -597,12 +599,10 @@ TEST_CASE("workspace_inspect without sections is what it always was", "[tools][i
     CHECK_FALSE(result.contains("intent"));
     CHECK_FALSE(result.contains("plan"));
 
-    // Without a store those sections fail rather than reporting an empty
-    // record that would read as "the user wants nothing".
-    const std::string missing = h.coordinator.submit({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2").action_id;
-    h.coordinator.pump();
-    REQUIRE(h.coordinator.find(missing)->state == ToolState::Failed);
-    CHECK(h.coordinator.find(missing)->error->code == "unavailable_operation");
+    // Every app host gives the coordinator a store, so reading those
+    // sections without one is a broken invariant, not an error a model sees.
+    h.coordinator.submit({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2");
+    CHECK_THROWS_AS(h.coordinator.pump(), std::logic_error);
 }
 
 TEST_CASE("slicing starts through Orca's own run and is read back, not waited on", "[tools][slicing]")
@@ -643,7 +643,7 @@ TEST_CASE("slicing starts through Orca's own run and is read back, not waited on
     const auto& refused = h.coordinator.submit({"slice_start", "{}"}, "m-3");
     h.pump_to_completion(refused.action_id);
     REQUIRE(h.coordinator.find(refused.action_id)->state == ToolState::Failed);
-    CHECK(h.coordinator.find(refused.action_id)->error->code == "unavailable_operation");
+    CHECK(h.coordinator.find(refused.action_id)->error->code == "busy");
     CHECK(h.workspace.slice_starts == 1);
 
     // Taking over an existing slice is explicit in the call.
@@ -984,8 +984,8 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
         return ToolActivity(h.coordinator.submit({"project_open", arguments.dump()}, "m-1"));
     };
 
-    CHECK(submit(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_argument");
-    CHECK(submit(json{{"path", "bracket.stl"}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "missing.stl").u8string()}}).error->code == "invalid_arguments");
+    CHECK(submit(json{{"path", "bracket.stl"}}).error->code == "invalid_arguments");
 
     // A project with unsaved changes is replaced without asking.
     auto setup = h.workspace.snapshot().setup;
@@ -1067,9 +1067,9 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     // The dialog answers are no longer inputs: OrcaSlicer asks nothing.
     CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"oversized", "scaleToFit"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"path", model}, {"unitConversion", "convertIfTiny"}}.dump()).valid());
-    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}}).error->code == "invalid_arguments");
     std::ofstream(folder / "x.3mf") << "x";
-    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_argument");
+    CHECK(submit(json{{"path", (folder / "x.3mf").u8string()}, {"unitConversion", "inches"}}).error->code == "invalid_arguments");
     std::filesystem::remove_all(folder);
 }
 
@@ -1314,7 +1314,7 @@ TEST_CASE("a file import names its path and a delete names what goes", "[tools][
     std::ofstream(folder / "bracket.stl") << "solid bracket\nendsolid bracket\n";
 
     CHECK(h.coordinator.submit({"object_import_file", json{{"sessionId", session}, {"path", (folder / "none.stl").u8string()}}.dump()}, "m-1")
-              .error->code == "invalid_argument");
+              .error->code == "invalid_arguments");
     h.workspace.m_load_messages = {{"JusPrin - Object too small", "maybe in meters or inches", {"yes", "no"}, "no", true}};
     const ToolActivity import_action = h.coordinator.submit(
         {"object_import_file", json{{"sessionId", session}, {"path", model}, {"unitConversion", "inches"}}.dump()}, "m-2");
@@ -1457,7 +1457,7 @@ TEST_CASE("settings tools read and write one object's overrides", "[tools][setti
 
     const auto missing = run("settings_get", json{{"scope", "object"}, {"keys", {"wall_loops"}}, {"target", {{"objectId", "987654"}}}});
     CHECK(missing.state == ToolState::Failed);
-    CHECK(missing.error->code == "missing_object");
+    CHECK(missing.error->code == "not_found");
 
     for (const char* bad : {R"({"scope":"object","keys":["wall_loops"],"target":{"objectId":5}})",
                             R"({"scope":"object","keys":["wall_loops"],"target":{"objectId":"5","plate":"1"}})",
@@ -1656,9 +1656,9 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     const auto refused = h.coordinator.submit({"region_annotate", json{{"sessionId", session},
         {"regions", {{{"objectId", cube}, {"kind", "precision_hole"}, {"geometry", {{"type", "face"}, {"handle", "f1-21-0-0-0"}}}}}}}.dump()}, "m-3");
     CHECK(refused.state == ToolState::Failed);
-    CHECK(refused.error->code == "invalid_argument");
+    CHECK(refused.error->code == "invalid_arguments");
     CHECK(h.coordinator.submit({"region_annotate", json{{"sessionId", session}, {"regions", {{{"regionId", "r9"}}}}}.dump()}, "m-4")
-              .error->code == "invalid_argument");
+              .error->code == "not_found");
     for (const json& bad : {json{{"sessionId", session}, {"regions", json::array()}},
                             json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"}}}}},
                             json{{"sessionId", session}, {"regions", {{{"objectId", cube}, {"kind", "hidden"},
@@ -1679,7 +1679,7 @@ TEST_CASE("region annotations are applied, read back with their status, regenera
     CHECK(removed["removedRegions"] == json::array({"r2"}));
     REQUIRE(store.regions().size() == 1);
     CHECK(store.regions()[0].id == "r1");
-    CHECK(run("project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}).error->code == "invalid_argument");
+    CHECK(run("project_delete_items", json{{"sessionId", session}, {"items", {{{"regionId", "r2"}}}}}).error->code == "not_found");
 }
 
 TEST_CASE("region records survive the project document round trip", "[tools][regions][persistence]")
@@ -2048,7 +2048,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     const auto notes = run("project_attachment_read", json{{"id", "Others/notes.txt"}}).second;
     CHECK_FALSE(notes.image);
     CHECK(json::parse(notes.result_json)["text"] == "hello");
-    CHECK(run("project_attachment_read", json{{"id", "../secret.txt"}}).second.error->code == "invalid_argument");
+    CHECK(run("project_attachment_read", json{{"id", "../secret.txt"}}).second.error->code == "not_found");
 
     // Slice detail says when there is no slice, then pages the layers.
     CHECK(json::parse(run("slice_inspect", json{{"view", "layers"}}).second.result_json)["valid"] == false);
@@ -2077,7 +2077,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(json::parse(run("activity_cancel", json{{"handle", slice_handle}}).second.result_json)["cancelled"] == false);
     CHECK(h.workspace.snapshot().slicing.running);
     h.workspace.finish_slice_for_testing(false);
-    CHECK(run("activity_cancel", json{{"handle", "nothing"}}).second.error->code == "invalid_argument");
+    CHECK(run("activity_cancel", json{{"handle", "nothing"}}).second.error->code == "not_found");
 
     // An export never overwrites a file unless the call says to.
     const auto folder = std::filesystem::temp_directory_path() / "jusprin-export-test";
@@ -2087,7 +2087,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     h.workspace.set_plate_sliced(plate, true);
     std::ofstream(std::filesystem::u8path(target)) << "old";
     const json exporting{{"sessionId", session}, {"kind", "gcode"}, {"path", target}};
-    CHECK(h.coordinator.submit({"export_file", exporting.dump()}, "m-3").error->code == "invalid_argument");
+    CHECK(h.coordinator.submit({"export_file", exporting.dump()}, "m-3").error->code == "invalid_arguments");
     json replacing = exporting;
     replacing["overwrite"] = true;
     const auto contents = [&target] {
@@ -2123,4 +2123,65 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "project_3mf"}, {"path", target}, {"plateId", "1"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
     std::filesystem::remove_all(folder);
+}
+
+TEST_CASE("a wrong plate id gets not_found from every tool that takes one", "[tools][errors]")
+{
+    Harness h;
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string export_path = (std::filesystem::temp_directory_path() / "jusprin-no-plate.stl").u8string();
+    const auto run = [&h](const char* tool, const json& arguments) {
+        const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
+        h.pump_to_completion(id);
+        return *h.coordinator.find(id);
+    };
+    for (const auto& [tool, arguments] : std::vector<std::pair<const char*, json>>{
+             {"slice_start", {{"plateId", "999"}}},
+             {"slice_report", {{"plateId", "999"}}},
+             {"slice_inspect", {{"plateId", "999"}, {"view", "layers"}}},
+             {"view_render", {{"plateId", "999"}}},
+             {"export_file", {{"sessionId", session}, {"kind", "stl"}, {"path", export_path}, {"plateId", "999"}}}}) {
+        INFO(tool);
+        const ToolActivity activity = run(tool, arguments);
+        REQUIRE(activity.state == ToolState::Failed);
+        CHECK(activity.error->code == "not_found");
+        CHECK(activity.error->message == "That plate is not in the open project. Read workspace_inspect for the plate ids.");
+    }
+}
+
+TEST_CASE("a stale call names the project it expected and the project as it is", "[tools][errors]")
+{
+    Harness h;
+    const auto added = h.workspace.duplicate_object(h.cube_id());
+    REQUIRE(added.object_id);
+    REQUIRE(h.workspace.remove_object(*added.object_id).succeeded());
+    const auto snapshot = h.workspace.snapshot();
+    const std::string id = h.coordinator.submit({"project_delete_items",
+                                                 json{{"sessionId", std::to_string(snapshot.session.value())},
+                                                      {"items", {{{"objectId", std::to_string(added.object_id->value())}}}}}
+                                                     .dump()},
+                                                "m-1")
+                               .action_id;
+    h.pump_to_completion(id);
+    const ToolActivity& stale = *h.coordinator.find(id);
+    REQUIRE(stale.state == ToolState::Failed);
+    CHECK(stale.error->code == "stale_workspace");
+    const json details = json::parse(stale.error->details_json);
+    CHECK(details["expectedSessionId"] == std::to_string(snapshot.session.value()));
+    CHECK(details["currentSessionId"] == std::to_string(snapshot.session.value()));
+    CHECK(details["currentRevision"] == snapshot.revision);
+}
+
+TEST_CASE("a failure code is one ToolErrors lists", "[tools][errors]")
+{
+    Harness h;
+    std::string code = "refused";
+    h.coordinator.set_extension_preflight([&code](ToolHandler, ToolActivity&) { return ToolError{code, "Not here."}; });
+    CHECK(h.coordinator.submit({"workspace_inspect", "{}"}, "m-1").error->code == "refused");
+    // An unlisted code is a defect in the code that chose it, not a refusal.
+    code = "made_up";
+    CHECK_THROWS_AS(h.coordinator.submit({"workspace_inspect", "{}"}, "m-2"), std::logic_error);
+    for (const std::string_view listed : ToolErrors::kCodes)
+        CHECK(ToolErrors::registered(listed));
+    CHECK_FALSE(ToolErrors::registered("unavailable_operation"));
 }

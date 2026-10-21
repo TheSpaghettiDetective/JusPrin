@@ -313,7 +313,7 @@ TEST_CASE("Workspace selection distinguishes invalid, missing, stale, and unsupp
     const ObjectId first = object_id(workspace, 100);
 
     REQUIRE(workspace.select_object(ObjectId()).error == WorkspaceError::InvalidId);
-    REQUIRE(workspace.select_object(object_id(workspace, 999)).error == WorkspaceError::MissingObject);
+    REQUIRE(workspace.select_object(object_id(workspace, 999)).error == WorkspaceError::NotFound);
 
     REQUIRE(workspace.select_object(first).succeeded());
     WorkspaceSnapshot selected = workspace.snapshot();
@@ -391,8 +391,8 @@ TEST_CASE("Unavailable history operations emit no false change", "[workspace]")
     int callbacks = 0;
     WorkspaceSubscription subscription = workspace.subscribe([&](const WorkspaceChanged&) { ++callbacks; });
 
-    REQUIRE(workspace.undo().error == WorkspaceError::UnavailableOperation);
-    REQUIRE(workspace.redo().error == WorkspaceError::UnavailableOperation);
+    REQUIRE(workspace.undo().error == WorkspaceError::Refused);
+    REQUIRE(workspace.redo().error == WorkspaceError::Refused);
     REQUIRE(callbacks == 0);
     REQUIRE(workspace.snapshot().revision == 0);
 }

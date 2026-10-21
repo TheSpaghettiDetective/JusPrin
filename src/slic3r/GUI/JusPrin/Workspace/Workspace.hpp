@@ -1290,13 +1290,26 @@ struct SliceReport
     std::optional<SliceIslands>    islands;
 };
 
+// Why a command did not run, by what the caller does next. The tools turn
+// each kind into one code of Agent/ToolErrors.hpp. A command that stops after
+// changing part of the project says what it changed in its message.
 enum class WorkspaceError : std::uint8_t {
     None,
     InvalidId,
-    MissingObject,
+    // The id is not in the open project: read the ids again.
+    NotFound,
+    // The id is from an earlier session, or its item was removed since.
     StaleId,
-    UnsupportedSelection,
-    UnavailableOperation,
+    // OrcaSlicer is busy or not ready yet: try again shortly.
+    Busy,
+    // Another step comes first, which the message names.
+    NeedsStep,
+    // OrcaSlicer does not do this to this item.
+    Refused,
+    // OrcaSlicer tried and did not succeed.
+    Failed,
+    // No FFF printer or process preset is selected.
+    WorkspaceUnavailable,
     InvalidArgument,
     NoChange,
     InvalidSettings,
@@ -1801,7 +1814,7 @@ public:
     // the result arrives as a Plates change and is read from the snapshot, the
     // way the GUI's own Slice button behaves.
     //
-    // Refuses with UnavailableOperation when a slice is already running unless
+    // Refuses with Busy when a slice is already running unless
     // preempt is set, because nothing in Orca records who started a run: a
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
@@ -1815,10 +1828,10 @@ public:
     // `outline` is read fresh from Orca on every call, like snapshot().
     // `select_plate` makes a plate the active one, as clicking it in Orca's own
     // plate list does; `add_plate` is the toolbar's Add plate, one undo step.
-    // `select_copy` and `select_volume` select exactly that item, and fail with
-    // UnavailableOperation when Orca cannot select at that granularity (a
-    // volume of an object with a single model part, or a copy that no plate
-    // holds). A no-op selection fails with NoChange.
+    // `select_copy` and `select_volume` select exactly that item. They fail
+    // with Refused for a volume of an object with a single model part, and
+    // with Failed when Orca does not select it (a copy that no plate holds).
+    // A no-op selection fails with NoChange.
     virtual ProjectOutline outline() const                       = 0;
     virtual CommandResult  select_plate(PlateId id)              = 0;
     virtual CommandResult  add_plate()                           = 0;
@@ -1828,19 +1841,19 @@ public:
     // Orca offers Delete only while another plate remains, Move to front only
     // below the first plate, and Filament grouping only on a dual-extruder
     // Bambu printer. `run_plate_action` refuses one that is not in that list
-    // with UnavailableOperation instead of running it anyway.
+    // with Refused instead of running it anyway.
     virtual std::vector<PlateAction> plate_actions(PlateId id) const                       = 0;
     virtual CommandResult            run_plate_action(PlateId id, PlateAction action)      = 0;
     // The object actions that apply to this object now, in menu order: Filament
     // only in a multi-material job, Repair only for a mesh with problems, Split
     // only for an object that has more than one piece. `slot` is the 1-based
     // filament for Filament and ignored otherwise. A refusal by OrcaSlicer comes
-    // back as UnavailableOperation.
+    // back as Refused, and a command that changed nothing as Failed.
     virtual std::vector<ObjectAction> object_actions(ObjectId id) const                                    = 0;
     virtual CommandResult             run_object_action(ObjectId id, ObjectAction action, int slot = 0)    = 0;
     // The object list's printable switch for one copy.
     virtual CommandResult             toggle_copy_printable(InstanceId id)                                 = 0;
-    // Selects the object and opens the tool on it. `UnavailableOperation` when
+    // Selects the object and opens the tool on it. `Failed` when
     // OrcaSlicer won't open it (a gizmo already running, for one).
     virtual CommandResult             open_customization(ObjectId id, CustomizationTool tool)             = 0;
     virtual ConfiguredPrinter configured_printer() const = 0;
@@ -1878,7 +1891,7 @@ public:
     virtual SettingsCatalog settings_catalog() const = 0;
     // The panel's edit on one of the object's own settings, as one undo step
     // the person made. NoChange when nothing the object has matches any more;
-    // UnavailableOperation for what the panel never offers (an action of None,
+    // Refused for what the panel never offers (an action of None,
     // or a customization the catalog marks with another action).
     virtual CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) = 0;
 

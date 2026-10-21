@@ -194,7 +194,7 @@ TEST_CASE("Selecting a plate moves the active plate, and reports a no-op truthfu
     CHECK(after.plates[1].active);
 
     CHECK(workspace.select_plate(PlateId{}).error == WorkspaceError::InvalidId);
-    CHECK(workspace.select_plate(PlateId(live, 99)).error == WorkspaceError::MissingObject);
+    CHECK(workspace.select_plate(PlateId(live, 99)).error == WorkspaceError::NotFound);
     CHECK(workspace.select_plate(PlateId(ProjectSessionId(live.value() + 1000), 1)).error == WorkspaceError::StaleId);
 }
 
@@ -231,14 +231,14 @@ TEST_CASE("Selecting a copy or a volume goes through the workspace and rejects b
     REQUIRE(workspace.select_copy(InstanceId(live, 12)).succeeded());
     CHECK(workspace.outline().selected_copies == std::vector<InstanceId>{InstanceId(live, 12)});
     CHECK(workspace.select_copy(InstanceId(live, 12)).error == WorkspaceError::NoChange);
-    CHECK(workspace.select_copy(InstanceId(live, 99)).error == WorkspaceError::MissingObject);
+    CHECK(workspace.select_copy(InstanceId(live, 99)).error == WorkspaceError::NotFound);
     CHECK(workspace.select_copy(InstanceId(ProjectSessionId(live.value() + 1000), 12)).error == WorkspaceError::StaleId);
 
     REQUIRE(workspace.select_volume(VolumeId(live, 1001)).succeeded());
     CHECK(workspace.outline().selected_volumes == std::vector<VolumeId>{VolumeId(live, 1001)});
     CHECK(workspace.outline().selected_copies.empty());
     // A volume of a single-part object cannot be selected on its own.
-    CHECK(workspace.select_volume(VolumeId(live, 2001)).error == WorkspaceError::UnavailableOperation);
+    CHECK(workspace.select_volume(VolumeId(live, 2001)).error == WorkspaceError::Refused);
 }
 
 TEST_CASE("Replacing the project drops the outline and invalidates its ids", "[workspace][outline]")
@@ -271,10 +271,10 @@ TEST_CASE("A plate action runs only when the plate offers it", "[workspace][outl
     CHECK(workspace.plate_actions_run[0].second == PlateAction::Arrange);
 
     // An action Orca does not offer is refused, not run anyway.
-    CHECK(workspace.run_plate_action(first, PlateAction::Delete).error == WorkspaceError::UnavailableOperation);
+    CHECK(workspace.run_plate_action(first, PlateAction::Delete).error == WorkspaceError::Refused);
     CHECK(workspace.plate_actions_run.size() == 1);
     CHECK(workspace.run_plate_action(PlateId{}, PlateAction::Rename).error == WorkspaceError::InvalidId);
-    CHECK(workspace.run_plate_action(PlateId(live, 99), PlateAction::Rename).error == WorkspaceError::MissingObject);
+    CHECK(workspace.run_plate_action(PlateId(live, 99), PlateAction::Rename).error == WorkspaceError::NotFound);
     CHECK(workspace.run_plate_action(PlateId(ProjectSessionId(live.value() + 1000), 1), PlateAction::Rename).error ==
           WorkspaceError::StaleId);
     CHECK(workspace.plate_actions(PlateId(live, 99)).empty());
@@ -296,7 +296,7 @@ TEST_CASE("An object action runs only when the object offers it, and a copy togg
     REQUIRE(workspace.object_actions_run.size() == 1);
     CHECK(workspace.object_actions_run[0].slot == 2);
 
-    CHECK(workspace.run_object_action(id, ObjectAction::Split).error == WorkspaceError::UnavailableOperation);
+    CHECK(workspace.run_object_action(id, ObjectAction::Split).error == WorkspaceError::Refused);
     CHECK(workspace.run_object_action(ObjectId{}, ObjectAction::Quantity).error == WorkspaceError::InvalidId);
     CHECK(workspace.run_object_action(ObjectId(ProjectSessionId(live.value() + 1000), 10), ObjectAction::Quantity).error ==
           WorkspaceError::StaleId);
@@ -306,5 +306,5 @@ TEST_CASE("An object action runs only when the object offers it, and a copy togg
     REQUIRE(workspace.toggle_copy_printable(second).succeeded());
     CHECK_FALSE(workspace.outline().objects[0].copies[1].printable);
     CHECK(workspace.outline().objects[0].copies[0].printable);
-    CHECK(workspace.toggle_copy_printable(InstanceId(live, 99)).error == WorkspaceError::MissingObject);
+    CHECK(workspace.toggle_copy_printable(InstanceId(live, 99)).error == WorkspaceError::NotFound);
 }

@@ -66,7 +66,7 @@ public:
     {
         if (!m_settings_available) {
             SettingsSearchResult result;
-            result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+            result.error = SettingIssue{"", "workspace_unavailable", "No FFF process preset is selected. Ask the person to select one."};
             return result;
         }
         std::vector<std::string> changed;
@@ -79,7 +79,7 @@ public:
     {
         if (!m_settings_available) {
             SettingsReadResult result;
-            result.error = SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+            result.error = SettingIssue{"", "workspace_unavailable", "No FFF process preset is selected. Ask the person to select one."};
             return result;
         }
         return m_settings.read(keys, target);
@@ -89,7 +89,7 @@ public:
     {
         if (!m_settings_available) {
             SettingsPreview result;
-            result.issues.push_back({"", "workspace_unavailable", "No active FFF process preset."});
+            result.issues.push_back({"", "workspace_unavailable", "No FFF process preset is selected. Ask the person to select one."});
             return result;
         }
         return m_settings.preview(patch);
@@ -99,7 +99,7 @@ public:
                                  SettingsPreview& applied) override
     {
         if (!m_settings_available)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "No active FFF process preset.");
+            return CommandResult::failure(WorkspaceError::WorkspaceUnavailable, "No FFF process preset is selected. Ask the person to select one.");
         if (patch.target.object && m_settings.preview(patch).valid)
             save_undo("Change object settings");
         const auto result = m_settings.apply(patch, expected, applied);
@@ -128,7 +128,7 @@ public:
         const auto object = std::find_if(catalog.objects.begin(), catalog.objects.end(),
                                          [&](const CatalogObject& item) { return item.id == id; });
         if (object == catalog.objects.end())
-            return CommandResult::failure(WorkspaceError::MissingObject, "Object does not exist in the current project session");
+            return CommandResult::failure(WorkspaceError::NotFound, "Object does not exist in the current project session");
         const auto named = [&](const SetupLocalOverride& local) {
             return local.action == edit.action && local.kind == edit.kind &&
                    (edit.action == OwnSettingAction::Remove ||
@@ -137,7 +137,7 @@ public:
         auto& overrides = object->overrides;
         const auto count = std::count_if(overrides.begin(), overrides.end(), named);
         if (edit.action == OwnSettingAction::None)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The All settings panel offers nothing like that");
+            return CommandResult::failure(WorkspaceError::Refused, "The All settings panel offers nothing like that");
         if (count == 0)
             return CommandResult::failure(WorkspaceError::NoChange, object->name + " no longer sets that itself");
         const auto first = std::find_if(overrides.begin(), overrides.end(), named);
@@ -220,7 +220,7 @@ public:
 
         const WorkspaceObject* source = find_object(id);
         if (source == nullptr)
-            return CommandResult::failure(WorkspaceError::MissingObject, "Object is unavailable");
+            return CommandResult::failure(WorkspaceError::NotFound, "Object is unavailable");
 
         save_undo("Duplicate");
         const ObjectId new_id(m_session, ++m_last_object_id);
@@ -262,7 +262,7 @@ public:
     CommandResult undo() override
     {
         if (m_undo.empty())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to undo");
+            return CommandResult::failure(WorkspaceError::Refused, "Nothing to undo");
 
         const WorkspaceSnapshot before = m_snapshot;
         m_redo.emplace_back(m_snapshot);
@@ -279,7 +279,7 @@ public:
     CommandResult redo() override
     {
         if (m_redo.empty())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to redo");
+            return CommandResult::failure(WorkspaceError::Refused, "Nothing to redo");
 
         const WorkspaceSnapshot before = m_snapshot;
         m_undo.emplace_back(m_snapshot);
@@ -306,10 +306,10 @@ public:
         nlohmann::json archive{{"fakeWorkspaceArchive", 1}, {"snapshot", snapshot_to_json(m_snapshot)}};
         std::ofstream out(file_path, std::ios::binary | std::ios::trunc);
         if (!out.is_open())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The archive path is not writable");
+            return CommandResult::failure(WorkspaceError::Failed, "The archive path is not writable");
         out << archive.dump(2);
         return out.good() ? CommandResult::success() :
-                            CommandResult::failure(WorkspaceError::UnavailableOperation, "Writing the archive failed");
+                            CommandResult::failure(WorkspaceError::Failed, "Writing the archive failed");
     }
 
     CommandResult import_objects(const ImportRequest& request, LoadReport& report,
@@ -368,7 +368,7 @@ public:
     {
         const auto plate = request.plate ? request.plate : m_snapshot.active_plate;
         if (!plate || std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == *plate; }))
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         image = {*plate, request.view, request.width, request.height, std::string("\x89PNG\r\n\x1a\n", 8)};
         return CommandResult::success();
     }
@@ -377,7 +377,7 @@ public:
     {
         const auto found = m_attachment_contents.find(id);
         if (found == m_attachment_contents.end())
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "The project has no attachment " + id);
+            return CommandResult::failure(WorkspaceError::NotFound, "The project has no attachment " + id);
         content = found->second;
         return CommandResult::success();
     }
@@ -410,9 +410,11 @@ public:
         std::error_code error;
         if (request.kind != "presets" && std::filesystem::exists(std::filesystem::u8path(request.path), error) && !request.overwrite)
             return CommandResult::failure(WorkspaceError::InvalidArgument, request.path + " exists; pass overwrite to replace it");
+        if (request.plate && std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [&](const auto& p) { return p.id == *request.plate; }))
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         if (request.kind == "gcode" &&
             std::none_of(m_snapshot.plates.begin(), m_snapshot.plates.end(), [](const auto& p) { return p.sliced; }))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Slice the plate first; it has no current G-code");
+            return CommandResult::failure(WorkspaceError::NeedsStep, "Slice the plate first; it has no current G-code");
         return CommandResult::success();
     }
 
@@ -444,7 +446,7 @@ public:
                     job.state = "cancelled";
                 return CommandResult::success();
             }
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "No job has the handle " + handle);
+        return CommandResult::failure(WorkspaceError::NotFound, "No job has the handle " + handle);
     }
 
     // Reshaping: a divide or a split makes two pieces, the second a new
@@ -536,7 +538,7 @@ public:
                 if (!request.region_id.empty() && record.id == request.region_id)
                     existing = &record;
             if (!request.region_id.empty() && existing == nullptr)
-                return CommandResult::failure(WorkspaceError::InvalidArgument, "There is no region " + request.region_id);
+                return CommandResult::failure(WorkspaceError::NotFound, "There is no region " + request.region_id);
             RegionRecord record;
             record.kind = request.kind.empty() && existing ? existing->kind : request.kind;
             if (!region_kind(record.kind))
@@ -679,7 +681,7 @@ public:
     CommandResult start_slice(std::optional<PlateId> plate, bool preempt) override
     {
         if (m_snapshot.slicing.running && !preempt)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation,
+            return CommandResult::failure(WorkspaceError::Busy,
                                           "A slice is already running. Wait for it, or ask again with preempt.");
         if (plate) {
             if (plate->session() != m_snapshot.session)
@@ -687,7 +689,7 @@ public:
             const auto found = std::find_if(m_snapshot.plates.begin(), m_snapshot.plates.end(),
                                             [&plate](const WorkspacePlate& candidate) { return candidate.id == *plate; });
             if (found == m_snapshot.plates.end())
-                return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+                return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         }
         ++slice_starts;
         // As OrcaSlicer decides inside the call that asks: its check refuses
@@ -875,7 +877,7 @@ public:
             return validation;
         const auto found = m_analyses.find(id.value());
         if (found == m_analyses.end())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "No analysis scripted for this object");
+            return CommandResult::failure(WorkspaceError::Refused, "No analysis scripted for this object");
         if (request.mesh) result.mesh = found->second.mesh;
         if (request.features) result.features = found->second.features;
         if (request.fit) result.fit = found->second.fit;
@@ -958,7 +960,7 @@ public:
         const auto found = std::find_if(m_outline.plates.begin(), m_outline.plates.end(),
                                         [id](const OutlinePlate& plate) { return plate.id == id; });
         if (found == m_outline.plates.end())
-            return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+            return CommandResult::failure(WorkspaceError::NotFound, "Plate does not exist in the current project session");
         if (found->active)
             return CommandResult::failure(WorkspaceError::NoChange, "Plate is already active");
         for (OutlinePlate& plate : m_outline.plates)
@@ -988,9 +990,9 @@ public:
         const std::vector<PlateAction> offered = plate_actions(id);
         if (offered.empty() && std::none_of(m_outline.plates.begin(), m_outline.plates.end(),
                                             [id](const OutlinePlate& plate) { return plate.id == id; }))
-            return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+            return CommandResult::failure(WorkspaceError::NotFound, "Plate does not exist in the current project session");
         if (std::find(offered.begin(), offered.end(), action) == offered.end())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this plate");
+            return CommandResult::failure(WorkspaceError::Refused, "That action does not apply to this plate");
         plate_actions_run.emplace_back(id, action);
         return CommandResult::success();
     }
@@ -1015,7 +1017,7 @@ public:
             return CommandResult::failure(WorkspaceError::StaleId, "Object ID belongs to an earlier project session");
         const std::vector<ObjectAction> offered = object_actions(id);
         if (std::find(offered.begin(), offered.end(), action) == offered.end())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this object");
+            return CommandResult::failure(WorkspaceError::Refused, "That action does not apply to this object");
         object_actions_run.push_back({id, action, slot});
         return CommandResult::success();
     }
@@ -1027,7 +1029,7 @@ public:
                 customizations_opened.emplace_back(id, tool);
                 return CommandResult::success();
             }
-        return CommandResult::failure(WorkspaceError::MissingObject, "Object does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Object does not exist in the current project session");
     }
     CommandResult toggle_copy_printable(InstanceId id) override
     {
@@ -1039,7 +1041,7 @@ public:
                     publish(WorkspaceChangeReasons::Contents);
                     return CommandResult::success();
                 }
-        return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Copy does not exist in the current project session");
     }
     CommandResult add_plate() override
     {
@@ -1084,7 +1086,7 @@ public:
                     publish(WorkspaceChangeReasons::Selection);
                     return CommandResult::success();
                 }
-        return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Copy does not exist in the current project session");
     }
     CommandResult select_volume(VolumeId id) override
     {
@@ -1096,7 +1098,7 @@ public:
             for (const OutlineVolume& volume : object.volumes)
                 if (volume.id == id) {
                     if (object.volumes.size() < 2)
-                        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                        return CommandResult::failure(WorkspaceError::Refused,
                                                       "Orca does not select a volume of a single-part object");
                     if (m_outline.selected_volumes == std::vector<VolumeId>{id})
                         return CommandResult::failure(WorkspaceError::NoChange, "Volume is already selected");
@@ -1107,7 +1109,7 @@ public:
                     publish(WorkspaceChangeReasons::Selection);
                     return CommandResult::success();
                 }
-        return CommandResult::failure(WorkspaceError::MissingObject, "Volume does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Volume does not exist in the current project session");
     }
     std::string current_process_preset() const override { return m_process_preset; }
 
@@ -1148,7 +1150,7 @@ public:
                     continue;
                 }
                 if (slot >= result.resulting.filaments.size()) {
-                    result.issues.push_back({"invalid_argument", "Too many filament slots"});
+                    result.issues.push_back({"invalid_arguments", "Too many filament slots"});
                     break;
                 }
                 result.resulting.filaments[slot] = {name, m_filament_materials.count(name) ? m_filament_materials.at(name) : ""};
@@ -1495,7 +1497,7 @@ private:
             return CommandResult::failure(WorkspaceError::StaleId, "Object ID belongs to an earlier project session");
         if (find_object(id) != nullptr)
             return CommandResult::success();
-        return CommandResult::failure(m_known_object_ids.count(id) > 0 ? WorkspaceError::StaleId : WorkspaceError::MissingObject,
+        return CommandResult::failure(m_known_object_ids.count(id) > 0 ? WorkspaceError::StaleId : WorkspaceError::NotFound,
                                       "Object does not exist in the current project session");
     }
 

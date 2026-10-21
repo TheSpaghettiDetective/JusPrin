@@ -1378,7 +1378,7 @@ private:
             pane->snapshot();
             check(!pane->rows()[object_index].customized, "left_pane_mark_goes_when_the_customization_does");
             check(workspace->run_object_action(object.object, Workspace::ObjectAction::Filament, 1).error ==
-                      Workspace::WorkspaceError::UnavailableOperation,
+                      Workspace::WorkspaceError::Refused,
                   "left_pane_filament_action_is_absent_in_a_single_material_job");
         }
 

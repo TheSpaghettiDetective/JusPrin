@@ -546,7 +546,8 @@ export interface WorkspaceContext {
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',
 // 'failed', and 'cancelled'; a stale action arrives as
-// state 'failed' with error code 'stale_revision'.
+// state 'failed' with error code 'stale_workspace' ('stale_revision' in chats
+// saved before the codes were unified).
 export type ToolStateName =
   | 'running'
   | 'succeeded'
@@ -591,6 +592,12 @@ export interface ToolActivityInfo {
   progress: { current: number; total: number };
   result?: Record<string, unknown>;
   error?: { code: string; message: string };
+}
+
+// A call that did not run because the project changed after it was made.
+export function isStale(activity: ToolActivityInfo): boolean {
+  const code = activity.error?.code;
+  return activity.state === 'failed' && (code === 'stale_workspace' || code === 'stale_revision');
 }
 
 export interface ConversationInfo {

@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
+#include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
 using nlohmann::json;
@@ -160,16 +161,21 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     CHECK(json::parse(result["content"][0]["text"].get<std::string>()) == result["structuredContent"]);
     activity.state = Agent::ToolState::Cancelled;
     CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["code"] == "cancelled");
+    // A failure reaches the client with the in-app agent's own code and
+    // details: no code means "JusPrin is closed" unless it is that.
     activity.state = Agent::ToolState::Failed;
-    activity.error = Agent::ToolError{"stale_revision", "Changed"};
-    activity.session = 7; activity.expected_revision = 2;
+    activity.error = Agent::ToolError{"busy", "OrcaSlicer is busy with another job. Try again when it finishes."};
+    auto busy = Mcp::activity_result(activity, snapshot)["structuredContent"]["error"];
+    CHECK(busy["code"] == "busy");
+    CHECK(busy["message"] == activity.error->message);
+    activity.error = Agent::ToolError{"stale_workspace", "Changed",
+                                      R"({"expectedSessionId":"3","expectedRevision":2,"currentSessionId":"7","currentRevision":4})"};
     auto stale = Mcp::activity_result(activity, snapshot)["structuredContent"]["error"];
     CHECK(stale["code"] == "stale_workspace");
-    CHECK(stale["details"]["expectedRevision"] == 2);
+    CHECK(stale["details"]["expectedSessionId"] == "3");
     CHECK(stale["details"]["currentRevision"] == 4);
-    activity.error = Agent::ToolError{"stale_id", "Old session"};
-    activity.arguments_json = R"({"sessionId":"3","objectId":"42"})";
-    CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["details"]["expectedSessionId"] == "3");
+    activity.error.reset();
+    CHECK_THROWS_AS(Mcp::activity_result(activity, snapshot), std::logic_error);
     CHECK(Mcp::sse_event({{"id", 1}}) == "event: message\ndata: {\"id\":1}\n\n");
 }
 
