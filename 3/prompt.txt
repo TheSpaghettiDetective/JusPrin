@@ -1,0 +1,21 @@
+caption is fine. remove the "Ask your agent about your print" card. it's useless and confusing. afterward, do 1 commit in the main checkout
+
+---
+
+<task-notification>
+<task-id>bwi5s48dc</task-id>
+<tool-use-id>toolu_014rYAcLgWzroUWYrEvcpWo8</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/bwi5s48dc.output</output-file>
+<status>failed</status>
+<summary>Monitor "worktree app build progress, errors, and low disk" script failed (exit 144)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8nhbzhvf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/tasks/b8nhbzhvf.output</output-file>
+<status>failed</status>
+<summary>Background command "until grep -qE "BUILD|LOW_DISK|^\[[3-9][0-9][0-9]/" &lt;(tail -3 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad/full.log) || ! pgrep -f "cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/mcp-external-edits/build/arm64" &gt;/dev/null; do sleep 15; done; tail -1 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/63cd6f14-4717-4149-ae93-daff41a73f76/scratchpad/full.log | cut -c1-80" failed with exit code 144</summary>
+</task-notification>
