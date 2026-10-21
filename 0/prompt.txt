@@ -820,3 +820,33 @@ ok. keep on going. for live testing, use anthropic key and models. use a cheap o
 <event>HARNESS RESULT PASS failures=0</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>b0m2fi3au</task-id>
+<summary>Monitor event: "live_show replacement check and harness end (real run)"</summary>
+<event>HARNESS NOTE reopen_live_show mode=add printer= shown=0
+HARNESS CHECK reopen_live_show_replaces_an_open_chat FAIL
+HARNESS CHECK reopen_cleanup_removes_the_printer PASS
+HARNESS CHECK reopen_cleanup_reopens_add PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+spin up a task chip to work on the problem at the same time on a worktree
+
+---
+
+<task-notification>
+<task-id>b0m2fi3au</task-id>
+<tool-use-id>toolu_01U58yZf48mqzZzu1LcVZLZB</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-funny-mclean-62cc05/2e4c8ad1-82aa-46c8-8b45-2bdab5d28d27/tasks/b0m2fi3au.output</output-file>
+<status>completed</status>
+<summary>Monitor "live_show replacement check and harness end (real run)" stream ended</summary>
+<event>HARNESS CHECK reopen_live_show_replaces_an_open_chat FAIL
+HARNESS RESULT FAIL failures=1
+HARNESS DATA DIR kept for inspection: /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-3cee-53bd-92d8</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
