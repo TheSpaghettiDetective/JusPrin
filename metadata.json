@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5GCMZXEFV3SG34E4R56GBT1",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
     "tests/agent/test_agent_bridge.cpp"
@@ -22,6 +22,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
