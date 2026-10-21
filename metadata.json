@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M5GCXDKTNEMR8K2NST0TBNDM",
   "strategy": "manual-commit",
-  "branch": "claude/inspect-copy-printable",
+  "branch": "claude/inspect-copy-printable-rebased",
   "checkpoints_count": 14,
   "files_touched": [
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
@@ -46,11 +46,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1160,
-    "cache_creation_tokens": 3315981,
-    "cache_read_tokens": 305007795,
-    "output_tokens": 408139,
-    "api_call_count": 580
+    "input_tokens": 130,
+    "cache_creation_tokens": 152616,
+    "cache_read_tokens": 9835259,
+    "output_tokens": 24562,
+    "api_call_count": 65
   },
   "combined_attribution": {
     "calculated_at": "2026-10-21T23:32:06.540695Z",
