@@ -124,3 +124,61 @@ Skill looks good. Start step 3, the three Calibrate… rows.
 <status>completed</status>
 <summary>Background command "Rerun the adapter harness then the calibration capture" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Yes, run the calibration prompt tests on pinned DeepSeek V4 Flash: two scenarios, five runs each.
+
+---
+
+I hit my usage limit while you were working, but it has reset now. Please continue from where you left off.
+
+---
+
+<task-notification>
+<task-id>b42tc1v3q</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\b42tc1v3q.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent tests with the skill index change" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4s9f6n3k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\b4s9f6n3k.output</output-file>
+<status>completed</status>
+<summary>Background command "Record the two calibration points with the shell harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpdp8x2t6</task-id>
+<tool-use-id>toolu_01Cxh5KLdGhdPGYY6KxUZx2n</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\bpdp8x2t6.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the approved 10 runs on DeepSeek V4 Flash" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bile7543p</task-id>
+<tool-use-id>toolu_012F49PnWYn9Seco6kdabSdb</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\bile7543p.output</output-file>
+<status>completed</status>
+<summary>Background command "Start a fresh fake-printer MCP fixture" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b2p8lbges</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\b2p8lbges.output</output-file>
+<status>completed</status>
+<summary>Background command "Close the old fixture, relink the harness and re-record with the fix" completed (exit code 0)</summary>
+</task-notification>
