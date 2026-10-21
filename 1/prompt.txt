@@ -1,0 +1,11 @@
+> Inconsistent error codes for the same mistake. A wrong plate id yields invalid_arguments, invalid_id or stale_workspace depending on the tool, and the stale one reports expected and current revisions as equal.
+
+This is a problem not just for the MCP tool, right? it's for the in-app agent too?
+
+---
+
+Try again
+
+---
+
+But the problem is not limited to just plate ID error, right? I would imagine that for other error scenarios we don't have a consistent way to report them. no?
