@@ -78,7 +78,26 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
         config->save();
         return true;
     };
-    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), agent_endpoint_override());
+    ProviderKeySetup::KeyStore keys;
+    keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
+    keys.remove = [config](const std::string& provider) {
+        if (config == nullptr || load_provider_api_key(config, provider).empty())
+            return false;
+        config->erase(kSection, api_key_item_for(provider));
+        // A chat without a choice of its own talks to the recorded provider;
+        // once its key is gone, that is the first provider that still has one.
+        if (config->get(kSection, "provider") == provider)
+            for (const ProviderProfile& profile : provider_profiles())
+                if (!load_provider_api_key(config, profile.id).empty()) {
+                    config->set(kSection, "provider", profile.id);
+                    break;
+                }
+        // Saved now, as a stored key is: the person was just told it is gone.
+        config->save();
+        return true;
+    };
+    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), std::move(keys),
+                                              agent_endpoint_override());
 }
 
 namespace {

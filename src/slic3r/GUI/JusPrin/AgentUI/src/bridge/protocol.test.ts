@@ -19,6 +19,7 @@ describe('protocol constants', () => {
     expect(PAGE_CAPABILITIES).toContain('printer_panel');
     expect(PAGE_CAPABILITIES).toContain('file_reports');
     expect(PAGE_CAPABILITIES).toContain('settings_actions');
+    expect(PAGE_CAPABILITIES).toContain('saved_keys');
   });
 
   it('page and host message type unions cover the shared lists', () => {
@@ -55,6 +56,7 @@ describe('protocol constants', () => {
       'skills',
       'settings_catalog_request',
       'settings_action',
+      'setup_remove_key',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');
@@ -63,6 +65,7 @@ describe('protocol constants', () => {
     expect(protocolJson.hostMessageTypes).toContain('attachment_updated');
     expect(protocolJson.hostMessageTypes).toContain('mcp_catalog');
     expect(protocolJson.hostMessageTypes).toContain('mcp_status');
+    expect(protocolJson.hostMessageTypes).toContain('setup_keys');
   });
 });
 

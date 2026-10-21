@@ -163,6 +163,7 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_prepared.clear();
     m_added.clear();
     m_needs_plugin = false;
+    m_form.reset();
 
     // The session is the one it was opened for. Its opener names a printer
     // it has just read -- a saved one, or for a change the stock profile the
@@ -303,6 +304,8 @@ json PrinterConversation::state_json() const
 {
     json state{{"mode", m_mode == ConversationMode::Add ? "add" : m_mode == ConversationMode::Connect ? "connect" : "change"},
                {"printerName", m_printer_name}, {"blocks", m_blocks}, {"context", context_json()}};
+    if (m_form)
+        state["form"] = form_json();
     if (!m_credential_action.empty())
         state["credentialRequest"] = json{{"actionId", m_credential_action},
                                            {"target", m_credential_arguments.at("target")},
@@ -607,6 +610,10 @@ void PrinterConversation::abandon_connection()
 
 void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
 {
+    if (m_form && m_form->reading.valid() && m_form->reading.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        m_form->options = m_form->reading.get();
+        m_host.session_changed();
+    }
     if (m_connecting.empty() || now - m_last_look < kConnectionLook)
         return;
     m_last_look = now;
@@ -655,9 +662,19 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
     const std::string action = payload.value("action", std::string());
     if (action == "close")
         m_host.close_panel();
-    else if (action == "manual_setup") {
-        // The overflow menu's way to OrcaSlicer's own printer list; what it
-        // added is news the model answers.
+    else if (action == "manual_setup")
+        open_form();
+    else if (action == "form_options")
+        ask_form_options(payload);
+    else if (action == "form_finish")
+        finish_form(payload);
+    else if (action == "form_close") {
+        m_form.reset();
+        m_host.session_changed();
+    } else if (action == "orca_printer_list") {
+        // OrcaSlicer's own printer list, for a panel whose page could not
+        // load and so cannot show the form; what it added is news the model
+        // answers.
         const ManualPrinterResult result = m_backend.run_manual_setup();
         if (!result.added.empty()) {
             m_printer_name = result.added.front().name;
@@ -722,6 +739,209 @@ void PrinterConversation::undo_add(const std::string& block_id)
     m_host.printers_changed();
     m_host.session_changed();
     m_host.start_turn();
+}
+
+// -- The printer form --------------------------------------------------------
+
+void PrinterConversation::open_form()
+{
+    // A printer is added in an Add session only, as printer_add is.
+    if (m_mode != ConversationMode::Add)
+        return;
+    // An earlier form's read is waited for first: the backend's copy of the
+    // person's own presets is what that read is using.
+    m_form.reset();
+    m_backend.prepare_setup_options();
+    PrinterForm form;
+    // A machine that already has a printer is that printer, and the form
+    // adds new ones; a model the catalogue lacks cannot be set up from it.
+    const std::vector<SavedPrinter> printers = m_backend.saved_printers();
+    for (DiscoveredPrinter& found : m_backend.nearby_printers()) {
+        if (std::any_of(printers.begin(), printers.end(),
+                        [&found](const SavedPrinter& printer) { return printer.device_id == found.stable_id; }))
+            continue;
+        const auto& catalog = m_backend.catalog();
+        const auto  model   = std::find_if(catalog.begin(), catalog.end(), [&found](const CatalogPrinter& printer) {
+            return !printer.device_model_id.empty() && printer.device_model_id == found.device_model_id;
+        });
+        if (model != catalog.end())
+            form.nearby.emplace_back(std::move(found), model->id);
+    }
+    m_form = std::move(form);
+    m_host.session_changed();
+}
+
+void PrinterConversation::ask_form_options(const json& payload)
+{
+    if (!m_form)
+        return;
+    const std::string     id      = payload.value("catalogId", std::string());
+    const double          nozzle  = payload.value("nozzle", 0.);
+    const CatalogPrinter* printer = catalog_entry(id);
+    if (printer == nullptr || !ships(printer->nozzles, nozzle))
+        return;
+    if (m_form->asked_id == id && m_form->asked_nozzle == nozzle)
+        return;
+    m_form->asked_id     = id;
+    m_form->asked_nozzle = nozzle;
+    m_form->options.reset();
+    m_form->error.clear();
+    // A read still running for the last choice is waited for here; its
+    // answer is no longer wanted.
+    m_form->reading = std::async(std::launch::async, [&backend = m_backend, id, nozzle] { return backend.setup_options(id, nozzle); });
+    m_host.session_changed();
+}
+
+void PrinterConversation::finish_form(const json& payload)
+{
+    if (!m_form)
+        return;
+    const std::string     id      = payload.value("catalogId", std::string());
+    const double          nozzle  = payload.value("nozzle", 0.);
+    const CatalogPrinter* printer = catalog_entry(id);
+    // The page finishes from the options it was sent; anything else is a
+    // page out of step with the app, and nothing is saved from it.
+    const auto refuse_form = [this](const std::string& why) {
+        m_form->error = why;
+        m_host.session_changed();
+    };
+    const std::optional<SetupOptions>& options = m_form->options;
+    if (printer == nullptr || !options || options->catalog_id != id || options->nozzle != nozzle || !options->error.empty())
+        return refuse_form("The form was out of date. Choose the printer again.");
+
+    std::optional<int> plate;
+    std::string        plate_label;
+    if (!options->plates.empty()) {
+        const int  type  = payload.value("plate", 0);
+        const auto found = std::find_if(options->plates.begin(), options->plates.end(),
+                                        [type](const PlateOption& option) { return option.type == type; });
+        if (found == options->plates.end())
+            return refuse_form("Choose the plate on this printer.");
+        plate       = type;
+        plate_label = found->label;
+    }
+
+    // The filament to start with: one that fits, which is installed with
+    // the printer; one of the person's own; one made for other printers,
+    // which is copied for this one; or a preset the person makes in
+    // OrcaSlicer's Create filament window once the printer is added.
+    const bool        create   = payload.value("create", false);
+    const std::string filament = create ? std::string() : payload.value("filament", std::string());
+    const auto        in       = [&filament](const std::vector<FilamentOption>& list) -> const FilamentOption* {
+        const auto found = std::find_if(list.begin(), list.end(), [&filament](const FilamentOption& option) { return option.name == filament; });
+        return found == list.end() ? nullptr : &*found;
+    };
+    const FilamentOption* fitting = filament.empty() ? nullptr : in(options->filaments);
+    const FilamentOption* other   = filament.empty() ? nullptr : in(options->others);
+    const FilamentOption* own     = filament.empty() ? nullptr : in(options->own);
+    if (!filament.empty() && fitting == nullptr && other == nullptr && own == nullptr)
+        return refuse_form("That filament is no longer on the list. Choose another.");
+
+    const std::string device = payload.value("deviceId", std::string());
+    const auto        found  = std::find_if(m_form->nearby.begin(), m_form->nearby.end(),
+                                            [&device](const auto& entry) { return entry.first.stable_id == device; });
+    if (!device.empty() && (found == m_form->nearby.end() || found->second != id))
+        return refuse_form("That printer is no longer on the list. Choose it again.");
+
+    // The printer is installed with a filament that fits: the chosen one, or
+    // the profile's default until the chosen one is in place.
+    AddPrinterRequest request{printer->vendor_id, printer->model_id, number_text(nozzle),
+                              fitting != nullptr ? fitting->name : options->default_filament, printer->display_name(), device, plate};
+    SavedPrinter      added;
+    if (const std::string problem = m_backend.add_printer(request, added); !problem.empty())
+        return refuse_form(problem);
+    const SavedPrinter now = saved(added.name);
+    if (now.name.empty())
+        throw std::logic_error("A successful add did not save a printer");
+
+    const auto label_of = [&options](const std::string& name) {
+        for (const auto* list : {&options->filaments, &options->others, &options->own})
+            for (const FilamentOption& option : *list)
+                if (option.name == name)
+                    return option.label;
+        return name;
+    };
+    std::string starting = fitting != nullptr ? fitting->label : label_of(options->default_filament);
+    std::string filament_note;
+    if (own != nullptr || other != nullptr) {
+        const FilamentOption& chosen = own != nullptr ? *own : *other;
+        const bool            copy   = !chosen.made_for.empty();
+        std::string           used;
+        if (const std::string problem = m_backend.start_with_filament(now.name, chosen.name, copy, used); !problem.empty())
+            filament_note = " " + chosen.label + " could not be used: " + problem + " It starts with " + starting + ".";
+        else if (copy)
+            starting = "a copy of " + chosen.label + " saved for this printer as " + used;
+        else
+            starting = "their own preset " + used;
+    }
+    if (create) {
+        const std::string made = m_backend.create_filament_preset(now.name);
+        filament_note = made.empty() ? " The person opened OrcaSlicer's Create filament window and made no preset for this printer, so it starts with " +
+                                           starting + "."
+                                     : " The person made the filament preset " + made + " in OrcaSlicer's Create filament window; it is in slot 1.";
+    }
+
+    std::string note = "The person added " + now.name + " themselves with the printer form: " + printer->display_name() + ", " +
+                       number_text(nozzle) + " mm nozzle";
+    if (!plate_label.empty())
+        note += ", " + plate_label;
+    if (!create && filament_note.empty() && !starting.empty())
+        note += ", starting with " + starting;
+    note += "." + filament_note;
+    if (!device.empty())
+        note += " It is linked to the printer " + found->first.name + " found on the network, which is not connected yet.";
+
+    m_form.reset();
+    m_printer_name = now.name;
+    m_added[id]    = now.name;
+    m_host.post_note(note);
+    m_host.printers_changed(now.name);
+    m_host.session_changed();
+    m_host.start_turn();
+}
+
+json PrinterConversation::form_json() const
+{
+    json catalog = json::array();
+    for (const CatalogPrinter& printer : m_backend.catalog())
+        catalog.push_back(json{{"id", printer.id},
+                               {"vendorId", printer.vendor_id},
+                               {"brand", printer.vendor_name},
+                               {"model", printer.model_name},
+                               {"nozzles", printer.nozzles}});
+    json nearby = json::array();
+    for (const auto& [found, model] : m_form->nearby)
+        nearby.push_back(json{{"deviceId", found.stable_id}, {"name", found.name}, {"catalogId", model}});
+    json form{{"catalog", std::move(catalog)}, {"nearby", std::move(nearby)}, {"error", m_form->error},
+              {"loading", m_form->reading.valid()}};
+    if (const auto& options = m_form->options) {
+        json plates = json::array();
+        for (const PlateOption& plate : options->plates)
+            plates.push_back(json{{"type", plate.type}, {"label", plate.label}});
+        const auto list = [](const std::vector<FilamentOption>& filaments) {
+            json entries = json::array();
+            for (const FilamentOption& filament : filaments) {
+                json entry{{"name", filament.name}, {"label", filament.label}, {"vendor", filament.vendor}, {"material", filament.material}};
+                if (!filament.made_for.empty())
+                    entry["madeFor"] = filament.made_for;
+                if (!filament.base.empty())
+                    entry["base"] = filament.base;
+                entries.push_back(std::move(entry));
+            }
+            return entries;
+        };
+        form["options"] = json{{"catalogId", options->catalog_id},
+                               {"nozzle", options->nozzle},
+                               {"plates", std::move(plates)},
+                               {"defaultPlate", options->default_plate},
+                               {"filaments", list(options->filaments)},
+                               {"others", list(options->others)},
+                               {"own", list(options->own)},
+                               {"suggested", options->suggested},
+                               {"defaultFilament", options->default_filament},
+                               {"error", options->error}};
+    }
+    return form;
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

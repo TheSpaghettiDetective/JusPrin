@@ -9,6 +9,7 @@ import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/Chat
 import { MessageList } from './components/MessageList';
 import { Composer } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
+import { AddPrinterForm } from './components/AddPrinterForm';
 import { printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { skills } from './skills';
@@ -569,8 +570,10 @@ export function App({
       return (
         <SetupApiKey
           setup={state.setup}
+          savedKeys={state.savedKeys}
           onCheck={checkKey}
           onCancel={cancelCheck}
+          onRemove={(provider) => client.send('setup_remove_key', { provider })}
           onBack={() => {
             cancelCheck();
             setSetupScreen('chooser');
@@ -614,6 +617,14 @@ export function App({
               {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
             </button>
           </header>
+          {session?.form && (
+            <AddPrinterForm
+              form={session.form}
+              onAsk={(catalogId, nozzle) => client.send('printer_action', { action: 'form_options', catalogId, nozzle })}
+              onFinish={(choice) => client.send('printer_action', { action: 'form_finish', ...choice })}
+              onClose={() => printerAction('form_close')}
+            />
+          )}
           {confirmPrinterClose && (
             <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
               <p>This conversation will be closed. You can't continue it at a later point. Are you sure?</p>

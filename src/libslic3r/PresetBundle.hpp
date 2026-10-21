@@ -430,6 +430,14 @@ public:
     // Enable / disable the "- default -" preset.
     void                        set_default_suppressed(bool default_suppressed);
 
+    // Load the system presets of one vendor from `dir`, a folder laid out like
+    // the system folder (the packaged profiles, for example), together with
+    // the Orca Filament Library its filaments may inherit from, the same way
+    // load_system_presets_from_json loads them. Replaces what this bundle held.
+    // For reading profiles that are not installed.
+    std::pair<PresetsConfigSubstitutions, std::string> load_system_vendor_from_dir(
+        const std::string &dir, const std::string &vendor_name, ForwardCompatibilitySubstitutionRule compatibility_rule);
+
     // Set the filament preset name. As the name could come from the UI selection box,
     // an optional "(modified)" suffix will be removed from the filament name.
     void                        set_filament_preset(size_t idx, const std::string &name);

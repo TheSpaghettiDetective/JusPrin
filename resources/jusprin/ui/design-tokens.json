@@ -491,6 +491,9 @@
     "statusDot": {
       "size": 8
     },
+    "stepDots": {
+      "size": 6
+    },
     "setupCard": {
       "iconSize": 14
     },

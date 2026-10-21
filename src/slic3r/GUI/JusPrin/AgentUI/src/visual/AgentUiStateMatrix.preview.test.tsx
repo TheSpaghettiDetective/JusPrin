@@ -15,8 +15,9 @@ import { authoringCases } from './authoring.visual-cases';
 import { historyCases } from './history.visual-cases';
 import { printerCases } from './printer.visual-cases';
 import { runtimeCases } from './runtime.visual-cases';
+import { setupCases } from './setup.visual-cases';
 
-const cases: VisualCase[] = [...runtimeCases, ...authoringCases, ...historyCases, ...printerCases];
+const cases: VisualCase[] = [...runtimeCases, ...authoringCases, ...historyCases, ...printerCases, ...setupCases];
 
 const DOCK_WIDTHS = [429, 320] as const;
 // The thread insets its items 16 on each side.

@@ -105,12 +105,14 @@ void PrinterPanel::build_runtime()
         if (m_callbacks.allocate_action_id)
             host.tools().set_action_id_allocator(m_callbacks.allocate_action_id);
         m_settled = host.tools().subscribe([this](const Agent::ToolActivity& activity) { m_conversation->tool_settled(activity); });
+        // The printer form is part of the page, so a page that could not
+        // load offers OrcaSlicer's own printer list in its place.
         m_web_view->set_error_fallback_actions(
             _L("Back"), m_conversation->printer_name().empty() ? _L("Browse the full printer list") : _L("Open printer settings"),
             [this] { close(); },
             [this] {
                 if (m_conversation->printer_name().empty())
-                    m_conversation->handle_page_message(Agent::Protocol::kPrinterAction, {{"action", "manual_setup"}});
+                    m_conversation->handle_page_message(Agent::Protocol::kPrinterAction, {{"action", "orca_printer_list"}});
                 else
                     close_to_printer_settings();
             });

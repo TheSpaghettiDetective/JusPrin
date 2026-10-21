@@ -12,6 +12,7 @@
 #include "libslic3r/Exception.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
@@ -22,6 +23,7 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <map>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -323,7 +325,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
-                                              Protocol::kSettingsAction});
+                                              Protocol::kSettingsAction, Protocol::kSetupRemoveKey});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -335,7 +337,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kOpenSetup,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
-                                              Protocol::kPrinterSession, Protocol::kSettingsCatalog});
+                                              Protocol::kPrinterSession, Protocol::kSettingsCatalog,
+                                              Protocol::kSetupKeys});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
@@ -2437,8 +2440,21 @@ public:
     bool commit(const SetupCredentials& credentials) override
     {
         committed.push_back(credentials);
+        if (commit_succeeds)
+            stored[credentials.provider] = credentials.api_key;
         return commit_succeeds;
     }
+
+    std::vector<SavedKey> saved_keys() const override
+    {
+        std::vector<SavedKey> saved;
+        for (const ProviderProfile& profile : provider_profiles())
+            if (const auto key = stored.find(profile.id); key != stored.end())
+                saved.push_back(SavedKey{profile.id, api_key_hint(profile.id, key->second)});
+        return saved;
+    }
+
+    bool remove_key(const std::string& provider) override { return stored.erase(provider) > 0; }
 
     void answer_verified(int elapsed_ms = 800)
     {
@@ -2458,6 +2474,8 @@ public:
 
     std::vector<SetupCredentials> started;
     std::vector<SetupCredentials> committed;
+    // The keys this "computer" holds, by provider.
+    std::map<std::string, std::string> stored;
     bool                          accept_checks{true};
     bool                          commit_succeeds{true};
     int                           cancels{0};
@@ -2613,6 +2631,228 @@ TEST_CASE("a build with no setup service says so rather than accepting the key",
     REQUIRE(error != nullptr);
     CHECK((*error)["payload"]["code"] == "setup_unavailable");
     CHECK(harness.last_of_type("setup_status") == nullptr);
+}
+
+namespace {
+
+// Test keys only: none of these is anyone's real key.
+const std::string kOpenAiKey    = "sk-proj-TESTONLY0000000000000000wxyz";
+const std::string kAnthropicKey = "sk-ant-api03-TESTONLY000000000000000a3F9";
+
+// Answers every request with the provider refusing the key, as ProviderAgent
+// reports a 401.
+class RejectingAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return m_busy; }
+    bool start(const AgentRequest&) override { return m_busy = true; }
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override { m_busy = false; }
+    std::optional<AgentEvent> poll() override
+    {
+        if (!m_busy)
+            return std::nullopt;
+        m_busy = false;
+        AgentEvent event;
+        event.kind  = AgentEventKind::Failed;
+        event.error = AgentError{"invalid_credentials", "The OpenAI API key was rejected.", false};
+        return event;
+    }
+
+private:
+    bool m_busy{false};
+};
+
+// The docked panel's models, read from the same stored keys the setup
+// service holds, so removing a key there is seen here.
+struct StoredKeysModelSource final : IChatModelSource
+{
+    explicit StoredKeysModelSource(std::shared_ptr<ScriptedSetup> keys) : setup(std::move(keys)) {}
+
+    std::shared_ptr<ScriptedSetup> setup;
+    std::string                    recorded{"openai"};
+    bool                           keys_refused{false};
+    std::vector<ChatModelChoice>   built;
+
+    std::vector<std::string> configured_providers() const override
+    {
+        std::vector<std::string> providers;
+        for (const SavedKey& saved : setup->saved_keys())
+            providers.push_back(saved.provider);
+        return providers;
+    }
+    // As AppConfig does once the recorded provider's key is removed.
+    std::string default_provider() const override
+    {
+        const std::vector<std::string> providers = configured_providers();
+        if (providers.empty() || std::find(providers.begin(), providers.end(), recorded) != providers.end())
+            return recorded;
+        return providers.front();
+    }
+    AgentServicePtr make_agent(const ChatModelChoice& choice) override
+    {
+        if (setup->stored.count(choice.provider) == 0)
+            return nullptr;
+        built.push_back(choice);
+        if (keys_refused)
+            return std::make_unique<RejectingAgent>();
+        return std::make_unique<DeterministicMockAgent>();
+    }
+    void list_models(const std::string&, ModelsDone done) override { done(true, {}); }
+};
+
+std::vector<json> saved_keys_of(const Harness& harness)
+{
+    const json* keys = harness.last_of_type("setup_keys");
+    REQUIRE(keys != nullptr);
+    return (*keys)["payload"]["keys"].get<std::vector<json>>();
+}
+
+bool any_envelope_contains(const Harness& harness, const std::string& text)
+{
+    return std::any_of(harness.sent.begin(), harness.sent.end(),
+                       [&text](const json& envelope) { return envelope.dump().find(text) != std::string::npos; });
+}
+
+} // namespace
+
+TEST_CASE("the page learns which providers have a key, and only a hint of each", "[agent][setup][saved_keys]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}, {"anthropic", kAnthropicKey}};
+    Harness harness(setup);
+    harness.handshake();
+
+    const json* ack = harness.last_of_type("hello_ack");
+    REQUIRE(ack != nullptr);
+    const auto capabilities = (*ack)["payload"]["capabilities"].get<std::vector<std::string>>();
+    CHECK(std::count(capabilities.begin(), capabilities.end(), "saved_keys") == 1);
+
+    // In setup's order, the known start and last 4 characters only.
+    const std::vector<json> keys = saved_keys_of(harness);
+    REQUIRE(keys.size() == 2);
+    CHECK(keys[0] == json{{"provider", "openai"}, {"hint", "sk-proj-…wxyz"}, {"rejected", false}});
+    CHECK(keys[1] == json{{"provider", "anthropic"}, {"hint", "sk-ant-…a3F9"}, {"rejected", false}});
+    CHECK_FALSE(any_envelope_contains(harness, "TESTONLY"));
+}
+
+TEST_CASE("a key that passes its check is listed as saved", "[agent][setup][saved_keys]")
+{
+    auto    setup = std::make_shared<ScriptedSetup>();
+    Harness harness(setup);
+    harness.handshake();
+    CHECK(saved_keys_of(harness).empty());
+
+    harness.deliver("setup_check_key", json{{"provider", "anthropic"}, {"apiKey", kAnthropicKey}});
+    // Nothing is listed until the provider has answered.
+    CHECK(saved_keys_of(harness).empty());
+    setup->answer_verified();
+    harness.host.pump_setup();
+
+    const std::vector<json> keys = saved_keys_of(harness);
+    REQUIRE(keys.size() == 1);
+    CHECK(keys[0]["provider"] == "anthropic");
+    CHECK(keys[0]["hint"] == "sk-ant-…a3F9");
+    CHECK_FALSE(any_envelope_contains(harness, "TESTONLY"));
+}
+
+TEST_CASE("Remove deletes the provider's key and rebuilds the Agent from the keys left", "[agent][setup][saved_keys]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}, {"anthropic", kAnthropicKey}};
+    Harness harness(setup);
+    auto source = std::make_shared<StoredKeysModelSource>(setup);
+    harness.host.set_chat_model_source(source);
+    harness.host.set_agent(source->make_agent(ChatModelChoice{"openai", "gpt-5.4-mini", ""}), AgentAvailability::Ready);
+    harness.handshake();
+    source->built.clear();
+
+    // The recorded provider's key goes: the Agent is rebuilt on the one left.
+    harness.deliver("setup_remove_key", json{{"provider", "openai"}});
+    CHECK(setup->stored.count("openai") == 0);
+    std::vector<json> keys = saved_keys_of(harness);
+    REQUIRE(keys.size() == 1);
+    CHECK(keys[0]["provider"] == "anthropic");
+    REQUIRE(source->built.size() == 1);
+    CHECK(source->built.back().provider == "anthropic");
+    CHECK(harness.host.availability() == AgentAvailability::Ready);
+    harness.send_user_message("still here?", "c-after-remove");
+    harness.pump_all();
+    CHECK(harness.last_of_type("assistant_completed") != nullptr);
+
+    // A provider with no key, or none this build knows, is refused.
+    harness.deliver("setup_remove_key", json{{"provider", "openai"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "remove_failed");
+
+    // The last key goes: nothing is left to talk to.
+    harness.deliver("setup_remove_key", json{{"provider", "anthropic"}});
+    CHECK(setup->stored.empty());
+    CHECK(saved_keys_of(harness).empty());
+    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
+    CHECK((*harness.last_of_type("agent_status"))["payload"]["status"] == "unavailable");
+}
+
+TEST_CASE("a key is not removed while a reply or a key check is running", "[agent][setup][saved_keys]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}};
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", "sk-proj-TESTONLY-new-key-000000"}});
+    harness.deliver("setup_remove_key", json{{"provider", "openai"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
+    CHECK(setup->stored.count("openai") == 1);
+}
+
+TEST_CASE("a key the provider refuses shows as rejected until it is replaced", "[agent][setup][saved_keys]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}};
+    Harness harness(setup);
+    auto source = std::make_shared<StoredKeysModelSource>(setup);
+    source->keys_refused = true;
+    harness.host.set_chat_model_source(source);
+    harness.host.set_agent(source->make_agent(ChatModelChoice{"openai", "gpt-5.4-mini", ""}), AgentAvailability::Ready);
+    harness.handshake();
+    CHECK(saved_keys_of(harness)[0]["rejected"] == false);
+
+    harness.send_user_message("hello", "c-refused");
+    harness.pump_all();
+    REQUIRE(harness.last_of_type("assistant_failed") != nullptr);
+    CHECK(saved_keys_of(harness)[0] == json{{"provider", "openai"}, {"hint", "sk-proj-…wxyz"}, {"rejected", true}});
+    // A new page asks again and is told the same.
+    harness.host.reset_page();
+    harness.handshake();
+    CHECK(saved_keys_of(harness)[0]["rejected"] == true);
+
+    // Replace keeps the refused key until the new one passes, then lists the
+    // new one as working.
+    const std::string replacement = "sk-proj-TESTONLY1111111111111111abcd";
+    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", replacement}});
+    CHECK(setup->stored["openai"] == kOpenAiKey);
+    setup->answer_verified();
+    harness.host.pump_setup();
+    CHECK(setup->stored["openai"] == replacement);
+    CHECK(saved_keys_of(harness)[0] == json{{"provider", "openai"}, {"hint", "sk-proj-…abcd"}, {"rejected", false}});
+}
+
+TEST_CASE("a failed replacement leaves the saved key in place", "[agent][setup][saved_keys]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}};
+    Harness harness(setup);
+    harness.handshake();
+
+    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", "sk-proj-TESTONLY-wrong-000000"}});
+    setup->answer_rejected();
+    harness.host.pump_setup();
+    CHECK((*harness.last_of_type("setup_status"))["payload"]["phase"] == "error");
+    CHECK(setup->stored["openai"] == kOpenAiKey);
+    // The saved key was not the one refused.
+    CHECK(saved_keys_of(harness)[0]["rejected"] == false);
+    CHECK(saved_keys_of(harness)[0]["hint"] == "sk-proj-…wxyz");
 }
 
 TEST_CASE("chat titles are metadata and user renames win over generation", "[agent][bridge][conversations]")

@@ -26,7 +26,8 @@
     "native_file_picker",
     "model_choice",
     "all_settings",
-    "settings_actions"
+    "settings_actions",
+    "saved_keys"
   ],
   "pageMessageTypes": [
     "hello",
@@ -60,7 +61,8 @@
     "project_instructions",
     "skills",
     "settings_catalog_request",
-    "settings_action"
+    "settings_action",
+    "setup_remove_key"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -89,6 +91,7 @@
     "model_catalog",
     "chat_model",
     "printer_session",
-    "settings_catalog"
+    "settings_catalog",
+    "setup_keys"
   ]
 }

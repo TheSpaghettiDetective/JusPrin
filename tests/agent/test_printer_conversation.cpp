@@ -22,6 +22,8 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <thread>
+#include <tuple>
 
 using namespace Slic3r::GUI::JusPrin;
 using namespace Slic3r::GUI::JusPrin::PrinterSetup;
@@ -96,6 +98,18 @@ public:
 
     const std::vector<CatalogPrinter>& catalog() const override { return catalogue; }
     std::vector<DiscoveredPrinter>     network_printers() const override { return network; }
+    // Everything found, the printers without an access code included.
+    std::vector<DiscoveredPrinter>     nearby;
+    std::vector<DiscoveredPrinter>     nearby_printers() const override { return nearby; }
+    // What the printer form is offered, by catalogue id and nozzle.
+    std::map<std::pair<std::string, double>, SetupOptions> options;
+    SetupOptions setup_options(const std::string& id, double nozzle) const override
+    {
+        SetupOptions found = options.at({id, nozzle});
+        found.catalog_id   = id;
+        found.nozzle       = nozzle;
+        return found;
+    }
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
     SavedPrinter                       stock_printer(const std::string& name) const override
     {
@@ -169,6 +183,25 @@ public:
     std::vector<std::string> cancelled;
     void cancel_connection(const std::string& name) override { cancelled.push_back(name); }
     ManualPrinterResult run_manual_setup() override { ++manual_setups; return manual_result; }
+    // What each start_with_filament was handed, and what it answers.
+    std::vector<std::tuple<std::string, std::string, bool>> starts;
+    std::string                                             start_problem;
+    std::string start_with_filament(const std::string& printer, const std::string& filament, bool copy, std::string& used) override
+    {
+        starts.emplace_back(printer, filament, copy);
+        if (!start_problem.empty())
+            return start_problem;
+        used = copy ? filament + " @" + printer : filament;
+        return {};
+    }
+    // The printers a preset was made for, and the name of the one made.
+    std::vector<std::string> creates;
+    std::string              created;
+    std::string create_filament_preset(const std::string& printer) override
+    {
+        creates.push_back(printer);
+        return created;
+    }
     void open_printer_settings(const std::string& name) override { settings_opened.push_back(name); }
     // The installer: counts runs, and loads the plug-in only when told to.
     int  plugin_installs{0};
@@ -1192,7 +1225,7 @@ TEST_CASE("Undo while the added printer is connecting drops the attempt", "[prin
     CHECK(panel.turns == 1);
 }
 
-TEST_CASE("the full printer list reports what the person added from the menu", "[printer-conversation]")
+TEST_CASE("OrcaSlicer's printer list, where the page could not load, reports what the person added", "[printer-conversation]")
 {
     FakeBackend    backend;
     RecordingPanel panel;
@@ -1200,17 +1233,347 @@ TEST_CASE("the full printer list reports what the person added from the menu", "
     conversation.start(ConversationMode::Add);
 
     // Closed without adding anything.
-    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    conversation.handle_page_message("printer_action", json{{"action", "orca_printer_list"}});
     CHECK(panel.notes.empty());
     CHECK(panel.turns == 0);
 
     backend.manual_result = ManualPrinterResult{true, {lab_printer()}};
-    conversation.handle_page_message("printer_action", json{{"action", "manual_setup"}});
+    conversation.handle_page_message("printer_action", json{{"action", "orca_printer_list"}});
     CHECK(conversation.printer_name() == "Lab Printer");
     REQUIRE(panel.notes == std::vector<std::string>{"The person added Lab Printer from OrcaSlicer's printer list."});
     check_is_a_statement(panel.notes.front());
     CHECK(panel.turns == 1);
     CHECK(backend.manual_setups == 2);
+}
+
+// -- The printer form ---------------------------------------------------------
+
+namespace {
+
+SetupOptions mini_options()
+{
+    SetupOptions options;
+    options.plates           = {PlateOption{3, "Smooth High Temp Plate"}, PlateOption{4, "Textured PEI Plate"}};
+    options.default_plate    = 4;
+    options.filaments        = {FilamentOption{"Bambu PLA Basic @BBL A1M", "Bambu PLA Basic", "Bambu Lab", "PLA"},
+                                FilamentOption{"Generic PETG", "Generic PETG", "Generic", "PETG"}};
+    options.suggested        = {"Bambu PLA Basic @BBL A1M"};
+    options.default_filament = "Bambu PLA Basic @BBL A1M";
+    options.others           = {FilamentOption{"Bambu PLA Basic @BBL H2D", "Bambu PLA Silk", "Bambu Lab", "PLA", "the Bambu Lab H2D"}};
+    options.own              = {FilamentOption{"PETG fast walls", "PETG fast walls", "Generic", "PETG", "", "Generic PETG"},
+                                FilamentOption{"Matte PLA tuned", "Matte PLA tuned", "Bambu Lab", "PLA", "the Bambu Lab X1 Carbon",
+                                               "Bambu PLA Matte"}};
+    return options;
+}
+
+// No plate choice, as for most printers that are not Bambu Lab's.
+SetupOptions mk3s_options()
+{
+    SetupOptions options;
+    options.filaments        = {FilamentOption{"Prusa Generic PLA", "Prusa Generic PLA", "Generic", "PLA"}};
+    options.default_filament = "Prusa Generic PLA";
+    return options;
+}
+
+json form_of(const PrinterConversation& conversation) { return conversation.state_json().at("form"); }
+
+void action(PrinterConversation& conversation, json payload) { conversation.handle_page_message("printer_action", payload); }
+
+// The options are read on a thread of their own; the pump picks them up.
+void settle(PrinterConversation& conversation)
+{
+    for (int i = 0; i < 500 && form_of(conversation).at("loading").get<bool>(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        conversation.tick(std::chrono::steady_clock::now());
+    }
+    REQUIRE_FALSE(form_of(conversation).at("loading").get<bool>());
+}
+
+// A form open on the A1 mini with a 0.4 mm nozzle, its options read.
+void open_on_mini(FakeBackend& backend, PrinterConversation& conversation)
+{
+    backend.options[{"BBL/Bambu Lab A1 mini", 0.4}] = mini_options();
+    conversation.start(ConversationMode::Add);
+    action(conversation, json{{"action", "manual_setup"}});
+    action(conversation, json{{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}});
+    settle(conversation);
+}
+
+} // namespace
+
+TEST_CASE("the printer form offers the catalogue and the found printers that are not set up yet", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    SavedPrinter   linked = lab_printer();
+    linked.device_id      = "SAVED1";
+    backend.saved         = {linked};
+    DiscoveredPrinter set_up = found_a1();
+    set_up.stable_id         = "SAVED1";
+    DiscoveredPrinter unknown = found_a1();
+    unknown.stable_id         = "X9X9";
+    unknown.device_model_id   = "X9";
+    backend.nearby            = {found_a1(), set_up, unknown};
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    CHECK_FALSE(conversation.state_json().contains("form"));
+
+    action(conversation, json{{"action", "manual_setup"}});
+    const json form = form_of(conversation);
+    REQUIRE(form.at("catalog").size() == backend.catalogue.size());
+    CHECK(form.at("catalog").front() == json{{"id", "BBL/Bambu Lab A1 mini"}, {"vendorId", "BBL"}, {"brand", "Bambu Lab"},
+                                              {"model", "A1 mini"}, {"nozzles", {0.2, 0.4, 0.6, 0.8}}});
+    // One already set up is that printer; a model the catalogue lacks
+    // cannot be set up here.
+    CHECK(form.at("nearby") == json::array({json{{"deviceId", "01P00A3B"}, {"name", "Bambu Lab A1 mini"},
+                                                 {"catalogId", "BBL/Bambu Lab A1 mini"}}}));
+    CHECK_FALSE(form.contains("options"));
+    CHECK(form.at("error") == "");
+    // Filling in a form is not news for the model.
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
+
+    // Printers are added in an Add session only.
+    PrinterConversation change(backend, panel);
+    change.start(ConversationMode::Change, "Lab Printer");
+    action(change, json{{"action", "manual_setup"}});
+    CHECK_FALSE(change.state_json().contains("form"));
+}
+
+TEST_CASE("the printer form reads one model's plates and filaments, and only for what it offers", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    const json options = form_of(conversation).at("options");
+    CHECK(options.at("catalogId") == "BBL/Bambu Lab A1 mini");
+    CHECK(options.at("nozzle") == 0.4);
+    CHECK(options.at("plates") == json::array({json{{"type", 3}, {"label", "Smooth High Temp Plate"}},
+                                               json{{"type", 4}, {"label", "Textured PEI Plate"}}}));
+    CHECK(options.at("defaultPlate") == 4);
+    CHECK(options.at("filaments").at(1) ==
+          json{{"name", "Generic PETG"}, {"label", "Generic PETG"}, {"vendor", "Generic"}, {"material", "PETG"}});
+    CHECK(options.at("suggested") == json::array({"Bambu PLA Basic @BBL A1M"}));
+    CHECK(options.at("defaultFilament") == "Bambu PLA Basic @BBL A1M");
+
+    // A model the catalogue lacks, or a nozzle the model does not ship, is
+    // not asked about; the options already read stay.
+    action(conversation, json{{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab X9"}, {"nozzle", 0.4}});
+    action(conversation, json{{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.5}});
+    CHECK(form_of(conversation).at("options").at("nozzle") == 0.4);
+    CHECK_FALSE(form_of(conversation).at("loading").get<bool>());
+}
+
+TEST_CASE("finishing the printer form saves the printer it describes, and the model hears of it", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.nearby = {found_a1()};
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4},
+                              {"filament", "Generic PETG"}, {"deviceId", "01P00A3B"}});
+    REQUIRE(backend.added.size() == 1);
+    const AddPrinterRequest& request = backend.added.front();
+    CHECK(request.vendor_id == "BBL");
+    CHECK(request.model_id == "Bambu Lab A1 mini");
+    CHECK(request.variant == "0.4");
+    CHECK(request.material == "Generic PETG");
+    CHECK(request.name == "Bambu Lab A1 mini");
+    CHECK(request.device_id == "01P00A3B");
+    CHECK(request.plate == std::optional<int>(4));
+
+    REQUIRE(panel.notes.size() == 1);
+    CHECK(panel.notes.front() == "The person added Bambu Lab A1 mini themselves with the printer form: Bambu Lab A1 mini, 0.4 mm "
+                                 "nozzle, Textured PEI Plate, starting with Generic PETG. It is linked to the printer Bambu Lab "
+                                 "A1 mini found on the network, which is not connected yet.");
+    check_is_a_statement(panel.notes.front());
+    CHECK(panel.turns == 1);
+    CHECK(panel.added_printers.back() == "Bambu Lab A1 mini");
+    CHECK(conversation.printer_name() == "Bambu Lab A1 mini");
+    CHECK_FALSE(conversation.state_json().contains("form"));
+    // The same model again, from the model's tool, is the printer just added.
+    CHECK(refused(conversation, "printer_add", json{{"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}}) == "already_added");
+}
+
+TEST_CASE("the printer form starts with the profile's filament unless one is chosen, and sends no plate where none is offered",
+          "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.options[{"Prusa/Prusa MK3S", 0.4}] = mk3s_options();
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Add);
+    action(conversation, json{{"action", "manual_setup"}});
+    action(conversation, json{{"action", "form_options"}, {"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.4}});
+    settle(conversation);
+
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "Prusa/Prusa MK3S"}, {"nozzle", 0.4}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.added.front().material == "Prusa Generic PLA");
+    CHECK_FALSE(backend.added.front().plate.has_value());
+    CHECK(backend.added.front().device_id.empty());
+    REQUIRE(panel.notes.size() == 1);
+    CHECK(panel.notes.front() ==
+          "The person added Prusa MK3S themselves with the printer form: Prusa MK3S, 0.4 mm nozzle, starting with Prusa Generic PLA.");
+}
+
+TEST_CASE("the printer form offers filaments made for other printers and the person's own, saying which do not fit",
+          "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    const json options = form_of(conversation).at("options");
+    CHECK(options.at("others") == json::array({json{{"name", "Bambu PLA Basic @BBL H2D"}, {"label", "Bambu PLA Silk"}, {"vendor", "Bambu Lab"},
+                                                    {"material", "PLA"}, {"madeFor", "the Bambu Lab H2D"}}}));
+    CHECK(options.at("own").at(0) == json{{"name", "PETG fast walls"}, {"label", "PETG fast walls"}, {"vendor", "Generic"},
+                                          {"material", "PETG"}, {"base", "Generic PETG"}});
+    CHECK(options.at("own").at(1).at("madeFor") == "the Bambu Lab X1 Carbon");
+    // A filament that fits says nothing about other printers.
+    CHECK_FALSE(options.at("filaments").at(0).contains("madeFor"));
+}
+
+TEST_CASE("the person's own preset that fits goes in slot 1 as it is", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4},
+                              {"filament", "PETG fast walls"}});
+    REQUIRE(backend.added.size() == 1);
+    // Installed with a filament that fits; the person's own goes in after.
+    CHECK(backend.added.front().material == "Bambu PLA Basic @BBL A1M");
+    CHECK(backend.starts == std::vector<std::tuple<std::string, std::string, bool>>{{"Bambu Lab A1 mini", "PETG fast walls", false}});
+    REQUIRE(panel.notes.size() == 1);
+    CHECK_THAT(panel.notes.front(), ContainsSubstring("Textured PEI Plate, starting with their own preset PETG fast walls."));
+}
+
+TEST_CASE("a filament made for other printers is copied for the new one", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4},
+                              {"filament", "Bambu PLA Basic @BBL H2D"}});
+    CHECK(backend.added.front().material == "Bambu PLA Basic @BBL A1M");
+    CHECK(backend.starts ==
+          std::vector<std::tuple<std::string, std::string, bool>>{{"Bambu Lab A1 mini", "Bambu PLA Basic @BBL H2D", true}});
+    REQUIRE(panel.notes.size() == 1);
+    CHECK_THAT(panel.notes.front(), ContainsSubstring("starting with a copy of Bambu PLA Silk saved for this printer as "
+                                                      "Bambu PLA Basic @BBL H2D @Bambu Lab A1 mini."));
+    check_is_a_statement(panel.notes.front());
+
+    // When the copy cannot be made, the printer is still added, and the note
+    // says what it starts with instead.
+    FakeBackend    failing;
+    RecordingPanel told;
+    failing.start_problem = "A copy of Matte PLA tuned for Bambu Lab A1 mini could not be saved.";
+    PrinterConversation second(failing, told);
+    open_on_mini(failing, second);
+    action(second, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4},
+                        {"filament", "Matte PLA tuned"}});
+    REQUIRE(failing.added.size() == 1);
+    REQUIRE(told.notes.size() == 1);
+    CHECK_THAT(told.notes.front(), ContainsSubstring("Textured PEI Plate. Matte PLA tuned could not be used: A copy of Matte PLA tuned "
+                                                     "for Bambu Lab A1 mini could not be saved. It starts with Bambu PLA Basic."));
+}
+
+TEST_CASE("creating a filament preset adds the printer first, then puts what was made in slot 1", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.created = "Silk blue @Bambu Lab A1 mini";
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4},
+                              {"create", true}});
+    REQUIRE(backend.added.size() == 1);
+    CHECK(backend.added.front().material == "Bambu PLA Basic @BBL A1M");
+    CHECK(backend.creates == std::vector<std::string>{"Bambu Lab A1 mini"});
+    CHECK(backend.starts.empty());
+    REQUIRE(panel.notes.size() == 1);
+    CHECK_THAT(panel.notes.front(), ContainsSubstring("Textured PEI Plate. The person made the filament preset Silk blue @Bambu Lab A1 mini "
+                                                      "in OrcaSlicer's Create filament window; it is in slot 1."));
+    CHECK(panel.turns == 1);
+
+    // Closing OrcaSlicer's window without making one leaves the default.
+    FakeBackend    empty;
+    RecordingPanel told;
+    PrinterConversation second(empty, told);
+    open_on_mini(empty, second);
+    action(second, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4}, {"create", true}});
+    REQUIRE(told.notes.size() == 1);
+    CHECK_THAT(told.notes.front(), ContainsSubstring("made no preset for this printer, so it starts with Bambu PLA Basic."));
+}
+
+TEST_CASE("the printer form saves nothing it did not offer, and says why", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.nearby = {found_a1()};
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    const json finish{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4}};
+
+    const auto refused_with = [&](json payload, const std::string& why) {
+        action(conversation, payload);
+        CHECK(form_of(conversation).at("error") == why);
+        CHECK(backend.added.empty());
+        CHECK(panel.notes.empty());
+        CHECK(panel.turns == 0);
+    };
+    json without_plate = finish;
+    without_plate.erase("plate");
+    refused_with(without_plate, "Choose the plate on this printer.");
+    json other_plate = finish;
+    other_plate["plate"] = 1;
+    refused_with(other_plate, "Choose the plate on this printer.");
+    json other_filament = finish;
+    other_filament["filament"] = "Prusa Generic PLA";
+    refused_with(other_filament, "That filament is no longer on the list. Choose another.");
+    json other_device = finish;
+    other_device["deviceId"] = "ELSEWHERE";
+    refused_with(other_device, "That printer is no longer on the list. Choose it again.");
+    json other_nozzle = finish;
+    other_nozzle["nozzle"] = 0.6;
+    refused_with(other_nozzle, "The form was out of date. Choose the printer again.");
+
+    // What stops the save is the app's to say, and the form stays open.
+    backend.refusal = "This printer could not be installed.";
+    action(conversation, finish);
+    CHECK(form_of(conversation).at("error") == "This printer could not be installed.");
+    CHECK(backend.saved.empty());
+    CHECK(panel.notes.empty());
+
+    // Asking about another printer clears the reason.
+    backend.options[{"BBL/Bambu Lab A1 mini", 0.6}] = mini_options();
+    action(conversation, json{{"action", "form_options"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.6}});
+    CHECK(form_of(conversation).at("error") == "");
+}
+
+TEST_CASE("closing the printer form, or starting another session, saves nothing", "[printer-conversation]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    PrinterConversation conversation(backend, panel);
+    open_on_mini(backend, conversation);
+    action(conversation, json{{"action", "form_close"}});
+    CHECK_FALSE(conversation.state_json().contains("form"));
+
+    open_on_mini(backend, conversation);
+    conversation.start(ConversationMode::Add);
+    CHECK_FALSE(conversation.state_json().contains("form"));
+    // Finishing a form that is gone does nothing.
+    action(conversation, json{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4}});
+    CHECK(backend.added.empty());
+    CHECK(panel.notes.empty());
+    CHECK(panel.turns == 0);
 }
 
 TEST_CASE("printer settings open for the printer the conversation is about", "[printer-conversation]")
@@ -1991,6 +2354,7 @@ public:
 
     const std::vector<CatalogPrinter>& catalog() const override { return printers; }
     std::vector<DiscoveredPrinter>     network_printers() const override { return {}; }
+    SetupOptions setup_options(const std::string&, double) const override { return {}; }
     std::vector<SavedPrinter>          saved_printers() const override { return saved; }
     SavedPrinter                       stock_printer(const std::string&) const override { return {}; }
     std::string add_printer(const AddPrinterRequest&, SavedPrinter&) override { return {}; }

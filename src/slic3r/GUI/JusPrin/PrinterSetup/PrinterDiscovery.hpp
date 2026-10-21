@@ -15,6 +15,10 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 // offers what can be connected to now. A caller reporting what the app knows,
 // rather than what it can offer, asks for them.
 std::vector<DiscoveredPrinter> discover_printers(bool include_unreachable = false);
+// Every Bambu Lab printer the network search or the signed-in account has
+// turned up and that could be set up now, including one the app holds no
+// access code for, which discover_printers() leaves out.
+std::vector<DiscoveredPrinter> discover_nearby_printers();
 bool has_recent_printer_data(MachineObject& machine);
 // Device identity/credentials alone do not establish a previous successful connection.
 bool has_verified_printer_connection(const std::string& device_id);

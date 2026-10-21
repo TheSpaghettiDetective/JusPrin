@@ -368,6 +368,12 @@ private:
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
+    void handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json);
+    // The stored keys as setup_keys describes them; nothing before the
+    // handshake or without a setup service.
+    void send_setup_keys(const std::string& correlation_id = {});
+    // The provider refused the key the current agent was built from.
+    void note_key_rejected();
     void handle_mcp_catalog(const std::string& envelope_id);
     void handle_settings_catalog(const std::string& envelope_id);
     void handle_settings_action(const std::string& envelope_id, const std::string& payload_json);
@@ -574,6 +580,10 @@ private:
     // The credentials of the check currently in flight, kept so a verified
     // key can be persisted without the page re-sending the secret.
     std::optional<SetupCredentials> m_setup_pending;
+    // Providers that refused their stored key in this session, each with the
+    // hint of the key refused: a key replaced since, here or in another
+    // window, no longer matches and is not reported as refused.
+    std::map<std::string, std::string> m_rejected_keys;
     McpConnectSettings              m_mcp_connect;
     McpCliRunner                    m_mcp_cli;
     RevealPathFn                    m_reveal_path;

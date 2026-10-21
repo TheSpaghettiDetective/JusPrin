@@ -58,6 +58,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/PrinterSetup/PrinterConversation.hpp
     GUI/JusPrin/PrinterSetup/PrinterPanel.cpp
     GUI/JusPrin/PrinterSetup/PrinterPanel.hpp
+    GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp
+    GUI/JusPrin/PrinterSetup/SetupOptionsLoader.hpp
     GUI/JusPrin/Printers/HostLaneReader.cpp
     GUI/JusPrin/Printers/HostLaneReader.hpp
     GUI/JusPrin/Printers/HostLanes.cpp

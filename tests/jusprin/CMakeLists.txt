@@ -46,6 +46,22 @@ target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_
 
 orcaslicer_discover_tests(jusprin_tests)
 
+# The printer form's plates and filaments, read from the packaged profiles by
+# OrcaSlicer's own preset loader: this links libslic3r, but no GUI.
+add_executable(jusprin_profile_tests
+    test_setup_options.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp
+)
+target_compile_definitions(jusprin_profile_tests PRIVATE
+    JUSPRIN_SOURCE_DIR=R"\(${CMAKE_SOURCE_DIR}\)"
+)
+target_include_directories(jusprin_profile_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(jusprin_profile_tests PRIVATE test_common libslic3r Catch2WithMain)
+orcaslicer_copy_test_dlls()
+orcaslicer_discover_tests(jusprin_profile_tests)
+
 # ShellTheme reads the same token file but hands out wxColour and wxFont, and
 # its fonts go through OrcaSlicer's Label::sysFont, so its tests link the GUI
 # library and initialise wx themselves.

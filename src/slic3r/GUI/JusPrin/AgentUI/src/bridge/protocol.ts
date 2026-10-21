@@ -41,7 +41,8 @@ export type PageMessageType =
   | 'project_instructions'
   | 'skills'
   | 'settings_catalog_request'
-  | 'settings_action';
+  | 'settings_action'
+  | 'setup_remove_key';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -70,7 +71,8 @@ export type HostMessageType =
   | 'model_catalog'
   | 'chat_model'
   | 'printer_session'
-  | 'settings_catalog';
+  | 'settings_catalog'
+  | 'setup_keys';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -268,6 +270,19 @@ export interface SetupStatusPayload {
   elapsedMs?: number;
   error?: AgentErrorInfo;
   warning?: string;
+}
+
+// A provider with a stored key, as the host describes it: never the key, only
+// its hint ("sk-ant-…a3F9", its known start and last 4 characters), and
+// whether the provider refused that key in this session.
+export interface SavedKeyInfo {
+  provider: string;
+  hint: string;
+  rejected: boolean;
+}
+
+export interface SetupKeysPayload {
+  keys: SavedKeyInfo[];
 }
 
 export interface McpToolInfo {
@@ -770,6 +785,62 @@ export interface PrinterSessionPayload {
   // A printer credential requested by a completed tool call. The page sends
   // the secret straight back to the printer session, never through chat.
   credentialRequest?: PrinterCredentialRequest;
+  // The printer form, while it is open (printer_action manual_setup opens
+  // it). Nothing in it is saved until form_finish.
+  form?: PrinterFormInfo;
+}
+
+export interface PrinterFormInfo {
+  // Every printer the form can set up, one entry per model.
+  catalog: PrinterFormModel[];
+  // Bambu Lab printers found on the network that are not set up yet, each
+  // with the catalogue model it is.
+  nearby: { deviceId: string; name: string; catalogId: string }[];
+  // Why the last finish saved nothing; empty when it has not failed.
+  error: string;
+  // The options for the model and nozzle last asked about are being read.
+  loading: boolean;
+  options?: PrinterFormOptions;
+}
+
+export interface PrinterFormFilament {
+  name: string;
+  label: string;
+  vendor: string;
+  material: string;
+  // The printers it is made for, as a phrase ("the Prusa CORE One and
+  // Prusa XL"); absent when it fits this printer.
+  madeFor?: string;
+  // A person's own preset: the preset it was saved from.
+  base?: string;
+}
+
+export interface PrinterFormModel {
+  id: string;
+  vendorId: string;
+  brand: string;
+  model: string;
+  nozzles: number[]; // mm, ascending
+}
+
+// What OrcaSlicer offers for one model and nozzle (form_options).
+export interface PrinterFormOptions {
+  catalogId: string;
+  nozzle: number;
+  // Empty when OrcaSlicer offers no plate choice for this printer.
+  plates: { type: number; label: string }[];
+  defaultPlate: number;
+  // Compatible filament presets, one per shown name, by name.
+  filaments: PrinterFormFilament[];
+  // The chosen brand's and OrcaSlicer's library filaments that do not fit
+  // this printer; picking one saves a copy for it.
+  others: PrinterFormFilament[];
+  // The person's own filament presets; those with madeFor do not fit, and
+  // picking one saves a copy for this printer.
+  own: PrinterFormFilament[];
+  suggested: string[]; // filament names the model's profile suggests
+  defaultFilament: string; // may be empty
+  error: string; // the profiles could not be read
 }
 
 export interface PrinterCredentialRequest {

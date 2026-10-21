@@ -18,6 +18,8 @@ import {
   Envelope,
   ExportedCopyInfo,
   PhysicalPrintInfo,
+  SavedKeyInfo,
+  SetupKeysPayload,
   SetupStatusPayload,
   StatePayload,
   ToolActivityInfo,
@@ -80,6 +82,9 @@ export interface AgentUiState {
   // Progress of a credential check. The host owns it; the page only mirrors
   // it, so a reload cannot leave a check looking live when it is not.
   setup: SetupStatusPayload;
+  // Providers with a stored key, by hint: never the key. The host sends it
+  // after each handshake and whenever a key is stored, removed or refused.
+  savedKeys: SavedKeyInfo[];
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
@@ -116,6 +121,7 @@ export const initialState: AgentUiState = {
   attachments: [],
   context: null,
   setup: { phase: 'idle' },
+  savedKeys: [],
   mcpCatalog: null,
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
@@ -233,6 +239,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, agentStatus: payload.status as AgentStatus };
     case 'setup_status':
       return { ...state, setup: envelope.payload as SetupStatusPayload };
+    case 'setup_keys':
+      return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
     case 'open_setup':
       return { ...state, setupRequests: state.setupRequests + 1 };
     case 'model_catalog':

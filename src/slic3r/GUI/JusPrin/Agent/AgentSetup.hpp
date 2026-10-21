@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -30,6 +31,14 @@ struct SetupCredentials
     std::string api_key;
     std::string model;    // optional; empty keeps the adapter's default
     std::string endpoint; // optional; empty keeps the adapter's default
+};
+
+// What the setup screen may know about a stored key: that there is one, and
+// a hint to tell it apart from another. The key itself never leaves the host.
+struct SavedKey
+{
+    std::string provider; // a provider_profiles() id
+    std::string hint;     // api_key_hint()
 };
 
 struct SetupOutcome
@@ -60,6 +69,13 @@ public:
     // rather than pretending: a key that was not stored is a key the user
     // will have to enter again next launch, and they are told so.
     virtual bool commit(const SetupCredentials& credentials) = 0;
+
+    // Every provider with a stored key, in provider_profiles() order.
+    virtual std::vector<SavedKey> saved_keys() const = 0;
+
+    // Deletes one provider's stored key. False when there was none or it
+    // could not be removed.
+    virtual bool remove_key(const std::string& provider) = 0;
 };
 
 using AgentSetupServicePtr = std::shared_ptr<IAgentSetupService>;
@@ -68,11 +84,23 @@ using AgentSetupServicePtr = std::shared_ptr<IAgentSetupService>;
 // checks anyway, so a page/host mismatch fails visibly instead of hanging.
 bool setup_provider_supported(const std::string& provider);
 
+// A stored key as the setup screen shows it, "sk-ant-…a3F9": the fixed start
+// the provider gives every key of its kind, then the last 4 characters. A key
+// with no known start shows only its end, and one too short to spare 4
+// characters shows none of them.
+std::string api_key_hint(const std::string& provider, const std::string& key);
+
 class ProviderKeySetup final : public IAgentSetupService
 {
 public:
     using TransportFactory = std::function<std::unique_ptr<IAgentHttpTransport>()>;
     using CommitFn         = std::function<bool(const SetupCredentials&)>;
+    // Reads one provider's stored key ("" when none) and deletes it.
+    struct KeyStore
+    {
+        std::function<std::string(const std::string& provider)> load;
+        std::function<bool(const std::string& provider)>        remove;
+    };
     using Clock            = std::function<std::chrono::steady_clock::time_point()>;
 
     // endpoint_override redirects the check the way JUSPRIN_AGENT_ENDPOINT
@@ -80,6 +108,7 @@ public:
     // a harness can point setup at a stand-in instead of the real provider.
     ProviderKeySetup(TransportFactory transport,
                      CommitFn         commit,
+                     KeyStore         keys              = {},
                      std::string      endpoint_override = {},
                      Clock            clock             = {});
     ~ProviderKeySetup() override;
@@ -89,6 +118,8 @@ public:
     void                        cancel() override;
     std::optional<SetupOutcome> poll() override;
     bool                        commit(const SetupCredentials& credentials) override;
+    std::vector<SavedKey>       saved_keys() const override;
+    bool                        remove_key(const std::string& provider) override;
 
 private:
     int          elapsed_ms() const;
@@ -96,6 +127,7 @@ private:
 
     TransportFactory                      m_transport_factory;
     CommitFn                              m_commit;
+    KeyStore                              m_keys;
     std::string                           m_endpoint_override;
     Clock                                 m_clock;
     AgentServicePtr                       m_candidate;

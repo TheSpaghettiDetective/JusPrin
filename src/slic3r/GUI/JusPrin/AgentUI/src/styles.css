@@ -571,8 +571,10 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .chat-dialog p.chat-dialog-note { font: var(--font-label); }
 /* Field/Text: label, entry and error 4 apart. */
 .chat-dialog-field { display: flex; flex-direction: column; gap: 4px; }
-.chat-dialog label { display: block; color: var(--text-secondary); font: var(--font-label); }
-.chat-dialog input { width: 100%; height: var(--field-height); padding: 0 var(--field-padding-x); font: var(--font-body); color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-subtle); border-radius: var(--radius-small); }
+/* A dialog's own fields; a Field/Search inside it (the printer form's, a
+   Select's menu) keeps its own layout. */
+.chat-dialog label:not(.field-search) { display: block; color: var(--text-secondary); font: var(--font-label); }
+.chat-dialog input:not(.field-search input) { width: 100%; height: var(--field-height); padding: 0 var(--field-padding-x); font: var(--font-body); color: var(--text-primary); background: var(--surface-canvas); border: 1px solid var(--border-subtle); border-radius: var(--radius-small); }
 .chat-dialog input[aria-invalid='true'] { border-color: var(--status-danger); }
 .chat-dialog p.chat-dialog-field-error { color: var(--status-danger); font: var(--font-label); }
 .chat-dialog-buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
@@ -2390,29 +2392,95 @@ button.wide {
   cursor: default;
 }
 
+/* The key field is the design system's Field/Secret: one bordered control,
+   with the key (or its hint) and the links that act on it inside it. */
 .setup-key {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
+  height: var(--field-height);
+  padding: 0 var(--field-padding-x);
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
-/* Shares the compact radius and height of the primary button beside it so
-   the key row reads as one control. A key is code. */
+/* The field, not the input inside it, draws the focus ring. */
+.setup-key:has(.setup-key-input:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--border-focus);
+}
+
+/* A saved key is read-only: shown, never edited, on a filled field. */
+.setup-key--saved {
+  background: var(--surface-subtle);
+}
+
+.setup-key--rejected {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}
+
+/* A key is code. */
 .setup-key-input {
   flex: 1;
   min-width: 0;
-  padding: var(--button-secondary-padding);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-medium);
-  background: var(--surface-canvas);
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   font: var(--font-code);
 }
 
-.setup-key-input:focus {
-  outline: 2px solid var(--border-focus);
-  outline-offset: -1px;
+.setup-key-input:focus,
+.setup-key-input:focus-visible {
+  outline: none;
+}
+
+.setup-key-input::placeholder {
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.setup-key-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: var(--font-code);
+  color: var(--text-primary);
+}
+
+.setup-key button.link.setup-key-remove,
+.setup-key button.link.setup-key-remove:hover:enabled,
+.setup-key button.link.setup-key-remove:active:enabled {
+  color: var(--status-danger);
+}
+
+.setup-key-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--font-label-bold);
+  color: var(--status-success);
+}
+
+.setup-key-status--rejected {
+  color: var(--status-danger);
+}
+
+.setup-card p.setup-key-note {
+  font: var(--font-label);
+}
+
+.setup-keeps {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.setup-actions button.link.setup-cancel,
+.setup-actions button.link.setup-cancel:hover:enabled,
+.setup-actions button.link.setup-cancel:active:enabled {
+  color: var(--text-primary);
 }
 
 .setup-actions {
@@ -3336,4 +3404,434 @@ button.wide {
 .all-settings-object-link:hover {
   color: var(--action-primary-hover);
   text-decoration: underline;
+}
+
+/* The printer form (AddPrinterForm.tsx), as the canvas's Add a printer
+   steps draw it: a Sheet on the canvas surface, a step line with one dot a
+   step, then the step's question and choices. */
+.chat-dialog.printer-form {
+  gap: 20px;
+  /* No taller than the window under the shade's insets: the filament list
+     gives way, and the ways out and the buttons stay in view. */
+  max-height: calc(100vh - 64px);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle), var(--elevation-strong);
+}
+
+.chat-dialog.printer-form > * {
+  flex: 0 0 auto;
+}
+
+.chat-dialog.printer-form > .printer-form-filaments {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.printer-form-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.printer-form-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.printer-form-dot {
+  width: var(--step-dot-size);
+  height: var(--step-dot-size);
+  border-radius: 50%;
+  background: var(--border-subtle);
+}
+
+.printer-form-dot.done {
+  background: var(--action-primary);
+}
+
+.printer-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.printer-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* A brand or model list is long (64 brands); its rows scroll inside the
+   menu, as the composer's model menu does, rather than running off the
+   window. */
+.printer-form .chat-menu {
+  max-height: 40vh;
+}
+
+.printer-form-label {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+.printer-form-value {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.printer-form-nozzles {
+  width: 100%;
+}
+
+.printer-form-nozzles .jp-segment {
+  flex: 1 1 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.printer-form-rule {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.printer-form-found,
+.printer-form-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.printer-form-heading {
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* A found printer, a filament: a stroked row to tap. */
+.printer-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-label);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.printer-form-row:hover:enabled {
+  background: var(--surface-subtle);
+}
+
+.printer-form-row[aria-pressed='true'] {
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.printer-form-row:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.printer-form-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.printer-form-row .jp-icon {
+  flex: 0 0 auto;
+  width: var(--select-chevron-size);
+  height: var(--select-chevron-size);
+  color: var(--text-secondary);
+}
+
+.printer-form-online {
+  flex: 0 0 auto;
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+/* A plate: the chosen one filled and bold, as the canvas's step 2. */
+.printer-form-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.printer-form-choice:hover:enabled {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.printer-form-choice[aria-checked='true'] {
+  background: var(--surface-subtle);
+  font: var(--font-body-small-bold);
+}
+
+.printer-form-choice-detail {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.chat-dialog p.printer-form-note {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.chat-dialog p.printer-form-error {
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+.chat-dialog p.printer-form-center {
+  text-align: center;
+}
+
+.printer-form-skip {
+  align-self: center;
+}
+
+/* The filament step: one list to scroll or search, its rows the design
+   system's Menu/Row with an optional second line of detail. */
+.printer-form-filaments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-row-gap);
+  max-height: 40vh;
+  margin: 0 -12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The list scrolls; its rows keep their own height rather than shrink. */
+.printer-form-filaments > * {
+  flex: 0 0 auto;
+}
+
+.printer-form-section {
+  padding: 12px 12px 4px;
+  font: var(--font-metadata-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.printer-form-count {
+  font: var(--font-metadata);
+}
+
+.printer-form-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--menu-row-height);
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.printer-form-option:hover:enabled,
+.printer-form-option:focus-visible {
+  background: var(--surface-raised-hover);
+}
+
+.printer-form-option:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.printer-form-option-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.printer-form-option-name {
+  font: var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.printer-form-option-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-form-option-detail.cautious {
+  color: var(--text-primary);
+}
+
+.printer-form-option-detail .jp-icon {
+  flex: 0 0 auto;
+  width: var(--select-chevron-size);
+  height: var(--select-chevron-size);
+  color: var(--status-warning);
+}
+
+.printer-form-option-kind {
+  flex: 0 0 auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-form-create .printer-form-option-name {
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+}
+
+.printer-form-create .jp-icon {
+  width: var(--select-chevron-size);
+  height: var(--select-chevron-size);
+  color: var(--action-primary);
+}
+
+/* Under the list, which is long: where the ways out live, always in view. */
+.printer-form-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.printer-form-end .printer-form-create {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+/* A message inside the list, where a search found nothing that fits. */
+.printer-form-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.chat-dialog p.printer-form-lead {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-form-lead b {
+  color: var(--text-primary);
+}
+
+/* The design system's Checkbox, with a line of detail under its label. */
+.printer-form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--checkbox-label-gap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: var(--font-body);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.printer-form-check-box {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  border-radius: var(--checkbox-radius);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  background: var(--surface-canvas);
+}
+
+.printer-form-check[aria-checked='true'] .printer-form-check-box {
+  background: var(--action-primary);
+  box-shadow: inset 0 0 0 1px var(--action-primary);
+}
+
+.printer-form-check-box .jp-icon {
+  width: var(--checkbox-glyph-size);
+  height: var(--checkbox-glyph-size);
+  color: var(--action-primary-text);
+}
+
+.printer-form-check-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.printer-form-check-detail {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.printer-form-clear {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* What creating a preset will do, before it does. */
+.printer-form-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-subtle);
+  font: var(--font-label);
+}
+
+.printer-form-facts div {
+  display: flex;
+  gap: 8px;
+}
+
+.printer-form-facts dt {
+  flex: 0 0 auto;
+  width: var(--form-row-label-width);
+  color: var(--text-secondary);
+}
+
+.printer-form-facts dd {
+  margin: 0;
+  color: var(--text-primary);
 }
