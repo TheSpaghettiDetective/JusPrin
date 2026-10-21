@@ -41,3 +41,7 @@ check to see if the board is out of compliance by not using token.
 
 Use Field/Secret. 
 afterward, test the app, cpature screenshots for me to review
+
+---
+
+commit to jusprin-newui in main checkout
