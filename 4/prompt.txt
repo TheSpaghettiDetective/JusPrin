@@ -1,0 +1,120 @@
+Background (from the session that started this one):
+Kenneth is building a 3-step "Add a printer" form in JusPrin's printer chat (a fork of OrcaSlicer). Its brand, model and nozzle lists come from the existing PrinterCatalog, which reads all packaged vendor profiles. Kenneth remembers this being costly enough to lock the UI for a few seconds and wants that checked before the form ships. The form itself is being built in a separate worktree (.claude/worktrees/add-printer-popup, uncommitted); do not edit that worktree. This investigation is independent of it: the catalogue code is the same on jusprin-newui.
+
+Task:
+Find out whether building JusPrin's printer catalogue blocks the UI for seconds, and if it does, propose how to fix it. Report to Kenneth and get his agreement before changing any code.
+
+What to investigate (repo /Users/kenneth/Projects/JusPrin, branch jusprin-newui):
+1. `PrinterCatalog::load` (src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp:98) walks every vendor index in `resources/profiles/*.json` (64 brands, 383 models, about 987 model+nozzle variants), parses each vendor's machine JSON files and resolves their `inherits` chains. That is thousands of small JSON reads. `panel_printers()` then folds the variants into models.
+2. Find every caller and when it runs, and on which thread. Known caller: the `PrinterPanel` constructor (src/slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.cpp:51, `PrinterCatalog::load(Slic3r::resources_dir())`). Is `PrinterPanel` built once at shell startup, or every time the printer panel opens (Home's "+ Add printer", "Printer settings…")? Grep for other callers too (Home, the shell harness, MCP printer tools).
+3. Measure it, on this Mac, cold (first read after a reboot is impossible; use a fresh process and also purge the file cache only if that needs no password) and warm. A small timing around the call in a build, or a tiny test binary, is fine. Report milliseconds, not impressions. The machine is often heavily loaded by other sessions' builds (load average 30-40): record `uptime` alongside each measurement, and repeat a few times.
+4. If it is slow enough to notice (say over ~100 ms on the GUI thread), propose fixes and recommend one. Candidates to weigh: build the catalogue once and share it; load it on a worker thread and let the panel show a loading state; reuse what OrcaSlicer already parsed (`PresetBundle::load_system_models_from_json`, VendorProfile models); generate a compact index at build time (the build already has a `jusprin_catalogs` target, check what it produces). Say what each costs and what it risks.
+
+Rules (from agent-docs/jusprin/README.md, fork-stewardship.md and AGENTS.md):
+- Attribute behaviour correctly: "OrcaSlicer does X" only for upstream code; check with `git show 3ffb9585d2:<path>` (upstream merge base) or git blame.
+- Label anything inferred as inference. Measure before claiming.
+- Do not apply a fix you have not shown to be needed. Stop after the report and ask Kenneth, with each decision written out in full as a question with options, consequences and your recommendation.
+- No live AI model calls. Commit nothing unless Kenneth asks.
+- Never drive another JusPrin instance; Kenneth may have one open. If you run the app or the shell harness, use an isolated data dir (the shell harness makes its own).
+- Build recipe for a worktree: see /Users/kenneth/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/jusprin-worktree-build.md (use /Applications/CMake.app cmake, the llvm-ar flags on a fresh build dir, absolute build paths; `--config Release` saves disk). Wait on a background build by its PID with `kill -0`, not `pgrep -f` (that matches its own loop).
+
+Done means: a short plain-English report (problem, measurements with numbers, cause, recommended fix and alternatives, open questions for Kenneth) and no code changes yet.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f9008dea-bfb7-4930-a952-b66276ec68b2
+
+---
+
+Build this worktree in the configuration I actually run (RelWithDebInfo, and also Debug if that’s what my dev build is). Add temporary timing logs around PrinterCatalog::load (PrinterPanel.cpp:51), PrinterPanel::open, and build_runtime(). Launch the real app with an isolated --datadir, and don’t touch my running instance. Record the wall-clock time from launch to the window appearing. Then open Home’s “+ Add printer” and “Printer settings…” three times each, and report every logged time in milliseconds with uptime beside it. Also say whether the UI froze on open and which call took the time. Don’t commit the timing logs; remove them afterwards.
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 158/777 free=12G 31.42 28.79 27.81</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 212/777 free=10G 35.86 29.92 28.30</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 309/777 free=23G 30.35 30.74 28.98</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 403/777 free=19G 23.96 25.14 26.79</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 508/777 free=21G 26.21 24.11 25.50</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bc5dd2wwt</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>[Monitor expired after 30m with 5 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsbj36cp7</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 615/777 free=22G 27.00 25.32 25.49</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsbj36cp7</task-id>
+<summary>Monitor event: "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit"</summary>
+<event>step 727/777 free=22G 41.95 29.83 27.15</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsbj36cp7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-catalog-load-cost-17ea42/daaef7d9-2b81-450a-b1a1-3b065ca87ee6/tasks/bsbj36cp7.output</output-file>
+<status>completed</status>
+<summary>Monitor "catalog-load-cost RelWithDebInfo build: progress, errors, disk, exit" stream ended</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<cross-session-message from="local_f9008dea-bfb7-4930-a952-b66276ec68b2" name="Build the 3-step manual Add printer popup">
+Kenneth's decision on your report: "leave the startup cost, delete its build folder". So no code change to catalogue loading. Please delete your worktree's build/ directory (the ~2.3 GB one), making sure no process of yours is still using it, and confirm the freed space. Commit nothing.
+</cross-session-message>
+
+---
+
+I want to test the performance on a windows vm. give me the prompt that I can copy/paste to an agent running on that windows vm
