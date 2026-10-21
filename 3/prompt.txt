@@ -208,3 +208,7 @@ fix the card now, change the agent wording too
 ---
 
 launch the app for me to test
+
+---
+
+squash your commijts into 1. merge the commit into jusprin-newui
