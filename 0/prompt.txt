@@ -850,3 +850,47 @@ HARNESS RESULT FAIL failures=1
 HARNESS DATA DIR kept for inspection: /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-3cee-53bd-92d8</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>bb9tmmfas</task-id>
+<summary>Monitor event: "panel-queue theory: live_show check and harness end"</summary>
+<event>HARNESS NOTE reopen_live_show mode=change printer=Reopen Printer shown=1
+HARNESS CHECK reopen_live_show_replaces_an_open_chat PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb9tmmfas</task-id>
+<tool-use-id>toolu_01Y5TY3Ao13wDc6zYRwZ1VsA</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-funny-mclean-62cc05/2e4c8ad1-82aa-46c8-8b45-2bdab5d28d27/tasks/bb9tmmfas.output</output-file>
+<status>completed</status>
+<summary>Monitor "panel-queue theory: live_show check and harness end" stream ended</summary>
+<event>HARNESS RESULT PASS failures=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4bghibeb</task-id>
+<summary>Monitor event: "Haiku live run: failures, stalls, finish"</summary>
+<event>HARNESS CHECK live_elegoo_mars_suggests_manual_setup FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4bghibeb</task-id>
+<tool-use-id>toolu_01JhcUSRo9apach6umnLQMZC</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-funny-mclean-62cc05/2e4c8ad1-82aa-46c8-8b45-2bdab5d28d27/tasks/b4bghibeb.output</output-file>
+<status>completed</status>
+<summary>Monitor "Haiku live run: failures, stalls, finish" stream ended</summary>
+<event>HARNESS RESULT FAIL failures=1
+HARNESS DATA DIR kept for inspection: /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-bfe9-ad0a-f04e</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
