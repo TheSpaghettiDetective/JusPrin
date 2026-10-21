@@ -894,3 +894,7 @@ If this event is something the user would act on now, send a PushNotification. R
 HARNESS DATA DIR kept for inspection: /var/folders/6y/fn1z996148dc7xjy2mxx5wkc0000gp/T/jusprin-shell-bfe9-ad0a-f04e</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+can you amend the commit on jusprin-newui in main checkout?
