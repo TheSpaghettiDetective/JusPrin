@@ -179,7 +179,7 @@ public:
     // validates it, and starts it immediately.
     const ToolActivity& submit(const ToolRequest& request, const std::string& correlation_id,
                                ToolExecutionPacing pacing = {}, ToolSource source = ToolSource::Agent,
-                               const std::string& call_id = {});
+                               const std::string& call_id = {}, const std::string& client = {});
 
     bool cancel(const std::string& action_id);
 

@@ -512,6 +512,7 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     m_known_slice_state = current_slice_state();
     remember_current_ids();
     remember_history();
+    m_first_model_pending = m_plater.model().objects.empty();
     record_settings_edits(/*report=*/false);
     set_file_load_observer(this);
 }
@@ -2732,6 +2733,7 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         // A new or opened project starts its own history and presets; nothing
         // in it is an edit.
         remember_history();
+        m_first_model_pending = m_plater.model().objects.empty();
         record_settings_edits(/*report=*/false);
     } else {
         record_history_edits();
@@ -2777,12 +2779,18 @@ void OrcaWorkspaceAdapter::record_history_edits()
     const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
     const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
     bool recorded = false;
+    // Orca takes a load's undo step before the objects arrive, so the step
+    // may be seen while the project is still empty or after: either way it
+    // belongs to the project's making.
+    const bool making_project = m_first_model_pending;
+    if (!m_plater.model().objects.empty())
+        m_first_model_pending = false;
     for (const UndoRedo::Snapshot& snapshot : snapshots) {
         if (snapshot.timestamp < m_first_unreported_step || snapshot.is_topmost())
             continue;
         recorded = true;
         // A project separator is a project boundary, reported as one.
-        if (snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
+        if (!making_project && snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
             UndoRedo::snapshot_modifies_project(snapshot))
             publish_edit({EditKind::Step, EditActor::Person, snapshot.name});
     }

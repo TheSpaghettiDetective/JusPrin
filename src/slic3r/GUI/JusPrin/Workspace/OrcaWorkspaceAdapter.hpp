@@ -189,6 +189,11 @@ private:
     // created or opened, so both are reset at every project replacement.
     std::size_t                m_first_unreported_step{0};
     std::size_t                m_seen_active_step{0};
+    // The project began empty and has not had a model yet. Steps up to and
+    // including the one that brings its first model in (a file opened or
+    // dropped into it) are how the project was made, not edits to it; a
+    // model added after that is one.
+    bool                       m_first_model_pending{false};
     std::vector<PresetReading> m_presets; // process, filament, printer
 
     Plater&                         m_plater;

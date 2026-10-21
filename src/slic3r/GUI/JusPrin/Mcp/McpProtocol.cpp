@@ -267,5 +267,27 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
     return result;
 }
 
+std::string mcp_client_name(const json& params)
+{
+    const json info = params.value("_meta", json::object()).value("io.modelcontextprotocol/clientInfo", json::object());
+    if (!info.is_object()) return {};
+    // A title is the name meant for people ("Claude Code"); the name is an
+    // identifier ("claude-code"), shown only when there is no title.
+    const auto text = [&info](const char* field) {
+        std::string value = info.value(field, json()).is_string() ? info[field].get<std::string>() : std::string();
+        for (char& c : value)
+            if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f) c = ' ';
+        return trim(std::move(value));
+    };
+    std::string name = text("title");
+    if (name.empty()) name = text("name");
+    if (name.size() > kClientNameLimit) {
+        std::size_t end = kClientNameLimit;
+        while (end > 0 && (static_cast<unsigned char>(name[end]) & 0xc0) == 0x80) --end; // whole UTF-8 characters only
+        name = trim(name.substr(0, end));
+    }
+    return name;
+}
+
 std::string sse_event(const json& message) { return "event: message\ndata: " + message.dump() + "\n\n"; }
 } // namespace Slic3r::GUI::JusPrin::Mcp

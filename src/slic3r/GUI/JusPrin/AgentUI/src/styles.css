@@ -279,27 +279,6 @@ body {
   color: var(--text-primary);
 }
 
-.notice {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border-radius: var(--radius-medium);
-  background: var(--surface-canvas);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-}
-
-.notice h2 {
-  margin: 0;
-  font: var(--font-section);
-}
-
-.notice p {
-  margin: 0;
-  color: var(--text-secondary);
-  font: var(--font-body-small);
-}
-
 /* The notice on an earlier chat (Figma "Agent/Historical chat notice"): why
    the chat cannot continue as it is, and the ways on. It sits in the
    composer's band, above the field it has locked. */
@@ -330,6 +309,32 @@ body {
   padding: var(--button-primary-padding);
   border: 0;
   font: var(--font-body-small-bold);
+}
+
+/* The setup offer under a thread when no agent is set up: the composer's
+   band, holding the design system's full-width Set up button (the narrow
+   pane's exception) and one line on why there is no message box. */
+.agent-setup-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+}
+.agent-setup-bar > button.primary { width: 100%; }
+.agent-setup-bar > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font: var(--font-body-small);
+  text-align: center;
+}
+/* The offer on its way into the setup bar's button; animated from script. */
+.agent-offer-ghost {
+  position: fixed;
+  z-index: 10;
+  border-radius: var(--radius-medium);
+  pointer-events: none;
 }
 
 /* What stops the project chat altogether: a danger-stroked strip above the
@@ -1461,8 +1466,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 
 .file-notes-files,
-.file-notes-more,
-.file-notes-help {
+.file-notes-more {
   margin: 0;
   color: var(--text-secondary);
   font: var(--font-body-small);
@@ -1500,7 +1504,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-metadata);
 }
 
-.file-notes-card > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
 
 /* The streaming cursor: a static 2 DIP bar after the last word. It does not
    blink, so there is no motion to switch off. */

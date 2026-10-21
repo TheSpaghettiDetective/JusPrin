@@ -131,6 +131,16 @@ describe('change rows in the thread', () => {
     for (const row of rows()) expect(row).toContain('External tool, in Strong');
   });
 
+  it('names the MCP client when it gave its name, and keeps two clients apart', () => {
+    thread([
+      change(1, { kind: 'setting', actor: 'agent', external: true, client: 'Claude Code', label: 'Brim', from: 'a', to: 'b', preset: 'Strong' }),
+      change(2, { kind: 'setting', actor: 'agent', external: true, client: 'Codex', label: 'Brim', from: 'b', to: 'c', preset: 'Strong' }),
+    ]);
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0]).toContain('Claude Code, in Strong');
+    expect(rows()[1]).toContain('Codex, in Strong');
+  });
+
   it('shows the first four agent settings and reveals the rest on request', () => {
     const settings = ['Brim', 'First-layer speed', 'Plate temp', 'Layer height', 'First-layer line width'];
     thread(settings.map((label, index) => change(index + 1, {

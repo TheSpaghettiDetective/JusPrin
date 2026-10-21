@@ -1395,6 +1395,8 @@ struct WorkspaceEdit
     // Preset only: which preset was switched, "printer", "filament" or
     // "process", so the change log can draw one printer setup as one row.
     std::string location;
+    // ExternalTool only: the MCP client's name for itself, when it gave one.
+    std::string client;
 };
 
 using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;
@@ -1953,30 +1955,38 @@ public:
     class AgentEdit
     {
     public:
-        explicit AgentEdit(IWorkspace& workspace, EditActor actor = EditActor::Agent)
-            : m_workspace(workspace), m_outer(workspace.m_edit_actor)
+        explicit AgentEdit(IWorkspace& workspace, EditActor actor = EditActor::Agent, std::string client = {})
+            : m_workspace(workspace), m_outer(workspace.m_edit_actor), m_outer_client(std::move(workspace.m_edit_client))
         {
-            m_workspace.m_edit_actor = actor;
+            m_workspace.m_edit_actor  = actor;
+            m_workspace.m_edit_client = std::move(client);
         }
-        ~AgentEdit() { m_workspace.m_edit_actor = m_outer; }
+        ~AgentEdit()
+        {
+            m_workspace.m_edit_actor  = m_outer;
+            m_workspace.m_edit_client = std::move(m_outer_client);
+        }
         AgentEdit(const AgentEdit&) = delete;
         AgentEdit& operator=(const AgentEdit&) = delete;
 
     private:
         IWorkspace& m_workspace;
         EditActor   m_outer;
+        std::string m_outer_client;
     };
 
 protected:
     void publish_edit(WorkspaceEdit edit)
     {
-        edit.actor = m_edit_actor;
+        edit.actor  = m_edit_actor;
+        edit.client = m_edit_client;
         m_edits.publish(edit);
     }
 
 private:
     WorkspaceEditHub              m_edits;
     EditActor                     m_edit_actor{EditActor::Person};
+    std::string                   m_edit_client;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

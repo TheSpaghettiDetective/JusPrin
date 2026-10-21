@@ -144,9 +144,9 @@ const report = (truncated: boolean): FileReport => ({
   objects: { items: [], truncated: false }, truncated: false,
 });
 
-const notes = (id: string, name: string, expects: string[], truncated: boolean, setUp: boolean): VisualCase => ({
+const notes = (id: string, name: string, expects: string[], truncated: boolean): VisualCase => ({
   node: '1566:1320', matrix: 'Messages', id: `file-notes-${id}`, name, frame: 'card', within: 'thread', expects,
-  build: () => mounted(<FileNotesCard report={report(truncated)} onSetUpAgent={setUp ? noop : undefined} />),
+  build: () => mounted(<FileNotesCard report={report(truncated)} />),
 });
 
 const question = [message('m-1', 'assistant', 'Would you like to connect it now?\n\nChoices: Connect it | Not now')];
@@ -223,10 +223,8 @@ export const authoringCases: VisualCase[] = [
     { messages: question, replyDisabled: true }),
   thread('working', 'Assistant · Working on it', ['Working on it…', 'jp-icon-rotate-cw'], {
     messages: [message('m-1', 'assistant', '', { state: 'streaming' })], streamingMessageId: 'm-1', printerBlocks: [] }),
-  notes('standard', 'File notes · Standard', ['Notes about this file', 'bracket-v3.3mf'], false, false),
-  notes('truncated', 'File notes · Truncated', ['JusPrin said more than fits here.'], true, false),
-  notes('unavailable', 'File notes · Agent unavailable', ['Set up the Agent', 'it can explain them'], false, true),
-  thread('empty', 'Empty conversation notice', ['Ask the Agent about your print'], {}),
+  notes('standard', 'File notes · Standard', ['Notes about this file', 'bracket-v3.3mf'], false),
+  notes('truncated', 'File notes · Truncated', ['JusPrin said more than fits here.'], true),
   thread('swatch', 'Colored-swatch note', ['note-swatch', 'Filament color updated.'], {
     messages: [message('m-1', 'note', 'Filament color updated.', { swatch: '#3A2D64' })] }),
 ];

@@ -620,6 +620,9 @@ export interface ChangeInfo {
   // An agent edit made by an external tool through the MCP server, not by the
   // in-app Agent. Absent from entries logged before the two were told apart.
   external?: boolean;
+  // External only: the MCP client's name for itself ("Claude Code"). Absent
+  // when the client gave none, and from entries logged before it was kept.
+  client?: string;
   label: string;
   location?: string;
   from?: string;

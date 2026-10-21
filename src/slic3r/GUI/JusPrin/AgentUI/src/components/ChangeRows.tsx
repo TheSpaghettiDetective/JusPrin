@@ -23,7 +23,7 @@ export function groupChanges(changes: ChangeInfo[]): ChangeRun[] {
   for (const change of [...changes].sort((a, b) => a.seq - b.seq)) {
     const run = runs[runs.length - 1];
     if (run && run.last.kind === change.kind && run.last.label === change.label && run.last.actor === change.actor &&
-        !run.last.external === !change.external) {
+        !run.last.external === !change.external && (run.last.client ?? '') === (change.client ?? '')) {
       run.last = change;
       run.count += 1;
     } else {
@@ -78,7 +78,7 @@ function title(run: ChangeRun): ReactNode {
 }
 
 function meta(run: ChangeRun): string {
-  const who = run.last.external ? 'External tool' : run.last.actor === 'agent' ? 'Agent' : 'you';
+  const who = run.last.external ? run.last.client || 'External tool' : run.last.actor === 'agent' ? 'Agent' : 'you';
   const context = run.last.kind === 'setting' && run.last.preset ? `in ${run.last.preset}` : run.last.location;
   const parts = [context ? `${who}, ${context}` : who];
   if (run.count > 1) parts.push(`${run.count} steps merged`);

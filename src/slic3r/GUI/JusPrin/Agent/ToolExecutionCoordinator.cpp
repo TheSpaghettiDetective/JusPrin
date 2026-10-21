@@ -409,7 +409,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request, const std::string& correlation_id,
                                                      ToolExecutionPacing pacing, ToolSource source,
-                                                     const std::string& call_id)
+                                                     const std::string& call_id, const std::string& client)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -419,6 +419,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     activity.correlation_id    = correlation_id;
     activity.call_id           = call_id;
     activity.source            = source;
+    activity.client            = client;
     activity.server            = kServerName;
     activity.tool              = request.tool;
     activity.arguments_json    = request.arguments_json;
@@ -944,7 +945,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
     // Whatever this action changes is its caller's, in the change log.
     const Workspace::IWorkspace::AgentEdit agent_edit(
-        m_workspace, activity.source == ToolSource::Mcp ? Workspace::EditActor::ExternalTool : Workspace::EditActor::Agent);
+        m_workspace, activity.source == ToolSource::Mcp ? Workspace::EditActor::ExternalTool : Workspace::EditActor::Agent,
+        activity.client);
     m_executing = activity.action_id;
     struct Finished { std::string& id; ~Finished() { id.clear(); } } finished{m_executing};
     const ToolDefinition* definition = m_registry.find(activity.tool);

@@ -332,8 +332,10 @@ TEST_CASE("the thread row's line gap is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("threadRow"), {{"lineGap", 2}}, "component.threadRow");
-    // The turn's working line shimmers; its one pass is the page's only motion value.
+    // The turn's working line shimmers; one pass and one turn of its glyph.
     require_exact_table<int>(tokens.at("component").at("turnActivity"), {{"shimmerMs", 1600}, {"spinMs", 1000}}, "component.turnActivity");
+    // The Agent pane's setup offer shrinking into the setup bar once a thread appears.
+    require_exact_table<int>(tokens.at("component").at("setupOffer"), {{"shrinkMs", 320}}, "component.setupOffer");
     require_exact_table<int>(tokens.at("component").at("timelineSummary"),
         {{"paddingX", 8}, {"paddingY", 8}, {"iconGap", 4}}, "component.timelineSummary");
 }

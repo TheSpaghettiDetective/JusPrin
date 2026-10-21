@@ -74,6 +74,22 @@ TEST_CASE("MCP rejects malformed envelopes metadata and mismatched headers", "[m
     CHECK(parsed.error.body["error"]["code"] == expected);
 }
 
+TEST_CASE("MCP reads the client's name for the change log", "[mcp][protocol]")
+{
+    const auto named = [](json info) { return Mcp::mcp_client_name({{"_meta", {{"io.modelcontextprotocol/clientInfo", info}}}}); };
+    CHECK(named({{"name", "claude-code"}, {"title", "Claude Code"}, {"version", "2.1"}}) == "Claude Code");
+    CHECK(named({{"name", "codex-mcp-client"}, {"version", "1"}}) == "codex-mcp-client");
+    CHECK(named({{"name", "  cursor\n "}, {"title", "  "}, {"version", "1"}}) == "cursor");
+    CHECK(named({{"name", "x"}, {"title", 7}, {"version", "1"}}) == "x");
+    CHECK(Mcp::mcp_client_name(json::object()).empty());
+    CHECK(Mcp::mcp_client_name({{"_meta", json::object()}}).empty());
+    // Capped on a whole character: 47 ASCII bytes and a three-byte character
+    // that would end past the cap.
+    const std::string long_name = std::string(47, 'a') + "\xe6\x89\x93" + "tail";
+    CHECK(named({{"name", long_name}, {"version", "1"}}) == std::string(47, 'a'));
+    CHECK(named({{"name", std::string(80, 'b')}, {"version", "1"}}).size() == Mcp::kClientNameLimit);
+}
+
 TEST_CASE("MCP decodes mirrored name headers before comparison", "[mcp][protocol]")
 {
     auto http = fixture("tools/call", {{"name", "workspace_inspect"}, {"arguments", json::object()}});

@@ -96,6 +96,9 @@ struct ToolActivity
     std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
     std::optional<ToolError> error;
     ToolSource   source{ToolSource::Agent};
+    // MCP only: the client's own name for itself, as mcp_client_name() read
+    // it; empty when the client gave none.
+    std::string  client;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

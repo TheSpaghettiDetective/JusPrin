@@ -1207,6 +1207,7 @@ private:
         verify_legacy_delete_history();
         verify_disabled_gizmo_wheel();
         verify_plate_type();
+        verify_first_model_is_not_an_edit();
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
@@ -1766,6 +1767,31 @@ private:
 
     // The snapshot names each plate's type as plate_layout takes it: a plate
     // with no choice of its own reports the project's.
+    // A model opened into an empty project, as a person opens or drops a file,
+    // is how the project was made; the change log starts after it. A model
+    // dropped onto a project that already has one is an edit.
+    void verify_first_model_is_not_an_edit()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "first_model_new_project");
+        OrcaWorkspaceAdapter workspace(*m_plater);
+        std::vector<WorkspaceEdit> edits;
+        const auto subscription = workspace.subscribe_edits([&edits](const WorkspaceEdit& edit) { edits.push_back(edit); });
+        const auto steps = [&edits](const std::string& prefix) {
+            return std::count_if(edits.begin(), edits.end(), [&prefix](const WorkspaceEdit& edit) {
+                return edit.kind == EditKind::Step && edit.label.rfind(prefix, 0) == 0;
+            });
+        };
+        wxArrayString cube;
+        cube.Add(wxString::FromUTF8(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl"));
+        check(m_plater->load_files(cube) && m_plater->model().objects.size() == 1, "first_model_opened");
+        check(steps("") == 0, "first_model_is_not_an_edit");
+        check(m_plater->select_object(0), "first_model_selected");
+        m_plater->mirror(Slic3r::X);
+        check(steps("Mirror") == 1, "edit_after_first_model_is_logged");
+        check(m_plater->load_files(cube) && m_plater->model().objects.size() == 2, "second_model_dropped");
+        check(steps("Load File") == 1, "model_added_to_a_project_is_an_edit");
+    }
+
     void verify_plate_type()
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, "plate_type_new_project");

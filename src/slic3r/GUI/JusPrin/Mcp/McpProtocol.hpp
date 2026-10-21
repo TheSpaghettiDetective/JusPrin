@@ -13,6 +13,7 @@ inline constexpr unsigned short kPreferredPort = 47301;
 inline constexpr std::size_t kBodyLimit = 64 * 1024;
 inline constexpr std::size_t kHeaderLimit = 8 * 1024;
 inline constexpr std::size_t kDepthLimit = 16;
+inline constexpr std::size_t kClientNameLimit = 48; // bytes of a client's name kept in the change log
 
 struct HttpRequest
 {
@@ -54,5 +55,8 @@ nlohmann::json tool_error(const std::string& code, const std::string& message,
 nlohmann::json activity_result(const Agent::ToolActivity& activity, const Workspace::WorkspaceSnapshot& snapshot);
 nlohmann::json tool_result(nlohmann::json content, bool is_error = false);
 std::string sse_event(const nlohmann::json& message);
+// The name a request's client gives itself in its clientInfo, for the change
+// log: its title, else its name, trimmed and capped. Empty when it gave none.
+std::string mcp_client_name(const nlohmann::json& params);
 
 } // namespace Slic3r::GUI::JusPrin::Mcp

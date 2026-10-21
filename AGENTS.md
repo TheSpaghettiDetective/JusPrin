@@ -35,6 +35,18 @@ cmake --build . --config %build_type% --target ALL_BUILD -- -m
 
 Node/npm is required to build the Agent and Home pages, or configure with `-DJUSPRIN_BUILD_WEB=OFF` and supply the bundles.
 
+### Building on a shared machine
+
+Several agent sessions build on the same Mac at once. Without a limit, ninja runs one compile job per core plus two, so every build you start can take the whole machine. In 2026-10 one session stacked four builds in one build directory: 56 clang processes on 12 cores. It kept restarting its build to change targets and never limited the job count.
+
+- Before starting a build, check `uptime` and `pgrep -fl ninja`. If the load is already above the core count, wait or build less.
+- Limit jobs: `cmake --build … -- -j4`.
+- Decide the full target list before starting. Never restart a running build to add or change targets: let it finish, then build the rest.
+- Run one build per build directory. Two ninja processes in one directory compete and can leave its records inconsistent.
+- Stopping a build means stopping ninja. `pkill -f "cmake --build …"` kills only the cmake wrapper, and ninja keeps compiling. Start long builds in their own process group (`perl -e 'setpgrp(0,0); exec @ARGV' cmake --build …`) and stop them with `kill -- -<pgid>`. Then confirm with `pgrep -fl ninja` before building again.
+- When a build is slow, count your own compile processes before blaming the load on other sessions.
+- Reuse an existing build where the task allows. Ask before configuring a fresh full-app build the task does not require.
+
 ## Testing
 
 Catch2 framework. Tests in `tests/` directory.

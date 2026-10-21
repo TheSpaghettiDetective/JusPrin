@@ -134,6 +134,21 @@ export function handEdits(changes: ChangeInfo[] | undefined): ChangeInfo[] {
   return [...net.values()];
 }
 
+// The settings whose value in force someone set since the last restore, each
+// by its latest change: who set them is that change's author.
+export function settingEdits(changes: ChangeInfo[] | undefined): ChangeInfo[] {
+  const net = new Map<string, ChangeInfo>();
+  for (const change of [...(changes ?? [])].sort((a, b) => a.seq - b.seq)) {
+    if (change.kind === 'restore') net.clear();
+    else if (change.kind === 'setting') net.set(change.key || change.label, change);
+  }
+  return [...net.values()];
+}
+
+export function editor(change: ChangeInfo): string {
+  return change.external ? change.client || 'an external tool' : change.actor === 'agent' ? 'the Agent' : 'you';
+}
+
 function estimatePair(estimate: SliceEstimateInfo): string {
   return `${formatPrintTime(estimate.printTimeSeconds)} / ${formatGrams(estimate.materialGrams)}`;
 }
@@ -184,17 +199,28 @@ export function setupPresentation(context: WorkspaceContext, options: SetupPrese
   const intent = context.setupIntent.trim();
   const title = intent || context.printer.process.trim();
   // Nothing vouches for this setup but the preset the person picked: no agent
-  // is configured, or the host read no settings to compare with it.
+  // is configured and nobody changed a setting, or the host read no settings
+  // to compare with it. With no agent, a changed setting is named with who
+  // changed it: the person, an external tool, or an agent set up earlier.
   const noAgent = !historical && options.agentAvailable === false;
-  if (noAgent || (!historical && !context.appliedSetup && !intent))
+  const noAgentEdits = noAgent ? settingEdits(options.changes) : [];
+  if (noAgent ? noAgentEdits.length === 0 : !historical && !context.appliedSetup && !intent)
     return { label: 'Preset fallback', state: noAgent ? 'No agent' : null as ReactNode, title: context.printer.process.trim(),
-      estimate, justChanged: [], edited: [], editedByYou: false, outOfDate: false, live: true, fallback: true, noAgent };
-  const justChanged = historical ? [] : recentAgentChange(options.changes, options.now ?? Date.now());
-  const edited = historical || working || justChanged.length > 0 ? [] : handEdits(options.changes);
+      estimate, justChanged: [], edited: [], editedByYou: false, editedNote: '', outOfDate: false, live: true, fallback: true, noAgent };
+  const justChanged = historical || noAgent ? [] : recentAgentChange(options.changes, options.now ?? Date.now());
+  const edited = noAgent ? noAgentEdits
+    : historical || working || justChanged.length > 0 ? [] : handEdits(options.changes);
   // "Edited by you" needs a setup the agent had a hand in; without one a
   // hand edit is simply how the project was made.
   const agentManaged = !!intent || (options.changes ?? []).some((change) => change.actor === 'agent');
-  const editedByYou = edited.length > 0 && agentManaged;
+  const editedByYou = noAgent || (edited.length > 0 && agentManaged);
+  const named = edited.slice(0, 2).map((change) => `${change.label} ${change.to || 'none'}`);
+  const editedText = edited.length > 2 ? `${named.join(', ')} and ${plural(edited.length - 2, 'more setting', 'more settings')}`
+    : named.join(' and ');
+  const editors = [...new Set(edited.map(editor))].join(' and ');
+  const editedNote = !editedByYou ? ''
+    : noAgent ? `${editors.charAt(0).toUpperCase()}${editors.slice(1)} set ${editedText}.`
+    : `You set ${editedText} outside the agent. Your current settings are preserved.`;
   // Out of date stands the card down: it drops the accent, as a saved card
   // does, because it no longer vouches for the numbers under it.
   const outOfDate = estimate.status === 'stale' && !working && justChanged.length === 0 && !editedByYou;
@@ -204,10 +230,11 @@ export function setupPresentation(context: WorkspaceContext, options: SetupPrese
     ? options.sent ? 'Sliced & sent' : estimate.status === 'stale' ? 'Out of date'
       : saved ? <><span className="jp-icon jp-icon-clock" aria-hidden="true" />Saved {saved}</> : null
     : working ? 'Agent working' : justChanged.length > 0 ? 'Updated'
-    : estimate.status === 'recomputing' ? 'Confirmed' : editedByYou ? 'Edited by you'
+    : estimate.status === 'recomputing' ? 'Confirmed'
+    : editedByYou ? `Edited by ${noAgent ? editor(edited.reduce((a, b) => (b.seq > a.seq ? b : a))) : 'you'}`
     : outOfDate ? 'Out of date' : estimate.status === 'none' && !estimate.sliced ? 'Not sliced' : 'Current';
-  return { label, state, title, estimate, justChanged, edited, editedByYou, outOfDate, live: !historical && !outOfDate,
-    fallback: false, noAgent: false };
+  return { label, state, title, estimate, justChanged, edited, editedByYou, editedNote, outOfDate,
+    live: !historical && !outOfDate, fallback: false, noAgent: false };
 }
 
 function Metrics({ estimate }: { estimate: EstimateView }) {
@@ -263,7 +290,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
     </section>;
   }
 
-  const { estimate, justChanged, edited, editedByYou, outOfDate } = presentation;
+  const { estimate, justChanged, editedByYou, editedNote, outOfDate } = presentation;
   // The plan's headline in every state the card has: the state label and the
   // notices say how far the card can be trusted. With no plan pinned there is
   // no line at all.
@@ -290,9 +317,6 @@ export function SetupCard({ context, working: busy = false, historical = false, 
   const estimateDelta = justChanged.length > 0 && estimateBefore && after && estimate.status === 'current' &&
     (estimateBefore.printTimeSeconds !== after.printTimeSeconds || estimateBefore.materialGrams !== after.materialGrams)
     ? `Estimate: ${estimatePair(estimateBefore)} → ${estimatePair(after)}` : '';
-  const named = edited.slice(0, 2).map((change) => `${change.label} ${change.to || 'none'}`);
-  const editedText = edited.length > 2 ? `${named.join(', ')} and ${plural(edited.length - 2, 'more setting', 'more settings')}`
-    : named.join(' and ');
   const findings = [...deterministicAttention(context), ...attention];
 
   return <section className={presentation.live ? 'current-setup current-setup--live' : 'current-setup'}
@@ -326,7 +350,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
         Refresh setup &amp; recompute</button>}
     </div><hr className="current-setup-divider" /></>}
     {editedByYou && <><p className="current-setup-info"><span className="jp-icon jp-icon-info" aria-hidden="true" />
-      <span>You set {editedText} outside the agent. Your current settings are preserved.</span></p>
+      <span>{editedNote}</span></p>
       <hr className="current-setup-divider" /></>}
     <Attention findings={findings} />
     <button type="button" className="current-setup-link" onClick={onViewSetup}>All settings</button>
