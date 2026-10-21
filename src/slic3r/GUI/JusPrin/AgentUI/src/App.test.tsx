@@ -957,10 +957,10 @@ describe('App', () => {
   });
 
   // A host that can list the settings says so in its hello.
-  function connectListing(statePayload: StatePayload) {
+  function connectListing(statePayload: StatePayload, capabilities = ['all_settings']) {
     expect(host.lastOfType('hello')).toBeTruthy();
     host.deliver('hello_ack', { version: PROTOCOL_VERSION, agent: statePayload.agent, appearance: statePayload.appearance,
-      capabilities: ['all_settings'] });
+      capabilities });
     host.deliver('state', statePayload);
   }
   const catalog = (settings: { key: string; label: string; page: string; group: string; display: string; preset?: string }[]) => ({
@@ -1055,6 +1055,41 @@ describe('App', () => {
     expect(panel).toHaveTextContent('Wall loops6RegionRim · project: preset');
     host.deliver('context', { context: { ...applied, revision: 5, selection: { status: 'none', objectIds: [] } } });
     expect(screen.getByRole('button', { name: 'Showing: Whole project' })).toBeInTheDocument();
+  });
+
+  it('sends a press on an object row\'s link to the host, when the host takes them', async () => {
+    const objects = [{ id: '21', name: 'cube-a', plateId: '11', overrides: [
+      { target: 'cube-a / Rim', kind: 'modifier', key: 'wall_loops', value: '6', label: 'Wall loops', display: '6',
+        action: 'use_project_value' as const },
+      { target: 'cube-a / Pin', kind: 'support blocker', key: '', value: '', action: 'remove' as const }] }];
+    const { unmount } = render(<App getTransport={() => host.transport} />);
+    connectListing(emptyState({ context: applied }), ['all_settings', 'settings_actions']);
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    host.deliver('settings_catalog', { ...catalog([]), objects });
+    // The panel opens on the whole project; the object's view has the links.
+    await userEvent.click(screen.getByRole('button', { name: 'Showing: Whole project' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'cube-a' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use project value for Wall loops' }));
+    expect(host.lastOfType('settings_action')?.payload).toEqual({ sessionId: '1', objectId: '21', action: 'use_project_value',
+      kind: 'modifier', target: 'cube-a / Rim', key: 'wall_loops', value: '6' });
+    await userEvent.click(screen.getByRole('button', { name: 'Remove support blocker' }));
+    expect(host.lastOfType('settings_action')?.payload).toEqual({ sessionId: '1', objectId: '21', action: 'remove',
+      kind: 'support blocker', target: '', key: '', value: '' });
+    // A refusal says why, over the panel.
+    host.deliver('bridge_error', { code: 'settings_action_failed', message: 'cube-a no longer sets that itself' });
+    expect(screen.getByRole('alert')).toHaveTextContent('cube-a no longer sets that itself');
+    unmount();
+
+    // A host without settings_action gets nothing to press.
+    host = new MockHost();
+    render(<App getTransport={() => host.transport} />);
+    connectListing(emptyState({ context: applied }));
+    await userEvent.click(screen.getByRole('button', { name: 'All settings' }));
+    host.deliver('settings_catalog', { ...catalog([]), objects });
+    await userEvent.click(screen.getByRole('button', { name: 'Showing: Whole project' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'cube-a' }));
+    expect(screen.getByTestId('all-settings')).toHaveTextContent('Wall loops6Region');
+    expect(screen.queryByRole('button', { name: /Use project value|Remove/ })).toBeNull();
   });
 
   it('shows a saved chat its own summary, and asks the host for nothing', async () => {

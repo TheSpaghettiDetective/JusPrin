@@ -3171,6 +3171,26 @@ button.wide {
   overflow-wrap: anywhere;
 }
 
+/* An object row's last note with its link (Button/Link) at the end, under
+   the value: an empty tag keeps the tag's column free. */
+.all-settings-row-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 4px;
+}
+
+.all-settings-row-foot .all-settings-row-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+
+.all-settings-row-action {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* Two or three filament slots side by side: a grid whose first column is
    the name and whose others, one per slot, line up under the slot heads. */
 .all-settings-columns {
@@ -3213,9 +3233,7 @@ button.wide {
 
 /* An object on a plate: its name opens its own view. */
 .all-settings-object-link {
-  display: flex;
   flex: 1 1 auto;
-  justify-content: flex-start;
   min-width: 0;
   padding: 0;
   border: 0;

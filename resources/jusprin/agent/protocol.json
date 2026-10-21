@@ -25,7 +25,8 @@
     "project_skills",
     "native_file_picker",
     "model_choice",
-    "all_settings"
+    "all_settings",
+    "settings_actions"
   ],
   "pageMessageTypes": [
     "hello",
@@ -58,7 +59,8 @@
     "shell_action",
     "project_instructions",
     "skills",
-    "settings_catalog_request"
+    "settings_catalog_request",
+    "settings_action"
   ],
   "hostMessageTypes": [
     "hello_ack",

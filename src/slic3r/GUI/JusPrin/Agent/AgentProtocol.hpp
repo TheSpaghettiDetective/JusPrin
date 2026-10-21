@@ -31,7 +31,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
-                                                 "model_choice", "all_settings"};
+                                                 "model_choice", "all_settings", "settings_actions"};
     return values;
 }
 
@@ -75,6 +75,13 @@ inline constexpr const char* kSetChatModel       = "set_chat_model";
 // the host answers with settings_catalog. Added additively; the all_settings
 // capability advertises it.
 inline constexpr const char* kSettingsCatalogRequest = "settings_catalog_request";
+// A press on one of the panel's object-view links: {sessionId, objectId,
+// action ("use_project_value" or "remove"), kind, target, key, value}, naming
+// the row as the catalog listed it. The host makes the edit as one undo step
+// of the person's; the new catalog follows the context revision. A refusal
+// comes back as bridge_error. Added additively; the settings_actions
+// capability advertises it.
+inline constexpr const char* kSettingsAction         = "settings_action";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";

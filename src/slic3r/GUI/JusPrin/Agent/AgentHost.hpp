@@ -370,6 +370,7 @@ private:
     void handle_setup_cancel();
     void handle_mcp_catalog(const std::string& envelope_id);
     void handle_settings_catalog(const std::string& envelope_id);
+    void handle_settings_action(const std::string& envelope_id, const std::string& payload_json);
     void handle_mcp_preview(const std::string& envelope_id, const std::string& payload_json);
     void handle_mcp_connect(const std::string& envelope_id, const std::string& payload_json);
     void handle_reveal_path(const std::string& envelope_id, const std::string& payload_json);

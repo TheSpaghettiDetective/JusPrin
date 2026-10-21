@@ -4,12 +4,14 @@
 // the table (settings_catalog); this page only arranges it. Showing opens on
 // the whole project and then follows the selection in the 3D view: one plate
 // when the project has more than one, or one object, for which only what it
-// sets itself is listed. The first version is read-only: the design's "Use project value"
-// and "Remove" actions are not offered yet.
+// sets itself is listed. That view is the only one with anything to press:
+// "Use project value" under a setting the object, a part, a modifier or a
+// height range sets itself, and "Remove" under its support blockers or
+// enforcers, each where the host's table offers it (settings_action).
 
 import { useEffect, useRef, useState } from 'react';
 import { CatalogFilamentInfo, CatalogObjectInfo, CatalogOverrideInfo, CatalogPlateInfo, CatalogSettingInfo,
-  SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
+  SettingsActionPayload, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
 import { ActionMenu, AgentPaneToggle, MenuItem } from './ChatNavigation';
 
 export type SettingsScope = { kind: 'project' } | { kind: 'plate'; id: string } | { kind: 'object'; id: string };
@@ -32,6 +34,9 @@ export interface AllSettingsProps {
   unsupported?: boolean;
   // What Showing opens on; the whole project unless a fixture says otherwise.
   initialScope?: SettingsScope;
+  // Sends a press on an object row's link; absent where the host takes none
+  // (an older build), and a saved chat offers none.
+  onAction?: (action: SettingsActionPayload) => void;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -119,9 +124,14 @@ const pageOf = (setting: CatalogSettingInfo) => PROCESS_PAGES.includes(setting.p
 
 // -- Rows ---------------------------------------------------------------------
 
-function Row({ label, value, bold, muted, notes, tag }: {
-  label: string; value: string; bold?: boolean; muted?: boolean; notes?: string[]; tag?: string;
+interface RowAction { text: string; name: string; onPress: () => void }
+
+// A row's link sits at the end of its last note, under the value.
+function Row({ label, value, bold, muted, notes, tag, action }: {
+  label: string; value: string; bold?: boolean; muted?: boolean; notes?: string[]; tag?: string; action?: RowAction;
 }) {
+  const shown = (notes ?? []).filter(Boolean);
+  const last = action ? shown.pop() ?? '' : undefined;
   return <div className={bold ? 'all-settings-row all-settings-row--changed' : 'all-settings-row'}>
     <div className="all-settings-row-line">
       <span className="all-settings-row-name" title={label}>{label}</span>
@@ -129,7 +139,12 @@ function Row({ label, value, bold, muted, notes, tag }: {
         .filter(Boolean).join(' ')}>{value}</span>
       {tag && <span className="all-settings-row-tag">{tag}</span>}
     </div>
-    {(notes ?? []).filter(Boolean).map((note) => <p className="all-settings-row-note" key={note}>{note}</p>)}
+    {shown.map((note) => <p className="all-settings-row-note" key={note}>{note}</p>)}
+    {action && <div className="all-settings-row-foot">
+      <p className="all-settings-row-note">{last}</p>
+      <button type="button" className="link all-settings-row-action" aria-label={action.name} onClick={action.onPress}>{action.text}</button>
+      {tag && <span className="all-settings-row-tag" aria-hidden="true" />}
+    </div>}
   </div>;
 }
 
@@ -268,7 +283,7 @@ function scopeKey(scope: SettingsScope): string {
   return scope.kind === 'project' ? 'project' : `${scope.kind}:${scope.id}`;
 }
 
-export function AllSettings({ context, catalog, saved = false, unsupported = false, initialScope }: AllSettingsProps) {
+export function AllSettings({ context, catalog, saved = false, unsupported = false, initialScope, onAction }: AllSettingsProps) {
   const selected = selectedObject(context);
   const [chosen, setChosen] = useState<SettingsScope | null>(initialScope ?? null);
   // The panel opens on the whole project whatever the 3D view has. From
@@ -313,11 +328,10 @@ export function AllSettings({ context, catalog, saved = false, unsupported = fal
   const withOwn = objectsHere.filter((object) => object.overrides.length > 0);
 
   // What the row of one process setting says about the objects that print
-  // it differently: "Mounting tabs: 6", once however many regions of that
-  // name set it the same way.
-  const overrideNotes = (setting: CatalogSettingInfo): string[] => [...new Set(objectsHere.flatMap((object) =>
+  // it differently: "Mounting tabs: 6".
+  const overrideNotes = (setting: CatalogSettingInfo): string[] => objectsHere.flatMap((object) =>
     object.overrides.filter((local) => local.key === setting.key).map((local) =>
-      `${volumeName(local) ?? object.name}: ${local.display || local.value}`)))];
+      `${volumeName(local) ?? object.name}: ${local.display || local.value}`));
 
   const body = () => {
     if (unsupported) return <p className="all-settings-note">This JusPrin build cannot list the settings.</p>;
@@ -411,7 +425,18 @@ export function AllSettings({ context, catalog, saved = false, unsupported = fal
   };
 
   const objectBody = (object: CatalogObjectInfo) => {
-    type Entry = { key: string; label: string; value: string; tag: string; note: string; page: string };
+    type Entry = { key: string; label: string; value: string; tag: string; note: string; page: string; action?: RowAction };
+    // The link the host's table offers under a row, sent as the row's first
+    // customization names it: every one the row stands for matches it.
+    const press = (local: CatalogOverrideInfo, label: string): RowAction | undefined => {
+      if (!local.action || !onAction || saved) return undefined;
+      const action = local.action;
+      const send = () => onAction({ sessionId: context.sessionId, objectId: object.id, action, kind: local.kind,
+        target: action === 'remove' ? '' : local.target, key: local.key, value: local.value });
+      return action === 'remove'
+        ? { text: 'Remove', name: `Remove ${label.charAt(0).toLowerCase()}${label.slice(1)}`, onPress: send }
+        : { text: 'Use project value', name: `Use project value for ${label}`, onPress: send };
+    };
     const processRow = (key: string) => catalog!.process.settings.find((setting) => setting.key === key);
     const tagOf = (kind: string) => kind === 'object' ? 'Object' : kind === 'height range' ? 'Height range' : 'Region';
     const entries: Entry[] = [];
@@ -430,18 +455,19 @@ export function AllSettings({ context, catalog, saved = false, unsupported = fal
       const filament = Number.isInteger(slotNumber) ? catalog!.filaments.find((item) => item.slot === slotNumber) : undefined;
       const projectValue = local.key === 'extruder'
         ? catalog!.filaments[0] ? `1 · ${shortPreset(catalog!.filaments[0].preset)}` : '1' : row?.display ?? 'preset';
-      entries.push({ key: `${local.target}:${local.key}`, label: local.label || sentence(local.key),
+      const label = local.label || sentence(local.key);
+      entries.push({ key: `${local.target}:${local.kind}:${local.key}:${local.value}`, label,
         value: filament ? `${slotNumber} · ${shortPreset(filament.preset)}` : local.display || local.value, tag: tagOf(local.kind),
         note: `${where}${regions} · project: ${projectValue}`,
-        page: local.key === 'extruder' ? 'Filament' : row ? pageOf(row) : 'Others' });
+        page: local.key === 'extruder' ? 'Filament' : row ? pageOf(row) : 'Others', action: press(local, label) });
     }
     for (const [kind, locals] of runs(object.overrides.filter((item) => !item.key), (item) => item.kind)) {
-      // "Screw holes · 2 regions": a name once, however many regions bear it.
-      const names = [...new Set(locals.map((local) => volumeName(local) ?? object.name))];
-      entries.push({ key: kind, label: locals.length > 1 && /blocker|enforcer|part$/.test(kind) ? `${sentence(kind)}s` : sentence(kind),
+      const names = locals.map((local) => volumeName(local) ?? object.name);
+      const label = locals.length > 1 && /blocker|enforcer|part$/.test(kind) ? `${sentence(kind)}s` : sentence(kind);
+      entries.push({ key: kind, label,
         value: 'On', tag: /blocker|enforcer|part$/.test(kind) ? 'Region' : 'Object',
         note: `${names.join(', ')}${locals.length > 1 ? ` · ${plural(locals.length, 'region', 'regions')}` : ''}`,
-        page: kind.includes('support') ? 'Support' : 'Others' });
+        page: kind.includes('support') ? 'Support' : 'Others', action: press(locals[0], label) });
     }
     const shown = entries.filter((entry) => matches(entry, query));
     const byPage = new Map(runs(shown, (entry) => entry.page));
@@ -458,7 +484,8 @@ export function AllSettings({ context, catalog, saved = false, unsupported = fal
           if (rows.length === 0 && query.trim()) return null;
           return <Group key={page} name={page} count={rows.length} summary={rows.length > 0 ? plural(rows.length, 'own setting', 'own settings') : 'same as project'}
             open={isOpen(`object:${page}`, true)} onToggle={() => toggle(`object:${page}`, true)}>
-            {rows.map((entry) => <Row key={entry.key} label={entry.label} value={entry.value} tag={entry.tag} notes={[entry.note]} />)}
+            {rows.map((entry) => <Row key={entry.key} label={entry.label} value={entry.value} tag={entry.tag} notes={[entry.note]}
+              action={entry.action} />)}
           </Group>;
         })}
       </div>

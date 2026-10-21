@@ -68,6 +68,7 @@ public:
     CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                  SettingsPreview& applied) override;
     SettingsCatalog settings_catalog() const override;
+    CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
     ProjectDetails project_details() const override;

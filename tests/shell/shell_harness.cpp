@@ -75,8 +75,13 @@
 //              counts the object override, and the setup page names every
 //              one; writes setup-differences-card.png,
 //              setup-differences-page.png and setup-differences-page-end.png
-//              to the directory, then puts the values back and asserts the
-//              override note goes. It then records a purpose, pins a plan and
+//              to the directory. It then adds a support blocker to the cube,
+//              opens the cube's own view and presses "Use project value"
+//              under Wall loops and "Remove" under the blocker, asserting
+//              each row goes, each is one named undo step logged as the
+//              person's, and Orca's undo brings each back
+//              (setup-differences-object, setup-differences-object-after);
+//              then puts the values back and asserts the override note goes. It then records a purpose, pins a plan and
 //              applies a patch through the agent's own tools, slices, and
 //              writes the card just after the change, headline under
 //              "Updated" (setup-differences-agent-updated), the card a minute
@@ -205,6 +210,8 @@
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -6256,9 +6263,134 @@ private:
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page");
         run_in_agent_page("document.querySelector('[data-testid=\"all-settings\"]').scrollTop = 100000");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-page-end");
+        begin_setup_differences_object_actions();
+    }
 
-        // Put every value back to the preset's and the card has nothing left
-        // to report.
+    // The object view's two links, pressed in the running app: the object's
+    // own Wall loops goes back to the project's value and a support blocker
+    // is removed, each one OrcaSlicer undo step logged as the person's, and
+    // Orca's undo brings each row back.
+    void begin_setup_differences_object_actions()
+    {
+        ModelObject* cube = m_plater->model().objects.front();
+        {
+            // As Orca's "Add support blocker" does, one undo step of its own,
+            // so the undos below stop at the state this step starts from.
+            Plater::TakeSnapshot snapshot(m_plater, "Add support blocker");
+            // A new mesh, not a copy of the part: a copied ModelVolume keeps
+            // the part's object ID, and the undo store, which keys volumes
+            // by ID, would bring the part back in the blocker's place.
+            cube->add_volume(TriangleMesh(cube->volumes.front()->mesh()), ModelVolumeType::SUPPORT_BLOCKER)->name = "Harness blocker";
+            wxGetApp().obj_list()->add_volumes_to_object_in_list(0);
+            m_plater->changed_object(0);
+            m_plater->notify_project_state_changed(ProjectStateChangeReason::Objects);
+        }
+        // Choose the cube in Showing, as a person would, and wait for both links.
+        await_setup_text("object", "[data-testid=\"all-settings\"]",
+                         cube_view_ready("!!scope.querySelector('[aria-label=\"Use project value for Wall loops\"]') &&"
+                                         "!!scope.querySelector('[aria-label=\"Remove support blocker\"]')"),
+                         [self = shared_from_this()] { self->press_use_project_value(); });
+    }
+
+    // Like whole_project_ready, for the cube's own view: an undo can move
+    // Orca's selection, which the panel follows, so each wait chooses the
+    // cube again until its view shows.
+    std::string cube_view_ready(const std::string& condition) const
+    {
+        const std::string name = nlohmann::json(m_plater->model().objects.front()->name).dump();
+        return "(function(){"
+               "  if (scope.dataset.scope.indexOf('object:') !== 0) {"
+               "    var row = Array.prototype.find.call(document.querySelectorAll('.all-settings-scope .chat-menu button'),"
+               "                                        function(b){ return b.textContent.trim() === " + name + "; });"
+               "    if (row) row.click(); else document.querySelector('.all-settings-scope .jp-select').click();"
+               "    return false;"
+               "  }"
+               "  return " + condition + ";"
+               "})()";
+    }
+
+    // The newest change-log entry, as the change log under the card has it.
+    const Agent::ChangeEntry* last_change()
+    {
+        const auto& changes = persistence().document().changes();
+        return changes.empty() ? nullptr : &changes.back();
+    }
+
+    void press_use_project_value()
+    {
+        const std::string page = persistence().draft();
+        std::cout << "HARNESS SETUP " << page << std::endl;
+        check(page.find("Wall loops | 5 | Object | Whole object \xC2\xB7 project: ") != std::string::npos,
+              "object_view_lists_the_object_wall_loops");
+        check(page.find("Support blocker | On | Region | Harness blocker") != std::string::npos, "object_view_lists_the_blocker");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-object");
+        m_changes_before_actions = persistence().document().changes().size();
+        run_in_agent_page("document.querySelector('[aria-label=\"Use project value for Wall loops\"]').click()");
+        await_setup_text("reset", "[data-testid=\"all-settings\"]",
+                         cube_view_ready("!scope.querySelector('[aria-label=\"Use project value for Wall loops\"]')"),
+                         [self = shared_from_this()] { self->press_remove_blocker(); });
+    }
+
+    void press_remove_blocker()
+    {
+        const std::string page = persistence().draft();
+        std::cout << "HARNESS SETUP " << page << std::endl;
+        ModelObject* cube = m_plater->model().objects.front();
+        check(!cube->config.has("wall_loops"), "use_project_value_clears_the_object_setting");
+        check(page.find("Wall loops") == std::string::npos, "use_project_value_row_goes");
+        check(m_plater->undo_redo_stack_main().snapshots().back().is_topmost() &&
+                  m_plater->undo_redo_stack_main().snapshots().size() >= 2 &&
+                  m_plater->undo_redo_stack_main().snapshots()[m_plater->undo_redo_stack_main().snapshots().size() - 2].name ==
+                      "Use project value for Wall loops",
+              "use_project_value_is_one_named_undo_step");
+        const Agent::ChangeEntry* change = last_change();
+        check(change != nullptr && persistence().document().changes().size() == m_changes_before_actions + 1 &&
+                  change->kind == "step" && change->actor == "person" && change->label == "Use project value for Wall loops",
+              "use_project_value_logged_as_the_persons_step");
+        run_in_agent_page("document.querySelector('[aria-label=\"Remove support blocker\"]').click()");
+        await_setup_text("removed", "[data-testid=\"all-settings\"]",
+                         cube_view_ready("!scope.querySelector('[aria-label=\"Remove support blocker\"]')"),
+                         [self = shared_from_this()] { self->undo_object_actions(); });
+    }
+
+    void undo_object_actions()
+    {
+        const std::string page = persistence().draft();
+        std::cout << "HARNESS SETUP " << page << std::endl;
+        const ModelObject* cube = m_plater->model().objects.front();
+        check(std::none_of(cube->volumes.begin(), cube->volumes.end(), [](const ModelVolume* volume) { return volume->is_support_blocker(); }),
+              "remove_deletes_the_blocker");
+        check(page.find("Support blocker") == std::string::npos, "remove_row_goes");
+        const Agent::ChangeEntry* change = last_change();
+        check(change != nullptr && persistence().document().changes().size() == m_changes_before_actions + 2 &&
+                  change->kind == "step" && change->actor == "person" && change->label == "Remove support blocker",
+              "remove_logged_as_the_persons_step");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-object-after");
+        // Orca's own undo, once per press, brings each row back.
+        m_plater->undo();
+        await_setup_text("blockerback", "[data-testid=\"all-settings\"]",
+                         cube_view_ready("!!scope.querySelector('[aria-label=\"Remove support blocker\"]')"), [self = shared_from_this()] {
+            const ModelObject* cube = self->m_plater->model().objects.front();
+            self->check(std::any_of(cube->volumes.begin(), cube->volumes.end(),
+                                    [](const ModelVolume* volume) { return volume->is_support_blocker(); }),
+                        "undo_brings_the_blocker_back");
+            self->m_plater->undo();
+            self->await_setup_text("wallsback", "[data-testid=\"all-settings\"]",
+                                   self->cube_view_ready("!!scope.querySelector('[aria-label=\"Use project value for Wall loops\"]')"), [self] {
+                const ModelObject* cube = self->m_plater->model().objects.front();
+                self->check(cube->config.has("wall_loops") && cube->config.opt_int("wall_loops") == 5,
+                            "undo_brings_the_object_setting_back");
+                // And the blocker this step added goes with its own undo.
+                self->m_plater->undo();
+                self->restore_setup_differences();
+            });
+        });
+    }
+
+    // Put every value back to the preset's and the card has nothing left
+    // to report.
+    void restore_setup_differences()
+    {
         run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
         m_plater->model().objects.front()->config.erase("wall_loops");
         const auto restore = [](Preset::Type type, const PresetCollection& presets, std::initializer_list<const char*> keys) {
@@ -9994,6 +10126,7 @@ private:
     wxTimer               m_exit_watchdog{&m_exit_handler};
     std::function<bool()> m_wait_condition;
     std::string           m_wait_name;
+    std::size_t           m_changes_before_actions{0};
     std::function<void()> m_wait_then;
     std::function<void()> m_wait_each_tick;
     bool                  m_idle_watch_bound{false};

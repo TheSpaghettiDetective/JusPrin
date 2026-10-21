@@ -120,6 +120,36 @@ public:
     SettingsCatalog settings_catalog() const override { return catalog; }
     SettingsCatalog catalog;
 
+    // The panel's edits take what they name out of `catalog`, as one named
+    // undo step; `own_setting_edits` keeps each request, refused or not.
+    CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) override
+    {
+        own_setting_edits.emplace_back(id, edit);
+        const auto object = std::find_if(catalog.objects.begin(), catalog.objects.end(),
+                                         [&](const CatalogObject& item) { return item.id == id; });
+        if (object == catalog.objects.end())
+            return CommandResult::failure(WorkspaceError::MissingObject, "Object does not exist in the current project session");
+        const auto named = [&](const SetupLocalOverride& local) {
+            return local.action == edit.action && local.kind == edit.kind &&
+                   (edit.action == OwnSettingAction::Remove ||
+                    (local.key == edit.key && local.value == edit.value && local.target == edit.target));
+        };
+        auto& overrides = object->overrides;
+        const auto count = std::count_if(overrides.begin(), overrides.end(), named);
+        if (edit.action == OwnSettingAction::None)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The All settings panel offers nothing like that");
+        if (count == 0)
+            return CommandResult::failure(WorkspaceError::NoChange, object->name + " no longer sets that itself");
+        const auto first = std::find_if(overrides.begin(), overrides.end(), named);
+        save_undo(edit.action == OwnSettingAction::Remove ? (count == 1 ? "Remove " + edit.kind :
+                                                             "Remove " + std::to_string(count) + " " + edit.kind + "s")
+                                                          : "Use project value for " + first->label);
+        overrides.erase(std::remove_if(overrides.begin(), overrides.end(), named), overrides.end());
+        publish(WorkspaceChangeReasons::Contents | WorkspaceChangeReasons::History);
+        return CommandResult::success();
+    }
+    std::vector<std::pair<ObjectId, OwnSettingEdit>> own_setting_edits;
+
     // Fixture-only seams for pre-existing dependencies and an unannounced edit.
     void set_setting_for_testing(const std::string& key, std::string value, bool notify = true)
     {

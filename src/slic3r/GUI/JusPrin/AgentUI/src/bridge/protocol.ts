@@ -40,7 +40,8 @@ export type PageMessageType =
   | 'shell_action'
   | 'project_instructions'
   | 'skills'
-  | 'settings_catalog_request';
+  | 'settings_catalog_request'
+  | 'settings_action';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -422,6 +423,25 @@ export interface CatalogOverrideInfo {
   value: string;
   label?: string;
   display?: string;
+  // What the panel's object view offers under the row: clearing the
+  // object's own value, or removing the blocker or enforcer it is. Absent
+  // where it offers nothing.
+  action?: OwnSettingAction;
+}
+
+export type OwnSettingAction = 'use_project_value' | 'remove';
+
+// A press on one of the object view's links (settings_actions capability),
+// naming the row as the catalog listed it. A refusal comes back as
+// bridge_error; the new table follows the context revision.
+export interface SettingsActionPayload {
+  sessionId: string;
+  objectId: string;
+  action: OwnSettingAction;
+  kind: string;
+  target: string;
+  key: string;
+  value: string;
 }
 
 export interface CatalogObjectInfo {

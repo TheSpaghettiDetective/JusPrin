@@ -4,10 +4,10 @@
 // view says. The frames themselves render through SetupCard.preview and
 // SetupCard.acceptance.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CatalogFilamentInfo, CatalogSettingInfo, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
+import { CatalogFilamentInfo, CatalogSettingInfo, SettingsActionPayload, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
 import { AllSettings, catalogFromContext, selectedObject } from './AllSettings';
 
 function context(): WorkspaceContext {
@@ -50,11 +50,14 @@ function catalog(): SettingsCatalogPayload {
       bedTempKey: 'k_bed_textured', bedTempInitialKey: 'k_bed_textured_first', own: [row('k_bed_type', 'Bed type', 'Plate', '', 'Textured PEI Plate')] }],
     objects: [
       { id: 'o1', name: 'bracket v3', plateId: 'p1', overrides: [
-        { target: 'bracket v3 / Mounting tabs', kind: 'modifier', key: 'k_walls', value: '6', label: 'Wall loops', display: '6' },
-        { target: 'bracket v3 / Mounting tabs', kind: 'modifier', key: 'k_walls', value: '6', label: 'Wall loops', display: '6' },
-        { target: 'bracket v3 / Screw holes', kind: 'support blocker', key: '', value: '' },
-        { target: 'bracket v3 / Screw holes', kind: 'support blocker', key: '', value: '' },
-        { target: 'bracket v3', kind: 'object', key: 'extruder', value: '2', label: 'Filament slot', display: '2' },
+        { target: 'bracket v3 / Mounting tabs', kind: 'modifier', key: 'k_walls', value: '6', label: 'Wall loops', display: '6',
+          action: 'use_project_value' },
+        { target: 'bracket v3 / Mounting tabs', kind: 'modifier', key: 'k_walls', value: '6', label: 'Wall loops', display: '6',
+          action: 'use_project_value' },
+        { target: 'bracket v3 / Screw holes', kind: 'support blocker', key: '', value: '', action: 'remove' },
+        { target: 'bracket v3 / Screw holes', kind: 'support blocker', key: '', value: '', action: 'remove' },
+        { target: 'bracket v3', kind: 'object', key: 'extruder', value: '2', label: 'Filament slot', display: '2',
+          action: 'use_project_value' },
       ] },
       { id: 'o2', name: 'spacer', plateId: 'p1', overrides: [] },
     ],
@@ -130,7 +133,7 @@ describe('the whole project', () => {
     expect(panel()).toHaveTextContent('Speedfrom the preset');
     // Quality (the first) and Strength (changed) start open; Speed is closed.
     expect(panel()).toHaveTextContent('Layer height0.2 mm');
-    expect(panel()).toHaveTextContent('Wall loops4Preset: 2Mounting tabs: 6InfillSparse');
+    expect(panel()).toHaveTextContent('Wall loops4Preset: 2Mounting tabs: 6Mounting tabs: 6');
     expect(panel()).not.toHaveTextContent('Outer wall speed');
     await userEvent.click(screen.getByRole('button', { name: /^Speed/ }));
     expect(panel()).toHaveTextContent('Outer wall speed200 mm/s');
@@ -220,17 +223,75 @@ describe('one object', () => {
     expect(panel()).toHaveTextContent('Strength1 own setting');
     expect(panel()).toHaveTextContent('Wall loops6RegionMounting tabs · 2 regions · project: 4');
     expect(panel()).toHaveTextContent('Support1 own setting');
-    expect(panel()).toHaveTextContent('Support blockersOnRegionScrew holes · 2 regions');
+    expect(panel()).toHaveTextContent('Support blockersOnRegionScrew holes, Screw holes · 2 regions');
     // The object's filament is a slot number in OrcaSlicer; the slot's preset
     // says more, where the project has that slot.
     expect(panel()).toHaveTextContent('Filament slot2ObjectWhole object · project: 1 · Generic PETG');
     expect(panel()).toHaveTextContent('Qualitysame as project');
     expect(panel()).toHaveTextContent('Speedsame as project');
-    // Read-only in this version: nothing to press on a row.
+    // Without a host that takes the presses, nothing to press on a row.
     expect(within(panel()).queryByRole('button', { name: /Use project value|Remove/ })).toBeNull();
     await userEvent.type(screen.getByRole('searchbox'), 'blocker');
     expect(panel()).not.toHaveTextContent('Wall loops');
     expect(panel()).toHaveTextContent('Support blockers');
+  });
+
+  it('offers "Use project value" and "Remove" on the rows the table marks, and sends each as the row names it', async () => {
+    const sent: SettingsActionPayload[] = [];
+    const value = { ...context(), selection: { status: 'objects' as const, objectIds: ['o1'] } };
+    const table = catalog();
+    // A height range's own layer height defines the range, and paint has no
+    // value to give back: the table marks neither, so neither has a link.
+    table.objects[0].overrides.push(
+      { target: 'bracket v3', kind: 'height range', key: 'k_layer', value: '0.1', label: 'Layer height', display: '0.1 mm' },
+      { target: 'bracket v3', kind: 'seam painting', key: '', value: '' });
+    render(<AllSettings context={value} catalog={table} initialScope={{ kind: 'object', id: 'o1' }}
+      onAction={(action) => sent.push(action)} />);
+    expect(panel()).toHaveTextContent('Layer height0.1 mmHeight rangeHeight range · project: 0.2 mm');
+    expect(panel()).toHaveTextContent('Seam paintingOnObjectbracket v3');
+    const links = () => within(panel()).queryAllByRole('button', { name: /Use project value|Remove/ }).map((link) =>
+      link.getAttribute('aria-label'));
+    // The two Mounting tabs are one row, so one link; the height range's
+    // layer height and the seam painting have none.
+    expect(links()).toEqual(['Use project value for Wall loops', 'Remove support blockers', 'Use project value for Filament slot']);
+    // Under the row's note, Button/Link text.
+    const walls = screen.getByRole('button', { name: 'Use project value for Wall loops' });
+    expect(walls).toHaveTextContent(/^Use project value$/);
+    expect(walls).toHaveClass('link');
+    expect(walls.parentElement).toHaveTextContent('Mounting tabs · 2 regions · project: 4Use project value');
+    expect(screen.getByRole('button', { name: 'Remove support blockers' })).toHaveTextContent(/^Remove$/);
+
+    await userEvent.click(walls);
+    await userEvent.click(screen.getByRole('button', { name: 'Remove support blockers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use project value for Filament slot' }));
+    expect(sent).toEqual([
+      { sessionId: 'project-1', objectId: 'o1', action: 'use_project_value', kind: 'modifier', target: 'bracket v3 / Mounting tabs',
+        key: 'k_walls', value: '6' },
+      { sessionId: 'project-1', objectId: 'o1', action: 'remove', kind: 'support blocker', target: '', key: '', value: '' },
+      { sessionId: 'project-1', objectId: 'o1', action: 'use_project_value', kind: 'object', target: 'bracket v3',
+        key: 'extruder', value: '2' },
+    ]);
+  });
+
+  it('offers nothing to press outside one object\'s view, or in a saved chat', async () => {
+    const onAction = vi.fn();
+    const { rerender } = render(<AllSettings context={context()} catalog={catalog()} onAction={onAction} />);
+    expect(panel()).toHaveAttribute('data-scope', 'project');
+    expect(within(panel()).queryByRole('button', { name: /Use project value|Remove/ })).toBeNull();
+    const two = context();
+    two.plates.push({ ...two.plates[0], id: 'p2', name: 'Plate 2', active: false, objects: [] });
+    const table = catalog();
+    table.plates.push({ ...table.plates[0], id: 'p2', name: 'Plate 2', active: false, ownBedType: false, own: [] });
+    rerender(<AllSettings context={two} catalog={table} onAction={onAction} />);
+    await userEvent.click(showing('Whole project'));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Plate 1' }));
+    expect(panel()).toHaveAttribute('data-scope', 'plate:p1');
+    expect(within(panel()).queryByRole('button', { name: /Use project value|Remove/ })).toBeNull();
+    rerender(<AllSettings context={{ ...context(), selection: { status: 'objects', objectIds: ['o1'] } }} catalog={catalog()}
+      onAction={onAction} saved />);
+    expect(panel()).toHaveAttribute('data-scope', 'object:o1');
+    expect(within(panel()).queryByRole('button', { name: /Use project value|Remove/ })).toBeNull();
+    expect(onAction).not.toHaveBeenCalled();
   });
 
   it('says when an object sets nothing of its own', () => {

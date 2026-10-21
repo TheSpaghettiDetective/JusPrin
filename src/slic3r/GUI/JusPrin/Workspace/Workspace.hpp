@@ -227,6 +227,13 @@ struct PresetDelta
     std::string group;
 };
 
+// What the All settings panel can do to one of an object's customizations:
+// clear its own value so the project's applies again, or remove the support
+// blocker or enforcer it is. None for the rest (paint, a variable layer
+// height, and a height range's own layer height and filament, which define
+// the range).
+enum class OwnSettingAction : std::uint8_t { None, UseProjectValue, Remove };
+
 struct SetupLocalOverride
 {
     std::string target;
@@ -236,6 +243,7 @@ struct SetupLocalOverride
     std::size_t object{0}; // index into AppliedSetup::objects
     std::string label;
     std::string display;
+    OwnSettingAction action{OwnSettingAction::None};
 };
 
 struct AppliedSetup
@@ -1749,6 +1757,22 @@ struct SettingsCatalog
     std::vector<CatalogObject>   objects;
 };
 
+// One of the All settings panel's edits on an object, naming what a row of
+// its object view shows, in the catalog's words. UseProjectValue clears `key`
+// wherever the object sets it to `value` as `kind` ("object", "height range",
+// "part", "modifier", ...): on the object, on each height range, or on each
+// volume whose catalog `target` ("object / volume") is this one. Remove
+// deletes every volume of `kind` ("support blocker" or "support enforcer");
+// the other fields are unused.
+struct OwnSettingEdit
+{
+    OwnSettingAction action{OwnSettingAction::None};
+    std::string      kind;
+    std::string      target;
+    std::string      key;
+    std::string      value;
+};
+
 class IWorkspace
 {
 public:
@@ -1847,6 +1871,11 @@ public:
     // Every setting in force, for the All settings panel. Read-only, like
     // read_settings, and read fresh from Orca on every call.
     virtual SettingsCatalog settings_catalog() const = 0;
+    // The panel's edit on one of the object's own settings, as one undo step
+    // the person made. NoChange when nothing the object has matches any more;
+    // UnavailableOperation for what the panel never offers (an action of None,
+    // or a customization the catalog marks with another action).
+    virtual CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) = 0;
 
     // Directory for consumer-owned files that belong to the open project and
     // travel inside its saved archive. The path changes when the

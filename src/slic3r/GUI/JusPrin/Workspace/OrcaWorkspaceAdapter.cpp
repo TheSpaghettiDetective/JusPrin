@@ -231,6 +231,29 @@ std::vector<PresetDelta> preset_deltas_of(const PresetCollection& presets, const
     return result;
 }
 
+// The kind a volume is customized as, in the words the catalog uses.
+const char* volume_kind(const ModelVolume& volume)
+{
+    return volume.is_modifier()         ? "modifier" :
+           volume.is_support_blocker()  ? "support blocker" :
+           volume.is_support_enforcer() ? "support enforcer" :
+           volume.is_negative_volume()  ? "negative part" : "part";
+}
+
+// What the All settings panel may do to a customization of this kind: a key
+// it sets goes back to the project's value, except a height range's layer
+// height and filament, which OrcaSlicer keeps on every range (its own
+// "Delete Settings" leaves both); a blocker or an enforcer without a key is
+// the volume itself, which goes.
+OwnSettingAction own_setting_action(const std::string& kind, const std::string& key)
+{
+    if (key.empty())
+        return kind == "support blocker" || kind == "support enforcer" ? OwnSettingAction::Remove : OwnSettingAction::None;
+    if (kind == "variable layer height" || (kind == "height range" && (key == "layer_height" || key == "extruder")))
+        return OwnSettingAction::None;
+    return OwnSettingAction::UseProjectValue;
+}
+
 // Everything one object prints with that the project's settings do not say:
 // its own settings, its height ranges', its parts' and modifiers', and the
 // customizations with no value to quote (paint, a blocker, a variable-height
@@ -249,11 +272,12 @@ bool add_object_customizations(const ModelObject& object, std::size_t object_ind
             // It is the inherited/default filament, not a local override.
             if (key == "extruder") {
                 if (option->serialize() != "1")
-                    overrides.push_back({target, kind, key, option->serialize(), object_index, "Filament slot", option->serialize()});
+                    overrides.push_back({target, kind, key, option->serialize(), object_index, "Filament slot", option->serialize(),
+                                         own_setting_action(kind, key)});
             } else if (definition != nullptr) {
                 const SettingDefinition display_definition = setting_definition(key);
                 overrides.push_back({target, kind, key, option->serialize(), object_index, display_definition.label,
-                                     display_value(display_definition, option->serialize())});
+                                     display_value(display_definition, option->serialize()), own_setting_action(kind, key)});
             }
         }
     };
@@ -263,7 +287,7 @@ bool add_object_customizations(const ModelObject& object, std::size_t object_ind
         overrides.push_back({target, kind, key, {}, object_index,
                              definition == nullptr ? std::string() :
                                  (definition->full_label.empty() ? definition->label : definition->full_label),
-                             {}});
+                             {}, own_setting_action(kind, key)});
     };
 
     bool variable_layer_height = false;
@@ -279,10 +303,7 @@ bool add_object_customizations(const ModelObject& object, std::size_t object_ind
         add_local(object.name, "height range", range.second.get());
     for (const ModelVolume* volume : object.volumes) {
         const std::string target = object.name + " / " + volume->name;
-        const char* kind = volume->is_modifier() ? "modifier" :
-                           volume->is_support_blocker() ? "support blocker" :
-                           volume->is_support_enforcer() ? "support enforcer" :
-                           volume->is_negative_volume() ? "negative part" : "part";
+        const char* kind = volume_kind(*volume);
         add_local(target, kind, volume->config.get());
         if (volume->is_support_blocker() || volume->is_support_enforcer())
             add_artifact(target, kind);
@@ -3345,6 +3366,93 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         applied.saved_as = *patch.persist_as;
     }
     applied.preset_dirty = collection.current_is_dirty();
+    return CommandResult::success();
+}
+
+CommandResult OrcaWorkspaceAdapter::edit_own_setting(ObjectId id, const OwnSettingEdit& edit)
+{
+    wxASSERT(wxIsMainThread());
+    const auto resolved = resolve(id);
+    if (!resolved)
+        return id_error(id);
+    // Only what the catalog offers: the panel draws each action from
+    // own_setting_action, so anything else is not a person's press.
+    if (edit.action == OwnSettingAction::None || own_setting_action(edit.kind, edit.key) != edit.action)
+        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The All settings panel offers nothing like that");
+    const int    index  = static_cast<int>(resolved->index);
+    ModelObject& object = *m_plater.model().objects[resolved->index];
+    ObjectList*  list   = wxGetApp().obj_list();
+    const auto   sets   = [&edit](const ModelConfig& config) {
+        const ConfigOption* option = config.option(edit.key);
+        return option != nullptr && option->serialize() == edit.value;
+    };
+
+    if (edit.action == OwnSettingAction::Remove) {
+        // Orca's object list deletes a volume, one at a time from the last.
+        std::vector<ItemForDelete> volumes;
+        for (std::size_t volume = 0; volume < object.volumes.size(); ++volume)
+            if (volume_kind(*object.volumes[volume]) == edit.kind)
+                volumes.emplace_back(itVolume, index, static_cast<int>(volume));
+        if (volumes.empty())
+            return CommandResult::failure(WorkspaceError::NoChange, object.name + " has no " + edit.kind + " any more");
+        if (list == nullptr)
+            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer's object list is not open");
+        const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        Plater::TakeSnapshot snapshot(&m_plater, volumes.size() == 1 ? "Remove " + edit.kind :
+                                                     "Remove " + std::to_string(volumes.size()) + " " + edit.kind + "s");
+        ScopedLeastChangeAnswers unexpected;
+        list->delete_from_model_and_list(volumes);
+        m_plater.notify_project_state_changed(ProjectStateChangeReason::Objects);
+        for (const OrcaMessage& message : unexpected.messages())
+            BOOST_LOG_TRIVIAL(warning) << "edit_own_setting: OrcaSlicer asked \"" << message.title << "\" (" << message.text
+                                       << "), answered " << message.answer;
+        return CommandResult::success();
+    }
+
+    // Use project value: ObjectSettings' "Remove parameter", wherever the row
+    // the person pressed says the object sets it.
+    std::vector<ModelVolume*>            volumes;
+    std::vector<t_layer_height_range>    ranges;
+    const bool on_object = edit.kind == "object" && sets(object.config);
+    if (edit.kind == "height range") {
+        for (const auto& [range, config] : object.layer_config_ranges)
+            if (sets(config))
+                ranges.push_back(range);
+    } else if (edit.kind != "object") {
+        for (ModelVolume* volume : object.volumes)
+            if (volume_kind(*volume) == edit.kind && object.name + " / " + volume->name == edit.target && sets(volume->config))
+                volumes.push_back(volume);
+    }
+    if (!on_object && volumes.empty() && ranges.empty())
+        return CommandResult::failure(WorkspaceError::NoChange, object.name + " no longer sets that itself");
+    const std::string label = edit.key == "extruder" ? "Filament slot" : setting_definition(edit.key).label;
+    const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+    Plater::TakeSnapshot snapshot(&m_plater, "Use project value for " + label);
+    if (on_object)
+        object.config.erase(edit.key);
+    for (ModelVolume* volume : volumes)
+        volume->config.erase(edit.key);
+    for (const t_layer_height_range& range : ranges)
+        object.layer_config_ranges[range].erase(edit.key);
+    if (list) {
+        if (on_object)
+            list->object_config_options_changed({&object, nullptr});
+        for (ModelVolume* volume : volumes)
+            list->object_config_options_changed({&object, volume});
+        for (const t_layer_height_range& range : ranges) {
+            const wxDataViewItem item = list->GetModel()->GetItemByLayerRange(index, range);
+            if (item.IsOk())
+                list->add_settings_item(item, &object.layer_config_ranges[range].get());
+        }
+        // The Filament column reads the slot back from the configs; an
+        // object without one prints with slot 1, a part with the object's.
+        if (edit.key == "extruder")
+            list->update_filament_values_for_items(static_cast<std::size_t>(wxGetApp().filaments_cnt()));
+        // The settings tab shows the selected item's own settings.
+        list->update_and_show_object_settings_item();
+    }
+    m_plater.changed_object(index);
+    m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings | ProjectStateChangeReason::Objects);
     return CommandResult::success();
 }
 

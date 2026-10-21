@@ -223,6 +223,7 @@ export function App({
   // again whenever the project moves on under it. A saved chat shows its
   // own summary and asks for nothing.
   const canListSettings = state.hostCapabilities.includes('all_settings');
+  const canEditSettings = state.hostCapabilities.includes('settings_actions');
   const viewingActive = (state.viewedConversationId || state.activeConversationId) === state.activeConversationId;
   useEffect(() => {
     if (view !== 'allSettings' || !canListSettings || !viewingActive || state.connection !== 'connected') return;
@@ -518,7 +519,8 @@ export function App({
     if (!embedded && view === 'allSettings' && cardContext)
       return <AllSettings context={cardContext} saved={historical} unsupported={!historical && !canListSettings}
         catalog={historical ? catalogFromContext(cardContext)
-          : state.settingsCatalog?.sessionId === cardContext.sessionId ? state.settingsCatalog.catalog : null} />;
+          : state.settingsCatalog?.sessionId === cardContext.sessionId ? state.settingsCatalog.catalog : null}
+        onAction={canEditSettings && !historical ? (action) => client.send('settings_action', action) : undefined} />;
     // An embedded, setup-only instance never has a conversation to show, so
     // it always renders one of the setup screens below regardless of view.
     if (!embedded && !notConfigured && view !== 'setup')

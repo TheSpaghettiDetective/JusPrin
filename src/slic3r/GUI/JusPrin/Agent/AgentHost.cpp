@@ -1061,6 +1061,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_mcp_catalog(envelope_id);
     else if (type == Protocol::kSettingsCatalogRequest)
         handle_settings_catalog(envelope_id);
+    else if (type == Protocol::kSettingsAction)
+        handle_settings_action(envelope_id, payload);
     else if (type == Protocol::kMcpPreview)
         handle_mcp_preview(envelope_id, payload);
     else if (type == Protocol::kMcpConnect)
@@ -3222,6 +3224,16 @@ json catalog_settings_json(const std::vector<Workspace::CatalogSetting>& setting
     return rows;
 }
 
+const char* own_setting_action_name(Workspace::OwnSettingAction action)
+{
+    switch (action) {
+    case Workspace::OwnSettingAction::UseProjectValue: return "use_project_value";
+    case Workspace::OwnSettingAction::Remove: return "remove";
+    case Workspace::OwnSettingAction::None: break;
+    }
+    return "";
+}
+
 // The All settings panel's table, as the page reads it (SettingsCatalogPayload
 // in protocol.ts).
 json settings_catalog_json(const Workspace::SettingsCatalog& catalog)
@@ -3243,6 +3255,7 @@ json settings_catalog_json(const Workspace::SettingsCatalog& catalog)
             json entry{{"target", local.target}, {"kind", local.kind}, {"key", local.key}, {"value", local.value}};
             if (!local.label.empty()) entry["label"] = local.label;
             if (!local.display.empty()) entry["display"] = local.display;
+            if (local.action != Workspace::OwnSettingAction::None) entry["action"] = own_setting_action_name(local.action);
             overrides.push_back(std::move(entry));
         }
         json entry{{"id", std::to_string(object.id.value())}, {"name", object.name}, {"overrides", std::move(overrides)}};
@@ -3262,6 +3275,39 @@ json settings_catalog_json(const Workspace::SettingsCatalog& catalog)
 void AgentHost::handle_settings_catalog(const std::string& envelope_id)
 {
     send_envelope(Protocol::kSettingsCatalog, settings_catalog_json(m_workspace.settings_catalog()).dump(), envelope_id);
+}
+
+void AgentHost::handle_settings_action(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json, nullptr, false);
+    const auto text    = [&payload](const char* name) {
+        return payload.is_object() && payload.contains(name) && payload[name].is_string() ? payload[name].get<std::string>()
+                                                                                           : std::string();
+    };
+    Workspace::OwnSettingEdit edit;
+    const std::string action = text("action");
+    edit.action = action == "use_project_value" ? Workspace::OwnSettingAction::UseProjectValue :
+                  action == "remove"            ? Workspace::OwnSettingAction::Remove :
+                                                  Workspace::OwnSettingAction::None;
+    edit.kind   = text("kind");
+    edit.target = text("target");
+    edit.key    = text("key");
+    edit.value  = text("value");
+    const std::string session = text("sessionId");
+    const std::string object  = text("objectId");
+    const auto digits = [](const std::string& value) {
+        return !value.empty() && value.size() <= 20 && std::all_of(value.begin(), value.end(), [](char c) { return c >= '0' && c <= '9'; });
+    };
+    if (edit.action == Workspace::OwnSettingAction::None || edit.kind.empty() || !digits(session) || !digits(object)) {
+        send_bridge_error("invalid_payload", "The settings action names no object or action.", envelope_id);
+        return;
+    }
+    // The person's own press: no AgentEdit scope, so the step it records in
+    // the change log is the person's.
+    const Workspace::CommandResult result = m_workspace.edit_own_setting(
+        Workspace::ObjectId(Workspace::ProjectSessionId(std::stoull(session)), std::stoull(object)), edit);
+    if (!result.succeeded())
+        send_bridge_error("settings_action_failed", result.message, envelope_id);
 }
 
 void AgentHost::handle_mcp_catalog(const std::string& envelope_id)

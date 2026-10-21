@@ -322,7 +322,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
-                                              Protocol::kSkills, Protocol::kSettingsCatalogRequest});
+                                              Protocol::kSkills, Protocol::kSettingsCatalogRequest,
+                                              Protocol::kSettingsAction});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -425,6 +426,83 @@ TEST_CASE("settings_catalog_request answers with every setting in force", "[agen
     harness.workspace.catalog = {};
     harness.deliver("settings_catalog_request");
     CHECK((*harness.last_of_type("settings_catalog"))["payload"]["available"] == false);
+}
+
+TEST_CASE("settings_action makes the panel's edit as the person's own step", "[agent][all_settings]")
+{
+    Harness harness;
+    harness.handshake();
+    REQUIRE(std::find(Protocol::capabilities().begin(), Protocol::capabilities().end(), "settings_actions") !=
+            Protocol::capabilities().end());
+
+    const Workspace::WorkspaceSnapshot before = harness.workspace.snapshot();
+    const Workspace::ObjectId          id     = before.plates[0].objects[0].id;
+    Workspace::CatalogObject object;
+    object.id   = id;
+    object.name = "bracket v3";
+    object.overrides.push_back({"bracket v3 / Mounting tabs", "modifier", "wall_loops", "6", 0, "Wall loops", "6",
+                                Workspace::OwnSettingAction::UseProjectValue});
+    object.overrides.push_back({"bracket v3 / Screw holes", "support blocker", "", "", 0, "", "",
+                                Workspace::OwnSettingAction::Remove});
+    object.overrides.push_back({"bracket v3", "support painting", "", "", 0, "", ""});
+    harness.workspace.catalog.available = true;
+    harness.workspace.catalog.objects.push_back(object);
+
+    // The catalog says which rows the page may offer each action on.
+    harness.deliver("settings_catalog_request");
+    const json listed = (*harness.last_of_type("settings_catalog"))["payload"]["objects"][0]["overrides"];
+    CHECK(listed[0]["action"] == "use_project_value");
+    CHECK(listed[1]["action"] == "remove");
+    CHECK(!listed[2].contains("action"));
+
+    const std::string session = std::to_string(before.session.value());
+    const std::size_t changes = harness.of_type("change_added").size();
+    harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
+                                            {"action", "use_project_value"}, {"kind", "modifier"},
+                                            {"target", "bracket v3 / Mounting tabs"}, {"key", "wall_loops"}, {"value", "6"}});
+    REQUIRE(harness.workspace.own_setting_edits.size() == 1);
+    const Workspace::OwnSettingEdit& made = harness.workspace.own_setting_edits[0].second;
+    CHECK(harness.workspace.own_setting_edits[0].first == id);
+    CHECK(made.action == Workspace::OwnSettingAction::UseProjectValue);
+    CHECK(made.kind == "modifier");
+    CHECK(made.target == "bracket v3 / Mounting tabs");
+    CHECK(made.key == "wall_loops");
+    CHECK(made.value == "6");
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    // One undo step, in the change log as the person's.
+    REQUIRE(harness.of_type("change_added").size() == changes + 1);
+    const json change = (*harness.last_of_type("change_added"))["payload"]["change"];
+    CHECK(change["kind"] == "step");
+    CHECK(change["actor"] == "person");
+    CHECK(change["label"] == "Use project value for Wall loops");
+
+    harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
+                                            {"action", "remove"}, {"kind", "support blocker"}});
+    CHECK(harness.workspace.own_setting_edits.back().second.action == Workspace::OwnSettingAction::Remove);
+    CHECK((*harness.last_of_type("change_added"))["payload"]["change"]["label"] == "Remove support blocker");
+    CHECK(harness.workspace.catalog.objects[0].overrides.size() == 1);
+
+    SECTION("a refusal comes back as a bridge error, and changes nothing")
+    {
+        harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
+                                                {"action", "remove"}, {"kind", "support blocker"}});
+        const json* error = harness.last_of_type("bridge_error");
+        REQUIRE(error != nullptr);
+        CHECK((*error)["payload"]["code"] == "settings_action_failed");
+        CHECK((*error)["payload"]["message"] == "bracket v3 no longer sets that itself");
+        CHECK(harness.of_type("change_added").size() == changes + 2);
+    }
+
+    SECTION("a payload without an object or a known action is refused before the workspace sees it")
+    {
+        const std::size_t seen = harness.workspace.own_setting_edits.size();
+        harness.deliver("settings_action", json{{"sessionId", session}, {"objectId", std::to_string(id.value())},
+                                                {"action", "rename"}, {"kind", "modifier"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+        harness.deliver("settings_action", json{{"action", "remove"}, {"kind", "support blocker"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
+        CHECK(harness.workspace.own_setting_edits.size() == seen);
+    }
 }
 
 TEST_CASE("handshake negotiates version and reports capabilities, agent status, and state", "[agent][bridge]")
