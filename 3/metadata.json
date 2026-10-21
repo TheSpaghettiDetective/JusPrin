@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5EEYPFMQE8Z1NFNCDWCH62S",
+  "session_id": "c255345a-a9e3-4f6a-9759-652c49a4efe4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T05:29:21.641393Z",
+  "branch": "claude/filament-step-design-918d1e",
+  "checkpoints_count": 5,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "a21d6b63b963",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 370,
+    "cache_creation_tokens": 1509728,
+    "cache_read_tokens": 67105522,
+    "output_tokens": 157340,
+    "api_call_count": 185,
+    "subagent_tokens": {
+      "input_tokens": 108,
+      "cache_creation_tokens": 192623,
+      "cache_read_tokens": 6348361,
+      "output_tokens": 24647,
+      "api_call_count": 54
+    }
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T05:29:21.253532Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 6,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 10,
+    "total_lines_changed": 21,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

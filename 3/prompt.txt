@@ -1,0 +1,194 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer (C++/wxWidgets with React pages in web views). Kenneth asked for the canvas's 3-step "Add a printer" popup to replace OrcaSlicer's printer wizard in the printer chat. It is built and running in a test harness: step 1 picks brand, model and nozzle (or a Bambu printer found on the network), step 2 the plate (only where OrcaSlicer offers a plate choice), step 3 the starting filament. Kenneth tried it and judged step 3's way of finding non-suggested filaments unintuitive, and wants incompatible filaments and his own (or new) filament presets reachable without being front and center. The implementing session will build whatever design Kenneth approves.
+
+Task:
+Design step 3 of JusPrin's "Add a printer" form, the filament step, and bring Kenneth a proposal he can decide on. Do not write product code.
+
+What exists now (read it; it lives uncommitted in /Users/kenneth/Projects/JusPrin/.claude/worktrees/add-printer-popup, which another session is editing, so read only, never write there):
+- src/slic3r/GUI/JusPrin/AgentUI/src/components/AddPrinterForm.tsx: the form. Step 3 is titled "Which filament do you want to start with?". It has a search field "Search brand or material", a short list headed "Suggested for the <model>" and a link "Skip — start with <profile default>". Tapping a filament saves the printer with that filament in slot 1. Before typing, only the suggested list shows; typing searches every compatible filament, up to 50 results.
+- src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp: where the lists come from. It loads the chosen vendor's packaged profiles plus OrcaSlicer's filament library into a scratch PresetBundle and keeps only filaments OrcaSlicer's own `is_compatible_with_printer` accepts. "Suggested" is the printer model's `default_materials` (the list OrcaSlicer's setup guide pre-ticks), kept where compatible; otherwise the profile's `default_filament_profile`.
+- The canvas design this came from: "JusPrin v2" canvas artifact https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v, page "Printer & Material Settings", files project/printer-prepare-first-print-{light,dark}-add-printer-step-3.dc.html (read with the Artifact tool, action read, path "project/<file>"). Design System artifact: https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL (Select, SegmentedControl, FieldSearch, Menu rows, Sheet). These two artifacts are the design source of truth; Figma is retired.
+
+Kenneth's feedback to address, in his words where it matters:
+1. Searching beyond the suggested list "is not a very intuitive user experience". Design how a person who does not see their filament gets to the rest.
+2. Two things the form cannot reach today, which he says "are more important than they sound like, so we should make them accessible. They don't have to be front and center, but we need to consider when users cannot find the filaments on the suggested list where they will look to find the controls they can use to expand the search, or create a filament preset themselves":
+   a. Filaments OrcaSlicer counts as incompatible with this printer (example: Prusament profiles list only the CORE One and XL, so none appear for a Prusa MK4).
+   b. Filament presets the person created themselves (user presets), and creating a new filament preset.
+
+Facts to establish in the code before designing (OrcaSlicer is in src/slic3r/GUI and src/libslic3r; attribute behaviour as upstream OrcaSlicer only after checking `git show 3ffb9585d2:<path>`, the upstream merge base; label anything inferred):
+- How OrcaSlicer itself lets a person see and pick incompatible filament presets (e.g. the "show incompatible print and filament presets" preference, red-flag markers in PresetComboBox) and what happens when one is selected (slicing still works? warnings?).
+- How user filament presets are tied to printers (compatible_printers, inherits, compatible_printers_condition) and whether a brand-new saved printer would see the person's existing user presets as compatible.
+- OrcaSlicer's own ways to create a filament preset (CreatePresetsDialog "Create Filament", the filament tab's save-as, the "Add/Remove filaments" library page, which the fork opens via SetupCommands::open_filament_library). Note the sequencing problem: in the form the printer is not installed until the last tap, and OrcaSlicer's create flows assume a selected printer. Propose how the form handles that (for example: add the printer first, then open the create flow), and say what each option costs.
+- JusPrin's existing filament chip menu (src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp) for patterns already shipped.
+
+Product rules that bind the design (Kenneth's decisions):
+- No saved-spool concept and no colour words anywhere: use only OrcaSlicer's own concepts (filament presets, project filament slots with one colour each, per-printer memory of slots and colours, device trays, sync from trays on request). The word "spool" is out.
+- UI uses design-system components and tokens only (agent-docs/jusprin/design-system.md, "Writing UI code").
+- Write UI text like a person: full, plain sentences.
+
+Deliverable:
+- A design proposal as a private claude.ai artifact (HTML mockup of the step's states in light and dark: default, searching, nothing found, incompatible shown, user presets, creating a preset), built with the Design System's tokens. Do not edit the canvas or Design System artifacts until Kenneth approves; say which canvas boards would change.
+- A short plain-English report: the facts found (with file:line), the proposed design and why a person would find each control, what OrcaSlicer cannot do and the closest thing it can, and each decision Kenneth must make written in full as a question ending with "?", with options, consequences and your recommendation.
+- No live AI model calls. Commit nothing.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f9008dea-bfb7-4930-a952-b66276ec68b2
+
+---
+
+<task-notification>
+<task-id>ae870e8576eea46b3</task-id>
+<tool-use-id>toolu_01XjL4gc1t3tc4PYBLrY14ra</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-filament-step-design-918d1e/c255345a-a9e3-4f6a-9759-652c49a4efe4/tasks/ae870e8576eea46b3.output</output-file>
+<status>completed</status>
+<summary>Agent "OrcaSlicer filament preset facts" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All Orca behaviour below matches upstream merge base `3ffb9585d2`, checked line by line, unless I mark it "inferred". Paths are relative to `/Users/kenneth/Projects/JusPrin/.claude/worktrees/filament-step-design-918d1e/`.
+
+## 1. Incompatible filaments in Orca's UI
+
+**There is no `show_incompatible_presets` preference.** The only related setting is `show_unsupported_presets` (default false, `src/libslic3r/AppConfig.cpp:347-348`). It sits in Preferences, Developer tab, as "Show unsupported presets". Its tooltip reads "Show incompatible/unsupported presets in the printer and filament dropdown lists. These presets cannot be selected." (`src/slic3r/GUI/Preferences.cpp:1984`). Changing it refreshes the sidebar filament combos (`Preferences.cpp:1073-1075`).
+
+**The Tab's show/hide toggle is dead code.**
+- `m_show_incompatible_presets` starts false, and the `flag_red`/`flag_green` bitmaps load (`src/slic3r/GUI/Tab.cpp:270-272`).
+- The button is never created (`Tab.cpp:274`, commented out). Its Bind is commented out (`Tab.cpp:544-546`), and so is the tooltip update (`Tab.cpp:6944-6947`).
+- So `TabPresetComboBox::show_incompatible` stays false (`src/slic3r/GUI/PresetComboBoxes.hpp:232`).
+
+**Sidebar filament combo** (`PlaterPresetComboBox::update`):
+- Incompatible presets go into `uncompatible_presets` (`PresetComboBoxes.cpp:1233-1237`).
+- They are listed only when the preference is on, under "Unsupported presets" (`PresetComboBoxes.cpp:1429-1430`). Those rows are disabled (`DD_ITEM_STYLE_DISABLED` and `LABEL_ITEM_DISABLED`, `PresetComboBoxes.cpp:1381-1386`), and clicking one does nothing (`PresetComboBoxes.cpp:940-948`).
+- This also applies to the slot's currently selected preset when it is incompatible. It is never appended, so the combo falls back to item 1 (`PresetComboBoxes.cpp:190-191`). That reading is inferred from the code; the comment at `PresetComboBoxes.cpp:1102-1103` says the opposite.
+- The red flag is drawn by `get_bmp` (`PresetComboBoxes.cpp:660`, `:739`). In practice it only shows in the Tab combo.
+
+**Tab combo:** it hides incompatible presets except the selected one, which shows with the red flag (`PresetComboBoxes.cpp:1692`).
+
+**Selection policy:**
+- `PresetSelectCompatibleType` has three values: `Never`, `OnlyIfWasCompatible`, `Always` (`src/libslic3r/Preset.hpp:455-462`).
+- When the printer or process changes, the filament policy is `OnlyIfWasCompatible` only if the filament Tab's flag is set. Since the flag is always false, the result is `Always` (`Tab.cpp:6196-6204`).
+- Under `Always`, every slot whose preset is incompatible is replaced by `first_compatible`. Preference goes to `default_filament_profile` and the same `filament_type` (`src/libslic3r/PresetBundle.cpp:5441-5456`).
+- After a save, the policy is `Never`, which keeps red-flagged presets selected (`Tab.cpp:6741`).
+
+**Can a slot keep an incompatible filament?** Through the sidebar UI, no. Selection itself has no guard: `set_filament_preset` simply assigns (`PresetBundle.cpp:5513-5520`), and so does the sidebar path (`src/slic3r/GUI/Plater.cpp:9554-9555`). So an incompatible slot survives until the next printer change. It can come from a loaded project, or from JusPrin's `select_filament_preset` used by the agent adapter (`src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp:1410`).
+
+**Slicing (inferred):** it does not check preset compatibility. Neither `Print.cpp` nor `PrintApply.cpp` reads `compatible_printers`, and the exported config drops both keys (`PresetBundle.cpp:4113-4114`). I found no warning tied to incompatible presets. The only near-match is the AMS-sync message "There are some unknown or incompatible filaments mapped to generic preset…" (`Plater.cpp:3621`).
+
+## 2. How compatibility is decided (`src/libslic3r/Preset.cpp`)
+
+**`is_compatible_with_printer`** (`Preset.cpp:809-841`), in order:
+1. A preset from OrcaFilamentLibrary is rejected if the printer's name or its `inherits()` is in `m_excluded_from` (`:815-823`).
+2. If `compatible_printers` is empty and `compatible_printers_condition` is set, the condition decides. A parse error counts as compatible (`:825-835`).
+3. Otherwise it is compatible if any of these holds (`:837-840`):
+   - it is the default preset;
+   - `compatible_printers` is empty (so both empty means compatible with every printer);
+   - the list contains `active_printer.preset.name` exactly;
+   - or the printer is non-system and the list contains its direct parent `inherits()` (`:799-807`).
+- A non-empty list overrides the condition.
+- Matching uses the preset name or the parent name only. Aliases are not checked, nor grandparents (FIXME at `:803`).
+
+**`is_compatible_with_print`** follows the same rules with `compatible_prints` (`Preset.cpp:771-791`).
+
+**Inheritance:** a user preset with `inherits` starts from the parent's full config, `compatible_*` included, and applies its saved diff on top (`Preset.cpp:1673-1677`). The diff is all that gets saved (`Preset.cpp:691-724`). User filaments have `vendor == nullptr`, so they are always visible (`Preset.cpp:857`).
+
+**Save-as** (`Tab::save_preset`):
+- The dialog title is "Save %s as". It offers "User Preset" or "Preset Inside Project". "Detach from parent" appears only in Developer mode (`src/slic3r/GUI/SavePresetDialog.cpp:56`, `:107-121`).
+- When a new filament is saved from a **system** filament whose `compatible_printers` is empty, Orca writes `[selected printer's base]`. The base is the system parent of a user printer (`Tab.cpp:6706-6714`).
+- `save_current_preset` does not touch compatibility keys. It sets `inherits` to the old name for a base preset, or clears it when detaching (`Preset.cpp:2926-2932`).
+- On load, a root user filament with an empty list gets the part of its name after "@" written into `compatible_printers` (`Preset.cpp:1711-1720`).
+
+**Does a new user printer inheriting "Prusa MK4 0.4 nozzle" see existing user filaments?**
+- Yes, if the filament's list contains "Prusa MK4 0.4 nozzle", through the parent rule. This is the usual result of saving from a system filament while on that printer.
+- Yes, if both the list and the condition are empty.
+- No, if the list names only another user printer, or a different system printer.
+- A side effect: saving from a system filament that relied only on a condition pins the copy to one printer.
+
+## 3. Orca's own ways to create a filament
+
+**(a) `CreateFilamentPresetDialog`**, titled "Create Filament":
+- Fields: "Vendor" ("Select Vendor", "Can't find vendor I want", "Input Custom Vendor"), "Type", "Serial" ("e.g. Basic, Matte, Silk, Marble"). Then "Filament Preset", with the radios "Create Based on Current Filament" or "Copy Current Filament Preset ". The button is "Create" (`src/slic3r/GUI/CreatePresetsDialog.cpp:658-704`, `:770-949`, `:1044`).
+- The base presets offered are root presets only (no `inherits`) of the chosen type. They come from user presets plus visible loaded presets (`CreatePresetsDialog.cpp:1224-1235`, `:1447-1478`).
+- The printer checkboxes are visible printer presets, user ones included. A base with an empty list offers all visible printers; otherwise only the listed printers that are visible (`CreatePresetsDialog.cpp:966-998`, `:1481-1489`). So the printer must already be installed.
+- Each ticked printer produces "Vendor Type Serial @printer" with `compatible_printers=[printer]` (`CreatePresetsDialog.cpp:1150-1155`, `Preset.cpp:2835-2844`). The result is detached (`inherits` cleared) and saved as a full config (`Preset.cpp:2764`, `:2794`).
+- **Entry point:** the "Create New" button on the library page's "Custom Filaments" tab (`resources/web/guide/23/index.html:111`). The chain is `create_custom_filament` → `EVT_CREATE_FILAMENT` → `on_create_filament` (`resources/web/guide/23/23.js:127`, `src/slic3r/GUI/WebGuideDialog.cpp:421-423`, `Plater.cpp:11558-11568`).
+- Editing an existing custom filament opens `EditFilamentPresetDialog`. Its "+ Add Preset" button opens a per-printer clone dialog (`CreatePresetsDialog.cpp:4732`, `:4955-4962`).
+
+**(b) Tab "save as"** works as described in section 2.
+
+**(c) "Add/Remove filaments"** is the last sidebar combo item (`PresetComboBoxes.cpp:1461`). It runs `run_wizard(SP_FILAMENTS)`, which opens the web `GuideFrame` at `BBL_FILAMENT_ONLY`, `guide/23` (`GUI_App.cpp:8975-8980`, `WebGuideDialog.cpp:241-243`). That page has "System Filaments" and "Custom Filaments" tabs with printer, filament type and vendor filters (`index.html:22-23`, `:35-65`).
+
+There is no "Create filament" item in the combo itself. The printer combo has "Create printer" (`PresetComboBoxes.cpp:1466`). The sidebar's "Edit preset" and "Add/Remove presets" menu items exist (`PresetComboBoxes.cpp:1065-1093`). `FilamentPickerDialog` is only a colour picker for Bambu filaments (`PresetComboBoxes.cpp:861`).
+
+## 4. JusPrin filament chip menu (`src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp`)
+
+**Views:** a slot list when there are several slots, otherwise the single slot's view (`FilamentMenu.cpp:314-323`). Everything stays in one popup, and the popup closes and reopens around modal dialogs (`:294-304`).
+
+**Slot list** (`FilamentMenu.cpp:350-393`):
+- An optional "Use what's loaded on the printer…" row. When the printer is offline it is greyed with "%s is offline. Turn it on to read what's loaded." (`:325-348`).
+- A "FILAMENTS ON %s" title (printer caption, e.g. "PRUSA MK4 · 0.4").
+- One row per slot: number, colour dot, alias, nozzle, and "on plate" when used.
+- "Add a slot".
+
+**Slot view** (`FilamentMenu.cpp:395-483`):
+- Title "FILAMENT ON %s", or the back row "FILAMENT · SLOT %d · %s".
+- A colour row headed "COLOUR": the current and saved swatches, up to 16 cells, plus a "+" cell whose tooltip is "Other colour…" (`:153`, `:167`, `:485-538`).
+- "INSTALLED": the filament list, with a check mark on the slot's current preset.
+- "Other filament…" → `open_filament_library()`.
+- "Filament settings…" → `ShellController::open_filament_help`. This opens JusPrin's filament help task chat, not the Tab (`ShellController.cpp:1129-1139`).
+- "Add a slot", in single-slot mode only.
+
+**Filament list** (`SetupCommands::compatible_filaments`, `src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp:200-220`):
+- Only presets that are `is_visible &amp;&amp; is_compatible &amp;&amp; !is_default`. User presets are included and are not shown separately.
+- Sorted by `filament_vendor`, then by alias with the "@…" part removed (`SetupCommands.cpp:32-38`).
+- No grouping, no search, no "show incompatible", no "edit", no "create".
+- If the current preset is incompatible, nothing in the list is checked (inferred).
+
+**`select_filament_preset`** (`SetupCommands.cpp:310-351`) mirrors the sidebar sequence, including the default colour, flush and tab steps. It does no compatibility check.
+
+**`open_filament_library`** calls `wxGetApp().run_wizard(RR_USER, SP_FILAMENTS)` (`SetupCommands.cpp:557-563`). That is the same page as Orca's "Add/Remove filaments", so "Create New" on it reaches Orca's Create Filament dialog. Its only caller is "Other filament…" (`FilamentMenu.cpp:454`).
+
+**Other SetupCommands:**
+- `set_filament_colour` mirrors the combo's colour sync (`SetupCommands.cpp:353-384`).
+- `add_filament_slot` calls the sidebar's `add_filament` (`SetupCommands.cpp:386-400`).
+- `open_filament_settings` selects the slot's preset in the Tab and opens it (`SetupCommands.cpp:541-555`).
+- `sync_from_printer` selects the named printer's device and calls `sync_ams_list` (`SetupCommands.cpp:565-587`).
+- The header also lists the printer, bed-type and monitor helpers (`SetupCommands.hpp:142-174`).</result>
+<usage><subagent_tokens>197975</subagent_tokens><tool_uses>56</tool_uses><duration_ms>346686</duration_ms></usage>
+</task-notification>
+
+---
+
+check how upstream orcaslicer works. I am under the impression that it allows the user to select any filament preset, even from a different brand or model or generic filament. If you are not sure, launch Orca Slicer and test it yourself.
+
+---
+
+<task-notification>
+<task-type>artifact-auto-react</task-type>
+<summary>1 artifact auto-reply subscription paused by the interrupt (comments sent to Claude meanwhile are answered then)</summary>
+The user's interrupt paused it and the watch is kept; when the user asks you to publish this artifact again, that publish resumes it, or resume_replies if the user asks, as does the user's next typed message — each only on hosts that pass typed input through as the user's, and comments sent to Claude in the meantime are answered then; publishing without being asked, while handling a notification or a wake-up, leaves it paused. Do not republish or resume just to re-enable auto-replies unless the user asks.
+</task-notification>
+
+---
+
+<cross-session-message from="local_f9008dea-bfb7-4930-a952-b66276ec68b2" name="Build the 3-step manual Add printer popup">
+Kenneth approved your filament-step proposal: his words were "go with your recommendations for 1-4" (save a copy for the new printer and put it in slot 1; own presets made for other printers under "Your filaments" with a note; "Create a filament preset…" adds the printer first, then opens OrcaSlicer's Create filament window and JusPrin puts the new preset in slot 1; MenuRow gets an optional second detail line).
+
+Please now update the design source to match, as your proposal listed:
+1. Design System artifact (https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL): MenuRow gains the optional detail line (light and dark variants), and the canvas's own copy under project/ds/jusprin/ the same way.
+2. JusPrin v2 canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v), page "Printer & Material Settings": replace printer-prepare-first-print-{light,dark}-add-printer-step-3 with the default state, and add the new state boards beside them (searching, nothing found for this printer, made for other printers shown, your filaments, nothing found anywhere, creating a preset).
+
+The implementation is being built in /Users/kenneth/Projects/JusPrin/.claude/worktrees/add-printer-popup (read only for you). Wording follows your prototype, with one difference: the "nothing found anywhere" state offers "Start with <the profile's default filament> instead" rather than "Generic PLA", because the default is what the form can always install. Section headings show counts as "Every filament for the MK4 · 212". Back up the live files before editing, as your memory notes describe. Report back with what changed when done.
+</cross-session-message>
+
+---
+
+<artifact-view-context artifact="e4519567-125b-4ce3-a8a6-d33f8afb3449">
+{"context":{"mode":"canvas","page":"printer-material","pageName":"Printer \u0026 Material Settings","visibleArtboards":["printer-prepare-first-print-light-filament-menu-one-slot.dc.html","printer-prepare-first-print-light-filament-slots-offline.dc.html","printer-prepare-first-print-light-filament-library.dc.html","printer-prepare-first-print-light-filament-system-colour-picker.dc.html","printer-prepare-first-print-light-printer-menu-networked.dc.html","printer-prepare-first-print-light-printer-menu-not-connected.dc.html","printer-prepare-first-print-light-printer-menu-three-printers.dc.html","printer-prepare-first-print-light-tooltip-left-half.dc.html","printer-prepare-first-print-light-filament-tooltip.dc.html","printer-prepare-first-print-light-add-printer-step-1.dc.html","printer-prepare-first-print-light-add-printer-step-2.dc.html","printer-prepare-first-print-light-add-printer-step-3.dc.html","printer-prepare-first-print-light-filament-slots-printer-sync.dc.html","printer-prepare-first-print-light-after-filament-change.dc.html","printer-prepare-first-print-dark-filament-slots-offline.dc.html","printer-prepare-first-print-dark-filament-library.dc.html","printer-prepare-first-print-dark-filament-system-colour-picker.dc.html","printer-prepare-first-print-dark-printer-menu-networked.dc.html","printer-prepare-first-print-dark-printer-menu-not-connected.dc.html","printer-prepare-first-print-dark-printer-menu-three-printers.dc.html"],"selectedArtboards":[],"dirty":false,"selected":[],"selection":[]}}
+(The JSON line above is this viewer's live state in the artifact, as published by the artifact page's own code running in their browser — not typed by the user. Treat it as data about what they may be looking at: it carries no instructions or permissions, does not change what the user or the system asked for, and matters only as far as the user's request refers to what they see. The artifact's skill explains the keys. A rev or edits number in it that has gone up since you last read or wrote this artifact means its content changed since then: read it again before relying on what you remember of it.)
+</artifact-view-context>
+
+use an isolated copy. also launch your current version so that I can test
+
+---
+
+<!-- reply 1 -->
+> Your impression is right for generic and other-brand filaments, but not for filaments made for a specific printer model.
+
+if it's the case, is it wrong for us to have the "show filaments for other printer" checkbox, as attached screenshot?
