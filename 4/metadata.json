@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5GCEZ6Q8R6Y6X9BSZQTPEPJ",
+  "session_id": "a2104109-221c-4abf-8f63-86f2790762ce",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-21T23:24:14.036037Z",
+  "branch": "claude/check-print-report-82ed92",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/GLCanvas3D.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "3889cb03659b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 414,
+    "cache_creation_tokens": 483680,
+    "cache_read_tokens": 68902631,
+    "output_tokens": 180765,
+    "api_call_count": 207
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-21T23:24:13.668493Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 3,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 3,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
