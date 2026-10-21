@@ -1,0 +1,43 @@
+Make JusPrin's "Your own API key" setup screen show whether a key is already saved, without revealing it. Repo: /Users/kenneth/Projects/JusPrin. Work in your own new worktree off jusprin-newui. Kenneth approved the design on 2026-10-21.
+
+## The design (source of truth: the Claude canvas artifact; Figma is retired)
+Canvas "JusPrin v2", https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v, page "Agent Setup · Empty State", board agent-setup-api-key-saved-vs-empty-proposal.dc.html ("api-key-field · saved vs empty · proposal"). Read it with the Artifact tool (action "read", path "project/agent-setup-api-key-saved-vs-empty-proposal.dc.html"); it is next to the existing setup-api-key boards. Five states:
+1. **No key saved.** The field shows only placeholder text, "Paste your Anthropic key (sk-ant-…)" in text-tertiary, never bullets; "Paste" sits inside the field; Check key is disabled.
+2. **Key saved.** A check icon (status-success) with "Key saved on this computer". The key is shown read-only as its start plus last 4 characters ("sk-ant-…a3F9") in the code style at full contrast, on a surface-subtle field, with "Replace" and "Remove" (Remove in status-danger). Below it: "JusPrin uses this key for every chat. Replace it to use another one."
+3. **Replacing.** An empty, focused field (2 px border-focus) "Paste the new key", with Check key, Cancel and "Keeps sk-ant-…a3F9". The saved key stays until the new one passes its check; Cancel keeps it.
+4. **Checking.** The saved key stays visible, with "Checking…" and Cancel.
+5. **Key rejected.** A circle-alert icon with "The provider rejected this key" (status-danger), and the key field outlined in status-danger with Replace and Remove. Below it: "Replace it with a working key, or remove it."
+The provider segmented control (Anthropic / OpenAI / Other…) stays at the top. Each provider shows its own state.
+
+## Facts (verified 2026-10-20)
+- Keys are stored per provider in the app's settings file as `<provider>_api_key` (src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp, api_key_item_for ~17 and load_provider_api_key ~40; the host already checks for a provider's key around line 103).
+- The setup page always opens with an empty field: SetupApiKey in src/slic3r/GUI/JusPrin/AgentUI/src/components/Setup.tsx (`useState('')` ~100), so a saved key and no key look the same today.
+- No dates are stored for keys. Don't show "added" or "last used" dates, and don't add storage for them unless Kenneth asks.
+
+## How
+- The host sends the page, per provider, only whether a key is saved and a display hint: the key's prefix up to and including its first "-" segment(s) the provider uses (e.g. "sk-ant-") plus its last 4 characters. Never send the full key to the web page.
+- Add it through the bridge (src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts and the host side) as a capability, not a protocol version bump.
+- Remove deletes the provider's key (and whatever cached Agent uses it; follow how setup already rebuilds or clears the Agent). Replace keeps the old key until the new one passes the existing check. Rejected comes from the existing check path when the saved key fails.
+- Tokens only (resources/jusprin/ui/design-tokens.json through CSS variables); read agent-docs/jusprin/design-system.md "Writing UI code" and agent-docs/jusprin/README.md first. Read agent-docs/jusprin/fork-stewardship.md before touching files outside src/slic3r/GUI/JusPrin/.
+- Tests for the host (a key's hint never contains more than prefix + last 4; Remove clears it) and for the page (each of the five states). Fail-first for any new guard (restore from a saved copy, never `git checkout`).
+- Capture the five states in the review page or the built app, light and dark, and send Kenneth the pictures.
+- Don't use Kenneth's real stored keys in tests, and make no live AI model calls without his approval. Never print a key. Commit only when he asks.
+
+---
+
+<task-notification>
+<task-id>bi2m07k3f</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-xenodochial-yonath-a3a037/59133fd8-af56-4958-bb71-9b4812c085b8/tasks/bi2m07k3f.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the app build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+check to see if the board is out of compliance by not using token.
+
+---
+
+Use Field/Secret. 
+afterward, test the app, cpature screenshots for me to review
