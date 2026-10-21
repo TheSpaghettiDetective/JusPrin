@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5DWZW1WW9J391S5D3HYR8AK",
+  "strategy": "manual-commit",
+  "branch": "claude/all-settings-edit-actions",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AllSettings.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AllSettings.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 436,
+    "cache_creation_tokens": 474424,
+    "cache_read_tokens": 75632656,
+    "output_tokens": 181023,
+    "api_call_count": 218
+  }
+}
