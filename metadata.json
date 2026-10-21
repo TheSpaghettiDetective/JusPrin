@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5GCXDKTNEMR8K2NST0TBNDM",
+  "strategy": "manual-commit",
+  "branch": "claude/inspect-copy-printable",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/jusprin_support/FakeWorkspace.hpp",
+    "tests/project_prompt/project_tools.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1030,
+    "cache_creation_tokens": 3163365,
+    "cache_read_tokens": 295172536,
+    "output_tokens": 383577,
+    "api_call_count": 515
+  }
+}
