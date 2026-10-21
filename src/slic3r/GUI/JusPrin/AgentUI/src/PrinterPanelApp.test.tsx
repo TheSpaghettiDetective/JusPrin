@@ -205,7 +205,8 @@ describe('the printer panel page', () => {
   it('navigates agent setup and resumes the printer chat when ready', async () => {
     const host = open(state({ agent: { status: 'unavailable' } }));
     await userEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Use your own API key' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Your own API key' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
     await userEvent.type(screen.getByLabelText('OpenAI API key'), 'test-key');
     await userEvent.click(screen.getByRole('button', { name: 'Check key' }));
     host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
+import { ToolGroup } from './AgentConnection';
 import { SetupScreenTitle } from './Setup';
 
 type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved';
@@ -312,31 +313,8 @@ export function SetupLocalTool({
 
   return (
     <div className="pane-state setup" data-testid="setup-local-tools">
-      <SetupScreenTitle label="Connect an AI tool" onBack={onBack} />
-      <p>Let an AI app on this computer work with the open project. JusPrin writes the connection settings; you don’t need to know what MCP is.</p>
-      <div className="setup-tool-list" role="radiogroup" aria-label="AI tools">
-        {(catalog?.tools ?? []).map((item) => (
-          <label key={item.id} className="setup-tool-row">
-            <input type="radio" name="mcp-tool" checked={selectedId === item.id} onChange={() => choose(item)} />
-            <span className="setup-tool-copy">
-              <span className="setup-tool-name">
-                {item.name}
-                {item.subtitle ? <span className="setup-tool-sub">{item.subtitle}</span> : null}
-              </span>
-              <span className={item.detected ? 'setup-detected' : 'setup-missing'}>
-                {item.detected ? 'detected' : 'not found'}
-              </span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="footnote">
-        “Detected” means JusPrin found the app or its settings file here. It doesn’t mean the app is signed in. You can
-        pick one that wasn’t found.
-      </p>
-      <button type="button" onClick={onRefresh}>
-        Refresh scan
-      </button>
+      <SetupScreenTitle label="Connect an AI tool you already use" onBack={onBack} />
+      <ToolGroup tools={catalog?.tools ?? []} onConnect={choose} onLookAgain={onRefresh} />
     </div>
   );
 }

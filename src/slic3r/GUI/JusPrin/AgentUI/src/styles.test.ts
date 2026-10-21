@@ -104,9 +104,9 @@ describe('styles.css stays on the design tokens', () => {
   // typed into one of them cannot drift from Figma unnoticed.
   it.each([
     ['.panel-link-button', ['--button-link-height', '--button-link-padding', '--font-label-bold']],
-    ['.setup-tabs', ['--segmented-height', '--segmented-padding', '--segmented-border-width', '--segmented-radius']],
-    ['.setup-tab', ['--segmented-segment-height', '--segmented-segment-padding-y', '--segmented-segment-padding-x',
-      '--font-label']],
+    // The Agent connection rows (canvas Agent/Provider Row, Agent/Tool Row).
+    ['.agent-row-action', ['--button-secondary-padding', '--button-secondary-icon-gap', '--radius-small', '--font-body-small']],
+    ['.agent-key-field', ['--provider-row-field-height', '--field-padding-x', '--radius-small', '--border-subtle']],
     ['.change-revert-tooltip', ['--tooltip-height', '--tooltip-padding-y', '--tooltip-padding-x', '--tooltip-radius',
       '--font-metadata']],
     ['.chat-menu', ['--popover-padding-y', '--popover-border-width', '--popover-radius']],

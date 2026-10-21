@@ -497,6 +497,9 @@
     "setupCard": {
       "iconSize": 14
     },
+    "providerRow": {
+      "fieldHeight": 32
+    },
     "field": {
       "height": 26,
       "radius": 4,

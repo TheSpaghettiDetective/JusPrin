@@ -21,7 +21,7 @@ import {
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
-import { ConnectedBanner, DEFAULT_PROVIDER, SetupApiKey, SetupChooser } from './components/Setup';
+import { ConnectedBanner, SetupApiKey, SetupChooser } from './components/Setup';
 import { SetupLocalTool } from './components/SetupLocalTool';
 
 let clientMessageCounter = 0;
@@ -317,9 +317,8 @@ export function App({
     if (state.setup.phase !== 'verified') return;
     // The host installs the verified service right after saying so, so the
     // dock is about to become a working chat; carry the confirmation across.
-    // The key screen stays up until that happens, so the round-trip the check
-    // measured is actually readable rather than flashing past.
-    setConnected({ provider: state.setup.provider ?? DEFAULT_PROVIDER, warning: state.setup.warning });
+    // The key screen stays up until that happens, showing the key saved.
+    setConnected({ provider: state.setup.provider ?? '', warning: state.setup.warning });
     if (state.agentStatus === 'ready') setView('chat');
   }, [state.setup.phase, state.setup.provider, state.setup.warning, state.agentStatus]);
 

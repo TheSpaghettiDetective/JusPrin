@@ -35,7 +35,7 @@ export function staticVariableNames(): string[] {
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size', '--step-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
-    '--field-height', '--field-padding-x', '--setup-card-icon-size', '--swatch-size',
+    '--field-height', '--field-padding-x', '--provider-row-field-height', '--setup-card-icon-size', '--swatch-size',
     ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key]))),
     '--composer-padding', '--composer-gap', '--composer-input-padding'];
 }
@@ -63,6 +63,8 @@ export function composerInputMaxHeight(): number {
 //                          remove dialogs use, so every printer-feature
 //                          dialog has one width, radius, and scrim (its
 //                          strength, a percentage for color-mix())
+//   --provider-row-field-height  the key field inside an Agent provider
+//                          row, tall enough to hold the Paste link
 //   --setup-card-icon-size the setup card's fact glyphs, which sit inside a
 //                          row of Label or Metadata text
 //   --swatch-size          a colour drawn beside a note, the design
@@ -92,6 +94,7 @@ export function applyStaticTokens(): void {
       replyChip: { height: number; paddingX: number };
       chatAttachment: { maxWidth: number; thumbnailSize: number; kindSize: number };
       field: { height: number; paddingX: number };
+      providerRow: { fieldHeight: number };
       printerCard: { pictureSize: number };
       setupCard: { iconSize: number };
       swatch: { size: number } };
@@ -125,6 +128,7 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--chat-attachment-kind-size', `${component.chatAttachment.kindSize}px`);
   document.documentElement.style.setProperty('--field-height', `${component.field.height}px`);
   document.documentElement.style.setProperty('--field-padding-x', `${component.field.paddingX}px`);
+  document.documentElement.style.setProperty('--provider-row-field-height', `${component.providerRow.fieldHeight}px`);
   document.documentElement.style.setProperty('--printer-card-picture-size', `${component.printerCard.pictureSize}px`);
   const composer = composerTokens();
   document.documentElement.style.setProperty('--composer-padding', `${composer.padding}px`);

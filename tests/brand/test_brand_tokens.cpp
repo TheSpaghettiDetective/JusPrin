@@ -644,6 +644,17 @@ TEST_CASE("the step dots are one size, smaller than a status dot", "[brand]")
             tokens.at("component").at("statusDot").at("size").get<int>());
 }
 
+// The key field inside an Agent provider row (canvas "Agent/Provider Row",
+// 2026-10-21) is taller than a form field so the Paste link, a 26 high link
+// button, sits inside it with room around it.
+TEST_CASE("the provider row's key field holds a link button", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("providerRow"), {{"fieldHeight", 32}}, "component.providerRow");
+    REQUIRE(tokens.at("component").at("providerRow").at("fieldHeight").get<int>() >
+            tokens.at("component").at("button").at("link").at("height").get<int>());
+}
+
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
 // sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
 // the icon scale would make the row taller than its text, so the card has

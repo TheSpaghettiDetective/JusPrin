@@ -457,6 +457,7 @@ body {
 .jp-icon-triangle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
 .jp-icon-rotate-ccw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
 .jp-icon-rotate-cw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
+.jp-icon-refresh-cw { -webkit-mask-image: url('@resources/jusprin/ui/icons/refresh-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/refresh-cw.svg'); }
 .jp-icon-lock { -webkit-mask-image: url('@resources/jusprin/ui/icons/lock.svg'); mask-image: url('@resources/jusprin/ui/icons/lock.svg'); }
 button.chat-icon {
   display: inline-flex;
@@ -2264,8 +2265,8 @@ input[type='radio']:checked {
 }
 
 /* Agent setup. The screens replace the dock body in place, so they reuse
-   .pane-state's metrics and only add the card, the provider tabs, and the
-   key row. */
+   .pane-state's metrics and add the chooser card and the screen titles; the
+   rows inside are the shared Agent connection rows below. */
 /* The setup screens are the only pane states taller than the dock: a diff, a
    command and an error banner can all be on screen at once. They scroll, so
    the actions at the bottom stay reachable in a short window. */
@@ -2279,12 +2280,11 @@ input[type='radio']:checked {
 .setup-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  gap: 16px;
   width: 100%;
   padding: 16px;
-  border-radius: var(--radius-large);
-  background: var(--surface-selected);
+  border-radius: var(--radius-medium);
+  background: var(--surface-subtle);
 }
 
 .setup-card-head {
@@ -2302,6 +2302,7 @@ input[type='radio']:checked {
 
 .setup-card p {
   margin: 0;
+  font: var(--font-body-small);
   color: var(--text-secondary);
 }
 
@@ -2321,6 +2322,44 @@ button.wide {
   color: var(--text-secondary);
 }
 
+/* A screen's title is its way back: the chevron and the name, one target. */
+.pane-state .setup-title {
+  margin: 0;
+  font: var(--font-section);
+}
+
+.setup-back {
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.setup-back:hover:enabled {
+  border-color: transparent;
+}
+
+.setup-back .jp-icon {
+  width: var(--setup-card-icon-size);
+  height: var(--setup-card-icon-size);
+}
+
+/* The two ways for people who already have an AI, under the account. */
+.setup-ways {
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px;
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.setup-card p.setup-ways-title {
+  padding-bottom: 4px;
+  font: var(--font-label-bold);
+  text-transform: uppercase;
+}
+
 .setup-row {
   display: flex;
   align-items: center;
@@ -2328,10 +2367,10 @@ button.wide {
   width: 100%;
   padding: 8px 0;
   border: none;
-  border-top: 1px solid var(--border-subtle);
   border-radius: 0;
   background: transparent;
   color: var(--text-primary);
+  font: var(--font-body);
   text-align: left;
   cursor: pointer;
 }
@@ -2340,147 +2379,17 @@ button.wide {
 .setup-row:active:enabled {
   background: transparent;
   border: none;
-  border-top: 1px solid var(--border-subtle);
 }
 
-.setup-row:disabled {
-  color: var(--action-disabled-text);
-  cursor: default;
-}
-
-/* The provider switch is the design system's Segmented Control: a subtle
-   track holding equal segments, the chosen one filled with action/primary. */
-.setup-tabs {
-  display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  height: var(--segmented-height);
-  padding: var(--segmented-padding);
-  border: var(--segmented-border-width) solid var(--border-subtle);
-  border-radius: var(--segmented-radius);
-  background: var(--surface-subtle);
-}
-
-.setup-tab {
-  flex: 1;
-  height: var(--segmented-segment-height);
-  padding: var(--segmented-segment-padding-y) var(--segmented-segment-padding-x);
-  border: none;
-  border-radius: var(--segmented-radius);
-  background: transparent;
-  font: var(--font-label);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.setup-tab:hover:enabled,
-.setup-tab:active:enabled {
-  border: none;
-}
-
-.setup-tab.selected {
-  background: var(--action-primary);
-  color: var(--action-primary-text);
-}
-
-.setup-tab.selected:hover:enabled {
-  background: var(--action-primary);
-}
-
-.setup-tab:disabled {
-  color: var(--action-disabled-text);
-  cursor: default;
-}
-
-/* The key field is the design system's Field/Secret: one bordered control,
-   with the key (or its hint) and the links that act on it inside it. */
-.setup-key {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: var(--field-height);
-  padding: 0 var(--field-padding-x);
-  border-radius: var(--radius-small);
-  background: var(--surface-canvas);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-}
-
-/* The field, not the input inside it, draws the focus ring. */
-.setup-key:has(.setup-key-input:focus-visible) {
-  box-shadow: inset 0 0 0 2px var(--border-focus);
-}
-
-/* A saved key is read-only: shown, never edited, on a filled field. */
-.setup-key--saved {
-  background: var(--surface-subtle);
-}
-
-.setup-key--rejected {
-  box-shadow: inset 0 0 0 1px var(--status-danger);
-}
-
-/* A key is code. */
-.setup-key-input {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font: var(--font-code);
-}
-
-.setup-key-input:focus,
-.setup-key-input:focus-visible {
-  outline: none;
-}
-
-.setup-key-input::placeholder {
-  font: var(--font-body);
+.setup-row .jp-icon {
+  width: var(--setup-card-icon-size);
+  height: var(--setup-card-icon-size);
   color: var(--text-secondary);
 }
 
-.setup-key-hint {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  font: var(--font-code);
-  color: var(--text-primary);
-}
-
-.setup-key button.link.setup-key-remove,
-.setup-key button.link.setup-key-remove:hover:enabled,
-.setup-key button.link.setup-key-remove:active:enabled {
-  color: var(--status-danger);
-}
-
-.setup-key-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font: var(--font-label-bold);
-  color: var(--status-success);
-}
-
-.setup-key-status--rejected {
-  color: var(--status-danger);
-}
-
-.setup-card p.setup-key-note {
+.pane-state p.setup-footnote {
+  margin-top: auto;
   font: var(--font-label);
-}
-
-.setup-keeps {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-.setup-actions button.link.setup-cancel,
-.setup-actions button.link.setup-cancel:hover:enabled,
-.setup-actions button.link.setup-cancel:active:enabled {
-  color: var(--text-primary);
 }
 
 .setup-actions {
@@ -2491,100 +2400,279 @@ button.wide {
   width: 100%;
 }
 
-.setup-result {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-.setup-result.ok {
-  color: var(--status-success);
-}
-
-.setup-result.error {
-  color: var(--status-danger);
-}
-
-/* One-time confirmation that the setup the user just completed worked. */
+/* One-time confirmation that the setup the user just completed worked:
+   a status line, so only its glyph carries the status color. */
 .setup-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 12px 8px 16px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
-  color: var(--status-success);
-  font: var(--font-label);
+  color: var(--text-primary);
+  font: var(--font-label-bold);
 }
 
-.setup-banner.warning {
+.setup-banner > .jp-icon {
+  width: var(--setup-card-icon-size);
+  height: var(--setup-card-icon-size);
+  color: var(--status-success);
+}
+
+.setup-banner.warning > .jp-icon {
   color: var(--status-warning);
 }
 
 .setup-banner-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-}
-
-.setup-tool-list {
-  width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-medium);
-  overflow: hidden;
-  background: var(--surface-canvas);
-}
-
-/* 8px vertical padding on a Body line makes the 36px menu row. */
-.setup-tool-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  font: var(--font-body);
-  cursor: pointer;
-}
-
-.setup-tool-row:last-child {
-  border-bottom: none;
-}
-
-.setup-tool-copy {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
-.setup-tool-name {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
+.setup-banner button.icon {
+  width: var(--button-icon-compact-width);
+  height: var(--button-icon-compact-height);
 }
 
-.setup-tool-sub {
+/* The Agent connection rows (canvas "Agent/Account Row", "Agent/Provider
+   Row", "Agent/Tool Row"), shared by Agent setup and Preferences › Agent.
+   A group is a short intro, rows divided by a hairline, and a footnote. */
+.agent-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.agent-group-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+}
+
+.agent-group-title,
+.agent-account-title {
+  margin: 0;
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.pane-state p.agent-group-intro,
+p.agent-group-intro {
+  margin: 0;
+  font: var(--font-body-small);
   color: var(--text-secondary);
 }
 
-.setup-detected,
-.setup-missing {
-  flex: 0 0 auto;
+.agent-group-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 12px;
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.agent-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.agent-row-line,
+.agent-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* The account's button drops under its text in a narrow dock. */
+.agent-account {
+  flex-wrap: wrap;
+}
+
+.agent-row-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-row-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  font: var(--font-body);
+  color: var(--text-primary);
+}
+
+.agent-row-detail {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.agent-row-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   font: var(--font-label);
+  color: var(--text-secondary);
 }
 
-.setup-detected {
-  color: var(--status-success);
+/* The glyph stays with its words in a narrow dock; only the hint drops to a
+   line of its own. */
+.agent-row-status-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.setup-missing {
+.agent-row-status .jp-icon,
+.agent-row-action .jp-icon {
+  width: var(--setup-card-icon-size);
+  height: var(--setup-card-icon-size);
+}
+
+.agent-row-status--saved .jp-icon { color: var(--status-success); }
+.agent-row-status--sessionOnly { color: var(--text-primary); }
+.agent-row-status--sessionOnly .jp-icon { color: var(--status-warning); }
+.agent-row-status--rejected { color: var(--status-danger); }
+
+/* A key's hint is code, and always at full contrast: it is what tells two
+   keys apart. */
+.agent-key-hint,
+.agent-key-keeps code {
+  font: var(--font-code);
+  color: var(--text-primary);
+}
+
+.agent-row-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* The design system's Button/Secondary, drawn with an inset ring so it keeps
+   its size whatever the hover does. */
+.agent-row-action {
+  flex: 0 0 auto;
+  gap: var(--button-secondary-icon-gap);
+  padding: var(--button-secondary-padding);
+  border: 0;
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  font: var(--font-body-small);
+  white-space: nowrap;
+}
+
+.agent-row-action:hover:enabled {
+  background: var(--surface-subtle);
+}
+
+.agent-row-action:disabled {
+  color: var(--action-disabled-text);
+}
+
+.agent-row-action--danger,
+.agent-row-action--danger:disabled {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+  color: var(--status-danger);
+}
+
+.agent-row-action--danger:disabled {
+  opacity: 0.4;
+}
+
+.agent-key-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-key-label {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* Field/Secret, tall enough to hold the Paste link inside it. The field, not
+   the input, draws the ring. */
+.agent-key-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--provider-row-field-height);
+  padding: 0 4px 0 var(--field-padding-x);
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.agent-key-field:focus-within {
+  box-shadow: inset 0 0 0 var(--focus-width) var(--border-focus);
+}
+
+.agent-key-field--error,
+.agent-key-field--error:focus-within {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}
+
+.agent-key-field--locked {
+  background: var(--action-disabled);
+}
+
+.agent-key-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: var(--font-code);
+}
+
+.agent-key-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.agent-key-field--locked .agent-key-input {
+  color: var(--action-disabled-text);
+}
+
+.agent-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-key-checking {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.agent-key-keeps {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.pane-state p.agent-key-error,
+p.agent-key-error {
+  margin: 0;
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+.pane-state p.agent-row-note,
+p.agent-row-note {
+  margin: 0;
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
