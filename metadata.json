@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5G4GAQX08P1GG00BHEFMDAD",
   "strategy": "manual-commit",
   "branch": "claude/tool-error-contract",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/ToolActivityCard.tsx",
     "src/slic3r/GUI/JusPrin/Workspace/OrcaOutline.cpp",
@@ -31,6 +31,13 @@
       "transcript": "/1/full.jsonl",
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
       "prompt": ""
     }
   ],
