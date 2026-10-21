@@ -1,0 +1,75 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an in-app agent and an MCP server that share tools. On 2026-10-21 a live run through the shell harness's --manual-mcp fixture showed that `plate_layout` with `enabled: false` sets each copy's printable flag (`ModelInstance::printable`, in `OrcaWorkspaceAdapter::lay_out`), but `workspace_inspect`'s `objects` section reports `printable` from the object's own flag (`ModelObject::printable`, `OrcaWorkspaceAdapter.cpp` around `row.printable = object.printable`). So after disabling an object, the tools still see it as printable, and a model cannot tell why copies are then refused. Branch `claude/tool-error-contract` (commit 29ae944fea, unmerged) added a plate_layout check that refuses copies of a disabled object; it reads the copies' flags.
+
+Task:
+Make `workspace_inspect` show whether an object's copies are enabled, so a tool can see what `plate_layout enabled` changed. Look at `src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp` (`object_details`, `row.printable`), the snapshot types in `Workspace/Workspace.hpp`, and `Agent/ToolResults.cpp` (the `objects` section, `printable`), plus the `workspace_inspect` output schema in `Agent/ToolRegistry.cpp`. Decide whether `printable` should mean "every copy prints" or whether a separate per-copy field is clearer; keep the output small. Read `agent-docs/jusprin/mcp-tool-extension-guide.md` first and update its `workspace_inspect` and `plate_layout` rows. Done: a disable through `plate_layout` shows in `workspace_inspect`, covered by a check in `tests/workspace/real_adapter_harness.cpp` that fails before the change and passes after, plus the agent bridge tests and the shell harness passing. Build in your own worktree with `-j4`, one build at a time.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_a47c56d0-0688-45c6-a9a5-8b8f11cd8501
+
+---
+
+<task-notification>
+<task-id>bd3c1m93j</task-id>
+<summary>Monitor event: "fresh worktree build (fail-first run)"</summary>
+<event>step 208/923</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd3c1m93j</task-id>
+<summary>Monitor event: "fresh worktree build (fail-first run)"</summary>
+<event>step 431/923</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd3c1m93j</task-id>
+<summary>Monitor event: "fresh worktree build (fail-first run)"</summary>
+<event>step 602/923</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd3c1m93j</task-id>
+<summary>Monitor event: "fresh worktree build (fail-first run)"</summary>
+<event>step 802/923</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bp1ikot4e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-curran-9ab069/b1df02b0-d82a-421a-bfe5-818d61ae478f/tasks/bp1ikot4e.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-curran-9ab069/b1df02b0-d82a-421a-bfe5-818d61ae478f/scratchpad; until grep -q "^exit=" $S/build1.log; do sleep 20; done; tail -5 $S/build1.log; grep -n "error:" $S/build1.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd3c1m93j</task-id>
+<tool-use-id>toolu_01LzfBWpkV3deQdR113yk9j1</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-curran-9ab069/b1df02b0-d82a-421a-bfe5-818d61ae478f/tasks/bd3c1m93j.output</output-file>
+<status>completed</status>
+<summary>Monitor "fresh worktree build (fail-first run)" stream ended</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bqfdxmyxc</task-id>
+<tool-use-id>toolu_01J23bfoe32nmSFQ6nSw4ztg</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-curran-9ab069/b1df02b0-d82a-421a-bfe5-818d61ae478f/tasks/bqfdxmyxc.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-magical-curran-9ab069/b1df02b0-d82a-421a-bfe5-818d61ae478f/scratchpad; until grep -q "^exit=" $S/build2.log; do sleep 15; done; grep -E "error:|^exit=" $S/build2.log | head; grep -c "OrcaWorkspaceAdapter.cpp.o\|ToolResults.cpp.o\|real_adapter_harness.cpp.o" $S/build2.log" completed (exit code 0)</summary>
+</task-notification>
