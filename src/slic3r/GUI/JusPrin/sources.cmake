@@ -145,6 +145,12 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/LeftPaneModel.hpp
     GUI/JusPrin/Shell/ProjectPaneModel.cpp
     GUI/JusPrin/Shell/ProjectPaneModel.hpp
+    GUI/JusPrin/Shell/CheckPrintDialog.cpp
+    GUI/JusPrin/Shell/CheckPrintDialog.hpp
+    GUI/JusPrin/Shell/CheckPrintReportModel.cpp
+    GUI/JusPrin/Shell/CheckPrintReportModel.hpp
+    GUI/JusPrin/Shell/CheckPrintReportPanel.cpp
+    GUI/JusPrin/Shell/CheckPrintReportPanel.hpp
     GUI/JusPrin/Shell/PrinterMenu.cpp
     GUI/JusPrin/Shell/PrinterMenu.hpp
     GUI/JusPrin/Shell/FilamentMenu.cpp

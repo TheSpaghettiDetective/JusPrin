@@ -243,13 +243,13 @@ TEST_CASE("the spacing scale is exactly the documented one", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("dimension").at("space"),
-        {{"1", 4}, {"2", 8}, {"3", 12}, {"4", 16}, {"5", 20}, {"6", 24}, {"8", 32}, {"10", 40}, {"12", 48}},
+        {{"0.5", 2}, {"1", 4}, {"2", 8}, {"3", 12}, {"4", 16}, {"5", 20}, {"6", 24}, {"8", 32}, {"10", 40}, {"12", 48}},
         "dimension.space");
     std::vector<int> values;
     for (const auto& [key, value] : tokens.at("dimension").at("space").items())
         values.push_back(value.get<int>());
     std::sort(values.begin(), values.end());
-    CHECK(values == std::vector<int>{4, 8, 12, 16, 20, 24, 32, 40, 48});
+    CHECK(values == std::vector<int>{2, 4, 8, 12, 16, 20, 24, 32, 40, 48});
 }
 
 TEST_CASE("the type roles are exactly the documented ones", "[brand]")
@@ -634,6 +634,14 @@ TEST_CASE("the status dot is one size", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("statusDot"), {{"size", 8}}, "component.statusDot");
+}
+
+// The header row of a collapsible group: a section of the Check print report
+// and a settings group share it, so the two lists line up row for row.
+TEST_CASE("the group header is one height", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("groupHeader"), {{"height", 32}}, "component.groupHeader");
 }
 
 // The printer form's step marker (the canvas's add-printer steps): one dot per

@@ -1,6 +1,7 @@
 #include "CanvasPresentationController.hpp"
 
 #include "Canvas/ViewportToolStrip.hpp"
+#include "slic3r/GUI/GCodeViewer.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 
 namespace Slic3r::GUI::JusPrin {
@@ -72,6 +73,42 @@ bool CanvasPresentationController::toggle_tool(GLGizmosManager::EType type)
     m_canvas->set_as_dirty();
     m_canvas->request_extra_frame();
     return true;
+}
+
+PreviewPresentationController::PreviewPresentationController(GLCanvas3D& canvas) : m_canvas(&canvas)
+{
+    m_previous_legend          = canvas.get_gcode_viewer().is_legend_shown();
+    m_previous_overlays_hidden = canvas.legacy_overlays_hidden();
+    m_previous_gcode_window    = wxGetApp().show_gcode_window();
+    canvas.set_legacy_overlays_hidden(true);
+    // Through OrcaSlicer's own toggle, so the viewer repaints as it does for
+    // the C key.
+    if (m_previous_gcode_window)
+        wxGetApp().toggle_show_gcode_window();
+}
+
+PreviewPresentationController::~PreviewPresentationController()
+{
+    if (wxGetApp().show_gcode_window() != m_previous_gcode_window)
+        wxGetApp().toggle_show_gcode_window();
+    if (m_canvas == nullptr)
+        return;
+    set_legend_shown(m_previous_legend);
+    m_canvas->set_legacy_overlays_hidden(m_previous_overlays_hidden);
+}
+
+void PreviewPresentationController::set_legend_shown(bool shown)
+{
+    if (m_canvas == nullptr)
+        return;
+    m_canvas->get_gcode_viewer().show_legend(shown);
+    m_canvas->set_as_dirty();
+    m_canvas->request_extra_frame();
+}
+
+bool PreviewPresentationController::legend_shown() const
+{
+    return m_canvas != nullptr && m_canvas->get_gcode_viewer().is_legend_shown();
 }
 
 } // namespace Slic3r::GUI::JusPrin

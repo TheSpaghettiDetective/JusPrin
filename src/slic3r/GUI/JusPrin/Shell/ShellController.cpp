@@ -262,7 +262,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
 
         Agent::AgentRuntime agent = Agent::load_agent_runtime(wxGetApp().app_config);
 
-        m_status_row = new StatusRow(&frame, *m_theme, *plater, tabpanel, *m_persistence);
+        m_status_row = new StatusRow(&frame, *m_theme, *plater, tabpanel, *m_workspace, *m_persistence);
         m_agent_pane = new AgentPane(&frame, *m_theme, *m_workspace, *m_persistence, agent.availability,
                                      std::move(agent.service), std::move(agent.setup),
                                      (boost::filesystem::path(data_dir()) / "jusprin" / "mcp.json").string());

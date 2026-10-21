@@ -78,8 +78,11 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.radius_large == 12);
     CHECK(m.radius_chip == 4);
     CHECK(m.radius_full == 14);
+    CHECK(m.space_half == 2);
     CHECK(m.space_1 == 4);
     CHECK(m.space_12 == 48);
+    CHECK(m.status_dot.size == 8);
+    CHECK(m.group_header.height == 32);
 
     CHECK(m.elevation_medium.offset_x == 0);
     CHECK(m.elevation_medium.offset_y == 4);
@@ -88,6 +91,9 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     // Black at 0.12 opacity in light mode and 0.32 in dark, as alpha.
     CHECK(theme.palette(false).elevation_medium == wxColour(0, 0, 0, 31));
     CHECK(theme.palette(true).elevation_medium == wxColour(0, 0, 0, 82));
+    // elevation.subtle: black at 0.08 in light mode and 0.24 in dark.
+    CHECK(theme.palette(false).elevation_subtle == wxColour(0, 0, 0, 20));
+    CHECK(theme.palette(true).elevation_subtle == wxColour(0, 0, 0, 61));
 
     CHECK(m.chip.height == 28);
     CHECK(m.chip.radius == 4);

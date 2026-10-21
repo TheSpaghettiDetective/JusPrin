@@ -204,6 +204,7 @@
   },
   "dimension": {
     "space": {
+      "0.5": 2,
       "1": 4,
       "2": 8,
       "3": 12,
@@ -493,6 +494,9 @@
     },
     "statusDot": {
       "size": 8
+    },
+    "groupHeader": {
+      "height": 32
     },
     "stepDots": {
       "size": 6

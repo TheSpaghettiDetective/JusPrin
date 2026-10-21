@@ -15,9 +15,11 @@ add_executable(jusprin_tests
     test_project_pane_model.cpp
     test_print_issues.cpp
     test_load_facts.cpp
+    test_check_print_report.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/FilamentChipModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/LeftPaneModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/ProjectPaneModel.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Shell/CheckPrintReportModel.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/LoadFacts.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
