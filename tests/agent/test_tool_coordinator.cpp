@@ -1256,6 +1256,33 @@ TEST_CASE("a placement names mirror and scale, and auto-orient reports through t
     CHECK_FALSE(invalid(json{{"instance", 0}, {"dropToBed", true}}));
 }
 
+TEST_CASE("an object a layout disabled reads as not printing", "[tools][layout]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    const std::string cube    = std::to_string(h.cube_id().value());
+    const auto inspect_objects = [&](const std::string& message) {
+        const std::string read =
+            h.coordinator.submit({"workspace_inspect", json{{"sections", json::array({"objects"})}}.dump()}, message).action_id;
+        h.coordinator.pump();
+        REQUIRE(h.coordinator.find(read)->state == ToolState::Succeeded);
+        const auto result = json::parse(h.coordinator.find(read)->result_json);
+        CHECK(registry.validate_output(*registry.find("workspace_inspect"), result));
+        return result["objects"]["items"][0];
+    };
+    CHECK(inspect_objects("m-1")["printable"] == true);
+    CHECK_FALSE(inspect_objects("m-2").contains("printableInstanceCount"));
+
+    const ToolActivity disable = h.coordinator.submit(
+        {"plate_layout", json{{"sessionId", session}, {"objects", {{{"objectId", cube}, {"enabled", false}}}}}.dump()}, "m-3");
+    h.pump_to_completion(disable.action_id);
+    REQUIRE(h.coordinator.find(disable.action_id)->state == ToolState::Succeeded);
+    const json row = inspect_objects("m-4");
+    CHECK(row["printable"] == false);
+    CHECK(row["printableInstanceCount"] == 0);
+}
+
 TEST_CASE("a layout names every change and arranges as a job", "[tools][layout]")
 {
     Harness h;

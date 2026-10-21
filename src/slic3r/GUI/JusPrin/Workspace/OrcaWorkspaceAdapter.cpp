@@ -2127,7 +2127,9 @@ std::vector<ObjectDetails> OrcaWorkspaceAdapter::object_details() const
         row.id        = ObjectId(m_session, object.id().id);
         row.name      = object.name;
         row.instances = object.instances.size();
-        row.printable = object.printable;
+        for (const ModelInstance* instance : object.instances)
+            if (object.printable && instance->printable) ++row.printable_instances;
+        row.printable = row.printable_instances == row.instances;
         // Orca keeps every object's extruder in its config; that is the
         // extruder field below, not a setting the object overrides.
         row.overrides = object.config.size();

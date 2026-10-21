@@ -456,7 +456,11 @@ struct ObjectDetails
     std::string          name;
     std::vector<PlateId> plates;
     std::size_t          instances{0}, parts{0}, modifiers{0}, negative_parts{0}, support_volumes{0};
+    // Whether every copy prints: the object's own switch and each copy's.
+    // plate_layout's enabled and the object list's switch set the copies'.
     bool                 printable{true};
+    // The copies that print, out of instances.
+    std::size_t          printable_instances{0};
     int                  extruder{0};
     Vec3                 size{};
     std::size_t          overrides{0};

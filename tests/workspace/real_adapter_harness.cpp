@@ -1208,6 +1208,7 @@ private:
         verify_disabled_gizmo_wheel();
         verify_plate_type();
         verify_layout_checks_before_changing();
+        verify_layout_enabled_in_details();
         verify_first_model_is_not_an_edit();
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
@@ -1885,6 +1886,48 @@ private:
         check(workspace.lay_out(crowded, "layout-checks-6", result).succeeded() &&
                   plate_count() == int(PartPlateList::MAX_PLATES_COUNT),
               "layout_up_to_the_plate_limit_succeeds");
+    }
+
+    // plate_layout's enabled switches every copy; the objects section has to
+    // show it, or a model cannot tell why copies of the object are refused.
+    void verify_layout_enabled_in_details()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "layout_enabled_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::vector<size_t> loaded = m_plater->load_files(
+            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        check(loaded.size() == 1, "layout_enabled_cube_loaded");
+
+        OrcaWorkspaceAdapter workspace(*m_plater);
+        const ObjectDetails before = workspace.object_details().front();
+        check(before.printable, "layout_enabled_object_starts_printable");
+        LayoutRequest request;
+        LayoutObject  row;
+        row.id      = before.id;
+        row.enabled = false;
+        request.objects.push_back(row);
+        LayoutResult result;
+        check(workspace.lay_out(request, "layout-disable", result).succeeded(), "layout_enabled_disable_succeeds");
+        const ObjectDetails disabled = workspace.object_details().front();
+        check(!disabled.printable && disabled.printable_instances == 0, "layout_enabled_disable_shows_in_details");
+
+        row.enabled  = true;
+        row.quantity = 2;
+        request.objects = {row};
+        check(workspace.lay_out(request, "layout-enable", result).succeeded(), "layout_enabled_enable_succeeds");
+        const ObjectDetails enabled = workspace.object_details().front();
+        check(enabled.printable && enabled.instances == 2 && enabled.printable_instances == 2,
+              "layout_enabled_enable_shows_in_details");
+        // One copy switched off in the object list is not the whole object.
+        ModelObject& object = *m_plater->model().objects.front();
+        object.instances.front()->printable = false;
+        const ObjectDetails partly = workspace.object_details().front();
+        check(!partly.printable && partly.printable_instances == 1, "layout_enabled_one_copy_off_is_counted");
+        object.instances.front()->printable = true;
+        object.printable = false;
+        const ObjectDetails switched_off = workspace.object_details().front();
+        check(!switched_off.printable && switched_off.printable_instances == 0, "layout_enabled_object_switch_counts");
+        object.printable = true;
     }
 
     void verify_disabled_gizmo_wheel()

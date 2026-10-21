@@ -844,6 +844,7 @@ public:
             for_each_object(row.id, [&](WorkspaceObject& object) {
                 if (row.quantity) object.instances.resize(*row.quantity);
                 if (row.name) object.name = *row.name;
+                if (row.enabled) m_disabled[object.id.value()] = !*row.enabled;
             });
         for (const LayoutPlate& row : request.plates) {
             WorkspacePlate* target = nullptr;
@@ -868,6 +869,8 @@ public:
         return CommandResult::success();
     }
     LayoutRequest last_layout;
+    // A layout's enabled, per object: the fake switches every copy at once.
+    std::map<std::uint64_t, bool> m_disabled;
 
     // Analysis answers are scripted per object; a handle is good for the
     // revision the fixture was given and expires after it.
@@ -912,6 +915,9 @@ public:
                 row.plates    = {plate.id};
                 row.instances = object.instances.size();
                 row.parts     = 1;
+                const auto disabled     = m_disabled.find(object.id.value());
+                row.printable           = disabled == m_disabled.end() || !disabled->second;
+                row.printable_instances = row.printable ? row.instances : 0;
                 result.push_back(row);
             }
         return result;

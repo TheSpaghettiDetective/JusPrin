@@ -603,6 +603,7 @@ json objects_section_result(const std::vector<Workspace::ObjectDetails>& objects
                  {"supportVolumeCount", object.support_volumes}, {"printable", object.printable},
                  {"sizeMm", vector3(object.size)}, {"overrideCount", object.overrides}};
         if (object.extruder > 0) row["extruder"] = object.extruder;
+        if (!object.printable) row["printableInstanceCount"] = object.printable_instances;
         items.push_back(std::move(row));
     }
     return {{"items", std::move(items)}, {"truncated", truncated}};
