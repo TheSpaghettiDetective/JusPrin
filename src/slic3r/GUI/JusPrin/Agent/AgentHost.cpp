@@ -72,6 +72,10 @@ json message_json(const ConversationMessage& message)
         result["clientMessageId"] = message.client_message_id;
     if (!message.in_reply_to.empty())
         result["inReplyTo"] = message.in_reply_to;
+    // The page times a turn from the person's message; a message from a
+    // document written before the stamp was stored has none.
+    if (!message.created_at.empty())
+        result["createdAt"] = message.created_at;
     if (message.error)
         result["error"] = error_json(*message.error);
     if (!message.attachment_ids.empty())
@@ -1312,7 +1316,8 @@ bool AgentHost::accept_user_message(ConversationMessage message, const std::stri
     message.id    = document.allocate_message_id();
     message.role  = MessageRole::User;
     message.state = MessageState::Complete;
-    document.append_message(conversation_id, message, m_persistence.timestamp());
+    message.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, message, message.created_at);
     // The page's staged-attachment list only drops an entry once it hears
     // this back; every other place that changes an attachment's state sends
     // it too.
@@ -1602,7 +1607,8 @@ std::string AgentHost::post_assistant_message(const std::string& text)
     message.role  = MessageRole::Assistant;
     message.state = MessageState::Complete;
     message.text  = text;
-    document.append_message(conversation_id, message, m_persistence.timestamp());
+    message.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, message, message.created_at);
     m_persistence.flush();
     // Like a note, this starts nothing: it is a line the panel always says,
     // and the model reads it as history on the person's first turn.
@@ -1623,7 +1629,8 @@ std::string AgentHost::post_note(const std::string& text, const std::string& swa
     note.state = MessageState::Complete;
     note.text  = text;
     note.swatch = swatch;
-    document.append_message(conversation_id, note, m_persistence.timestamp());
+    note.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, note, note.created_at);
     m_persistence.flush();
     // A note starts nothing: no reply, no title generation, no tool run. It
     // reaches a connected page as an ordinary message_added; a page that is
@@ -1663,7 +1670,8 @@ void AgentHost::on_file_loaded(const Workspace::LoadReport& report)
     note.state            = MessageState::Complete;
     note.file_report      = load_report_result(report).dump();
     note.file_report_card = !agent_speaks;
-    document.append_message(conversation_id, note, m_persistence.timestamp());
+    note.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, note, note.created_at);
     m_persistence.flush();
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
     if (agent_speaks)
@@ -1717,7 +1725,8 @@ bool AgentHost::slice_ended(const std::string& action_id)
     note.role  = MessageRole::Note;
     note.state = MessageState::Complete;
     note.text  = text;
-    document.append_message(conversation_id, note, m_persistence.timestamp());
+    note.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, note, note.created_at);
     m_persistence.flush();
     send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
     start_turn(note.id);
@@ -2395,7 +2404,8 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         failed.error       = instructions_missing ?
                                  AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
                                  AgentError{"agent_unavailable", "The Agent service is not available.", true};
-        document.append_message(conversation_id, failed, m_persistence.timestamp());
+        failed.created_at = m_persistence.timestamp();
+        document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
         send_envelope(Protocol::kAssistantStarted, json{{"messageId", failed.id}, {"inReplyTo", user_message_id}, {"attempt", 1}}.dump());
         send_envelope(Protocol::kAssistantFailed, json{{"messageId", failed.id}, {"error", error_json(*failed.error)}}.dump());
@@ -2407,7 +2417,8 @@ void AgentHost::begin_reply(const std::string& user_message_id)
     assistant.role        = MessageRole::Assistant;
     assistant.state       = MessageState::Streaming;
     assistant.in_reply_to = user_message_id;
-    document.append_message(conversation_id, assistant, m_persistence.timestamp());
+    assistant.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, assistant, assistant.created_at);
     m_persistence.commit();
     begin_stream(std::move(assistant), conversation_id);
 }
@@ -2859,7 +2870,8 @@ void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)
     assistant.role        = MessageRole::Assistant;
     assistant.state       = MessageState::Streaming;
     assistant.in_reply_to = continuation.user_message_id;
-    document.append_message(continuation.conversation_id, assistant, m_persistence.timestamp());
+    assistant.created_at = m_persistence.timestamp();
+    document.append_message(continuation.conversation_id, assistant, assistant.created_at);
     m_persistence.commit();
 
     ActiveStream stream;

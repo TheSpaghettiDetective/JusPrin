@@ -1392,6 +1392,9 @@ struct WorkspaceEdit
     std::string before, after, preset;
     // Setting only. Optional so stored edits from older builds stay valid.
     std::string key;
+    // Preset only: which preset was switched, "printer", "filament" or
+    // "process", so the change log can draw one printer setup as one row.
+    std::string location;
 };
 
 using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;

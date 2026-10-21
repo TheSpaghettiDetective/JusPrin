@@ -644,6 +644,93 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-label);
 }
 
+/* One turn's tool work as Chat/System Line: a 24 DIP line of Label in
+   text/secondary that opens into one such line per action, 16 in. While the
+   turn runs the words shimmer from secondary to primary and back, the page's
+   one motion, timed by the turnActivity token; a reader who asked for less
+   motion gets the words still. */
+.turn-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: stretch;
+  min-width: 0;
+}
+.turn-activity-line {
+  display: flex;
+  align-items: center;
+  /* WebKit centres a flex button's content unless told otherwise. */
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: var(--font-label);
+  text-align: left;
+  cursor: pointer;
+}
+.turn-activity-line:disabled { cursor: default; }
+/* The words shrink before the chevron does, so the chevron sits right after
+   them and a long title ellipsizes. */
+.turn-activity-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The running glyph turns, one revolution per spin token, so motion says
+   "still going" where a still arrow could not. */
+.turn-activity-spinner {
+  animation: turn-activity-spin var(--turn-activity-spin-duration) linear infinite;
+}
+@keyframes turn-activity-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.turn-activity-text.shimmer {
+  color: transparent;
+  background: linear-gradient(90deg, var(--text-secondary) 0%, var(--text-primary) 50%, var(--text-secondary) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: turn-activity-shimmer var(--turn-activity-shimmer-duration) linear infinite;
+}
+@keyframes turn-activity-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-activity-text.shimmer { animation: none; color: var(--text-secondary); background: none; }
+  .turn-activity-spinner { animation: none; }
+}
+.turn-activity-log {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 0 16px;
+}
+.turn-activity-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+.turn-activity-action.edit { color: var(--text-primary); }
+.turn-activity-action.state-failed { color: var(--status-danger); }
+.turn-activity-action-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* A host note is a statement of fact about the project, not a turn in the
    conversation, so it takes no bubble, no border, and no author side. */
 .message.note {

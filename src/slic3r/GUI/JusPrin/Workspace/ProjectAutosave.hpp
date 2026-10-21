@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <future>
 #include <memory>
 #include <optional>
@@ -53,8 +54,15 @@ public:
     std::string current_version() const;
     std::vector<ProjectVersionStore::Version> history();
     std::string pin_current();
+    // Links an Agent action to the version pinned before it and, when `save`,
+    // to a version saved now. During a model turn the shell links only the
+    // before-version: the turn's end saves once for all its actions.
     void record_agent_operation(const std::string& action_id, const std::string& tool,
-                                const std::string& outcome, const std::string& before);
+                                const std::string& outcome, const std::string& before, bool save = true);
+    // While `hold` answers true the periodic probe saves the document but not
+    // the model, so a model turn's edits make one version at its end rather
+    // than one every quiet second. save_now and pin_current are unaffected.
+    void set_capture_hold(std::function<bool()> hold) { m_capture_hold = std::move(hold); }
     bool restore(const std::string& version_id);
     // Restores the version a chat was left on and makes the chat active.
     bool restore_chat(const std::string& version_id, const std::string& conversation_id);
@@ -124,6 +132,7 @@ private:
     State m_state{State::Saving};
     std::string m_error;
     std::string m_warning;
+    std::function<bool()> m_capture_hold;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

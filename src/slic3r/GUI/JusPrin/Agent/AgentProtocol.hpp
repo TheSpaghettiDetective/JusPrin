@@ -193,6 +193,7 @@ struct ConversationMessage
     std::string               text;
     std::string               client_message_id; // user messages: page-supplied dedup ID
     std::string               in_reply_to;       // assistant messages: the user message ID
+    std::string               created_at;        // the host's timestamp when stored; empty before it is
     std::optional<AgentError> error;
     int                       attempt{1};
     std::vector<std::string>  attachment_ids;    // user messages: sent attachment IDs

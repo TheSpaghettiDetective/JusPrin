@@ -213,7 +213,49 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
       index = end;
       continue;
     }
+    // One printer setup switches up to three presets at once, each logged
+    // on its own. Consecutive agent preset switches after the same call read
+    // as one row: the printer's name as the title, the presets that followed
+    // it in the meta. Entries logged before the host said which preset was
+    // which still merge, led by the first.
     const run = runs[index];
+    if (run.last.kind === 'preset' && run.last.actor === 'agent' && !run.last.external) {
+      let end = index + 1;
+      while (end < runs.length && runs[end].last.kind === 'preset' && runs[end].last.actor === 'agent' &&
+             !runs[end].last.external && runs[end].last.afterId === run.last.afterId)
+        end += 1;
+      if (end - index > 1) {
+        const group = runs.slice(index, end);
+        const lead = group.find((item) => item.last.location === 'printer') ?? group[0];
+        const followed = group.filter((item) => item !== lead).map((item) => item.last.label);
+        const tail = group[group.length - 1];
+        const time = chatTimestamp(tail.last.createdAt);
+        entries.push(
+          <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
+            <span className="change-icon" aria-hidden="true">✎</span>
+            <div className="change-text">
+              <span className="change-title">{title(lead)}</span>
+              <span className="change-meta">{[...followed, 'Agent', ...(time ? [time] : [])].join(' · ')}</span>
+            </div>
+            {onRevert && points.has(tail.last.seq) && (
+              <span className="change-revert-action">
+                <button type="button" className="change-revert-button" aria-label="Revert to here"
+                  aria-expanded={open === points.get(tail.last.seq)}
+                  onClick={(event) => {
+                    anchor.current = event.currentTarget;
+                    setOpen(open === points.get(tail.last.seq) ? null : points.get(tail.last.seq)!);
+                  }}>
+                  <span className="change-revert-icon" aria-hidden="true" />
+                </button>
+                <span className="change-revert-tooltip" role="tooltip">Revert to here</span>
+              </span>
+            )}
+          </div>,
+        );
+        index = end;
+        continue;
+      }
+    }
     entries.push(
       <div key={run.first.seq} className="change-row" role="listitem" data-testid={`change-${run.first.seq}`}>
         <span className="change-icon" aria-hidden="true">✎</span>

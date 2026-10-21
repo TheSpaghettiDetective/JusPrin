@@ -2819,7 +2819,10 @@ void OrcaWorkspaceAdapter::record_settings_edits(bool report)
     if (report && m_presets.size() == now.size())
         for (std::size_t index = 0; index < now.size(); ++index) {
             if (m_presets[index].name != now[index].name) {
-                publish_edit({EditKind::Preset, EditActor::Person, now[index].name});
+                WorkspaceEdit edit{EditKind::Preset, EditActor::Person, now[index].name};
+                edit.location = collections[index].second == Preset::TYPE_PRINTER ? "printer"
+                              : collections[index].second == Preset::TYPE_FILAMENT ? "filament" : "process";
+                publish_edit(std::move(edit));
                 continue;
             }
             for (const WorkspaceEdit& edit : setting_edits(m_presets[index].deltas, now[index].deltas,

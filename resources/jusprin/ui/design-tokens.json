@@ -420,6 +420,10 @@
     "threadRow": {
       "lineGap": 2
     },
+    "turnActivity": {
+      "shimmerMs": 1600,
+      "spinMs": 1000
+    },
     "timelineSummary": {
       "paddingX": 8,
       "paddingY": 8,

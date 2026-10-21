@@ -213,6 +213,9 @@ private:
     // after the workspace and before the pane, destroyed in reverse.
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
+    // The version pinned before a model turn's first edit; every later edit
+    // of the turn links to it, and the turn's end clears it.
+    std::string m_turn_before_version;
     std::string m_autosave_status_key;
     std::string m_timeline_version_head;
     std::uint64_t m_timeline_document_revision{0};

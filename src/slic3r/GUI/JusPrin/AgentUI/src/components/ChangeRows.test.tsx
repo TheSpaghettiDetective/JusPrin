@@ -14,8 +14,8 @@ function change(seq: number, overrides: Partial<ChangeInfo> = {}): ChangeInfo {
   return { seq, createdAt: now, kind: 'step', actor: 'person', label: 'Rotate', conversationId: 'conv-1', afterId: 'm-2', ...overrides };
 }
 
-function message(id: string, role: Message['role'], text: string): Message {
-  return { id, role, state: 'complete', text, attempt: 1, lastSeq: -1 };
+function message(id: string, role: Message['role'], text: string, extra: Partial<Message> = {}): Message {
+  return { id, role, state: 'complete', text, attempt: 1, lastSeq: -1, ...extra };
 }
 
 const turns = [message('m-1', 'user', 'Make it strong'), message('m-2', 'assistant', 'Done, laid flat.')];
@@ -219,5 +219,30 @@ describe('change rows in the thread', () => {
   it('puts changes made before the first message at the top', () => {
     const { container } = thread([change(1, { afterId: '' })]);
     expect(container.querySelector('.message-list')!.firstElementChild!.className).toBe('change-rows');
+  });
+});
+
+describe('a printer setup', () => {
+  it('reads its three preset switches as one row led by the printer, the rest in the meta', () => {
+    thread([
+      change(1, { kind: 'preset', actor: 'agent', label: '0.20mm Standard @BBL A1', location: 'process' }),
+      change(2, { kind: 'preset', actor: 'agent', label: 'Bambu PLA Basic @BBL A1', location: 'filament' }),
+      change(3, { kind: 'preset', actor: 'agent', label: 'Bambu Lab A1', location: 'printer' }),
+    ]);
+    const merged = rows();
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toContain('Switched to Bambu Lab A1');
+    expect(merged[0]).toContain('0.20mm Standard @BBL A1 · Bambu PLA Basic @BBL A1 · Agent');
+  });
+
+  it('keeps a person’s switches, and switches after different calls, as rows of their own', () => {
+    thread([
+      change(1, { kind: 'preset', actor: 'person', label: 'Generic PLA', location: 'filament' }),
+      change(2, { kind: 'preset', actor: 'person', label: 'Bambu Lab A1', location: 'printer' }),
+      change(3, { kind: 'preset', actor: 'agent', label: 'Bambu PLA Basic @BBL A1', location: 'filament', afterId: 'm-2' }),
+      change(4, { kind: 'preset', actor: 'agent', label: 'Bambu Lab A1 mini', location: 'printer', afterId: 'm-1' }),
+    ], { messages: [message('m-1', 'user', 'Switch'), message('m-2', 'assistant', 'Switched.', { inReplyTo: 'm-1' })] });
+    expect(rows()).toHaveLength(4);
+    expect(rows()[0]).toContain('you, filament');
   });
 });

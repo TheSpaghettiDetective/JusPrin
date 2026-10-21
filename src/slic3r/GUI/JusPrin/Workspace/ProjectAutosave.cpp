@@ -634,7 +634,9 @@ void ProjectAutosave::tick()
             persist_document(false);
             return;
         }
-        if (m_store->head_id().empty() || model_input != m_last_capture_input) {
+        const bool model_pending = m_store->head_id().empty() || model_input != m_last_capture_input;
+        const bool held          = model_pending && m_capture_hold && m_capture_hold();
+        if (model_pending && !held) {
             GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
             if (canvas == nullptr || !canvas->is_initialized() ||
                 canvas->get_gizmos_manager().is_in_editing_mode(true) ||
@@ -645,7 +647,7 @@ void ProjectAutosave::tick()
             if (!document_due)
                 return;
             persist_document(false);
-        } else {
+        } else if (!held) {
             m_state = State::Saved;
             m_first_semantic_edit.reset();
         }
@@ -1082,11 +1084,11 @@ std::string ProjectAutosave::pin_current()
 }
 
 void ProjectAutosave::record_agent_operation(const std::string& action_id, const std::string& tool,
-                                             const std::string& outcome, const std::string& before)
+                                             const std::string& outcome, const std::string& before, bool save)
 {
-    const bool saved = save_now();
+    const bool saved = save && save_now();
     m_store->record_operation(action_id, tool, outcome, before, saved ? m_committed_head : std::string());
-    if (!saved)
+    if (save && !saved)
         throw std::runtime_error(m_error);
 }
 

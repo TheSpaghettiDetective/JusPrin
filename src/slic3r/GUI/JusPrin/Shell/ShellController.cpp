@@ -407,9 +407,14 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             m_agent_pane->web_view().host().refresh_page_state();
             return true;
         });
+        // A model turn saves the project once, here, after its last edit: the
+        // chat checkpoint pins the model as it is now. Edits between the
+        // turn's first and this point make no version of their own.
         m_agent_pane->web_view().host().set_turn_boundary_callback([this] {
             m_agent_pane->web_view().host().checkpoint_active_chat();
+            m_turn_before_version.clear();
         });
+        m_autosave->set_capture_hold([this] { return m_agent_pane && m_agent_pane->web_view().host().busy(); });
         Slic3r::set_backup_suspended(true);
         m_status_row->set_autosave(m_autosave.get());
         plater->set_before_project_release([this] {
@@ -475,17 +480,26 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             }
             return true;
         });
-        const auto version_before = [this](const Agent::ToolActivity&) {
+        // Within one model turn the first edit pins the version before the
+        // turn and the later edits reuse it; the turn boundary saves the
+        // result. An edit outside a turn (an external MCP client's) still
+        // pins before and saves after, as before.
+        const auto in_model_turn = [this] { return m_agent_pane && m_agent_pane->web_view().host().busy(); };
+        const auto version_before = [this, in_model_turn](const Agent::ToolActivity&) {
+            if (in_model_turn() && !m_turn_before_version.empty())
+                return m_turn_before_version;
             const std::string before = m_autosave ? m_autosave->pin_current() : std::string();
             if (before.empty())
                 throw std::runtime_error("Couldn't save the project. The action was not run.");
+            if (in_model_turn())
+                m_turn_before_version = before;
             return before;
         };
-        const auto version_after = [this](const Agent::ToolActivity& activity, const std::string& before) {
+        const auto version_after = [this, in_model_turn](const Agent::ToolActivity& activity, const std::string& before) {
             const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
                                   activity.state == Agent::ToolState::Cancelled ? "cancelled" : "failed";
             if (m_autosave)
-                m_autosave->record_agent_operation(activity.action_id, activity.tool, outcome, before);
+                m_autosave->record_agent_operation(activity.action_id, activity.tool, outcome, before, !in_model_turn());
         };
         m_agent_pane->web_view().host().tools().set_version_callbacks(version_before, version_after);
         m_agent_pane->web_view().host().tools().set_earlier_projects(

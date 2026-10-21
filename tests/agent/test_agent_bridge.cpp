@@ -644,6 +644,13 @@ TEST_CASE("a user message streams a deterministic reply to completion", "[agent]
     const ConversationMessage reply = harness.host.conversation().back();
     CHECK(reply.role == MessageRole::Assistant);
     CHECK(reply.state == MessageState::Complete);
+    // Both messages carry the host's stamp, and the page is told it: the
+    // thread times a turn from the person's message to the reply.
+    CHECK_FALSE(harness.host.conversation().front().created_at.empty());
+    CHECK_FALSE(reply.created_at.empty());
+    const json* added = harness.last_of_type("message_added");
+    REQUIRE(added != nullptr);
+    CHECK_FALSE((*added)["payload"]["message"].value("createdAt", "").empty());
     CHECK_THAT(reply.text, Catch::Matchers::ContainsSubstring("Fixture Project"));
     CHECK_THAT(reply.text, Catch::Matchers::ContainsSubstring("cube-a"));
 

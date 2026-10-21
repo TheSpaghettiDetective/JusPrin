@@ -136,8 +136,9 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     entry.label  = edit.label;
     entry.from   = edit.before;
     entry.to     = edit.after;
-    entry.preset = edit.preset;
-    entry.key    = edit.key;
+    entry.preset   = edit.preset;
+    entry.key      = edit.key;
+    entry.location = edit.location;
     const ChangeEntry stored = m_document.add_change(std::move(entry), m_config.clock());
     // The in-app agent's own edits carry out its plan; they do not put it in
     // doubt. A person's edit, Undo and Redo, and an external MCP client's

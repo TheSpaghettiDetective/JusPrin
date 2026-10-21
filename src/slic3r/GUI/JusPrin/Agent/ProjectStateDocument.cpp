@@ -126,6 +126,7 @@ ConversationMessage read_message(const json& entry)
     message.attempt           = entry.value("attempt", 1);
     message.client_message_id = entry.value("clientMessageId", "");
     message.in_reply_to       = entry.value("inReplyTo", "");
+    message.created_at        = entry.value("createdAt", "");
     if (entry.contains("error") && entry["error"].is_object())
         message.error = AgentError{entry["error"].value("code", ""), entry["error"].value("message", ""),
                                    entry["error"].value("retryable", false)};

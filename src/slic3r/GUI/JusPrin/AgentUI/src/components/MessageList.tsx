@@ -1,9 +1,11 @@
 // Conversation transcript with stable scroll anchoring: the list follows new
 // content only while the reader is at the bottom; scrolling up to reread
-// pins the viewport until they return to the bottom. Tool activity cards
-// render beneath the assistant message that called them; the change log and
-// the manufacturing history render after the conversation item they follow,
-// in the order they happened.
+// pins the viewport until they return to the bottom. In the project chat a
+// turn is one thread item: the person's message, one line for the tool work
+// the Agent did in reply, then its words; the change log and the
+// manufacturing history render after the turn they follow, in the order
+// they happened. The printer panel keeps a card per call under the message
+// that called it.
 
 import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
@@ -23,6 +25,7 @@ import { ChangeRows } from './ChangeRows';
 import { FileNotesCard } from './FileNotesCard';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
+import { TurnActivity } from './TurnActivity';
 import { collapseWork, WorkCard } from './WorkCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 import { PrinterBlockView } from './PrinterPanel';
@@ -119,6 +122,26 @@ function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, dis
   );
 }
 
+// One thread item: a message and the Agent's replies to it. In the project
+// chat every assistant message that answers the same person's message joins
+// that message's turn, however many tool calls split the model's reply into
+// messages. The printer panel keeps one item per message.
+interface Turn {
+  anchor: Message;
+  replies: Message[];
+}
+
+export function turnsOf(messages: Message[], perMessage: boolean): Turn[] {
+  const turns: Turn[] = [];
+  for (const message of messages) {
+    const current = turns[turns.length - 1];
+    if (!perMessage && current && message.role === 'assistant' && message.inReplyTo === current.anchor.id)
+      current.replies.push(message);
+    else turns.push({ anchor: message, replies: [] });
+  }
+  return turns;
+}
+
 export function MessageList({
   messages,
   attachments,
@@ -180,30 +203,150 @@ export function MessageList({
     ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
   ];
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
-  // A change follows a message or one of its tool activities; both place it
-  // after that message's group.
-  const messageOfItem = new Map<string, string>();
-  for (const message of messages) {
-    messageOfItem.set(message.id, message.id);
-    for (const activity of activitiesOf(message.id)) messageOfItem.set(activity.actionId, message.id);
-  }
-  const changesAfter = (messageId: string) => changes.filter((change) => messageOfItem.get(change.afterId) === messageId);
-  const leadingChanges = changes.filter((change) => !messageOfItem.has(change.afterId));
+  const turns = turnsOf(messages, printerPanel);
+  const messagesOf = (turn: Turn) => [turn.anchor, ...turn.replies];
+  // A change, work entry or history card follows a message or one of its
+  // tool activities; all of them place it after that message's turn.
+  const turnOfItem = new Map<string, string>();
+  for (const turn of turns)
+    for (const message of messagesOf(turn)) {
+      turnOfItem.set(message.id, turn.anchor.id);
+      for (const activity of activitiesOf(message.id)) turnOfItem.set(activity.actionId, turn.anchor.id);
+    }
+  const changesAfter = (turnId: string) => changes.filter((change) => turnOfItem.get(change.afterId) === turnId);
+  const leadingChanges = changes.filter((change) => !turnOfItem.has(change.afterId));
   // Work keeps the place it started at: after the item that was last then,
   // so a message that arrived later reads below it.
-  const workAfter = (messageId: string) => work.filter((entry) => messageOfItem.get(entry.afterId) === messageId);
-  const leadingWork = work.filter((entry) => !messageOfItem.has(entry.afterId));
-  const historyAfter = (messageId: string) => history.filter((entry) => entry.afterMessageId === messageId);
+  const workAfter = (turnId: string) => work.filter((entry) => turnOfItem.get(entry.afterId) === turnId);
+  const leadingWork = work.filter((entry) => !turnOfItem.has(entry.afterId));
+  const historyAfter = (turnId: string) => history.filter((entry) => turnOfItem.get(entry.afterMessageId) === turnId);
   const printerBlockViews = (messageId: string) =>
     (printerBlocks ?? [])
       .filter((block) => block.afterMessageId === messageId)
       .sort((a, b) => a.seq - b.seq)
       .map((block) => <PrinterBlockView key={block.id} block={block} onUndoAdd={onUndoAdd} onInstallPlugin={onInstallPlugin} />);
   const leadingHistory = history.filter(
-    (entry) => entry.afterMessageId === '' || !messages.some((message) => message.id === entry.afterMessageId),
+    (entry) => entry.afterMessageId === '' || !turnOfItem.has(entry.afterMessageId),
   );
   const discussFailure = (print: PhysicalPrintInfo) =>
     (onDiscussFailure ?? onSend)(`Help me understand why this print failed: ${print.failure || 'The print stopped unexpectedly.'}`);
+
+  // A message's bubble, or null for a tool-only reply that has nothing to
+  // say. A file's load report is for the model: the person sees it only
+  // when the Agent could not speak about it, as the card of what OrcaSlicer
+  // said.
+  const bubble = (message: Message): ReactNode => {
+    if (message.role === 'note' && message.fileReport)
+      return message.fileReportCard ? <FileNotesCard report={message.fileReport} onSetUpAgent={onSetUpAgent} /> : null;
+    if (message.role === 'note')
+      return (
+        <div className="message note" role="status">
+          {/* The colour a change landed on, drawn and never named: the
+              app holds a colour as a value, not a word. */}
+          {message.swatch && <span className="note-swatch" style={{ background: message.swatch }} aria-hidden="true" />}
+          {message.text}
+        </div>
+      );
+    // In the printer panel a photo is how the person says which printer
+    // it is, or shows what changed: it draws inline, above any words as
+    // their caption, rather than as a named file chip below them.
+    const attached = (message.attachments ?? []).map((id) => attachmentsById.get(id)).filter((a): a is AttachmentInfo => !!a);
+    const photos = printerPanel ? attached.filter((a) => a.kind === 'image' && a.previewDataUrl) : [];
+    const otherAttachments = attached.filter((a) => !photos.includes(a));
+    // The model often calls a tool with no words yet: its actual reply lands
+    // in a later, separate message once it sees the tool's result. A bare,
+    // empty bubble either mid-stream or once it settles reads as a
+    // rendering bug, not a pause. The project chat's turn line names the
+    // work instead; the printer panel names it here while streaming. Once
+    // settled still empty, nothing is drawn. A failed or stopped turn
+    // always still renders, so its error and Retry stay reachable.
+    const emptyTurn =
+      message.role === 'assistant' &&
+      !message.text &&
+      photos.length === 0 &&
+      otherAttachments.length === 0 &&
+      message.state !== 'stopped' &&
+      !(message.state === 'failed' && message.error);
+    const streaming = message.id === streamingMessageId;
+    if (emptyTurn && printerPanel && streaming)
+      return (
+        // Chat/System Line: a quiet line of status while the model works.
+        <div className="message assistant">
+          <div className="printer-activity" role="status">
+            <span className="jp-icon jp-icon-rotate-cw" aria-hidden="true" />
+            Working on it…
+          </div>
+        </div>
+      );
+    if (emptyTurn) return null;
+    // Only the newest finished reply offers its choices; any later
+    // message, the person's own included, answers them.
+    const reply =
+      message.role !== 'assistant'
+        ? { body: message.text, choices: [] }
+        : streaming
+          ? { body: withoutPartialChoices(message.text), choices: [] }
+          : splitChoices(message.text);
+    const choices =
+      message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
+    return (
+      <div className={`message ${message.role}`}>
+        <div className="message-content">
+          {photos.length > 0 && (
+            <div className="message-photos">
+              {photos.map((attachment) => (
+                <img
+                  key={attachment.id}
+                  className="message-photo"
+                  src={attachment.previewDataUrl}
+                  alt={attachment.name || 'Photo'}
+                />
+              ))}
+            </div>
+          )}
+          {reply.body &&
+            (message.role === 'assistant' ? (
+              <MarkdownMessage streaming={streaming}>{reply.body}</MarkdownMessage>
+            ) : (
+              <span>{reply.body}</span>
+            ))}
+          {choices.length > 0 && (
+            <div className="reply-chips">
+              {choices.map((choice) => (
+                <button key={choice} type="button" className="reply-chip" disabled={replyDisabled}
+                  onClick={() => onSend(choice)}>
+                  {choice}
+                </button>
+              ))}
+            </div>
+          )}
+          {otherAttachments.length > 0 && (
+            <div className="message-attachments">
+              {otherAttachments.map((attachment) => (
+                <AttachmentChip key={attachment.id} attachment={attachment} />
+              ))}
+            </div>
+          )}
+          {message.state === 'failed' && message.error && (
+            <div className="message-failure">
+              <div className="error">{message.error.message}</div>
+              {message.error.retryable && !readOnly && (
+                <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
+              )}
+            </div>
+          )}
+          {message.state === 'stopped' && <div className="meta">Stopped</div>}
+        </div>
+      </div>
+    );
+  };
+  // The printer panel's cards for one message's calls, 8 under its bubble.
+  const activityCards = (message: Message) =>
+    activitiesOf(message.id).map((activity) => {
+      const own = renderActivity?.(activity);
+      if (own !== undefined) return <Fragment key={activity.actionId}>{own}</Fragment>;
+      return <ToolActivityCard key={activity.actionId} activity={activity} onCancel={onToolCancel} readOnly={readOnly} />;
+    });
 
   return (
     <div className="message-list" role="log" aria-label="Agent conversation"
@@ -219,135 +362,34 @@ export function MessageList({
           </p>
         </div>
       )}
-      {messages.map((message) => {
-        // A file's load report is for the model. The person sees it only
-        // when the Agent could not speak about it, as the card of what
-        // OrcaSlicer said.
-        if (message.role === 'note' && message.fileReport)
-          return message.fileReportCard ? (
-            <div key={message.id} className="message-group">
-              <FileNotesCard report={message.fileReport} onSetUpAgent={onSetUpAgent} />
-            </div>
-          ) : null;
-        if (message.role === 'note')
-          return (
-            <div key={message.id} className="message-group">
-              <div className="message note" role="status">
-                {/* The colour a change landed on, drawn and never named: the
-                    app holds a colour as a value, not a word. */}
-                {message.swatch && <span className="note-swatch" style={{ background: message.swatch }} aria-hidden="true" />}
-                {message.text}
-              </div>
-              {printerBlockViews(message.id)}
-            </div>
-          );
-        // In the printer panel a photo is how the person says which printer
-        // it is, or shows what changed: it draws inline, above any words as
-        // their caption, rather than as a named file chip below them.
-        const attached = (message.attachments ?? []).map((id) => attachmentsById.get(id)).filter((a): a is AttachmentInfo => !!a);
-        const photos = printerPanel ? attached.filter((a) => a.kind === 'image' && a.previewDataUrl) : [];
-        const otherAttachments = attached.filter((a) => !photos.includes(a));
-        // The model sometimes calls a printer tool with no words yet: its
-        // actual reply lands in a later, separate message once it sees the
-        // tool's result. A bare, empty bubble either mid-stream or once it
-        // settles reads as a rendering bug, not a pause -- name the work
-        // while streaming, and draw nothing once it settles still empty. A
-        // failed or stopped turn always still renders, so its error and
-        // Retry stay reachable.
-        const emptyPrinterTurn =
-          printerPanel &&
-          message.role === 'assistant' &&
-          !message.text &&
-          photos.length === 0 &&
-          otherAttachments.length === 0 &&
-          message.state !== 'stopped' &&
-          !(message.state === 'failed' && message.error);
-        const workingOnCard = emptyPrinterTurn && message.id === streamingMessageId;
-        // Only the newest finished reply offers its choices; any later
-        // message, the person's own included, answers them.
-        const streaming = message.id === streamingMessageId;
-        const reply =
-          message.role !== 'assistant'
-            ? { body: message.text, choices: [] }
-            : streaming
-              ? { body: withoutPartialChoices(message.text), choices: [] }
-              : splitChoices(message.text);
-        const choices =
-          message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
-        const bubble = workingOnCard ? (
-          // Chat/System Line: a quiet line of status while the model works.
-          <div className="message assistant">
-            <div className="printer-activity" role="status">
-              <span className="jp-icon jp-icon-rotate-cw" aria-hidden="true" />
-              Working on it…
-            </div>
-          </div>
-        ) : emptyPrinterTurn ? null : (
-          <div className={`message ${message.role}`}>
-            <div className="message-content">
-              {photos.length > 0 && (
-                <div className="message-photos">
-                  {photos.map((attachment) => (
-                    <img
-                      key={attachment.id}
-                      className="message-photo"
-                      src={attachment.previewDataUrl}
-                      alt={attachment.name || 'Photo'}
-                    />
-                  ))}
-                </div>
-              )}
-              {reply.body &&
-                (message.role === 'assistant' ? (
-                  <MarkdownMessage streaming={streaming}>{reply.body}</MarkdownMessage>
-                ) : (
-                  <span>{reply.body}</span>
-                ))}
-              {choices.length > 0 && (
-                <div className="reply-chips">
-                  {choices.map((choice) => (
-                    <button key={choice} type="button" className="reply-chip" disabled={replyDisabled}
-                      onClick={() => onSend(choice)}>
-                      {choice}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {otherAttachments.length > 0 && (
-                <div className="message-attachments">
-                  {otherAttachments.map((attachment) => (
-                    <AttachmentChip key={attachment.id} attachment={attachment} />
-                  ))}
-                </div>
-              )}
-              {message.state === 'failed' && message.error && (
-                <div className="message-failure">
-                  <div className="error">{message.error.message}</div>
-                  {message.error.retryable && !readOnly && (
-                    <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
-                  )}
-                </div>
-              )}
-              {message.state === 'stopped' && <div className="meta">Stopped</div>}
-            </div>
-          </div>
-        );
-        // The message group is one thread item: the turn and the tool cards
-        // it called, 8 apart. What follows it -- change runs and history
-        // entries -- are thread items of their own.
+      {turns.map((turn) => {
+        const turnMessages = messagesOf(turn);
+        const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id));
+        const working = turnMessages.some((message) => message.id === streamingMessageId);
+        const last = turnMessages[turnMessages.length - 1];
+        // The project chat's turn: the person's words, the line for the
+        // Agent's work (whenever it worked, or is still working), its
+        // replies that have words. The group is one thread item, 8 apart.
+        // What follows it -- change runs, work and history entries -- are
+        // thread items of their own.
         return (
-          <Fragment key={message.id}>
+          <Fragment key={turn.anchor.id}>
             <div className="message-group">
-              {bubble}
-              {activitiesOf(message.id).map((activity) => {
-                const own = renderActivity?.(activity);
-                if (own !== undefined) return <Fragment key={activity.actionId}>{own}</Fragment>;
-                return <ToolActivityCard key={activity.actionId} activity={activity}
-                  onCancel={onToolCancel} readOnly={readOnly} />;
-              })}
+              {bubble(turn.anchor)}
+              {printerPanel && activityCards(turn.anchor)}
+              {!printerPanel && turn.anchor.role !== 'assistant' && (turnActivities.length > 0 || working) && (
+                <TurnActivity activities={turnActivities} working={working} startedAt={turn.anchor.createdAt}
+                  endedAt={last.createdAt} onCancel={onToolCancel} readOnly={readOnly} />
+              )}
+              {turn.replies.map((reply) => (
+                <Fragment key={reply.id}>
+                  {bubble(reply)}
+                  {printerPanel && activityCards(reply)}
+                </Fragment>
+              ))}
             </div>
-            {printerBlockViews(message.id)}
-            <TimelineBlocks blocks={timeline(historyAfter(message.id), changesAfter(message.id), workAfter(message.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
+            {turnMessages.map((message) => printerBlockViews(message.id))}
+            <TimelineBlocks blocks={timeline(historyAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
               onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
           </Fragment>
         );

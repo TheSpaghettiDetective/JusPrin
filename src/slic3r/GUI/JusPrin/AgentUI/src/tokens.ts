@@ -81,6 +81,7 @@ export function applyStaticTokens(): void {
   for (const [prefix, key] of SECTIONS) applyPixelTokens(prefix, lengths(shared[key]));
   const { component } = tokens as unknown as {
     component: { threadRow: { lineGap: number };
+      turnActivity: { shimmerMs: number; spinMs: number };
       timelineSummary: { paddingX: number; paddingY: number; iconGap: number };
       printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
@@ -94,6 +95,10 @@ export function applyStaticTokens(): void {
       swatch: { size: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
+  // The one motion value the page has: how long the working line's words
+  // take to shimmer across once.
+  document.documentElement.style.setProperty('--turn-activity-shimmer-duration', `${component.turnActivity.shimmerMs}ms`);
+  document.documentElement.style.setProperty('--turn-activity-spin-duration', `${component.turnActivity.spinMs}ms`);
   document.documentElement.style.setProperty('--timeline-summary-padding',
     `${component.timelineSummary.paddingY}px ${component.timelineSummary.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-summary-padding-x', `${component.timelineSummary.paddingX}px`);

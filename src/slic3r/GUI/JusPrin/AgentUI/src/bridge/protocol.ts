@@ -106,6 +106,10 @@ export interface WireMessage {
   attempt: number;
   clientMessageId?: string;
   inReplyTo?: string;
+  // The host's stamp when the message was stored, RFC 3339. Absent from
+  // messages of documents written before it was sent; the thread then draws
+  // a turn's activity line without its elapsed time.
+  createdAt?: string;
   error?: AgentErrorInfo;
   attachments?: string[]; // sent attachment IDs, resolved against StatePayload.attachments
   swatch?: string; // notes: a colour, '#RRGGBB', that leads the line

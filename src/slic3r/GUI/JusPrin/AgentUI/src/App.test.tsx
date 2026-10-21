@@ -550,6 +550,8 @@ describe('App', () => {
       }),
     );
 
+    // The stale call reads its explanation in the turn's opened action log.
+    fireEvent.click(screen.getByRole('button', { name: /1 action · 1 failed/ }));
     expect(screen.getByText(/The project changed before this could run/)).toBeInTheDocument();
   });
 
