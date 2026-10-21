@@ -1665,6 +1665,89 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     }
 }
 
+TEST_CASE("switching chats with matching checkpoints continues without restoration", "[agent][conversations]")
+{
+    Harness harness;
+    std::string current_version = "v-1";
+    bool version_exists = true;
+    bool save_succeeds = true;
+    int restores = 0;
+    harness.host.set_chat_checkpoint_callbacks(
+        [&] { return current_version; }, [&] { return current_version; },
+        [&](const std::string&) { return version_exists; }, [&] { return save_succeeds; },
+        [&](const std::string&, const std::string&) { ++restores; return true; });
+    harness.handshake();
+    auto& document = harness.persistence.document();
+    const std::string first = document.active_conversation_id();
+    PlanRecord plan;
+    plan.headline = "Original plan";
+    document.set_plan(plan, harness.persistence.timestamp());
+    harness.deliver("create_conversation", json::object());
+    const std::string second = document.active_conversation_id();
+    REQUIRE(second != first);
+    const auto revision = harness.workspace.snapshot().revision;
+
+    SECTION("unchanged chats can be continued in either direction") {
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == first);
+        CHECK(document.viewed_conversation_id() == first);
+        CHECK((*harness.last_of_type("state"))["payload"]["chatResume"]["status"] == "active");
+        CHECK(document.plan().headline == "Original plan");
+        harness.send_user_message("Continue the original chat", "c-matching");
+        harness.pump_all();
+        REQUIRE_FALSE(document.messages(first).empty());
+        CHECK(document.messages(first).front().text == "Continue the original chat");
+        CHECK(document.messages(second).empty());
+        harness.deliver("switch_conversation", json{{"conversationId", second}});
+        CHECK(document.active_conversation_id() == second);
+        CHECK(document.plan().headline.empty());
+        CHECK(document.plan(first).headline == "Original plan");
+    }
+    SECTION("a changed project still requires restoration") {
+        current_version = "v-2";
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == second);
+        CHECK((*harness.last_of_type("state"))["payload"]["chatResume"]["status"] == "changed");
+    }
+    SECTION("a missing checkpoint cannot become active") {
+        version_exists = false;
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == second);
+        CHECK((*harness.last_of_type("state"))["payload"]["chatResume"]["status"] == "unavailable");
+    }
+    SECTION("browsing during a reply does not move its authority") {
+        harness.send_user_message("/slow still working", "c-busy-switch");
+        REQUIRE(harness.host.stream_active());
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == second);
+        CHECK(document.viewed_conversation_id() == first);
+        harness.pump_all();
+        CHECK(document.messages(first).empty());
+    }
+    SECTION("failed persistence cannot activate the selected chat") {
+        save_succeeds = false;
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == second);
+        REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "save_failed");
+    }
+    SECTION("failed activation save rolls back authority and retains each plan") {
+        harness.host.set_chat_checkpoint_callbacks(
+            [&] { return current_version; }, [&] { return current_version; },
+            [](const std::string&) { return true; },
+            [&] { return document.active_conversation_id() == second; },
+            [&](const std::string&, const std::string&) { ++restores; return true; });
+        harness.deliver("switch_conversation", json{{"conversationId", first}});
+        CHECK(document.active_conversation_id() == second);
+        CHECK(document.plan().headline.empty());
+        CHECK(document.plan(first).headline == "Original plan");
+        REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "save_failed");
+    }
+    CHECK(restores == 0);
+    CHECK(harness.workspace.snapshot().revision == revision);
+}
+
 TEST_CASE("inactive chat resume checks authority and revision, and each chat keeps its own plan", "[agent][conversations]")
 {
     Harness harness;
@@ -1741,8 +1824,9 @@ TEST_CASE("inactive chat resume checks authority and revision, and each chat kee
 TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conversations]")
 {
     Harness harness;
+    std::string current_version = "v-1";
     harness.host.set_chat_checkpoint_callbacks(
-        [] { return std::string("v-1"); }, [] { return std::string("v-1"); },
+        [&] { return current_version; }, [&] { return current_version; },
         [](const std::string&) { return true; }, [] { return true; },
         [](const std::string&, const std::string&) { return false; });
     harness.handshake();
@@ -1750,6 +1834,7 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
     const std::string first = harness.persistence.document().active_conversation_id();
     harness.deliver("create_conversation", json::object());
     const std::string second = harness.persistence.document().active_conversation_id();
+    current_version = "v-2";
     harness.deliver("switch_conversation", json{{"conversationId", first}});
     const json state = (*harness.last_of_type("state"))["payload"];
     harness.deliver("restore_conversation", json{{"conversationId", first},
@@ -1757,6 +1842,9 @@ TEST_CASE("failed chat restoration keeps project input blocked", "[agent][conver
                                                   {"docRevision", state["docRevision"]}});
     CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "restore_failed");
     CHECK((*harness.last_of_type("state"))["payload"]["projectChatBlocked"] == true);
+    CHECK(harness.persistence.document().active_conversation_id() == second);
+    current_version = "v-1";
+    harness.deliver("switch_conversation", json{{"conversationId", first}});
     CHECK(harness.persistence.document().active_conversation_id() == second);
     harness.deliver("switch_conversation", json{{"conversationId", second}});
     harness.deliver("user_message", json{{"clientMessageId", "blocked-send"},

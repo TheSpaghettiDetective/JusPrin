@@ -1816,6 +1816,26 @@ private:
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), name);
     }
 
+    void verify_matching_chat_switch(const std::string& target, const std::string& name,
+                                     std::function<void()> next)
+    {
+        const auto version = installed_shell()->autosave()->current_version();
+        const auto revision = installed_shell()->workspace()->snapshot().revision;
+        auto& view = installed_shell()->agent_pane()->web_view();
+        WebView::RunScript(view.webview(), wxString::FromUTF8(
+            "window.__jusprinTest.switchConversation('" + target + "')"));
+        wait_until([this, target] { return persistence().document().viewed_conversation_id() == target; },
+                   name + "_viewed", [self = shared_from_this(), target, name, version, revision, next] {
+            self->check(self->persistence().document().active_conversation_id() == target,
+                        name + "_immediately_active");
+            self->check(installed_shell()->autosave()->current_version() == version &&
+                        installed_shell()->workspace()->snapshot().revision == revision,
+                        name + "_preserves_project");
+            self->capture_chat_pane(name);
+            next();
+        });
+    }
+
     void verify_chat_restoration()
     {
         const fs::path source = fs::path(data_dir()) / "chat-restoration-cube.stl";
@@ -1855,8 +1875,7 @@ private:
         const std::string quick_version = document.chat_checkpoint(first)->at("versionId").get<std::string>();
         auto& view = installed_shell()->agent_pane()->web_view();
         WebView::RunScript(view.webview(), "window.__jusprinTest.createConversation()");
-        wait_until([this, first] { return persistence().document().active_conversation_id() != first; },
-                   "chat_restore_second_chat_created", [self = shared_from_this(), first, quick_version] {
+        const auto verify_changed = [self = shared_from_this(), first, quick_version] {
             auto& document = self->persistence().document();
             const std::string second = document.active_conversation_id();
             self->check(document.rename_conversation(second, "Strong print"), "chat_restore_strong_chat_named");
@@ -1964,6 +1983,13 @@ private:
                             self->finish();
                         });
                 });
+            });
+        };
+        wait_until([this, first] { return persistence().document().active_conversation_id() != first; },
+                   "chat_restore_second_chat_created", [self = shared_from_this(), first, verify_changed] {
+            const std::string second = self->persistence().document().active_conversation_id();
+            self->verify_matching_chat_switch(first, "chat-unchanged-first", [self, second, verify_changed] {
+                self->verify_matching_chat_switch(second, "chat-unchanged-second", verify_changed);
             });
         });
     }
