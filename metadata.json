@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5H5TVFM46ADYB8T4N8NE991",
+  "strategy": "manual-commit",
+  "branch": "claude/musing-wing-e808a9",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/Widgets/WebView.cpp",
+    "src/slic3r/GUI/Widgets/WebView.hpp",
+    "src/slic3r/GUI/WipeTowerDialog.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 121145,
+    "cache_read_tokens": 4259453,
+    "output_tokens": 30274,
+    "api_call_count": 37
+  }
+}
