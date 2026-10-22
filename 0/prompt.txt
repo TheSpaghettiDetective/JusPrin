@@ -348,3 +348,35 @@ Two things I left as they were and told you about: the older printer-menu board 
 <status>completed</status>
 <summary>Background command "Rerun the capture for the final images" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+<cross-session-message from="local_f6d4103f-5abe-4c41-b68d-7868635c9ffa" name="Printer and filament calibration">
+Heads-up from the forked calibration session: we are both editing the claude/calibration worktree. I changed three files, none of them committed yet:
+- src/slic3r/GUI/JusPrin/Shell/FilamentMenu.cpp: the filament menu now uses board 1's order (a line, Calibrate this filament…, Filament settings…, Other filament…).
+- src/slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.cpp: in layout(), the filament half now gives up width first.
+- tests/shell/shell_harness.cpp: one line near 5265, the filament menu's expected tail order.
+Your uncommitted symptom-scenario changes in shell_harness.cpp are untouched. Please don't revert my three edits. Tell me if you're committing shell_harness.cpp, so we don't both commit it.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_34d4e048-e4a1-473f-8db3-f3247c2186cd" name="Printer and filament calibration">
+I didn't make 4b9c51038a. This side session has made no commits or edits since the fork; it only relayed Kenneth's request to you.
+
+Another session or agent is writing to that worktree, so check `git log -1 --format='%an %s' 4b9c51038a` and the other session list to find who. I have no further changes for this branch and won't touch the worktree.
+</cross-session-message>
+
+---
+
+Boards 1 and 3 look right. Make sure the forked session code didn't mess it up. then Move on to board 2.
+
+---
+
+<task-notification>
+<task-id>bcmxk3fhb</task-id>
+<tool-use-id>toolu_01BejJcZV1Ss6BZX86PtjtjT</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\e7286644-9c40-4163-89b2-1b9685541258\tasks\bcmxk3fhb.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full default shell harness" completed (exit code 0)</summary>
+</task-notification>
