@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5JQ66ARB17KX53X0FPY20CQ",
+  "strategy": "manual-commit",
+  "branch": "claude/no-orca-update-window",
+  "checkpoints_count": 3,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 506,
+    "cache_creation_tokens": 1044821,
+    "cache_read_tokens": 79375178,
+    "output_tokens": 199453,
+    "api_call_count": 249
+  }
+}
