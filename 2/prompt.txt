@@ -1,0 +1,239 @@
+Background (from the session that started this one):
+JusPrin is an AI-piloted fork of OrcaSlicer (C++17, wxWidgets). Its "Check print" window today is OrcaSlicer's stock G-code Preview dropped into a modal `wxDialog` (`CheckPrintDialog` in `src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp`, built with `Plater::create_preview`), unchanged: a 14-row line-type legend, a vertical layer slider with number boxes, a horizontal moves slider. `agent-docs/jusprin/product-definition.md` §2.8 says that is the expert view and the default should be a short risk report; the legend and layer count are "not beginner decision aids".
+
+On 2026-10-21 Kenneth decided the redesign and it was drawn on the "JusPrin v2" design canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v), page id `check-print`, boards `check-print-01-default`, `02-legend-and-moves`, `03-finding-selected`, `04-report-states` (read them with the Artifact tool, action read, path `project/<board>.dc.html`; the page note on the canvas records the decisions). The decisions are also in `~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/check-print-design-decisions.md`. In short: the window stays a modal over Prepare holding OrcaSlicer's real preview; a native report panel built from the existing `IWorkspace::slice_report` sits to the right of the preview; exactly two toggles, "Legend" and "Moves slider", each showing or hiding one OrcaSlicer overlay, both off when the window opens; OrcaSlicer's view-type dropdown lives inside its legend so it shows only with the legend; the vertical layer slider stays; both sliders are drawn in the brand's action colour while the bed and the legend keep OrcaSlicer's colours; closing the window (or Escape) is the only way back to Prepare, so the report has no fix button and no agent button. Not decided: whether the two toggles are remembered between openings (default: not remembered).
+
+Design-system rules: every colour, radius, font and control size comes from the token file through `ShellTheme` and the shell recipes (`agent-docs/jusprin/design-system.md`, "Writing UI code"); a value with no token gets a token and a guard first. Kenneth's rule for this screen: one-off values are fine only for elements unique to it (the 360 DIP panel width, the 48 DIP window header); everything shared uses tokens. Five tokens were added to the Design System artifact today for this work and must be carried into the repo's token file with the same names and values: `space-2` (2px), `component-checkbox-size` (16px), `component-checkbox-iconSize` (12px), `component-statusDot-size` (8px), `component-groupHeader-height` (32px, the collapsible group header the All settings panel and the Check print report share).
+
+Fork rules: before editing any file outside `src/slic3r/GUI/JusPrin/`, read `agent-docs/jusprin/fork-stewardship.md`; changes to OrcaSlicer-owned files must be small, product-neutral and additive, and the PR description must list every upstream line changed. `AGENTS.md` has the build rules for the shared Mac (check `uptime` and `pgrep -fl ninja` first, build with `-j4`, one build per build directory, never restart a build to change targets, start long builds with nohup in their own process group and watch the log). Testing: Catch2 suites in `tests/`, the shell harness in `tests/shell/shell_harness.cpp` drives the real app without a display (see `src/slic3r/GUI/JusPrin/Testing/README.md`); visual proof of a native widget comes from rendering it to a bitmap in the harness, not from a screen capture. Never commit temporary working docs; leave them untracked in the worktree root.
+
+Task:
+Implement the Check print redesign on a branch cut from `jusprin-newui`, matching the four boards of the canvas page `check-print` (see background for where they are).
+
+What to build:
+
+1. **Report panel.** A native, fork-owned panel 360 DIP wide to the right of the preview inside `CheckPrintDialog` (`src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp`), filled from `IWorkspace::slice_report` for the active plate with every section requested (`SliceReportRequest`: supports, seams, first_layer, islands, plus the project's region records so seams and support contacts are checked against marked faces). See `SliceReport` and its parts in `src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp` (around lines 1180–1291) and the adapter in `Workspace/OrcaWorkspaceAdapter.cpp`. Contents, top to bottom: a summary block (time, filament per extruder as grams and length, cost only when `has_cost`, filament changes only when more than zero); then sections in order of severity, Supports first whenever the slice generated any, else the most consequential finding first; each section is a collapsible group whose header row is the group-header token height with chevron, Body Small Bold title and a Label count at the right; each finding row is a status dot (red for a critical OrcaSlicer warning or support contact with a region the person marked, amber for the rest, none when the row carries no severity), a Body Small message and a Label detail line under it with the object and the height or layer; a closing "Checked, nothing found: …" line that names every check that produced nothing. Pressing a finding selects the row (surface-selected fill), moves the camera to the object and the layer slider to the finding's height, and draws a small caption near the slider with the finding's name and "Layer N · Z mm". No buttons in the panel.
+
+2. **Two toggles** in the window's header row (48 DIP, title "Check print", Label with plate, object and printer, then the two checkboxes, then the close icon button): "Legend" drives `GCodeViewer::show_legend` (`src/slic3r/GUI/GCodeViewer.hpp` 338–340) and "Moves slider" drives `Preview::show_moves_sliders` (`src/slic3r/GUI/GUI_Preview.hpp` 156–157). Both off when the window opens. Prefer routing them through the fork's `CanvasPresentationController` (architecture.md already lists the Preview legend and sliders as presentation items that must be separately switchable and restored when the controller is destroyed) rather than calling OrcaSlicer directly from the dialog. The legend's view-type dropdown needs nothing: it is part of OrcaSlicer's legend.
+
+3. **Sliders in brand colour.** Both of OrcaSlicer's preview sliders (the vertical layer slider and the horizontal moves slider) draw with the brand's action colour for the filled track, the end dot and the number-box text, a canvas-coloured ring handle, and the raised surface with the subtle elevation for the number boxes; the unfilled track uses border-strong. Find where OrcaSlicer sets those ImGui colours (its slider classes under `src/slic3r/GUI/`), add the smallest product-neutral seam (a colour set the fork can install, defaulting to OrcaSlicer's current colours), and install the brand colours from fork code through `ShellTheme`. Bed and legend colours stay OrcaSlicer's.
+
+4. **Tokens.** Add the five tokens named in the background to the repo's token file with their guards, and draw every shared size in the panel from them (checkbox box and tick, status dot, group header height, the 2 DIP gap between a row's message and its detail line and inside the canvas caption). The panel width (360) and header height (48) may be one-off constants.
+
+Done looks like: the branch builds (`cmake --build build/arm64 --config RelWithDebInfo -- -j4`, after checking the machine is not already loaded); opening Check print on a sliced plate shows the panel with real `slice_report` data, the toggles show and hide the legend and moves slider, the sliders are brand-coloured, and selecting a finding moves the view; a shell-harness scenario covers the panel's contents for a plate with supports, one without, and one with nothing to flag, plus the toggles and the stale-close behaviour that already exists; a bitmap of the panel is rendered in the harness and checked by eye; Catch2 tests cover the section-ordering rule and the closing line; commits on the branch with messages a cold reader understands; the final message lists every line changed in an OrcaSlicer-owned file and what a future rebase must carry. Leave any working notes untracked in the worktree root. If a decision comes up that only Kenneth can make (for example remembering the toggles), make the simplest choice, say so, and continue.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22
+
+---
+
+Try again
+
+---
+
+<cross-session-message from="local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22" name="Check print screen redesign">
+Full brief again for your task, implementing the Check print redesign on your branch claude/check-print-report-82ed92: your earlier turn was stopped and Kenneth says the context was lost, so here is everything.
+
+BACKGROUND
+
+JusPrin is an AI-piloted fork of OrcaSlicer (C++17, wxWidgets). Its "Check print" window today is OrcaSlicer's stock G-code Preview dropped into a modal wxDialog (`CheckPrintDialog` in `src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp`, built with `Plater::create_preview`), unchanged: a 14-row line-type legend, a vertical layer slider with number boxes, a horizontal moves slider. `agent-docs/jusprin/product-definition.md` section 2.8 says that is the expert view and the default should be a short risk report; the legend and layer count are "not beginner decision aids".
+
+On 2026-10-21 Kenneth decided the redesign and it was drawn on the "JusPrin v2" design canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v), page id `check-print`, boards `check-print-01-default`, `check-print-02-legend-and-moves`, `check-print-03-finding-selected`, `check-print-04-report-states`. Read them with the Artifact tool, action read, path `project/<board>.dc.html`; the page note on the canvas records the decisions. The decisions are also in `~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/check-print-design-decisions.md`.
+
+Decisions: the window stays a modal over Prepare holding OrcaSlicer's real preview; a native report panel built from the existing `IWorkspace::slice_report` sits to the right of the preview; exactly two toggles, "Legend" and "Moves slider", each showing or hiding one OrcaSlicer overlay, both off when the window opens; OrcaSlicer's view-type dropdown lives inside its legend so it shows only with the legend; the vertical layer slider stays; both sliders are drawn in the brand's action colour while the bed and the legend keep OrcaSlicer's colours; closing the window (or Escape) is the only way back to Prepare, so the report has no fix button and no agent button. Not decided: whether the two toggles are remembered between openings (default: not remembered).
+
+Design-system rules: every colour, radius, font and control size comes from the token file through `ShellTheme` and the shell recipes (`agent-docs/jusprin/design-system.md`, "Writing UI code"); a value with no token gets a token and a guard first. Kenneth's rule for this screen: one-off values are fine only for elements unique to it (the 360 DIP panel width, the 48 DIP window header); everything shared uses tokens. Five tokens were added to the Design System artifact today and must be carried into the repo's token file with the same names and values: `space-2` (2px), `component-checkbox-size` (16px), `component-checkbox-iconSize` (12px), `component-statusDot-size` (8px), `component-groupHeader-height` (32px, the collapsible group header the All settings panel and the Check print report share).
+
+Fork rules: before editing any file outside `src/slic3r/GUI/JusPrin/`, read `agent-docs/jusprin/fork-stewardship.md`; changes to OrcaSlicer-owned files must be small, product-neutral and additive, and the final report must list every upstream line changed. `AGENTS.md` has the build rules for the shared Mac: check `uptime` and `pgrep -fl ninja` first, build with `-j4`, one build per build directory, never restart a build to change targets, start long builds with nohup in their own process group and watch the log. Testing: Catch2 suites in `tests/`, the shell harness in `tests/shell/shell_harness.cpp` drives the real app without a display (see `src/slic3r/GUI/JusPrin/Testing/README.md`); visual proof of a native widget comes from rendering it to a bitmap in the harness, not from a screen capture. Never commit temporary working docs; leave them untracked in the worktree root.
+
+TASK
+
+Implement the Check print redesign on your branch, matching the four canvas boards.
+
+1. Report panel. A native, fork-owned panel 360 DIP wide to the right of the preview inside `CheckPrintDialog` (`src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp`), filled from `IWorkspace::slice_report` for the active plate with every section requested (`SliceReportRequest`: supports, seams, first_layer, islands, plus the project's region records so seams and support contacts are checked against marked faces). See `SliceReport` and its parts in `src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp` (around lines 1180 to 1291) and the adapter in `src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp`. Contents, top to bottom: a summary block (time, filament per extruder as grams and length, cost only when `has_cost`, filament changes only when more than zero); then sections in order of severity, Supports first whenever the slice generated any, else the most consequential finding first; each section is a collapsible group whose header row is the group-header token height with chevron, Body Small Bold title and a Label count at the right; each finding row is a status dot (red for a critical OrcaSlicer warning or a support contact with a region the person marked, amber for the rest, none when the row carries no severity), a Body Small message and a Label detail line under it with the object and the height or layer; a closing "Checked, nothing found: …" line that names every check that produced nothing. Pressing a finding selects the row (surface-selected fill), moves the camera to the object and the layer slider to the finding's height, and draws a small caption near the slider with the finding's name and "Layer N · Z mm". No buttons in the panel.
+
+2. Two toggles in the window's header row (48 DIP: title "Check print", a Label with plate, object and printer, then the two checkboxes, then the close icon button). "Legend" drives `GCodeViewer::show_legend` (`src/slic3r/GUI/GCodeViewer.hpp` lines 338 to 340) and "Moves slider" drives `Preview::show_moves_sliders` (`src/slic3r/GUI/GUI_Preview.hpp` lines 156 to 157). Both off when the window opens. Prefer routing them through the fork's `CanvasPresentationController` (`agent-docs/jusprin/architecture.md` already lists the Preview legend and sliders as presentation items that must be separately switchable and restored when the controller is destroyed) rather than calling OrcaSlicer directly from the dialog. The legend's view-type dropdown needs nothing: it is part of OrcaSlicer's legend.
+
+3. Sliders in brand colour. Both of OrcaSlicer's preview sliders (the vertical layer slider and the horizontal moves slider) draw with the brand's action colour for the filled track, the end dot and the number-box text, a canvas-coloured ring handle, and the raised surface with the subtle elevation for the number boxes; the unfilled track uses border-strong. Find where OrcaSlicer sets those ImGui colours (its slider classes under `src/slic3r/GUI/`), add the smallest product-neutral seam (a colour set the fork can install, defaulting to OrcaSlicer's current colours), and install the brand colours from fork code through `ShellTheme`. Bed and legend colours stay OrcaSlicer's.
+
+4. Tokens. Add the five tokens named above to the repo's token file with their guards, and draw every shared size in the panel from them (checkbox box and tick, status dot, group header height, the 2 DIP gap between a row's message and its detail line and inside the canvas caption). The panel width (360) and header height (48) may be one-off constants.
+
+DONE LOOKS LIKE
+
+The branch builds (`cmake --build build/arm64 --config RelWithDebInfo -- -j4`, after checking the machine is not already loaded); opening Check print on a sliced plate shows the panel with real `slice_report` data, the toggles show and hide the legend and moves slider, the sliders are brand-coloured, and selecting a finding moves the view; a shell-harness scenario covers the panel's contents for a plate with supports, one without, and one with nothing to flag, plus the toggles and the stale-close behaviour that already exists; a bitmap of the panel is rendered in the harness and checked by eye; Catch2 tests cover the section-ordering rule and the closing line; commits on the branch with messages a cold reader understands; your final message lists every line changed in an OrcaSlicer-owned file and what a future rebase must carry. Leave working notes untracked in the worktree root. If a decision comes up that only Kenneth can make (for example remembering the toggles), make the simplest choice, say so, and continue. Keep this message as your reference; if the context is lost again, ask me (the session that sent this) to resend it.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b3ylul83k</task-id>
+<tool-use-id>toolu_01Co5LSqw1S4SfzKHVfpB41x</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/b3ylul83k.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the incremental build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>buwdb0bpe</task-id>
+<tool-use-id>toolu_012sp94g3Dk13tLLFUbK1GCB</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/buwdb0bpe.output</output-file>
+<status>completed</status>
+<summary>Monitor "incremental build result for check-print branch" stream ended</summary>
+<event>/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:175:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:176:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:177:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:177:61: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:166:44: error: no viable conversion from '(lambda at /Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:166:44)' to 'std::function&lt;void (CheckPrintDialog &amp;)&gt;'
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:270:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:273:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:264:44: error: no viable conversion from '(lambda at /Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:264:44)' to 'std::function&lt;void (CheckPrintDialog &amp;)&gt;'
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:305:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:306:29: error: 'this' cannot be implicitly captured in this context
+/Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:297:44: error: no viable conversion from '(lambda at /Users/kenneth/Projects/JusPrin/.claude/worktrees/check-print-report-82ed92/tests/shell/check_print_scenario.inc:297:44)' to 'std::function&lt;void (CheckPrintDialog &amp;)&gt;'
+BUILD_EXIT=1</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu0okh1pj</task-id>
+<tool-use-id>toolu_0181eiLQUqNRCVqyjLgokyRK</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bu0okh1pj.output</output-file>
+<status>completed</status>
+<summary>Monitor "incremental build result for check-print branch (retry)" stream ended</summary>
+<event>BUILD_EXIT=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmfp46nk0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bmfp46nk0.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for regression runs and show failures" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22" name="Check print screen redesign">
+Kenneth's decision on your branch claude/check-print-report-82ed92: rework commit d3b741bf05 ("Let a host recolour and hide OrcaSlicer's preview sliders") so the upstream footprint drops from about 64 lines in IMSlider to about 10 lines across four files. The other slider style mismatches (grey track, white label boxes, solid handle) are accepted.
+
+What to build instead of the 14-colour seam:
+
+1. Brand accent behind OrcaSlicer's own accent colour. In `src/libslic3r/Color.hpp` (and `.cpp` if needed), put a settable static behind `ColorRGB::ORCA()` and `ColorRGBA::ORCA()`, defaulting to the current teal (0, 150, 136). The fork installs the brand accent (action-primary from the tokens) once in `apply_brand_palette` in `src/slic3r/GUI/JusPrin/Brand/BrandPalette.cpp`, next to the existing `StateColor::SetColorOverrides` call. About 4 upstream lines. This recolours every upstream use of the accent in the ImGui and GL layer (gizmo highlights, selection rectangle, G-code viewer, COL_ORCA); Kenneth accepts that.
+
+2. `src/slic3r/GUI/ImGuiWrapper.hpp` / `.cpp`: `COL_ORCA` is a static const computed at program load, before the palette is installed, so it must read `ORCA()` at use. Turn its declaration into a macro (or an equivalent that evaluates at use) over `ORCA()` so its call sites stay untouched. About 2 lines.
+
+3. `src/slic3r/GUI/IMSlider.cpp`: exactly one rewritten line. The file-level `BRAND_COLOR` constant's definition becomes a read of `ORCA()` at use (a macro or inline function with the same name), so its four call sites are unchanged. Drop everything else from the slider commit: the `Colors` struct, `SetColorOverrides`, the 20 rewritten colour lines, the end-dot drawing, the label-hover and value-text rewrites, and the `<optional>` include.
+
+4. Drop the Moves slider toggle, and with it the IMSlider `show` / `is_shown` / `m_shown` seam, the early returns in `render()` and `on_mouse_wheel()`, and the wheel-handler rewrite. The moves slider stays visible as in stock OrcaSlicer; the window header keeps only the Legend checkbox. Remove the matching fork code (the Moves switch in the presentation controller, the checkbox, its tests) and update the harness scenario.
+
+5. Keep the 3-line GLCanvas3D display-size fix (commit 570a723ad0) as it is.
+
+Static-initialisation trap: anything that copies `ORCA()` into a file-level constant at program load keeps the old teal. Every reader must evaluate it at use, after `apply_brand_palette` has run.
+
+Done looks like: the branch builds, the Catch2 tests and the check-print harness scenario pass, the sliders show the brand accent for the handles, the filled track, the lower dot and the value text while the greys, label boxes and handle shape stay OrcaSlicer's, and your final report lists every upstream line, which should now be about 10 across Color.hpp, ImGuiWrapper, IMSlider and GLCanvas3D, with what a future rebase must carry for each. Rewrite the history so the branch reads cleanly (the slider commit replaced, not followed by a revert).
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bn55epuwp</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bn55epuwp.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the full rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvfexnuo7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bvfexnuo7.output</output-file>
+<status>completed</status>
+<summary>Background command "Block until the build finishes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22" name="Check print screen redesign">
+Kenneth's decision: keep the ImGuiWrapper edit as it is (the conflict with upstream's new COL_ORCA_DARK / COL_ORCA_HOVER constants is mechanical), and squash the amend!/fixup! commits into clean commits on claude/check-print-report-82ed92 now.
+
+Do a non-interactive autosquash rebase onto the branch's base (jusprin-newui at the commit you branched from), for example `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash <base>`, so the slider commit ends up as one commit that adds the settable accent (Color.hpp, ImGuiWrapper, the one IMSlider line, the brand palette install) with a message describing the final design, not the 14-colour seam it replaced. Afterwards confirm the tree is byte-identical to the pre-squash tip (`git diff <old tip> HEAD` empty), rebuild nothing unless the tree changed, and report the final commit list with one line per commit plus the upstream-line list for the rebase record. Do not push.
+
+For the record in your final message: against today's upstream/main (373ffaa13f), Color.hpp, IMSlider.cpp and GLCanvas3D.cpp merge clean; ImGuiWrapper.hpp and .cpp conflict because upstream added COL_ORCA_DARK, COL_ORCA_HOVER and COL_ORCA_HOVER_DARK beside COL_ORCA; those three stay fixed teal unless they are also made to read ORCA() at the next rebase. Note that in the rebase record.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22" name="Check print screen redesign">
+Kenneth's approval of the squash, in his own words, typed to me in this session's chat after I showed him the branch's commit list with the three amend!/fixup! commits and asked "Should the implementation session squash the fixups into clean commits now?": "Keep the ImGuiWrapper edit as is; the conflict is mechanical. Have the session squash the fixups now." If your policy still needs him to say it in your session, say so in your reply and he will.
+</cross-session-message>
+
+---
+
+Yes, squash the amend!/fixup! commits into the original commits with an autosquash rebase onto bed54fd8fe.
+
+---
+
+<cross-session-message from="local_3af40389-071c-4cf2-88eb-8e03cd4a796a" name="Check print screen redesign">
+Status check from the coordinating session: is the Check print work on claude/check-print-report-82ed92 complete from your side? Reply in a few lines: whether the current four commits (e9e8887e6c on top) are built in your worktree and which app bundle path holds that build, whether the tests and the check-print harness scenario passed on that exact head, and anything you consider unfinished or unverified (for example the live-app check). Do not start new work.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_ff30eb8b-5cac-4265-83e6-3aa0c4faae22" name="Check print screen redesign">
+Fix round for the Check print window on claude/check-print-report-82ed92. Kenneth decided the plan after a live test of the built app: fix everything below in fork code, with zero new upstream lines. The full bug report with evidence paths is untracked in your worktree root: `check-print-live-bugs.md` (evidence JPGs and harness PNGs under `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/462562e7-6c9f-4674-844d-00d14db091f3/scratchpad/evidence/` and `.../scratchpad/harness-capture/`). Read it first; the numbering below matches it.
+
+THREE THINGS TO LEAVE AS THEY ARE (decided)
+- The tool-position box ("X … Y … Speed … Gap infill") that OrcaSlicer draws at the bottom centre while a slider is not at the end of the print: keep.
+- The plate name and number on the bed ("Untitled", "01"): keep; Prepare shows them too.
+- The layer slider's one-layer-mode button at the bottom right, in OrcaSlicer teal: keep as is. (Its SVGs are loaded through `resources_dir()` not `var()`, so the overlay cannot recolour it without upstream lines.)
+
+FIXES, ALL IN FORK CODE
+1–3. Plate-selector strip (the blank white pill top-left), 3D navigator cube and canvas toolbar in the window: `PreviewPresentationController` must hide OrcaSlicer's legacy overlay layer the way Prepare's controller does (`set_legacy_overlays_hidden(true)` on attach, restore the previous value on destroy). Verify the three are gone and nothing else changes.
+6 and 16. The G-code listing stays on regardless of the Legend checkbox because it is gated by the app-wide `GUI_App::show_gcode_window()` (default true, persisted in the app config), not by the legend. In the dialog: remember the setting on open, force it off (through the existing toggle so the viewer repaints), and restore the remembered value on close, including the stale-close and Escape paths. That also fixes 16, where the `c` key inside the window permanently flipped the preference: the restore puts it back. If the person turns the listing on inside the window with `c` or the legend's code button, that is their explicit action; leave it on until close.
+8. Keyboard focus is trapped in the canvas: the canvas posts `EVT_GLCANVAS_TAB` (GLCanvas3D.cpp around 3747) and only the Plater binds it. Bind it in the dialog to move focus to the report panel, and give the panel Tab handling that reaches the Legend checkbox and the Close button and back to the canvas. Escape must keep working from every focus.
+9. Keyboard selection in the report does not scroll the selected row into view: adjust the panel's scroll in `select()` / key handling so the highlighted row is visible.
+10. A long report gives no sign it scrolls: draw a scrollbar from the design tokens (thin track and thumb, surface-subtle track, border-strong thumb, radius-small; no literals) and make the wheel scroll it. If you think the design needs a different affordance, draw the simplest one and say so.
+11. The finding caption sits on top of OrcaSlicer's G-code listing and, with Legend on, on the legend's dropdown: move it to the top-left corner of the canvas, which is empty once the overlays are hidden; keep the inset from tokens. Also set its title in the bold label style instead of ImGui's regular font.
+12. The window opens with Prepare's camera: on open, fit the camera to the sliced plate (the preview's zoom-to-G-code path), and keep restoring Prepare's camera on close as it already does.
+13. No minimum window size: set a minimum from one-off constants (this window's values are allowed to be one-off) so the preview, both sliders and the panel never collide; the 900×600 case in the report must look right.
+14. Dark mode: the Close button draws a lighter box because `HeaderButton` in the Quiet style fills with surface-canvas while this header is surface-raised. Fix it so the quiet button takes the surface it sits on; check the Agent pane header and every other HeaderButton user still look right in both modes.
+15. A stale hover tooltip and hover ring show on the layer slider with no pointer in the window: the shared ImGui context keeps the last pointer position of Prepare's canvas. Reset the pointer state for the dialog's canvas when it takes over (the ImGui wrapper's existing mouse-update path, or a synthetic leave); investigate first, fork code only; if it truly needs an upstream line, stop and report instead of adding one.
+Also from the report's deviations list: the Supports section count should read like the board ("2 objects · 96 layers"), not "43 layers".
+
+DONE LOOKS LIKE
+Every numbered item above has a harness check in `tests/shell/check_print_scenario.inc` where the harness can observe it (overlay flags, show_gcode_window before/during/after, focus after Tab, scroll offset after keyboard selection, caption position, camera fitted, min size, Close button fill in dark, no hover state without a pointer), plus Catch2 coverage where the logic is in the model or panel. Re-render the harness bitmaps for the default, legend-on, selected-finding and dark states and look at them. Build with -j4 after checking the load (`uptime`, `pgrep -fl ninja`). Commit as a small number of clean commits on the branch with messages a cold reader understands; squash fixups yourself since Kenneth has already approved rewriting this branch's history for that. Do not push. Final message: what changed per item, what the harness proves, what remains untestable without a pointer, and confirmation that the upstream footprint is unchanged at the 16 lines (Color.hpp, ImGuiWrapper, IMSlider, GLCanvas3D).
+
+Two leads outside this window were noted for later and are NOT part of this round: Cmd+R switches the main window to OrcaSlicer's stock Preview tab; the print-actions popup kept stale rows while a slice finished.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bjt61qkou</task-id>
+<tool-use-id>toolu_01FEVxMk7uoKsJWyKkaEJFaB</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bjt61qkou.output</output-file>
+<status>completed</status>
+<summary>Background command "Add island-plate checks and build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzot4jf8q</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-check-print-report-82ed92/a2104109-221c-4abf-8f63-86f2790762ce/tasks/bzot4jf8q.output</output-file>
+<status>completed</status>
+<summary>Background command "Fix the name clash and rebuild" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Try again
