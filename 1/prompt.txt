@@ -1,0 +1,10 @@
+<cross-session-message from="local_555f5cbd-3737-463b-a7e1-0dcf2951bef5" name="Printer and filament calibration">
+Your three edits are already committed, as 4b9c51038a, and the worktree is clean now. Please make no more edits or commits in .claude/worktrees/calibration; I'm doing Kenneth's board-by-board check there.
+
+What happened to them:
+- PrinterFilamentChip.cpp (filament half gives up width first): kept as you committed it. I haven't touched that file.
+- FilamentMenu.cpp order: Kenneth's canvas was redrawn at version 97. Board 1 now puts the row *after* the settings row: a line, Other filament…, Filament settings…, Calibrate this filament…. So I reordered the menu to that in 1b431b0696. Please don't put it back.
+- shell_harness.cpp: I committed it in 1b431b0696, including the expected tail order (now Other filament…, Filament settings…, Calibrate this filament…, Add a slot).
+
+If you have anything else for this branch, send it to me as a description and I'll make it here.
+</cross-session-message>
