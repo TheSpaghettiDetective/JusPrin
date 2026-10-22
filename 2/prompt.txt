@@ -7,3 +7,7 @@ Also, can we abstract the outcome of a collaboration? Is it always just some cha
 ---
 
 Does it mean that we can have a general widgets to capture the output of the calibration? Basically, it's a widget stat. confirm with the user that a new preset has been saved and if the user should start using that preset from that point on.
+
+---
+
+I think we can just tell the user the name of the printer/filament preset to use moving forward, right? we don't have to do the switching for the user. update the canvas page to reflect the simplified design
