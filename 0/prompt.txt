@@ -1,0 +1,34 @@
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Kenneth decided both questions, going with the recommendations: (1) for now "Download" opens the GitHub release page, and installing inside the app comes later; (2) JusPrin's first v2 version is 2.0.0. Please build it on your branch claude/no-orca-update-window, in your worktree and build tree.
+
+- Canvas: update your Updates boards to match. Drop the downloading, ready-to-install and download-failed states; "New version available" gets a "Download" button that opens the release page. Keep everything else.
+- Version: careful here. JusPrin currently reports OrcaSlicer's 2.4.2 (SLIC3R_VERSION). Lowering that to 2.0.0 could break OrcaSlicer's profile and config version checks (min_slic3r_version in profiles, preset-bundle compatibility, config upgrade logic). Find out what reads it. If it's risky, give JusPrin its own version (2.0.0) for display and for the update comparison, and leave OrcaSlicer's number alone. Explain what you chose and why.
+- Update check: implement it in JusPrin's own files, filling known_update() in PreferencesWindow.cpp. The Preferences window lives on branch claude/musing-wing-e808a9; if that code isn't on your branch, put the check behind a small interface in JusPrin's own files and say how it plugs into the Preferences branch when they merge. Follow your design for when it checks, the "Couldn't check" state, the "New JusPrin versions" opt-out with its privacy text, and the Microsoft Store case.
+- Done means: tests for the version comparison and the release parsing; checked in the running app against a real or faked GitHub response (new version shown, up to date, offline); committed to your branch; reported in plain English. Don't push, and don't ask Kenneth to verify anything you can check yourself.
+</cross-session-message>
+
+---
+
+Try again
+
+---
+
+go ahead
+
+---
+
+status?
+
+---
+
+<task-notification>
+<task-id>b9ty0wh55</task-id>
+<tool-use-id>toolu_01NGkseULsLLjQ3fgNya7gJm</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\5000aebe-8930-435c-b917-8a2339851977\tasks\b9ty0wh55.output</output-file>
+<status>completed</status>
+<summary>Background command "&amp; cmd /c '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" &gt;nul 2&gt;nul &amp;&amp; set _LINK_=/DEBUG:NONE &amp;&amp; C:\tools\cmake\bin\cmake.exe --build C:\b\nouw --config Release --target OrcaSlicer_app_gui OrcaSlicer jusprin_profile_tests jusprin_update_tests -- -m &gt; C:\b\nouw-build8.log 2&gt;&amp;1'; "exit $LASTEXITCODE"; Select-String -Path C:\b\nouw-build8.log -Pattern "error C|error LNK|fatal error" | Select-Object -First 8 | ForEach-Object { $_.Line.Substring(0,[Math]::Min(300,$_.Line.Length)) }" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+add the GUI_App seam to stop OrcaSlicer's request too. rebuild the app and launch it so that I can test it
