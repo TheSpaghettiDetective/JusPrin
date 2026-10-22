@@ -1,0 +1,219 @@
+Background (from the session that started this one):
+JusPrin is an AI-piloted fork of OrcaSlicer (C++/wxWidgets, with React pages in a WebView). On 2026-10-21 Kenneth decided JusPrin needs its own Preferences window instead of showing OrcaSlicer's 75-setting dialog. That dialog stays unchanged behind a link. The design is final on the canvas. The Agent setup screens were just rebuilt with shared provider/account/tool rows, so that Preferences › Agent can use the same components; that work is being committed on `jusprin-newui`, so if your worktree doesn't have `AgentConnection.tsx` yet, ask the user or wait for it. Kenneth prefers plain-English reports. Temporary notes stay uncommitted.
+
+Task:
+Build JusPrin's own Preferences window in code, matching the "Preferences" page of the JusPrin v2 canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v). Read its boards with the Artifact tool (read action with `path`): `project/prefs-window.dc.html` is the whole window, and the `prefs-*.dc.html` boards show each section and state. The note at the top of that page records the decisions.
+
+Scope:
+- An 800-wide window with a list of sections on the left: Account, Agent, Appearance, 3D view, Projects & files, Updates.
+- A small "OrcaSlicer preferences…" link at the bottom of that list, which opens `GUI_App::open_preferences()` unchanged.
+- It opens over any screen: the gear on Home, "Preferences…" in the project ⋯ menu (`StatusRow.cpp`, which currently calls `open_preferences`), Ctrl+, / ⌘,, and the Agent's "Agent settings" links.
+- No expert options, and nothing about Bambu Cloud.
+- Every setting writes the same AppConfig keys OrcaSlicer uses. Settings with side effects must call the existing OrcaSlicer functions, never copies: language (window reload), dark mode, file associations, and graphics redraws. See the post-dialog code in `GUI_App::open_preferences`.
+- The Agent and Account sections must reuse the React components in `src/slic3r/GUI/JusPrin/AgentUI/src/components/AgentConnection.tsx` (`AccountRow`, `ProviderKeys`, `ToolGroup`, `ToolRow`), so Agent setup and Preferences stay identical. Read the hand-over note at `C:\Users\guitest\AppData\Roaming\Claude\side-session-notes\local_626ee175-7819-464c-a97e-9269b2eefe7e\agent-setup-rows.md`.
+
+Decide native versus WebView by following `agent-docs/jusprin/architecture.md` "Where logic goes". The page-first rule and reuse of those components point to a React page, with C++ owning reads and writes. Read `agent-docs/jusprin/fork-stewardship.md` before touching any OrcaSlicer-owned file: keep such changes small and additive. Follow "Writing UI code" in `design-system.md`. Auto-slice is not a preference. JusPrin account sign-in isn't built yet, so show it disabled the way setup does.
+
+Done means: the window works from Prepare and Home, each setting round-trips through AppConfig, the guards and `npm test` pass, and you have checked it in the running app with an isolated `--datadir`. Commit on your branch; don't push.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): C:\Users\guitest\AppData\Roaming\Claude\side-session-notes\local_e3c69da8-9284-46a5-abe1-6bffd29cad10
+
+---
+
+<task-notification>
+<task-id>bw57pr5cv</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bw57pr5cv.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd OrcaSlicer jusprin_tests brand_tokens_tests shell_theme_tests" ; echo exit=$?; tail -5 /c/b/prf-build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boufxc44f</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\boufxc44f.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd OrcaSlicer jusprin_tests jusprin_profile_tests brand_tokens_tests shell_theme_tests agent_tests" ; echo exit=$?; grep -E "error C|error LNK|fatal error|MSB[0-9]" /c/b/prf-build.log | head -30" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b54o3p41c</task-id>
+<tool-use-id>toolu_01EbQiH5EVEpUA5M4Aw1dMR2</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b54o3p41c.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd OrcaSlicer jusprin_tests jusprin_profile_tests brand_tokens_tests shell_theme_tests agent_bridge_tests" ; echo exit=$?; grep -E "error C|error LNK|fatal error|MSB[0-9]" /c/b/prf-build.log | head -30" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bkrcajxmc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bkrcajxmc.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd OrcaSlicer jusprin_tests jusprin_profile_tests brand_tokens_tests shell_theme_tests agent_bridge_tests" ; echo exit=$?; grep -E "error C|error LNK|fatal error|MSB[0-9]" /c/b/prf-build.log | head -30" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_e3c69da8-9284-46a5-abe1-6bffd29cad10" name="JusPrin v2 preferences">
+Kenneth's answers on the Preferences window. Please act on them on your branch.
+1. Update check: JusPrin will have its own update mechanism, so revert the upstream accessor for the found update version. The Updates section shouldn't depend on OrcaSlicer's update check. A separate session is being set up to build JusPrin's own update check, including recording when it last ran. Until then, leave a clear placeholder seam and don't build on OrcaSlicer's check.
+2. Footprint on OrcaSlicer's files: Kenneth thinks moving the language switch, dark-mode switch and language list out of upstream code is too big. Rework it so OrcaSlicer's files change as little as possible. For example, call the existing upstream functions in place (app_config set plus the same calls GUI_App::open_preferences makes, or a single additive seam), or leave the language and dark-mode controls to OrcaSlicer's own code paths, instead of relocating upstream code. Report the remaining upstream diff line by line, as agent-docs/jusprin/fork-stewardship.md requires.
+3. New chats start with: hard-code a popular default model for each provider for now.
+4. Title bar: Kenneth asks why the window uses the system title bar instead of the canvas's own title row. Explain the reason in plain English. If there's no strong reason, match the canvas.
+5. Language change (Agent panel can't connect afterwards, and one crash): figure it out. Find the real cause; don't paper over it. If you can't resolve it, say so plainly and stop, and a separate session will take it.
+Keep commits on your branch, don't push, and report in plain English.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>buiju5cre</task-id>
+<tool-use-id>toolu_01QfcFet4fMyMRGvqR1Axpyn</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\buiju5cre.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH="$PATH:/c/Users/guitest/.local/node-v24.21.0-win-x64"; cd /c/src/JusPrin/.claude/worktrees/musing-wing-e808a9/src/slic3r/GUI/JusPrin/AgentUI &amp;&amp; npm run build &gt;/dev/null 2&gt;&amp;1; taskkill //PID 15872 //F &gt;/dev/null 2&gt;&amp;1; cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd OrcaSlicer_app_gui jusprin_profile_tests" ; grep -E "error C|error LNK|fatal error" /c/b/prf-build.log | head; tail -1 /c/b/prf-build.log; /c/b/prf/tests/jusprin/Release/jusprin_profile_tests.exe 2&gt;&amp;1 | tail -2" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_b2ce2d16-ae7b-4ed7-84f2-51eae85a816e" name="JusPrin v2 preferences">
+Kenneth: the Preferences work isn't finished until its open items are closed. Please do these before reporting back:
+1. Run the full shell harness, every mode, on your branch, and compare it with the same modes on the branch's base (jusprin-newui before your commits). Name every new failure and fix the ones your change causes. Tell flaky checks apart from real failures by re-running them.
+2. The crash seen once in three runs before the language fix: reproduce it or show it is gone. Run the language switch enough times to be confident, and find the cause if it comes back.
+3. The wipe-tower dialog's web view that skips the shared creation code: route it through the same language fix, or show why it can't fail.
+4. Re-run the page tests, the settings tests and the brand/theme token tests after these changes.
+Leave the Thinking row, the update check and the title bar as they are; those need decisions from Kenneth, so list them as open decisions. Commit fixes on your branch, don't push or merge. In your final report, say plainly what passed, what failed and what is still unproven.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b0c2vpyzz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b0c2vpyzz.output</output-file>
+<status>completed</status>
+<summary>Background command "F="C:/Users/guitest/AppData/Local/Temp/claude/C--src-JusPrin--claude-worktrees-musing-wing-e808a9/a1a48f4f-9c85-4157-a9d4-cc1bb0672486/tasks/bhtnfvzqu.output"; for i in $(seq 1 55); do grep -q "exit=" "$F" 2&gt;/dev/null &amp;&amp; break; sleep 10; done; cat "$F"; tail -2 /c/b/prfb-build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b32sjb27s</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b32sjb27s.output</output-file>
+<status>completed</status>
+<summary>Background command "F="C:/Users/guitest/AppData/Local/Temp/claude/C--src-JusPrin--claude-worktrees-musing-wing-e808a9/a1a48f4f-9c85-4157-a9d4-cc1bb0672486/tasks/bhtnfvzqu.output"; for i in $(seq 1 45); do grep -q "exit=" "$F" 2&gt;/dev/null &amp;&amp; break; sleep 10; done; cat "$F"; tail -2 /c/b/prfb-build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhtnfvzqu</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bhtnfvzqu.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH="$PATH:/c/Users/guitest/.local/node-v24.21.0-win-x64"; B=/c/src/JusPrin/.claude/worktrees/prf-base/src/slic3r/GUI/JusPrin; (cd $B/AgentUI &amp;&amp; npm ci --no-audit --no-fund &gt;/dev/null 2&gt;&amp;1 &amp;&amp; npm run build &gt;/dev/null 2&gt;&amp;1); (cd $B/HomeUI &amp;&amp; npm ci --no-audit --no-fund &gt;/dev/null 2&gt;&amp;1 &amp;&amp; npm run build &gt;/dev/null 2&gt;&amp;1); ls -la /c/src/JusPrin/.claude/worktrees/prf-base/resources/jusprin/agent/index.html /c/src/JusPrin/.claude/worktrees/prf-base/resources/jusprin/home/index.html; cd /c/b &amp;&amp; cmd //c "C:\\b\\prfb-build.cmd shell_integration_harness OrcaSlicer_app_gui"; echo exit=$?; grep -E "error C|error LNK" /c/b/prfb-build.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b64ro0yld</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b64ro0yld.output</output-file>
+<status>completed</status>
+<summary>Background command "F="C:/Users/guitest/AppData/Local/Temp/claude/C--src-JusPrin--claude-worktrees-musing-wing-e808a9/a1a48f4f-9c85-4157-a9d4-cc1bb0672486/tasks/bhtnfvzqu.output"; until grep -q "exit=" "$F" 2&gt;/dev/null; do sleep 30; done; cat "$F"; tail -3 /c/b/prfb-build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>baaczyntu</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\baaczyntu.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /c/b &amp;&amp; cmd //c "C:\\b\\prf-build.cmd shell_integration_harness OrcaSlicer_app_gui jusprin_tests jusprin_profile_tests brand_tokens_tests shell_theme_tests agent_bridge_tests"; echo exit=$?; grep -E "error C|error LNK" /c/b/prf-build.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5etxzv3q</task-id>
+<tool-use-id>toolu_01TSFRZ9DdcmMrorTCchiGM6</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b5etxzv3q.output</output-file>
+<status>completed</status>
+<summary>Background command "pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree C:\b\prfb -Tag base" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bl07vne52</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bl07vne52.output</output-file>
+<status>completed</status>
+<summary>Background command "Remove-Item C:\b\h-branch -Recurse -Force -ErrorAction SilentlyContinue; pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree C:\b\prf -Tag branch" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bneediibd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bneediibd.output</output-file>
+<status>completed</status>
+<summary>Background command "foreach ($r in 1,2) { foreach ($t in @(@('C:\b\prfb',"base-r$r"), @('C:\b\prf',"branch-r$r"))) { Remove-Item "C:\b\h-$($t[1])" -Recurse -Force -ErrorAction SilentlyContinue; pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree $t[0] -Tag $t[1] -Only default,tool-strip-capture | Out-Null } }; foreach ($t in 'base-r1','branch-r1','base-r2','branch-r2') { "== $t"; Get-Content "C:\b\h-$t\summary.txt" }" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzyy3mgqn</task-id>
+<tool-use-id>toolu_01VhWVqrcttbBW66vxC7ocpF</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bzyy3mgqn.output</output-file>
+<status>completed</status>
+<summary>Background command "foreach ($r in 1,2) { foreach ($t in @(@('C:\b\prfb',"base-r$r"), @('C:\b\prf',"branch-r$r"))) { Remove-Item "C:\b\h-$($t[1])" -Recurse -Force -ErrorAction SilentlyContinue; pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree $t[0] -Tag $t[1] -OnlyList 'default,tool-strip-capture' | Out-Null } }; "done"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b3o4a3ctl</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\b3o4a3ctl.output</output-file>
+<status>completed</status>
+<summary>Background command "Stop-Process -Id 9968 -Force -ErrorAction SilentlyContinue; Remove-Item C:\b\h-branch2 -Recurse -Force -ErrorAction SilentlyContinue; pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree C:\b\prf -Tag branch2" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsky3vcsj</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-musing-wing-e808a9\a1a48f4f-9c85-4157-a9d4-cc1bb0672486\tasks\bsky3vcsj.output</output-file>
+<status>completed</status>
+<summary>Background command "foreach ($r in 1,2) { foreach ($t in @(@('C:\b\prfb',"base-s$r"), @('C:\b\prf',"branch-s$r"))) { Remove-Item "C:\b\h-$($t[1])" -Recurse -Force -ErrorAction SilentlyContinue; pwsh -NoProfile -File C:\b\prf-harness.ps1 -Tree $t[0] -Tag $t[1] -OnlyList 'printer-live,printer-settings-live,setup-differences-capture' | Out-Null } }; "done"" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_b2ce2d16-ae7b-4ed7-84f2-51eae85a816e" name="JusPrin v2 preferences">
+Kenneth's decisions: no Thinking row; keep the system title bar. JusPrin's own update check will be designed in a separate session, so keep the current placeholder. These are settled, so drop them from your open items.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_d0a531ac-692d-4a06-8dad-cdbf3201c9dc" name="JusPrin v2 preferences">
+Kenneth wants the language fix redone without touching OrcaSlicer's files. Revert the WebView.cpp/.hpp and WipeTowerDialog.cpp changes (commits 01e38797cd and 953a26967f), and make a language change in JusPrin's Preferences take effect on restart instead of rebuilding the window in place.
+- Save the new language, then show "JusPrin will use <language> after it restarts", with a "Restart now" button and a "Later" choice.
+- "Restart now" should do a real process restart: save the project, start a new orca-slicer.exe with the same command line (including --datadir), then quit. That way no old Edge process with the old language is still running when the new pages start.
+- Don't call recreate_GUI for language changes.
+- Keep this in fork-owned files (PreferencesWindow.cpp/PreferencesSettings).
+Note that OrcaSlicer's own dialog already says "Switching the language requires application restart", even though it actually rebuilds the window in place. Check that the GUI_App.cpp/.hpp handler seam is the only OrcaSlicer change left on the branch. Test 3 switches with a restart each in the running app (its own data folder and WEBVIEW2_USER_DATA_FOLDER). Commit on your branch, don't push, and report back.
+</cross-session-message>
