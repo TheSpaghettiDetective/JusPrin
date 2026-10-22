@@ -406,7 +406,8 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     const auto& p = m_theme.palette(m_dark);
     const bool primary = m_style == HeaderStyle::PrimaryLeft || m_style == HeaderStyle::PrimaryRight;
     const bool chip    = m_style == HeaderStyle::ChipLeft || m_style == HeaderStyle::ChipRight;
-    dc.SetBackground(wxBrush(m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas));
+    const wxColour& ground = m_surface == HeaderSurface::Raised ? p.surface_raised : p.surface_canvas;
+    dc.SetBackground(wxBrush(m_style == HeaderStyle::Menu ? p.surface_raised : ground));
     dc.Clear();
     wxGraphicsContext* gc = &context;
 
@@ -424,7 +425,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
                    // The filament half sits on a quieter ground than the printer
                    // half, so the chip reads as two things inside one outline.
                    m_style == HeaderStyle::ChipRight ? p.surface_subtle :
-                   m_style == HeaderStyle::Menu ? p.surface_raised : p.surface_canvas;
+                   m_style == HeaderStyle::Menu ? p.surface_raised : ground;
 
     const ShellMetrics& m = m_theme.metrics();
     const double w = client.x, h = client.y;

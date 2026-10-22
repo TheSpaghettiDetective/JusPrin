@@ -47,6 +47,7 @@ public:
               const ShellTheme&          theme,
               Plater&                    plater,
               Notebook&                  tabpanel,
+              Workspace::IWorkspace&     workspace,
               Agent::ProjectPersistence& persistence);
     ~StatusRow() override;
 
@@ -102,6 +103,7 @@ private:
     const ShellTheme&          m_theme;
     Plater&                    m_plater;
     Notebook&                  m_tabpanel;
+    Workspace::IWorkspace&     m_workspace;
     Agent::ProjectPersistence& m_persistence;
     Workspace::ProjectAutosave* m_autosave{nullptr};
 

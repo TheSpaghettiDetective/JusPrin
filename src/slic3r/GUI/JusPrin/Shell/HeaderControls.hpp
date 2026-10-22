@@ -29,6 +29,10 @@ void draw_header_icon(wxGraphicsContext& gc, HeaderIcon icon, double x, double y
 // outline, the way PrimaryLeft/PrimaryRight already split the print action.
 enum class HeaderStyle { Quiet, ChipLeft, ChipRight, PrimaryLeft, PrimaryRight, Outline, Menu };
 
+// The surface a button sits on, which a Quiet or Outline button takes as its
+// own fill at rest. Canvas is the project header's; Raised is a dialog's.
+enum class HeaderSurface { Canvas, Raised };
+
 // A status is a colour plus a word, never a colour alone: the design system
 // requires state to be readable without relying on hue.
 enum class StatusTone { None, Neutral, Positive, Busy, Warning };
@@ -82,6 +86,7 @@ public:
     HeaderButton(wxWindow* parent, const ShellTheme& theme, HeaderStyle style,
                  const wxString& label, HeaderIcon icon);
     void set_dark(bool dark);
+    void set_surface(HeaderSurface surface) { m_surface = surface; Refresh(); }
     void set_icon(HeaderIcon icon);
     void set_status(bool visible, bool warning = false);
     void set_detail(const wxString& detail);
@@ -137,6 +142,7 @@ private:
     wxRect row_action_rect() const;
     const ShellTheme& m_theme;
     HeaderStyle m_style;
+    HeaderSurface m_surface{HeaderSurface::Canvas};
     HeaderIcon m_icon;
     HeaderRowDecoration m_decoration;
     HeaderIcon m_row_action{HeaderIcon::None};

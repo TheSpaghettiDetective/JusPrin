@@ -36,7 +36,9 @@ struct ShellPalette
     wxColour status_success_on_action;
     wxColour status_danger;
     wxColour overlay_scrim;
-    // elevation.medium's shadow colour, with this mode's opacity as alpha.
+    // elevation.subtle's and elevation.medium's shadow colours, with this
+    // mode's opacity as alpha.
+    wxColour elevation_subtle;
     wxColour elevation_medium;
     // The 3D axis colours, the same in both modes because they name the same
     // handles: a red X, a green Y and a blue Z.
@@ -172,6 +174,11 @@ struct CheckboxMetrics  { int size{0}; int radius{0}; int glyph_size{0}; int lab
 struct FormRowMetrics   { int height{0}; int gap{0}; int label_width{0}; std::optional<TextRole> text_role; };
 struct ToolPanelMetrics { int padding{0}; int row_gap{0}; int radius{0}; int min_width{0};
                           std::optional<TextRole> title_text_role; };
+// The round severity or state marker: a printer's state, a report finding's severity.
+struct StatusDotMetrics  { int size{0}; };
+// The header row of a collapsible group in a list: a section of the Check
+// print report, a settings group.
+struct GroupHeaderMetrics { int height{0}; };
 // The print-issue bubble and list on the Prepare canvas. Everything else they
 // use (padding, radii, the two buttons) comes from the shared scales and recipes.
 struct PrintIssueMetrics { int bubble_width{0}; int list_width{0}; };
@@ -188,6 +195,9 @@ struct ShellMetrics
     int radius_full{0};
 
     // The spacing scale, named by its step: space_2 is dimension.space["2"].
+    // space_half is the half step, dimension.space["0.5"]: only the gap
+    // between a row's main line and the detail line under it.
+    int space_half{0};
     int space_1{0};
     int space_2{0};
     int space_3{0};
@@ -204,6 +214,8 @@ struct ShellMetrics
     FieldMetrics     field;
     SelectMetrics    select;
     CheckboxMetrics  checkbox;
+    StatusDotMetrics status_dot;
+    GroupHeaderMetrics group_header;
     FormRowMetrics   form_row;
     ToolPanelMetrics tool_panel;
     PrintIssueMetrics print_issues;

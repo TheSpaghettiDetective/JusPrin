@@ -170,6 +170,13 @@
 //              or in Check print
 //   --print-issues-capture <output-directory>
 //              the same run, saving the canvas's own pixels at each stage
+//   --check-print / --check-print-capture <output-directory>
+//              the Check print window on three sliced plates (nothing to
+//              flag, support generated, a slab printed in the air): the
+//              report panel's contents, the Legend switch, a selected
+//              finding moving the view, the brand accent on the sliders,
+//              and the window closing itself when its slice goes stale; the
+//              capture form also saves the panel and the window's canvas
 //   --print-issue-readers
 //              the conditions that need another printer or a slice: two
 //              nozzles, mixed materials, paths outside the plate, a failed
@@ -251,6 +258,10 @@
 #include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Shell/CheckPrintDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/CheckPrintReportPanel.hpp"
+#include "slic3r/GUI/GCodeViewer.hpp"
+#include "slic3r/GUI/IMSlider.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
@@ -774,6 +785,8 @@ public:
 bool g_issue_no_agent = false;
 // --print-issue-readers: the reader reproduction steps instead of the lifecycle steps.
 bool g_issue_readers = false;
+// --check-print: the Check print window steps instead of the lifecycle steps.
+bool g_check_print = false;
 
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
@@ -1098,7 +1111,9 @@ public:
             if (m_state->mode == HarnessState::Mode::PrintIssues) {
                 m_issue_agent = g_issue_agent;
                 wait_for_agent_page("print_issues", [self = shared_from_this()] {
-                    if (g_issue_readers) self->begin_issue_readers(); else self->begin_print_issues();
+                    if (g_check_print) self->begin_check_print();
+                    else if (g_issue_readers) self->begin_issue_readers();
+                    else self->begin_print_issues();
                 });
                 return;
             }
@@ -7739,6 +7754,7 @@ private:
 
 #include "print_issues_scenario.inc"
 #include "print_issue_readers_scenario.inc"
+#include "check_print_scenario.inc"
 #include "project_prompt_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
@@ -10919,6 +10935,19 @@ int main(int argc, char** argv)
         else if (argument == "--print-issue-readers") {
             state->mode = HarnessState::Mode::PrintIssues;
             g_issue_readers = true;
+        }
+        else if (argument == "--check-print") {
+            state->mode   = HarnessState::Mode::PrintIssues;
+            g_check_print = true;
+        }
+        else if (argument == "--check-print-capture") {
+            if (++index == argc) {
+                std::cerr << "--check-print-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode        = HarnessState::Mode::PrintIssues;
+            g_check_print      = true;
+            state->capture_dir = fs::absolute(argv[index]);
         }
         else if (argument == "--manual-print-issues" || argument == "--manual-print-issues-no-agent") {
             state->mode = HarnessState::Mode::ManualPrintIssues;

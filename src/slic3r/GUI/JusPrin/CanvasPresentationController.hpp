@@ -52,4 +52,39 @@ private:
     std::function<void()>              m_extra_overlay;
 };
 
+// How the Check print window presents OrcaSlicer's G-code preview canvas.
+// Constructing the controller records what it changes and destroying it puts
+// all of it back, whichever way the window closes:
+// - OrcaSlicer's legacy overlay layer (the plate selector strip, the 3D
+//   navigator cube, the canvas toolbar) is hidden, as Prepare's controller
+//   hides it;
+// - the G-code listing, which is the app-wide `show_gcode_window`
+//   preference, is switched off while the window is open; the person may
+//   switch it on again inside the window, and the preference they had comes
+//   back on close;
+// - the legend, with its view-type dropdown, is its own switch.
+// The sliders are not items here: the window shows them as OrcaSlicer does.
+class PreviewPresentationController final
+{
+public:
+    explicit PreviewPresentationController(GLCanvas3D& canvas);
+    ~PreviewPresentationController();
+
+    PreviewPresentationController(const PreviewPresentationController&) = delete;
+    PreviewPresentationController& operator=(const PreviewPresentationController&) = delete;
+
+    void set_legend_shown(bool shown);
+    bool legend_shown() const;
+
+    // Forget the canvas without restoring it, for a canvas already going away.
+    // The app-wide G-code listing preference is still restored.
+    void abandon() { m_canvas = nullptr; }
+
+private:
+    GLCanvas3D* m_canvas{nullptr};
+    bool        m_previous_legend{true};
+    bool        m_previous_overlays_hidden{false};
+    bool        m_previous_gcode_window{true};
+};
+
 } // namespace Slic3r::GUI::JusPrin

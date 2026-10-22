@@ -1206,9 +1206,10 @@ struct SupportContact
 struct SliceSupports
 {
     bool                        generated{false};
-    std::size_t                 layers{0};
+    std::size_t                 layers{0};  // the most any one object has
     std::vector<SupportContact> contacts;
     bool                        truncated{false};
+    std::size_t                 objects{0}; // objects the slice gave support
 };
 
 // How many seams landed on a region that asks for or forbids them.
