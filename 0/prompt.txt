@@ -1,0 +1,5 @@
+my cpu has been running at max for a while now. find out what are using the cpu, and if they are tied to one of the claude code sessions
+
+---
+
+Yes, kill the four ninja builds in the mcp-external-edits worktree and their clang children.
