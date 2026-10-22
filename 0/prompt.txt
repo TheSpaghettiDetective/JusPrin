@@ -1,0 +1,1 @@
+we can use our own release list of TheSpaghettiDetective/JusPrin on GitHub.. but The upstream updates dialogue is ugly, there's no reason to reuse it. design our own update dialog experience on the preferences page
