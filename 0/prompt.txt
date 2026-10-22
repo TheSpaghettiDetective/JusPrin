@@ -1,0 +1,12 @@
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Kenneth decided both questions, going with the recommendations: (1) for now "Download" opens the GitHub release page, and installing inside the app comes later; (2) JusPrin's first v2 version is 2.0.0. Please build it on your branch claude/no-orca-update-window, in your worktree and build tree.
+
+- Canvas: update your Updates boards to match. Drop the downloading, ready-to-install and download-failed states; "New version available" gets a "Download" button that opens the release page. Keep everything else.
+- Version: careful here. JusPrin currently reports OrcaSlicer's 2.4.2 (SLIC3R_VERSION). Lowering that to 2.0.0 could break OrcaSlicer's profile and config version checks (min_slic3r_version in profiles, preset-bundle compatibility, config upgrade logic). Find out what reads it. If it's risky, give JusPrin its own version (2.0.0) for display and for the update comparison, and leave OrcaSlicer's number alone. Explain what you chose and why.
+- Update check: implement it in JusPrin's own files, filling known_update() in PreferencesWindow.cpp. The Preferences window lives on branch claude/musing-wing-e808a9; if that code isn't on your branch, put the check behind a small interface in JusPrin's own files and say how it plugs into the Preferences branch when they merge. Follow your design for when it checks, the "Couldn't check" state, the "New JusPrin versions" opt-out with its privacy text, and the Microsoft Store case.
+- Done means: tests for the version comparison and the release parsing; checked in the running app against a real or faked GitHub response (new version shown, up to date, offline); committed to your branch; reported in plain English. Don't push, and don't ask Kenneth to verify anything you can check yourself.
+</cross-session-message>
+
+---
+
+Try again
