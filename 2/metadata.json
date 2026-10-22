@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5JDVH9TNQA2WDWE7SK1JXAJ",
+  "session_id": "9ce2f3c8-7b6d-4ba7-99ce-889f9d9f192a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-22T18:27:00.653381Z",
+  "branch": "claude/check-print-report-82ed92",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/architecture.md",
+    "src/slic3r/GUI/JusPrin/CanvasPresentationController.cpp",
+    "src/slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "ed73069a057a",
+  "checkpoint_transcript_start": 1822,
+  "transcript_lines_at_start": 1822,
+  "compact_transcript_start": 265,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-22T18:27:00.119653Z",
+    "agent_lines": 74,
+    "agent_removed": 0,
+    "human_added": 442,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 516,
+    "total_lines_changed": 560,
+    "agent_percentage": 13.214285714285715,
+    "metric_version": 2
+  }
+}
