@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5J2DG5JMSB469ZK8PGD9STZ",
+  "strategy": "manual-commit",
+  "branch": "claude/calibration",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
