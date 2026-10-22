@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5J9ZDDVY7MWRW8TV7D29DVG",
+  "strategy": "manual-commit",
+  "branch": "claude/no-orca-update-window",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/OrcaUpdateFilter.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/OrcaUpdateFilter.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_orca_update_filter.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 366881,
+    "cache_read_tokens": 21699456,
+    "output_tokens": 86244,
+    "api_call_count": 108
+  }
+}
