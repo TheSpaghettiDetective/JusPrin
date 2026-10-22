@@ -1,0 +1,3 @@
+<cross-session-message from="local_03e4175d-0a29-4d34-b76e-359fa9635186" name="Build the JusPrin Preferences window">
+May I close the JusPrin app running from my build tree (PID 5248, C:\b\prf\src\Release\orca-slicer.exe --datadir C:\b\prf-try)? It isn't mine and it locks OrcaSlicer.dll, so I can't relink for the restart-on-language-change test. If it's yours or Kenneth's, please close it (or tell me to), and I'll continue.
+</cross-session-message>
