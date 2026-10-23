@@ -821,10 +821,18 @@ export interface PreferencesPayload {
     openLinks: boolean;
   };
   updates: {
+    // JusPrin's own version, not OrcaSlicer's.
     version: string;
-    // A newer version JusPrin's own update check found; null when none has
-    // been. That check is not built yet, so for now this is always null.
-    available: { version: string; url: string } | null;
+    // What JusPrin's update check knows. 'store': a Microsoft Store install,
+    // which the Store updates; JusPrin does not check.
+    status: 'notChecked' | 'checking' | 'upToDate' | 'available' | 'failed' | 'store';
+    // The last successful check, in seconds since 1970; null when none.
+    checked: number | null;
+    // A newer version, with its release page, when it was published (ISO
+    // 8601) and its release notes in Markdown; null when none is known.
+    available: { version: string; url: string; published: string; notes: string } | null;
+    // "New JusPrin versions": the daily check.
+    checkUpdates: boolean;
     updateProfiles: boolean;
   };
 }

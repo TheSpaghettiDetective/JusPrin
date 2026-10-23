@@ -75,6 +75,7 @@ private:
     AgentWebView*                              m_view{nullptr};
     wxTimer                                    m_pump;
     AfterClose                                 m_after;
+    int                                        m_update_listener{0};
 };
 
 // Whether open_preferences() should open this window for these arguments.

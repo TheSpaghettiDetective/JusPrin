@@ -20,6 +20,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
+#include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <boost/filesystem.hpp>
@@ -37,6 +38,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <stdexcept>
 
 #ifdef _WIN32
 #include <wx/msw/wrapwin.h>
@@ -78,17 +80,19 @@ bool links_associated()
 #endif
 }
 
-// What JusPrin's own update check found. That check is not built yet; it is
-// a separate piece of work, which also records when the check last ran. Until
-// it exists the Updates section shows only the version, and nothing here asks
-// OrcaSlicer's check, which looks for OrcaSlicer releases.
-struct KnownUpdate
+const char* status_name(Updates::UpdateCheck::Status status)
 {
-    std::string version;
-    std::string url;
-};
-
-KnownUpdate known_update() { return {}; }
+    using Status = Updates::UpdateCheck::Status;
+    switch (status) {
+    case Status::NotChecked: return "notChecked";
+    case Status::Checking: return "checking";
+    case Status::UpToDate: return "upToDate";
+    case Status::Available: return "available";
+    case Status::Failed: return "failed";
+    case Status::Store: return "store";
+    }
+    throw std::logic_error("unknown update status");
+}
 
 // The languages this build has a catalog for, each named in its own
 // language, and English, which needs none. The same list OrcaSlicer's dialog
@@ -114,10 +118,16 @@ Facts current_facts()
     Facts facts;
     facts.languages        = available_languages();
     facts.running_language = wxGetApp().current_language_code().ToUTF8().data();
-    facts.version   = SoftFever_VERSION;
-    const KnownUpdate update = known_update();
-    facts.update_version  = update.version;
-    facts.update_url      = update.url;
+    const Updates::UpdateCheck::State update = Updates::update_check().state();
+    facts.version        = update.version;
+    facts.update_status  = status_name(update.status);
+    facts.update_checked = update.last_success;
+    if (update.available) {
+        facts.update_version   = update.available->version;
+        facts.update_url       = update.available->url;
+        facts.update_published = update.available->published;
+        facts.update_notes     = update.available->notes;
+    }
     for (const Agent::ProviderProfile& profile : Agent::provider_profiles())
         if (!Agent::load_provider_api_key(wxGetApp().app_config, profile.id).empty())
             facts.configured_providers.push_back(profile.id);
@@ -163,6 +173,9 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
     host.set_session_state_provider([this] { return state(); });
     host.set_page_message_handler([this](const std::string& type, const json& payload) { return on_page_message(type, payload); });
 
+    // A check that finishes, or starts, while the window is open shows at once.
+    m_update_listener = Updates::update_check().subscribe([this] { push_state(); });
+
     Bind(wxEVT_TIMER, &PreferencesWindow::on_pump, this, kPumpTimerId);
     m_pump.Start(kPumpIntervalMs);
     apply_appearance();
@@ -171,6 +184,7 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
 
 PreferencesWindow::~PreferencesWindow()
 {
+    Updates::update_check().unsubscribe(m_update_listener);
     m_pump.Stop();
     // The host inside the view holds this window's document by reference,
     // and wx would destroy the view only after the document is gone.
@@ -288,9 +302,11 @@ void PreferencesWindow::carry_out(const Outcome& outcome)
         break;
     }
     case Effect::OpenUpdate:
-        if (const KnownUpdate update = known_update(); !update.url.empty())
-            wxLaunchDefaultBrowser(wxString::FromUTF8(update.url));
+        if (const auto available = Updates::update_check().state().available)
+            wxLaunchDefaultBrowser(wxString::FromUTF8(available->url));
         break;
+    case Effect::CheckUpdates: Updates::update_check().check_now(); break;
+    case Effect::SkipUpdate: Updates::update_check().skip(outcome.value); break;
     case Effect::OrcaPreferences: close_for({AfterClose::Kind::OrcaPreferences}); break;
     }
 }

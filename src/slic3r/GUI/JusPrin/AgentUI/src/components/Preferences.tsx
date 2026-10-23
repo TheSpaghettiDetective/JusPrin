@@ -18,6 +18,8 @@ import {
   SetupStatusPayload,
 } from '../bridge/protocol';
 import { AccountRow, ProviderKeys, ToolGroup } from './AgentConnection';
+import { MarkdownMessage } from './MarkdownMessage';
+import { Progress } from './Progress';
 import { ActionMenu } from './ChatNavigation';
 import { SetupLocalTool } from './SetupLocalTool';
 
@@ -40,9 +42,9 @@ const DRAG_ACTIONS: { value: DragAction; label: string }[] = [
 export interface PreferencesActions {
   // One setting, by the name the app's settings use.
   set: (name: string, value: string | boolean) => void;
-  // A command: choose_downloads, show_versions, open_update, restart,
-  // orca_preferences.
-  run: (action: string) => void;
+  // A command: choose_downloads, show_versions, open_update, check_updates,
+  // skip_update (with the version), restart, orca_preferences.
+  run: (action: string, details?: Record<string, string>) => void;
   checkKey: (provider: string, apiKey: string) => void;
   cancelCheck: () => void;
   removeKey: (provider: string) => void;
@@ -288,36 +290,131 @@ function ProjectsSection({ projects, actions }: { projects: PreferencesPayload['
   );
 }
 
+// "2 hours ago": how long ago the last successful check was.
+export function checkedAgo(checked: number, now: number = Date.now()): string {
+  const minutes = Math.floor((now / 1000 - checked) / 60);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+function releaseDate(published: string): string {
+  const date = new Date(published);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updates']; actions: PreferencesActions }) {
+  const title = <span className="prefs-card-title">JusPrin {updates.version}</span>;
+  if (updates.status === 'store') {
+    return (
+      <div className="prefs-card">
+        <div className="prefs-row-copy">
+          {title}
+          <span className="prefs-row-detail">Updates come from the Microsoft Store.</span>
+        </div>
+      </div>
+    );
+  }
+  if (updates.available && updates.status !== 'checking') {
+    const { available } = updates;
+    const released = releaseDate(available.published);
+    return (
+      <div className="prefs-card prefs-card--update">
+        <div className="prefs-row-copy">
+          <span className="prefs-card-title">
+            <span className="prefs-dot" aria-hidden="true" />
+            JusPrin {available.version} is available
+          </span>
+          <span className="prefs-row-detail">
+            {released ? `Released ${released} · you have ${updates.version}` : `You have ${updates.version}`}
+          </span>
+        </div>
+        <div className="prefs-card-actions">
+          <button type="button" className="primary" onClick={() => actions.run('open_update')}>
+            Download
+            <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
+          </button>
+          <span className="prefs-card-note">Opens the release page on GitHub</span>
+          <button type="button" className="link prefs-card-end"
+            onClick={() => actions.run('skip_update', { version: available.version })}>
+            Skip this version
+          </button>
+        </div>
+        {available.notes && (
+          <div className="prefs-release-notes">
+            <h3 className="prefs-release-notes-title">Release notes</h3>
+            <MarkdownMessage>{available.notes}</MarkdownMessage>
+            <button type="button" className="link prefs-release-notes-link" onClick={() => actions.run('open_update')}>
+              Full release notes on GitHub
+              <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (updates.status === 'checking') {
+    return (
+      <div className="prefs-card">
+        <div className="prefs-row-copy">
+          {title}
+          <span className="prefs-row-detail">Looking for a newer version on GitHub…</span>
+          <span className="prefs-update-progress"><Progress label="Checking for a newer version" /></span>
+        </div>
+        <button type="button" className="prefs-button" disabled>Checking…</button>
+      </div>
+    );
+  }
+  const checked = updates.checked === null ? null : checkedAgo(updates.checked);
+  if (updates.status === 'failed') {
+    return (
+      <div className="prefs-card">
+        <div className="prefs-row-copy">
+          {title}
+          <span className="prefs-update-line">
+            <span className="prefs-dot prefs-dot--warning" aria-hidden="true" />
+            <span className="prefs-row-detail">
+              {checked ? `Couldn’t reach GitHub · last checked ${checked}` : 'Couldn’t reach GitHub'}
+            </span>
+          </span>
+          <span className="prefs-row-hint">JusPrin tries again tomorrow, or the next time it starts.</span>
+        </div>
+        <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>Try again</button>
+      </div>
+    );
+  }
+  return (
+    <div className="prefs-card">
+      <div className="prefs-row-copy">
+        {title}
+        {checked ? (
+          <span className="prefs-update-line">
+            <span className="prefs-dot prefs-dot--success" aria-hidden="true" />
+            <span className="prefs-row-detail">Up to date · checked {checked}</span>
+          </span>
+        ) : (
+          <span className="prefs-row-detail">Not checked yet</span>
+        )}
+      </div>
+      <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>Check now</button>
+    </div>
+  );
+}
+
 function UpdatesSection({ updates, actions }: { updates: PreferencesPayload['updates']; actions: PreferencesActions }) {
   return (
     <section className="prefs-section" aria-label="Updates">
       <h2 className="prefs-title">Updates</h2>
-      {updates.available ? (
-        <div className="prefs-card prefs-card--update">
-          <div className="prefs-row-copy">
-            <span className="prefs-card-title">
-              <span className="prefs-dot" aria-hidden="true" />
-              JusPrin {updates.available.version} is available
-            </span>
-            <span className="prefs-row-detail">You have {updates.version}. Your projects and settings carry over.</span>
-          </div>
-          <div className="prefs-card-actions">
-            <button type="button" className="primary" onClick={() => actions.run('open_update')}>
-              Download
-              <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
-            </button>
-            <button type="button" className="link" onClick={() => actions.run('open_update')}>What’s new</button>
-          </div>
-        </div>
-      ) : (
-        <div className="prefs-card">
-          <div className="prefs-row-copy">
-            <span className="prefs-card-title">JusPrin {updates.version}</span>
-            <span className="prefs-row-detail">JusPrin will look for newer versions itself in a later release.</span>
-          </div>
-        </div>
-      )}
+      <UpdateStatus updates={updates} actions={actions} />
       <Group title="What to check for">
+        {updates.status !== 'store' && (
+          <Check title="New JusPrin versions"
+            detail="Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
+            checked={updates.checkUpdates} onChange={(on) => actions.set('checkUpdates', on)} />
+        )}
         <Check title="Update built-in printer and filament profiles"
           detail="Only the profiles JusPrin ships. Your own presets never change." checked={updates.updateProfiles}
           onChange={(on) => actions.set('updateProfiles', on)} />

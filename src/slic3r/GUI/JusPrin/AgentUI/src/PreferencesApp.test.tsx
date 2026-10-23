@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PreferencesApp } from './PreferencesApp';
+import { checkedAgo } from './components/Preferences';
 import { Envelope, PreferencesPayload, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
 
 class MockHost {
@@ -45,7 +46,7 @@ function preferences(overrides: Partial<PreferencesPayload> = {}): PreferencesPa
       versionsFolder: 'C:/data/jusprin/projects', downloadPath: 'C:/Users/alex/Downloads',
       associations: true, open3mf: true, openModels: false, openLinks: false,
     },
-    updates: { version: '2.4.2', available: null, updateProfiles: true },
+    updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true, updateProfiles: true },
     agent: {
       newChatProvider: 'openai',
       newChatChoices: [
@@ -199,11 +200,72 @@ describe('Preferences', () => {
 
   it('marks Updates when a newer version was found and offers it', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
-    connect(host, preferences({ section: 'updates', updates: { ...preferences().updates, available: { version: '2.5.0', url: 'https://example.invalid' } } }));
+    const available = { version: '2.1.0', url: 'https://example.invalid', published: '2026-11-02T10:00:00Z', notes: '## Fixes\n\n- Slices faster' };
+    connect(host, preferences({ section: 'updates', updates: { ...preferences().updates, status: 'available', checked: 1_800_000_000, available } }));
     expect(screen.getByRole('img', { name: 'Update available' })).toBeInTheDocument();
-    expect(screen.getByText('JusPrin 2.5.0 is available')).toBeInTheDocument();
+    expect(screen.getByText('JusPrin 2.1.0 is available')).toBeInTheDocument();
+    expect(screen.getByText(/you have 2\.0\.0/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Release notes' })).toBeInTheDocument();
+    expect(screen.getByText('Slices faster')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Download' }));
-    expect(actionsSent(host)).toEqual([{ action: 'open_update' }]);
+    await userEvent.click(screen.getByRole('button', { name: 'Skip this version' }));
+    expect(actionsSent(host)).toEqual([{ action: 'open_update' }, { action: 'skip_update', version: '2.1.0' }]);
+  });
+
+  it('checks for a new version on Check now and shows the check under way', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'updates' }));
+    expect(screen.getByText('JusPrin 2.0.0')).toBeInTheDocument();
+    expect(screen.getByText('Not checked yet')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    expect(actionsSent(host)).toEqual([{ action: 'check_updates' }]);
+
+    host.deliver('preferences', preferences({ section: 'updates', updates: { ...preferences().updates, status: 'checking' } }));
+    expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled();
+    expect(screen.getByRole('progressbar', { name: 'Checking for a newer version' })).toBeInTheDocument();
+
+    const now = Date.now() / 1000;
+    host.deliver('preferences', preferences({ section: 'updates', updates: { ...preferences().updates, status: 'upToDate', checked: now - 2 * 3600 } }));
+    expect(screen.getByText('Up to date · checked 2 hours ago')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Update available' })).not.toBeInTheDocument();
+  });
+
+  it('says quietly when the check could not reach GitHub, and offers another try', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    const checked = Date.now() / 1000 - 3 * 86400;
+    connect(host, preferences({ section: 'updates', updates: { ...preferences().updates, status: 'failed', checked } }));
+    expect(screen.getByText('Couldn’t reach GitHub · last checked 3 days ago')).toBeInTheDocument();
+    expect(screen.getByText('JusPrin tries again tomorrow, or the next time it starts.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(actionsSent(host)).toEqual([{ action: 'check_updates' }]);
+  });
+
+  it('turns the daily check off, and says what it sends', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'updates' }));
+    expect(screen.queryByRole('checkbox', { name: /Stable releases only/ })).not.toBeInTheDocument();
+    const daily = screen.getByRole('checkbox', { name: /New JusPrin versions/ });
+    expect(daily).toHaveAccessibleName(/Nothing about you or your projects is sent/);
+    await userEvent.click(daily);
+    expect(actionsSent(host)).toEqual([{ action: 'set', name: 'checkUpdates', value: false }]);
+  });
+
+  it('leaves updates to the Microsoft Store for a Store install', () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'updates', updates: { ...preferences().updates, status: 'store' } }));
+    expect(screen.getByText('Updates come from the Microsoft Store.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check now' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /New JusPrin versions/ })).not.toBeInTheDocument();
+  });
+
+  it('says how long ago the last check was', () => {
+    const now = 1_800_000_000 * 1000;
+    expect(checkedAgo(1_800_000_000 - 20, now)).toBe('just now');
+    expect(checkedAgo(1_800_000_000 - 60, now)).toBe('1 minute ago');
+    expect(checkedAgo(1_800_000_000 - 45 * 60, now)).toBe('45 minutes ago');
+    expect(checkedAgo(1_800_000_000 - 3600, now)).toBe('1 hour ago');
+    expect(checkedAgo(1_800_000_000 - 30 * 3600, now)).toBe('yesterday');
+    expect(checkedAgo(1_800_000_000 - 5 * 86400, now)).toBe('5 days ago');
   });
 
   it('offers a restart for a new language, and puts the offer away on Later', async () => {
@@ -217,14 +279,6 @@ describe('Preferences', () => {
     expect(actionsSent(host)).toEqual([{ action: 'restart' }]);
     await userEvent.click(screen.getByRole('button', { name: 'Later' }));
     expect(screen.queryByText(/after it restarts/)).not.toBeInTheDocument();
-  });
-
-  it('shows the version and runs no update check of its own yet', () => {
-    render(<PreferencesApp getTransport={() => host.transport} />);
-    connect(host, preferences({ section: 'updates' }));
-    expect(screen.getByText('JusPrin 2.4.2')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Check now' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: /Stable releases only/ })).not.toBeInTheDocument();
   });
 
   it('chooses what new chats start with among the providers that have a key', async () => {

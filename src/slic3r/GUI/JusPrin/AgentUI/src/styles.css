@@ -4164,6 +4164,70 @@ button.prefs-button:hover:enabled {
   gap: 12px;
 }
 
+.prefs-card-note {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+.prefs-card-end {
+  margin-left: auto;
+}
+
+.prefs-update-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefs-dot--success {
+  background: var(--status-success);
+}
+
+.prefs-dot--warning {
+  background: var(--status-warning);
+}
+
+.prefs-row-hint {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+.prefs-update-progress {
+  display: block;
+  padding-top: 4px;
+}
+
+/* GitHub's release notes, drawn as the chat draws Markdown. */
+.prefs-release-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.prefs-release-notes-link {
+  align-self: flex-start;
+}
+
+/* The notes sit under the card's title: their headings no larger than it,
+   their text the size of the card's other detail. */
+.prefs-release-notes .markdown-content {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.prefs-release-notes .markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.prefs-release-notes-title {
+  margin: 0;
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
 .prefs-callout {
   display: flex;
   align-items: flex-start;

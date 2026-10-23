@@ -2,6 +2,7 @@
 
 #include "libslic3r/AppConfig.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+#include "slic3r/GUI/JusPrin/Updates/UpdateRecord.hpp"
 
 #include <array>
 
@@ -58,11 +59,12 @@ struct Switch
 };
 
 // Written with set_bool, as OrcaSlicer's checkboxes write them.
-constexpr std::array<Switch, 4> kBoolSwitches{{
+constexpr std::array<Switch, 5> kBoolSwitches{{
     {"zoomToPointer", "zoom_to_mouse"},
     {"reverseZoom", "reverse_mouse_wheel_zoom"},
     {"freeCamera", "use_free_camera"},
     {"updateProfiles", "sync_system_preset"},
+    {"checkUpdates", Updates::kAutoCheckKey},
 }};
 
 constexpr std::array<Switch, 3> kDragSettings{{
@@ -180,7 +182,10 @@ json snapshot(const AppConfig& config, const Facts& facts)
 
     json update = nullptr;
     if (!facts.update_version.empty())
-        update = {{"version", facts.update_version}, {"url", facts.update_url}};
+        update = {{"version", facts.update_version},
+                  {"url", facts.update_url},
+                  {"published", facts.update_published},
+                  {"notes", facts.update_notes}};
 
     const std::string stored_language  = listed_language(config.get("language"), facts);
     const std::string running_language = facts.running_language.empty() ? stored_language
@@ -223,7 +228,11 @@ json snapshot(const AppConfig& config, const Facts& facts)
           {"openLinks", facts.links_associated}}},
         {"updates",
          {{"version", facts.version},
+          {"status", facts.update_status},
+          {"checked", facts.update_checked == 0 ? json(nullptr) : json(facts.update_checked)},
           {"available", std::move(update)},
+          // On until turned off, unlike OrcaSlicer's switches.
+          {"checkUpdates", Updates::auto_check_enabled(config)},
           {"updateProfiles", config.get_bool("sync_system_preset")}}},
     };
 }
@@ -245,6 +254,14 @@ Outcome apply_action(AppConfig& config, const json& action)
         outcome.effect = Effect::ShowVersions;
     else if (what == "open_update")
         outcome.effect = Effect::OpenUpdate;
+    else if (what == "check_updates")
+        outcome.effect = Effect::CheckUpdates;
+    else if (what == "skip_update") {
+        if (!action.contains("version") || !action["version"].is_string())
+            return refused("skip_update names the version to skip");
+        outcome.effect = Effect::SkipUpdate;
+        outcome.value  = action["version"].get<std::string>();
+    }
     else if (what == "orca_preferences")
         outcome.effect = Effect::OrcaPreferences;
     else if (what == "restart")

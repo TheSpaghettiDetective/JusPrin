@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
@@ -1326,6 +1327,22 @@ void ShellController::on_page_changed()
 
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
 {
+    // Before the shell checks below, so the classic presentation gets this
+    // too: JusPrin checks for its own new versions, and OrcaSlicer's check,
+    // which asks OrcaSlicer's server about OrcaSlicer releases, never runs.
+    // Its startup call is left to JusPrin's own schedule; Help > Check for
+    // Updates checks at once and, with the shell on, shows Preferences >
+    // Updates, where the result appears.
+    if (wxGetApp().is_editor()) {
+        Updates::update_check().attach(frame);
+        wxGetApp().app_update_check = [](int by_user) {
+            if (by_user == 0)
+                return;
+            Updates::update_check().check_now();
+            if (ShellController* shell = installed_shell())
+                shell->open_preferences("updates");
+        };
+    }
     if (tabpanel == nullptr || main_sizer == nullptr)
         return;
     if (!wxGetApp().is_editor())

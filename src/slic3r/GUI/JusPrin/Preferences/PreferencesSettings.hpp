@@ -11,6 +11,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,12 +28,17 @@ struct Facts
     // The language the app is running in; the stored one takes effect at the
     // next start. Empty: the same as the stored one.
     std::string running_language;
-    std::string version;
-    // A newer version JusPrin's own update check found, and its release page;
-    // empty when none. That check is not built yet; see known_update() in
-    // PreferencesWindow.cpp.
+    // JusPrin's own version, and what its update check (Updates::UpdateCheck)
+    // knows: notChecked, checking, upToDate, available, failed or store.
+    std::string  version;
+    std::string  update_status{"notChecked"};
+    std::int64_t update_checked{0}; // the last successful check, in seconds since 1970; 0: never
+    // A newer version, its release page, when it was published and its
+    // release notes; empty when none.
     std::string update_version;
     std::string update_url;
+    std::string update_published;
+    std::string update_notes;
     // Where version history is kept.
     std::string versions_folder;
     // File and link associations are a Windows feature in OrcaSlicer.
@@ -57,6 +63,8 @@ enum class Effect {
     ChooseDownloads,  // pick a new download_path
     ShowVersions,     // reveal the version-history folder
     OpenUpdate,       // open the newer version's release page
+    CheckUpdates,     // look for a newer version now
+    SkipUpdate,       // stop offering the version in `value`
     OrcaPreferences,  // open OrcaSlicer's own Preferences dialog
     Restart,          // quit and start JusPrin again, in the stored language
 };

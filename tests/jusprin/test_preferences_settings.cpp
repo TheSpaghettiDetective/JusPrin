@@ -171,8 +171,8 @@ TEST_CASE_METHOD(ConfigFixture, "Wrong names and values are refused and write no
     CHECK_FALSE(apply_action(config, {{"action", "set"}, {"name", "zoomToPointer"}, {"value", "yes"}}).error.empty());
     CHECK_FALSE(apply_action(config, {{"action", "format_disk"}}).error.empty());
     CHECK_FALSE(apply_action(config, json::array()).error.empty());
-    // OrcaSlicer's update check is not JusPrin's, so nothing here runs it.
-    CHECK_FALSE(apply_action(config, {{"action", "check_updates"}}).error.empty());
+    CHECK_FALSE(apply_action(config, {{"action", "skip_update"}}).error.empty());
+    CHECK_FALSE(apply_action(config, {{"action", "set"}, {"name", "checkUpdates"}, {"value", "daily"}}).error.empty());
     CHECK_FALSE(apply_action(config, {{"action", "set"}, {"name", "stableOnly"}, {"value", true}}).error.empty());
 }
 
@@ -196,19 +196,45 @@ TEST_CASE_METHOD(ConfigFixture, "New chats start with a provider that has a key,
     CHECK(config.get("jusprin_agent", "provider") == "anthropic");
 }
 
+TEST_CASE_METHOD(ConfigFixture, "JusPrin's own update check runs from the Updates section", "[preferences]")
+{
+    // On until turned off.
+    CHECK(snapshot(config, facts)["updates"]["checkUpdates"] == true);
+    CHECK(set("checkUpdates", false)["updates"]["checkUpdates"] == false);
+    CHECK(config.get("jusprin_update_check") == "false");
+    CHECK(set("checkUpdates", true)["updates"]["checkUpdates"] == true);
+
+    CHECK(apply_action(config, {{"action", "check_updates"}}).effect == Effect::CheckUpdates);
+    const Outcome skip = apply_action(config, {{"action", "skip_update"}, {"version", "2.1.0"}});
+    CHECK(skip.effect == Effect::SkipUpdate);
+    CHECK(skip.value == "2.1.0");
+}
+
 TEST_CASE_METHOD(ConfigFixture, "Facts only the app knows reach the page", "[preferences]")
 {
-    facts.version          = "2.4.2";
-    facts.update_version   = "2.5.0";
+    CHECK(snapshot(config, facts)["updates"]["status"] == "notChecked");
+    CHECK(snapshot(config, facts)["updates"]["checked"].is_null());
+
+    facts.version          = "2.0.0";
+    facts.update_status    = "available";
+    facts.update_checked   = 1'800'000'000;
+    facts.update_version   = "2.1.0";
     facts.update_url       = "https://example.invalid/release";
+    facts.update_published = "2026-11-02T10:00:00Z";
+    facts.update_notes     = "## Fixes";
     facts.windows          = true;
     facts.links_associated = true;
     facts.versions_folder  = "C:/data/jusprin/projects";
     config.set("download_path", "C:/Downloads");
     const json state = snapshot(config, facts);
     CHECK(state["kind"] == "preferences");
-    CHECK(state["updates"]["version"] == "2.4.2");
-    CHECK(state["updates"]["available"]["version"] == "2.5.0");
+    CHECK(state["updates"]["version"] == "2.0.0");
+    CHECK(state["updates"]["status"] == "available");
+    CHECK(state["updates"]["checked"] == 1'800'000'000);
+    CHECK(state["updates"]["available"]["version"] == "2.1.0");
+    CHECK(state["updates"]["available"]["url"] == "https://example.invalid/release");
+    CHECK(state["updates"]["available"]["published"] == "2026-11-02T10:00:00Z");
+    CHECK(state["updates"]["available"]["notes"] == "## Fixes");
     CHECK(state["projects"]["associations"] == true);
     CHECK(state["projects"]["openLinks"] == true);
     CHECK(state["projects"]["downloadPath"] == "C:/Downloads");
