@@ -457,7 +457,11 @@ struct ObjectDetails
     std::string          name;
     std::vector<PlateId> plates;
     std::size_t          instances{0}, parts{0}, modifiers{0}, negative_parts{0}, support_volumes{0};
+    // Whether every copy prints: the object's own switch and each copy's.
+    // plate_layout's enabled and the object list's switch set the copies'.
     bool                 printable{true};
+    // The copies that print, out of instances.
+    std::size_t          printable_instances{0};
     int                  extruder{0};
     Vec3                 size{};
     std::size_t          overrides{0};
@@ -1203,9 +1207,10 @@ struct SupportContact
 struct SliceSupports
 {
     bool                        generated{false};
-    std::size_t                 layers{0};
+    std::size_t                 layers{0};  // the most any one object has
     std::vector<SupportContact> contacts;
     bool                        truncated{false};
+    std::size_t                 objects{0}; // objects the slice gave support
 };
 
 // How many seams landed on a region that asks for or forbids them.
@@ -1291,13 +1296,26 @@ struct SliceReport
     std::optional<SliceIslands>    islands;
 };
 
+// Why a command did not run, by what the caller does next. The tools turn
+// each kind into one code of Agent/ToolErrors.hpp. A command that stops after
+// changing part of the project says what it changed in its message.
 enum class WorkspaceError : std::uint8_t {
     None,
     InvalidId,
-    MissingObject,
+    // The id is not in the open project: read the ids again.
+    NotFound,
+    // The id is from an earlier session, or its item was removed since.
     StaleId,
-    UnsupportedSelection,
-    UnavailableOperation,
+    // OrcaSlicer is busy or not ready yet: try again shortly.
+    Busy,
+    // Another step comes first, which the message names.
+    NeedsStep,
+    // OrcaSlicer does not do this to this item.
+    Refused,
+    // OrcaSlicer tried and did not succeed.
+    Failed,
+    // No FFF printer or process preset is selected.
+    WorkspaceUnavailable,
     InvalidArgument,
     NoChange,
     InvalidSettings,
@@ -1396,6 +1414,8 @@ struct WorkspaceEdit
     // Preset only: which preset was switched, "printer", "filament" or
     // "process", so the change log can draw one printer setup as one row.
     std::string location;
+    // ExternalTool only: the MCP client's name for itself, when it gave one.
+    std::string client;
 };
 
 using WorkspaceEditCallback = std::function<void(const WorkspaceEdit&)>;
@@ -1800,7 +1820,7 @@ public:
     // the result arrives as a Plates change and is read from the snapshot, the
     // way the GUI's own Slice button behaves.
     //
-    // Refuses with UnavailableOperation when a slice is already running unless
+    // Refuses with Busy when a slice is already running unless
     // preempt is set, because nothing in Orca records who started a run: a
     // slice in flight may be the person's, and taking it over is a decision
     // the caller must make deliberately rather than by racing.
@@ -1814,10 +1834,10 @@ public:
     // `outline` is read fresh from Orca on every call, like snapshot().
     // `select_plate` makes a plate the active one, as clicking it in Orca's own
     // plate list does; `add_plate` is the toolbar's Add plate, one undo step.
-    // `select_copy` and `select_volume` select exactly that item, and fail with
-    // UnavailableOperation when Orca cannot select at that granularity (a
-    // volume of an object with a single model part, or a copy that no plate
-    // holds). A no-op selection fails with NoChange.
+    // `select_copy` and `select_volume` select exactly that item. They fail
+    // with Refused for a volume of an object with a single model part, and
+    // with Failed when Orca does not select it (a copy that no plate holds).
+    // A no-op selection fails with NoChange.
     virtual ProjectOutline outline() const                       = 0;
     virtual CommandResult  select_plate(PlateId id)              = 0;
     virtual CommandResult  add_plate()                           = 0;
@@ -1827,19 +1847,19 @@ public:
     // Orca offers Delete only while another plate remains, Move to front only
     // below the first plate, and Filament grouping only on a dual-extruder
     // Bambu printer. `run_plate_action` refuses one that is not in that list
-    // with UnavailableOperation instead of running it anyway.
+    // with Refused instead of running it anyway.
     virtual std::vector<PlateAction> plate_actions(PlateId id) const                       = 0;
     virtual CommandResult            run_plate_action(PlateId id, PlateAction action)      = 0;
     // The object actions that apply to this object now, in menu order: Filament
     // only in a multi-material job, Repair only for a mesh with problems, Split
     // only for an object that has more than one piece. `slot` is the 1-based
     // filament for Filament and ignored otherwise. A refusal by OrcaSlicer comes
-    // back as UnavailableOperation.
+    // back as Refused, and a command that changed nothing as Failed.
     virtual std::vector<ObjectAction> object_actions(ObjectId id) const                                    = 0;
     virtual CommandResult             run_object_action(ObjectId id, ObjectAction action, int slot = 0)    = 0;
     // The object list's printable switch for one copy.
     virtual CommandResult             toggle_copy_printable(InstanceId id)                                 = 0;
-    // Selects the object and opens the tool on it. `UnavailableOperation` when
+    // Selects the object and opens the tool on it. `Failed` when
     // OrcaSlicer won't open it (a gizmo already running, for one).
     virtual CommandResult             open_customization(ObjectId id, CustomizationTool tool)             = 0;
     virtual ConfiguredPrinter configured_printer() const = 0;
@@ -1877,7 +1897,7 @@ public:
     virtual SettingsCatalog settings_catalog() const = 0;
     // The panel's edit on one of the object's own settings, as one undo step
     // the person made. NoChange when nothing the object has matches any more;
-    // UnavailableOperation for what the panel never offers (an action of None,
+    // Refused for what the panel never offers (an action of None,
     // or a customization the catalog marks with another action).
     virtual CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) = 0;
 
@@ -1954,30 +1974,38 @@ public:
     class AgentEdit
     {
     public:
-        explicit AgentEdit(IWorkspace& workspace, EditActor actor = EditActor::Agent)
-            : m_workspace(workspace), m_outer(workspace.m_edit_actor)
+        explicit AgentEdit(IWorkspace& workspace, EditActor actor = EditActor::Agent, std::string client = {})
+            : m_workspace(workspace), m_outer(workspace.m_edit_actor), m_outer_client(std::move(workspace.m_edit_client))
         {
-            m_workspace.m_edit_actor = actor;
+            m_workspace.m_edit_actor  = actor;
+            m_workspace.m_edit_client = std::move(client);
         }
-        ~AgentEdit() { m_workspace.m_edit_actor = m_outer; }
+        ~AgentEdit()
+        {
+            m_workspace.m_edit_actor  = m_outer;
+            m_workspace.m_edit_client = std::move(m_outer_client);
+        }
         AgentEdit(const AgentEdit&) = delete;
         AgentEdit& operator=(const AgentEdit&) = delete;
 
     private:
         IWorkspace& m_workspace;
         EditActor   m_outer;
+        std::string m_outer_client;
     };
 
 protected:
     void publish_edit(WorkspaceEdit edit)
     {
-        edit.actor = m_edit_actor;
+        edit.actor  = m_edit_actor;
+        edit.client = m_edit_client;
         m_edits.publish(edit);
     }
 
 private:
     WorkspaceEditHub              m_edits;
     EditActor                     m_edit_actor{EditActor::Person};
+    std::string                   m_edit_client;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

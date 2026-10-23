@@ -69,7 +69,7 @@ void McpRuntime::poll()
         // synchronously, and must not be lost before the action ID is known.
         m_calls.emplace(correlation, Call{pending, {}, -1});
         m_coordinator.submit({params["name"].get<std::string>(), params.value("arguments", json::object()).dump()},
-                             correlation, {}, Agent::ToolSource::Mcp);
+                             correlation, {}, Agent::ToolSource::Mcp, {}, mcp_client_name(params));
     }
 }
 

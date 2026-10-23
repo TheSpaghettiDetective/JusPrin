@@ -204,6 +204,7 @@
   },
   "dimension": {
     "space": {
+      "0.5": 2,
       "1": 4,
       "2": 8,
       "3": 12,
@@ -424,6 +425,9 @@
       "shimmerMs": 1600,
       "spinMs": 1000
     },
+    "setupOffer": {
+      "shrinkMs": 320
+    },
     "timelineSummary": {
       "paddingX": 8,
       "paddingY": 8,
@@ -490,6 +494,9 @@
     },
     "statusDot": {
       "size": 8
+    },
+    "groupHeader": {
+      "height": 32
     },
     "stepDots": {
       "size": 6

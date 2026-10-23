@@ -2008,6 +2008,9 @@ void GLCanvas3D::render(bool only_init)
     Camera& camera = wxGetApp().plater()->get_camera();
     camera.set_viewport(0, 0, std::max(10u, (unsigned int)cnv_size.get_width()), std::max(10u, (unsigned int)cnv_size.get_height()));
     camera.apply_viewport();
+    // The ImGui context is shared by every canvas, like the camera: a canvas
+    // drawn after one of another size must give it its own size again.
+    wxGetApp().imgui()->set_display_size(static_cast<float>(cnv_size.get_width()), static_cast<float>(cnv_size.get_height()));
 
     if (camera.requires_zoom_to_bed) {
         zoom_to_bed();

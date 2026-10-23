@@ -134,9 +134,9 @@ std::size_t filament_count()
 CommandResult check_divide(const ModelObject& object, const DivideRequest& request)
 {
     if (object.instances.empty())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, object.name + " has no instance to divide");
+        return CommandResult::failure(WorkspaceError::Refused, object.name + " has no instance to divide");
     if (object.is_cut())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+        return CommandResult::failure(WorkspaceError::Refused,
                                       object.name + " was cut with connectors; divide it with OrcaSlicer's cut tool");
     if (request.mode == DivideRequest::Mode::Plane) {
         const Vec3d normal(request.normal[0], request.normal[1], request.normal[2]);
@@ -233,7 +233,7 @@ CommandResult OrcaWorkspaceAdapter::divide_object(ObjectId id, const DivideReque
         Cut                  cut(&object, 0, cut_matrix(object, request), cut_attributes(request));
         const ModelObjectPtrs& pieces = cut.perform_with_plane();
         if (pieces.empty())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer's cut produced nothing");
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer's cut produced nothing");
         added = pieces.size();
         m_plater.apply_cut_object_to_model(resolved->index, pieces);
     } else if (!request.as_parts) {
@@ -243,7 +243,7 @@ CommandResult OrcaWorkspaceAdapter::divide_object(ObjectId id, const DivideReque
         m_plater.select_object(resolved->index);
         m_plater.split_object(false);
         if (model.objects.size() < count_before)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not split " + object.name);
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not split " + object.name);
         added = model.objects.size() - count_before + 1;
     } else {
         // ObjectList::split for every part, less its selection and message.
@@ -287,25 +287,25 @@ CommandResult OrcaWorkspaceAdapter::merge_objects(const std::vector<ObjectId>& i
             return id_error(id);
         ModelObject* object = model.objects[resolved->index];
         if (object->is_cut())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, object->name + " was cut with connectors and cannot be merged");
+            return CommandResult::failure(WorkspaceError::Refused, object->name + " was cut with connectors and cannot be merged");
         if (std::any_of(selection.begin(), selection.end(), [object](const ObjectVolumeID& s) { return s.object == object; }))
             return CommandResult::failure(WorkspaceError::InvalidArgument, object->name + " is named twice");
         selection.push_back({object, nullptr});
     }
     ObjectList* list = wxGetApp().obj_list();
     if (list == nullptr)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The object list is not available");
+        return CommandResult::failure(WorkspaceError::Failed, "The object list is not available");
     m_plater.canvas3D()->get_gizmos_manager().reset_all_states();
     const ProjectStateTransaction transaction = m_plater.project_state_transaction();
     // The object list's assemble works on its selection and takes its own
     // snapshot; select exactly these objects first.
     list->select_items(selection);
     if (!list->can_merge_to_multipart_object())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer cannot merge these objects");
+        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer cannot merge these objects");
     const std::size_t count_before = model.objects.size();
     list->merge(true);
     if (model.objects.size() != count_before - ids.size() + 1)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not merge the objects");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not merge the objects");
     merged = ObjectId(m_session, model.objects.back()->id().id);
     return CommandResult::success();
 }
@@ -343,12 +343,28 @@ CommandResult OrcaWorkspaceAdapter::repair_object(ObjectId id, RepairResult& res
     // The repair command's own step per part, less its progress dialog. The
     // mesh changes, so paint that was keyed to its facets goes, as Orca's
     // repair does when it does not remap paint.
+    const bool painted = std::any_of(object.volumes.begin(), object.volumes.end(), [](const ModelVolume* part) {
+        return !part->supported_facets.empty() || !part->seam_facets.empty() || !part->mmu_segmentation_facets.empty() ||
+               !part->fuzzy_skin_facets.empty();
+    });
     m_plater.clear_before_change_mesh(static_cast<int>(resolved->index));
+    std::size_t repaired = 0;
     for (ModelVolume* part : broken) {
         TriangleMesh mesh = part->mesh();
         std::string  error;
-        if (!MeshBoolean::cgal::repair(mesh, nullptr, &error))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer could not repair " + object.name + ": " + error);
+        if (!MeshBoolean::cgal::repair(mesh, nullptr, &error)) {
+            // What already happened stays: the paint is gone and the parts
+            // before this one are repaired.
+            std::string message = "OrcaSlicer could not repair " + object.name + ": " + error;
+            if (painted || repaired > 0)
+                message += std::string(" Already changed by this call, and not undone:") +
+                           (painted ? " its painted supports, seams, colors and fuzzy skin were removed" : "") +
+                           (painted && repaired > 0 ? ";" : "") +
+                           (repaired > 0 ? " " + std::to_string(repaired) + " of its " + std::to_string(broken.size()) +
+                                               " open parts were repaired" : "") + ".";
+            return CommandResult::failure(WorkspaceError::Failed, std::move(message));
+        }
+        ++repaired;
         part->set_mesh(std::move(mesh));
         part->calculate_convex_hull();
         part->invalidate_convex_hull_2d();

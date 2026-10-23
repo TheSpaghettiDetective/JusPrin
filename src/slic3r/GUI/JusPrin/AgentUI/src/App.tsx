@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { AttachmentPickKind, AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
@@ -18,6 +18,7 @@ import { opening, placeholder } from './printerWords';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
+  AgentSetupBar,
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
@@ -114,6 +115,11 @@ export function App({
   // Whether the thread is scrolled under the pinned setup band, which then
   // lifts off it.
   const [threadScrolled, setThreadScrolled] = useState(false);
+  // Where the full setup offer was at the last render, so the setup bar that
+  // replaces it can start from there.
+  const offerRef = useRef<HTMLDivElement>(null);
+  const offerRect = useRef<DOMRect | null>(null);
+  useLayoutEffect(() => { offerRect.current = offerRef.current?.getBoundingClientRect() ?? null; });
 
   const client = useMemo(() => {
     const created: BridgeClient = new BridgeClient({
@@ -423,19 +429,27 @@ export function App({
   }
 
   const unavailable = state.agentStatus === 'unavailable';
+  const viewedId = state.viewedConversationId || state.activeConversationId;
+  const viewedChanges = state.changes.filter((change) => change.conversationId === viewedId);
+  const viewedWork = state.work.filter((entry) => entry.conversationId === viewedId);
   // The printer greeting and a focused filament context note must not hide
   // setup. File reports are notes, so they do not turn an otherwise empty
-  // project conversation into history. Other saved history stays visible.
-  const onlyFileReports = state.messages.every((message) => message.role === 'note' && !!message.fileReport);
+  // project conversation into history. Anything else is the thread: saved
+  // messages, and edits and work by the person or an external tool.
+  const emptyChat = viewedChanges.length === 0 && viewedWork.length === 0 &&
+    state.messages.every((message) => message.role === 'note' && !!message.fileReport);
   const fileReportNotes = state.messages.flatMap((message) =>
     message.role === 'note' && message.fileReport && message.fileReportCard
       ? [{ id: message.id, report: message.fileReport }]
       : [],
   );
-  const notConfigured = unavailable && (printerPanel || state.navigation.focused || onlyFileReports);
+  const notConfigured = unavailable && (printerPanel || state.navigation.focused || emptyChat);
+  // With no agent, a thread has nobody to type to: setup takes the
+  // composer's place. Over the empty chat the full offer stands above an
+  // inert composer instead.
+  const setupBar = unavailable && !notConfigured;
   const streaming = state.streamingMessageId !== null;
   const busy = streaming || state.conversationBusy || state.projectChatBlocked;
-  const viewedId = state.viewedConversationId || state.activeConversationId;
   const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
   const historical = viewedId !== state.activeConversationId;
   const resumeStatus = state.chatResume.status;
@@ -489,7 +503,7 @@ export function App({
   const setupCard = view === 'chat' && cardContext && <div className={threadScrolled ? 'pinned-setup pinned-setup--scrolled' : 'pinned-setup'}>
     <SetupCard context={cardContext} historical={historical} savedAt={historical ? state.chatResume.savedAt : undefined}
       agentAvailable={!unavailable} working={!historical && busy}
-      changes={historical ? undefined : state.changes.filter((change) => change.conversationId === viewedId)}
+      changes={historical ? undefined : viewedChanges}
       now={now}
       estimateBefore={!historical && beforeChange.current?.seq === newestChange?.seq &&
         beforeChange.current?.plateId === activePlate?.id ? beforeChange.current?.estimate : null}
@@ -552,8 +566,8 @@ export function App({
           builds={historical ? state.builds.filter((record) => record.conversationId === viewedId) : state.builds}
           exportedCopies={historical ? state.exportedCopies.filter((record) => record.conversationId === viewedId) : state.exportedCopies}
           physicalPrints={historical ? state.physicalPrints.filter((record) => record.conversationId === viewedId) : state.physicalPrints}
-          changes={state.changes.filter((change) => change.conversationId === viewedId)}
-          work={state.work.filter((entry) => entry.conversationId === viewedId)}
+          changes={viewedChanges}
+          work={viewedWork}
           onWorkCancel={sendWorkCancel}
           restorePoints={historical ? [] : state.restorePoints}
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
@@ -563,7 +577,6 @@ export function App({
           replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
           readOnly={historical || state.projectChatBlocked}
           onDiscussFailure={(text) => sendMessage(text, false)}
-          onSetUpAgent={openSetup}
           onScrolledChange={setThreadScrolled}
         />
       );
@@ -597,7 +610,7 @@ export function App({
           }}
         />
       );
-    return <AgentNotConfiguredPane onSetUp={openSetup} fileReports={fileReportNotes} />;
+    return <AgentNotConfiguredPane onSetUp={openSetup} fileReports={fileReportNotes} offerRef={offerRef} />;
   };
 
   if (printerPanel) {
@@ -768,10 +781,13 @@ export function App({
         onRemoveAttachment={() => {}}
       />}
       {!historical && state.navigation.focused && notConfigured && blockedAlert}
-      {!historical && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
+      {!historical && setupBar && <div hidden={view !== 'chat'}>
+        <AgentSetupBar onSetUp={openSetup} from={offerRect.current} notice={blockedAlert || undefined} />
+      </div>}
+      {!historical && !setupBar && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
         disabled={unavailable || state.projectChatBlocked}
-        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : unavailable ? 'The Agent is not available' : undefined}
+        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : undefined}
         attachable={!state.projectChatBlocked}
         notice={blockedAlert || undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}

@@ -414,8 +414,10 @@ describe('App', () => {
     ] }));
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
-    expect(within(screen.getByLabelText('Notes about this file')).getByRole('button', { name: 'Set up the Agent' })).toBeEnabled();
+    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    // One way into setup, under the thread; the card does not repeat it.
+    expect(within(screen.getByLabelText('Notes about this file')).queryByRole('button')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
   });
 
   it('sends a user message on Enter and streams the reply with stop support', async () => {
@@ -496,7 +498,8 @@ describe('App', () => {
 
     expect(screen.queryByText('The Agent isn’t set up yet')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
+    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.getByTestId('agent-setup-bar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     await userEvent.click(screen.getByRole('button', { name: /Set up the agent/ }));
     expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
@@ -523,6 +526,39 @@ describe('App', () => {
     expect(composer).toHaveAttribute('placeholder', 'ask, or steer this chat\u2026');
   });
 
+  it('shows an external tool\'s edits as the thread when no Agent is configured', async () => {
+    const edit = { seq: 3, createdAt: '2026-10-21T09:00:00', kind: 'setting' as const, actor: 'agent' as const, external: true,
+      client: 'Claude Code', label: 'Wall loops', from: '2', to: '3', preset: '0.20mm Standard', key: 'wall_loops',
+      conversationId: 'conv-1', afterId: '' };
+    const slice = { seq: 4, id: 'work-4', startedAt: '2026-10-21T09:00:05', endedAt: '2026-10-21T09:00:40', kind: 'slice',
+      title: 'Slicing plate 1', state: 'done' as const, detail: '', conversationId: 'conv-1', afterId: '', cancellable: false };
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' }, changes: [edit], work: [slice] }));
+
+    expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
+    expect(screen.queryByText('NOT SET UP')).not.toBeInTheDocument();
+    expect(screen.getByText('Claude Code, in 0.20mm Standard', { exact: false })).toBeInTheDocument();
+    expect(screen.getByTestId('work-work-4')).toHaveTextContent('Slicing plate 1');
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('Edited by Claude Code');
+    expect(card).not.toHaveTextContent('using the selected preset');
+    // Setup takes the composer's place: there is nothing to type to.
+    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
+  });
+
+  it('turns the offer into the thread when the first edit arrives', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ agent: { status: 'unavailable' } }));
+    expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
+    host.deliver('change_added', { change: { seq: 1, createdAt: '2026-10-21T09:00:00', kind: 'step', actor: 'person',
+      label: 'Rotate', conversationId: 'conv-1', afterId: '' } });
+    expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
+    expect(screen.getByText('Rotate')).toBeInTheDocument();
+    expect(screen.getByTestId('agent-setup-bar')).toBeInTheDocument();
+  });
+
   it('shows the internal bridge error with retry when the host rejects the protocol version', () => {
     render(<App getTransport={() => host.transport} />);
     host.deliver('hello_reject', { supportedVersions: [99], message: 'version 99 only' });
@@ -535,7 +571,9 @@ describe('App', () => {
     expect(screen.getByTestId('bridge-error')).toBeInTheDocument();
   });
 
-  it('explains a stale action distinctly from other failures', () => {
+  // stale_workspace is the code; stale_revision is what chats saved before the
+  // codes were unified still hold.
+  it.each(['stale_workspace', 'stale_revision'])('explains a stale action (%s) distinctly from other failures', (code) => {
     render(<App getTransport={() => host.transport} />);
     connect(
       host,
@@ -544,7 +582,7 @@ describe('App', () => {
         toolActivities: [
           toolActivity({
             state: 'failed',
-            error: { code: 'stale_revision', message: 'The project changed before this action could run.' },
+            error: { code, message: 'Nothing ran: the project changed after this call was made.' },
           }),
         ],
       }),

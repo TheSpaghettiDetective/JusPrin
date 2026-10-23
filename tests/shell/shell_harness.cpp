@@ -170,6 +170,13 @@
 //              or in Check print
 //   --print-issues-capture <output-directory>
 //              the same run, saving the canvas's own pixels at each stage
+//   --check-print / --check-print-capture <output-directory>
+//              the Check print window on three sliced plates (nothing to
+//              flag, support generated, a slab printed in the air): the
+//              report panel's contents, the Legend switch, a selected
+//              finding moving the view, the brand accent on the sliders,
+//              and the window closing itself when its slice goes stale; the
+//              capture form also saves the panel and the window's canvas
 //   --print-issue-readers
 //              the conditions that need another printer or a slice: two
 //              nozzles, mixed materials, paths outside the plate, a failed
@@ -258,6 +265,10 @@
 #include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Shell/CheckPrintDialog.hpp"
+#include "slic3r/GUI/JusPrin/Shell/CheckPrintReportPanel.hpp"
+#include "slic3r/GUI/GCodeViewer.hpp"
+#include "slic3r/GUI/IMSlider.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
@@ -781,6 +792,8 @@ public:
 bool g_issue_no_agent = false;
 // --print-issue-readers: the reader reproduction steps instead of the lifecycle steps.
 bool g_issue_readers = false;
+// --check-print: the Check print window steps instead of the lifecycle steps.
+bool g_check_print = false;
 
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
@@ -1114,7 +1127,9 @@ public:
             if (m_state->mode == HarnessState::Mode::PrintIssues) {
                 m_issue_agent = g_issue_agent;
                 wait_for_agent_page("print_issues", [self = shared_from_this()] {
-                    if (g_issue_readers) self->begin_issue_readers(); else self->begin_print_issues();
+                    if (g_check_print) self->begin_check_print();
+                    else if (g_issue_readers) self->begin_issue_readers();
+                    else self->begin_print_issues();
                 });
                 return;
             }
@@ -1399,7 +1414,7 @@ private:
             pane->snapshot();
             check(!pane->rows()[object_index].customized, "left_pane_mark_goes_when_the_customization_does");
             check(workspace->run_object_action(object.object, Workspace::ObjectAction::Filament, 1).error ==
-                      Workspace::WorkspaceError::UnavailableOperation,
+                      Workspace::WorkspaceError::Refused,
                   "left_pane_filament_action_is_absent_in_a_single_material_job");
         }
 
@@ -1837,6 +1852,26 @@ private:
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), name);
     }
 
+    void verify_matching_chat_switch(const std::string& target, const std::string& name,
+                                     std::function<void()> next)
+    {
+        const auto version = installed_shell()->autosave()->current_version();
+        const auto revision = installed_shell()->workspace()->snapshot().revision;
+        auto& view = installed_shell()->agent_pane()->web_view();
+        WebView::RunScript(view.webview(), wxString::FromUTF8(
+            "window.__jusprinTest.switchConversation('" + target + "')"));
+        wait_until([this, target] { return persistence().document().viewed_conversation_id() == target; },
+                   name + "_viewed", [self = shared_from_this(), target, name, version, revision, next] {
+            self->check(self->persistence().document().active_conversation_id() == target,
+                        name + "_immediately_active");
+            self->check(installed_shell()->autosave()->current_version() == version &&
+                        installed_shell()->workspace()->snapshot().revision == revision,
+                        name + "_preserves_project");
+            self->capture_chat_pane(name);
+            next();
+        });
+    }
+
     void verify_chat_restoration()
     {
         const fs::path source = fs::path(data_dir()) / "chat-restoration-cube.stl";
@@ -1876,8 +1911,7 @@ private:
         const std::string quick_version = document.chat_checkpoint(first)->at("versionId").get<std::string>();
         auto& view = installed_shell()->agent_pane()->web_view();
         WebView::RunScript(view.webview(), "window.__jusprinTest.createConversation()");
-        wait_until([this, first] { return persistence().document().active_conversation_id() != first; },
-                   "chat_restore_second_chat_created", [self = shared_from_this(), first, quick_version] {
+        const auto verify_changed = [self = shared_from_this(), first, quick_version] {
             auto& document = self->persistence().document();
             const std::string second = document.active_conversation_id();
             self->check(document.rename_conversation(second, "Strong print"), "chat_restore_strong_chat_named");
@@ -1985,6 +2019,13 @@ private:
                             self->finish();
                         });
                 });
+            });
+        };
+        wait_until([this, first] { return persistence().document().active_conversation_id() != first; },
+                   "chat_restore_second_chat_created", [self = shared_from_this(), first, verify_changed] {
+            const std::string second = self->persistence().document().active_conversation_id();
+            self->verify_matching_chat_switch(first, "chat-unchanged-first", [self, second, verify_changed] {
+                self->verify_matching_chat_switch(second, "chat-unchanged-second", verify_changed);
             });
         });
     }
@@ -7735,6 +7776,7 @@ private:
 #include "print_issues_scenario.inc"
 #include "print_issue_readers_scenario.inc"
 #include "auto_slice_scenario.inc"
+#include "check_print_scenario.inc"
 #include "project_prompt_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
@@ -10918,6 +10960,19 @@ int main(int argc, char** argv)
         else if (argument == "--print-issue-readers") {
             state->mode = HarnessState::Mode::PrintIssues;
             g_issue_readers = true;
+        }
+        else if (argument == "--check-print") {
+            state->mode   = HarnessState::Mode::PrintIssues;
+            g_check_print = true;
+        }
+        else if (argument == "--check-print-capture") {
+            if (++index == argc) {
+                std::cerr << "--check-print-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode        = HarnessState::Mode::PrintIssues;
+            g_check_print      = true;
+            state->capture_dir = fs::absolute(argv[index]);
         }
         else if (argument == "--manual-print-issues" || argument == "--manual-print-issues-no-agent") {
             state->mode = HarnessState::Mode::ManualPrintIssues;

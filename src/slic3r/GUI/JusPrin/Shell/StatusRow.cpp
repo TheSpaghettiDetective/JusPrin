@@ -1,4 +1,5 @@
 #include "StatusRow.hpp"
+#include "CheckPrintDialog.hpp"
 #include "HeaderControls.hpp"
 #include "FilamentChipModel.hpp"
 #include "FilamentMenu.hpp"
@@ -66,76 +67,19 @@ void show_project_error(wxWindow* parent, const wxString& title, const wxString&
     wxMessageBox(message, title, wxOK | wxICON_ERROR, parent);
 }
 
-class CheckPrintDialog final : public wxDialog
-{
-public:
-    CheckPrintDialog(wxWindow* parent, Plater& plater, std::function<bool()> is_current)
-        : wxDialog(parent, wxID_ANY, _L("Check Print"), wxDefaultPosition, wxDefaultSize,
-                   wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
-        , m_plater(plater)
-        , m_is_current(std::move(is_current))
-    {
-        SetName(_L("Check Print"));
-        m_preview = m_plater.create_preview(this);
-        if (m_preview->get_canvas3d() == nullptr)
-            throw std::runtime_error("Check Print could not create the Orca Preview canvas");
-        auto* layout = new wxBoxSizer(wxVERTICAL);
-        layout->Add(m_preview, 1, wxEXPAND);
-        SetSizer(layout);
-        SetClientSize(m_plater.GetClientSize());
-        CentreOnParent();
-
-        m_preview->get_canvas3d()->bind_event_handlers();
-        m_subscription = m_plater.subscribe_project_state([this](const ProjectStateChanged&) { close_if_stale(); });
-        m_plater.Bind(EVT_SLICE_STATUS_CHANGED, &CheckPrintDialog::on_slice_status_changed, this);
-        Bind(wxEVT_TIMER, [this](wxTimerEvent&) { close_if_stale(); }, m_stale_timer.GetId());
-        m_stale_timer.Start(200);
-        Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
-            if (event.GetKeyCode() == WXK_ESCAPE) EndModal(wxID_CANCEL);
-            else event.Skip();
-        });
-    }
-
-    ~CheckPrintDialog() override
-    {
-        m_stale_timer.Stop();
-        m_plater.Unbind(EVT_SLICE_STATUS_CHANGED, &CheckPrintDialog::on_slice_status_changed, this);
-        m_subscription.reset();
-        if (m_preview->get_canvas3d())
-            m_preview->get_canvas3d()->unbind_event_handlers();
-    }
-
-private:
-    void close_if_stale()
-    {
-        if (IsModal() && !m_is_current())
-            EndModal(wxID_CANCEL);
-    }
-
-    void on_slice_status_changed(wxCommandEvent& event)
-    {
-        close_if_stale();
-        event.Skip();
-    }
-
-    Plater& m_plater;
-    std::function<bool()> m_is_current;
-    Preview* m_preview{nullptr};
-    ProjectStateSubscription m_subscription;
-    wxTimer m_stale_timer{this};
-};
-
 } // namespace
 
 StatusRow::StatusRow(wxWindow*                  parent,
                      const ShellTheme&          theme,
                      Plater&                    plater,
                      Notebook&                  tabpanel,
+                     Workspace::IWorkspace&     workspace,
                      Agent::ProjectPersistence& persistence)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
     , m_plater(plater)
     , m_tabpanel(tabpanel)
+    , m_workspace(workspace)
     , m_persistence(persistence)
 {
     SetName("Project header");
@@ -614,7 +558,7 @@ void StatusRow::request_action(PrintAction action)
     case PrintAction::Cancel: m_plater.cancel_slicing(); return;
     case PrintAction::CheckPrint: {
         const auto identity = print_target_identity();
-        CheckPrintDialog dialog(this, m_plater, [this,identity] {
+        CheckPrintDialog dialog(this, m_theme, m_plater, m_workspace, m_persistence.document().regions(), [this, identity] {
             return action_state().sliced && print_target_identity() == identity;
         });
         dialog.ShowModal();

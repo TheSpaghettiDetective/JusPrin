@@ -64,6 +64,7 @@ struct ChangeEntry
     std::string   kind;            // step|undo|redo|setting|preset
     std::string   actor;           // person|agent
     bool          external{false}; // an agent edit an external tool made, through MCP
+    std::string   client;          // external only: the MCP client's name for itself; may be empty
     std::string   label;           // as the workspace reported it; may be empty
     std::string   location;        // optional place of a hand edit, when known
     std::string   from, to, preset; // setting only

@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
+#include <stdexcept>
 
 using namespace Slic3r::GUI::JusPrin;
 using nlohmann::json;
@@ -74,6 +75,22 @@ TEST_CASE("MCP rejects malformed envelopes metadata and mismatched headers", "[m
     CHECK(parsed.error.body["error"]["code"] == expected);
 }
 
+TEST_CASE("MCP reads the client's name for the change log", "[mcp][protocol]")
+{
+    const auto named = [](json info) { return Mcp::mcp_client_name({{"_meta", {{"io.modelcontextprotocol/clientInfo", info}}}}); };
+    CHECK(named({{"name", "claude-code"}, {"title", "Claude Code"}, {"version", "2.1"}}) == "Claude Code");
+    CHECK(named({{"name", "codex-mcp-client"}, {"version", "1"}}) == "codex-mcp-client");
+    CHECK(named({{"name", "  cursor\n "}, {"title", "  "}, {"version", "1"}}) == "cursor");
+    CHECK(named({{"name", "x"}, {"title", 7}, {"version", "1"}}) == "x");
+    CHECK(Mcp::mcp_client_name(json::object()).empty());
+    CHECK(Mcp::mcp_client_name({{"_meta", json::object()}}).empty());
+    // Capped on a whole character: 47 ASCII bytes and a three-byte character
+    // that would end past the cap.
+    const std::string long_name = std::string(47, 'a') + "\xe6\x89\x93" + "tail";
+    CHECK(named({{"name", long_name}, {"version", "1"}}) == std::string(47, 'a'));
+    CHECK(named({{"name", std::string(80, 'b')}, {"version", "1"}}).size() == Mcp::kClientNameLimit);
+}
+
 TEST_CASE("MCP decodes mirrored name headers before comparison", "[mcp][protocol]")
 {
     auto http = fixture("tools/call", {{"name", "workspace_inspect"}, {"arguments", json::object()}});
@@ -144,16 +161,21 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     CHECK(json::parse(result["content"][0]["text"].get<std::string>()) == result["structuredContent"]);
     activity.state = Agent::ToolState::Cancelled;
     CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["code"] == "cancelled");
+    // A failure reaches the client with the in-app agent's own code and
+    // details: no code means "JusPrin is closed" unless it is that.
     activity.state = Agent::ToolState::Failed;
-    activity.error = Agent::ToolError{"stale_revision", "Changed"};
-    activity.session = 7; activity.expected_revision = 2;
+    activity.error = Agent::ToolError{"busy", "OrcaSlicer is busy with another job. Try again when it finishes."};
+    auto busy = Mcp::activity_result(activity, snapshot)["structuredContent"]["error"];
+    CHECK(busy["code"] == "busy");
+    CHECK(busy["message"] == activity.error->message);
+    activity.error = Agent::ToolError{"stale_workspace", "Changed",
+                                      R"({"expectedSessionId":"3","expectedRevision":2,"currentSessionId":"7","currentRevision":4})"};
     auto stale = Mcp::activity_result(activity, snapshot)["structuredContent"]["error"];
     CHECK(stale["code"] == "stale_workspace");
-    CHECK(stale["details"]["expectedRevision"] == 2);
+    CHECK(stale["details"]["expectedSessionId"] == "3");
     CHECK(stale["details"]["currentRevision"] == 4);
-    activity.error = Agent::ToolError{"stale_id", "Old session"};
-    activity.arguments_json = R"({"sessionId":"3","objectId":"42"})";
-    CHECK(Mcp::activity_result(activity, snapshot)["structuredContent"]["error"]["details"]["expectedSessionId"] == "3");
+    activity.error.reset();
+    CHECK_THROWS_AS(Mcp::activity_result(activity, snapshot), std::logic_error);
     CHECK(Mcp::sse_event({{"id", 1}}) == "event: message\ndata: {\"id\":1}\n\n");
 }
 

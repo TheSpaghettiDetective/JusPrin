@@ -1,6 +1,7 @@
 #include "ToolExecutionCoordinator.hpp"
 #include "Base64.hpp"
 #include "IntentChecks.hpp"
+#include "ToolErrors.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
@@ -57,24 +58,32 @@ bool settings_revision_holds(const json& arguments, const Workspace::WorkspaceSn
            arguments.at("expectedRevision").get<std::uint64_t>() >= settings_revision;
 }
 
+// The one code each kind of failure reports, from Agent/ToolErrors.hpp.
 const char* workspace_error_code(WorkspaceError error)
 {
     switch (error) {
-    case WorkspaceError::None: return "none";
-    case WorkspaceError::InvalidId: return "invalid_id";
-    case WorkspaceError::MissingObject: return "missing_object";
-    case WorkspaceError::StaleId: return "stale_id";
-    case WorkspaceError::UnsupportedSelection: return "unsupported_selection";
-    case WorkspaceError::UnavailableOperation: return "unavailable_operation";
-    case WorkspaceError::InvalidArgument: return "invalid_argument";
-    case WorkspaceError::NoChange: return "no_change";
-    case WorkspaceError::InvalidSettings: return "invalid_settings";
+    case WorkspaceError::InvalidId:
+    case WorkspaceError::NotFound: return "not_found";
+    case WorkspaceError::StaleId:
     case WorkspaceError::StaleSettings: return "stale_workspace";
+    case WorkspaceError::Busy: return "busy";
+    case WorkspaceError::NeedsStep: return "needs_step";
+    case WorkspaceError::Refused: return "refused";
+    case WorkspaceError::Failed: return "failed";
+    case WorkspaceError::WorkspaceUnavailable: return "workspace_unavailable";
+    case WorkspaceError::InvalidArgument: return "invalid_arguments";
     case WorkspaceError::FeatureExpired: return "feature_expired";
+    case WorkspaceError::None:
+    case WorkspaceError::NoChange:
+    case WorkspaceError::InvalidSettings: break;
     }
-    return "unknown";
+    // Settings apply turns NoChange into a result and InvalidSettings into
+    // the issue's own code; no other tool command returns either.
+    throw std::logic_error("Workspace error " + std::to_string(int(error)) + " is not a tool failure");
 }
 
+// Every tool that calls this requires sessionId and objectId as unsigned
+// numbers that fit, so nullopt means the contract check let a bad call through.
 std::optional<Workspace::ObjectId> parse_object_argument(const std::string& arguments_json)
 {
     const json arguments = json::parse(arguments_json, nullptr, false);
@@ -340,6 +349,7 @@ SettingsTargetLookup settings_target(const json& arguments, const Workspace::Wor
 }
 
 constexpr const char* kMissingTarget = "That object is not in the open project. Read workspace_inspect again.";
+constexpr const char* kPlateNotFound = "That plate is not in the open project. Read workspace_inspect for the plate ids.";
 
 Workspace::SettingsPatch settings_patch(const json& arguments, const Workspace::SettingsTarget& target)
 {
@@ -409,7 +419,7 @@ ToolActivitySubscription ToolExecutionCoordinator::subscribe(ActivityCallback li
 
 const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request, const std::string& correlation_id,
                                                      ToolExecutionPacing pacing, ToolSource source,
-                                                     const std::string& call_id)
+                                                     const std::string& call_id, const std::string& client)
 {
     const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
     const ToolDefinition* definition = m_registry.find(request.tool);
@@ -419,6 +429,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     activity.correlation_id    = correlation_id;
     activity.call_id           = call_id;
     activity.source            = source;
+    activity.client            = client;
     activity.server            = kServerName;
     activity.tool              = request.tool;
     activity.arguments_json    = request.arguments_json;
@@ -455,7 +466,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
         std::error_code error;
         if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
-            fail(stored, "invalid_argument", "Give the absolute path of a file that exists.");
+            fail(stored, "invalid_arguments", "Give the absolute path of a file that exists.");
             return stored;
         }
         stored.title = "Import " + arguments["path"].get<std::string>();
@@ -480,7 +491,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         const auto request   = divide_request(arguments);
         Workspace::DivideResult preview;
         const auto previewed = object ? m_workspace.preview_divide(*object, request, preview) :
-                                        Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                        throw std::logic_error("A checked objectId did not parse");
         if (!previewed.succeeded()) {
             fail(stored, workspace_error_code(previewed.error), previewed.message);
             return stored;
@@ -550,10 +561,8 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     }
 
     if (definition->handler == ToolHandler::RegionAnnotate) {
-        if (m_product_state == nullptr) {
-            fail(stored, "unavailable_operation", "Region annotations are not available here.");
-            return stored;
-        }
+        if (m_product_state == nullptr)
+            throw std::logic_error("region_annotate reached a coordinator with no product state");
         std::vector<Workspace::RegionRecord> planned;
         const auto plan = m_workspace.plan_regions(region_requests(json::parse(stored.arguments_json)), m_product_state->regions(), planned);
         if (!plan.succeeded()) {
@@ -695,8 +704,10 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             stored.title = "Record printer facts";
         }
         if (arguments.contains("confirmFacts")) {
-            if (m_product_state == nullptr || !m_product_state->has_printer_facts()) {
-                fail(stored, "unavailable_operation", "This build cannot record printer facts.");
+            if (m_product_state == nullptr)
+                throw std::logic_error("printer_setup confirmFacts reached a coordinator with no product state");
+            if (!m_product_state->has_printer_facts()) {
+                fail(stored, "refused", "Printer facts cannot be recorded here: this project has no printer facts store.");
                 return stored;
             }
             for (const auto& fact : arguments["confirmFacts"])
@@ -713,11 +724,11 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             const std::filesystem::path path = std::filesystem::u8path(arguments["path"].get<std::string>());
             std::error_code error;
             if (!path.is_absolute() || !std::filesystem::is_regular_file(path, error)) {
-                fail(stored, "invalid_argument", "Give the absolute path of a file that exists.");
+                fail(stored, "invalid_arguments", "Give the absolute path of a file that exists.");
                 return stored;
             }
             if (path.extension() == ".3mf" && arguments.value("unitConversion", "keep") == "inches") {
-                fail(stored, "invalid_argument", "A project keeps its own units; inches applies to model files.");
+                fail(stored, "invalid_arguments", "A project keeps its own units; inches applies to model files.");
                 return stored;
             }
             // A file opened before: whether to continue its project is the
@@ -752,7 +763,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         }
         const auto target = settings_target(arguments, snapshot);
         if (!target.found) {
-            fail(stored, "missing_object", kMissingTarget);
+            fail(stored, "not_found", kMissingTarget);
             return stored;
         }
         const auto patch   = settings_patch(arguments, target.target);
@@ -861,7 +872,7 @@ void ToolExecutionCoordinator::pump()
                         throw std::runtime_error("the current project could not be saved");
                 } catch (const std::exception& error) {
                     std::clog << "Could not save before Agent action: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "Couldn't save the project. The action was not run.");
+                    fail(activity, "local_save_failed", "Nothing ran: the project could not be saved first. Tell the person the project is not saved.");
                     return;
                 }
             }
@@ -871,7 +882,7 @@ void ToolExecutionCoordinator::pump()
                     m_version_after(activity, before);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save after Agent action: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "The action ran, but its changes couldn't be saved. Check the project before trying again.");
+                    fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
                 }
             } else if (m_document_boundary && activity.action_class != ActionClass::ReadOnly && definition != nullptr &&
                        definition->handler != ToolHandler::ProjectOpen && definition->handler != ToolHandler::SliceStart) {
@@ -879,7 +890,7 @@ void ToolExecutionCoordinator::pump()
                     m_document_boundary(activity);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save Agent document: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "The action ran, but its changes couldn't be saved. Check the project before trying again.");
+                    fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
                 }
             }
         }
@@ -939,12 +950,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     const bool          changed     = invalidated > activity.expected_revision;
     if (activity.action_class != ActionClass::ReadOnly &&
         (m_workspace.snapshot().session.value() != activity.session || changed)) {
-        fail(activity, "stale_revision", "The project changed before this action could execute. Call the tool again.");
+        fail(activity, "stale_workspace", "Nothing ran: the project changed after this call was made. Read the workspace again (for a settings change, preview again), then call again.");
         return;
     }
     // Whatever this action changes is its caller's, in the change log.
     const Workspace::IWorkspace::AgentEdit agent_edit(
-        m_workspace, activity.source == ToolSource::Mcp ? Workspace::EditActor::ExternalTool : Workspace::EditActor::Agent);
+        m_workspace, activity.source == ToolSource::Mcp ? Workspace::EditActor::ExternalTool : Workspace::EditActor::Agent,
+        activity.client);
     m_executing = activity.action_id;
     struct Finished { std::string& id; ~Finished() { id.clear(); } } finished{m_executing};
     const ToolDefinition* definition = m_registry.find(activity.tool);
@@ -964,10 +976,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             };
             sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
         }
-        if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr) {
-            fail(activity, "unavailable_operation", "This build cannot read the intent or the plan.");
-            return;
-        }
+        if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr)
+            throw std::logic_error("workspace_inspect reached a coordinator with no product state");
         json result = workspace_inspection(m_workspace.snapshot(), sections);
         if (sections.intent) result["intent"] = intent_section_result(m_product_state->print_intent());
         if (sections.plan) result["plan"] = plan_section_result(m_product_state->plan());
@@ -1022,7 +1032,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (earlier) {
             report.project_opened = true;
             if (!m_open_earlier || !m_open_earlier(earlier->id))
-                opened = Workspace::CommandResult::failure(Workspace::WorkspaceError::UnavailableOperation,
+                opened = Workspace::CommandResult::failure(Workspace::WorkspaceError::Failed,
                                                            "The saved project could not be opened");
         } else {
             opened = m_workspace.open_project(request, report);
@@ -1061,7 +1071,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         if (definition->handler == ToolHandler::ObjectImport) {
             request.path = m_attachment_path_resolver ? m_attachment_path_resolver(arguments["attachmentId"].get<std::string>()) : std::string();
             if (request.path.empty()) {
-                fail(activity, "unavailable_operation", "The attached model is no longer available to import.");
+                fail(activity, "not_found", "The attached model is no longer available. Ask the person to attach it again.");
                 return;
             }
         } else {
@@ -1072,7 +1082,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         request.units = arguments.value("unitConversion", "keep") == "inches" ? Workspace::UnitChoice::Inches :
                                                                                Workspace::UnitChoice::Keep;
         if (session != m_workspace.snapshot().session) {
-            fail(activity, "stale_id", "That session is no longer open.");
+            fail(activity, "stale_workspace", "That project is no longer open. Read workspace_inspect again.");
             return;
         }
         Workspace::LoadReport            report;
@@ -1109,14 +1119,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             if (row.contains("regionId"))
                 removed.insert(row["regionId"].get<std::string>());
         if (!removed.empty()) {
-            if (m_product_state == nullptr) {
-                fail(activity, "unavailable_operation", "Region annotations are not available here.");
-                return;
-            }
+            if (m_product_state == nullptr)
+                throw std::logic_error("project_delete_items reached a coordinator with no product state");
             for (const Workspace::RegionRecord& record : m_product_state->regions())
                 (removed.count(record.id) ? regions : kept).push_back(record);
             if (regions.size() != removed.size()) {
-                fail(activity, "invalid_argument", "A named region is not in the project; read object_analyze's regions section.");
+                fail(activity, "not_found", "A named region is not in the project; read object_analyze's regions section.");
                 return;
             }
         }
@@ -1236,7 +1244,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         Workspace::PlacementResult placed;
         const auto bound_before = bound_regions();
         const auto done = object ? m_workspace.place_object(*object, request, activity.action_id, placed) :
-                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                   throw std::logic_error("A checked objectId did not parse");
         if (!done.succeeded()) {
             fail(activity, workspace_error_code(done.error), done.message);
             return;
@@ -1321,8 +1329,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         std::optional<Workspace::PlateId> plate = snapshot.active_plate;
         if (arguments.contains("plateId"))
             plate = Workspace::PlateId(snapshot.session, std::stoull(arguments["plateId"].get<std::string>()));
-        if (!plate) {
-            fail(activity, "unavailable_operation", "This project has no plate to inspect.");
+        // OrcaSlicer keeps at least one plate in every project.
+        if (!plate)
+            throw std::logic_error("slice_inspect found no active plate");
+        if (std::none_of(snapshot.plates.begin(), snapshot.plates.end(),
+                         [&plate](const Workspace::WorkspacePlate& candidate) { return candidate.id == *plate; })) {
+            fail(activity, "not_found", kPlateNotFound);
             return;
         }
         Workspace::SliceInspectRequest request;
@@ -1379,7 +1391,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             }
             message = cancelled ? "Cancelling the job; its end shows in workspace_inspect's slicing section." : "That job had already ended.";
         } else {
-            fail(activity, "invalid_argument", "Nothing the tools started has the handle " + handle + ".");
+            fail(activity, "not_found", "Nothing the tools started has the handle " + handle + ".");
             return;
         }
         const auto snapshot  = m_workspace.snapshot();
@@ -1424,7 +1436,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto object = parse_object_argument(activity.arguments_json);
         Workspace::DivideResult preview;
         const auto previewed = object ? m_workspace.preview_divide(*object, divide_request(json::parse(activity.arguments_json)), preview) :
-                                        Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                        throw std::logic_error("A checked objectId did not parse");
         if (!previewed.succeeded()) {
             fail(activity, workspace_error_code(previewed.error), previewed.message);
             return;
@@ -1447,7 +1459,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto bound_before = bound_regions();
         Workspace::DivideResult divided;
         const auto done = object ? m_workspace.divide_object(*object, divide_request(json::parse(activity.arguments_json)), divided) :
-                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                   throw std::logic_error("A checked objectId did not parse");
         if (!done.succeeded()) {
             fail(activity, workspace_error_code(done.error), done.message);
             return;
@@ -1485,7 +1497,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto bound_before = bound_regions();
         Workspace::RepairResult repaired;
         const auto done = object ? m_workspace.repair_object(*object, repaired) :
-                                   Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                   throw std::logic_error("A checked objectId did not parse");
         if (!done.succeeded()) {
             fail(activity, workspace_error_code(done.error), done.message);
             return;
@@ -1555,10 +1567,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             request.orientations = request.orientations || section == "orientations";
         }
         const bool regions = std::find(arguments["include"].begin(), arguments["include"].end(), "regions") != arguments["include"].end();
-        if (regions && m_product_state == nullptr) {
-            fail(activity, "unavailable_operation", "Region annotations are not available here.");
-            return;
-        }
+        if (regions && m_product_state == nullptr)
+            throw std::logic_error("object_analyze reached a coordinator with no product state");
         for (const auto& candidate : arguments.value("candidates", json::array())) {
             Workspace::OrientationCandidate row;
             if (candidate.contains("up"))
@@ -1571,7 +1581,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             request.measure = std::make_pair(arguments["measure"]["from"].get<std::string>(), arguments["measure"]["to"].get<std::string>());
         Workspace::ObjectAnalysis analysis;
         const auto analyzed = object ? m_workspace.analyze_object(*object, request, analysis) :
-                                       Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidId, "Object ID is invalid");
+                                       throw std::logic_error("A checked objectId did not parse");
         if (!analyzed.succeeded()) {
             fail(activity, workspace_error_code(analyzed.error), analyzed.message);
             return;
@@ -1699,8 +1709,12 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         std::optional<Workspace::PlateId> plate = snapshot.active_plate;
         if (arguments.contains("plateId"))
             plate = Workspace::PlateId(snapshot.session, std::stoull(arguments["plateId"].get<std::string>()));
-        if (!plate) {
-            fail(activity, "unavailable_operation", "This project has no plate to report on.");
+        // OrcaSlicer keeps at least one plate in every project.
+        if (!plate)
+            throw std::logic_error("slice_report found no active plate");
+        if (std::none_of(snapshot.plates.begin(), snapshot.plates.end(),
+                         [&plate](const Workspace::WorkspacePlate& candidate) { return candidate.id == *plate; })) {
+            fail(activity, "not_found", kPlateNotFound);
             return;
         }
         SliceReportSections sections;
@@ -1713,10 +1727,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             sections = {asked("summary"), asked("findings"), asked("material"), asked("supports"),
                         asked("seams"),   asked("firstLayer"), asked("islands"),  asked("intent")};
         }
-        if (sections.intent && m_product_state == nullptr) {
-            fail(activity, "unavailable_operation", "This build cannot read the print intent.");
-            return;
-        }
+        if (sections.intent && m_product_state == nullptr)
+            throw std::logic_error("slice_report reached a coordinator with no product state");
         Workspace::SliceReportRequest request;
         request.supports    = sections.supports;
         request.seams       = sections.seams;
@@ -1755,9 +1767,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                        std::stoull(arguments["plateId"].get<std::string>()));
         const auto started = m_workspace.start_slice(plate, arguments.value("preempt", false));
         if (!started.succeeded()) {
-            fail(activity, started.error == Workspace::WorkspaceError::UnavailableOperation ? "unavailable_operation" :
-                           started.error == Workspace::WorkspaceError::StaleId ? "stale_id" : "invalid_id",
-                 started.message);
+            fail(activity, workspace_error_code(started.error), started.message);
             return;
         }
         // OrcaSlicer decides inside that call: a run began, nothing needed
@@ -1803,10 +1813,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
 
     if (definition->handler == ToolHandler::SetupRecord) {
-        if (m_product_state == nullptr) {
-            fail(activity, "unavailable_operation", "This build cannot record the intent or the plan.");
-            return;
-        }
+        if (m_product_state == nullptr)
+            throw std::logic_error("setup_record reached a coordinator with no product state");
         const auto arguments = json::parse(activity.arguments_json);
         const auto snapshot  = m_workspace.snapshot();
         // The purpose is the chat's title and the answered fields; what this
@@ -1826,13 +1834,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         };
         // The records are a chat's own; a call no chat holds has none.
         if (!m_product_state->setup_title(activity.correlation_id)) {
-            fail(activity, "unavailable_operation", "Only a chat's own call records its purpose and plan.");
+            fail(activity, "refused", "Only a chat's own call records its purpose and plan.");
             return;
         }
         const json before = purpose();
         // The purpose goes first: one the chat refuses records nothing at all.
         if (!m_product_state->set_setup_title(activity.correlation_id, arguments.at("purpose").get<std::string>())) {
-            fail(activity, "invalid_argument", "purpose must be one line.");
+            fail(activity, "invalid_arguments", "purpose must be one line.");
             return;
         }
         std::vector<IntentField> fields;
@@ -1898,7 +1906,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         query.changed_only  = args.value("changedOnly", false);
         const auto target   = settings_target(args, m_workspace.snapshot());
         if (!target.found) {
-            fail(activity, "missing_object", kMissingTarget);
+            fail(activity, "not_found", kMissingTarget);
             return;
         }
         query.target      = target.target;
@@ -1917,7 +1925,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto args = json::parse(activity.arguments_json);
         const auto target = settings_target(args, m_workspace.snapshot());
         if (!target.found) {
-            fail(activity, "missing_object", kMissingTarget);
+            fail(activity, "not_found", kMissingTarget);
             return;
         }
         const auto result = m_workspace.read_settings(args.at("keys").get<std::vector<std::string>>(), target.target);
@@ -1935,7 +1943,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto args   = json::parse(activity.arguments_json);
         const auto target = settings_target(args, m_workspace.snapshot());
         if (!target.found) {
-            fail(activity, "missing_object", kMissingTarget);
+            fail(activity, "not_found", kMissingTarget);
             return;
         }
         const auto result = m_workspace.preview_settings(settings_patch(args, target.target));
@@ -1988,10 +1996,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
         definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::SkillRead ||
         has_exposure(definition->exposure, ToolExposure::Printer)) {
-        if (!m_extension_executor) {
-            fail(activity, "execution_failed", "The registered tool executor is unavailable.");
-            return;
-        }
+        if (!m_extension_executor)
+            throw std::logic_error(activity.tool + " is a surface's own tool, and no surface executes them here");
         ExtensionResult result = m_extension_executor(definition->handler, activity);
         if (result.handled) {
             if (result.error) {
@@ -2003,11 +2009,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             notify(activity);
             return;
         }
-        fail(activity, "execution_failed", "The registered tool executor did not handle the request.");
-        return;
+        throw std::logic_error("The surface's executor did not handle " + activity.tool);
     }
 
-    fail(activity, "execution_failed", "The registered tool has no executable handler.");
+    throw std::logic_error(activity.tool + " is registered with no handler");
 }
 
 std::set<std::string> ToolExecutionCoordinator::bound_regions() const
@@ -2032,6 +2037,20 @@ json ToolExecutionCoordinator::regions_unbound(const std::set<std::string>& boun
 
 void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message, std::string details_json)
 {
+    if (!ToolErrors::registered(code))
+        throw std::logic_error("Tool error code \"" + code + "\" is not listed in ToolErrors.hpp");
+    // A stale call names the project it expected and the project as it is,
+    // whichever path found it stale.
+    if (code == "stale_workspace" && details_json == "{}") {
+        const json arguments = json::parse(activity.arguments_json, nullptr, false);
+        const auto snapshot  = m_workspace.snapshot();
+        std::string expected = std::to_string(activity.session);
+        if (arguments.is_object() && arguments.contains("sessionId") && arguments["sessionId"].is_string())
+            expected = arguments["sessionId"].get<std::string>();
+        details_json = json{{"expectedSessionId", expected}, {"expectedRevision", activity.expected_revision},
+                            {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}}
+                           .dump();
+    }
     activity.state = ToolState::Failed;
     activity.error = ToolError{std::move(code), std::move(message), std::move(details_json)};
     notify(activity);
@@ -2069,7 +2088,7 @@ void ToolExecutionCoordinator::invalidate_pending(const Workspace::WorkspaceChan
     if (Workspace::has_reason(change.reasons, WorkspaceChangeReasons::Slicing))
         for (ToolActivity& activity : m_activities)
             if (activity.state == ToolState::Running && activity.action_id != m_executing && exports_slice(activity))
-                fail(activity, "stale_revision", "The slice this export would write changed. Ask the Agent again.");
+                fail(activity, "stale_workspace", "Nothing was written: the slice this export would write changed. Read the workspace again, then call again.");
     if ((change.reasons & kInvalidatingReasons) == WorkspaceChangeReasons::None)
         return;
     m_last_invalidating_revision = change.revision;

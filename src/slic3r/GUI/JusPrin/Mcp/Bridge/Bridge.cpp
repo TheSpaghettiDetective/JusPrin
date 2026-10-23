@@ -34,11 +34,14 @@ json error(const json& id, int code, const std::string& text)
     result["id"] = id; // JSON-RPC parse errors use null when no ID can be recovered.
     return result;
 }
-json modern_request(std::string method, json params, json id)
+// The bridge speaks for the client that started it, so a forwarded call names
+// that client; the bridge's own liveness probe names the bridge.
+json modern_request(std::string method, json params, json id, const json& client_info = json())
 {
     params["_meta"]["io.modelcontextprotocol/protocolVersion"] = kProtocolVersion;
     params["_meta"]["io.modelcontextprotocol/clientCapabilities"] = json::object();
-    params["_meta"]["io.modelcontextprotocol/clientInfo"] = {{"name", "jusprin-mcp"}, {"version", mcp_build_version()}};
+    params["_meta"]["io.modelcontextprotocol/clientInfo"] = client_info.is_object() ? client_info
+        : json{{"name", "jusprin-mcp"}, {"version", mcp_build_version()}};
     return {{"jsonrpc", "2.0"}, {"id", std::move(id)}, {"method", std::move(method)}, {"params", std::move(params)}};
 }
 }
@@ -66,6 +69,7 @@ struct Server::Impl
     std::size_t queued{0};
     bool stopped{false}; // guarded by ingress_mutex
     std::string legacy_version;
+    json client_info; // from the client's initialize: name, version, and title when it sent one
     bool initialized{false};
     std::map<std::string, std::shared_ptr<Call>> calls; // io thread only
 
@@ -194,6 +198,8 @@ struct Server::Impl
             }
             if (!legacy_version.empty()) { emit(error(id, -32600, "Already initialized."), batch); return; }
             legacy_version = params["protocolVersion"].get<std::string>();
+            client_info = {{"name", info["name"]}, {"version", info["version"]}};
+            if (info.value("title", json()).is_string()) client_info["title"] = info["title"];
             if (legacy_version != "2025-03-26" && legacy_version != "2025-06-18" && legacy_version != "2025-11-25")
                 legacy_version = "2025-06-18";
             json result{{"protocolVersion", legacy_version},
@@ -211,7 +217,7 @@ struct Server::Impl
         if (calls.size() >= 16) { emit(error(id, -32000, "At most 16 requests may be in flight."), batch); return; }
         auto call = std::make_shared<Call>();
         call->modern = modern; call->legacy_version = legacy_version; call->batch = std::move(batch);
-        call->rpc = modern ? std::move(message) : modern_request(method, std::move(params), id);
+        call->rpc = modern ? std::move(message) : modern_request(method, std::move(params), id, client_info);
         calls.emplace(id.dump(), call);
         route(call);
     }

@@ -16,7 +16,7 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 // Lifecycle of one tool action. Cancelled, Succeeded, and Failed are terminal.
 // A stale action fails with error code
-// "stale_revision" rather than getting its own state.
+// "stale_workspace" rather than getting its own state.
 enum class ToolState : std::uint8_t { Running, Succeeded, Failed, Cancelled };
 
 constexpr bool tool_state_terminal(ToolState state)
@@ -96,6 +96,9 @@ struct ToolActivity
     std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
     std::optional<ToolError> error;
     ToolSource   source{ToolSource::Agent};
+    // MCP only: the client's own name for itself, as mcp_client_name() read
+    // it; empty when the client gave none.
+    std::string  client;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

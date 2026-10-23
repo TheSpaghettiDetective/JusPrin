@@ -193,6 +193,7 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.radius_full   = parse_int(radius, "dimension.radius", "full");
 
     const nlohmann::json& space = tokens.at("dimension").at("space");
+    m.space_half = parse_int(space, "dimension.space", "0.5");
     m.space_1  = parse_int(space, "dimension.space", "1");
     m.space_2  = parse_int(space, "dimension.space", "2");
     m.space_3  = parse_int(space, "dimension.space", "3");
@@ -229,6 +230,8 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.checkbox.glyph_size = parse_int(checkbox, "component.checkbox", "glyphSize");
     m.checkbox.label_gap  = parse_int(checkbox, "component.checkbox", "labelGap");
     m.checkbox.text_role  = parse_text_role(checkbox, "component.checkbox");
+    m.status_dot.size     = parse_int(component.at("statusDot"), "component.statusDot", "size");
+    m.group_header.height = parse_int(component.at("groupHeader"), "component.groupHeader", "height");
 
     const nlohmann::json& form_row = component.at("formRow");
     m.form_row.height      = parse_int(form_row, "component.formRow", "height");
@@ -343,6 +346,8 @@ ShellTheme ShellTheme::load_from_resources()
         ShellTheme theme;
         theme.m_light   = parse_palette(tokens.at("semantic").at("light"));
         theme.m_dark    = parse_palette(tokens.at("semantic").at("dark"));
+        theme.m_light.elevation_subtle = parse_shadow_color(tokens, "subtle", "light");
+        theme.m_dark.elevation_subtle  = parse_shadow_color(tokens, "subtle", "dark");
         theme.m_light.elevation_medium = parse_shadow_color(tokens, "medium", "light");
         theme.m_dark.elevation_medium  = parse_shadow_color(tokens, "medium", "dark");
         theme.m_metrics = parse_metrics(tokens);

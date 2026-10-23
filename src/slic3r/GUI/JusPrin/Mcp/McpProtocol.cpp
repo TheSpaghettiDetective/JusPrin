@@ -182,9 +182,13 @@ Reply discovery(const Request& request)
                                          {"ttlMs", 0},
                                          {"cacheScope", "private"},
                                          {"instructions", "For a requested settings change, inspect the live workspace, search or read the relevant settings, then preview a patch. Apply with the "
-                                     "sessionId and revision from that preview. After stale_workspace, read and preview again. Project "
-                                     "Undo does not reverse preset edits; use preset revert or an inverse patch. A workspace_unavailable "
-                                     "error means you should open JusPrin and a project. Closing a response cancels pending work."}})};
+                                     "sessionId and revision from that preview. Project Undo does not reverse preset edits; apply an inverse "
+                                     "patch. An error code says what to do next: invalid_arguments, fix the call; not_found or "
+                                     "stale_workspace, read the workspace again (and preview again for settings), then call again; "
+                                     "feature_expired, analyze the object again; busy, wait and call again; needs_step, do the step the "
+                                     "message names first; workspace_unavailable, ask the person to open a project in JusPrin or select "
+                                     "an FFF printer; refused or failed, stop and tell the person. A failed call changed nothing unless "
+                                     "its message says what it already changed. Closing a response cancels pending work."}})};
 }
 
 Reply list_tools(const Request& request, std::size_t page_size)
@@ -244,27 +248,40 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
         result = tool_result(content);
         if (activity.image)
             result["content"].push_back({{"type", "image"}, {"data", activity.image->base64}, {"mimeType", activity.image->mime_type}});
+    } else if (activity.state == ToolState::Cancelled) {
+        result = tool_result(tool_error("cancelled", "The action was cancelled."), true);
     } else {
-        std::string code = "execution_failed", message = "Tool execution failed.";
-        if (activity.state == ToolState::Cancelled) { code = "cancelled"; message = "The action was cancelled."; }
-        else if (activity.error) { code = activity.error->code; message = activity.error->message; }
-        json details = activity.error ? json::parse(activity.error->details_json) : json::object();
-        if (code == "stale_revision" || code == "stale_id") {
-            std::string expected_session = std::to_string(activity.session);
-            if (code == "stale_id") {
-                const json arguments = json::parse(activity.arguments_json);
-                expected_session = arguments.value("sessionId", expected_session);
-            }
-            code = "stale_workspace";
-            details = {{"expectedSessionId", expected_session}, {"expectedRevision", activity.expected_revision},
-                       {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}};
-        } else if (code == "unavailable_operation") code = "workspace_unavailable";
-        result = tool_result(tool_error(code, message, std::move(details)), true);
+        // The codes are the in-app agent's own: one spelling on both surfaces.
+        if (activity.state != ToolState::Failed || !activity.error)
+            throw std::logic_error("Tool activity has no result to report: " + activity.tool);
+        result = tool_result(tool_error(activity.error->code, activity.error->message, json::parse(activity.error->details_json)), true);
     }
     result["_meta"]["io.jusprin/activity"] = {{"actionId", activity.action_id},
                                               {"sessionId", std::to_string(snapshot.session.value())},
                                               {"revision", snapshot.revision}};
     return result;
+}
+
+std::string mcp_client_name(const json& params)
+{
+    const json info = params.value("_meta", json::object()).value("io.modelcontextprotocol/clientInfo", json::object());
+    if (!info.is_object()) return {};
+    // A title is the name meant for people ("Claude Code"); the name is an
+    // identifier ("claude-code"), shown only when there is no title.
+    const auto text = [&info](const char* field) {
+        std::string value = info.value(field, json()).is_string() ? info[field].get<std::string>() : std::string();
+        for (char& c : value)
+            if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f) c = ' ';
+        return trim(std::move(value));
+    };
+    std::string name = text("title");
+    if (name.empty()) name = text("name");
+    if (name.size() > kClientNameLimit) {
+        std::size_t end = kClientNameLimit;
+        while (end > 0 && (static_cast<unsigned char>(name[end]) & 0xc0) == 0x80) --end; // whole UTF-8 characters only
+        name = trim(name.substr(0, end));
+    }
+    return name;
 }
 
 std::string sse_event(const json& message) { return "event: message\ndata: " + message.dump() + "\n\n"; }

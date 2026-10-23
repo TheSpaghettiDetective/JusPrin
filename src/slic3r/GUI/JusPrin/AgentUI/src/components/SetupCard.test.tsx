@@ -540,13 +540,46 @@ describe('saved and fallback cards', () => {
     const value = context();
     value.printerReview = { observed: { observedAt: '2026-10-05T20:00:00' },
       mismatches: [{ what: 'filament', configured: 'PETG', observed: 'PLA', source: 'device' }] };
-    const card = show(value, { agentAvailable: false, working: true, changes: [change(1, {})], now: NOW });
+    // A step that changed no setting leaves the preset in force.
+    const card = show(value, { agentAvailable: false, working: true, changes: [change(1, { kind: 'step', label: 'Rotate' })], now: NOW });
     expect(card).toHaveTextContent('Preset fallback');
     expect(card).toHaveTextContent('No agent');
     expect(within(card).getByRole('heading', { name: '0.20 mm Standard' })).toBeInTheDocument();
     expect(card).toHaveTextContent('No agent configured · using the selected preset.');
     expect(card).not.toHaveTextContent(/Quick fit check|review|optimi|Updated|Agent working/i);
     expect(within(card).queryByRole('button')).toBeNull();
+  });
+
+  it('names an external tool that changed settings with no agent configured', () => {
+    const value = context();
+    value.setupIntent = '';
+    value.appliedSetup = null;
+    const log = [change(1, { external: true, client: 'Claude Code', label: 'Wall loops', from: '2', to: '3' }),
+      change(2, { kind: 'step', external: true, client: 'Claude Code', label: 'Rotate' })];
+    const card = show(value, { agentAvailable: false, changes: log, now: NOW });
+    expect(card).toHaveTextContent('Setup summary');
+    expect(card).toHaveTextContent('Edited by Claude Code');
+    expect(card).toHaveTextContent('Claude Code set Wall loops 3.');
+    expect(card).not.toHaveTextContent(/Preset fallback|using the selected preset|outside the agent|Updated/);
+    cleanup();
+    const unnamed = show(value, { agentAvailable: false, changes: [change(1, { external: true })], now: NOW });
+    expect(unnamed).toHaveTextContent('Edited by an external tool');
+    expect(unnamed).toHaveTextContent('An external tool set Wall loops 4.');
+  });
+
+  it('names each author of the settings in force with no agent configured', () => {
+    const log = [change(1, { external: true, client: 'Codex', key: 'wall_loops', label: 'Wall loops', to: '3' }),
+      change(2, { actor: 'person', key: 'sparse_infill_density', label: 'Sparse infill density', to: '30%' }),
+      // A setting changed again counts for its latest author only.
+      change(3, { actor: 'person', key: 'wall_loops', label: 'Wall loops', to: '5' }),
+      change(4, { external: true, client: 'Codex', key: 'brim_width', label: 'Brim width', to: '5 mm' })];
+    const card = show(context(), { agentAvailable: false, changes: log, now: NOW });
+    expect(card).toHaveTextContent('Edited by Codex');
+    expect(card).toHaveTextContent('You and Codex set Wall loops 5, Sparse infill density 30% and 1 more setting.');
+    cleanup();
+    // A restore puts the preset back: nothing before it counts.
+    const restored = [...log, change(5, { actor: 'person', kind: 'restore', label: 'Restored' })];
+    expect(show(context(), { agentAvailable: false, changes: restored, now: NOW })).toHaveTextContent('Preset fallback');
   });
 
   it('uses the preset as the heading when the chat has no intent', () => {

@@ -512,6 +512,7 @@ OrcaWorkspaceAdapter::OrcaWorkspaceAdapter(Plater& plater) : m_plater(plater)
     m_known_slice_state = current_slice_state();
     remember_current_ids();
     remember_history();
+    m_first_model_pending = m_plater.model().objects.empty();
     record_settings_edits(/*report=*/false);
     set_file_load_observer(this);
 }
@@ -1149,7 +1150,7 @@ CommandResult OrcaWorkspaceAdapter::select_object(ObjectId id)
     if (before.selection_status == SelectionStatus::Objects && before.selected_objects == std::vector<ObjectId>{id})
         return CommandResult::failure(WorkspaceError::NoChange, "Object is already selected");
     if (!m_plater.select_object(object->index))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be selected");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be selected");
     return CommandResult::success();
 }
 
@@ -1164,7 +1165,7 @@ CommandResult OrcaWorkspaceAdapter::rename_object(ObjectId id, const std::string
     if (m_plater.model().objects[object->index]->name == name)
         return CommandResult::failure(WorkspaceError::NoChange, "Object already has that name");
     if (!m_plater.rename_object(object->index, name))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be renamed");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be renamed");
     return CommandResult::success();
 }
 
@@ -1177,7 +1178,7 @@ CommandResult OrcaWorkspaceAdapter::duplicate_object(ObjectId id)
 
     const int new_index = m_plater.duplicate_object(object->index);
     if (new_index < 0 || new_index >= static_cast<int>(m_plater.model().objects.size()))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be duplicated");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be duplicated");
 
     const ObjectId new_id(m_session, m_plater.model().objects[new_index]->id().id);
     m_known_object_ids.insert(new_id.value());
@@ -1191,7 +1192,7 @@ CommandResult OrcaWorkspaceAdapter::remove_object(ObjectId id)
     if (!object)
         return id_error(id);
     if (!m_plater.delete_object(object->index))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be removed");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be removed");
     return CommandResult::success();
 }
 
@@ -1199,7 +1200,7 @@ CommandResult OrcaWorkspaceAdapter::undo()
 {
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_undo_project() || !m_plater.undo_project())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to undo");
+        return CommandResult::failure(WorkspaceError::Refused, "Nothing to undo");
     return CommandResult::success();
 }
 
@@ -1207,7 +1208,7 @@ CommandResult OrcaWorkspaceAdapter::redo()
 {
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_redo_project() || !m_plater.redo_project())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Nothing to redo");
+        return CommandResult::failure(WorkspaceError::Refused, "Nothing to redo");
     return CommandResult::success();
 }
 
@@ -1254,7 +1255,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     PrinterSetupPreview result;
     const PresetBundle* bundle = wxGetApp().preset_bundle;
     if (bundle == nullptr) {
-        result.issues.push_back({"unavailable_operation", "The presets are not loaded yet."});
+        result.issues.push_back({"busy", "The presets are not loaded yet. Try again shortly."});
         return result;
     }
     const auto issue = [&result](std::string code, std::string message) {
@@ -1269,7 +1270,8 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     if (request.printer_preset) {
         const Preset* found = printers.find_preset(*request.printer_preset, false);
         if (found == nullptr || !found->is_visible || found->is_default) {
-            issue("unknown_preset", "No installed printer preset is named \"" + *request.printer_preset + "\". Read presets_list.");
+            issue("unknown_preset", "No installed printer preset is named \"" + *request.printer_preset + "\". If presets_list does not "
+                                   "list it, the printer is not installed: ask the person to add it with Add printer on Home.");
             return result;
         }
         printer = found;
@@ -1312,7 +1314,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     std::vector<std::string> filament_names = bundle->filament_presets;
     if (request.filament_presets) {
         if (request.filament_presets->size() > filament_names.size())
-            issue("invalid_argument", "This project has " + std::to_string(filament_names.size()) + " filament slots.");
+            issue("invalid_arguments", "This project has " + std::to_string(filament_names.size()) + " filament slots.");
         for (std::size_t slot = 0; slot < request.filament_presets->size() && slot < filament_names.size(); ++slot) {
             const std::string& name  = (*request.filament_presets)[slot];
             const Preset*      found = filaments.find_preset(name, false);
@@ -1400,13 +1402,34 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
         drop_unsaved_edits(tab(edits.kind == "printer" ? Preset::TYPE_PRINTER :
                                edits.kind == "process" ? Preset::TYPE_PRINT : Preset::TYPE_FILAMENT));
 
+    const std::string previous_printer = configured_printer().preset;
     const std::string previous_process = current_process_preset();
     const std::string previous_plate   = configured_printer().plate_type;
     const std::vector<std::string> previous_filaments = bundle->filament_presets;
+    // A step OrcaSlicer refuses after earlier steps ran leaves those applied,
+    // so the failure names them.
+    const auto stopped = [&](std::string message) {
+        std::vector<std::string> done;
+        for (const UnsavedEdits& edits : preview.unsaved_edits)
+            done.push_back("the unsaved edits to \"" + edits.preset + "\" were dropped");
+        if (configured_printer().preset != previous_printer)
+            done.push_back("the printer is now \"" + configured_printer().preset + "\"");
+        if (current_process_preset() != previous_process)
+            done.push_back("the process is now \"" + current_process_preset() + "\"");
+        for (std::size_t slot = 0; slot < previous_filaments.size() && slot < bundle->filament_presets.size(); ++slot)
+            if (bundle->filament_presets[slot] != previous_filaments[slot])
+                done.push_back("filament " + std::to_string(slot + 1) + " is now \"" + bundle->filament_presets[slot] + "\"");
+        for (std::size_t index = 0; index < done.size(); ++index)
+            message += (index == 0 ? " Already changed by this call, and not undone: " : "; ") + done[index];
+        if (!done.empty())
+            message += ".";
+        return CommandResult::failure(WorkspaceError::Failed, std::move(message));
+    };
     {
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
+        // The preview has just found this preset by the same lookup.
         if (request.printer_preset && !SetupCommands::select_printer_preset(m_plater, *request.printer_preset))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the printer.");
+            throw std::logic_error("OrcaSlicer did not select the printer preset its preview found: " + *request.printer_preset);
         if (request.plate_type) {
             const ConfigOptionDef* definition = print_config_def.get("curr_bed_type");
             int value = 0;
@@ -1414,7 +1437,7 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
                 if (definition->enum_labels[index] == preview.resulting.plate_type)
                     value = index + 1;
             if (value == 0 || !SetupCommands::select_bed_type(m_plater, value))
-                return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the plate.");
+                return stopped("OrcaSlicer did not select the plate.");
         }
         if (request.process_preset && *request.process_preset != current_process_preset()) {
             // The process branch of Plater::priv::on_select_preset.
@@ -1429,7 +1452,7 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
                 // The same path the header's filament menu takes, so a slot
                 // changed by the agent gets Orca's colour rule too.
                 if (!SetupCommands::select_filament_preset(m_plater, slot, name))
-                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not select the filament.");
+                    return stopped("OrcaSlicer did not select filament " + std::to_string(slot + 1) + ".");
             }
         m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings);
     }
@@ -1553,27 +1576,53 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
             return id_error(row.id);
         const ModelObject& object = *model.objects[resolved->index];
         if (row.plate && plate_index(*row.plate) < 0)
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         if (row.extruder && (*row.extruder < 1 || *row.extruder > filaments))
             return CommandResult::failure(WorkspaceError::InvalidArgument,
                                           "This project has " + std::to_string(filaments) + " filaments");
         if (row.quantity && *row.quantity != object.instances.size() && object.is_cut())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer does not copy a cut object");
+            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer does not copy a cut object");
+        // Orca adds copies only of an object whose copies all print, as they
+        // will once this row's enabled is applied.
+        const bool prints = row.enabled ? *row.enabled :
+                                          std::all_of(object.instances.begin(), object.instances.end(),
+                                                      [](const ModelInstance* instance) { return instance->printable; });
+        if (row.quantity && *row.quantity > object.instances.size() && !prints)
+            return CommandResult::failure(WorkspaceError::Refused,
+                                          row.enabled ? object.name + " is disabled by this same row, and OrcaSlicer does not copy a disabled object." :
+                                                        object.name + " is disabled, and OrcaSlicer does not copy a disabled object. "
+                                                                      "Pass enabled: true in the same row to copy it.");
+        if (row.quantity && *row.quantity != object.instances.size() &&
+            m_plater.canvas3D()->get_gizmos_manager().is_in_editing_mode())
+            return CommandResult::failure(WorkspaceError::Refused,
+                                          "An OrcaSlicer editing tool is open, and OrcaSlicer does not change copies while it is. "
+                                          "Ask the person to close it.");
         if (row.name && row.name->find_first_not_of(" \t") == std::string::npos)
             return CommandResult::failure(WorkspaceError::InvalidArgument, "An object name cannot be empty");
         indices.push_back(resolved->index);
     }
     for (const LayoutPlate& row : request.plates) {
         if (row.id && plate_index(*row.id) < 0)
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         if (row.bed_type && !bed_type_of(*row.bed_type))
             return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + *row.bed_type + "\" is not a plate type OrcaSlicer knows");
     }
     if (request.arrange && request.arrange->plate && plate_index(*request.arrange->plate) < 0)
-        return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
     Worker& worker = m_plater.get_ui_job_worker();
     if (!worker.is_idle())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer is busy with another job. Try again when it finishes.");
+    const int added = int(std::count_if(request.plates.begin(), request.plates.end(), [](const LayoutPlate& row) { return !row.id; }));
+    if (added > 0) {
+        const int limit = int(PartPlateList::MAX_PLATES_COUNT);
+        if (plates.get_plate_count() + added > limit)
+            return CommandResult::failure(WorkspaceError::Refused,
+                                          "A project holds at most " + std::to_string(limit) + " plates; this one has " +
+                                              std::to_string(plates.get_plate_count()) + ", so it can take " +
+                                              std::to_string(limit - plates.get_plate_count()) + " more.");
+        if (!m_plater.can_add_plate())
+            return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer does not add a plate while it slices. Try again when the slice ends.");
+    }
 
     {
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
@@ -1584,7 +1633,7 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
             if (!row.id) {
                 // The add-plate toolbar action, less its own snapshot.
                 if (!m_plater.can_add_plate())
-                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer cannot add another plate");
+                    throw std::logic_error("OrcaSlicer refused a plate the layout checked it could add");
                 index = plates.create_plate();
                 result.added_plates.push_back(PlateId(m_session, plates.get_plate(index)->id().id));
             }
@@ -1616,9 +1665,7 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
                 else
                     m_plater.decrease_instances(object.instances.size() - *row.quantity);
                 if (object.instances.size() != *row.quantity)
-                    return CommandResult::failure(WorkspaceError::UnavailableOperation,
-                                                  "OrcaSlicer did not change the copies of " + object.name +
-                                                      " (a disabled object cannot be copied)");
+                    throw std::logic_error("OrcaSlicer did not change the copies of " + object.name + " after the layout's checks passed");
             }
             if (row.plate) {
                 const int from = plates.find_instance_belongs(static_cast<int>(index), 0);
@@ -1668,7 +1715,8 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
             settings.distance        = m_arrange_restore->first;
             settings.enable_rotation = m_arrange_restore->second;
             m_arrange_restore.reset();
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+            // The worker was idle at the check above, and nothing since starts a job.
+            throw std::logic_error("OrcaSlicer's job worker turned busy during a layout");
         }
         result.arranging = true;
     }
@@ -1686,9 +1734,9 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
     if (request.instance >= model.objects[resolved->index]->instances.size())
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The object has no such instance");
     if (request.auto_orient && !m_plater.get_ui_job_worker().is_idle())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer is busy with another job. Try again when it finishes.");
     if (!request.mirror_axis.empty() && model.objects[resolved->index]->is_cut())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer does not mirror a cut object");
+        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer does not mirror a cut object");
 
     // The face must still be the one that was read: resolve it before
     // anything moves.
@@ -1750,7 +1798,7 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
             } else {
                 const double current = model.objects[resolved->index]->instance_bounding_box(request.instance).size()[request.scale_to->first];
                 if (current <= 0)
-                    return CommandResult::failure(WorkspaceError::UnavailableOperation, "The object has no size along that axis");
+                    return CommandResult::failure(WorkspaceError::InvalidArgument, "The object has no size along that axis");
                 factors = Vec3d::Constant(request.scale_to->second / current);
             }
             selection.setup_cache();
@@ -1802,8 +1850,9 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
         // wrapped so its end is reported under the caller's handle. The job
         // orients the selection, which is this object.
         m_plater.set_prepare_state(Job::PREPARE_STATE_DEFAULT);
+        // The worker was idle at the check above, and nothing since starts a job.
         if (!start_job(job_handle, "orient", std::make_unique<OrientJob>()))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer is busy with another job. Try again when it finishes.");
+            throw std::logic_error("OrcaSlicer's job worker turned busy during a placement");
         result.orienting = true;
     }
     return CommandResult::success();
@@ -1818,7 +1867,7 @@ CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRe
     Model&             model  = m_plater.model();
     const ModelObject& object = *model.objects[resolved->index];
     if (object.instances.empty())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The object has no instance to measure");
+        return CommandResult::failure(WorkspaceError::Refused, "The object has no instance to measure");
     const std::uint64_t revision = m_changes.revision();
 
     if (request.mesh) {
@@ -2078,7 +2127,9 @@ std::vector<ObjectDetails> OrcaWorkspaceAdapter::object_details() const
         row.id        = ObjectId(m_session, object.id().id);
         row.name      = object.name;
         row.instances = object.instances.size();
-        row.printable = object.printable;
+        for (const ModelInstance* instance : object.instances)
+            if (object.printable && instance->printable) ++row.printable_instances;
+        row.printable = row.printable_instances == row.instances;
         // Orca keeps every object's extruder in its config; that is the
         // extruder field below, not a setting the object overrides.
         row.overrides = object.config.size();
@@ -2139,7 +2190,7 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
     // for one the shell started on its own after an edit.
     const bool automatic = m_automatic_slice_reader && m_automatic_slice_reader();
     if (m_plater.is_background_process_slicing() && !preempt && !automatic)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+        return CommandResult::failure(WorkspaceError::Busy,
                                       "A slice is already running. Wait for it, or ask again with preempt.");
 
     PartPlateList& plates = m_plater.get_partplate_list();
@@ -2155,10 +2206,10 @@ CommandResult OrcaWorkspaceAdapter::start_slice(std::optional<PlateId> plate, bo
             }
         }
         if (index < 0)
-            return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         PartPlate* target = plates.get_plate(index);
         if (target == nullptr)
-            return CommandResult::failure(WorkspaceError::InvalidId, "No such plate");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         // Orca slices the current plate, so selecting it is part of starting
         // the run, exactly as the header's own Slice button does it.
         if (plates.get_curr_plate_index() != index)
@@ -2500,9 +2551,9 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     report.project_opened = true;
     add_outside_messages(report, outside.take_messages());
     if (!released)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The open project could not be saved, so it stays open");
+        return CommandResult::failure(WorkspaceError::Failed, "The open project could not be saved, so it stays open");
     if (!loaded)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not open that file");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not open that file");
     return CommandResult::success();
 }
 
@@ -2523,14 +2574,14 @@ CommandResult OrcaWorkspaceAdapter::export_project_archive(const std::string& fi
     // function pointers and crash. Refuse honestly instead.
     GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
     if (canvas == nullptr || !canvas->is_initialized())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation,
+        return CommandResult::failure(WorkspaceError::Busy,
                                       "The canvas is not ready to render the archive's thumbnails yet");
     // SkipAuxiliary keeps consumer files out of the archive; the remaining
     // strategy matches an ordinary project save.
     const SaveStrategy strategy = SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh |
                                   SaveStrategy::SkipAuxiliary;
     if (m_plater.export_3mf(into_path(from_u8(file_path)), strategy) < 0)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The project archive could not be written");
+        return CommandResult::failure(WorkspaceError::Failed, "The project archive could not be written");
     return CommandResult::success();
 }
 
@@ -2552,7 +2603,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
             if (request.plate->session() == m_session && plates.get_plate(index)->id().id == request.plate->value())
                 plate = index;
         if (plate < 0)
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
     }
 
     std::vector<size_t> indices;
@@ -2574,7 +2625,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
     report = take_load_report(/*started_by_agent=*/true);
     add_outside_messages(report, outside.take_messages());
     if (indices.empty())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not import that file");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not import that file");
     for (size_t index : indices) {
         const ObjectId id(m_session, m_plater.model().objects[index]->id().id);
         m_known_object_ids.insert(id.value());
@@ -2603,7 +2654,7 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
                 if (item.plate.session() == m_session && plates.get_plate(candidate)->id().id == item.plate.value())
                     index = candidate;
             if (index < 0)
-                return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+                return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
             plate_indices.push_back(index);
             continue;
         }
@@ -2617,9 +2668,9 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
             const auto volume = std::find_if(object.volumes.begin(), object.volumes.end(),
                                              [&](const ModelVolume* v) { return v->id().id == item.part; });
             if (volume == object.volumes.end())
-                return CommandResult::failure(WorkspaceError::StaleId, "That part is not in " + object.name);
+                return CommandResult::failure(WorkspaceError::NotFound, "That part is not in " + object.name);
             if (object.is_cut() && ((*volume)->is_model_part() || (*volume)->is_negative_volume()))
-                return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                return CommandResult::failure(WorkspaceError::Refused,
                                               "OrcaSlicer does not delete the solid parts of a cut object");
             if ((*volume)->is_model_part())
                 ++removing[resolved->index].first;
@@ -2676,7 +2727,9 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
         }
         for (auto index = objects.rbegin(); index != objects.rend(); ++index)
             if (!m_plater.delete_object(*index))
-                return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not delete an object");
+                // Orca refuses only an index out of range, or a cut object
+                // whose question is declined; the cut info is cleared above.
+                throw std::logic_error("OrcaSlicer did not delete an object the call checked");
         // A deleted plate's objects move to another plate, as in Orca.
         for (auto index = plate_indices.rbegin(); index != plate_indices.rend(); ++index)
             m_plater.delete_plate(*index);
@@ -2710,9 +2763,13 @@ CommandResult OrcaWorkspaceAdapter::id_error(ObjectId id) const
     if (!id)
         return CommandResult::failure(WorkspaceError::InvalidId, "Object ID is invalid");
     if (id.session() != m_session)
-        return CommandResult::failure(WorkspaceError::StaleId, "Object ID belongs to an earlier project session");
-    const WorkspaceError error = m_known_object_ids.count(id.value()) > 0 ? WorkspaceError::StaleId : WorkspaceError::MissingObject;
-    return CommandResult::failure(error, "Object does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::StaleId,
+                                      "That object id is from a project that is no longer open. Read workspace_inspect again.");
+    if (m_known_object_ids.count(id.value()) > 0)
+        return CommandResult::failure(WorkspaceError::StaleId,
+                                      "That object was removed from the project since it was read. Read workspace_inspect again.");
+    return CommandResult::failure(WorkspaceError::NotFound,
+                                  "That object is not in the open project. Read workspace_inspect for the current ids.");
 }
 
 void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& change)
@@ -2734,6 +2791,7 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         // A new or opened project starts its own history and presets; nothing
         // in it is an edit.
         remember_history();
+        m_first_model_pending = m_plater.model().objects.empty();
         record_settings_edits(/*report=*/false);
     } else {
         record_history_edits();
@@ -2779,12 +2837,18 @@ void OrcaWorkspaceAdapter::record_history_edits()
     const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
     const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
     bool recorded = false;
+    // Orca takes a load's undo step before the objects arrive, so the step
+    // may be seen while the project is still empty or after: either way it
+    // belongs to the project's making.
+    const bool making_project = m_first_model_pending;
+    if (!m_plater.model().objects.empty())
+        m_first_model_pending = false;
     for (const UndoRedo::Snapshot& snapshot : snapshots) {
         if (snapshot.timestamp < m_first_unreported_step || snapshot.is_topmost())
             continue;
         recorded = true;
         // A project separator is a project boundary, reported as one.
-        if (snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
+        if (!making_project && snapshot.snapshot_data.snapshot_type != UndoRedo::SnapshotType::ProjectSeparator &&
             UndoRedo::snapshot_modifies_project(snapshot))
             publish_edit({EditKind::Step, EditActor::Person, snapshot.name});
     }
@@ -2890,8 +2954,8 @@ const DynamicPrintConfig& owner_config(const PresetOwner& owner)
 
 SettingIssue unavailable(SettingsScope scope)
 {
-    return preset_scope(scope) ? SettingIssue{"", "workspace_unavailable", "No FFF printer is selected."} :
-                                 SettingIssue{"", "workspace_unavailable", "No active FFF process preset."};
+    return preset_scope(scope) ? SettingIssue{"", "workspace_unavailable", "No FFF printer is selected. Ask the person to select one."} :
+                                 SettingIssue{"", "workspace_unavailable", "No FFF process preset is selected. Ask the person to select one."};
 }
 
 // A preset the call named that is not there. The names that are: the
@@ -3197,7 +3261,8 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         }
         const auto def = setting_definition(key);
         if (!def.writable) {
-            result.issues.push_back({key, "unsupported_setting_mutation", std::string("This ") + scope_name(scope) + " setting is read-only."});
+            result.issues.push_back({key, "unsupported_setting_mutation", std::string("The tools do not change this ") + scope_name(scope) +
+                                                                                 " setting; the person changes it in OrcaSlicer."});
             continue;
         }
         if (auto refused = set_setting_value(next, key, text))
@@ -3268,7 +3333,7 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
     wxASSERT(wxIsMainThread());
     const SettingsScope scope = patch.target.scope;
     if (preset_scope(scope) ? !fff_printer() : !process_settings_available())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, unavailable(scope).message);
+        return CommandResult::failure(WorkspaceError::WorkspaceUnavailable, unavailable(scope).message);
     const PresetOwner owner = preset_owner(patch.target);
     if (owner.preset == nullptr)
         return CommandResult::failure(WorkspaceError::StaleSettings, "The preset is gone. Read and preview again.");
@@ -3383,7 +3448,7 @@ CommandResult OrcaWorkspaceAdapter::edit_own_setting(ObjectId id, const OwnSetti
     // Only what the catalog offers: the panel draws each action from
     // own_setting_action, so anything else is not a person's press.
     if (edit.action == OwnSettingAction::None || own_setting_action(edit.kind, edit.key) != edit.action)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The All settings panel offers nothing like that");
+        return CommandResult::failure(WorkspaceError::Refused, "The All settings panel offers nothing like that");
     const int    index  = static_cast<int>(resolved->index);
     ModelObject& object = *m_plater.model().objects[resolved->index];
     ObjectList*  list   = wxGetApp().obj_list();
@@ -3401,7 +3466,7 @@ CommandResult OrcaWorkspaceAdapter::edit_own_setting(ObjectId id, const OwnSetti
         if (volumes.empty())
             return CommandResult::failure(WorkspaceError::NoChange, object.name + " has no " + edit.kind + " any more");
         if (list == nullptr)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer's object list is not open");
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer's object list is not open");
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
         Plater::TakeSnapshot snapshot(&m_plater, volumes.size() == 1 ? "Remove " + edit.kind :
                                                      "Remove " + std::to_string(volumes.size()) + " " + edit.kind + "s");

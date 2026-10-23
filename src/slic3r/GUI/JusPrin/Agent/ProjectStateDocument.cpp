@@ -419,6 +419,7 @@ ChangeEntry read_change(const json& entry)
     change.kind            = entry.value("kind", "");
     change.actor           = entry.value("actor", "");
     change.external        = entry.value("external", false);
+    change.client          = entry.value("client", "");
     change.label           = entry.value("label", "");
     change.location        = entry.value("location", "");
     change.from            = entry.value("from", "");
@@ -1275,6 +1276,7 @@ ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::strin
                 {"conversationId", entry.conversation_id},
                 {"afterId", entry.after_id}};
     if (entry.external) record["external"] = true;
+    if (!entry.client.empty()) record["client"] = entry.client;
     if (entry.kind == "setting") {
         record["from"]   = entry.from;
         record["to"]     = entry.to;

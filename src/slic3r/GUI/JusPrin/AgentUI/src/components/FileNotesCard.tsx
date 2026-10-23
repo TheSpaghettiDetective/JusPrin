@@ -1,13 +1,12 @@
 // What OrcaSlicer said while loading a file the person brought in, when the
 // Agent could not speak about it: each dialog the app answered in their
-// place, in OrcaSlicer's words, with what that answer left, and a way to set
-// the Agent up so it can explain them.
+// place, in OrcaSlicer's words, with what that answer left. The way to set
+// the Agent up is the pane's own: its offer, or the setup bar under the thread.
 
 import { FileReport, OrcaMessage } from '../bridge/protocol';
 
 interface Props {
   report: FileReport;
-  onSetUpAgent?: () => void;
 }
 
 // OrcaSlicer titles its dialogs "<app> - <title>"; the app name adds nothing
@@ -29,7 +28,7 @@ function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
-export function FileNotesCard({ report, onSetUpAgent }: Props) {
+export function FileNotesCard({ report }: Props) {
   const files = report.loads.flatMap((load) => load.files).map(fileName);
   return (
     <article className="history-card file-notes-card" aria-label="Notes about this file">
@@ -48,16 +47,6 @@ export function FileNotesCard({ report, onSetUpAgent }: Props) {
         })}
       </ul>
       {report.messages.truncated && <p className="file-notes-more">JusPrin said more than fits here.</p>}
-      {/* Offered only where the card is the way in: beside the pane's own
-          setup offer it would say the same thing twice. */}
-      {onSetUpAgent && (
-        <>
-          <p className="file-notes-help">If you'd like help with these, set up the Agent: it can explain them and fix what needs fixing.</p>
-          <button type="button" className="primary" onClick={onSetUpAgent}>
-            Set up the Agent
-          </button>
-        </>
-      )}
     </article>
   );
 }

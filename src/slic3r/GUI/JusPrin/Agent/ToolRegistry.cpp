@@ -817,7 +817,7 @@ std::vector<ToolDefinition> make_definitions()
         {{"objectId", id}, {"name", string_schema()}, {"plateIds", {{"type", "array"}, {"items", id}}},
          {"instanceCount", integer_schema()}, {"partCount", integer_schema()}, {"modifierCount", integer_schema()},
          {"negativePartCount", integer_schema()}, {"supportVolumeCount", integer_schema()}, {"printable", boolean_schema()},
-         {"extruder", integer_schema()}, {"sizeMm", vector3}, {"overrideCount", integer_schema()}},
+         {"printableInstanceCount", integer_schema()}, {"extruder", integer_schema()}, {"sizeMm", vector3}, {"overrideCount", integer_schema()}},
         {"objectId", "name", "plateIds", "instanceCount", "partCount", "modifierCount", "printable", "sizeMm", "overrideCount"});
     const json objects_section = list_schema(object_row);
     // A load report's rows add what the app checked about each arrived object.
@@ -1484,8 +1484,8 @@ std::vector<ToolDefinition> make_definitions()
         {"workspace_inspect",
          "Inspect the live workspace",
          "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are "
-         "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, printable flag, extruder, "
-         "size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
+         "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, whether every copy prints "
+         "and if not how many do, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
          "packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's "
          "slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
          "printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped "

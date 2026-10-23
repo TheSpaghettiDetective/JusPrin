@@ -186,7 +186,7 @@ public:
                 continue;
             }
             if (!def->writable) {
-                result.issues.push_back({key, "unsupported_setting_mutation", "This process setting is read-only."});
+                result.issues.push_back({key, "unsupported_setting_mutation", "The tools do not change this process setting; the person changes it in OrcaSlicer."});
                 continue;
             }
             if (patch.target.object && !object_setting(key)) {
@@ -339,8 +339,8 @@ private:
                 continue;
             }
             if (!def->writable) {
-                result.issues.push_back({key, "unsupported_setting_mutation", std::string("This ") + scope_name(patch.target.scope) +
-                                                                                  " setting is read-only."});
+                result.issues.push_back({key, "unsupported_setting_mutation", std::string("The tools do not change this ") + scope_name(patch.target.scope) +
+                                                                                  " setting; the person changes it in OrcaSlicer."});
                 continue;
             }
             if (def->type == "integer" &&

@@ -114,7 +114,7 @@ CommandResult OrcaWorkspaceAdapter::plan_regions(const std::vector<RegionRequest
                 if (record.id == request.region_id)
                     existing = &record;
             if (existing == nullptr)
-                return CommandResult::failure(WorkspaceError::InvalidArgument,
+                return CommandResult::failure(WorkspaceError::NotFound,
                                               "There is no region " + request.region_id + "; read object_analyze's regions section");
             if (!seen.insert(request.region_id).second)
                 return CommandResult::failure(WorkspaceError::InvalidArgument, "Region " + request.region_id + " is named twice");
@@ -144,7 +144,7 @@ CommandResult OrcaWorkspaceAdapter::plan_regions(const std::vector<RegionRequest
         const ModelObject& object = *model.objects[*index];
         const auto         parts  = model_parts(object);
         if (parts.empty() || object.instances.empty())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, object.name + " has no solid part to annotate");
+            return CommandResult::failure(WorkspaceError::Refused, object.name + " has no solid part to annotate");
         if (!request.object && existing && request.geometry == std::nullopt && existing->part >= parts.size())
             return CommandResult::failure(WorkspaceError::StaleId, "Region " + existing->id + "'s part is gone");
 

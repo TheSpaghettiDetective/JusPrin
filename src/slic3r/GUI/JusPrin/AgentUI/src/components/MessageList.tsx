@@ -63,8 +63,6 @@ interface Props {
   // A surface's own card for one of its tool calls, in place of the generic
   // one; undefined keeps the generic card.
   renderActivity?: (activity: ToolActivityInfo) => ReactNode | undefined;
-  // Set up on the card of a file's notes, when the Agent could not speak.
-  onSetUpAgent?: () => void;
   // Whether any of the thread is scrolled out under what is pinned above it,
   // reported as it changes and as false when the thread goes away.
   onScrolledChange?: (scrolled: boolean) => void;
@@ -166,7 +164,6 @@ export function MessageList({
   onUndoAdd,
   onInstallPlugin,
   renderActivity,
-  onSetUpAgent,
   onScrolledChange,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
@@ -237,7 +234,7 @@ export function MessageList({
   // said.
   const bubble = (message: Message): ReactNode => {
     if (message.role === 'note' && message.fileReport)
-      return message.fileReportCard ? <FileNotesCard report={message.fileReport} onSetUpAgent={onSetUpAgent} /> : null;
+      return message.fileReportCard ? <FileNotesCard report={message.fileReport} /> : null;
     if (message.role === 'note')
       return (
         <div className="message note" role="status">
@@ -353,15 +350,6 @@ export function MessageList({
       ref={listRef} onScroll={handleScroll}>
       <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
         onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
-      {messages.length === 0 && (
-        <div className="notice">
-          <h2>Ask the Agent about your print</h2>
-          <p>
-            The Agent can describe the open project, the plates and objects on them, the current selection, and the
-            printer setup — or duplicate the selected object.
-          </p>
-        </div>
-      )}
       {turns.map((turn) => {
         const turnMessages = messagesOf(turn);
         const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id));

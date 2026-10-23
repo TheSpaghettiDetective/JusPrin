@@ -88,6 +88,7 @@ export function applyStaticTokens(): void {
   const { component } = tokens as unknown as {
     component: { threadRow: { lineGap: number };
       turnActivity: { shimmerMs: number; spinMs: number };
+      setupOffer: { shrinkMs: number };
       timelineSummary: { paddingX: number; paddingY: number; iconGap: number };
       printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
@@ -104,10 +105,11 @@ export function applyStaticTokens(): void {
       swatch: { size: number } };
   };
   document.documentElement.style.setProperty('--thread-row-line-gap', `${component.threadRow.lineGap}px`);
-  // The one motion value the page has: how long the working line's words
-  // take to shimmer across once.
+  // Motion: how long the working line's words take to shimmer across once,
+  // its glyph to turn once, and the setup offer to shrink into the setup bar.
   document.documentElement.style.setProperty('--turn-activity-shimmer-duration', `${component.turnActivity.shimmerMs}ms`);
   document.documentElement.style.setProperty('--turn-activity-spin-duration', `${component.turnActivity.spinMs}ms`);
+  document.documentElement.style.setProperty('--setup-offer-shrink-duration', `${component.setupOffer.shrinkMs}ms`);
   document.documentElement.style.setProperty('--timeline-summary-padding',
     `${component.timelineSummary.paddingY}px ${component.timelineSummary.paddingX}px`);
   document.documentElement.style.setProperty('--timeline-summary-padding-x', `${component.timelineSummary.paddingX}px`);

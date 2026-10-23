@@ -144,11 +144,11 @@ CommandResult OrcaWorkspaceAdapter::render_view(const RenderRequest& request, Re
     wxASSERT(wxIsMainThread());
     GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
     if (canvas == nullptr || !canvas->is_initialized())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The 3D view is not ready to render yet");
+        return CommandResult::failure(WorkspaceError::Busy, "The 3D view is not ready to render yet");
     PartPlateList& plates = m_plater.get_partplate_list();
     const int      index  = plate_index_of(plates, request.plate, m_session);
     if (index < 0)
-        return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+        return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
     const auto angle = view_angle(request.view);
     if (!angle)
         return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + request.view + "\" is not a view");
@@ -159,10 +159,10 @@ CommandResult OrcaWorkspaceAdapter::render_view(const RenderRequest& request, Re
     ThumbnailsParams params{{}, false, true, false, true, index};
     canvas->render_thumbnail(data, width, height, params, Camera::EType::Ortho, *angle);
     if (!data.is_valid())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer rendered nothing");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer rendered nothing");
     const auto png = GCodeThumbnails::compress_thumbnail(data, GCodeThumbnailsFormat::PNG);
     if (!png || png->size == 0 || png->size > kImageBytes)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The rendered picture could not be encoded");
+        return CommandResult::failure(WorkspaceError::Failed, "The rendered picture could not be encoded");
     image.plate  = PlateId(m_session, plates.get_plate(index)->id().id);
     image.view   = request.view;
     image.width  = int(data.width);
@@ -185,7 +185,7 @@ CommandResult OrcaWorkspaceAdapter::read_attachment(const std::string& id, Attac
     boost::system::error_code error;
     const fs::path path = root / relative;
     if (!listed || !fs::is_regular_file(path, error) || !inside(path, root))
-        return CommandResult::failure(WorkspaceError::InvalidArgument,
+        return CommandResult::failure(WorkspaceError::NotFound,
                                       "The project has no attachment " + id + "; read workspace_inspect's project section");
     content.id     = relative.generic_string();
     content.folder = first;
@@ -201,14 +201,14 @@ CommandResult OrcaWorkspaceAdapter::read_attachment(const std::string& id, Attac
     // Images are read whole (a picture over 64 MB is not an attachment worth
     // decoding); text only as far as the cap.
     if (images.count(extension) && content.bytes > 64 * 1024 * 1024)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "That picture is too large to read");
+        return CommandResult::failure(WorkspaceError::Refused, "That picture is too large to read");
     boost::nowide::ifstream file(path.string(), std::ios::binary);
     std::string bytes;
     if (images.count(extension)) {
         bytes.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
         content.kind = "image";
         if (!bounded_image(bytes, extension, content))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer could not read that picture");
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer could not read that picture");
         return CommandResult::success();
     }
     bytes.resize(std::min<std::uint64_t>(content.bytes, kTextBytes + 4));
@@ -325,21 +325,21 @@ CommandResult OrcaWorkspaceAdapter::check_export(const ExportRequest& request) c
         PartPlateList& plates = m_plater.get_partplate_list();
         const int      index  = plate_index_of(plates, request.plate, m_session);
         if (index < 0)
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         PartPlate* plate = plates.get_plate(index);
         if (!plate->is_slice_result_valid() || plate->get_slice_result() == nullptr || m_plater.is_background_process_slicing())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Slice the plate first; it has no current G-code");
+            return CommandResult::failure(WorkspaceError::NeedsStep, "Slice the plate first; it has no current G-code");
     }
     if (request.kind == "stl") {
         for (ObjectId id : request.objects)
             if (!resolve(id))
                 return id_error(id);
         if (request.objects.empty() && plate_index_of(m_plater.get_partplate_list(), request.plate, m_session) < 0)
-            return CommandResult::failure(WorkspaceError::StaleId, "That plate is not in the open project");
+            return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
     }
     if ((request.kind == "sliced_3mf" || request.kind == "project_3mf") &&
         (m_plater.get_view3D_canvas3D() == nullptr || !m_plater.get_view3D_canvas3D()->is_initialized()))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The 3D view is not ready to render the file's thumbnails yet");
+        return CommandResult::failure(WorkspaceError::Busy, "The 3D view is not ready to render the file's thumbnails yet");
     return CommandResult::success();
 }
 
@@ -359,7 +359,7 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
         const std::string source = !sliced.filename.empty() ? sliced.filename : plates.get_plate(index)->get_tmp_gcode_path();
         std::string error;
         if (copy_file(source, path.string(), error, false) != CopyFileResult::SUCCESS)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The G-code could not be written: " + error);
+            return CommandResult::failure(WorkspaceError::Failed, "The G-code could not be written: " + error);
     } else if (request.kind == "sliced_3mf" || request.kind == "project_3mf") {
         // export_gcode_3mf's strategy for a sliced file; an ordinary save's
         // for a project. Silence keeps the open project's name and path.
@@ -367,7 +367,7 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
                                           SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::WithGcode | SaveStrategy::SkipModel :
                                           SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh;
         if (m_plater.export_3mf(path, strategy, request.kind == "sliced_3mf" ? index : -1) < 0)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer could not write the file");
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer could not write the file");
     } else if (request.kind == "stl") {
         // The model parts of the chosen objects, or of the plate's objects,
         // as they are placed.
@@ -380,7 +380,7 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
                 if (plates.find_instance_belongs(int(object), 0) == index)
                     objects.push_back(m_plater.model().objects[object]);
         if (objects.empty())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "There is nothing to export on that plate");
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "There is nothing to export on that plate");
         for (const ModelObject* object : objects)
             for (const ModelInstance* instance : object->instances) {
                 TriangleMesh part = object->raw_mesh();
@@ -388,7 +388,7 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
                 mesh.merge(part);
             }
         if (!store_stl(path.string().c_str(), &mesh, true))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "The STL could not be written");
+            return CommandResult::failure(WorkspaceError::Failed, "The STL could not be written");
     } else {
         // Orca's export of the presets in use, as edited, system ones
         // included (Orca's menu leaves those out, and in use they usually
@@ -423,7 +423,7 @@ CommandResult OrcaWorkspaceAdapter::cancel_job(const std::string& handle, bool& 
     wxASSERT(wxIsMainThread());
     const auto job = std::find_if(m_jobs.begin(), m_jobs.end(), [&handle](const WorkspaceJob& j) { return j.handle == handle; });
     if (job == m_jobs.end())
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "No job has the handle " + handle);
+        return CommandResult::failure(WorkspaceError::NotFound, "No job has the handle " + handle);
     stopped = job->state == "running";
     // The worker's cancel only asks; the job's own end reports whether it
     // stopped, in the jobs list.

@@ -2,7 +2,7 @@
 // the host pushes. The native coordinator owns the state machine.
 
 import { ReactNode } from 'react';
-import { ToolActivityInfo, ToolStateName } from '../bridge/protocol';
+import { isStale, ToolActivityInfo, ToolStateName } from '../bridge/protocol';
 import { Progress } from './Progress';
 
 interface Props {
@@ -39,7 +39,7 @@ export function ToolStatus({ state, children }: { state: ToolStateName; children
 
 export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props) {
   const { state } = activity;
-  const stale = state === 'failed' && activity.error?.code === 'stale_revision';
+  const stale = isStale(activity);
   const measured = activity.progress.total > 0;
   const percent = measured ? Math.round((100 * activity.progress.current) / activity.progress.total) : 0;
   const message =

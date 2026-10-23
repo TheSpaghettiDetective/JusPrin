@@ -193,6 +193,7 @@ json change_json(const ChangeEntry& change)
                 {"conversationId", change.conversation_id},
                 {"afterId", change.after_id}};
     if (change.external) result["external"] = true;
+    if (!change.client.empty()) result["client"] = change.client;
     if (change.kind == "setting") {
         result["from"]   = change.from;
         result["to"]     = change.to;
@@ -1948,9 +1949,37 @@ void AgentHost::handle_switch_conversation(const std::string& envelope_id, const
 {
     const json        payload         = json::parse(payload_json, nullptr, false);
     const std::string conversation_id = payload.is_object() ? payload.value("conversationId", "") : std::string();
-    if (!m_persistence.document().set_viewed_conversation(conversation_id)) {
+    ProjectStateDocument& document = m_persistence.document();
+    if (!document.set_viewed_conversation(conversation_id)) {
         send_bridge_error("unknown_conversation", "No conversation \"" + conversation_id + "\" exists.", envelope_id);
         return;
+    }
+    cancel_conversation_title();
+    const auto checkpoint = document.chat_checkpoint(conversation_id);
+    if (conversation_id != document.active_conversation_id() && !m_chat_transition_blocked && !transition_busy() &&
+        checkpoint && m_chat_version_exists && m_chat_version_exists(checkpoint->value("versionId", "")) &&
+        m_current_chat_version) {
+        // Settle pending saves before comparing: an unsaved edit must not
+        // match the last committed version. Preserve the outgoing chat too.
+        if (!checkpoint_active_chat()) {
+            send_bridge_error("save_failed", "The current chat could not be saved.", envelope_id);
+            send_state(envelope_id);
+            return;
+        }
+        if (m_current_chat_version() == checkpoint->value("versionId", "")) {
+            // The model already matches. Move chat authority without restoring
+            // the project or recording a fictional project change.
+            const std::string before = document.dump();
+            document.set_active_conversation(conversation_id);
+            m_persistence.flush();
+            if (m_save_chat_document && !m_save_chat_document()) {
+                document.load(before);
+                m_persistence.flush();
+                send_bridge_error("save_failed", "The selected chat could not be saved.", envelope_id);
+                send_state(envelope_id);
+                return;
+            }
+        }
     }
     m_persistence.flush();
     send_state(envelope_id);

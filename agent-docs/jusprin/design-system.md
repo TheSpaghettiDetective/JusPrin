@@ -111,7 +111,7 @@ text around it is.
 
 Design for a dense, native, high-DPI desktop application on Windows, macOS, and Linux. Use device-independent pixels (DIP), not physical pixels. Verify 100%, 150%, and 200% scaling.
 
-- Spacing scale: 4, 8, 12, 16, 20, 24, 32, 40, and 48 DIP.
+- Spacing scale: 4, 8, 12, 16, 20, 24, 32, 40, and 48 DIP, plus a 2 DIP half step (`dimension.space["0.5"]`) used only for the gap between a row's main line and the detail line under it, as in a report finding or a canvas caption.
 - The radius scale carries the design system's names (`dimension.radius`):
   - `small`, 4 DIP: standard controls (secondary and icon buttons, fields, the segmented control), matching OrcaSlicer's own controls.
   - `medium`, 8 DIP: containers (cards, popovers, chat bubbles) and the primary button, the one branded action.
@@ -257,6 +257,14 @@ three small, additive seams plus one attachment point.
    - `BitmapCache::SetColorReplaces` rewrites the teal in the SVG icon set to
      the action color at load time, and the monochrome brand mark to the text
      color.
+   - `ColorRGB::orca_accent()` replaces OrcaSlicer's own accent, the teal
+     behind `ColorRGB::ORCA()`, `ColorRGBA::ORCA()`, `ImGuiWrapper::COL_ORCA`
+     and the preview sliders' `BRAND_COLOR`, with the action color. That
+     recolours the ImGui and GL layer: the preview sliders' handles, filled
+     track and value text, gizmo highlights, the selection rectangle. Every
+     reader evaluates it at use; ImGui's style table, filled once at start-up,
+     is filled again through `ImGuiWrapper::reset_style`. The sliders' greys,
+     value boxes and handle shape, the legend and the bed stay OrcaSlicer's.
    - The canvas selection is OrcaSlicer's own, unretinted: its silhouette
      outline, which OrcaSlicer ships switched off and the shell switches on
      while it is installed, plus its white corner brackets. The brackets were

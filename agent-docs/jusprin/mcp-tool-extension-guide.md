@@ -354,7 +354,28 @@ The two adapters present the same result in different formats. The tool itself d
 
 When an invalid state is expected, handle it with ordinary control flow and return a structured error. Do not throw an exception. An error should say what the problem is and include only the data the Agent needs to correct the call.
 
-The MCP errors today include `invalid_arguments`, `cancelled`, `workspace_unavailable` and `stale_workspace`. The MCP adapter converts the app's native `stale_revision` and `stale_id` into `stale_workspace`, with the expected and the current session and revision in the details. It converts `unavailable_operation` into `workspace_unavailable`. Protocol errors at the transport level are separate JSON-RPC errors. Native error codes and MCP error codes do not have to be spelled the same.
+An error is judged by four things, in this order:
+
+1. **It says truthfully what happened, including whether anything changed.** A failed call changed nothing, unless its message says what it had already changed when it stopped. A tool that can stop part-way says so in its message (`printer_setup` names the printer it already selected and the edits it dropped; `object_repair` names the paint it removed and the parts it repaired). Prefer checking everything before changing anything, so that a refusal never comes part-way: `plate_layout` checks the plate limit, copies of a disabled object, and an open editing tool before it applies any row.
+2. **It names the next step and who takes it,** through its code (below) and its message.
+3. **The same situation gets the same code from every tool.** A plate id that is not in the open project is `not_found` from `slice_start`, `slice_report`, `slice_inspect`, `view_render`, `export_file`, `plate_layout`, `project_delete_items` and the import tools.
+4. **A broken invariant is not reported to the model.** A state the code guarantees cannot happen (a tool with no handler, a coordinator without the product state every app host gives it, a checked id that does not parse) throws, so it reaches Sentry.
+
+Every code a tool can fail with is listed in `Agent/ToolErrors.hpp`, and `ToolExecutionCoordinator::fail` throws on any other. The in-app agent and MCP clients read the same codes: the MCP adapter passes them through unchanged. Each code stands for one next step:
+
+| Next step | Codes |
+|---|---|
+| Fix the arguments and call again | `invalid_arguments`, `unknown_tool`, `unknown_skill`; the settings codes in "Error codes" below; the printer chats' own codes |
+| Decide again: not run, because an earlier call of the same response failed (in-app only) | `not_run` |
+| Read the state again, then call again | `not_found` (an id that is not in the open project), `stale_workspace` (the project changed since the read the call was based on), `feature_expired` (a face, edge or hole handle from an earlier revision), `connection_lost` (MCP bridge only: the outcome is unknown) |
+| Wait, then call again | `busy` |
+| Do the step the message names first | `needs_step` |
+| Ask the person | `opened_before`, `workspace_unavailable` (no open project, or no FFF printer selected) |
+| Stop and tell the person | `refused` (OrcaSlicer does not do this here), `failed` (OrcaSlicer tried and failed), `local_save_failed`, `cancelled` |
+
+The adapter decides the kind, because only it knows whether OrcaSlicer was busy, refused, or failed: `WorkspaceError` has a kind for each code (`NotFound`, `StaleId`, `Busy`, `NeedsStep`, `Refused`, `Failed`, `WorkspaceUnavailable`, `InvalidArgument`, `FeatureExpired`, `StaleSettings`), and the coordinator maps each one to its code in one function. Every `stale_workspace` carries the expected and the current session and revision in its details. Protocol errors at the transport level are separate JSON-RPC errors.
+
+A new failure picks the code whose next step fits. Add a code only for a next step none of these describe, and add it to `ToolErrors.hpp` and to this table together. The project prompt names no codes: a code and its message explain themselves. The MCP server instructions summarize the table above for external clients.
 
 The settings tools return these correction details, each limited in size:
 
@@ -481,7 +502,7 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 
 | Tool | Class | Contract | Owner | Bound |
 |---|---|---|---|---|
-| `workspace_inspect` | R | The one read for current state. `sections` selects any of: `summary` (default: project identity and saved state, printer pointer, intent line, selection ids, plate and object counts, plan headline, top unresolved warning); `project` (description, designer, license, safety and usage notes, assembly, bill of materials, profile notes, attachment list, versions and recovery state, each with provenance); `intent` (the intent record with provenance and an `unanswered` list); `printer` (the selected printer: configured versus observed nozzle, plate, and filaments with timestamps, computed `mismatches`, `confirmedFacts`, job progress, temperatures, alerts, monitoring policy); `objects` (plates, objects, parts, instances, enabled, extruder, quantity, bounding box, override and region counts, print order); `plan` (the pinned plan, deviations from the profile, estimates when a slice is valid); `slicing` (state and action handle per plate, progress, invalidation); `level` concise or detail. | workspace snapshot; `MachineObject`; `PresetBundle`; JusPrin stores; `UndoRedo` | per section: 4 KB text fields, 64 attachments, 16 slots and alerts, 64 objects with cursor |
+| `workspace_inspect` | R | The one read for current state. `sections` selects any of: `summary` (default: project identity and saved state, printer pointer, intent line, selection ids, plate and object counts, plan headline, top unresolved warning); `project` (description, designer, license, safety and usage notes, assembly, bill of materials, profile notes, attachment list, versions and recovery state, each with provenance); `intent` (the intent record with provenance and an `unanswered` list); `printer` (the selected printer: configured versus observed nozzle, plate, and filaments with timestamps, computed `mismatches`, `confirmedFacts`, job progress, temperatures, alerts, monitoring policy); `objects` (plates, objects, parts, instances, extruder, quantity, bounding box, override and region counts, print order; `printable` is true when every copy prints, which needs the object's own switch and each copy's, and a row whose `printable` is false adds `printableInstanceCount`, the copies that still print, so a copy switched off in the object list reads differently from an object `plate_layout` disabled); `plan` (the pinned plan, deviations from the profile, estimates when a slice is valid); `slicing` (state and action handle per plate, progress, invalidation); `level` concise or detail. | workspace snapshot; `MachineObject`; `PresetBundle`; JusPrin stores; `UndoRedo` | per section: 4 KB text fields, 64 attachments, 16 slots and alerts, 64 objects with cursor |
 | `object_analyze` | R | Geometry facts for one object. `include` any of: `mesh` (dimensions, volume, health, units suspicion); `features` (planar face groups and cylindrical holes with revision-scoped handles); `orientations` (score each entry of `candidates`, or Orca's auto-orient candidates, for overhang area, support volume, bed contact, and which handles face down); `fit` (plate fit, overlaps, likely duplicates); `regions` (annotations and their `bindingLost` or `artifactsMissing` flags); `measure` (distances between two handles). | `TriangleMesh` statistics; `Measure` feature detection; `OrientJob` evaluation; `PartPlate` checks; JusPrin annotation store | 32 faces and holes by area; 8 candidates; 16 overlaps, duplicates, measurements; 32 regions |
 | `settings_search` | R | Required `scope`; required `target` for `object`, `filament` and `printer`, forbidden for `process`; `writable` and `changedOnly` filters. `changedOnly` answers what differs from the owning preset or inherited value. | `print_config_def`; scoped edited preset or `ModelConfig`; dirty options | 25 per page |
 | `settings_get` | R | Required `scope` and its exact target; origin reported as system, user preset, project edit, filament preset, printer preset, or object override. | scoped edited presets; `PresetBundle::filament_presets`; `ModelConfig` | 32 keys |
@@ -512,7 +533,7 @@ Both adapters load every registered tool on every turn. MCP `tools/list` returns
 | Tool | Class | Contract | Owner | Bound |
 |---|---|---|---|---|
 | `object_place` | M | Place one object for printing. Optional facets, each independently typed, conflicting ones rejected: `faceDown` (a face handle), `autoOrientFor` (minimal support, protect a face handle, strength along an axis), `rotateDegrees`, `position`, `scale` (factor or target dimension, or `unitsFix`), `mirrorAxis`, `dropToBed`, `arrangeAfter`. One undo snapshot. Mirror and scale are named on the activity. Auto-orient runs as an Orca job and returns an action handle. Result lists regions whose binding broke. | Selection and `GizmoObjectManipulation`; `OrientJob` | |
-| `plate_layout` | M | Lay out the job: `objects`, a same-shape list of `{objectId, enabled?, quantity?, plateId?, extruder?, name?}`; `plates`, a same-shape list of `{plateId?, name?, bedType?, sequence?}` where a missing id adds a plate; `arrange` (none, plate id, all, or selected) with spacing and rotation allowance. One snapshot. Arrange runs as an Orca job and returns an action handle whose terminal result lists objects that did not fit. Retires `duplicate_object`. | `Plater`, `ObjectList`, `PartPlateList`; `ArrangeJob` | 64 object rows, 16 plate rows |
+| `plate_layout` | M | Lay out the job: `objects`, a same-shape list of `{objectId, enabled?, quantity?, plateId?, extruder?, name?}`; `plates`, a same-shape list of `{plateId?, name?, bedType?, sequence?}` where a missing id adds a plate; `arrange` (none, plate id, all, or selected) with spacing and rotation allowance. One snapshot. What OrcaSlicer would refuse (the plate limit, copies of a disabled object, an open editing tool) is checked before any row is applied. `enabled` sets the printable switch of every copy of the object, as the object list's switch does; `workspace_inspect`'s `objects` section then shows it as `printable` false with `printableInstanceCount` 0. Arrange runs as an Orca job and returns an action handle whose terminal result lists objects that did not fit. Retires `duplicate_object`. | `Plater`, `ObjectList`, `PartPlateList`; `ArrangeJob` | 64 object rows, 16 plate rows |
 | `object_import` | M | In-app only. Add a model from a chat attachment id to a target plate, with the same dialog-choice inputs as `project_open`. Retires `import_model`. | `Plater` load_files | 32 warnings |
 | `object_import_file` | M | MCP only. Same contract from a path; the path is validated before the file is read. | same | same |
 | `project_delete_items` | D | Delete objects, parts, plates, or region annotations by id. Result says whether project Undo covers each. | `Plater` remove; `PartPlateList` delete; annotation store | 64 ids |
@@ -855,12 +876,12 @@ refuses these cases:
 | known key not applicable to the requested scope | `unsupported_scope` |
 | key on the write blacklist | `unsupported_setting_mutation` |
 | read of a print host address or credential key | `withheld_setting`, per key under `unknownKeys`; the other keys are still read |
-| requested object is gone, or no FFF printer or process is selected | `workspace_unavailable` |
+| requested object is gone | `not_found` |
+| no FFF printer or process is selected | `workspace_unavailable` |
 | parse failure, bound violation, or layer height outside the printer's range | `invalid_setting_value` with `allowed` or bounds |
 | a scope-specific dependency or validator rule conflicts | `incompatible_settings` with the conflicting keys |
 | session, revision, target mapping, preset, or before value changed since preview | `stale_workspace` with expected and current |
 | client cancelled or the app closed | `cancelled` |
-| the batch call failed after validation | `execution_failed` |
 
 Preview never fails because of what the patch contains. It reports the
 problem in its result. Apply fails with the first blocking code and changes
@@ -1095,8 +1116,8 @@ A settings change is previewed three times.
    from it.
 3. At execution, the adapter previews a third time, against the config as it
    is at that moment. It compares every "before" value with the previewed
-   set. A value that has moved is `stale_workspace`. A blocking issue is
-   `invalid_settings`. In both cases nothing is changed.
+   set. A value that has moved is `stale_workspace`. A blocking issue fails
+   with that issue's own code. In both cases nothing is changed.
 
 "Before" values supplied by the client are never trusted. Sometimes
 OrcaSlicer normalizes a value differently from the preview. In that case the
@@ -1131,7 +1152,7 @@ Apply does the following:
 The result says `projectUndo: true`, and project Undo removes the override.
 The activity names the object. The coordinator looks the object up in the
 current snapshot twice, when the action is queued and when it executes, and
-fails with `missing_object` when the object is gone. The adapter treats a
+fails with `not_found` when the object is gone. The adapter treats a
 missing target as a broken precondition. No value in a patch removes an
 override. Only Undo, or the object settings panel, does.
 
@@ -1142,7 +1163,7 @@ override. Only Undo, or the object settings panel, does.
   replace the blocks with a generic dispatch table.
 - `kInvalidatingReasons` is the mask of change reasons that make most queued
   actions stale. It includes `Settings`, so a queued action fails with
-  `stale_revision` when the user edits a setting in the GUI.
+  `stale_workspace` when the user edits a setting in the GUI.
   `settings_apply_patch` has its own mask, `Settings | Project`. The reason
   is something the M5 live eval showed: an agent annotated a region between
   its settings preview and its apply, and that model edit (and the slicing
@@ -1270,7 +1291,13 @@ Also run the shell harness in these modes:
 - no argument for the normal shell regression;
 - `--stock` for stock behavior.
 
-`--manual-mcp <dedicated-temporary-directory>` provides a disposable two-plate fixture for testing with real clients. Do not use the user's normal data directory. The checks for the Linux helper and launcher are documented in [the test README](../../tests/mcp/linux/README.md).
+`--manual-mcp <dedicated-temporary-directory>` provides a disposable two-plate fixture for testing with real clients. Do not use the user's normal data directory. To drive it from a script:
+
+1. Wait for `HARNESS MCP FIXTURE READY` on stderr.
+2. Read the URL from `<directory>/jusprin/mcp.json`.
+3. Send calls with `call()` from `tests/mcp/probe.py`.
+
+A harness reads its resources from the source tree it was built from (`JUSPRIN_SOURCE_DIR/resources`). So a binary that is older than that tree's `resources/jusprin/ui/design-tokens.json` cannot load the tokens, and stops at the `shell_installed` check. Rebuild it, or run a harness built from a tree whose resources match. The checks for the Linux helper and launcher are documented in [the test README](../../tests/mcp/linux/README.md).
 
 What has actually been run:
 

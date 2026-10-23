@@ -1023,6 +1023,37 @@ TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[pe
     }
 }
 
+TEST_CASE("an external tool's edit keeps the client's name through a reload", "[persistence][changes][mcp]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence persistence(workspace, test_config());
+    persistence.attach();
+    const auto cube = workspace.snapshot().plates.front().objects.front().id;
+    {
+        const Workspace::IWorkspace::AgentEdit external(workspace, Workspace::EditActor::ExternalTool, "Claude Code");
+        REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
+    }
+    // The name belongs to the scope that gave it: the person's next edit has none.
+    REQUIRE(workspace.rename_object(cube, "bracket 2").succeeded());
+    const auto& changes = persistence.document().changes();
+    REQUIRE(changes.size() == 2);
+    CHECK(changes[0].external);
+    CHECK(changes[0].client == "Claude Code");
+    CHECK(changes[1].actor == "person");
+    CHECK(changes[1].client.empty());
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(persistence.document().dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(reloaded.changes().size() == 2);
+    CHECK(reloaded.changes()[0].client == "Claude Code");
+    CHECK(reloaded.changes()[1].client.empty());
+    // Only a named entry stores the field, so entries from older builds and
+    // unnamed clients read as they always did.
+    const auto stored = nlohmann::json::parse(persistence.document().dump())["changes"];
+    CHECK(stored[0]["client"] == "Claude Code");
+    CHECK_FALSE(stored[1].contains("client"));
+}
+
 TEST_CASE("restoring a model version marks the active chat's plan", "[persistence][plan][managed]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());

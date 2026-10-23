@@ -7,7 +7,7 @@
 // progress keeps its own card, with Cancel, under the line.
 
 import { useEffect, useState } from 'react';
-import { ToolActivityInfo } from '../bridge/protocol';
+import { isStale, ToolActivityInfo } from '../bridge/protocol';
 import { ToolActivityCard } from './ToolActivityCard';
 
 interface Props {
@@ -55,7 +55,7 @@ export function actionLineText(activity: ToolActivityInfo): string {
   switch (activity.state) {
     case 'failed':
       return `${activity.title} · ${
-        activity.error?.code === 'stale_revision'
+        isStale(activity)
           ? 'The project changed before this could run.'
           : activity.error?.message ?? 'The action failed.'
       }`;

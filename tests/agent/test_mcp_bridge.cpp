@@ -106,6 +106,23 @@ TEST_CASE("MCP bridge serves modern discovery without initialize and later disco
     CHECK(result["resultType"] == "complete");
 }
 
+TEST_CASE("MCP bridge names the client that started it on the edits its calls make", "[mcp][bridge]")
+{
+    Harness h;
+    h.start();
+    std::vector<Workspace::WorkspaceEdit> edits;
+    const auto subscription = h.workspace.subscribe_edits([&edits](const Workspace::WorkspaceEdit& edit) { edits.push_back(edit); });
+    h.send(rpc(0, "initialize", {{"protocolVersion", "2025-11-25"}, {"capabilities", json::object()},
+        {"clientInfo", {{"name", "claude-code"}, {"title", "Claude Code"}, {"version", "2.1.283"}}}}));
+    h.wait(0);
+    h.send({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}});
+    h.send(h.settings_patch(1));
+    CHECK(h.wait(1)["result"]["isError"] == false);
+    REQUIRE_FALSE(edits.empty());
+    CHECK(edits.back().actor == Workspace::EditActor::ExternalTool);
+    CHECK(edits.back().client == "Claude Code");
+}
+
 TEST_CASE("MCP bridge forwards native results in both eras", "[mcp][bridge]")
 {
     Harness h; h.start();

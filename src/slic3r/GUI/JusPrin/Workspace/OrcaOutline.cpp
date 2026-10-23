@@ -212,10 +212,10 @@ CommandResult OrcaWorkspaceAdapter::select_plate(PlateId id)
         // The call a click on a plate in Orca's own plate list makes (action 0
         // of the hover id); it takes no undo snapshot and returns 0 on success.
         if (m_plater.select_plate_by_hover_id(index * static_cast<int>(PartPlate::GRABBER_COUNT)) != 0)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "Plate could not be selected");
+            return CommandResult::failure(WorkspaceError::Failed, "Plate could not be selected");
         return CommandResult::success();
     }
-    return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+    return CommandResult::failure(WorkspaceError::NotFound, "Plate does not exist in the current project session");
 }
 
 namespace {
@@ -281,13 +281,13 @@ CommandResult OrcaWorkspaceAdapter::run_plate_action(PlateId id, PlateAction act
     PartPlateList& plates = m_plater.get_partplate_list();
     const int      index  = plate_index_of(plates, id.value());
     if (index < 0)
-        return CommandResult::failure(WorkspaceError::MissingObject, "Plate does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Plate does not exist in the current project session");
     const std::vector<PlateAction> offered = plate_actions(id);
     if (std::find(offered.begin(), offered.end(), action) == offered.end())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this plate");
+        return CommandResult::failure(WorkspaceError::Refused, "That action does not apply to this plate");
     const int hover = index * static_cast<int>(PartPlate::GRABBER_COUNT) + static_cast<int>(hover_action_of(action));
     if (m_plater.select_plate_by_hover_id(hover) != 0)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "The plate action could not run");
+        return CommandResult::failure(WorkspaceError::Failed, "The plate action could not run");
     return CommandResult::success();
 }
 
@@ -322,7 +322,7 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
         return id_error(id);
     const std::vector<ObjectAction> offered = object_actions(id);
     if (std::find(offered.begin(), offered.end(), action) == offered.end())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "That action does not apply to this object");
+        return CommandResult::failure(WorkspaceError::Refused, "That action does not apply to this object");
     if (action == ObjectAction::Filament) {
         const PresetBundle* presets = wxGetApp().preset_bundle;
         if (slot < 1 || presets == nullptr || slot > static_cast<int>(presets->filament_presets.size()))
@@ -331,14 +331,14 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
 
     // Orca's object commands act on its selection, as its context menu does.
     if (!m_plater.select_object(object->index))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be selected");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be selected");
     ObjectList& list = synchronized_object_list();
     const ModelObject& model_object = *m_plater.model().objects[object->index];
     const std::vector<bool> flags_before = printable_flags(model_object);
     switch (action) {
     case ObjectAction::Quantity:
         if (!m_plater.can_increase_instances())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer can't change the quantity of this object now");
+            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't change the quantity of this object now");
         m_plater.set_number_of_copies();
         break;
     case ObjectAction::TogglePrintable:
@@ -346,7 +346,7 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
         // The list ignores a selection that is not an object or a copy and says
         // nothing, so the effect is what tells whether it ran.
         if (printable_flags(model_object) == flags_before)
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not change the printable switch");
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not change the printable switch");
         // The object list changes the switch without telling anyone who is
         // not looking at the list.
         publish_change(WorkspaceChangeReasons::Contents);
@@ -357,17 +357,17 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
         break;
     case ObjectAction::Repair:
         if (!m_plater.can_fix_through_cgal())
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer can't repair this object now");
+            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't repair this object now");
         list.fix_through_cgal();
         break;
     case ObjectAction::Split:
         if (!m_plater.can_split(true))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer can't split this object");
+            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't split this object");
         m_plater.split_object();
         break;
     case ObjectAction::SplitToParts:
         if (!m_plater.can_split(false))
-            return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer can't split this object into parts");
+            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't split this object into parts");
         m_plater.split_volume();
         break;
     }
@@ -387,11 +387,11 @@ CommandResult OrcaWorkspaceAdapter::toggle_copy_printable(InstanceId id)
             if (item->id().id == id.value())
                 instance = item;
     if (instance == nullptr)
-        return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+        return CommandResult::failure(WorkspaceError::NotFound, "Copy does not exist in the current project session");
     const bool before = instance->printable;
     list.toggle_printable_state();
     if (instance->printable == before)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not change the printable switch");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not change the printable switch");
     publish_change(WorkspaceChangeReasons::Contents);
     return CommandResult::success();
 }
@@ -403,7 +403,7 @@ CommandResult OrcaWorkspaceAdapter::open_customization(ObjectId id, Customizatio
     if (!object)
         return id_error(id);
     if (!m_plater.select_object(object->index))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Object could not be selected");
+        return CommandResult::failure(WorkspaceError::Failed, "Object could not be selected");
     GLCanvas3D& canvas = *m_plater.canvas3D();
     if (tool == CustomizationTool::VariableLayerHeight) {
         // The toolbar's layer-height button, which toggles the editor.
@@ -424,7 +424,7 @@ CommandResult OrcaWorkspaceAdapter::open_customization(ObjectId id, Customizatio
     if (gizmos.get_current_type() == type)
         return CommandResult::failure(WorkspaceError::NoChange, "That tool is already open");
     if (!gizmos.open_gizmo(type))
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "OrcaSlicer did not open that tool");
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not open that tool");
     canvas.set_as_dirty();
     return CommandResult::success();
 }
@@ -433,13 +433,13 @@ CommandResult OrcaWorkspaceAdapter::add_plate()
 {
     wxASSERT(wxIsMainThread());
     if (!m_plater.can_add_plate())
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "No more plates can be added");
+        return CommandResult::failure(WorkspaceError::Refused, "No more plates can be added");
     const int before = m_plater.get_partplate_list().get_plate_count();
     // The event the toolbar's Add plate button posts: it takes the undo
     // snapshot, creates and selects the plate, and updates the scene.
     raise_now(*m_plater.canvas3D(), SimpleEvent(EVT_GLTOOLBAR_ADD_PLATE));
     if (m_plater.get_partplate_list().get_plate_count() == before)
-        return CommandResult::failure(WorkspaceError::UnavailableOperation, "Plate could not be added");
+        return CommandResult::failure(WorkspaceError::Failed, "Plate could not be added");
     return CommandResult::success();
 }
 
@@ -463,13 +463,13 @@ CommandResult OrcaWorkspaceAdapter::select_copy(InstanceId id)
             selection.add_instance(static_cast<unsigned int>(object_index), static_cast<unsigned int>(instance_index));
             if (!selection.is_single_full_instance() || selection.get_object_idx() != static_cast<int>(object_index) ||
                 selection.get_instance_idx() != static_cast<int>(instance_index))
-                return CommandResult::failure(WorkspaceError::UnavailableOperation, "Copy could not be selected");
+                return CommandResult::failure(WorkspaceError::Failed, "Copy could not be selected");
             // The event the canvas posts after a pick: Orca's object list,
             // toolbar state and project-state observers all follow from it.
             raise_now(*m_plater.canvas3D(), SimpleEvent(EVT_GLCANVAS_OBJECT_SELECT));
             return CommandResult::success();
         }
-    return CommandResult::failure(WorkspaceError::MissingObject, "Copy does not exist in the current project session");
+    return CommandResult::failure(WorkspaceError::NotFound, "Copy does not exist in the current project session");
 }
 
 CommandResult OrcaWorkspaceAdapter::select_volume(VolumeId id)
@@ -489,7 +489,7 @@ CommandResult OrcaWorkspaceAdapter::select_volume(VolumeId id)
             // Orca lists volumes only for an object with more than one, and
             // selects them only on a copy that sits on a plate.
             if (!object.is_multiparts())
-                return CommandResult::failure(WorkspaceError::UnavailableOperation,
+                return CommandResult::failure(WorkspaceError::Refused,
                                               "Orca does not select a volume of a single-part object");
             Selection& selection = m_plater.canvas3D()->get_selection();
             if (selection.is_single_volume_or_modifier() && selection.get_object_idx() == static_cast<int>(object_index) &&
@@ -499,12 +499,12 @@ CommandResult OrcaWorkspaceAdapter::select_volume(VolumeId id)
                                        selection.get_instance_idx() : 0;
             selection.add_volume(static_cast<unsigned int>(object_index), static_cast<unsigned int>(volume_index), instance);
             if (!selection.is_single_volume_or_modifier() || selection.get_object_idx() != static_cast<int>(object_index))
-                return CommandResult::failure(WorkspaceError::UnavailableOperation, "Volume could not be selected");
+                return CommandResult::failure(WorkspaceError::Failed, "Volume could not be selected");
             raise_now(*m_plater.canvas3D(), SimpleEvent(EVT_GLCANVAS_OBJECT_SELECT));
             return CommandResult::success();
         }
     }
-    return CommandResult::failure(WorkspaceError::MissingObject, "Volume does not exist in the current project session");
+    return CommandResult::failure(WorkspaceError::NotFound, "Volume does not exist in the current project session");
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

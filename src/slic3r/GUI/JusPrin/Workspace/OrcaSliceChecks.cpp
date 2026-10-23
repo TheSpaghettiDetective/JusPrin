@@ -93,6 +93,7 @@ void OrcaWorkspaceAdapter::check_slice(PartPlate& plate, const SliceReportReques
                 continue;
             supports.generated = true;
             supports.layers    = std::max(supports.layers, object->support_layers().size());
+            ++supports.objects;
             // Each support layer's footprint at its middle, in the object's
             // slicing frame.
             std::vector<float>      zs;
