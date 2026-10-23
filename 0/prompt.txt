@@ -1,0 +1,112 @@
+Background (from the session that started this one):
+JusPrin is an AI-piloted fork of OrcaSlicer. On 2026-10-23 the Preferences window, the update check and auto-slice were merged with the remote's Check print redesign and pushed on `jusprin-newui`. Before pushing, I built the remote branch alone (`14fe07a078`) and ran `--check-print`. It fails the same 7 checks there, so they come from the redesign on Windows, not from the merge. The machine is Windows Server 2022 with no GPU (Mesa software GL), reached over RDP at 100% scaling. About 170 GB of disk is free. Kenneth wants issues like this resolved by sessions, not left to him, and prefers plain-English reports.
+
+Task:
+The shell harness's `--check-print` mode fails 7 of its checks on Windows, on `jusprin-newui` as pushed (`dc42707b90`). It also fails them on the Check print redesign alone (`14fe07a078`), so the redesign introduced them, not later work:
+- cp_a_dark_close_button_sits_on_the_raised_header
+- cp_a_closing_line_says_none_generated
+- cp_b_supports_section_is_drawn
+- cp_b_closing_line_is_drawn_whole
+- cp_b_section_collapses
+- cp_c_closing_line_says_none_generated
+- cp_c_closing_line_is_drawn_whole
+
+The scenario is `tests/shell/check_print_scenario.inc`. The redesign is commits `14bb792dbb` ("Redesign Check print as a report beside OrcaSlicer's preview") and `325701aebe` ("Let a header button take the surface it sits on").
+
+Find out for each check whether the app is wrong on Windows or the check is wrong (for example, text measured with a font or DPI the check didn't expect). Fix the cause, not the check, unless the check itself is wrong, and say which. Work in your own worktree on a branch cut from `jusprin-newui`, with your own build tree under C:\b. Set your own WEBVIEW2_USER_DATA_FOLDER, and provision Mesa with `src/slic3r/GUI/JusPrin/Testing/windows-gl/provision-mesa-windows.ps1`. Done means `--check-print` passes, the default mode shows no new failures, everything is committed to your branch, and you report in plain English. Don't push.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): C:\Users\guitest\AppData\Roaming\Claude\side-session-notes\local_626ee175-7819-464c-a97e-9269b2eefe7e
+
+---
+
+<task-notification>
+<task-id>bh3cpohtw</task-id>
+<tool-use-id>toolu_01KSrXYCFPsgzrD1LHqoftVY</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bh3cpohtw.output</output-file>
+<status>completed</status>
+<summary>Background command "Configure and build the shell harness in C:\b\cpw" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvsx06hdo</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bvsx06hdo.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the default harness mode on the unfixed baseline" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxm5chpwk</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bxm5chpwk.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild, then run --check-print and the default harness mode" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Good work. Please close the one gap you named: run --check-print-capture on your build, before and after your change. If it fails, fix it on your branch, then report the result. Leave your build tree and WebView2 folder as they are.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bng4m7k1k</task-id>
+<tool-use-id>toolu_01Y8XRhM7m1cxQ6hmMuWm12s</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bng4m7k1k.output</output-file>
+<status>completed</status>
+<summary>Background command "git checkout dc42707b90 -- src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp tests/shell/check_print_scenario.inc; git diff --stat dc42707b90 -- src tests; cmd /c C:\b\cpw-build.cmd shell_integration_harness; "build exit=$LASTEXITCODE"; New-Item -ItemType Directory -Force C:\b\cpw-before | Out-Null; Copy-Item -Recurse -Force C:\b\cpw\tests\shell\Release\* C:\b\cpw-before\; git checkout HEAD -- src/slic3r/GUI/JusPrin/Shell/HeaderControls.cpp tests/shell/check_print_scenario.inc; git status --short" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcwdqkn79</task-id>
+<tool-use-id>toolu_011pLHrBawLQ2LW24hWxmw1k</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bcwdqkn79.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the tree at the commit and confirm --check-print" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+squash your commits into 1. merge it into jusprin-newui and push
+
+---
+
+pull jusprin-newui in the main checkout
+
+---
+
+rebuild the main build tree
+
+---
+
+<task-notification>
+<task-id>ba35u6r2k</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\ba35u6r2k.output</output-file>
+<status>failed</status>
+<summary>Background command "Incremental Release build of the main build tree" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Yes, make the one-line fix: add orcaslicer_copy_test_dlls() for setting_display_tests in tests/workspace/CMakeLists.txt. Do it on a branch cut from current jusprin-newui, rebuild the main tree to confirm setting_display_tests starts and its tests pass, then commit to that branch. Don't push; report the branch and commit.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bu6w8c1fn</task-id>
+<tool-use-id>toolu_01GezwrBABdKpWuWZPu7w8zQ</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-sharp-turing-399ffa\c812933b-b7a8-426c-8411-b4d2e48e4ea2\tasks\bu6w8c1fn.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the main tree with the DLL fix and run setting_display_tests" completed (exit code 0)</summary>
+</task-notification>
