@@ -1,0 +1,21 @@
+> What other chat apps do
+> Open-source chat apps keep one neutral hint all the way through. I checked their source code. Open WebUI always shows “Send a Message”, and LibreChat always shows “Message {model}”.
+> Gemini and Perplexity use the empty-chat hint to teach a feature. Logged out, Gemini shows “Try @ for more” and Perplexity shows “Type / for search modes”. I couldn’t see what they show after the first message: I wasn’t signed in, and getting there meant sending a message to their services.
+> Claude and ChatGPT (from memory, not checked). I believe Claude.ai shows “How can I help you today?” in a new chat and “Reply to Claude…” afterwards, and ChatGPT shows “Ask anything” throughout. The browser was signed out of both, and web searches didn’t confirm the exact text.
+> General form-design guidance: a placeholder disappears as soon as you type, so it should never carry anything you need to remember. Some people also mistake hint text for something already filled in. That argues for short hints, especially after the first message.
+
+None of these apps use a agent-generated possible answer. as a placeholder. I remember there are apps that I can use tap to turn the pre-field likely response into a real response.
+
+---
+
+But in most cases, there are no unanswered buttons. In those cases "“Or type your own answer…”" is bad wordign right?
+
+---
+
+go with your proposal. tell the main session to do
+
+---
+
+<cross-session-message from="local_4ef64a1c-a636-41a6-a1b3-4a1b2a1e9274" name="Input placeholder design">
+The Agent chat placeholder design is implemented in AgentUI on jusprin-newui, uncommitted, after Kenneth confirmed in my session. The rules are chosen in Composer.tsx from two new props (started, choicesOffered), which App.tsx computes. The answer-button rule moved to a shared openChoices() in replyChoices.ts that MessageList also uses. I added 10 App-level visual cases ("Composer placeholder" matrix) and one App test. All 591 AgentUI tests pass, and the 7 cases for changed states fail on the old code. I ran the built RelWithDebInfo app against a local stand-in model, so no provider was called. The hint went "Ask about this print…" → "Or type your own answer…" (buttons showing) → "Reply…" after tapping a button and getting the reply. The printer panel is covered by the visual cases only, not a live run.
+</cross-session-message>
