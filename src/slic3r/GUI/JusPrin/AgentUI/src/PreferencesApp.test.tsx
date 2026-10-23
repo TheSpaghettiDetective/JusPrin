@@ -46,7 +46,7 @@ function preferences(overrides: Partial<PreferencesPayload> = {}): PreferencesPa
       versionsFolder: 'C:/data/jusprin/projects', downloadPath: 'C:/Users/alex/Downloads',
       associations: true, open3mf: true, openModels: false, openLinks: false,
     },
-    updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true, updateProfiles: true },
+    updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true },
     agent: {
       newChatProvider: 'openai',
       newChatChoices: [
@@ -161,7 +161,7 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'Pan' }));
 
     await userEvent.click(screen.getByRole('button', { name: 'Updates' }));
-    await userEvent.click(screen.getByRole('checkbox', { name: /Update built-in printer/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /New JusPrin versions/ }));
 
     expect(actionsSent(host)).toEqual([
       { action: 'set', name: 'theme', value: 'dark' },
@@ -169,7 +169,7 @@ describe('Preferences', () => {
       { action: 'set', name: 'language', value: 'de_DE' },
       { action: 'set', name: 'zoomToPointer', value: false },
       { action: 'set', name: 'leftDrag', value: 'pan' },
-      { action: 'set', name: 'updateProfiles', value: false },
+      { action: 'set', name: 'checkUpdates', value: false },
     ]);
   });
 
@@ -248,6 +248,14 @@ describe('Preferences', () => {
     expect(daily).toHaveAccessibleName(/Nothing about you or your projects is sent/);
     await userEvent.click(daily);
     expect(actionsSent(host)).toEqual([{ action: 'set', name: 'checkUpdates', value: false }]);
+  });
+
+  it('says built-in profiles come with each release, with nothing to switch', () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'updates' }));
+    expect(screen.getByText('Built-in printer and filament profiles')).toBeInTheDocument();
+    expect(screen.getByText('Update with each JusPrin release. Your own presets never change.')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /profiles/ })).not.toBeInTheDocument();
   });
 
   it('leaves updates to the Microsoft Store for a Store install', () => {

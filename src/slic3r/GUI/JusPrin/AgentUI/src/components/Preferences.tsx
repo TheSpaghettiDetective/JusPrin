@@ -417,9 +417,8 @@ function UpdatesSection({ updates, actions }: { updates: PreferencesPayload['upd
             detail="Once a day JusPrin asks GitHub for its list of releases. GitHub sees your IP address, as with any web page. Nothing about you or your projects is sent."
             checked={updates.checkUpdates} onChange={(on) => actions.set('checkUpdates', on)} />
         )}
-        <Check title="Update built-in printer and filament profiles"
-          detail="Only the profiles JusPrin ships. Your own presets never change." checked={updates.updateProfiles}
-          onChange={(on) => actions.set('updateProfiles', on)} />
+        <Row title="Built-in printer and filament profiles"
+          detail="Update with each JusPrin release. Your own presets never change." />
       </Group>
     </section>
   );

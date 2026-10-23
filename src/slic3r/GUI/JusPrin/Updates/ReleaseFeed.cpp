@@ -51,7 +51,8 @@ std::optional<Release> newest(const nlohmann::json& releases, const Semver& curr
 std::string tag_version(const std::string& tag)
 {
     std::string version = tag;
-    // JusPrin 1.4.0 was tagged jusprin/v1.4.0, the releases before it v1.3.0.
+    // JusPrin 1.4.0 and later are tagged jusprin/vX.Y.Z, the releases before
+    // it v1.3.0 and so on.
     if (boost::starts_with(version, "jusprin/"))
         version.erase(0, 8);
     if (boost::starts_with(version, "v"))

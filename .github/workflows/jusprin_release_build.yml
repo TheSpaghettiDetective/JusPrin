@@ -1,0 +1,171 @@
+name: JusPrin release build
+
+# One platform of a JusPrin release, called by jusprin_release.yml.
+#
+# The build is OrcaSlicer's: its dependency workflow (build_deps.yml), cached
+# under the key OrcaSlicer's build_check_cache.yml uses, and its build
+# scripts. Only the packaging is JusPrin's (src/slic3r/GUI/JusPrin/Packaging).
+# OrcaSlicer's build_orca.yml can't be reused as it is: its Linux step looks
+# for OrcaSlicer_Linux_V<version>.AppImage, which a JusPrin build never
+# writes, and its packaging steps name everything OrcaSlicer.
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      # x64 (Windows), arm64 or x86_64 (macOS); empty for Linux amd64, as in
+      # OrcaSlicer's build_all.yml.
+      arch:
+        required: false
+        type: string
+        default: ''
+      version:
+        required: true
+        type: string
+
+jobs:
+  cache:
+    name: Find the deps cache
+    runs-on: ${{ inputs.os }}
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+      path: ${{ steps.key.outputs.path }}
+      hit: ${{ steps.lookup.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: 'false'
+      - name: Compute the key
+        id: key
+        shell: bash
+        env:
+          # As in OrcaSlicer's build_check_cache.yml, so both share one cache.
+          cache_os: ${{ runner.os == 'macOS' && format('macos-{0}', inputs.arch) || (runner.os == 'Windows' && format('windows-{0}', inputs.arch) || format('linux-clang{0}', inputs.arch && format('-{0}', inputs.arch) || '')) }}
+          dep_folder: ${{ runner.os == 'macOS' && format('/{0}', inputs.arch) || (runner.os == 'Windows' && inputs.arch == 'arm64') && '-arm64/OrcaSlicer_dep' || '/OrcaSlicer_dep' }}
+        run: |
+          echo "key=${cache_os}-cache-orcaslicer_deps-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
+          echo "path=${{ github.workspace }}/deps/build${dep_folder}" >> "$GITHUB_OUTPUT"
+      - name: Look the cache up
+        id: lookup
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.key.outputs.path }}
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+
+  deps:
+    name: Build deps
+    needs: cache
+    if: ${{ needs.cache.outputs.hit != 'true' }}
+    uses: ./.github/workflows/build_deps.yml
+    with:
+      cache-key: ${{ needs.cache.outputs.key }}
+      cache-path: ${{ needs.cache.outputs.path }}
+      valid-cache: false
+      os: ${{ inputs.os }}
+      arch: ${{ inputs.arch }}
+      # Stops build_deps.yml before it calls OrcaSlicer's build_orca.yml.
+      build-deps-only: true
+    secrets: inherit
+
+  build:
+    name: Build JusPrin
+    needs: [cache, deps]
+    if: ${{ !cancelled() && needs.cache.result == 'success' && (needs.deps.result == 'success' || needs.deps.result == 'skipped') }}
+    runs-on: ${{ inputs.os }}
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: 'false'
+
+      - name: Load the deps
+        uses: actions/cache@v5
+        with:
+          path: ${{ needs.cache.outputs.path }}
+          key: ${{ needs.cache.outputs.key }}
+          fail-on-cache-miss: true
+
+      # The same CMake as OrcaSlicer's build_orca.yml.
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      # The Agent and Home pages are built with npm (JusPrin/Web/CMakeLists.txt).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # Windows
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        run: choco install nsis
+
+      - name: Build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\build_release_vs.bat slicer
+
+      - name: Package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./src/slic3r/GUI/JusPrin/Packaging/windows_package.ps1 -BuildDir build -Version $env:VERSION `
+            -Arch "${{ inputs.arch }}" -OutDir dist
+
+      # macOS: each architecture is built here; jusprin_release.yml joins them
+      # into the universal app and the disk image.
+      - name: Prepare the Mac
+        if: runner.os == 'macOS'
+        run: |
+          brew install libtool
+          mkdir -p "${{ github.workspace }}/deps/build/${{ inputs.arch }}"
+          # As OrcaSlicer's build_orca.yml does, for disk space.
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
+          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
+
+      - name: Build
+        if: runner.os == 'macOS'
+        run: ./build_release_macos.sh -s -n -x -1 -a ${{ inputs.arch }} -t 10.15
+
+      - name: Package
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          tar -czf "dist/JusPrin_Mac_bundle_${{ inputs.arch }}.tar.gz" -C "build/${{ inputs.arch }}" OrcaSlicer
+
+      # Linux
+      - name: Install the build packages
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/apt-install-deps
+
+      - name: Build
+        if: runner.os == 'Linux'
+        run: |
+          # -s builds the slicer and lays out build/package; JusPrin's AppImage
+          # replaces OrcaSlicer's (-i).
+          ./build_linux.sh -srlL
+          ./scripts/check_appimage_libs.sh ./build/package ./build/package/bin/orca-slicer
+
+      - name: Package
+        if: runner.os == 'Linux'
+        run: |
+          ./src/slic3r/GUI/JusPrin/Packaging/appimage.sh build/package "$VERSION" \
+            "dist/JusPrin_Linux_AppImage_Ubuntu2404_V${VERSION}${{ inputs.arch && format('_{0}', inputs.arch) || '' }}.AppImage"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jusprin-${{ runner.os }}-${{ inputs.arch || 'x64' }}
+          path: dist/*
+          if-no-files-found: error
+          # The release keeps the files; these only carry them to it.
+          retention-days: 7

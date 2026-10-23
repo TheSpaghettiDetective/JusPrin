@@ -842,7 +842,6 @@ export interface PreferencesPayload {
     available: { version: string; url: string; published: string; notes: string } | null;
     // "New JusPrin versions": the daily check.
     checkUpdates: boolean;
-    updateProfiles: boolean;
   };
 }
 

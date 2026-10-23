@@ -962,4 +962,5 @@ set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.txt) # must also in
 
 set(CPACK_WIX_UPGRADE_GUID "058245e8-20e0-4a95-9ab7-1acfe17ad511")
 set(CPACK_GENERATOR NSIS)
+include(src/slic3r/GUI/JusPrin/Packaging/packaging.cmake) # JusPrin: its own package identity replaces the values above
 include(CPack)

@@ -107,7 +107,6 @@ TEST_CASE_METHOD(ConfigFixture, "What OrcaSlicer's dialog wrote is what the wind
     CHECK(state["view3d"]["leftDrag"] == "rotate");
     CHECK(state["view3d"]["middleDrag"] == "pan");
     CHECK(state["view3d"]["rightDrag"] == "pan");
-    CHECK(state["updates"]["updateProfiles"] == true);
 
     config.set("left_mouse_drag_action", "1");
     config.set("dark_color_mode", "1");
@@ -116,11 +115,12 @@ TEST_CASE_METHOD(ConfigFixture, "What OrcaSlicer's dialog wrote is what the wind
     CHECK(state["appearance"]["theme"] == "dark");
 }
 
-TEST_CASE_METHOD(ConfigFixture, "Update and file settings write OrcaSlicer's keys", "[preferences]")
+TEST_CASE_METHOD(ConfigFixture, "File settings write OrcaSlicer's keys", "[preferences]")
 {
-    json state = set("updateProfiles", false);
-    CHECK(config.get("sync_system_preset") == "false");
-    CHECK(state["updates"]["updateProfiles"] == false);
+    // Built-in profiles update only with a JusPrin release, so the window
+    // offers no switch for OrcaSlicer's profile updates.
+    CHECK_FALSE(snapshot(config, facts)["updates"].contains("updateProfiles"));
+    CHECK_FALSE(apply_action(config, {{"action", "set"}, {"name", "updateProfiles"}, {"value", true}}).error.empty());
 
     Outcome outcome = apply_action(config, {{"action", "set"}, {"name", "open3mf"}, {"value", true}});
     CHECK(outcome.effect == Effect::Associate3mf);

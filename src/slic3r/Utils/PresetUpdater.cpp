@@ -1389,6 +1389,9 @@ void PresetUpdater::check_vendor_update(const std::string& vendor_id)
 {
     if (!p->enabled_config_update) return;
     if (vendor_id.empty()) return;
+    // The same switches as the startup check in GUI_App: stealth mode and the built-in preset sync preference.
+    AppConfig *app_config = GUI::wxGetApp().app_config;
+    if (app_config->get_stealth_mode() || !app_config->get_bool("sync_system_preset")) return;
 
     std::lock_guard<std::mutex> lock(p->vendor_check_mutex);
 

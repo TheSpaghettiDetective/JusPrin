@@ -59,11 +59,10 @@ struct Switch
 };
 
 // Written with set_bool, as OrcaSlicer's checkboxes write them.
-constexpr std::array<Switch, 5> kBoolSwitches{{
+constexpr std::array<Switch, 4> kBoolSwitches{{
     {"zoomToPointer", "zoom_to_mouse"},
     {"reverseZoom", "reverse_mouse_wheel_zoom"},
     {"freeCamera", "use_free_camera"},
-    {"updateProfiles", "sync_system_preset"},
     {"checkUpdates", Updates::kAutoCheckKey},
 }};
 
@@ -232,8 +231,7 @@ json snapshot(const AppConfig& config, const Facts& facts)
           {"checked", facts.update_checked == 0 ? json(nullptr) : json(facts.update_checked)},
           {"available", std::move(update)},
           // On until turned off, unlike OrcaSlicer's switches.
-          {"checkUpdates", Updates::auto_check_enabled(config)},
-          {"updateProfiles", config.get_bool("sync_system_preset")}}},
+          {"checkUpdates", Updates::auto_check_enabled(config)}}},
     };
 }
 

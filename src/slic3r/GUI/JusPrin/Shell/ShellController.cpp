@@ -1341,6 +1341,12 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
             if (ShellController* shell = installed_shell())
                 shell->open_preferences("updates");
         };
+        // Built-in printer and filament profiles change only with a JusPrin
+        // release, so OrcaSlicer's profile server is never asked about them.
+        // Both of OrcaSlicer's profile checks (at startup and on switching to
+        // another maker's printer) read this preference.
+        if (wxGetApp().app_config != nullptr)
+            wxGetApp().app_config->set_bool("sync_system_preset", false);
     }
     if (tabpanel == nullptr || main_sizer == nullptr)
         return;

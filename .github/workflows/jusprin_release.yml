@@ -1,0 +1,256 @@
+name: JusPrin release
+
+# Builds JusPrin from one commit and uploads the files to a DRAFT GitHub
+# release. It never publishes anything.
+#
+# - The version is the one in src/slic3r/GUI/JusPrin/Updates/Version.hpp, and
+#   the draft is tagged jusprin/v<version>, as JusPrin 1.4.0 was (the repo
+#   still holds OrcaSlicer's own v2.x tags). GitHub creates that tag only when
+#   the draft is published, by hand, on the Releases page. JusPrin's update
+#   check reads the public release list, which never includes drafts, so
+#   users see nothing until then.
+# - It stops if that version is already released, is not above every
+#   released JusPrin version, or its tag already exists
+#   (Packaging/release.mjs), and if
+#   Packaging/release-notes/<version>.md, the notes the draft starts with and
+#   that the app shows under "What's new", is missing.
+# - Running it again for the same version replaces the draft's files.
+# - Files: Windows x64 installer and portable zip, macOS universal disk image,
+#   Linux x64 AppImage, and SHA256SUMS.txt.
+# - Only the release publisher can run it: the repo variable
+#   JUSPRIN_RELEASE_PUBLISHER, or kennethjiang when it is unset.
+# - Signing: macOS when "sign_macos" is ticked, with the Apple secrets JusPrin
+#   1.x used. Windows builds are unsigned. An unsigned draft says so in its
+#   title.
+#
+# Start it from Actions > JusPrin release > Run workflow (the file must also
+# be on the default branch for that button), or by pushing a branch named
+# jusprin-release/<anything>.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_macos:
+        description: 'Sign and notarise the macOS app with the Apple secrets'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'jusprin-release/**'
+
+permissions:
+  contents: write   # create the draft and upload its files
+  actions: read
+
+concurrency:
+  group: jusprin-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Check the version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+      draft_id: ${{ steps.check.outputs.draft_id }}
+    steps:
+      - name: Only the release publisher
+        env:
+          PUBLISHER: ${{ vars.JUSPRIN_RELEASE_PUBLISHER || 'kennethjiang' }}
+        run: |
+          if [ "$GITHUB_ACTOR" != "$PUBLISHER" ]; then
+            echo "::error::Only @$PUBLISHER may make a JusPrin release (this run is @$GITHUB_ACTOR's)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: src/slic3r/GUI/JusPrin
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test the release checks
+        run: node --test src/slic3r/GUI/JusPrin/Packaging/release.test.mjs
+
+      - name: Check the version against the releases
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/" --jq '.[].ref' > "$RUNNER_TEMP/tags.txt"
+          node src/slic3r/GUI/JusPrin/Packaging/release.mjs check src/slic3r/GUI/JusPrin/Updates/Version.hpp \
+            "$RUNNER_TEMP/releases.json" "$RUNNER_TEMP/tags.txt" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Require the release notes
+        run: |
+          notes="src/slic3r/GUI/JusPrin/Packaging/release-notes/${{ steps.check.outputs.version }}.md"
+          if [ ! -s "$notes" ]; then
+            echo "::error::Write $notes first. The draft starts with it and the app shows it under What's new."
+            exit 1
+          fi
+          if grep -q '^PLACEHOLDER' "$notes"; then
+            echo "::warning::$notes is still the placeholder. Replace it before publishing the draft."
+          fi
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            arch: x64
+          - name: macOS arm64
+            os: macos-14
+            arch: arm64
+          - name: macOS x86_64
+            os: macos-14
+            arch: x86_64
+          - name: Linux x64
+            os: ubuntu-24.04
+            arch: ''
+    uses: ./.github/workflows/jusprin_release_build.yml
+    with:
+      os: ${{ matrix.os }}
+      arch: ${{ matrix.arch }}
+      version: ${{ needs.prepare.outputs.version }}
+    secrets: inherit
+
+  macos:
+    name: macOS universal
+    needs: [prepare, build]
+    runs-on: macos-14
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      SIGN: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_macos && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: 'false'
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      - name: Get both architectures
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jusprin-macOS-*
+          path: mac_bundles
+          merge-multiple: true
+
+      - name: Join them into the universal app
+        run: |
+          mkdir -p build/arm64 build/x86_64
+          tar -xzf mac_bundles/JusPrin_Mac_bundle_arm64.tar.gz -C build/arm64
+          tar -xzf mac_bundles/JusPrin_Mac_bundle_x86_64.tar.gz -C build/x86_64
+          ./build_release_macos.sh -u -x -1 -a universal -t 10.15
+
+      # As OrcaSlicer's build_orca.yml loads the certificate, with the secret
+      # names JusPrin 1.x used.
+      - name: Load the signing certificate
+        if: env.SIGN == '1'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          certificate="$RUNNER_TEMP/build_certificate.p12"
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output "$certificate"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security default-keychain -s "$keychain"
+          security import "$certificate" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security list-keychain -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$P12_PASSWORD" "$keychain"
+
+      - name: Make the disk image
+        env:
+          JUSPRIN_SIGN: ${{ env.SIGN }}
+          MACOS_CERTIFICATE_ID: ${{ secrets.MACOS_CERTIFICATE_ID }}
+          APPLE_DEV_ACCOUNT: ${{ secrets.APPLE_DEV_ACCOUNT }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_PWD: ${{ secrets.APP_PWD }}
+        run: |
+          ./src/slic3r/GUI/JusPrin/Packaging/macos_package.sh \
+            build/universal/OrcaSlicer/OrcaSlicer.app "$VERSION" dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jusprin-macOS-universal
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
+  draft:
+    name: Upload to the draft release
+    needs: [prepare, build, macos]
+    runs-on: ubuntu-24.04
+    # Optional approval gate: give the "release" environment a required
+    # reviewer in the repo settings.
+    environment: release
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      DRAFT_ID: ${{ needs.prepare.outputs.draft_id }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      SIGNED_MACOS: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_macos || false }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: src/slic3r/GUI/JusPrin/Packaging
+
+      - name: Collect the files
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jusprin-*
+          path: collected
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          mkdir dist
+          # The per-architecture Mac bundles only feed the universal app.
+          find collected -maxdepth 1 -type f ! -name 'JusPrin_Mac_bundle_*' -exec cp {} dist/ \;
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+
+      - name: Create or update the draft
+        run: |
+          title="JusPrin $VERSION"
+          if [ "$SIGNED_MACOS" != "true" ]; then
+            title="$title (UNSIGNED TEST BUILD: do not publish)"
+          else
+            title="$title (Windows unsigned)"
+          fi
+          notes="src/slic3r/GUI/JusPrin/Packaging/release-notes/$VERSION.md"
+          prerelease=$([ "$PRERELEASE" = "true" ] && echo --prerelease || echo --prerelease=false)
+          if [ -z "$DRAFT_ID" ]; then
+            gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --draft $prerelease \
+              --target "$GITHUB_SHA" --title "$title" --notes-file "$notes"
+          else
+            # Never touch a published release: release.mjs only reports drafts.
+            is_draft=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" --jq .draft)
+            if [ "$is_draft" != "true" ]; then
+              echo "::error::Release $DRAFT_ID is no longer a draft."
+              exit 1
+            fi
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" \
+              -f target_commitish="$GITHUB_SHA" -f name="$title" -F prerelease="$PRERELEASE" \
+              -f body="$(cat "$notes")" > /dev/null
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=20" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | {name, draft, prerelease, target_commitish, html_url, assets: [.assets[].name]}"

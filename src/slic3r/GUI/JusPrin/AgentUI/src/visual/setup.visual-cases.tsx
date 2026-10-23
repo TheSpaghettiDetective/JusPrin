@@ -25,7 +25,7 @@ const agentSection: PreferencesPayload = {
     versionsFolder: '/Users/alex/JusPrin/projects', downloadPath: '/Users/alex/Downloads',
     associations: false, open3mf: false, openModels: false, openLinks: false,
   },
-  updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true, updateProfiles: true },
+  updates: { version: '2.0.0', status: 'notChecked', checked: null, available: null, checkUpdates: true },
   agent: { newChatProvider: 'openai', newChatChoices: [] },
 };
 
