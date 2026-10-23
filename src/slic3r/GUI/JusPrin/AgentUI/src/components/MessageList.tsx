@@ -29,7 +29,7 @@ import { TurnActivity } from './TurnActivity';
 import { collapseWork, WorkCard } from './WorkCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 import { PrinterBlockView } from './PrinterPanel';
-import { splitChoices, withoutPartialChoices } from '../replyChoices';
+import { openChoices, splitChoices, withoutPartialChoices } from '../replyChoices';
 
 interface Props {
   messages: Message[];
@@ -276,16 +276,13 @@ export function MessageList({
         </div>
       );
     if (emptyTurn) return null;
-    // Only the newest finished reply offers its choices; any later
-    // message, the person's own included, answers them.
     const reply =
       message.role !== 'assistant'
         ? { body: message.text, choices: [] }
         : streaming
           ? { body: withoutPartialChoices(message.text), choices: [] }
           : splitChoices(message.text);
-    const choices =
-      message.state === 'complete' && message.id === messages[messages.length - 1].id ? reply.choices : [];
+    const choices = !streaming && message.id === messages[messages.length - 1].id ? openChoices(messages) : [];
     return (
       <div className={`message ${message.role}`}>
         <div className="message-content">

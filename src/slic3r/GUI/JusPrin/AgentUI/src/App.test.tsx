@@ -206,6 +206,24 @@ describe('App', () => {
     expect(host.received.some((envelope) => envelope.type === 'printer_instructions')).toBe(false);
   });
 
+  // The invitation is for an empty chat; once the person has spoken the field
+  // says "Reply…", and while answer buttons show it says typing works too.
+  it('changes the message field\'s hint as the chat goes on', () => {
+    render(<App getTransport={() => host.transport} />);
+    const field = () => screen.getByRole('textbox', { name: 'Message the Agent' });
+    const asked = [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'my print failed', attempt: 1 },
+      { id: 'm-2', role: 'assistant', state: 'complete', text: 'What happened?\nChoices: It stopped | Not sure', attempt: 1 },
+    ] as StatePayload['conversation'];
+    connect(host, emptyState());
+    expect(field()).toHaveAttribute('placeholder', 'Ask about this print or request a change…');
+    host.deliver('state', emptyState({ conversation: asked }));
+    expect(field()).toHaveAttribute('placeholder', 'Or type your own answer…');
+    host.deliver('state', emptyState({ conversation: [...asked,
+      { id: 'm-3', role: 'user', state: 'complete', text: 'It stopped', attempt: 1 }] }));
+    expect(field()).toHaveAttribute('placeholder', 'Reply…');
+  });
+
   it('writes no filament instructions for the project chat', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({}));

@@ -54,9 +54,15 @@ interface Props {
   // Fired on the keystroke itself, not on the debounced draft save. Anything
   // covering the thread uses this to get out of the way immediately.
   onTyping?: () => void;
-  // A likely answer to what was just asked, rather than the standing
-  // invitation. The printer panel writes one per turn.
+  // What the empty field says until the person's first message, in place of
+  // the project chat's invitation: the printer panel's likely answer to its
+  // opening question, or the filament chat's own invitation.
   placeholder?: string;
+  // The person has sent a message in this chat; from then on the field says
+  // "Reply…", since an invitation to start reads oddly mid-conversation.
+  started?: boolean;
+  // The newest reply shows answer buttons; the field says typing works too.
+  choicesOffered?: boolean;
   // Labelled "Photo" instead of the + menu: in the printer panel a picture
   // is a primary way to say which printer this is, not an extra.
   photoButton?: boolean;
@@ -87,6 +93,8 @@ export function Composer({
   draftDebounceMs = 300,
   onTyping,
   placeholder,
+  started = false,
+  choicesOffered = false,
   photoButton,
   notice,
   attachable = true,
@@ -245,7 +253,13 @@ export function Composer({
                 // A staged photo waits for the person; it never sends itself.
                 : photoButton && hasSendable
                   ? 'add a note, or just send'
-                  : placeholder ?? 'Ask about this print or request a change…'
+                  : !started && placeholder
+                    ? placeholder
+                    : choicesOffered
+                      ? 'Or type your own answer…'
+                      : started
+                        ? 'Reply…'
+                        : 'Ask about this print or request a change…'
           }
           value={text}
           disabled={disabled}

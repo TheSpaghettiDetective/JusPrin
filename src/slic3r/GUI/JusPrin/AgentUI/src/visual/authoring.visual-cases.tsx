@@ -6,14 +6,15 @@
 import { ComponentProps } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AttachmentInfo, FileReport, ModelCatalogPayload } from '../bridge/protocol';
+import { AttachmentInfo, FileReport, ModelCatalogPayload, PrinterSessionPayload, StatePayload, WireMessage } from '../bridge/protocol';
 import { AttachmentChip } from '../components/AttachmentChip';
 import { Composer } from '../components/Composer';
 import { FileNotesCard } from '../components/FileNotesCard';
 import { MessageList } from '../components/MessageList';
 import { Message } from '../state/store';
 import { mounted, mountedApp, VisualCase } from '../test/visual';
-import { chatState } from './states';
+import { opening } from '../printerWords';
+import { chatState, exchange, turn } from './states';
 
 const noop = () => {};
 
@@ -108,6 +109,28 @@ const chip = (id: string, name: string, expects: string[], info: AttachmentInfo,
   node: '1558:1302', matrix: 'Composer', id: `attachment-${id}`, name, frame: 'card', expects,
   build: () => mounted(<AttachmentChip attachment={info} onRemove={removable ? noop : undefined} />),
 });
+
+// The field's hint over a chat's course, in the real App: the invitation
+// while the chat is empty, "Reply…" once the person has spoken, and a nudge
+// to type while answer buttons show.
+const hint = (id: string, name: string, expects: string[], state: Partial<StatePayload>): VisualCase => ({
+  node: '1834:2216', matrix: 'Composer placeholder', id: `hint-${id}`, name, frame: 'pane', expects,
+  build: () => mountedApp(chatState(state)),
+});
+
+// The printer panel's own opening line comes first, as the panel shows it.
+const printerHint = (id: string, name: string, expects: string[], mode: PrinterSessionPayload['mode'],
+  after: WireMessage[]): VisualCase => {
+  const session: PrinterSessionPayload = { mode, printerName: 'Studio A1', blocks: [], context: mode === 'add'
+    ? { printers: [], network: [] }
+    : { printer: { name: 'Studio A1', model: 'Bambu Lab A1', nozzle: 0.4, nozzles: [0.4], spools: [], connected: false,
+      provider: 'bambu' } } };
+  return {
+    node: '1834:2216', matrix: 'Composer placeholder', id: `hint-printer-${id}`, name, frame: 'pane', expects,
+    build: () => mountedApp(chatState({ session, conversation: [turn('m-0', 'assistant', opening(session)), ...after] }),
+      { props: { printerPanel: true } }),
+  };
+};
 
 // ---- Messages ---------------------------------------------------------------
 
@@ -208,6 +231,24 @@ export const authoringCases: VisualCase[] = [
       await openModels();
       await userEvent.type(screen.getByRole('searchbox'), 'llama 9');
     }),
+
+  hint('empty', 'Project chat · Empty', ['placeholder="Ask about this print or request a change…"'], { conversation: [] }),
+  hint('started', 'Project chat · After the first message', ['placeholder="Reply…"'], {}),
+  hint('choices', 'Project chat · Answer buttons showing', ['class="reply-chip"', 'placeholder="Or type your own answer…"'],
+    { conversation: [...exchange, turn('m-3', 'assistant', 'Shall I slice it now?\nChoices: Slice it | Not yet')] }),
+  hint('answered', 'Project chat · Buttons answered', ['placeholder="Reply…"'],
+    { conversation: [...exchange, turn('m-3', 'assistant', 'Shall I slice it now?\nChoices: Slice it | Not yet'),
+      turn('m-4', 'user', 'Slice it')] }),
+  hint('filament-empty', 'Filament chat · Empty', ['placeholder="Ask about this filament or request a change…"'],
+    { conversation: [], navigation: { focused: true } }),
+  hint('filament-started', 'Filament chat · After the first message', ['placeholder="Reply…"'], { navigation: { focused: true } }),
+  printerHint('opening', 'Printer panel · Before the first reply', ['placeholder="e.g. &quot;bambu a1 mini&quot;'], 'add', []),
+  printerHint('connect-opening', 'Printer panel · Opening with buttons keeps its own hint',
+    ['class="reply-chip"', 'placeholder="Ask anything about connecting it"'], 'connect', []),
+  printerHint('started', 'Printer panel · After the first reply', ['placeholder="Reply…"'], 'add',
+    [turn('m-1', 'user', 'bambu a1')]),
+  printerHint('choices', 'Printer panel · Answer buttons after the first reply', ['placeholder="Or type your own answer…"'], 'add',
+    [turn('m-1', 'user', 'bambu a1'), turn('m-2', 'assistant', 'The A1 or the A1 mini?\nChoices: A1 | A1 mini')]),
 
   thread('streaming', 'Assistant · Streaming partial', ['streaming-cursor', 'I checked the bracket.'], {
     messages: [message('m-1', 'assistant', 'I checked the bracket. Use **four walls', { state: 'streaming' })], streamingMessageId: 'm-1' }),

@@ -15,6 +15,7 @@ import { filamentInstructions } from './filamentInstructions';
 import { skills } from './skills';
 import { projectInstructions } from './projectInstructions';
 import { opening, placeholder } from './printerWords';
+import { openChoices } from './replyChoices';
 import {
   AgentNotConfiguredHeader,
   AgentNotConfiguredPane,
@@ -435,6 +436,8 @@ export function App({
   // inert composer instead.
   const setupBar = unavailable && !notConfigured;
   const streaming = state.streamingMessageId !== null;
+  const started = state.messages.some((message) => message.role === 'user');
+  const choicesOffered = openChoices(state.messages).length > 0;
   const busy = streaming || state.conversationBusy || state.projectChatBlocked;
   const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
   const historical = viewedId !== state.activeConversationId;
@@ -602,9 +605,9 @@ export function App({
     // No tool closes the panel for the model: the person decides when they
     // are done, with Back or by opening the printer's own settings.
     const back = () => {
-      const started = state.messages.some((message) => message.role === 'user') ||
+      const begun = started ||
         state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
-      if (started) setConfirmPrinterClose(true);
+      if (begun) setConfirmPrinterClose(true);
       else printerAction('close');
     };
     return (
@@ -679,6 +682,8 @@ export function App({
               disabled={unavailable}
               disabledReason={unavailable ? 'The Agent is not available' : undefined}
               placeholder={session ? placeholder(session) : undefined}
+              started={started}
+              choicesOffered={choicesOffered}
               photoButton
               streaming={streaming}
               attachments={stagedAttachments}
@@ -774,6 +779,8 @@ export function App({
         attachable={!state.projectChatBlocked}
         notice={blockedAlert || undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
+        started={started}
+        choicesOffered={choicesOffered}
         streaming={streaming}
         initialText={state.draft}
         attachments={stagedAttachments}

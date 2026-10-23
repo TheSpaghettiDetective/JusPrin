@@ -7,6 +7,8 @@
 // Not yet" is the same offer, so the choices are read from the last line
 // wherever "Choices:" starts a word in it.
 
+import type { WireMessage } from './bridge/protocol';
+
 const CHOICES = /(^|\s)Choices:(.*)$/;
 // While streaming: the end of the text that is, or may yet become, "Choices:".
 const PARTIAL = /(^|\s)(C(h(o(i(c(e(s(:.*)?)?)?)?)?)?)?)$/;
@@ -27,6 +29,14 @@ export function splitChoices(text: string): { body: string; choices: string[] } 
     .map((choice) => choice.trim())
     .filter(Boolean);
   return { body: (before + line.slice(0, found.index)).trimEnd(), choices };
+}
+
+// The choices the chat waits on: the newest message's, once it is a finished
+// reply that offers some. Any later message, the person's own included,
+// answers them.
+export function openChoices(messages: readonly WireMessage[]): string[] {
+  const newest = messages[messages.length - 1];
+  return newest?.role === 'assistant' && newest.state === 'complete' ? splitChoices(newest.text).choices : [];
 }
 
 // A message still streaming: the same text, minus an end that is, or may yet
