@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5MVBQYCY506BKB2AK2RHJ81",
+  "strategy": "manual-commit",
+  "branch": "claude/workspace-test-dlls",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "tests/workspace/CMakeLists.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 208,
+    "cache_creation_tokens": 348639,
+    "cache_read_tokens": 17373083,
+    "output_tokens": 47838,
+    "api_call_count": 98
+  }
+}
