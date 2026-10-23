@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5KMXH1XRY9W5JZBYA5REZXE",
   "strategy": "manual-commit",
   "branch": "claude/reverent-northcutt-dd4d63",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     "agent-docs/jusprin/orca-integration-guide.md",
     "resources/jusprin/agent/protocol.json",
@@ -60,13 +60,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 7616,
-    "cache_creation_tokens": 8343505,
-    "cache_read_tokens": 164083061,
-    "output_tokens": 562043,
-    "api_call_count": 448
+    "input_tokens": 7716,
+    "cache_creation_tokens": 8356739,
+    "cache_read_tokens": 167687050,
+    "output_tokens": 567597,
+    "api_call_count": 453
   }
 }
