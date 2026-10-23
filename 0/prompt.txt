@@ -1,0 +1,7 @@
+> Drop the dialog on the menu path. “Calibrate…” opens the chat and posts “Calibrate Generic ABS on this printer.” The agent asks which test only when the symptom does not decide it, then states the two facts, and the reply choice is the confirmation, as on board 2. One path for every entry, no dialog at all, and the person consents to closing their project at the moment they pick the test. Board 3 would be deleted and yesterday’s dialog decision becomes moot, since that decision was about which dialog technology, made on the assumption that a dialog belonged there.
+
+This is better than a second. But the flow still seems clunky. We currently already have the pop-up to warn user about closing existing the current project and opening a new one. If the user says okay, we should just drop the user into the new projects and the agents in that project should guide the user through the steps of choosing which calibration to run, setting expectations, etc., right? Somehow this feels like a whole lot more natural and intuitive experience. When a project-specific agent already interrogates its user and gathered some information about the calibration, and then all of a sudden drop the user to a new project with a new chat without much context. It is a really abrupt transition.
+
+---
+
+hmmm, spin up a task chip to verify this first.
