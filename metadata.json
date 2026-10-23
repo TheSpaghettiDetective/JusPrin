@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5KR5XZ5RCC6K10CD3C5YFC3",
+  "strategy": "manual-commit",
+  "branch": "claude/autosave-unwritable",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "agent-docs/jusprin/autosave-version-history.md",
+    "agent-docs/jusprin/mcp-tool-extension-guide.md",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 604,
+    "cache_creation_tokens": 453050,
+    "cache_read_tokens": 98286085,
+    "output_tokens": 173019,
+    "api_call_count": 293
+  }
+}
