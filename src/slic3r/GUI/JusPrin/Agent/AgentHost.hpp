@@ -157,13 +157,6 @@ public:
     }
     bool checkpoint_active_chat();
 
-    // Invoked once, right after pump_setup() persists a verified credential
-    // and installs the newly connected agent. A throwaway setup-only host
-    // (e.g. one embedded in a native dialog rather than the docked panel)
-    // uses this to know when to hand control back to its owner instead of
-    // polling availability().
-    void set_setup_completed_listener(std::function<void()> listener) { m_setup_completed_listener = std::move(listener); }
-
     // Call when the page starts (re)loading; the host requires a new
     // handshake before any other message and pauses stream delivery until the
     // page reconnects. Conversation state is unaffected.
@@ -179,9 +172,6 @@ public:
     // composer's pickers, switchable between any two turns. The choice is
     // kept with the chat; each turn is started on an agent built for it.
     void set_chat_model_source(std::shared_ptr<IChatModelSource> source);
-    // Opens the page's setup flow; held until the next handshake when the
-    // page is not connected yet.
-    void request_setup();
 
     bool              handshake_complete() const { return m_handshake; }
     bool              stream_active() const { return m_stream.has_value(); }
@@ -543,7 +533,6 @@ private:
     std::function<bool()> m_save_chat_document;
     std::function<bool(const std::string&, const std::string&)> m_restore_chat_version;
     bool m_chat_transition_blocked{false};
-    std::function<void()> m_setup_completed_listener;
 
     // The project chat's instructions arrive from its page with
     // project_instructions; until then, an app-started turn waits in
@@ -580,7 +569,6 @@ private:
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};
-    bool              m_setup_requested{false};
 
     std::optional<ActiveStream> m_stream;
     struct PendingTitle { std::string conversation_id; std::string text; };

@@ -68,7 +68,6 @@ export type HostMessageType =
   | 'mcp_status'
   | 'change_added'
   | 'work_updated'
-  | 'open_setup'
   | 'model_catalog'
   | 'chat_model'
   | 'printer_session'

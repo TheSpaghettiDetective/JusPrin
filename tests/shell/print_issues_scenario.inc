@@ -357,6 +357,8 @@
                             blit_screen(dialog->GetScreenRect(), "issues-dialog-" + std::to_string(m_modals_answered + 1));
                             return;
                         }
+                        if (m_modal_gate && !m_modal_gate(*dialog))
+                            return;
                         m_last_modal_title = dialog->GetTitle().ToUTF8().data();
                         ++m_modals_answered;
                         std::cerr << "HARNESS MODAL '" << m_last_modal_title << "' answered " << m_modal_answer << '\n';
@@ -368,7 +370,62 @@
         m_modal_answer = answer;
         m_modal_closer_timer.Start(200);
     }
-    void stop_answering_modals() { m_modal_closer_timer.Stop(); }
+    void stop_answering_modals()
+    {
+        m_modal_closer_timer.Stop();
+        m_modal_gate = {};
+    }
+
+    // Answers the next Preferences window as a person who looked at it does:
+    // once its page has loaded, after `inside` has done what they did there,
+    // it is closed. Records the section it opened on. Any other dialog is
+    // answered as answer_modals answers it.
+    void close_preferences_when_loaded(std::function<void()> inside = {})
+    {
+        m_preferences_section.reset();
+        m_modal_gate = [this, inside = std::move(inside)](wxDialog& dialog) {
+            auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
+            if (window == nullptr)
+                return true;
+            if (!window->page_connected())
+                return false;
+            m_preferences_section = window->request().section;
+            if (inside)
+                inside();
+            return true;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+    }
+
+    // The window was answered and is gone: open_preferences has returned and
+    // has done what it does once the window closes. Timers fire inside the
+    // window's own loop too, so being answered is not enough.
+    bool preferences_closed() const
+    {
+        if (m_modals_answered <= m_modals_before)
+            return false;
+        for (wxWindow* window : wxTopLevelWindows)
+            if (dynamic_cast<Preferences::PreferencesWindow*>(window) != nullptr)
+                return false;
+        return true;
+    }
+
+    // What checking a key in Preferences › Agent leaves in the config: the
+    // agent on, consent given, a key stored. The key reaches no provider; the
+    // run's endpoint is a closed local port. Returns what was there before.
+    static std::map<std::string, std::string> store_placeholder_agent_key()
+    {
+        AppConfig& config = *wxGetApp().app_config;
+        const std::map<std::string, std::string> before =
+            config.has_section("jusprin_agent") ? config.get_section("jusprin_agent") : std::map<std::string, std::string>{};
+        // Strings by type: AppConfig::set takes a bare literal as a bool.
+        config.set("jusprin_agent", "openai_api_key", std::string("harness-placeholder-key"));
+        config.set("jusprin_agent", "provider", std::string("openai"));
+        config.set("jusprin_agent", "enabled", std::string("true"));
+        config.set("jusprin_agent", "cloud_consent", std::string("true"));
+        return before;
+    }
 
     void run_issue_steps()
     {
@@ -888,6 +945,10 @@
         }});
 
         // -- 6. Agent unavailable: the status still works ----------------------
+        // With no agent the bubble has one button, which opens Preferences on
+        // its Agent section. Closing the window without an agent changes
+        // nothing; closing it with one brings the two buttons back, and
+        // nothing is sent for the person either way.
         steps.push_back({"agent_unavailable", [self] {
             self->project_host().set_agent(nullptr, Agent::AgentAvailability::Unavailable);
             self->m_issue_agent = nullptr;
@@ -902,27 +963,44 @@
             std::cerr << "HARNESS CHAT unavailable outcome=" << submission.outcome << '\n';
             self->check(submission.outcome == "agent_not_set_up" && self->user_message_count() == self->m_user_messages_before,
                         "with_no_agent_nothing_is_sent_to_the_chat");
-            // A real press: the buttons stay live, and lead to the offer.
             installed_shell()->set_agent_pane_collapsed(true);
-            self->m_modals_before = self->m_modals_answered;
-            self->answer_modals(wxID_NO); // "Not now"
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.bubble && frame.actions_enabled, "buttons_stay_live_with_no_agent");
-            self->click_overlay(frame.ask);
+            self->check(frame.bubble && !frame.set_up.empty() && frame.ask.empty() && frame.resolve.empty(),
+                        "with_no_agent_the_bubble_offers_only_setup");
+            self->check(std::abs(frame.set_up.w - (frame.bubble_rect.w - 2 * (frame.set_up.x - frame.bubble_rect.x))) < 1.f,
+                        "the_setup_button_spans_the_bubble");
+            self->capture_issues("06a-no-agent");
+            self->close_preferences_when_loaded();
+            self->click_overlay(frame.set_up);
         }});
-        steps.push_back({"no_agent_offer_declined", {}, [self] { return self->m_modals_answered > self->m_modals_before; }, [self] {
-            self->check(self->m_modals_answered == self->m_modals_before + 1, "a_press_with_no_agent_offers_to_set_it_up");
+        steps.push_back({"no_agent_preferences_cancelled", {}, [self] { return self->preferences_closed(); }, [self] {
+            self->check(self->m_preferences_section == std::optional<std::string>("agent"),
+                        "setup_opens_preferences_on_its_agent_section");
             self->check(installed_shell()->is_agent_pane_collapsed() && self->user_message_count() == self->m_user_messages_before,
-                        "declining_the_offer_changes_nothing");
-            self->m_modals_before = self->m_modals_answered;
-            self->answer_modals(wxID_YES); // "Set up now"
-            self->click_overlay(self->issue_frame().resolve);
+                        "closing_preferences_without_an_agent_changes_nothing");
+            const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
+            self->check(frame.bubble && frame.issue_id == self->m_warning_id && !frame.set_up.empty(),
+                        "the_bubble_still_offers_setup_after_a_cancel");
+            // This time the person checks a key in the window before closing it.
+            self->close_preferences_when_loaded([self] { self->m_agent_settings_before = store_placeholder_agent_key(); });
+            self->click_overlay(frame.set_up);
         }});
-        steps.push_back({"no_agent_offer_accepted", {}, [self] { return self->m_modals_answered > self->m_modals_before; }, [self] {
+        steps.push_back({"no_agent_preferences_set_up", {}, [self] { return self->preferences_closed(); }, [self] {
             self->stop_answering_modals();
-            self->check(self->m_modals_answered == self->m_modals_before + 1, "the_other_button_makes_the_same_offer");
-            self->check(!installed_shell()->is_agent_pane_collapsed(), "accepting_the_offer_opens_the_chat_panel_for_setup");
-            self->check(self->user_message_count() == self->m_user_messages_before, "accepting_the_offer_sends_no_message_either");
+            self->check(self->project_host().availability() == Agent::AgentAvailability::Ready,
+                        "closing_preferences_with_an_agent_reloads_the_chat");
+            if (self->project_host().availability() != Agent::AgentAvailability::Ready)
+                std::cerr << "HARNESS DETAIL agent after Preferences: "
+                          << Agent::load_agent_runtime(wxGetApp().app_config).unavailable_reason << '\n';
+            const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
+            self->check(frame.bubble && frame.issue_id == self->m_warning_id && frame.set_up.empty() && !frame.ask.empty() &&
+                            !frame.resolve.empty(),
+                        "the_two_buttons_return_once_an_agent_is_there");
+            self->check(installed_shell()->is_agent_pane_collapsed() && self->user_message_count() == self->m_user_messages_before,
+                        "setting_the_agent_up_sends_nothing_for_the_person");
+            self->capture_issues("06b-agent-set-up");
+            // The rest of the run talks to the stand-in again.
+            wxGetApp().app_config->set_section("jusprin_agent", self->m_agent_settings_before);
             auto agent = std::make_unique<RecordingAgent>();
             self->m_issue_agent = agent.get();
             self->project_host().set_agent(std::move(agent), Agent::AgentAvailability::Ready);
@@ -1448,6 +1526,10 @@
     bool                      m_checked_right_after{false}, m_stale_right_after{false}, m_buttons_right_after{false}, m_was_slicing_at_edit{false};
     bool                      m_modal_closer_bound{false};
     int                       m_modal_answer{wxID_OK};
+    // See answer_modals: may hold a dialog back for another tick.
+    std::function<bool(wxDialog&)> m_modal_gate;
+    std::optional<std::string>     m_preferences_section;
+    std::map<std::string, std::string> m_agent_settings_before;
     wxEvtHandler              m_modal_closer;
     wxTimer                   m_modal_closer_timer{&m_modal_closer};
     std::chrono::steady_clock::time_point m_slice_started;

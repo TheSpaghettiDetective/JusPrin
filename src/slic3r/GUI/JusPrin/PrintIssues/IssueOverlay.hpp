@@ -22,6 +22,10 @@
 //   selection alone; a plate-wide issue has no object, so there it and
 //   Escape are the ways out. A press on Ask AI or Resolve with AI that
 //   reaches the chat closes it too.
+// - With no agent set up, one button, "Set up the agent…", takes the place
+//   of those two. It opens Preferences on its Agent section and leaves the
+//   bubble as it is: when the window closes with an agent, the two buttons
+//   are back and the person picks one; nothing is sent for them.
 // - With one issue the pill opens and closes the bubble itself: a list of one
 //   would say the same thing twice.
 //
@@ -74,6 +78,8 @@ struct IssueOverlayFrame
     bool        target_in_view{false};
     float       anchor_x{0}, anchor_y{0};
     OverlayRect bubble_rect, ask, resolve, close;
+    // Drawn in place of ask and resolve while there is no agent; empty otherwise.
+    OverlayRect set_up;
     // Empty unless drawn: the way to the other issues, and "Ignore this
     // warning" or its undo.
     OverlayRect previous, next, ignore;
@@ -101,6 +107,10 @@ public:
         std::function<bool(const std::string& issue_id, const std::string& request)> submit;
         // A reply is being written; the page disables its own send the same way.
         std::function<bool()> chat_busy;
+        // Whether the chat has an agent to answer the two buttons.
+        std::function<bool()> agent_ready;
+        // What "Set up the agent…" does.
+        std::function<void()> set_up_agent;
     };
 
     IssueOverlay(GLCanvas3D& canvas, PrintIssueMonitor& monitor, Actions actions);

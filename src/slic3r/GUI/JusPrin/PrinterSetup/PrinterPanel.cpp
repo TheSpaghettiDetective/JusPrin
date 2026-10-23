@@ -154,14 +154,6 @@ void PrinterPanel::build_runtime()
                                     " in slot " + std::to_string(m_filament_slot + 1) +
                                     ". What would you like to change?");
     }
-    // Setting the agent up in here is the same act as setting it up anywhere
-    // else; the rest of the shell has to look again afterwards.
-    host.set_setup_completed_listener([this] {
-        if (m_callbacks.agent_configured)
-            m_callbacks.agent_configured();
-        if (m_web_view)
-            m_web_view->host().set_session_profile(m_task == Task::Printer ? m_conversation->profile() : filament_profile());
-    });
     m_pump.Start(kPumpIntervalMs);
 }
 
@@ -187,7 +179,6 @@ void PrinterPanel::tear_down_runtime()
         host.set_session_state_provider({});
         host.set_page_message_handler({});
         host.set_session_tool_executor({});
-        host.set_setup_completed_listener({});
         m_retired.push_back({std::move(m_persistence), std::move(m_web_view)});
         m_release_timer.StartOnce(kReleaseRetryMs);
         return;
@@ -260,8 +251,29 @@ void PrinterPanel::close()
     });
 }
 
+void PrinterPanel::reload_agent_config()
+{
+    if (!m_web_view || m_closing)
+        return;
+    Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+    m_web_view->host().set_agent(std::move(runtime.service), runtime.availability);
+}
+
+bool PrinterPanel::handle_preferences_request(const std::string& type, const nlohmann::json& payload)
+{
+    if (type != Agent::Protocol::kShellAction || !payload.is_object() || payload.value("action", "") != "open_preferences")
+        return false;
+    // The panel stays open under the window; the shell tells it when the
+    // agent's settings changed there.
+    if (ShellController* shell = installed_shell())
+        shell->request_preferences(payload.value("section", std::string()));
+    return true;
+}
+
 bool PrinterPanel::handle_printer_page_message(const std::string& type, const nlohmann::json& payload)
 {
+    if (handle_preferences_request(type, payload))
+        return true;
     if (type == Agent::Protocol::kPrinterAction && payload.is_object() &&
         payload.value("action", "") == "open_printer_settings" && !m_conversation->printer_name().empty()) {
         close_to_printer_settings();
@@ -336,6 +348,8 @@ bool PrinterPanel::handle_filament_page_message(const std::string& type, const n
         }
         return true;
     }
+    if (handle_preferences_request(type, payload))
+        return true;
     if (type != Agent::Protocol::kShellAction || !payload.is_object())
         return false;
     const std::string action = payload.value("action", "");
@@ -343,10 +357,6 @@ bool PrinterPanel::handle_filament_page_message(const std::string& type, const n
         close();
     else if (action == "open_filament_settings")
         close_to_filament_settings();
-    else if (action == "open_preferences") {
-        if (ShellController* shell = installed_shell())
-            shell->request_preferences(payload.value("section", std::string()));
-    }
     else
         return false;
     return true;

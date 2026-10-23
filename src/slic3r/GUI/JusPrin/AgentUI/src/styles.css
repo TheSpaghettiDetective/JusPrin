@@ -2267,46 +2267,17 @@ input[type='radio']:checked {
   letter-spacing: 0.04em;
 }
 
-/* Agent setup. The screens replace the dock body in place, so they reuse
-   .pane-state's metrics and add the chooser card and the screen titles; the
-   rows inside are the shared Agent connection rows below. */
-/* The setup screens are the only pane states taller than the dock: a diff, a
-   command and an error banner can all be on screen at once. They scroll, so
-   the actions at the bottom stay reachable in a short window. */
+/* Connecting an AI tool, in Preferences › Agent. Its screens reuse
+   .pane-state's metrics and add the screen titles; the rows inside are the
+   shared Agent connection rows below. They are the only pane states taller
+   than their window: a diff, a command and an error banner can all be on
+   screen at once. They scroll, so the actions at the bottom stay reachable
+   in a short window. */
 .pane-state.setup {
   justify-content: flex-start;
   align-self: stretch;
   min-height: 0;
   overflow-y: auto;
-}
-
-.setup-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  padding: 16px;
-  border-radius: var(--radius-medium);
-  background: var(--surface-subtle);
-}
-
-.setup-card-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-}
-
-.setup-card-head h1 {
-  flex: 1;
-  font: var(--font-section);
-  margin: 0;
-}
-
-.setup-card p {
-  margin: 0;
-  font: var(--font-body-small);
-  color: var(--text-secondary);
 }
 
 button.primary.wide {
@@ -2349,52 +2320,6 @@ button.wide {
   height: var(--setup-card-icon-size);
 }
 
-/* The two ways for people who already have an AI, under the account. */
-.setup-ways {
-  display: flex;
-  flex-direction: column;
-  padding-top: 12px;
-  box-shadow: inset 0 1px 0 0 var(--border-subtle);
-}
-
-.setup-card p.setup-ways-title {
-  padding-bottom: 4px;
-  font: var(--font-label-bold);
-  text-transform: uppercase;
-}
-
-.setup-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font: var(--font-body);
-  text-align: left;
-  cursor: pointer;
-}
-
-.setup-row:hover:enabled,
-.setup-row:active:enabled {
-  background: transparent;
-  border: none;
-}
-
-.setup-row .jp-icon {
-  width: var(--setup-card-icon-size);
-  height: var(--setup-card-icon-size);
-  color: var(--text-secondary);
-}
-
-.pane-state p.setup-footnote {
-  margin-top: auto;
-  font: var(--font-label);
-}
-
 .setup-actions {
   display: flex;
   align-items: center;
@@ -2403,41 +2328,8 @@ button.wide {
   width: 100%;
 }
 
-/* One-time confirmation that the setup the user just completed worked:
-   a status line, so only its glyph carries the status color. */
-.setup-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px 8px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
-  color: var(--text-primary);
-  font: var(--font-label-bold);
-}
-
-.setup-banner > .jp-icon {
-  width: var(--setup-card-icon-size);
-  height: var(--setup-card-icon-size);
-  color: var(--status-success);
-}
-
-.setup-banner.warning > .jp-icon {
-  color: var(--status-warning);
-}
-
-.setup-banner-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.setup-banner button.icon {
-  width: var(--button-icon-compact-width);
-  height: var(--button-icon-compact-height);
-}
-
 /* The Agent connection rows (canvas "Agent/Account Row", "Agent/Provider
-   Row", "Agent/Tool Row"), shared by Agent setup and Preferences › Agent.
+   Row", "Agent/Tool Row"), drawn in Preferences › Agent.
    A group is a short intro, rows divided by a hairline, and a footnote. */
 .agent-group {
   display: flex;
@@ -3173,8 +3065,7 @@ p.agent-row-note {
   min-width: 0;
 }
 
-/* The design system's Segmented Control, as the setup screens draw it, for
-   any surface: a subtle track holding equal segments, the chosen one filled
+/* The design system's Segmented Control, for any surface: a subtle track holding equal segments, the chosen one filled
    with action/primary. */
 .jp-segmented {
   display: flex;

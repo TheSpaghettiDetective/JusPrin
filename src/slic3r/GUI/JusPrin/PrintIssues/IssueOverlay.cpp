@@ -644,6 +644,9 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
                          target->anchor_y <= s.canvas_h;
     const bool busy    = m_actions.chat_busy && m_actions.chat_busy();
     const bool enabled = snapshot.checked && !issue.stale && !busy;
+    // Looked at every frame: the window that sets the agent up closes back
+    // onto this bubble, and the next frame draws what is true then.
+    const bool ready   = !m_actions.agent_ready || m_actions.agent_ready();
 
     const std::string severity = issue.stale ? checking_label() : issue.ignored ? ignored_label() :
                                  issue.severity == IssueSeverity::Blocker ? _u8L("Blocks printing") : _u8L("Warning");
@@ -743,25 +746,40 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
     }
     y += s.pad;
 
-    const float button_w = std::round((bubble.w - 2 * s.pad - s.gap) / 2);
-    const OverlayRect ask{bubble.x + s.pad, y, button_w, button_h};
-    const OverlayRect resolve{ask.x + ask.w + s.gap, y, bubble.w - 2 * s.pad - s.gap - button_w, button_h};
-    m_frame.ask     = ask;
-    m_frame.resolve = resolve;
-    // A press that reached the chat closes the bubble: the answer is there.
-    const auto submit = [this, id = issue.id](std::string request) {
-        after_frame([id, request](IssueOverlay& self) {
-            if (self.m_actions.submit && self.m_actions.submit(id, request) && self.m_selected == id)
-                self.close_bubble();
-        });
-    };
-    // A secondary button shows the bubble behind it; hover is the quiet-control fill.
-    if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.surface_raised,
-               s.p.surface_subtle, s.p.text_primary, &s.p.border_subtle, s.p))
-        submit(_u8L("Explain this issue and my options."));
-    if (button(draw, "##resolve", resolve, _u8L("Resolve with AI"), std::round(resolve_recipe.radius * s.scale), enabled, s.p.action_primary,
-               s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
-        submit(_u8L("Help fix this issue."));
+    if (ready) {
+        const float button_w = std::round((bubble.w - 2 * s.pad - s.gap) / 2);
+        const OverlayRect ask{bubble.x + s.pad, y, button_w, button_h};
+        const OverlayRect resolve{ask.x + ask.w + s.gap, y, bubble.w - 2 * s.pad - s.gap - button_w, button_h};
+        m_frame.ask     = ask;
+        m_frame.resolve = resolve;
+        // A press that reached the chat closes the bubble: the answer is there.
+        const auto submit = [this, id = issue.id](std::string request) {
+            after_frame([id, request](IssueOverlay& self) {
+                if (self.m_actions.submit && self.m_actions.submit(id, request) && self.m_selected == id)
+                    self.close_bubble();
+            });
+        };
+        // A secondary button shows the bubble behind it; hover is the quiet-control fill.
+        if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.surface_raised,
+                   s.p.surface_subtle, s.p.text_primary, &s.p.border_subtle, s.p))
+            submit(_u8L("Explain this issue and my options."));
+        if (button(draw, "##resolve", resolve, _u8L("Resolve with AI"), std::round(resolve_recipe.radius * s.scale), enabled,
+                   s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
+            submit(_u8L("Help fix this issue."));
+    } else {
+        // Nothing the two buttons promise could happen yet, so one button
+        // across the bubble leads to where the agent is set up. It needs no
+        // checked issue and leaves the bubble open behind the window. Three
+        // dots: the canvas font has no ellipsis character.
+        const OverlayRect set_up{bubble.x + s.pad, y, bubble.w - 2 * s.pad, button_h};
+        m_frame.set_up = set_up;
+        if (button(draw, "##set_up", set_up, _u8L("Set up the agent..."), std::round(resolve_recipe.radius * s.scale), true,
+                   s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
+            after_frame([](IssueOverlay& self) {
+                if (self.m_actions.set_up_agent)
+                    self.m_actions.set_up_agent();
+            });
+    }
     y += button_h + s.gap;
 
     if (!ignore.empty()) {

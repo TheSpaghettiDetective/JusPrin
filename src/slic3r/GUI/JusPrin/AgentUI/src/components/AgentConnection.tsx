@@ -194,8 +194,7 @@ export function ProviderKeyRow({
 const UNREACHED = new Set(['network_error', 'timeout', 'service_unavailable', 'service_overloaded', 'setup_failed']);
 
 export interface ProviderKeysProps {
-  // Setup already names the way in its own title; Preferences lists the ways
-  // one under another and needs each one named.
+  // Preferences lists the ways one under another and names each one.
   heading?: boolean;
   setup: SetupStatusPayload;
   // Providers with a stored key, by hint; the key itself never reaches the page.

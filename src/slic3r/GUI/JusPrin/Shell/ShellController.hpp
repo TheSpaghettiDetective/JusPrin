@@ -97,10 +97,6 @@ public:
     // opens the chat pane. The issue is looked up again at the moment of the
     // press, so one that has cleared or gone stale since it was drawn is not sent.
     IssueSubmission submit_issue(const std::string& issue_id, const std::string& request_sentence);
-    // What a press of either button does with no assistant set up: says so
-    // and offers to open the chat panel's setup. Returns whether the person
-    // took the offer.
-    bool offer_agent_setup();
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
     Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
     void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
@@ -125,25 +121,15 @@ public:
     void set_left_pane_collapsed(bool collapsed);
     void toggle_left_pane() { set_left_pane_collapsed(!m_left_pane_collapsed); }
     bool is_left_pane_collapsed() const { return m_left_pane_collapsed; }
-    // Takes the person to the Agent panel's own setup flow from anywhere in
-    // the shell: leaves Home for the workspace, opens the panel as their
-    // choice, and asks the page to open setup.
-    void open_agent_setup();
     // JusPrin's Preferences window, over whatever is on screen; returns once
-    // it is closed. `section` names where it opens (empty: Account).
+    // it is closed. `section` names where it opens (empty: Account). Its
+    // Agent section is the one place the agent is set up: every surface that
+    // finds none opens it there, and picks the agent up when it closes.
     void open_preferences(const std::string& section = {});
     // Opens it on the frame's next turn, for a caller that must not run a
     // modal window itself (a web view's message handler, a key handler).
     // Requests that arrive before it opens open it once.
     void request_preferences(const std::string& section = {});
-
-    // A throwaway AgentWebView embedded elsewhere (the Add a printer dialog's
-    // own setup flow) just wrote a working agent config that the docked
-    // pane's own AgentHost instance has no way to learn about on its own.
-    // on_page_changed() re-derives and pushes fresh availability into the
-    // docked pane the next time it would become relevant again, the same way
-    // it already refreshes Home's gallery on return.
-    void mark_agent_config_possibly_changed() { m_agent_config_possibly_changed = true; }
 
     // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
     // decoupled from the add-printer request that opened it, so nothing else
@@ -215,8 +201,6 @@ private:
     bool m_agent_pane_collapsed{false};
     // What the person last asked for, as opposed to what Home imposes.
     bool m_agent_pane_user_collapsed{false};
-    // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
-    bool m_agent_config_possibly_changed{false};
     bool m_preferences_open{false};
     bool m_preferences_requested{false};
     bool m_task_open{false};

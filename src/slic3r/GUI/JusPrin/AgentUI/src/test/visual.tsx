@@ -10,6 +10,7 @@ import { act, render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { App, AppProps } from '../App';
+import { PreferencesApp } from '../PreferencesApp';
 import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from '../bridge/protocol';
 import { applyAppearance, applyStaticTokens } from '../tokens';
 
@@ -89,6 +90,30 @@ export async function mountedApp(
   }
   if (options.after) await options.after({ root: container, sent, deliver });
   const html = markup(container);
+  unmount();
+  return html;
+}
+
+// The Preferences window's page against a scripted host, as mountedApp does
+// for the panel. The markup kept is the section on screen, without the
+// window's list of sections.
+export async function mountedPreferences(
+  state: StatePayload,
+  after?: (host: ScriptedHost) => Promise<void> | void,
+): Promise<string> {
+  const sent: Envelope[] = [];
+  const transport = { post: (json: string) => { sent.push(JSON.parse(json)); } };
+  const { container, unmount } = render(<PreferencesApp getTransport={() => transport} />);
+  let counter = 0;
+  const deliver = (type: string, payload: unknown) => {
+    counter += 1;
+    const envelope: Envelope = { protocol: PROTOCOL_NAME, version: PROTOCOL_VERSION, id: `visual-${counter}-${type}`, type, payload };
+    act(() => window.__jusprinBridge!.deliver(envelope));
+  };
+  deliver('hello_ack', { version: PROTOCOL_VERSION, agent: state.agent, appearance: state.appearance });
+  deliver('state', state);
+  if (after) await after({ root: container, sent, deliver });
+  const html = markup(container.querySelector('.prefs-content') ?? container);
   unmount();
   return html;
 }

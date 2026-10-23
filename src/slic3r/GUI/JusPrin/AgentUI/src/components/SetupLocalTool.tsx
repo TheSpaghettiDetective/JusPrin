@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
 import { ToolGroup } from './AgentConnection';
-import { SetupScreenTitle } from './Setup';
+
+// The screen's title is its way back: one target, the chevron and the name.
+function SetupScreenTitle({ label, onBack }: { label: string; onBack: () => void }) {
+  return (
+    <h1 className="setup-title">
+      <button type="button" className="setup-back" onClick={onBack} aria-label="Back to setup options">
+        <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
+        {label}
+      </button>
+    </h1>
+  );
+}
 
 type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved';
 
@@ -123,8 +134,10 @@ export function SetupLocalTool({
   const [error, setError] = useState<McpStatusPayload | null>(null);
   // Each status envelope is acted on once. Without this, dismissing an error
   // and starting another attempt would re-read the same payload and put the
-  // banner straight back.
-  const handled = useRef<McpStatusPayload | null>(null);
+  // banner straight back. The status this screen opens on belongs to an
+  // earlier attempt (Preferences opens it afresh for each tool), so it counts
+  // as handled already.
+  const handled = useRef<McpStatusPayload | null>(status);
   // The screen a connect was dispatched from. A failing connect reports
   // 'writing' before it reports the error, so by then the user is on the
   // progress screen -- which has no error slot and no way out.

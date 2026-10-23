@@ -115,9 +115,6 @@ inline constexpr const char* kMcpStatus          = "mcp_status";
 inline constexpr const char* kChangeAdded        = "change_added";
 // Work the application runs outside the chat: started, moved on, or ended.
 inline constexpr const char* kWorkUpdated        = "work_updated";
-// Asks the page to open its own setup flow, as its "Set up the agent" button
-// does; sent when another JusPrin surface sends the person there.
-inline constexpr const char* kOpenSetup          = "open_setup";
 // Each configured provider's models, sent after the handshake and again as
 // each list arrives: {defaultProvider, providers: [{id, label, state, models:
 // [{id, label, efforts, defaultEffort}]}]}. model_choice capability.

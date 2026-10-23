@@ -2,8 +2,10 @@
 // 2026-10-21): a list of sections on the left and the chosen one beside it.
 // The app reads and writes every setting, under the keys OrcaSlicer's own
 // dialog uses, and sends what is stored after each change; the page only
-// says what to change. Agent and Account draw the same connection rows Agent
-// setup draws (AgentConnection.tsx), so the two never differ.
+// says what to change. The Agent section is where the agent is set up, the
+// first time too: every surface that finds no agent opens it there
+// (decided 2026-10-23). Agent and Account draw the connection rows of
+// AgentConnection.tsx.
 
 import { useEffect, useState } from 'react';
 import {

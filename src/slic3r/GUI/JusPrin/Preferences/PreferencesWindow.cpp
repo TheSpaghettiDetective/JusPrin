@@ -204,6 +204,11 @@ json PreferencesWindow::state() const
     return payload;
 }
 
+bool PreferencesWindow::page_connected() const
+{
+    return m_view != nullptr && m_view->host().handshake_complete();
+}
+
 void PreferencesWindow::push_state()
 {
     if (m_view != nullptr && m_view->host().handshake_complete())

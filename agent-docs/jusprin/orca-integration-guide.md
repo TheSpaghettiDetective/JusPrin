@@ -536,7 +536,9 @@ sequences, or a spiral-mode setting; the pane uses the same one.
 the app icon above wrapped text and stacked buttons. Kenneth reviewed the
 screenshots on 2026-10-14 and found it ugly next to every other question the
 app asks. An earlier change had made the same mistake and fixed it the same
-way (`ShellController::offer_agent_setup`, d0bce03db3). Other JusPrin
+way (`ShellController::offer_agent_setup`, d0bce03db3; that question was
+removed on 2026-10-23, when Preferences › Agent became the one place the agent
+is set up). Other JusPrin
 `wxMessageBox` and `wxMessageDialog` calls remain.
 
 **Resolution:** The question uses OrcaSlicer's `MessageDialog` (`MsgDialog.hpp`),

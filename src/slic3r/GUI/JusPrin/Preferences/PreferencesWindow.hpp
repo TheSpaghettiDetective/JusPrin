@@ -59,6 +59,10 @@ public:
     ~PreferencesWindow() override;
 
     const AfterClose& after_close() const { return m_after; }
+    // For the shell harness: what the window was opened for, and whether its
+    // page has loaded, so a test closes it as a person would, having seen it.
+    const OpenRequest& request() const { return m_request; }
+    bool               page_connected() const;
 
 private:
     bool           on_page_message(const std::string& type, const nlohmann::json& payload);

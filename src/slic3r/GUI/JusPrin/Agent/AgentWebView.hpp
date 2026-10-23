@@ -28,12 +28,11 @@ namespace Slic3r::GUI::JusPrin {
 // Which of the page's surfaces this view is. The page reads it from the query
 // string it is loaded with (see main.tsx):
 //   Conversation   the docked panel: header, chat list, thread, composer;
-//   EmbeddedSetup  a throwaway setup-only instance, the setup screens alone;
 //   PrinterPanel   Home's printer conversation: the printer session's own
 //                  header, pinned card and chips around the same thread;
-//   Preferences    JusPrin's Preferences window, which draws the Agent's
-//                  connection rows the setup screens draw.
-enum class AgentPageMode { Conversation, EmbeddedSetup, PrinterPanel, Preferences };
+//   Preferences    JusPrin's Preferences window, whose Agent section is
+//                  where the agent is set up and changed.
+enum class AgentPageMode { Conversation, PrinterPanel, Preferences };
 
 class AgentWebView : public wxPanel
 {

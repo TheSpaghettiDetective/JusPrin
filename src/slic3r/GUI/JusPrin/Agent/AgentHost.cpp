@@ -1295,10 +1295,6 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
         send_model_catalog();
         request_model_lists();
     }
-    if (m_setup_requested) {
-        m_setup_requested = false;
-        send_envelope(Protocol::kOpenSetup, "{}");
-    }
     if (m_handshake_listener)
         m_handshake_listener();
 }
@@ -2386,8 +2382,6 @@ void AgentHost::pump_setup()
     // Configuration starts only between turns; messages and retries stay
     // blocked while the credential check is pending.
     set_agent(std::move(outcome->service), AgentAvailability::Ready);
-    if (m_setup_completed_listener)
-        m_setup_completed_listener();
 }
 
 void AgentHost::pump_tools()
@@ -3119,15 +3113,6 @@ void AgentHost::set_availability(AgentAvailability availability)
     m_availability = availability;
     if (m_handshake)
         send_envelope(Protocol::kAgentStatus, json{{"status", availability_name(m_availability)}}.dump());
-}
-
-void AgentHost::request_setup()
-{
-    if (!m_handshake) {
-        m_setup_requested = true;
-        return;
-    }
-    send_envelope(Protocol::kOpenSetup, "{}");
 }
 
 void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)

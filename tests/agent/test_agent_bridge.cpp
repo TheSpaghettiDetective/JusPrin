@@ -335,7 +335,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
-                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kOpenSetup,
+                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog,
@@ -1915,23 +1915,6 @@ TEST_CASE("an Agent edit is logged as the Agent's, after its tool activity", "[a
     CHECK((*added)["payload"]["change"]["actor"] == "agent");
     CHECK((*added)["payload"]["change"]["afterId"] == action_id);
     CHECK(harness.of_type("change_added").size() == 1);
-}
-
-TEST_CASE("a setup request reaches the page once, after the handshake if it has to wait", "[agent][setup]")
-{
-    Harness harness(AgentAvailability::Unavailable);
-    harness.host.request_setup();
-    CHECK(harness.of_type("open_setup").empty());
-
-    harness.handshake();
-    CHECK(harness.of_type("open_setup").size() == 1);
-
-    harness.host.reset_page();
-    harness.handshake();
-    CHECK(harness.of_type("open_setup").size() == 1);
-
-    harness.host.request_setup();
-    CHECK(harness.of_type("open_setup").size() == 2);
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")

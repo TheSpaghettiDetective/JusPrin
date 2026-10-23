@@ -23,8 +23,6 @@ import {
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
-import { ConnectedBanner, SetupApiKey, SetupChooser } from './components/Setup';
-import { SetupLocalTool } from './components/SetupLocalTool';
 
 let clientMessageCounter = 0;
 function nextClientMessageId(): string {
@@ -59,7 +57,8 @@ declare global {
       renameConversation(conversationId: string, title: string): void;
       deleteConversation(conversationId: string): void;
       setDraft(text: string): void;
-      openSetup(): void;
+      // A key check on this page's host, with no screen of its own here:
+      // the harness proves the check fails cleanly without a provider.
       checkKey(provider: string, apiKey: string): void;
       attach(name: string, dataBase64: string, mime?: string): void;
       removeAttachment(attachmentId: string): void;
@@ -74,10 +73,6 @@ export interface AppProps {
   transportRetryMs?: number;
   transportRetryLimit?: number;
   draftDebounceMs?: number;
-  // A throwaway, setup-only instance (e.g. embedded in the Add a printer
-  // dialog rather than the docked panel): show only the setup sub-component,
-  // never the conversation header, chat list, or composer around it.
-  embedded?: boolean;
   // Temporary printer task chat: the same thread and composer, with the
   // printer session's own header and cards instead of the project's.
   printerPanel?: boolean;
@@ -95,24 +90,15 @@ export function App({
   transportRetryMs,
   transportRetryLimit,
   draftDebounceMs,
-  embedded,
   printerPanel,
 }: AppProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef<AgentUiState>(state);
   stateRef.current = state;
 
-  // Which setup screen the dock is showing. This is page-local on purpose:
-  // the host cares which credentials it was asked to check, not which panel
-  // is on screen, so navigating setup costs no bridge traffic.
-  const [setupScreen, setSetupScreen] = useState<'offer' | 'chooser' | 'apiKey' | 'localTool'>('offer');
-  const [view, setView] = useState<'chat' | 'list' | 'setup' | 'allSettings'>('chat');
+  const [view, setView] = useState<'chat' | 'list' | 'allSettings'>('chat');
   const [commandError, setCommandError] = useState<string | null>(null);
   const [confirmChatRestore, setConfirmChatRestore] = useState(false);
-  const setupReturn = useRef<'chat' | 'list'>('chat');
-  // The one-time confirmation after setup succeeds. The page knows what it
-  // just submitted, so this needs nothing from the host.
-  const [connected, setConnected] = useState<{ provider: string; warning?: string } | null>(null);
   // Whether the thread is scrolled under the pinned setup band, which then
   // lifts off it.
   const [threadScrolled, setThreadScrolled] = useState(false);
@@ -154,10 +140,9 @@ export function App({
   }, [state.appearance]);
 
   // The shell's own Ctrl+, cannot see keys while this page has the focus.
-  // Setup embedded in a dialog and the printer conversation have no shell
-  // behind them that would answer.
+  // The printer conversation has no shell behind it that would answer.
   useEffect(() => {
-    if (embedded || printerPanel) return;
+    if (printerPanel) return;
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === ',') {
         event.preventDefault();
@@ -166,7 +151,7 @@ export function App({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [client, embedded, printerPanel]);
+  }, [client, printerPanel]);
 
   // The printer panel's first line, which the model is shown as having said:
   // written here, posted by the app, once per session. Before the
@@ -197,7 +182,7 @@ export function App({
   // only if the words change.
   const sentProjectInstructions = useRef<string | null>(null);
   useEffect(() => {
-    if (printerPanel || embedded || state.connection !== 'connected') {
+    if (printerPanel || state.connection !== 'connected') {
       if (state.connection !== 'connected') sentProjectInstructions.current = null;
       return;
     }
@@ -205,7 +190,7 @@ export function App({
     if (text === sentProjectInstructions.current) return;
     sentProjectInstructions.current = text;
     client.send('project_instructions', { text });
-  }, [printerPanel, embedded, state.connection, client]);
+  }, [printerPanel, state.connection, client]);
 
   // The project skills: situational text the app adds to one request when
   // its trigger fires (skills/*/SKILL.md). Once per connection: a reload
@@ -213,14 +198,14 @@ export function App({
   // before it has them.
   const sentSkills = useRef(false);
   useEffect(() => {
-    if (printerPanel || embedded || state.connection !== 'connected') {
+    if (printerPanel || state.connection !== 'connected') {
       if (state.connection !== 'connected') sentSkills.current = false;
       return;
     }
     if (sentSkills.current) return;
     sentSkills.current = true;
     client.send('skills', { skills });
-  }, [printerPanel, embedded, state.connection, client]);
+  }, [printerPanel, state.connection, client]);
 
   // The filament chat's instructions, likewise: written from the facts the
   // app sends, sent again when they change, such as after a save as a copy.
@@ -319,36 +304,10 @@ export function App({
     client.send('work_cancel', { id });
   };
 
-  const checkKey = (provider: string, apiKey: string) => {
-    client.send('setup_check_key', { provider, apiKey });
-  };
-
-  const cancelCheck = () => {
-    client.send('setup_cancel', {});
-  };
-
-  // The one way into setup: the dock's own button, and the host when another
-  // JusPrin surface sends the person here.
-  const openSetup = () => { setupReturn.current = 'chat'; setSetupScreen('chooser'); setView('setup'); };
-
-  useEffect(() => {
-    if (state.setupRequests > 0) openSetup();
-  }, [state.setupRequests]);
-
-  useEffect(() => {
-    if (state.setup.phase !== 'verified') return;
-    // The host installs the verified service right after saying so, so the
-    // dock is about to become a working chat; carry the confirmation across.
-    // The key screen stays up until that happens, showing the key saved.
-    setConnected({ provider: state.setup.provider ?? '', warning: state.setup.warning });
-    if (state.agentStatus === 'ready') setView('chat');
-  }, [state.setup.phase, state.setup.provider, state.setup.warning, state.agentStatus]);
-
-  useEffect(() => {
-    // A connected Agent replaces the setup surface entirely; if the dock ever
-    // returns to being unconfigured it starts from the offer, not mid-flow.
-    if (state.agentStatus === 'ready') setSetupScreen('offer');
-  }, [state.agentStatus]);
+  // Every way to set the agent up or change it is Preferences › Agent, a
+  // window over whatever is on screen. Nothing here changes: when it closes
+  // with an agent, the host says so and the composer takes the offer's place.
+  const openAgentPreferences = () => client.send('shell_action', { action: 'open_preferences', section: 'agent' });
 
   useEffect(() => {
     window.__jusprinTest = {
@@ -359,8 +318,7 @@ export function App({
       renameConversation: (conversationId, title) => client.send('rename_conversation', { conversationId, title }),
       deleteConversation: (conversationId) => client.send('delete_conversation', { conversationId }),
       setDraft: (text: string) => client.send('draft_update', { text }),
-      openSetup,
-      checkKey,
+      checkKey: (provider: string, apiKey: string) => client.send('setup_check_key', { provider, apiKey }),
       attach: (name: string, dataBase64: string, mime?: string) =>
         client.send('attach_file', {
           clientAttachmentId: nextClientAttachmentId(),
@@ -530,7 +488,6 @@ export function App({
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
   const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
-  const closeSetup = () => { cancelCheck(); setSetupScreen('offer'); setView(setupReturn.current); };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
     <span>{commandError}</span><button className="icon" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
@@ -540,25 +497,18 @@ export function App({
       onSwitch={(conversationId) => {
         if (conversationId !== viewedId) client.send('switch_conversation', { conversationId });
         setView('chat');
-      }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
-        // An agent that is set up is changed where every way of connecting
-        // is listed: Preferences › Agent. Setting one up starts here.
-        if (!unavailable) { client.send('shell_action', { action: 'open_preferences', section: 'agent' }); return; }
-        setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
-      }} onCollapse={collapseAgentPane} />;
+      }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={openAgentPreferences}
+      onCollapse={collapseAgentPane} />;
 
-  // The dock body is one of three things: the conversation, the offer, or a
-  // setup screen. Setup replaces the body rather than covering it, so backing
-  // out returns to exactly what was there before.
+  // The dock body is one of three things: every setting, the conversation,
+  // or the offer to set an agent up.
   const body = () => {
-    if (!embedded && view === 'allSettings' && cardContext)
+    if (view === 'allSettings' && cardContext)
       return <AllSettings context={cardContext} saved={historical} unsupported={!historical && !canListSettings}
         catalog={historical ? catalogFromContext(cardContext)
           : state.settingsCatalog?.sessionId === cardContext.sessionId ? state.settingsCatalog.catalog : null}
         onAction={canEditSettings && !historical ? (action) => client.send('settings_action', action) : undefined} />;
-    // An embedded, setup-only instance never has a conversation to show, so
-    // it always renders one of the setup screens below regardless of view.
-    if (!embedded && !notConfigured && view !== 'setup')
+    if (!notConfigured)
       return (
         <MessageList
           key={`messages-${state.context?.sessionId}-${viewedId}`}
@@ -583,37 +533,7 @@ export function App({
           onScrolledChange={setThreadScrolled}
         />
       );
-    if (setupScreen === 'chooser')
-      return <SetupChooser onUseApiKey={() => setSetupScreen('apiKey')} onConnectTool={() => setSetupScreen('localTool')} onDismiss={closeSetup} />;
-    if (setupScreen === 'localTool')
-      return (
-        <SetupLocalTool
-          catalog={state.mcpCatalog}
-          preview={state.mcpPreview}
-          status={state.mcpStatus}
-          onRefresh={() => client.send('mcp_catalog', {})}
-          onPreview={(toolId) => client.send('mcp_preview', { toolId })}
-          onConnect={(toolId) => client.send('mcp_connect', { toolId })}
-          onReveal={(toolId) => client.send('reveal_path', { toolId })}
-          onBack={() => setSetupScreen('chooser')}
-          onDone={closeSetup}
-        />
-      );
-    if (setupScreen === 'apiKey')
-      return (
-        <SetupApiKey
-          setup={state.setup}
-          savedKeys={state.savedKeys}
-          onCheck={checkKey}
-          onCancel={cancelCheck}
-          onRemove={(provider) => client.send('setup_remove_key', { provider })}
-          onBack={() => {
-            cancelCheck();
-            setSetupScreen('chooser');
-          }}
-        />
-      );
-    return <AgentNotConfiguredPane onSetUp={openSetup} fileReports={fileReportNotes} offerRef={offerRef} />;
+    return <AgentNotConfiguredPane onSetUp={openAgentPreferences} fileReports={fileReportNotes} offerRef={offerRef} />;
   };
 
   if (printerPanel) {
@@ -720,23 +640,12 @@ export function App({
     );
   }
 
-  if (embedded) {
-    // No conversation header, chat list, composer, or external-tool banner --
-    // just the setup sub-component itself, at whatever size its host gives it.
-    return (
-      <div className="app app--embedded">
-        {errorNotice}
-        <div className="chat-content">{body()}</div>
-      </div>
-    );
-  }
-
   return (
     <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
       <div className="chat-content" hidden={view === 'list'}>
-      {notConfigured && state.conversations.length === 1 && view !== 'setup' && view !== 'allSettings' && !state.navigation.focused ? (
+      {notConfigured && state.conversations.length === 1 && view !== 'allSettings' && !state.navigation.focused ? (
         <>
           <AgentNotConfiguredHeader onCollapse={collapseAgentPane} />
           {setupCard}
@@ -746,28 +655,21 @@ export function App({
       ) : state.navigation.focused ? (
         <header className="chat-header printer-header">
           <button type="button" className="panel-link-button panel-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
-            onClick={() => { if (view === 'setup') closeSetup(); else returnToWorkspace(); }}><span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back</button>
-          {view !== 'setup' && <button type="button" className="panel-link-button"
-            onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>}
+            onClick={returnToWorkspace}><span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back</button>
+          <button type="button" className="panel-link-button"
+            onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>
           <AgentPaneToggle onCollapse={collapseAgentPane} />
         </header>
       ) : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={viewedChat?.title || 'New chat'} busy={busy || pendingAction}
-            onBack={() => { if (view === 'setup') closeSetup(); else { client.send('state_request', {}); setView('list'); } }}
+            onBack={() => { client.send('state_request', {}); setView('list'); }}
             onCreate={createChat}
             onRename={(title) => client.send('rename_conversation', { conversationId: viewedId, title })}
             onDelete={() => { client.send('delete_conversation', { conversationId: viewedId }); setView('list'); }}
             onCollapse={collapseAgentPane} />
           {setupCard}
         </>
-      )}
-      {!notConfigured && connected && (
-        <ConnectedBanner
-          provider={connected.provider}
-          warning={connected.warning}
-          onDismiss={() => setConnected(null)}
-        />
       )}
       {body()}
       {/* An earlier chat is read-only: its composer is an empty, disabled
@@ -787,7 +689,7 @@ export function App({
       />}
       {!historical && state.navigation.focused && notConfigured && blockedAlert}
       {!historical && setupBar && <div hidden={view !== 'chat'}>
-        <AgentSetupBar onSetUp={openSetup} from={offerRect.current} notice={blockedAlert || undefined} />
+        <AgentSetupBar onSetUp={openAgentPreferences} from={offerRect.current} notice={blockedAlert || undefined} />
       </div>}
       {!historical && !setupBar && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}

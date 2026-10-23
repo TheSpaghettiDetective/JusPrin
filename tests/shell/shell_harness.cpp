@@ -50,7 +50,9 @@
 //                 Agent open, no project-header menu covering the layout
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
-//              application stays usable without silently selecting the mock
+//              application stays usable without silently selecting the mock;
+//              the pane's offer opens Preferences on its Agent section, and
+//              the pane draws no setup of its own
 //   --slice-all-cold
 //              guards Slice all on a multi-plate project before the Preview
 //              canvas has ever rendered — the conditions of upstream crash
@@ -165,7 +167,8 @@
 //              following camera, zoom, resize and object moves and staying
 //              off its object; every way the list and the bubble close;
 //              ignoring a warning and its undo; both buttons through to the
-//              chat; stale and cleared issues; deletion, undo, plate switch, project
+//              chat; with no agent, the one button through Preferences ›
+//              Agent and back to the two; stale and cleared issues; deletion, undo, plate switch, project
 //              replacement; OrcaSlicer's own notices not drawn, in Prepare
 //              or in Check print
 //   --print-issues-capture <output-directory>
@@ -210,9 +213,11 @@
 //              deterministic recognizer: dismissal and scrim lifetime, the
 //              choice/Not this one/Start over/correction transitions, adding a
 //              shipped but disabled profile, the network state, Set it up
-//              myself, and install rollback; then named printers: a second
-//              printer of one model, Home's list, rename, remove, and a
-//              nozzle change that keeps the printer's own settings
+//              myself, and install rollback; the chat's no-agent offer
+//              through Preferences › Agent and back to the same session;
+//              then named printers: a second printer of one model, Home's
+//              list, rename, remove, and a nozzle change that keeps the
+//              printer's own settings
 
 // First: on Windows asio needs winsock2.h ahead of any windows.h.
 #include <boost/asio.hpp>
@@ -238,6 +243,7 @@
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
@@ -2647,6 +2653,7 @@ private:
         check(tip, "panel_offers_the_photo_path_in_words");
         verify_printer_form(*panel);
         verify_printer_chat_reopens_fresh(*panel);
+        verify_printer_panel_resumes_after_agent_setup(*panel);
 
         // A printer to change: the fixture's own profile saved under a name.
         // Back restores Home before its next printer action can be chosen.
@@ -2671,6 +2678,78 @@ private:
         check(Printers::remove_named_printer(*m_plater, named).empty(), "panel_cleanup_removes_the_printer");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         verify_setup_install_commands();
+    }
+
+    // With no agent, the printer chat's offer opens Preferences on its Agent
+    // section, over the panel. Closed without an agent, nothing changes;
+    // closed with one, the same session goes on with the agent live, its
+    // greeting in place and nothing sent. The panel is never closed for the
+    // person. No model is involved: the stored key reaches no provider.
+    void verify_printer_panel_resumes_after_agent_setup(PrinterSetup::PrinterPanel& panel)
+    {
+        using namespace std::chrono_literals;
+        Agent::AgentHost* host = panel.host();
+        check(panel.IsShown() && host != nullptr && host->availability() != Agent::AgentAvailability::Ready,
+              "printer_panel_opens_with_no_agent");
+        if (host == nullptr || panel.web_view() == nullptr)
+            return;
+        const auto thread_size = [&panel] {
+            const Agent::ProjectPersistence* persistence = panel.persistence();
+            return persistence == nullptr ? std::size_t(0) :
+                persistence->document().messages(persistence->document().active_conversation_id()).size();
+        };
+        // What the page shows in the panel's body, reported through its draft
+        // under a fresh mark, so an earlier report is never read for it.
+        int report = 0;
+        const auto page_shows = [&panel, &report] {
+            const std::string mark = "r" + std::to_string(++report) + ":";
+            WebView::RunScript(panel.web_view()->webview(),
+                               "setTimeout(function () {"
+                               "  var q = function (s) { return document.querySelector(s); };"
+                               "  window.__jusprinTest.setDraft('" + mark + "' + ("
+                               "    q('[data-testid=\"setup-chooser\"], [data-testid=\"agent-key-openai\"]') ? 'setup' :"
+                               "    q('[data-testid=\"agent-not-configured\"]') ? 'offer' :"
+                               "    q('.composer textarea') ? 'composer' : 'none'));"
+                               "}, 0);");
+            const auto reported = [&panel, &mark] { return panel.persistence()->draft().rfind(mark, 0) == 0; };
+            return wait_for(reported, 10s) ? panel.persistence()->draft().substr(mark.size()) : std::string("no report");
+        };
+        const auto press_offer = [&panel] {
+            WebView::RunScript(panel.web_view()->webview(),
+                               "document.querySelector('[data-testid=\"agent-not-configured\"] button.primary').click();");
+        };
+        check(wait_for([&page_shows] { return page_shows() == "offer"; }, 30s), "printer_panel_shows_its_offer");
+        const std::size_t thread_before = thread_size();
+
+        close_preferences_when_loaded();
+        press_offer();
+        check(wait_for([this] { return preferences_closed(); }, 60s), "printer_offer_opens_preferences");
+        stop_answering_modals();
+        check(m_preferences_section == std::optional<std::string>("agent"), "printer_offer_opens_preferences_on_agent");
+        check(panel.IsShown() && panel.host() == host && host->availability() != Agent::AgentAvailability::Ready,
+              "printer_panel_unchanged_when_preferences_closes_without_an_agent");
+        check(page_shows() == "offer", "printer_panel_keeps_its_offer_after_a_cancel");
+
+        // This time the person checks a key in the window before closing it.
+        close_preferences_when_loaded([this] { m_agent_settings_before = store_placeholder_agent_key(); });
+        press_offer();
+        check(wait_for([this] { return preferences_closed(); }, 60s), "printer_offer_opens_preferences_again");
+        stop_answering_modals();
+        check(panel.IsShown() && panel.host() == host, "printer_panel_stays_open_through_setup");
+        check(host->availability() == Agent::AgentAvailability::Ready, "printer_panel_picks_up_the_new_agent");
+        const std::string shown = page_shows();
+        check(shown == "composer", "printer_panel_greeting_continues_with_the_composer");
+        if (shown != "composer")
+            std::cerr << "HARNESS DETAIL printer panel after setup showed " << shown << '\n';
+        check(thread_size() == thread_before, "printer_panel_sends_nothing_after_setup");
+
+        // The key goes again, as Remove in Preferences would: the panel follows.
+        close_preferences_when_loaded([this] { wxGetApp().app_config->set_section("jusprin_agent", m_agent_settings_before); });
+        installed_shell()->request_preferences("agent");
+        check(wait_for([this] { return preferences_closed(); }, 60s), "preferences_opens_over_the_printer_panel");
+        stop_answering_modals();
+        check(panel.IsShown() && host->availability() != Agent::AgentAvailability::Ready,
+              "printer_panel_follows_a_removed_key");
     }
 
     // A printer chat closed by the person and opened again from Home is a new
@@ -8099,7 +8178,7 @@ private:
 
     // What the packaged page actually renders in the dock before anything is
     // delegated: the offer replaces the conversation chrome, its one action
-    // opens setup, and the ask box stays put and disabled.
+    // is live, and the ask box stays put and disabled.
     // The page reports the answer back over the bridge's draft message, which
     // the host stores where this harness can read it.
     void verify_not_set_up_empty_state()
@@ -8128,62 +8207,56 @@ private:
                                    "not_set_up_dock_is_one_live_offer");
                        if (self->persistence().draft() != "offer|header|no-chrome|setup-live|ask-inert")
                            std::cerr << "HARNESS DETAIL dock state was " << self->persistence().draft() << '\n';
-                       self->verify_setup_opens_the_chooser();
+                       self->verify_offer_opens_agent_preferences();
                    });
     }
 
-    // The setup flow in the real WKWebView. Each step clicks, then reports
-    // from a timeout so React has re-rendered before the page is asked what
-    // it now shows; chaining clicks inside one script would read the previous
-    // screen.
-    void verify_setup_opens_the_chooser()
+    // The pane's way into setup in the real WKWebView -- the offer over an
+    // empty chat, or the setup bar under a thread (the fixture's edits make
+    // one) -- opens Preferences on its Agent section, over the pane, and the
+    // pane draws no setup of its own. Closed without an agent, the window
+    // leaves the pane as it was. The page reports from a timeout, so React
+    // has re-rendered first.
+    void verify_offer_opens_agent_preferences()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         persistence().set_draft({});
+        close_preferences_when_loaded();
         WebView::RunScript(web_view.webview(),
-                           "(function () {"
-                           "  document.querySelector('[data-testid=\"agent-not-configured\"] button.primary').click();"
-                           "  setTimeout(function () {"
-                           "    window.__jusprinTest.setDraft("
-                           "      document.querySelector('[data-testid=\"setup-chooser\"]') ? 'chooser' : 'no-chooser');"
-                           "  }, 0);"
-                           "})()");
-        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
-                   "setup_chooser_reported", [self = shared_from_this()] {
-                       self->check(self->persistence().draft() == "chooser", "offer_action_opens_setup");
-                       self->verify_setup_reaches_the_key_screen();
-                   });
-    }
-
-    void verify_setup_reaches_the_key_screen()
-    {
-        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        persistence().set_draft({});
-        WebView::RunScript(
-            web_view.webview(),
-            "(function () {"
-            "  document.querySelector('[data-testid=\"setup-row-api-key\"]').click();"
-            "  setTimeout(function () {"
-            "    var screen = document.querySelector('[data-testid=\"setup-api-key\"]');"
-            "    var live = [];"
-            "    document.querySelectorAll('[data-testid=\"setup-api-key\"] .setup-tab').forEach("
-            "      function (tab) { if (!tab.disabled) live.push(tab.textContent); });"
-            "    window.__jusprinTest.setDraft("
-            "      (screen ? 'key-screen' : 'no-key-screen') + '|' + live.join(','));"
-            "  }, 0);"
-            "})()");
-        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
-                   "setup_key_screen_reported", [self = shared_from_this()] {
-                       self->check(self->persistence().draft() == "key-screen|Anthropic,OpenAI,OpenRouter",
-                                   "key_screen_offers_only_verifiable_providers");
-                       if (self->persistence().draft() != "key-screen|Anthropic,OpenAI,OpenRouter")
-                           std::cerr << "HARNESS DETAIL key screen was " << self->persistence().draft() << '\n';
-                       self->verify_setup_key_check_round_trips();
+                           "document.querySelector('[data-testid=\"agent-not-configured\"] button.primary, "
+                           "[data-testid=\"agent-setup-bar\"] button.primary').click();");
+        wait_until([self = shared_from_this()] { return self->preferences_closed(); },
+                   "offer_opened_preferences", [self = shared_from_this()] {
+                       self->stop_answering_modals();
+                       self->check(self->m_preferences_section == std::optional<std::string>("agent"),
+                                   "offer_action_opens_preferences_on_agent");
+                       self->check(installed_shell()->agent_pane()->web_view().host().availability() ==
+                                       Agent::AgentAvailability::Unavailable,
+                                   "closing_preferences_without_an_agent_leaves_it_unset");
+                       WebView::RunScript(
+                           installed_shell()->agent_pane()->web_view().webview(),
+                           "setTimeout(function () {"
+                           "  var q = function (s) { return document.querySelector(s); };"
+                           "  window.__jusprinTest.setDraft(["
+                           "    q('[data-testid=\"agent-not-configured\"], [data-testid=\"agent-setup-bar\"]') ? 'entry' : 'no-entry',"
+                           "    q('[data-testid=\"setup-chooser\"], [data-testid=\"agent-key-openai\"]') ? 'setup' : 'no-setup'"
+                           "  ].join('|'));"
+                           "}, 0);");
+                       self->wait_until([self] { return !self->persistence().draft().empty(); }, "offer_after_preferences_reported",
+                                        [self] {
+                                            self->check(self->persistence().draft() == "entry|no-setup",
+                                                        "the_pane_keeps_its_way_in_and_draws_no_setup");
+                                            if (self->persistence().draft() != "entry|no-setup")
+                                                std::cerr << "HARNESS DETAIL pane after Preferences was "
+                                                          << self->persistence().draft() << '\n';
+                                            self->verify_setup_key_check_round_trips();
+                                        });
                    });
     }
 
     // A key check driven from the page, over the real script-message channel,
-    // through the real host and HTTP transport. JUSPRIN_OPENAI_ENDPOINT points
+    // through the real host and HTTP transport: the host code Preferences ›
+    // Agent checks keys with, on the pane's own host. JUSPRIN_OPENAI_ENDPOINT points
     // at a closed local port for this run, so the whole path is exercised and
     // the failure the user sees is a real one, with no external service
     // involved.
@@ -8210,7 +8283,7 @@ private:
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         WebView::RunScript(web_view.webview(),
                            "(function () {"
-                           "  if (document.querySelector('[data-testid=\"setup-error\"]'))"
+                           "  if (window.__jusprinTest.state().setup.phase === 'error')"
                            "    window.__jusprinTest.setDraft('setup-error');"
                            "})()");
     }
@@ -11231,10 +11304,13 @@ int main(int argc, char** argv)
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
     fs::create_directories(data_directory / "log");
-    if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured) {
+    if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured ||
+        state->mode == HarnessState::Mode::PrintIssues || state->mode == HarnessState::Mode::PrinterSetup) {
         // The unavailable setup check exercises a connection failure. The
         // configured task-chat capture never sends a turn, but also uses the
-        // closed port so its placeholder key cannot reach a provider.
+        // closed port so its placeholder key cannot reach a provider; so do
+        // the print-issue and printer-setup runs, which store one as a key
+        // checked in Preferences would be.
         wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
     }
 

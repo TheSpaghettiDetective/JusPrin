@@ -33,9 +33,6 @@ public:
         // A printer was saved or changed; Home's list is out of date.
         // `added` names a printer this session just added, or is empty.
         std::function<void(const std::string& added)> printers_changed;
-        // The person set the agent up in here, so the rest of the shell has
-        // to look again at how it is configured.
-        std::function<void()> agent_configured;
         // Called after the temporary filament chat closes, before the native
         // material settings dialog is shown.
         std::function<void(std::size_t)> open_filament_settings;
@@ -68,6 +65,10 @@ public:
     void close();
 
     void apply_appearance(bool dark);
+    // Reads the agent's settings again into the open session, after
+    // Preferences changed them. The session goes on as it was: a greeting
+    // waiting for an agent continues, and nothing is sent.
+    void reload_agent_config();
 
     // What the panel's page draws above and inside its thread. The harness
     // reads it to see the session without driving the page.
@@ -98,6 +99,8 @@ private:
     void on_release_retired(wxTimerEvent& event);
     bool handle_printer_page_message(const std::string& type, const nlohmann::json& payload);
     bool handle_filament_page_message(const std::string& type, const nlohmann::json& payload);
+    // The page's way to Preferences (its offer when there is no agent).
+    bool handle_preferences_request(const std::string& type, const nlohmann::json& payload);
     std::optional<Agent::ToolError> filament_preflight(Agent::ToolHandler handler, const Agent::ToolActivity& activity) const;
     Agent::AgentSessionProfile      filament_profile() const;
     nlohmann::json                  filament_session_json() const;

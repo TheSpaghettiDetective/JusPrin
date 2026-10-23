@@ -202,16 +202,21 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Open printer settings' })).toBeInTheDocument();
   });
 
-  it('navigates agent setup and resumes the printer chat when ready', async () => {
+  it('sends its offer to Preferences › Agent, keeps the panel, and continues the greeting once an agent is there', async () => {
     const host = open(state({ agent: { status: 'unavailable' } }));
     await userEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Your own API key' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
-    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'test-key');
-    await userEvent.click(screen.getByRole('button', { name: 'Check key' }));
-    host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500 });
+    expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+    // No setup is drawn in the panel, and the panel is not closed for the person.
+    expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Your own API key' })).not.toBeInTheDocument();
+    expect(host.received.filter((envelope) => envelope.type === 'printer_action')).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browse the full printer list' })).toBeInTheDocument();
+
+    // The window closes with an agent: the greeting is there and nothing was sent.
     host.deliver('agent_status', { status: 'ready' });
     expect(screen.getByText('What printer do you have?')).toBeVisible();
+    expect(host.lastOfType('user_message')).toBeUndefined();
     await userEvent.type(screen.getByLabelText('Message the Agent'), 'Bambu A1 mini{Enter}');
     expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Bambu A1 mini' });
   });

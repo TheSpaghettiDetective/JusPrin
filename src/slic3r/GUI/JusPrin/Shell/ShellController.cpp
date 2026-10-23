@@ -474,9 +474,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     _L("You've opened this file before. Open the most recently updated project or create another project from this file.") :
                     _L("You've opened this file before. Open the existing project to continue where you left off, "
                        "or create a new project from this file.");
-                // OrcaSlicer's own dialog, as offer_agent_setup uses, so it looks
-                // like every other question the app asks. Its Yes is the
-                // highlighted button, so Yes is the choice suggested here.
+                // OrcaSlicer's own dialog, so it looks like every other
+                // question the app asks. Its Yes is the highlighted button,
+                // so Yes is the choice suggested here.
                 MessageDialog dialog(m_frame, message, _L("Previously opened file"), wxYES_NO | wxCANCEL | wxICON_QUESTION);
                 const wxString keep  = current ? _L("Continue current project") :
                                        matches.size() > 1 ? _L("Open most recent project") : _L("Open existing project");
@@ -574,7 +574,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             PrinterSetup::PrinterPanel::Callbacks{
                 [this] { restore_task_panel(); },
                 [this](const std::string& added) { m_home->refresh(added); },
-                [this] { mark_agent_config_possibly_changed(); },
                 [](std::size_t slot) { SetupCommands::open_filament_settings(slot); }, version_before, version_after,
                 // The project's own counter, which its agent pane takes ids from.
                 [this] { return m_persistence->document().allocate_action_id(); }});
@@ -679,13 +678,17 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             };
             actions.submit = [this](const std::string& id, const std::string& request) {
                 const std::string outcome = submit_issue(id, request).outcome;
-                if (outcome == "agent_not_set_up")
-                    offer_agent_setup();
                 // "duplicate": the same question about the same evidence is
                 // already in the chat.
                 return outcome == "started" || outcome == "queued" || outcome == "duplicate";
             };
             actions.chat_busy = [this] { return m_agent_pane != nullptr && m_agent_pane->web_view().host().busy(); };
+            actions.agent_ready = [this] {
+                return m_agent_pane != nullptr && m_agent_pane->web_view().host().availability() == Agent::AgentAvailability::Ready;
+            };
+            // The one place the agent is set up. Opened from a later turn:
+            // the press arrives inside the canvas's own frame.
+            actions.set_up_agent = [this] { request_preferences("agent"); };
             m_issue_overlay = std::make_unique<PrintIssues::IssueOverlay>(*prepare_canvas, *m_print_issues, std::move(actions));
             m_prepare_canvas_presentation.set_extra_overlay([this] {
                 if (m_issue_overlay)
@@ -1010,34 +1013,8 @@ ShellController::IssueSubmission ShellController::submit_issue(const std::string
     return result;
 }
 
-bool ShellController::offer_agent_setup()
-{
-    // OrcaSlicer's own message dialog, so it looks like every other question
-    // the app asks rather than like a system alert.
-    MessageDialog dialog(m_frame,
-                         _L("The AI assistant isn't set up yet. Set it up in the chat panel, and it can explain this issue "
-                            "and help you fix it."),
-                         _L("Set up the AI assistant"), wxYES_NO | wxYES_DEFAULT | wxICON_INFORMATION);
-    dialog.SetButtonLabel(wxID_YES, _L("Set up now"));
-    dialog.SetButtonLabel(wxID_NO, _L("Not now"));
-    const bool accepted = dialog.ShowModal() == wxID_YES;
-    if (accepted)
-        open_agent_setup();
-    return accepted;
-}
-
-void ShellController::open_agent_setup()
-{
-    m_agent_pane_user_collapsed = false;
-    if (m_tabpanel->GetSelection() == MainFrame::tpHome)
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
-    set_agent_pane_collapsed(false);
-    m_agent_pane->web_view().host().request_setup();
-}
-
 void ShellController::reload_agent_config()
 {
-    m_agent_config_possibly_changed = false;
     Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
     m_agent_pane->web_view().host().set_agent(std::move(runtime.service), runtime.availability);
 }
@@ -1066,9 +1043,14 @@ void ShellController::open_preferences(const std::string& section)
     m_preferences_open = false;
 
     // Reloading cancels whatever the docked agent is doing, so only when the
-    // window changed its settings.
-    if (agent_settings() != agent_before)
+    // window changed its settings. An open printer or filament chat runs on
+    // an agent of its own, read when it opened; it looks again too, so a chat
+    // that was waiting for an agent continues where it was.
+    if (agent_settings() != agent_before) {
         reload_agent_config();
+        if (m_task_open && m_printer_panel != nullptr)
+            m_printer_panel->reload_agent_config();
+    }
     apply_current_appearance();
     // What OrcaSlicer does after its own dialog: the 3D view settings are
     // read as it draws, so a redraw shows them.
@@ -1319,12 +1301,6 @@ void ShellController::on_page_changed()
     if (home)
         m_home->refresh();
     m_home->set_live(home);
-    // A throwaway setup webview elsewhere (the Add a printer dialog) may have
-    // written a working agent config since the docked pane last checked; push
-    // it in now, the same "refresh on the way in" pattern as Home's gallery
-    // above, rather than reloading the page or polling continuously.
-    if (m_agent_config_possibly_changed)
-        reload_agent_config();
     // Home and the Notebook share the workspace slot, so exactly one is shown.
     // The Notebook is only hidden while Home is the selection: post_init
     // selects the Prepare tab to map the GL canvas before it initialises

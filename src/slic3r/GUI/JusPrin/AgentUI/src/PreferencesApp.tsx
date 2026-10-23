@@ -1,7 +1,7 @@
 // The Agent page in its Preferences mode (?panel=preferences): JusPrin's
-// Preferences window. It speaks the same bridge as the Agent panel, so the
-// key checks and AI tool connections it offers are the ones Agent setup
-// runs, and adds one message of its own, preferences_action.
+// Preferences window. It speaks the same bridge as the Agent panel, so its
+// key checks and AI tool connections run on the same host code, and adds one
+// message of its own, preferences_action.
 
 import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, Transport } from './bridge/client';
