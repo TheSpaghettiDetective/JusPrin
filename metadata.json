@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5KCY7Y65WGSTE77Z2F3CTKT",
+  "strategy": "manual-commit",
+  "branch": "claude/jusprin-release-publishing",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/jusprin_release.yml",
+    ".github/workflows/jusprin_release_build.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 24875,
+    "cache_read_tokens": 8686692,
+    "output_tokens": 14654,
+    "api_call_count": 27
+  }
+}
