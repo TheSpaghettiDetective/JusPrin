@@ -1,0 +1,44 @@
+Let's brainstorm on if all calibrations can be abstracted as just a skill, plus an entry point. I guess we can hardcode the entry point because there are only limited number of collaborations. But ideally, once the collocation project is opened, the rest of the things can be just handled by a skill file, and no other specific code.
+
+how is it currently implemente din upstream? can we borrow some ideas there?
+
+Also, can we abstract the outcome of a collaboration? Is it always just some change in the preset settings? If so, the outcome can be abstracted as a new preset, right?
+
+---
+
+Does it mean that we can have a general widgets to capture the output of the calibration? Basically, it's a widget stat. confirm with the user that a new preset has been saved and if the user should start using that preset from that point on.
+
+---
+
+I think we can just tell the user the name of the printer/filament preset to use moving forward, right? we don't have to do the switching for the user. update the canvas page to reflect the simplified design
+
+---
+
+<cross-session-message from="local_9dc98789-b8e4-434b-9c02-dfe61cb973ba" name="Printer calibration placement brainstorm">
+Kenneth asks you to spin up a task chip (a start_session "own_initiative" proposal card) to discuss how to consolidate the agent setup flow. His words, from a fork of this session: "tell the main session to spin up a task chip to discuss how we can consolidate the agent setup flow".
+
+Context that prompted it: I described the no-agent case for "Calibrate…" on a Home card, and he called the current pattern clunky and surprising. Today the app has three different answers to "this needs the agent and none is set up": the print-issue buttons on the canvas ask through an OrcaSlicer MessageDialog ("Set up now / Not now", ShellController::offer_agent_setup) and then leave Home for the workspace with the Agent pane's setup flow; Home's "Printer settings…" and "+ Add printer" open the printer conversation panel on Home, which shows the agent setup inline before the conversation (PrinterPanel.cpp, set_setup_completed_listener); and the Agent pane itself has its own setup entry. Calibrate… would add a fourth unless these are unified. Kenneth's objection to my first proposal: "On the homepage, most users don't have a workspace open. So we just randomly open a new workspace?" The chip should be a design discussion, not implementation: one setup flow, where it lives, how every entry point (canvas issue buttons, Home printer actions, Calibrate…, the pane) reaches it, and what happens on cancel. Leave implementation out of scope.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_122e5b89-1893-497a-9fcd-c587e318d0be" name="Printer calibration placement brainstorm">
+Kenneth asks you to start a session now (his words from this fork: "tell the main session to start it") that verifies, by running code, whether OrcaSlicer's calibration generators can run into a calibration project JusPrin has already created and opened as a fresh, empty, named project. Why: he wants the flow to be one popup, then drop the person into an empty calibration project whose agent, with the context handed over, picks the test and generates into that project. The handoff must not be rewritten on that until it is proven.
+
+Brief for the session (fresh context, its own worktree, use_worktree true):
+
+Verify one hypothesis by running code, not by reading it: that OrcaSlicer's calibration generators can be run into a calibration project that JusPrin has already created and opened (a fresh, empty, named project), so the new flow can be "popup → open empty calibration project → the agent asks which test → generate into this project" instead of "pick the test first, then the generator creates the project".
+
+Establish each point with evidence (a test, a harness run or a log, with exact lines):
+1. Each of Plater::calib_temp, Plater::calib_flowrate and Plater::calib_pa (src/slic3r/GUI/Plater.cpp, from about line 12677) begins with its own new_project(). When the open project is a fresh, unmodified, empty project JusPrin just created and named (as the project_open tool does with new: true, Workspace/OrcaWorkspaceAdapter.cpp about line 2450), does that call show any dialog, save anything to version history, or otherwise differ from a no-op? Run it.
+2. The generators rename the project ("Nozzle temperature test", "Flowrate Test - Pass1", "Pressure Advance Test"). Can JusPrin keep its own project name afterwards, and does it survive a save? Show the name before and after.
+3. After generating into the already-open project: are the test objects on the active plate, are the print's calibration parameters set (Print::calib_params, read in GCode.cpp about line 4697), and do the generator's preset edits land in the edited presets as on OrcaSlicer's own dialog path? Compare with a run through OrcaSlicer's own path on the same inputs and report any difference.
+4. The pressure-advance pattern hard-codes the first plate's origin (Plater.cpp about line 12814) and writes per-layer custom G-code into the plate; confirm it behaves the same in the already-open project.
+5. If anything differs, say exactly what and whether a small product-neutral seam in OrcaSlicer-owned code would be needed (read agent-docs/jusprin/fork-stewardship.md first; propose, do not implement).
+
+Use the shell harness with the fake Bambu printer (src/slic3r/GUI/JusPrin/Testing/README.md) or a Catch2 test in tests/workspace against the real adapter, whichever reaches running code fastest; a throwaway test deleted afterwards is fine. Build with -j4 after checking uptime and pgrep -fl ninja, one build per build directory, never restarting a build to change targets. No live-model calls. Commit nothing. Write the findings as an untracked calibration-generate-verification.md in the worktree root, plain English for a cold reader: hypothesis, what was run, what happened, and a yes/no on whether the new flow can be specified. Background and the current handoff: /Users/kenneth/Projects/JusPrin/calibration-handoff.md (read from the main checkout; do not copy or commit it).
+
+Background for the session: JusPrin is a long-lived OrcaSlicer fork with a React Agent pane. A calibration is a project of its own because the generators call new_project() and edit project-wide presets (verified by reading on 2026-10-21). The first implementation showed a clunky flow (popup about closing the project, then the agent asking which test). On 2026-10-22 Kenneth proposed the one-popup flow above; it depends on the generators working into an already-open empty project, which has only been inferred from reading Plater.cpp. Temporary docs stay untracked, never committed or gitignored; builds on the shared Mac are one at a time with -j4.
+
+I withdrew the chip I had proposed for this in the fork so there is only one.
+</cross-session-message>
