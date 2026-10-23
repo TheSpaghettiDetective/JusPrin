@@ -707,8 +707,8 @@ private:
             for (const int value : values) text += (text.empty() ? "" : ",") + std::to_string(value + by);
             return text;
         };
-        const std::string far = plus(saved_temperatures, 40);
-        const SettingsPatch far_save{{{"nozzle_temperature_initial_layer", far}}, {SettingsScope::Filament, {}, filament_name}, filament_name};
+        const std::string far_text = plus(saved_temperatures, 40);
+        const SettingsPatch far_save{{{"nozzle_temperature_initial_layer", far_text}}, {SettingsScope::Filament, {}, filament_name}, filament_name};
         const auto          far_preview = m_workspace->preview_settings(far_save);
         const auto          question    = std::find_if(far_preview.warnings.begin(), far_preview.warnings.end(),
                                                        [](const SettingIssue& issue) { return issue.code == kSkippedConfirmation; });
@@ -719,7 +719,7 @@ private:
         {
             ScopedDialogListener listener([&asked](wxWindow&, const DialogFacts& facts) -> std::optional<int> { asked.push_back(squashed(facts.text)); return wxID_NO; });
             DynamicPrintConfig by_hand = filaments.get_edited_preset().config;
-            by_hand.set_deserialize_strict("nozzle_temperature_initial_layer", far);
+            by_hand.set_deserialize_strict("nozzle_temperature_initial_layer", far_text);
             filament_tab->load_config(by_hand);
             filament_tab->validate_filament_temperature_pairs();
             filaments.discard_current_changes();
@@ -730,7 +730,7 @@ private:
         std::cerr << "CONFIRMATION save Orca asks: " << listed(asked) << '\n';
         check(forwarded.size() == 1 && asked.size() == 1 && asked[0].rfind(forwarded[0], 0) == 0, "skipped_save_confirmation_is_what_orca_asks");
         const auto saved_first_layer = [&] { return filaments.find_preset(filament_name, false)->config.opt_serialize("nozzle_temperature_initial_layer"); };
-        check(m_workspace->apply_settings(far_save, previewed_changes(far_preview), applied).succeeded() && saved_first_layer() == far,
+        check(m_workspace->apply_settings(far_save, previewed_changes(far_preview), applied).succeeded() && saved_first_layer() == far_text,
               "skipped_save_confirmation_applies_as_sent_unasked");
 
         // Saving another of the project's filaments opens it in the tab, which
@@ -748,7 +748,7 @@ private:
                   return issue.code == "discards_unsaved_edits" && issue.allowed == std::vector<std::string>{"nozzle_temperature_initial_layer"};
               }), "drop_edits_preview_lists_them");
         check(m_workspace->apply_settings(elsewhere, previewed_changes(elsewhere_preview), applied).succeeded() &&
-                  bundle.filament_presets[1] == elsewhere.persist_as && !filaments.current_is_dirty() && saved_first_layer() == far,
+                  bundle.filament_presets[1] == elsewhere.persist_as && !filaments.current_is_dirty() && saved_first_layer() == far_text,
               "drop_edits_saves_the_other_filament_unasked");
         m_plater->sidebar().delete_filament(1, 0);
         check(filament_tab->select_preset(filament_name) && bundle.filament_presets.size() == 1, "drop_edits_fixture_restored");
