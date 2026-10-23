@@ -51,8 +51,10 @@
 //   --live-agent-unavailable
 //              selects OpenAI with consent withheld and verifies that the
 //              application stays usable without silently selecting the mock;
-//              the pane's offer opens Preferences on its Agent section, and
-//              the pane draws no setup of its own
+//              the dock shows the offer over the empty chat and, once the
+//              fixture's edit makes a thread, the setup bar under it, which
+//              opens Preferences on its Agent section; the pane draws no
+//              setup of its own
 //   --slice-all-cold
 //              guards Slice all on a multi-plate project before the Preview
 //              canvas has ever rendered — the conditions of upstream crash
@@ -1104,6 +1106,12 @@ public:
                 });
                 return;
             }
+            if (m_state->mode == HarnessState::Mode::LiveAgentUnavailable) {
+                // The empty chat is read before the fixture's first edit
+                // turns it into a thread; the fixture comes after.
+                verify_unavailable_agent();
+                return;
+            }
             load_multi_plate_fixture();
             if (m_state->mode == HarnessState::Mode::LeftPaneEditor) {
                 verify_left_pane_editor();
@@ -1169,11 +1177,6 @@ public:
             if (m_state->mode == HarnessState::Mode::LiveAgent) {
                 verify_canvas_interaction();
                 verify_live_agent();
-                return;
-            }
-            if (m_state->mode == HarnessState::Mode::LiveAgentUnavailable) {
-                verify_canvas_interaction();
-                verify_unavailable_agent();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::RecomputingCapture) {
@@ -8176,9 +8179,10 @@ private:
                    [self = shared_from_this()] { self->verify_not_set_up_empty_state(); });
     }
 
-    // What the packaged page actually renders in the dock before anything is
-    // delegated: the offer replaces the conversation chrome, its one action
-    // is live, and the ask box stays put and disabled.
+    // What the packaged page actually renders in the dock over an empty chat,
+    // before the project has been edited: the offer replaces the
+    // conversation chrome, its one action is live, and the ask box stays put
+    // and disabled.
     // The page reports the answer back over the bridge's draft message, which
     // the host stores where this harness can read it.
     void verify_not_set_up_empty_state()
@@ -8207,24 +8211,59 @@ private:
                                    "not_set_up_dock_is_one_live_offer");
                        if (self->persistence().draft() != "offer|header|no-chrome|setup-live|ask-inert")
                            std::cerr << "HARNESS DETAIL dock state was " << self->persistence().draft() << '\n';
+                       self->load_multi_plate_fixture();
+                       self->verify_canvas_interaction();
+                       self->verify_not_set_up_thread();
+                   });
+    }
+
+    // Once the project is edited the chat has a thread (the fixture's
+    // Duplicate Object), and with nobody to type to the setup bar takes the
+    // composer's place under it: the offer is gone, the bar's one action is
+    // live, and there is no ask box.
+    void verify_not_set_up_thread()
+    {
+        const auto& document = persistence().document();
+        const std::vector<Agent::ChangeEntry> changes = document.changes();
+        check(std::any_of(changes.begin(), changes.end(),
+                          [&document](const Agent::ChangeEntry& change) {
+                              return change.actor == "person" && change.conversation_id == document.active_conversation_id();
+                          }),
+              "fixture_edit_is_in_the_active_chat");
+        persistence().set_draft({});
+        WebView::RunScript(
+            installed_shell()->agent_pane()->web_view().webview(),
+            "setTimeout(function () {"
+            "  var q = function (s) { return document.querySelector(s); };"
+            "  var setup = q('[data-testid=\"agent-setup-bar\"] button.primary');"
+            "  window.__jusprinTest.setDraft(["
+            "    q('[data-testid=\"agent-not-configured\"]') ? 'offer' : 'no-offer',"
+            "    setup ? (setup.disabled ? 'bar-inert' : 'bar-live') : 'no-bar',"
+            "    q('.composer textarea') ? 'ask' : 'no-ask'"
+            "  ].join('|'));"
+            "}, 0);");
+        wait_until([self = shared_from_this()] { return !self->persistence().draft().empty(); },
+                   "not_set_up_thread_reported", [self = shared_from_this()] {
+                       self->check(self->persistence().draft() == "no-offer|bar-live|no-ask",
+                                   "not_set_up_thread_has_one_live_setup_bar");
+                       if (self->persistence().draft() != "no-offer|bar-live|no-ask")
+                           std::cerr << "HARNESS DETAIL dock state was " << self->persistence().draft() << '\n';
                        self->verify_offer_opens_agent_preferences();
                    });
     }
 
-    // The pane's way into setup in the real WKWebView -- the offer over an
-    // empty chat, or the setup bar under a thread (the fixture's edits make
-    // one) -- opens Preferences on its Agent section, over the pane, and the
-    // pane draws no setup of its own. Closed without an agent, the window
-    // leaves the pane as it was. The page reports from a timeout, so React
-    // has re-rendered first.
+    // The setup bar in the real WKWebView opens Preferences on its Agent
+    // section, over the pane, and the pane draws no setup of its own (the
+    // offer's button does the same; the page's tests cover both). Closed
+    // without an agent, the window leaves the pane as it was. The page
+    // reports from a timeout, so React has re-rendered first.
     void verify_offer_opens_agent_preferences()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
         persistence().set_draft({});
         close_preferences_when_loaded();
         WebView::RunScript(web_view.webview(),
-                           "document.querySelector('[data-testid=\"agent-not-configured\"] button.primary, "
-                           "[data-testid=\"agent-setup-bar\"] button.primary').click();");
+                           "document.querySelector('[data-testid=\"agent-setup-bar\"] button.primary').click();");
         wait_until([self = shared_from_this()] { return self->preferences_closed(); },
                    "offer_opened_preferences", [self = shared_from_this()] {
                        self->stop_answering_modals();
@@ -8238,15 +8277,15 @@ private:
                            "setTimeout(function () {"
                            "  var q = function (s) { return document.querySelector(s); };"
                            "  window.__jusprinTest.setDraft(["
-                           "    q('[data-testid=\"agent-not-configured\"], [data-testid=\"agent-setup-bar\"]') ? 'entry' : 'no-entry',"
+                           "    q('[data-testid=\"agent-setup-bar\"]') ? 'bar' : 'no-bar',"
                            "    q('[data-testid=\"setup-chooser\"], [data-testid=\"agent-key-openai\"]') ? 'setup' : 'no-setup'"
                            "  ].join('|'));"
                            "}, 0);");
                        self->wait_until([self] { return !self->persistence().draft().empty(); }, "offer_after_preferences_reported",
                                         [self] {
-                                            self->check(self->persistence().draft() == "entry|no-setup",
-                                                        "the_pane_keeps_its_way_in_and_draws_no_setup");
-                                            if (self->persistence().draft() != "entry|no-setup")
+                                            self->check(self->persistence().draft() == "bar|no-setup",
+                                                        "the_pane_keeps_its_setup_bar_and_draws_no_setup");
+                                            if (self->persistence().draft() != "bar|no-setup")
                                                 std::cerr << "HARNESS DETAIL pane after Preferences was "
                                                           << self->persistence().draft() << '\n';
                                             self->verify_setup_key_check_round_trips();
