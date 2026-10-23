@@ -240,6 +240,7 @@ private:
     bool            m_app_conf_exists{ false };
     EAppMode        m_app_mode{ EAppMode::Editor };
     bool            m_is_recreating_gui{ false };
+    std::function<bool(size_t, const std::string&)> m_preferences_handler;
 #ifdef __linux__
     bool            m_opengl_initialized{ false };
 #endif
@@ -520,6 +521,8 @@ public:
     void            check_new_version_sf(bool show_tips = false, int by_user = 0);
     bool            process_network_msg(std::string dev_id, std::string msg);
     void            request_new_version(int by_user);
+    // When set, runs instead of check_new_version_sf(), for an app that checks for its own versions.
+    std::function<void(int by_user)> app_update_check;
     void            enter_force_upgrade();
     void            set_skip_version(bool skip = true);
     void            no_new_version();
@@ -619,6 +622,9 @@ public:
     bool            is_localized() const { return m_wxLocale->GetLocale() != "English"; }
 
     void            open_preferences(size_t open_on_tab = 0, const std::string& highlight_option = std::string());
+    // Lets another window answer open_preferences(): the handler gets the same
+    // arguments and returns false to leave them to the dialog.
+    void            set_preferences_handler(std::function<bool(size_t, const std::string&)> handler) { m_preferences_handler = std::move(handler); }
     void            open_presetbundledialog(size_t open_on_tab = 0, const std::string& highlight_option = std::string());
     void            open_exportpresetbundledialog(size_t open_on_tab = 0, const std::string& highlight_option = std::string());
     virtual bool OnExceptionInMainLoop() override;
