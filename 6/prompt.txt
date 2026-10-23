@@ -1,0 +1,23 @@
+The placeholder "Ask about ..." is strange after the first message
+come up with a better design for what the input box shoudl behave. check best practices based on how other ai chatbots design this
+
+---
+
+<cross-session-message from="local_43f1d303-3345-4d67-8e2c-f87256cc1808" name="Input placeholder design">
+Kenneth approved your composer placeholder proposal as written; please implement it in AgentUI.
+Rules (set in Composer.tsx where the placeholder is chosen):
+- Empty chat: keep "Ask about this print or request a change…" (filament chat: "Ask about this filament or request a change…").
+- After the person's first message, no answer buttons showing: "Reply…".
+- Newest Agent message shows answer buttons: "Or type your own answer…". It goes back to "Reply…" once the buttons disappear.
+- Keep these unchanged: "Agent is responding…" while streaming, the staged-photo hint, and the disabled-state text.
+- Printer panel: keep its e.g. examples only until the person's first reply, then apply the same two rules above.
+Kenneth confirmed in the side session that "Or type your own answer…" appears only while buttons are showing; most of the time the hint is "Reply…". Add visual test cases for the new states, and test it in the built app.
+</cross-session-message>
+
+---
+
+Yes, implement the placeholder design as the other session described, with visual tests, and test it in the built app.
+
+---
+
+Try again
