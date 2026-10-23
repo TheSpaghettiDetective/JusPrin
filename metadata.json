@@ -4,7 +4,28 @@
   "strategy": "manual-commit",
   "branch": "claude/jusprin-release-squash",
   "checkpoints_count": 1,
-  "files_touched": null,
+  "files_touched": [
+    ".github/workflows/jusprin_release.yml",
+    ".github/workflows/jusprin_release_build.yml",
+    "CMakeLists.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Preferences.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/setup.visual-cases.tsx",
+    "src/slic3r/GUI/JusPrin/Packaging/JusPrin.png",
+    "src/slic3r/GUI/JusPrin/Packaging/appimage.sh",
+    "src/slic3r/GUI/JusPrin/Packaging/macos_package.sh",
+    "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake",
+    "src/slic3r/GUI/JusPrin/Packaging/release-notes/2.0.0.md",
+    "src/slic3r/GUI/JusPrin/Packaging/release.mjs",
+    "src/slic3r/GUI/JusPrin/Packaging/release.test.mjs",
+    "src/slic3r/GUI/JusPrin/Packaging/windows_package.ps1",
+    "src/slic3r/GUI/JusPrin/Preferences/PreferencesSettings.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Updates/ReleaseFeed.cpp",
+    "src/slic3r/Utils/PresetUpdater.cpp",
+    "tests/jusprin/test_preferences_settings.cpp"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -15,10 +36,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 476,
-    "cache_creation_tokens": 1813410,
-    "cache_read_tokens": 56991403,
-    "output_tokens": 168169,
-    "api_call_count": 208
+    "input_tokens": 10,
+    "cache_creation_tokens": 3580,
+    "cache_read_tokens": 1610511,
+    "output_tokens": 1451,
+    "api_call_count": 4
   }
 }
