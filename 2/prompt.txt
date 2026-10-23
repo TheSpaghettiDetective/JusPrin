@@ -1,0 +1,35 @@
+Background (from the session that started this one):
+JusPrin is a long-lived fork of OrcaSlicer (C++17, wxWidgets) with a React Agent pane in a WebView; the Agent needs a provider (API key or connected AI tool) before it answers. Today three places answer "none is set up" differently: the Prepare canvas print-issue bubble asks through OrcaSlicer's MessageDialog then swaps a chooser into the docked pane (`Shell/ShellController.cpp`, `offer_agent_setup`, `open_agent_setup`); the printer conversation panel swaps the chooser into its own body (`PrinterSetup/PrinterPanel.cpp`); the pane swaps the chooser into its body for a first key (`AgentUI/src/App.tsx`, `components/Setup.tsx`). JusPrin's own Preferences window landed on jusprin-newui as 641c17f13e: a modal window over any screen whose Agent section draws the same key and tool rows (`Preferences/PreferencesWindow.cpp`, `AgentUI/src/components/Preferences.tsx`, `AgentConnection.tsx`); `ShellController::open_preferences` reloads the docked agent on close if `jusprin_agent` changed. On 2026-10-23 Kenneth decided Preferences › Agent is the one setup flow for every entry point, and the decided states were drawn on the "JusPrin v2" canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v): board "Agent setup · one door (decided 2026-10-23)" on the page "Agent setup & Preferences", and board 3b "The same popup, no agent yet" on "Calibration · Printer & Filament". Read `agent-setup-flow-decisions.md` in the main checkout root (/Users/kenneth/Projects/JusPrin, untracked, never commit it) for the decisions, and `agent-docs/jusprin/README.md` plus `fork-stewardship.md` before touching any OrcaSlicer-owned file. The design source is the Claude canvas artifact, never Figma.
+
+Task:
+Implement Kenneth's 2026-10-23 decisions from `agent-setup-flow-decisions.md` (main checkout root, untracked; read it, do not commit it) as the canvas board "Agent setup · one door (decided 2026-10-23)" draws them (read it with the Artifact tool, path `project/` on the "JusPrin v2" canvas; its exact file name is listed in `project/canvas.json`):
+
+1. Every surface that finds no agent shows its own not-set-up state with one action that opens Preferences › Agent (`ShellController::request_preferences("agent")` from native code, or the page's `shell_action open_preferences` with `section: "agent"`). The print-issue bubble (`PrintIssues/IssueOverlay.cpp`) draws one full-width primary button "Set up the agent…" (Kenneth chose "agent" over "assistant") in place of "Ask AI" / "Resolve with AI" while the agent is not Ready; `offer_agent_setup` and its MessageDialog go. The Agent pane's "No agent connected" offer, its setup bar and the chat list's "Connect an Agent" row open Preferences › Agent instead of swapping the chooser into the pane; `openSetup`'s in-body flow, the `SetupChooser` / `SetupApiKey` screens, `request_setup`, `kOpenSetup` and `AgentPageMode::EmbeddedSetup` retire once nothing uses them (keep `SetupLocalTool` and `AgentConnection.tsx`, which Preferences uses). The printer panel's offer button opens Preferences › Agent too; its "Back" and "Browse the full printer list" stay.
+2. When the window closes with an agent, the surface resumes with the agent live and nothing is sent for the person: the bubble shows its two buttons again, the pane shows its composer, the printer panel continues its greeting. The printer panel builds its runtime at `open()`, so it must reload its runtime (or re-read availability) after the window closes; the docked pane already gets `reload_agent_config` from `open_preferences`.
+3. Cancel changes nothing underneath; the printer panel is never closed on the person's behalf.
+4. Every colour, size and radius comes from `ShellTheme` and the tokens; no literals; no wxMessageBox.
+5. The calibration rows (board 3b) are not part of this task; calibration is not built yet.
+
+Tests: Vitest for the pane (the offer's action sends `open_preferences` with section agent; no chooser renders in the pane; the printer panel's offer does the same), Catch2 or the shell harness for the bubble's state and the printer panel reload (`src/slic3r/GUI/JusPrin/Testing/README.md`; the harness has `--printer-setup`), and a build with `-j4` after checking `uptime` and `pgrep -fl ninja` (one build per directory, never restart a build to change targets, kill your own ninja before ending a turn). Done looks like: one commit on the worktree branch, all affected tests passing, and a short report for a cold reader naming what was removed and where each entry point now goes.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_69951946-9d78-4ff9-bc36-81eea24e4c14
+
+---
+
+<task-notification>
+<task-id>b5ckn4dxx</task-id>
+<tool-use-id>toolu_01MBZgURMwYMybaZXzpwosVw</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-reverent-northcutt-dd4d63/8e07eab3-fed9-4363-aca1-bdc0b99365b3/tasks/b5ckn4dxx.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-reverent-northcutt-dd4d63/8e07eab3-fed9-4363-aca1-bdc0b99365b3/scratchpad; P=$(pgrep -f "ninja -f build-Release.ninja -j4 shell_integration_harness"); echo "ninja $P"; until ! kill -0 $P 2&gt;/dev/null; do sleep 15; done; tail -5 $S/build1.log; grep -n "error:\|FAILED" $S/build1.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcyt2lx7s</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-reverent-northcutt-dd4d63/8e07eab3-fed9-4363-aca1-bdc0b99365b3/tasks/bcyt2lx7s.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-reverent-northcutt-dd4d63/8e07eab3-fed9-4363-aca1-bdc0b99365b3/scratchpad; timeout 900 build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --live-agent-unavailable &gt; $S/h_unavail.log 2&gt;&amp;1; echo exit $?; grep -n "FAIL\|DETAIL\|DATA DIR\|RESULT\|offer\|preferences\|setup" $S/h_unavail.log | head -30" completed (exit code 0)</summary>
+</task-notification>
