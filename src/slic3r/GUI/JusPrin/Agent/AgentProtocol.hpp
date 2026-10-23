@@ -31,7 +31,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
-                                                 "model_choice", "all_settings", "settings_actions", "saved_keys"};
+                                                 "model_choice", "all_settings", "settings_actions", "saved_keys",
+                                                 "preferences"};
     return values;
 }
 
@@ -147,6 +148,12 @@ inline constexpr const char* kProjectInstructions    = "project_instructions";
 // in one message: text the app adds to one request when the event its trigger
 // names happens.
 inline constexpr const char* kSkills                 = "skills";
+// The Preferences window's own: one change or command from the page,
+// {action: "set", name, value} or {action: <command>}, and the settings it
+// shows, {kind: "preferences", ...}, sent again after every change. The same
+// settings travel in `state` as its session. preferences capability.
+inline constexpr const char* kPreferencesAction      = "preferences_action";
+inline constexpr const char* kPreferences            = "preferences";
 
 // The events a skill can name as its trigger. The app fires each one itself;
 // the model never chooses a skill.

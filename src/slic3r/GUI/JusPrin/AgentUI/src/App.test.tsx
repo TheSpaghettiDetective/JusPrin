@@ -868,10 +868,18 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open chat: Conversation 1' }));
     expect(screen.getByRole('textbox', { name: 'Message the Agent' })).toHaveValue('Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    // A connected agent is changed in Preferences › Agent, over the panel.
     await userEvent.click(screen.getByRole('button', { name: /Configure Agent/ }));
-    expect(screen.getByTestId('setup-chooser')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Close setup' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+    expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
+  });
+
+  it('opens Preferences on Ctrl+, while the panel has the focus', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.keyboard('{Control>},{/Control}');
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences' });
   });
 
   it('disables changing chats while a tool continuation is pending', async () => {

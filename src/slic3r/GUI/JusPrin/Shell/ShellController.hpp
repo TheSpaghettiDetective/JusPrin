@@ -129,6 +129,13 @@ public:
     // the shell: leaves Home for the workspace, opens the panel as their
     // choice, and asks the page to open setup.
     void open_agent_setup();
+    // JusPrin's Preferences window, over whatever is on screen; returns once
+    // it is closed. `section` names where it opens (empty: Account).
+    void open_preferences(const std::string& section = {});
+    // Opens it on the frame's next turn, for a caller that must not run a
+    // modal window itself (a web view's message handler, a key handler).
+    // Requests that arrive before it opens open it once.
+    void request_preferences(const std::string& section = {});
 
     // A throwaway AgentWebView embedded elsewhere (the Add a printer dialog's
     // own setup flow) just wrote a working agent config that the docked
@@ -161,6 +168,9 @@ private:
     void on_page_changed();
     void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
+    void on_frame_char_hook(wxKeyEvent& event);
+    // Gives the docked panel the agent the stored settings describe now.
+    void reload_agent_config();
     void show_task_panel();
     void restore_task_panel();
     // The width the pane may hold right now: at least its own minimum, and no
@@ -207,6 +217,8 @@ private:
     bool m_agent_pane_user_collapsed{false};
     // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
     bool m_agent_config_possibly_changed{false};
+    bool m_preferences_open{false};
+    bool m_preferences_requested{false};
     bool m_task_open{false};
     int  m_task_origin_tab{-1};
 

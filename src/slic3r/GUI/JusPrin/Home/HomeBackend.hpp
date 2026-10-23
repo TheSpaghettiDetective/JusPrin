@@ -33,6 +33,8 @@ public:
     virtual void import_model()                                 = 0;
     virtual void launch_monitor(const std::string& printer_id)  = 0;
     virtual void add_printer()                                  = 0;
+    // JusPrin's Preferences window, over Home.
+    virtual void open_preferences() {}
 
     // The printer card's menu. Each returns an empty string when the action
     // ran or the person cancelled it, and otherwise a message for the person,

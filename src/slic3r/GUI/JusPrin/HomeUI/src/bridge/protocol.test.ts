@@ -28,6 +28,7 @@ describe('protocol constants come from the shared file', () => {
       'open_printer_settings',
       'rename_printer',
       'remove_printer',
+      'open_preferences',
     ];
     const host: HostMessageType[] = [
       'hello_ack',

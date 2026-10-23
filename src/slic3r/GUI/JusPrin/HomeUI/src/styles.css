@@ -249,7 +249,10 @@ body {
   border-left: 1px solid var(--border-subtle);
 }
 
-.printer-column .section-label {
+.printer-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 
@@ -464,6 +467,7 @@ body {
 .glyph-upload { -webkit-mask-image: url('@resources/jusprin/ui/icons/upload.svg'); mask-image: url('@resources/jusprin/ui/icons/upload.svg'); }
 .glyph-more { -webkit-mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); }
 .glyph-plus { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); }
+.glyph-settings { -webkit-mask-image: url('@resources/jusprin/ui/icons/settings.svg'); mask-image: url('@resources/jusprin/ui/icons/settings.svg'); }
 
 .printer-name-row {
   display: flex;
@@ -492,7 +496,8 @@ body {
 }
 
 /* A quiet icon button: the menu is secondary to the card it sits on. */
-.printer-menu-button {
+.printer-menu-button,
+.preferences-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -506,12 +511,14 @@ body {
   cursor: pointer;
 }
 
-.printer-menu-button .glyph {
+.printer-menu-button .glyph,
+.preferences-button .glyph {
   width: var(--button-icon-icon-size);
   height: var(--button-icon-icon-size);
 }
 
 .printer-menu-button:hover,
+.preferences-button:hover,
 .printer-menu-button[aria-expanded='true'] {
   color: var(--text-primary);
   background: var(--surface-subtle);

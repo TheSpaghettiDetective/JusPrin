@@ -325,7 +325,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
-                                              Protocol::kSettingsAction, Protocol::kSetupRemoveKey});
+                                              Protocol::kSettingsAction, Protocol::kSetupRemoveKey,
+                                              Protocol::kPreferencesAction});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -338,7 +339,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog,
-                                              Protocol::kSetupKeys});
+                                              Protocol::kSetupKeys, Protocol::kPreferences});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")

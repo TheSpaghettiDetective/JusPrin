@@ -225,6 +225,14 @@ public:
     using McpCliDone = std::function<void(bool success, std::string diagnostic)>;
     using McpCliRunner = std::function<void(const std::vector<std::string>& arguments, McpCliDone done)>;
     void configure_mcp_connect(McpConnectSettings settings);
+    // Offers the connections `other` offers: the same helper and the same
+    // discovery file, for a host that runs no MCP server of its own (the
+    // Preferences window's).
+    void share_mcp_connect(const AgentHost& other)
+    {
+        m_mcp_connect        = other.m_mcp_connect;
+        m_mcp_discovery_path = other.m_mcp_discovery_path;
+    }
     void set_mcp_cli_runner(McpCliRunner runner);
     // Reveals one file in the desktop's file manager. The host stays GUI-free,
     // so the wx side supplies the implementation the way it does the CLI

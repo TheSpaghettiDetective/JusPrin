@@ -3,7 +3,7 @@ import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
 import type { PrinterActions } from './components/PrinterMenu';
-import { PlusGlyph, UploadGlyph } from './components/Glyphs';
+import { PlusGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
 
@@ -47,6 +47,18 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The shell's own Ctrl+, cannot see keys while this page has the focus.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+        event.preventDefault();
+        client.send('open_preferences', {});
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [client]);
 
   if (state.connection !== 'connected' && !state.loaded) {
     return (
@@ -94,7 +106,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
         )}
       </main>
       <aside className="printer-column">
-        <span className="section-label">Printers</span>
+        <div className="printer-column-head">
+          <span className="section-label">Printers</span>
+          <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences (Ctrl+,)"
+            onClick={() => client.send('open_preferences', {})}>
+            <SettingsGlyph />
+          </button>
+        </div>
         {state.printerError && (
           <p className="printer-error" role="alert">
             {state.printerError.message}

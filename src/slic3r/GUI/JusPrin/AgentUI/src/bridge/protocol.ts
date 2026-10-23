@@ -42,7 +42,8 @@ export type PageMessageType =
   | 'skills'
   | 'settings_catalog_request'
   | 'settings_action'
-  | 'setup_remove_key';
+  | 'setup_remove_key'
+  | 'preferences_action';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -72,7 +73,8 @@ export type HostMessageType =
   | 'chat_model'
   | 'printer_session'
   | 'settings_catalog'
-  | 'setup_keys';
+  | 'setup_keys'
+  | 'preferences';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -775,6 +777,58 @@ export interface FilamentSessionPayload {
   copyName?: string; // the copy a change to a stock filament is saved as
 }
 
+export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';
+export type DragAction = 'none' | 'pan' | 'rotate';
+
+// What the Preferences window shows, read by the app from the settings
+// OrcaSlicer's own dialog keeps; sent as the state's session and again, as
+// `preferences`, after every change.
+export interface PreferencesPayload {
+  kind: 'preferences';
+  // Where the window was opened; the page goes there once, on load.
+  section: PreferencesSection;
+  agent: {
+    // The provider a new chat talks to, and those it can be: each with a key
+    // stored, and with the one model the app uses for it for now.
+    newChatProvider: string;
+    newChatChoices: { provider: string; model: string; label: string }[];
+  };
+  appearance: {
+    language: string;
+    languages: { code: string; name: string }[];
+    theme: 'light' | 'dark';
+    units: 'mm' | 'in';
+    // The stored language's name when JusPrin is still running in another:
+    // it takes effect at the next start. Null when nothing waits on one.
+    restartFor: string | null;
+  };
+  view3d: {
+    navigation: 'mouse' | 'touchpad';
+    zoomToPointer: boolean;
+    reverseZoom: boolean;
+    freeCamera: boolean;
+    leftDrag: DragAction;
+    middleDrag: DragAction;
+    rightDrag: DragAction;
+  };
+  projects: {
+    versionsFolder: string;
+    downloadPath: string;
+    // File and link associations exist on Windows only.
+    associations: boolean;
+    open3mf: boolean;
+    openModels: boolean;
+    openLinks: boolean;
+  };
+  updates: {
+    version: string;
+    // A newer version JusPrin's own update check found; null when none has
+    // been. That check is not built yet, so for now this is always null.
+    available: { version: string; url: string } | null;
+    updateProfiles: boolean;
+  };
+}
+
 export interface PrinterSessionPayload {
   mode: 'add' | 'change' | 'connect';
   // The printer the conversation is about; empty until one is added.
@@ -901,7 +955,7 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  session?: PrinterSessionPayload | FilamentSessionPayload; // only in the printer and filament chats
+  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload; // the printer and filament chats, and Preferences
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

@@ -322,6 +322,10 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& printer_card = component.at("printerCard");
     m.printer_card.column_width = parse_int(printer_card, "component.printerCard", "columnWidth");
     m.printer_card.radius       = parse_int(printer_card, "component.printerCard", "radius");
+
+    const nlohmann::json& preferences = component.at("preferences");
+    m.preferences.width  = parse_int(preferences, "component.preferences", "width");
+    m.preferences.height = parse_int(preferences, "component.preferences", "height");
     return m;
 }
 

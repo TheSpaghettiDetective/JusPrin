@@ -30,6 +30,7 @@ import {
   McpStatusPayload,
   FilamentSessionPayload,
   PrinterSessionPayload,
+  PreferencesPayload,
   SettingsCatalogPayload,
 } from '../bridge/protocol';
 import { ConnectionState } from '../bridge/client';
@@ -75,6 +76,8 @@ export interface AgentUiState {
   session: PrinterSessionPayload | null;
   // The filament chat's, in its place.
   filamentSession: FilamentSessionPayload | null;
+  // The Preferences window's settings, in its place.
+  preferences: PreferencesPayload | null;
   navigation: { focused: boolean; returnLabel?: string };
   // The All settings panel's table, read from hosts with all_settings; the
   // revision says which project state it describes.
@@ -127,6 +130,7 @@ export const initialState: AgentUiState = {
   mcpStatus: { phase: 'idle' },
   session: null,
   filamentSession: null,
+  preferences: null,
   navigation: { focused: false },
   settingsCatalog: null,
   setupRequests: 0,
@@ -209,7 +213,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         attachments: full.attachments ?? [],
         context: full.context,
         session: full.session && !('kind' in full.session) ? full.session : null,
-        filamentSession: full.session && 'kind' in full.session ? full.session : null,
+        filamentSession: full.session && 'kind' in full.session && full.session.kind === 'filament' ? full.session : null,
+        preferences: full.session && 'kind' in full.session && full.session.kind === 'preferences' ? full.session : null,
         navigation: full.navigation ?? { focused: false },
         settingsCatalog: full.context?.sessionId === state.context?.sessionId ? state.settingsCatalog : null,
         // A full state answers a fresh handshake; any check that was in
@@ -229,6 +234,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       // page fixture that leaves it out means the project on show.
       return { ...state, settingsCatalog: { sessionId: envelope.sessionId ?? state.context?.sessionId ?? '', revision: envelope.revision ?? 0,
         catalog: envelope.payload as SettingsCatalogPayload } };
+    case 'preferences':
+      return { ...state, preferences: envelope.payload as PreferencesPayload };
     case 'printer_session':
       return { ...state, session: envelope.payload as PrinterSessionPayload };
     case 'conversations_updated':

@@ -146,6 +146,21 @@ export function App({
     applyAppearance(state.appearance);
   }, [state.appearance]);
 
+  // The shell's own Ctrl+, cannot see keys while this page has the focus.
+  // Setup embedded in a dialog and the printer conversation have no shell
+  // behind them that would answer.
+  useEffect(() => {
+    if (embedded || printerPanel) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+        event.preventDefault();
+        client.send('shell_action', { action: 'open_preferences' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [client, embedded, printerPanel]);
+
   // The printer panel's first line, which the model is shown as having said:
   // written here, posted by the app, once per session. Before the
   // instructions, so the thread opens with it whatever is sent next.
@@ -509,6 +524,9 @@ export function App({
         if (conversationId !== viewedId) client.send('switch_conversation', { conversationId });
         setView('chat');
       }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
+        // An agent that is set up is changed where every way of connecting
+        // is listed: Preferences › Agent. Setting one up starts here.
+        if (!unavailable) { client.send('shell_action', { action: 'open_preferences', section: 'agent' }); return; }
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} onCollapse={collapseAgentPane} />;
 

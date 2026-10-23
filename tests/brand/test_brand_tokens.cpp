@@ -655,6 +655,21 @@ TEST_CASE("the provider row's key field holds a link button", "[brand]")
             tokens.at("component").at("button").at("link").at("height").get<int>());
 }
 
+// JusPrin's Preferences window (canvas "JusPrin v2", Preferences, decided
+// 2026-10-21): the window, its list of sections and their rows, and the width every select
+// and every segment of a segmented control has in it. A select is as wide as
+// two segments, so the two kinds of control line up down the right edge.
+TEST_CASE("the Preferences window keeps the canvas's sizes", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& preferences = tokens.at("component").at("preferences");
+    require_exact_table<int>(preferences,
+                             {{"width", 800}, {"height", 640}, {"navWidth", 208}, {"navRowHeight", 32},
+                              {"controlWidth", 200}, {"segmentWidth", 96}},
+                             "component.preferences");
+    REQUIRE(preferences.at("navWidth").get<int>() < preferences.at("width").get<int>() / 2);
+}
+
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
 // sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
 // the icon scale would make the row taller than its text, so the card has

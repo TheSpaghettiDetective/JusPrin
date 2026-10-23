@@ -26,10 +26,12 @@ export function SetupScreenTitle({ label, onBack }: { label: string; onBack: () 
   );
 }
 
-// Preferences › Agent is designed but not built, so the footnote cannot point
-// there yet.
 function SetupFootnote() {
-  return <p className="footnote setup-footnote">You can change this later. Nothing here is saved in the project.</p>;
+  return (
+    <p className="footnote setup-footnote">
+      Change this any time in Preferences › Agent. Nothing here is saved in the project.
+    </p>
+  );
 }
 
 export function SetupChooser({ onUseApiKey, onConnectTool, onDismiss }: SetupChooserProps) {

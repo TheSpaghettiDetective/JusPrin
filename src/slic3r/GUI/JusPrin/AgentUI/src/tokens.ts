@@ -35,7 +35,8 @@ export function staticVariableNames(): string[] {
     '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size', '--step-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
-    '--field-height', '--field-padding-x', '--provider-row-field-height', '--setup-card-icon-size', '--swatch-size',
+    '--field-height', '--field-padding-x', '--provider-row-field-height',
+    '--preferences-nav-width', '--preferences-nav-row-height', '--preferences-control-width', '--preferences-segment-width', '--setup-card-icon-size', '--swatch-size',
     ...SECTIONS.flatMap(([prefix, key]) => pixelVariableNames(prefix, lengths(shared[key]))),
     '--composer-padding', '--composer-gap', '--composer-input-padding'];
 }
@@ -65,6 +66,8 @@ export function composerInputMaxHeight(): number {
 //                          strength, a percentage for color-mix())
 //   --provider-row-field-height  the key field inside an Agent provider
 //                          row, tall enough to hold the Paste link
+//   --preferences-*        the Preferences window's list of sections, and
+//                          the width of its selects and of each segment
 //   --setup-card-icon-size the setup card's fact glyphs, which sit inside a
 //                          row of Label or Metadata text
 //   --swatch-size          a colour drawn beside a note, the design
@@ -95,6 +98,7 @@ export function applyStaticTokens(): void {
       chatAttachment: { maxWidth: number; thumbnailSize: number; kindSize: number };
       field: { height: number; paddingX: number };
       providerRow: { fieldHeight: number };
+      preferences: { navWidth: number; navRowHeight: number; controlWidth: number; segmentWidth: number };
       printerCard: { pictureSize: number };
       setupCard: { iconSize: number };
       swatch: { size: number } };
@@ -129,6 +133,10 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--field-height', `${component.field.height}px`);
   document.documentElement.style.setProperty('--field-padding-x', `${component.field.paddingX}px`);
   document.documentElement.style.setProperty('--provider-row-field-height', `${component.providerRow.fieldHeight}px`);
+  document.documentElement.style.setProperty('--preferences-nav-width', `${component.preferences.navWidth}px`);
+  document.documentElement.style.setProperty('--preferences-nav-row-height', `${component.preferences.navRowHeight}px`);
+  document.documentElement.style.setProperty('--preferences-control-width', `${component.preferences.controlWidth}px`);
+  document.documentElement.style.setProperty('--preferences-segment-width', `${component.preferences.segmentWidth}px`);
   document.documentElement.style.setProperty('--printer-card-picture-size', `${component.printerCard.pictureSize}px`);
   const composer = composerTokens();
   document.documentElement.style.setProperty('--composer-padding', `${composer.padding}px`);

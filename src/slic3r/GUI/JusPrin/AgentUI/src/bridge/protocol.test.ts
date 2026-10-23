@@ -57,6 +57,7 @@ describe('protocol constants', () => {
       'settings_catalog_request',
       'settings_action',
       'setup_remove_key',
+      'preferences_action',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

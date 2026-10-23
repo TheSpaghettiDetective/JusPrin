@@ -15,6 +15,9 @@ export interface SetupLocalToolProps {
   onReveal: (toolId: string) => void;
   onBack: () => void;
   onDone: () => void;
+  // Opens on this tool's own screen, as Preferences does from its row; that
+  // screen's way back is then onBack, since the list it came from is not here.
+  startTool?: string;
 }
 
 function errorCopy(status: McpStatusPayload, tool?: McpToolInfo, path?: string): { title: string; body: string } {
@@ -109,9 +112,11 @@ export function SetupLocalTool({
   onReveal,
   onBack,
   onDone,
+  startTool,
 }: SetupLocalToolProps) {
-  const [step, setStep] = useState<Step>('pick');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const started = startTool ? catalog?.tools.find((item) => item.id === startTool) : undefined;
+  const [step, setStep] = useState<Step>(started ? (started.cli ? 'prepare' : 'review') : 'pick');
+  const [selectedId, setSelectedId] = useState<string | null>(started?.id ?? null);
   const [advanced, setAdvanced] = useState(false);
   const [copied, setCopied] = useState(false);
   const [awaitingStatus, setAwaitingStatus] = useState(false);
@@ -127,6 +132,7 @@ export function SetupLocalTool({
 
   useEffect(() => {
     onRefresh();
+    if (started && !started.cli) onPreview(started.id);
     // The catalog is requested once when this surface opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,6 +158,7 @@ export function SetupLocalTool({
   }, [status, awaitingStatus]);
 
   const tool = catalog?.tools.find((item) => item.id === selectedId);
+  const toList = () => (startTool ? onBack() : setStep('pick'));
 
   const choose = (item: McpToolInfo) => {
     setSelectedId(item.id);
@@ -240,7 +247,7 @@ export function SetupLocalTool({
   if (step === 'prepare' && tool) {
     return (
       <div className="pane-state setup" data-testid="setup-local-prepare">
-        <SetupScreenTitle label={tool.name} onBack={() => setStep('pick')} />
+        <SetupScreenTitle label={tool.name} onBack={toList} />
         <p>JusPrin can run this for you, or you can copy it and run it yourself.</p>
         <div className="setup-command">
           <pre>{tool.text}</pre>
@@ -258,7 +265,7 @@ export function SetupLocalTool({
           <button className="primary" onClick={() => connect(tool.id)} disabled={!catalog?.helperPresent}>
             Connect…
           </button>
-          <button onClick={() => setStep('pick')}>Close</button>
+          <button onClick={toList}>Close</button>
         </div>
         <div className="setup-advanced">
           <button type="button" onClick={() => setAdvanced(!advanced)}>
@@ -279,7 +286,7 @@ export function SetupLocalTool({
   if (step === 'review') {
     return (
       <div className="pane-state setup" data-testid="setup-local-review">
-        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={() => setStep('pick')} />
+        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={toList} />
         <p className="setup-consent">
           Allow this AI tool to read and change the open project?
         </p>
@@ -305,7 +312,7 @@ export function SetupLocalTool({
           >
             Connect
           </button>
-          <button onClick={() => setStep('pick')}>Cancel</button>
+          <button onClick={toList}>Cancel</button>
         </div>
       </div>
     );
