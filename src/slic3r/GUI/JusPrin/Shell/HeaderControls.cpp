@@ -393,7 +393,10 @@ void HeaderButton::paint(wxPaintEvent&)
 wxBitmap HeaderButton::snapshot()
 {
     const wxSize size = GetClientSize().x > 0 ? GetClientSize() : GetBestSize();
-    wxBitmap bitmap(size);
+    // Opaque, like the paint buffer. draw() clears with the DC, which on
+    // Windows leaves a 32-bit bitmap's alpha at zero, so the antialiased
+    // corners would come back as near-transparent noise.
+    wxBitmap bitmap(size, 24);
     wxMemoryDC dc(bitmap);
     std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
     if (gc) draw(dc, *gc, size);

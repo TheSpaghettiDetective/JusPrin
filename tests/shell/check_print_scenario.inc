@@ -30,6 +30,10 @@
                 return;
             self->m_cp_opened = true;
             dialog->preview()->get_canvas3d()->render();
+            // The checks read the report as it drew itself. Windows paints a
+            // new window only once its message queue is empty, after this
+            // call, so the report draws now rather than after the checks.
+            dialog->report()->Update();
             inspect(*dialog);
             if (close && dialog->IsModal())
                 dialog->EndModal(wxID_CANCEL);
@@ -55,8 +59,9 @@
         return false;
     }
 
-    // The closing line wraps, so it is compared joined back into one string.
-    static bool drew_closing_line(const CheckPrintReportPanel& panel)
+    // The closing line wraps where the platform's font puts the breaks, so it
+    // is read joined back into one string.
+    static wxString drawn_closing_line(const CheckPrintReportPanel& panel)
     {
         const wxString expected = CheckPrintReportPanel::closing_line(panel.view());
         wxString       joined;
@@ -67,7 +72,13 @@
             if (started)
                 joined += (joined.empty() ? "" : " ") + line;
         }
-        return !expected.empty() && joined == expected;
+        return joined;
+    }
+
+    static bool drew_closing_line(const CheckPrintReportPanel& panel)
+    {
+        const wxString expected = CheckPrintReportPanel::closing_line(panel.view());
+        return !expected.empty() && drawn_closing_line(panel) == expected;
     }
 
     static std::vector<PrintCheck> section_checks(const CheckPrintReportView& view)
@@ -285,7 +296,7 @@
                 self->check(view.clean == closing_line_order(), "cp_a_every_check_is_named_clean");
                 self->check(!view.supports_generated, "cp_a_no_support_generated");
                 self->check(drew_closing_line(panel), "cp_a_closing_line_is_drawn_whole");
-                self->check(drew_line(panel, _L("supports (none generated)")), "cp_a_closing_line_says_none_generated");
+                self->check(drawn_closing_line(panel).Contains(_L("supports (none generated)")), "cp_a_closing_line_says_none_generated");
                 self->check(drew_line(panel, _L("Time")) && drew_line(panel, _L("Filament")), "cp_a_summary_names_time_and_filament");
                 self->check(utf8(dialog.context_label()->GetLabel()).find("sliced for") != std::string::npos, "cp_a_header_names_the_printer");
                 const wxBitmap toggle_off = dialog.legend_toggle()->snapshot();
@@ -453,7 +464,7 @@
                     if (view.sections[section].check == PrintCheck::Islands && !view.sections[section].rows.empty())
                         island = CheckPrintReportPanel::RowRef{section, 0};
                 self->check(island.has_value(), "cp_c_floating_slab_is_an_island");
-                self->check(drew_line(panel, _L("supports (none generated)")), "cp_c_closing_line_says_none_generated");
+                self->check(drawn_closing_line(panel).Contains(_L("supports (none generated)")), "cp_c_closing_line_says_none_generated");
                 self->check(drew_closing_line(panel), "cp_c_closing_line_is_drawn_whole");
                 if (island) {
                     // The island's row moves the layer slider to its height.
