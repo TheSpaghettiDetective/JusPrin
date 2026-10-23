@@ -49,10 +49,14 @@ target_link_libraries(jusprin_tests PRIVATE test_common Catch2WithMain nlohmann_
 orcaslicer_discover_tests(jusprin_tests)
 
 # The printer form's plates and filaments, read from the packaged profiles by
-# OrcaSlicer's own preset loader: this links libslic3r, but no GUI.
+# OrcaSlicer's own preset loader, and the Preferences window's settings, read
+# from and written to OrcaSlicer's AppConfig: this links libslic3r, but no GUI.
 add_executable(jusprin_profile_tests
     test_setup_options.cpp
+    test_preferences_settings.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Preferences/PreferencesSettings.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/UpdateRecord.cpp
 )
 target_compile_definitions(jusprin_profile_tests PRIVATE
     JUSPRIN_SOURCE_DIR=R"\(${CMAKE_SOURCE_DIR}\)"
@@ -60,9 +64,23 @@ target_compile_definitions(jusprin_profile_tests PRIVATE
 target_include_directories(jusprin_profile_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
-target_link_libraries(jusprin_profile_tests PRIVATE test_common libslic3r Catch2WithMain)
+target_link_libraries(jusprin_profile_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
 orcaslicer_copy_test_dlls()
 orcaslicer_discover_tests(jusprin_profile_tests)
+
+# JusPrin's update check: reading GitHub's release list and the record kept in
+# AppConfig. Links libslic3r for Semver and AppConfig, but no GUI.
+add_executable(jusprin_update_tests
+    test_update_check.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/ReleaseFeed.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/UpdateRecord.cpp
+)
+target_include_directories(jusprin_update_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(jusprin_update_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
+orcaslicer_copy_test_dlls()
+orcaslicer_discover_tests(jusprin_update_tests)
 
 # ShellTheme reads the same token file but hands out wxColour and wxFont, and
 # its fonts go through OrcaSlicer's Label::sysFont, so its tests link the GUI

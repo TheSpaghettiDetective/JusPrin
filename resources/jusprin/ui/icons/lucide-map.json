@@ -3,6 +3,8 @@
   "version": "1.47.0",
   "icons": {
     "arrow-up": "arrow-up",
+    "arrow-up-right": "arrow-up-right",
+    "bot": "bot",
     "box": "box",
     "check": "check",
     "chevron-down": "chevron-down",
@@ -19,6 +21,7 @@
     "download": "download",
     "ellipsis": "ellipsis",
     "eye": "eye",
+    "folder": "folder",
     "grid-3x3": "grid-3x3",
     "info": "info",
     "layers-3": "layers-3",
@@ -29,9 +32,11 @@
     "monitor": "monitor",
     "move": "move",
     "package": "package",
+    "palette": "palette",
     "pencil": "pencil",
     "plus": "plus",
     "printer": "printer",
+    "refresh-cw": "refresh-cw",
     "rotate-ccw": "rotate-ccw",
     "rotate-cw": "rotate-cw",
     "search": "search",
@@ -41,6 +46,7 @@
     "triangle-alert": "triangle-alert",
     "undo-dot": "undo-dot",
     "upload": "upload",
+    "user": "user",
     "x": "x"
   }
 }

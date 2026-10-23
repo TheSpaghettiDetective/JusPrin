@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AutoSlice.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
@@ -78,6 +79,9 @@ public:
     // What OrcaSlicer currently reports about the active plate, and its
     // pill, list and bubble on the Prepare canvas. Null while not installed.
     PrintIssues::PrintIssueMonitor* print_issues() const { return m_print_issues.get(); }
+    // The slicing JusPrin starts on its own once the project is quiet. Null
+    // while not installed.
+    AutoSlice* auto_slice() const { return m_auto_slice.get(); }
     PrintIssues::IssueOverlay*      issue_overlay() const { return m_issue_overlay.get(); }
     struct IssueSubmission
     {
@@ -125,6 +129,13 @@ public:
     // the shell: leaves Home for the workspace, opens the panel as their
     // choice, and asks the page to open setup.
     void open_agent_setup();
+    // JusPrin's Preferences window, over whatever is on screen; returns once
+    // it is closed. `section` names where it opens (empty: Account).
+    void open_preferences(const std::string& section = {});
+    // Opens it on the frame's next turn, for a caller that must not run a
+    // modal window itself (a web view's message handler, a key handler).
+    // Requests that arrive before it opens open it once.
+    void request_preferences(const std::string& section = {});
 
     // A throwaway AgentWebView embedded elsewhere (the Add a printer dialog's
     // own setup flow) just wrote a working agent config that the docked
@@ -157,6 +168,9 @@ private:
     void on_page_changed();
     void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
+    void on_frame_char_hook(wxKeyEvent& event);
+    // Gives the docked panel the agent the stored settings describe now.
+    void reload_agent_config();
     void show_task_panel();
     void restore_task_panel();
     // The width the pane may hold right now: at least its own minimum, and no
@@ -203,6 +217,8 @@ private:
     bool m_agent_pane_user_collapsed{false};
     // Set by mark_agent_config_possibly_changed(), consumed by on_page_changed().
     bool m_agent_config_possibly_changed{false};
+    bool m_preferences_open{false};
+    bool m_preferences_requested{false};
     bool m_task_open{false};
     int  m_task_origin_tab{-1};
 
@@ -229,6 +245,7 @@ private:
     std::unique_ptr<PrintIssues::PrintIssueMonitor> m_print_issues;
     std::unique_ptr<PrintIssues::IssueOverlay>      m_issue_overlay;
     std::unique_ptr<PrintIssues::WorkFeed>          m_work_feed;
+    std::unique_ptr<AutoSlice>                      m_auto_slice;
 };
 
 // The one MainFrame attachment point. Decides whether the shell should be

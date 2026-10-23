@@ -46,6 +46,17 @@ namespace {
 const wxString& middle_dot() { static const wxString s = wxString::FromUTF8(" \xC2\xB7 "); return s; }
 const wxString& em_dash()    { static const wxString s = wxString::FromUTF8(" \xE2\x80\x94 "); return s; }
 
+// The shortcut the Preferences row shows: Cmd+, from the macOS app menu,
+// Ctrl+, from the shell elsewhere.
+wxString preferences_shortcut()
+{
+#ifdef __APPLE__
+    return wxString::FromUTF8("\xE2\x8C\x98,");
+#else
+    return "Ctrl+,";
+#endif
+}
+
 // The header row is taller than any component recipe; no token names it. It
 // is not a spacing step either, so it is written once here.
 constexpr int kHeaderHeightDip = 56;
@@ -482,7 +493,9 @@ void StatusRow::show_overflow_menu()
         // Project tab of the Plates / Project pane.
         {_L("Recent projects…"),HeaderIcon::None,{},m_autosave != nullptr,true,[this] { show_recent_projects(); }},
         {_L("Back to Prepare"),HeaderIcon::Back,{},true,false,[this] { request_prepare(); }},
-        {_L("Preferences…"),HeaderIcon::None,{},true,true,[] { wxGetApp().open_preferences(); }},
+        // OrcaSlicer's open_preferences(), which the shell answers with
+        // JusPrin's own window.
+        {_L("Preferences…"),HeaderIcon::None,preferences_shortcut(),true,true,[] { wxGetApp().open_preferences(); }},
         {_L("Switch to classic view…"),HeaderIcon::None,{},true,true,
             [frame = wxWeakRef<wxWindow>(GetParent())] {
                 // The menu invokes this on the header after dismissal. Detach

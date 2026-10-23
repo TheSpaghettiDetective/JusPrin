@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
@@ -12,6 +13,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
+#include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
@@ -204,6 +206,8 @@ ShellController::ShellController()
         }
         if (m_left_pane != nullptr && m_plater != nullptr && m_plater->is_background_process_slicing())
             m_left_pane->refresh_slicing_progress();
+        if (m_auto_slice)
+            m_auto_slice->tick();
         if (!m_agent_pane) return;
         auto& host = m_agent_pane->web_view().host();
         host.pump_stream();
@@ -344,6 +348,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             if (type != Agent::Protocol::kShellAction || !payload.is_object())
                 return false;
             const std::string action = payload.value("action", std::string());
+            if (action == "open_preferences") {
+                request_preferences(payload.value("section", std::string()));
+                return true;
+            }
             if (action == "collapse_agent_pane") {
                 // Hiding a wxWebView from inside its own script-message
                 // callback can stall its platform message pump. Collapse on
@@ -679,6 +687,16 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     m_agent_pane->web_view().host().finish_work(id, state, detail);
             };
             m_work_feed = std::make_unique<PrintIssues::WorkFeed>(*plater, std::move(sink));
+            // Prepare's estimates follow the project without a Slice press.
+            // The shell slices only while the project is on screen, the
+            // window is not minimized and no Agent turn is running.
+            m_auto_slice = std::make_unique<AutoSlice>(*plater, *m_workspace, [this] {
+                return m_installed && !m_task_open && m_tabpanel->GetSelection() == MainFrame::tp3DEditor &&
+                       !m_frame->IsIconized() && !(m_agent_pane && m_agent_pane->web_view().host().busy());
+            });
+            const auto automatic_slice = [this] { return m_auto_slice && m_auto_slice->running(); };
+            m_work_feed->set_automatic_slice_reader(automatic_slice);
+            m_workspace->set_automatic_slice_reader(automatic_slice);
             m_print_issues->set_work_callback([this] {
                 if (m_work_feed && m_print_issues)
                     m_work_feed->sync(m_print_issues->snapshot());
@@ -694,6 +712,20 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // and disconnect it when uninstalling the controller.
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
         frame.Bind(wxEVT_SIZE, &ShellController::on_frame_size, this);
+        frame.Bind(wxEVT_CHAR_HOOK, &ShellController::on_frame_char_hook, this);
+        // Every way into Preferences OrcaSlicer has -- its menu items, Ctrl+P,
+        // the macOS app menu's Cmd+, -- opens JusPrin's window. A request for
+        // one of OrcaSlicer's own tabs or options still opens its dialog.
+        // The hook asks for whichever shell is installed when it runs: a
+        // language reload installs the next shell before this one is gone,
+        // so this one must not own the hook, nor clear it on the way out.
+        wxGetApp().set_preferences_handler([](size_t tab, const std::string& option) {
+            ShellController* shell = installed_shell();
+            if (shell == nullptr || !shell->is_installed() || !Preferences::answers_open_request(tab, option))
+                return false;
+            shell->open_preferences();
+            return true;
+        });
 
         // A member function rather than a lambda so uninstall() can take it
         // off again: the Notebook outlives this controller.
@@ -762,6 +794,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_plater->set_external_project_open_handler({});
         m_autosave.reset();
         m_persistence.reset();
+        m_auto_slice.reset();
         m_work_feed.reset();
         m_issue_overlay.reset();
         m_print_issues.reset();
@@ -979,6 +1012,72 @@ void ShellController::open_agent_setup()
     m_agent_pane->web_view().host().request_setup();
 }
 
+void ShellController::reload_agent_config()
+{
+    m_agent_config_possibly_changed = false;
+    Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
+    m_agent_pane->web_view().host().set_agent(std::move(runtime.service), runtime.availability);
+}
+
+void ShellController::open_preferences(const std::string& section)
+{
+    if (!m_installed || m_preferences_open)
+        return;
+    // Keys and the agent's settings live in their own section; a change there
+    // is the one thing in the window the docked panel has to hear about.
+    const auto agent_settings = [] {
+        const AppConfig& config = *wxGetApp().app_config;
+        return config.has_section("jusprin_agent") ? config.get_section("jusprin_agent")
+                                                   : std::map<std::string, std::string>{};
+    };
+    const auto agent_before = agent_settings();
+
+    m_preferences_open = true;
+    Preferences::AfterClose after;
+    {
+        Preferences::PreferencesWindow window(m_frame, *m_theme, *m_workspace, m_agent_pane->web_view().host(),
+                                              Preferences::OpenRequest{section});
+        window.ShowModal();
+        after = window.after_close();
+    }
+    m_preferences_open = false;
+
+    // Reloading cancels whatever the docked agent is doing, so only when the
+    // window changed its settings.
+    if (agent_settings() != agent_before)
+        reload_agent_config();
+    apply_current_appearance();
+    // What OrcaSlicer does after its own dialog: the 3D view settings are
+    // read as it draws, so a redraw shows them.
+    if (m_plater != nullptr)
+        m_plater->set_current_canvas_as_dirty();
+    Preferences::run_after_close(after);
+}
+
+void ShellController::request_preferences(const std::string& section)
+{
+    if (m_preferences_requested)
+        return;
+    m_preferences_requested = true;
+    m_frame->CallAfter([this, section] {
+        m_preferences_requested = false;
+        open_preferences(section);
+    });
+}
+
+void ShellController::on_frame_char_hook(wxKeyEvent& event)
+{
+    // Ctrl+, on Windows and Linux; the macOS app menu already gives Cmd+, to
+    // Preferences.
+#ifndef __APPLE__
+    if (event.GetModifiers() == wxMOD_CONTROL && event.GetKeyCode() == ',') {
+        request_preferences();
+        return;
+    }
+#endif
+    event.Skip();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
@@ -989,6 +1088,7 @@ void ShellController::uninstall()
     m_agent_pane_collapsed = false;
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
     m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
+    m_frame->Unbind(wxEVT_CHAR_HOOK, &ShellController::on_frame_char_hook, this);
     m_tabpanel->Unbind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
     m_prepare_canvas_presentation.detach();
@@ -1079,6 +1179,7 @@ void ShellController::uninstall()
         m_plater->update_title_dirty_status();
     Slic3r::set_backup_suspended(false);
     m_persistence.reset();
+    m_auto_slice.reset();
     m_work_feed.reset();
     m_issue_overlay.reset();
     m_print_issues.reset();
@@ -1199,11 +1300,8 @@ void ShellController::on_page_changed()
     // written a working agent config since the docked pane last checked; push
     // it in now, the same "refresh on the way in" pattern as Home's gallery
     // above, rather than reloading the page or polling continuously.
-    if (m_agent_config_possibly_changed) {
-        m_agent_config_possibly_changed = false;
-        Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
-        m_agent_pane->web_view().host().set_agent(std::move(runtime.service), runtime.availability);
-    }
+    if (m_agent_config_possibly_changed)
+        reload_agent_config();
     // Home and the Notebook share the workspace slot, so exactly one is shown.
     // The Notebook is only hidden while Home is the selection: post_init
     // selects the Prepare tab to map the GL canvas before it initialises
@@ -1229,6 +1327,22 @@ void ShellController::on_page_changed()
 
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
 {
+    // Before the shell checks below, so the classic presentation gets this
+    // too: JusPrin checks for its own new versions, and OrcaSlicer's check,
+    // which asks OrcaSlicer's server about OrcaSlicer releases, never runs.
+    // Its startup call is left to JusPrin's own schedule; Help > Check for
+    // Updates checks at once and, with the shell on, shows Preferences >
+    // Updates, where the result appears.
+    if (wxGetApp().is_editor()) {
+        Updates::update_check().attach(frame);
+        wxGetApp().app_update_check = [](int by_user) {
+            if (by_user == 0)
+                return;
+            Updates::update_check().check_now();
+            if (ShellController* shell = installed_shell())
+                shell->open_preferences("updates");
+        };
+    }
     if (tabpanel == nullptr || main_sizer == nullptr)
         return;
     if (!wxGetApp().is_editor())

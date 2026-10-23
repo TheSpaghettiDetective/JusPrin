@@ -200,6 +200,15 @@ describe('Home', () => {
     expect(host.lastOfType('add_printer')).toBeDefined();
   });
 
+  it('opens Preferences from the gear and from Ctrl+,', async () => {
+    const host = start();
+    host.deliver('state', state());
+    await userEvent.click(screen.getByRole('button', { name: 'Preferences' }));
+    expect(host.received.filter((envelope) => envelope.type === 'open_preferences')).toHaveLength(1);
+    await userEvent.keyboard('{Control>},{/Control}');
+    expect(host.received.filter((envelope) => envelope.type === 'open_preferences')).toHaveLength(2);
+  });
+
   it('offers connection and printer actions from each named card header', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer(), printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));

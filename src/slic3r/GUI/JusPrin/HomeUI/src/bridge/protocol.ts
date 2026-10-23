@@ -25,7 +25,8 @@ export type PageMessageType =
   | 'connect_printer'
   | 'open_printer_settings'
   | 'rename_printer'
-  | 'remove_printer';
+  | 'remove_printer'
+  | 'open_preferences';
 
 export type HostMessageType =
   | 'hello_ack'

@@ -155,6 +155,8 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.import_model();
     else if (type == "launch_monitor")
         m_backend.launch_monitor(payload.value("id", std::string()));
+    else if (type == "open_preferences")
+        m_backend.open_preferences();
     else if (type == "add_printer") {
         m_backend.add_printer();
         push_state();

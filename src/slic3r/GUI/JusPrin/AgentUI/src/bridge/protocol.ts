@@ -42,7 +42,8 @@ export type PageMessageType =
   | 'skills'
   | 'settings_catalog_request'
   | 'settings_action'
-  | 'setup_remove_key';
+  | 'setup_remove_key'
+  | 'preferences_action';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -72,7 +73,8 @@ export type HostMessageType =
   | 'chat_model'
   | 'printer_session'
   | 'settings_catalog'
-  | 'setup_keys';
+  | 'setup_keys'
+  | 'preferences';
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -322,9 +324,9 @@ export interface McpStatusPayload {
 }
 
 // Time and material for one plate's current slice. Null whenever that plate
-// holds no valid slice result: OrcaSlicer has no background slicing, so there
-// is no honest estimate before Slice and the card omits the row rather than
-// showing a zero. materialCost is null on its own whenever the filament
+// holds no valid slice result: until a slice finishes, whether the shell's own
+// once the project is quiet or a Slice press, there is no honest estimate and
+// the card omits the row rather than showing a zero. materialCost is null on its own whenever the filament
 // profile carries no price, which is the default.
 export interface SliceEstimateInfo {
   printTimeSeconds: number;
@@ -785,6 +787,66 @@ export interface FilamentSessionPayload {
   copyName?: string; // the copy a change to a stock filament is saved as
 }
 
+export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';
+export type DragAction = 'none' | 'pan' | 'rotate';
+
+// What the Preferences window shows, read by the app from the settings
+// OrcaSlicer's own dialog keeps; sent as the state's session and again, as
+// `preferences`, after every change.
+export interface PreferencesPayload {
+  kind: 'preferences';
+  // Where the window was opened; the page goes there once, on load.
+  section: PreferencesSection;
+  agent: {
+    // The provider a new chat talks to, and those it can be: each with a key
+    // stored, and with the one model the app uses for it for now.
+    newChatProvider: string;
+    newChatChoices: { provider: string; model: string; label: string }[];
+  };
+  appearance: {
+    language: string;
+    languages: { code: string; name: string }[];
+    theme: 'light' | 'dark';
+    units: 'mm' | 'in';
+    // The stored language's name when JusPrin is still running in another:
+    // it takes effect at the next start. Null when nothing waits on one.
+    restartFor: string | null;
+  };
+  view3d: {
+    navigation: 'mouse' | 'touchpad';
+    zoomToPointer: boolean;
+    reverseZoom: boolean;
+    freeCamera: boolean;
+    leftDrag: DragAction;
+    middleDrag: DragAction;
+    rightDrag: DragAction;
+  };
+  projects: {
+    versionsFolder: string;
+    downloadPath: string;
+    // File and link associations exist on Windows only.
+    associations: boolean;
+    open3mf: boolean;
+    openModels: boolean;
+    openLinks: boolean;
+  };
+  updates: {
+    // JusPrin's own version, not OrcaSlicer's.
+    version: string;
+    // What JusPrin's update check knows. 'store': a Microsoft Store install,
+    // which the Store updates; JusPrin does not check.
+    status: 'notChecked' | 'checking' | 'upToDate' | 'available' | 'failed' | 'store';
+    // The last successful check, in seconds since 1970; null when none.
+    checked: number | null;
+    // A newer version, with its release page, when it was published (ISO
+    // 8601) and its release notes in Markdown; null when none is known.
+    available: { version: string; url: string; published: string; notes: string } | null;
+    // "New JusPrin versions": the daily check.
+    checkUpdates: boolean;
+    updateProfiles: boolean;
+  };
+}
+
 export interface PrinterSessionPayload {
   mode: 'add' | 'change' | 'connect';
   // The printer the conversation is about; empty until one is added.
@@ -911,7 +973,7 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  session?: PrinterSessionPayload | FilamentSessionPayload; // only in the printer and filament chats
+  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload; // the printer and filament chats, and Preferences
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

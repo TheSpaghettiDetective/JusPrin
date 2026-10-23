@@ -5622,6 +5622,10 @@ void maybe_attach_updater_signature(Http& http, const std::string& canonical_que
 
 void GUI_App::check_new_version_sf(bool show_tips, int by_user)
 {
+    if (app_update_check) {
+        app_update_check(by_user);
+        return;
+    }
     AppConfig* app_config = wxGetApp().app_config;
     bool       check_stable_only = app_config->get_bool("check_stable_update_only");
     auto version_check_url = app_config->version_check_url();
@@ -8081,6 +8085,8 @@ void GUI_App::open_preferences(size_t open_on_tab, const std::string& highlight_
     static constexpr const char* opengl_fxaa_setting_key = "opengl_fxaa_enabled";
     static constexpr const char* opengl_fps_cap_setting_key = "opengl_fps_cap";
     static constexpr const char* opengl_show_fps_overlay_setting_key = "opengl_show_fps_overlay";
+    if (m_preferences_handler && m_preferences_handler(open_on_tab, highlight_option))
+        return;
     const std::string previous_opengl_fxaa = app_config->get(opengl_fxaa_setting_key);
     const std::string previous_opengl_fps_cap = app_config->get(opengl_fps_cap_setting_key);
     const std::string previous_opengl_show_fps_overlay = app_config->get(opengl_show_fps_overlay_setting_key);

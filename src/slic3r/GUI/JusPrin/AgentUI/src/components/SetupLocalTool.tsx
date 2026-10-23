@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
+import { ToolGroup } from './AgentConnection';
 import { SetupScreenTitle } from './Setup';
 
 type Step = 'pick' | 'prepare' | 'review' | 'saving' | 'saved';
@@ -14,6 +15,9 @@ export interface SetupLocalToolProps {
   onReveal: (toolId: string) => void;
   onBack: () => void;
   onDone: () => void;
+  // Opens on this tool's own screen, as Preferences does from its row; that
+  // screen's way back is then onBack, since the list it came from is not here.
+  startTool?: string;
 }
 
 function errorCopy(status: McpStatusPayload, tool?: McpToolInfo, path?: string): { title: string; body: string } {
@@ -108,9 +112,11 @@ export function SetupLocalTool({
   onReveal,
   onBack,
   onDone,
+  startTool,
 }: SetupLocalToolProps) {
-  const [step, setStep] = useState<Step>('pick');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const started = startTool ? catalog?.tools.find((item) => item.id === startTool) : undefined;
+  const [step, setStep] = useState<Step>(started ? (started.cli ? 'prepare' : 'review') : 'pick');
+  const [selectedId, setSelectedId] = useState<string | null>(started?.id ?? null);
   const [advanced, setAdvanced] = useState(false);
   const [copied, setCopied] = useState(false);
   const [awaitingStatus, setAwaitingStatus] = useState(false);
@@ -126,6 +132,7 @@ export function SetupLocalTool({
 
   useEffect(() => {
     onRefresh();
+    if (started && !started.cli) onPreview(started.id);
     // The catalog is requested once when this surface opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -151,6 +158,7 @@ export function SetupLocalTool({
   }, [status, awaitingStatus]);
 
   const tool = catalog?.tools.find((item) => item.id === selectedId);
+  const toList = () => (startTool ? onBack() : setStep('pick'));
 
   const choose = (item: McpToolInfo) => {
     setSelectedId(item.id);
@@ -239,7 +247,7 @@ export function SetupLocalTool({
   if (step === 'prepare' && tool) {
     return (
       <div className="pane-state setup" data-testid="setup-local-prepare">
-        <SetupScreenTitle label={tool.name} onBack={() => setStep('pick')} />
+        <SetupScreenTitle label={tool.name} onBack={toList} />
         <p>JusPrin can run this for you, or you can copy it and run it yourself.</p>
         <div className="setup-command">
           <pre>{tool.text}</pre>
@@ -257,7 +265,7 @@ export function SetupLocalTool({
           <button className="primary" onClick={() => connect(tool.id)} disabled={!catalog?.helperPresent}>
             Connect…
           </button>
-          <button onClick={() => setStep('pick')}>Close</button>
+          <button onClick={toList}>Close</button>
         </div>
         <div className="setup-advanced">
           <button type="button" onClick={() => setAdvanced(!advanced)}>
@@ -278,7 +286,7 @@ export function SetupLocalTool({
   if (step === 'review') {
     return (
       <div className="pane-state setup" data-testid="setup-local-review">
-        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={() => setStep('pick')} />
+        <SetupScreenTitle label={tool?.name ?? 'Review'} onBack={toList} />
         <p className="setup-consent">
           Allow this AI tool to read and change the open project?
         </p>
@@ -304,7 +312,7 @@ export function SetupLocalTool({
           >
             Connect
           </button>
-          <button onClick={() => setStep('pick')}>Cancel</button>
+          <button onClick={toList}>Cancel</button>
         </div>
       </div>
     );
@@ -312,31 +320,8 @@ export function SetupLocalTool({
 
   return (
     <div className="pane-state setup" data-testid="setup-local-tools">
-      <SetupScreenTitle label="Connect an AI tool" onBack={onBack} />
-      <p>Let an AI app on this computer work with the open project. JusPrin writes the connection settings; you don’t need to know what MCP is.</p>
-      <div className="setup-tool-list" role="radiogroup" aria-label="AI tools">
-        {(catalog?.tools ?? []).map((item) => (
-          <label key={item.id} className="setup-tool-row">
-            <input type="radio" name="mcp-tool" checked={selectedId === item.id} onChange={() => choose(item)} />
-            <span className="setup-tool-copy">
-              <span className="setup-tool-name">
-                {item.name}
-                {item.subtitle ? <span className="setup-tool-sub">{item.subtitle}</span> : null}
-              </span>
-              <span className={item.detected ? 'setup-detected' : 'setup-missing'}>
-                {item.detected ? 'detected' : 'not found'}
-              </span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="footnote">
-        “Detected” means JusPrin found the app or its settings file here. It doesn’t mean the app is signed in. You can
-        pick one that wasn’t found.
-      </p>
-      <button type="button" onClick={onRefresh}>
-        Refresh scan
-      </button>
+      <SetupScreenTitle label="Connect an AI tool you already use" onBack={onBack} />
+      <ToolGroup tools={catalog?.tools ?? []} onConnect={choose} onLookAgain={onRefresh} />
     </div>
   );
 }

@@ -52,6 +52,8 @@ wxString agent_page_url(AgentPageMode mode)
         url += "?embedded=1";
     else if (mode == AgentPageMode::PrinterPanel)
         url += "?panel=printer";
+    else if (mode == AgentPageMode::Preferences)
+        url += "?panel=preferences";
     return url;
 }
 

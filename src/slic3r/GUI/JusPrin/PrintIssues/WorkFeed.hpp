@@ -48,6 +48,9 @@ public:
     WorkFeed(const WorkFeed&) = delete;
     WorkFeed& operator=(const WorkFeed&) = delete;
 
+    // Answers whether the slice now running is one JusPrin started on its
+    // own; such a run gets no entry unless someone takes it over.
+    void set_automatic_slice_reader(std::function<bool()> reader) { m_automatic_slice = std::move(reader); }
     // The monitor read OrcaSlicer's state again.
     void sync(const PrintIssueSnapshot& snapshot);
     // The Cancel button of one entry.
@@ -66,6 +69,7 @@ private:
 
     Plater& m_plater;
     Sink    m_sink;
+    std::function<bool()> m_automatic_slice;
     // The one slice OrcaSlicer runs at a time.
     Running m_slice;
     // By notification kind, and by its words for the kinds OrcaSlicer holds

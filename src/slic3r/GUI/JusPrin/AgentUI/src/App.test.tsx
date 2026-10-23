@@ -924,10 +924,18 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open chat: Conversation 1' }));
     expect(screen.getByRole('textbox', { name: 'Message the Agent' })).toHaveValue('Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
+    // A connected agent is changed in Preferences › Agent, over the panel.
     await userEvent.click(screen.getByRole('button', { name: /Configure Agent/ }));
-    expect(screen.getByTestId('setup-chooser')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Close setup' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+    expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
+  });
+
+  it('opens Preferences on Ctrl+, while the panel has the focus', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.keyboard('{Control>},{/Control}');
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences' });
   });
 
   it('disables changing chats while a tool continuation is pending', async () => {
@@ -1426,7 +1434,7 @@ describe('App agent setup', () => {
 
   function openCursorReview() {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Cursor' }));
     host.deliver('mcp_preview', {
       toolId: 'cursor',
       path: '/tmp/mcp.json',
@@ -1446,7 +1454,11 @@ describe('App agent setup', () => {
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
     // The two paths this build cannot complete are visible but inert rather
     // than leading nowhere.
+    expect(within(screen.getByTestId('agent-account')).getByText('JusPrin account')).toBeInTheDocument();
+    expect(within(screen.getByTestId('agent-account')).getByText('Free · sign in with your browser · nothing to install'))
+      .toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with JusPrin' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Your own API key/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Connect an AI tool you already use/ })).toBeEnabled();
     expect(host.received.filter((e) => e.type.startsWith('setup_'))).toHaveLength(0);
 
@@ -1454,19 +1466,28 @@ describe('App agent setup', () => {
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
   });
 
-  it('offers only the providers this build can verify, and defaults to one of them', () => {
+  // Each provider has a row of its own (canvas "API key · one row per
+  // provider · every state", 2026-10-21), so which ones have a key is visible
+  // at a glance.
+  const row = (provider: string) => within(screen.getByTestId(`agent-key-${provider}`));
+
+  it('shows one row per provider this build can verify, each with its own Add key', () => {
     openApiKeyScreen();
 
-    expect(screen.getByRole('tab', { name: 'OpenAI' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'OpenAI' })).toBeEnabled();
-    expect(screen.getByRole('tab', { name: 'Anthropic' })).toBeEnabled();
-    expect(screen.getByRole('tab', { name: 'Anthropic' })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByRole('tab', { name: 'Other…' })).toBeDisabled();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    for (const [id, name] of [['anthropic', 'Anthropic'], ['openai', 'OpenAI'], ['openrouter', 'OpenRouter']]) {
+      expect(row(id).getByText(name)).toBeInTheDocument();
+      expect(row(id).getByText('No key')).toBeInTheDocument();
+      expect(row(id).getByRole('button', { name: `Add ${name} key` })).toBeEnabled();
+    }
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByText('Billed by your provider, not JusPrin. Stored on this computer only.')).toBeInTheDocument();
+    expect(screen.getByText('Every chat can pick a model from these providers in its message box.')).toBeInTheDocument();
   });
 
   it('sends an Anthropic key under its own id', async () => {
     openApiKeyScreen();
-    fireEvent.click(screen.getByRole('tab', { name: 'Anthropic' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Anthropic key' }));
     const field = screen.getByLabelText('Anthropic API key');
     expect(field).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
     await userEvent.type(field, 'sk-ant-test');
@@ -1474,8 +1495,9 @@ describe('App agent setup', () => {
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-test' });
   });
 
-  it('sends the key to the host and reports the round trip it measured', async () => {
+  it('sends the key to the host, locks it while it is checked, and shows it saved once it passes', async () => {
     openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
 
     // An empty field cannot be submitted.
     expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
@@ -1488,21 +1510,23 @@ describe('App agent setup', () => {
     expect(sent!.payload).toEqual({ provider: 'openai', apiKey: 'sk-test-key' });
 
     host.deliver('setup_status', { phase: 'checking', provider: 'openai' });
-    expect(screen.getByText('Checking…')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
+    expect(row('openai').getByText('Checking with OpenAI…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check key' })).not.toBeInTheDocument();
+    // The key in question stays visible, locked, and only by its known start.
+    expect(screen.getByLabelText('OpenAI API key')).toBeDisabled();
+    expect(screen.getByLabelText('OpenAI API key')).toHaveValue(`sk-${'•'.repeat(16)}`);
+    // Nothing else starts while a check runs.
+    expect(screen.getByRole('button', { name: 'Add Anthropic key' })).toBeDisabled();
 
     host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 812 });
-    expect(screen.getByTestId('setup-verified')).toHaveTextContent('replied in 0.8 s');
+    host.deliver('setup_keys', { keys: [{ provider: 'openai', hint: 'sk-proj-…7Qm2', rejected: false }] });
+    expect(screen.queryByLabelText('OpenAI API key')).not.toBeInTheDocument();
+    expect(screen.getByTestId('agent-key-openai-standing')).toHaveTextContent('Key saved on this computersk-proj-…7Qm2');
   });
 
-  it('offers OpenRouter as a second provider and sends its key under its own id', async () => {
+  it('sends an OpenRouter key under its own id', async () => {
     openApiKeyScreen();
-
-    // OpenAI stays the default; OpenRouter is a tab beside it.
-    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toBeEnabled();
-    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toHaveAttribute('aria-selected', 'false');
-    fireEvent.click(screen.getByRole('tab', { name: 'OpenRouter' }));
-    expect(screen.getByRole('tab', { name: 'OpenRouter' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenRouter key' }));
 
     const field = screen.getByLabelText('OpenRouter API key');
     expect(field).toHaveAttribute('placeholder', 'Paste your OpenRouter key (sk-or-…)');
@@ -1515,6 +1539,14 @@ describe('App agent setup', () => {
     expect(screen.getByTestId('setup-connected')).toHaveTextContent('your own OpenRouter key');
   });
 
+  it('opens one key form at a time', () => {
+    openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Anthropic key' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
+    expect(screen.queryByLabelText('Anthropic API key')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('OpenAI API key')).toHaveFocus();
+  });
+
   it('turns into a working chat once the host reports the Agent ready', () => {
     openApiKeyScreen();
     host.deliver('setup_status', { phase: 'verified', provider: 'openai', elapsedMs: 500 });
@@ -1523,14 +1555,15 @@ describe('App agent setup', () => {
     // The setup surface gives way to the conversation, with a one-time note
     // of how the Agent got connected.
     expect(screen.queryByTestId('setup-api-key')).not.toBeInTheDocument();
-    expect(screen.getByTestId('setup-connected')).toHaveTextContent('your own OpenAI key');
+    expect(screen.getByTestId('setup-connected')).toHaveTextContent('Connected · your own OpenAI key');
+    expect(screen.getByTestId('setup-connected')).toHaveAttribute('role', 'status');
     expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByTestId('setup-connected')).not.toBeInTheDocument();
   });
 
-  it('says when a working key could not be stored', () => {
+  it('says when a working key could not be stored, in the row and in the banner', () => {
     openApiKeyScreen();
     host.deliver('setup_status', {
       phase: 'verified',
@@ -1538,13 +1571,18 @@ describe('App agent setup', () => {
       elapsedMs: 500,
       warning: 'This key could not be saved, so it will have to be entered again next time JusPrin starts.',
     });
-    host.deliver('agent_status', { status: 'ready' });
 
+    expect(screen.getByTestId('agent-key-openai-standing')).toHaveTextContent('Working, but only until JusPrin restarts');
+    expect(row('openai').getByText(/you’ll need to enter it again after a restart/)).toBeInTheDocument();
+    expect(row('openai').getByRole('button', { name: 'Replace OpenAI key' })).toBeEnabled();
+
+    host.deliver('agent_status', { status: 'ready' });
     expect(screen.getByTestId('setup-connected')).toHaveTextContent('could not be saved');
   });
 
-  it('keeps the user on the key screen when the provider rejects the key', async () => {
+  it('keeps a refused key open to correct, and clears the refusal once it changes', async () => {
     openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
     await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-wrong');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
 
@@ -1554,20 +1592,47 @@ describe('App agent setup', () => {
       error: { code: 'invalid_credentials', message: 'The OpenAI API key was rejected.', retryable: false },
     });
 
-    expect(screen.getByTestId('setup-error')).toHaveTextContent('The OpenAI API key was rejected.');
+    expect(screen.getByTestId('setup-error')).toHaveTextContent('OpenAI rejected this key. Nothing was saved.');
     expect(screen.getByTestId('setup-api-key')).toBeInTheDocument();
     // The key is still there to correct, and can be resubmitted.
+    expect(screen.getByLabelText('OpenAI API key')).toBeEnabled();
+    expect(screen.getByLabelText('OpenAI API key')).toHaveValue('sk-wrong');
     expect(screen.getByRole('button', { name: 'Check key' })).toBeEnabled();
+
+    await userEvent.type(screen.getByLabelText('OpenAI API key'), 'x');
+    expect(screen.queryByTestId('setup-error')).not.toBeInTheDocument();
+  });
+
+  it('keeps a key that could not be checked locked for another try', async () => {
+    openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add Anthropic key' }));
+    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-offline');
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    host.deliver('setup_status', {
+      phase: 'error',
+      provider: 'anthropic',
+      error: { code: 'network_error', message: 'The Agent request could not reach the Anthropic service.', retryable: true },
+    });
+
+    expect(screen.getByTestId('setup-error')).toHaveTextContent(
+      'Couldn’t reach Anthropic to check this key. Nothing was saved. Try again.');
+    expect(screen.getByLabelText('Anthropic API key')).toBeDisabled();
+    expect(row('anthropic').getByText('No key')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-offline' });
   });
 
   it('abandons a check when the user cancels or backs out', async () => {
     openApiKeyScreen();
+    fireEvent.click(screen.getByRole('button', { name: 'Add OpenAI key' }));
     await userEvent.type(screen.getByLabelText('OpenAI API key'), 'sk-slow');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     host.deliver('setup_status', { phase: 'checking', provider: 'openai' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(host.lastOfType('setup_cancel')).toBeTruthy();
+    expect(screen.queryByLabelText('OpenAI API key')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
     expect(screen.getByTestId('setup-chooser')).toBeInTheDocument();
@@ -1576,109 +1641,92 @@ describe('App agent setup', () => {
   // A stored key: the host sends a hint of it, never the key.
   const savedAnthropic = { provider: 'anthropic', hint: 'sk-ant-…a3F9', rejected: false };
 
-  function openAnthropicKey(keys: Array<{ provider: string; hint: string; rejected: boolean }>) {
+  function openWithKeys(keys: Array<{ provider: string; hint: string; rejected: boolean }>) {
     openApiKeyScreen();
     host.deliver('setup_keys', { keys });
-    fireEvent.click(screen.getByRole('tab', { name: 'Anthropic' }));
   }
 
-  it('1. no key saved: placeholder text only, and Check key waits for a key', () => {
-    openAnthropicKey([]);
+  it('2. key saved: its hint at full contrast, read-only, with Replace and Remove; each provider shows its own', () => {
+    openWithKeys([savedAnthropic]);
 
-    const field = screen.getByLabelText('Anthropic API key');
-    expect(field).toHaveValue('');
-    expect(field).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
-    expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
-    expect(screen.queryByTestId('setup-key-status')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Replace' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
-  });
-
-  it('2. key saved: its hint, read-only, with Replace and Remove; each provider shows its own', () => {
-    openAnthropicKey([savedAnthropic]);
-
-    expect(screen.getByTestId('setup-key-status')).toHaveTextContent('Key saved on this computer');
-    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('Key saved on this computer');
+    expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('sk-ant-…a3F9');
     expect(screen.queryByLabelText('Anthropic API key')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Replace' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
-    expect(screen.getByText('JusPrin uses this key for every chat. Replace it to use another one.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Check key' })).not.toBeInTheDocument();
+    expect(row('anthropic').getByRole('button', { name: 'Replace Anthropic key' })).toBeEnabled();
+    expect(row('anthropic').getByRole('button', { name: 'Remove Anthropic key' })).toBeEnabled();
+    expect(row('anthropic').queryByRole('button', { name: /Add/ })).not.toBeInTheDocument();
 
-    // OpenAI has no key here, so its tab is the empty field.
-    fireEvent.click(screen.getByRole('tab', { name: 'OpenAI' }));
-    expect(screen.getByLabelText('OpenAI API key')).toHaveValue('');
-    expect(screen.queryByTestId('setup-key-saved')).not.toBeInTheDocument();
+    // OpenAI has no key here, so its row offers only Add key.
+    expect(row('openai').getByText('No key')).toBeInTheDocument();
+    expect(row('openai').queryByRole('button', { name: /Replace|Remove/ })).not.toBeInTheDocument();
   });
 
   it('3. replacing: an empty focused field, the saved key kept until the new one passes', async () => {
-    openAnthropicKey([savedAnthropic]);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    openWithKeys([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace Anthropic key' }));
 
-    const field = screen.getByLabelText('Anthropic API key');
+    const field = screen.getByLabelText('New Anthropic key');
     expect(field).toHaveValue('');
     expect(field).toHaveAttribute('placeholder', 'Paste the new key');
     expect(field).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Check key' })).toBeDisabled();
-    expect(screen.getByText('Keeps sk-ant-…a3F9')).toBeInTheDocument();
+    expect(row('anthropic').getByText(/until the new key passes/)).toHaveTextContent('Keeps sk-ant-…a3F9 until the new key passes');
+    expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('sk-ant-…a3F9');
 
     // Cancel goes back to the saved key without telling the host anything.
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.queryByLabelText('New Anthropic key')).not.toBeInTheDocument();
     expect(host.received.filter((e) => e.type.startsWith('setup_'))).toHaveLength(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
-    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-new');
+    fireEvent.click(screen.getByRole('button', { name: 'Replace Anthropic key' }));
+    await userEvent.type(screen.getByLabelText('New Anthropic key'), 'sk-ant-new');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     expect(host.lastOfType('setup_check_key')!.payload).toEqual({ provider: 'anthropic', apiKey: 'sk-ant-new' });
   });
 
-  it('4. checking: the saved key stays on show, with Checking… and Cancel', async () => {
-    openAnthropicKey([savedAnthropic]);
-    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
-    await userEvent.type(screen.getByLabelText('Anthropic API key'), 'sk-ant-new');
+  it('4. checking a replacement: the saved key stays on show, with Checking… and Cancel', async () => {
+    openWithKeys([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Replace Anthropic key' }));
+    await userEvent.type(screen.getByLabelText('New Anthropic key'), 'sk-ant-new');
     fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
     host.deliver('setup_status', { phase: 'checking', provider: 'anthropic' });
 
-    expect(screen.getByTestId('setup-key-status')).toHaveTextContent('Key saved on this computer');
-    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
-    expect(screen.getByText('Checking…')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Replace' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(host.lastOfType('setup_cancel')).toBeTruthy();
+    expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('Key saved on this computer');
+    expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('sk-ant-…a3F9');
+    expect(screen.getByText('Checking with Anthropic…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Replace|Remove/ })).not.toBeInTheDocument();
 
-    // A new key that fails leaves the saved one, and the new one to correct.
+    // A new key the provider refuses leaves the saved one, and the new one to correct.
     host.deliver('setup_status', {
       phase: 'error',
       provider: 'anthropic',
       error: { code: 'invalid_credentials', message: 'The Anthropic API key was rejected.', retryable: false },
     });
-    expect(screen.getByTestId('setup-error')).toHaveTextContent('The Anthropic API key was rejected.');
-    expect(screen.getByLabelText('Anthropic API key')).toHaveValue('sk-ant-new');
-    expect(screen.getByText('Keeps sk-ant-…a3F9')).toBeInTheDocument();
+    expect(screen.getByTestId('setup-error')).toHaveTextContent('Anthropic rejected this key. Nothing was saved.');
+    expect(screen.getByLabelText('New Anthropic key')).toHaveValue('sk-ant-new');
+    expect(row('anthropic').getByText(/until the new key passes/)).toBeInTheDocument();
   });
 
   it('5. key rejected: says so beside the refused key, with Replace and Remove', () => {
-    openAnthropicKey([{ ...savedAnthropic, rejected: true }]);
+    openWithKeys([{ ...savedAnthropic, rejected: true }]);
 
-    expect(screen.getByTestId('setup-key-rejected')).toHaveTextContent('The provider rejected this key');
-    expect(screen.queryByTestId('setup-key-status')).not.toBeInTheDocument();
-    expect(screen.getByTestId('setup-key-saved')).toHaveTextContent('sk-ant-…a3F9');
-    expect(screen.getByTestId('setup-key-saved')).toHaveClass('setup-key--rejected');
-    expect(screen.getByRole('button', { name: 'Replace' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
-    expect(screen.getByText('Replace it with a working key, or remove it.')).toBeInTheDocument();
+    const standing = screen.getByTestId('agent-key-anthropic-standing');
+    expect(standing).toHaveTextContent('The provider rejected this key');
+    expect(standing).toHaveTextContent('sk-ant-…a3F9');
+    expect(standing).toHaveClass('agent-row-status--rejected');
+    expect(row('anthropic').getByRole('button', { name: 'Replace Anthropic key' })).toBeEnabled();
+    expect(row('anthropic').getByRole('button', { name: 'Remove Anthropic key' })).toBeEnabled();
+    expect(row('anthropic').getByText('Replace it with a working key, or remove it.')).toBeInTheDocument();
   });
 
-  it('Remove asks the host to delete the key, and the screen follows what the host says is left', () => {
-    openAnthropicKey([savedAnthropic]);
-    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+  it('Remove asks the host to delete the key, and the row follows what the host says is left', () => {
+    openWithKeys([savedAnthropic]);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Anthropic key' }));
     expect(host.lastOfType('setup_remove_key')!.payload).toEqual({ provider: 'anthropic' });
 
     host.deliver('setup_keys', { keys: [] });
-    expect(screen.queryByTestId('setup-key-saved')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Anthropic API key')).toHaveAttribute('placeholder', 'Paste your Anthropic key (sk-ant-…)');
+    expect(screen.queryByTestId('agent-key-anthropic-standing')).not.toBeInTheDocument();
+    expect(row('anthropic').getByRole('button', { name: 'Add Anthropic key' })).toBeEnabled();
   });
 
   it('opens the local AI tool catalog and connects a file-based client', () => {
@@ -1705,7 +1753,7 @@ describe('App agent setup', () => {
         },
       ],
     });
-    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Cursor' }));
     expect(host.lastOfType('mcp_preview')?.payload).toMatchObject({ toolId: 'cursor' });
     host.deliver('mcp_preview', {
       toolId: 'cursor',
@@ -1735,6 +1783,20 @@ describe('App agent setup', () => {
     expect(screen.getByText(/won’t need to set this up again/)).toBeInTheDocument();
   });
 
+  it('lists each AI tool as a row with its own Connect…, and looks again on request', () => {
+    openToolCatalog();
+    const claude = within(screen.getByTestId('agent-tool-claude'));
+    expect(claude.getByText('Not found on this computer')).toBeInTheDocument();
+    expect(within(screen.getByTestId('agent-tool-cursor')).getByText('Found on this computer')).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    // A tool that was not found can still be connected.
+    expect(claude.getByRole('button', { name: 'Connect Claude Code' })).toBeEnabled();
+
+    const scans = host.received.filter((e) => e.type === 'mcp_catalog').length;
+    fireEvent.click(screen.getByRole('button', { name: 'Look again' }));
+    expect(host.received.filter((e) => e.type === 'mcp_catalog')).toHaveLength(scans + 1);
+  });
+
   it('copies a CLI command instead of embedding a loopback URL', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
@@ -1755,7 +1817,7 @@ describe('App agent setup', () => {
         },
       ],
     });
-    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
     expect(screen.getByText(/--discovery/)).toBeInTheDocument();
     // A user running the command by hand is told what to do with it.
@@ -1768,7 +1830,7 @@ describe('App agent setup', () => {
 
   it('says there is no JusPrin entry yet instead of rendering a serialised null', () => {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Cursor' }));
     // The host omits `previous` when the file holds no JusPrin entry — which
     // is what every user sees the first time, on the screen where they grant
     // an external tool access to their project.
@@ -1811,7 +1873,7 @@ describe('App agent setup', () => {
 
   it('reports a missing client on the prepare screen without discarding the command', () => {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
     // The host reports the write starting before it reports the failure.
     host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
@@ -1851,7 +1913,7 @@ describe('App agent setup', () => {
 
   it('keeps the raw output of a timed-out command behind a disclosure', () => {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
     // The host reports the write starting before it reports the failure.
     host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
@@ -1872,7 +1934,7 @@ describe('App agent setup', () => {
 
   it('shows raw command output once, behind the disclosure rather than as the body', () => {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
     // A failed CLI reports the same text through both fields. The banner is
     // the title alone; the raw text belongs in the disclosure.
@@ -1891,7 +1953,7 @@ describe('App agent setup', () => {
 
   it('drops a stale error when the user picks a different tool', () => {
     openToolCatalog();
-    fireEvent.click(screen.getByRole('radio', { name: /Claude Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     fireEvent.click(screen.getByRole('button', { name: 'Connect…' }));
     // The host reports the write starting before it reports the failure.
     host.deliver('mcp_status', { phase: 'writing', toolId: 'claude' });
@@ -1904,7 +1966,7 @@ describe('App agent setup', () => {
 
     // The banner must not follow the user onto a screen it no longer applies to.
     fireEvent.click(screen.getByRole('button', { name: 'Back to setup options' }));
-    fireEvent.click(screen.getByRole('radio', { name: /Cursor/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Cursor' }));
     host.deliver('mcp_preview', {
       toolId: 'cursor',
       path: '/tmp/mcp.json',

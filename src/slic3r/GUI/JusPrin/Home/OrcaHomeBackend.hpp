@@ -46,6 +46,7 @@ public:
     void import_model() override;
     void launch_monitor(const std::string& printer_id) override;
     void add_printer() override;
+    void open_preferences() override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
     std::string connect_printer(const std::string& printer_id) override;

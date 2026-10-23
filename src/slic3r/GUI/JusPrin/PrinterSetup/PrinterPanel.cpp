@@ -11,6 +11,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -342,6 +343,10 @@ bool PrinterPanel::handle_filament_page_message(const std::string& type, const n
         close();
     else if (action == "open_filament_settings")
         close_to_filament_settings();
+    else if (action == "open_preferences") {
+        if (ShellController* shell = installed_shell())
+            shell->request_preferences(payload.value("section", std::string()));
+    }
     else
         return false;
     return true;

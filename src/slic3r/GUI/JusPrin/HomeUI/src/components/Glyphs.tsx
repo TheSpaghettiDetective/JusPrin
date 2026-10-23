@@ -16,6 +16,10 @@ export function MoreGlyph() {
   return <span className="glyph glyph-more" aria-hidden="true" />;
 }
 
+export function SettingsGlyph() {
+  return <span className="glyph glyph-settings" aria-hidden="true" />;
+}
+
 export function PlusGlyph() {
   return <span className="glyph glyph-plus" aria-hidden="true" />;
 }

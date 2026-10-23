@@ -9,6 +9,7 @@
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/SelectMachinePop.hpp"
@@ -430,6 +431,16 @@ void OrcaHomeBackend::add_printer()
     // The shell shows the temporary task chat over Home and owns its session.
     if (m_open_conversation)
         m_open_conversation({}, false);
+}
+
+void OrcaHomeBackend::open_preferences()
+{
+    // The shell's window, once however often the gear is pressed before it
+    // opens; without a shell, OrcaSlicer's own entry point.
+    if (ShellController* shell = installed_shell())
+        shell->request_preferences();
+    else
+        wxGetApp().CallAfter([] { wxGetApp().open_preferences(); });
 }
 
 std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id)

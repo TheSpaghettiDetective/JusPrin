@@ -41,6 +41,8 @@ public:
     void import_model() override { ++imports; }
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
+    void open_preferences() override { ++preferences_opened; }
+    int  preferences_opened{0};
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         connections_opened;
@@ -177,12 +179,14 @@ TEST_CASE("each page message reaches its own action", "[home]")
     host.on_page_message(page_message("import_project"));
     host.on_page_message(page_message("launch_monitor", json{{"id", "FAKE001"}}));
     host.on_page_message(page_message("add_printer"));
+    host.on_page_message(page_message("open_preferences"));
 
     CHECK(backend.opened == std::vector<std::string>{"2"});
     CHECK(backend.new_projects == 1);
     CHECK(backend.imports == 1);
     CHECK(backend.monitored == std::vector<std::string>{"FAKE001"});
     CHECK(backend.wizards == 1);
+    CHECK(backend.preferences_opened == 1);
 }
 
 // Adding a printer changes what the rail should show, so the screen is pushed

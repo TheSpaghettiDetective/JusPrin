@@ -181,6 +181,13 @@
 //              the conditions that need another printer or a slice: two
 //              nozzles, mixed materials, paths outside the plate, a failed
 //              slice naming its object, and a result confirmed on the canvas
+//   --auto-slice
+//              the shell's own slicing (Shell/AutoSlice.hpp): the plate is
+//              sliced with no Slice press once the project is quiet; a move
+//              waits out the quiet period, an Agent turn holds the slice, a
+//              cancelled run is not restarted, slice_start takes an automatic
+//              run over, and a plate moved to is sliced. Every other
+//              automated mode turns the shell's own slicing off.
 //   --manual-print-issues / --manual-print-issues-no-agent
 //              leaves two overlapping cubes open for hands-on use, with a
 //              stand-in assistant that answers "Noted.", or with none
@@ -832,7 +839,8 @@ struct HarnessState
         ProjectPromptRequests,
         LeftPane,
         LeftPaneEditor,
-        LeftPaneSlicedCapture
+        LeftPaneSlicedCapture,
+        AutoSlice
     };
 
     std::atomic<int>  result{-1};
@@ -933,6 +941,14 @@ public:
                 return;
             }
             verify_shell_installed();
+            // The shell slices on its own once the project is quiet. Modes
+            // that press Slice themselves would race it, so it stays on only
+            // where that is the subject and in the hands-on modes.
+            const auto mode = m_state->mode;
+            installed_shell()->auto_slice()->set_enabled(
+                mode == HarnessState::Mode::AutoSlice || mode == HarnessState::Mode::Manual ||
+                mode == HarnessState::Mode::ManualLiveAgent || mode == HarnessState::Mode::ManualUnconfigured ||
+                mode == HarnessState::Mode::ManualPrintIssues || mode == HarnessState::Mode::ManualToolStrip);
             if (m_state->mode == HarnessState::Mode::ClassicSwitch) {
                 verify_uninstall_restores_stock([self = shared_from_this()] { self->finish(); });
                 return;
@@ -1139,6 +1155,11 @@ public:
             if (m_state->mode == HarnessState::Mode::ToolStripCapture) {
                 verify_canvas_interaction();
                 wait_until_settled("tool_strip_selection_settled", [self = shared_from_this()] { self->tool_strip_idle(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::AutoSlice) {
+                m_issue_agent = g_issue_agent;
+                wait_for_agent_page("auto_slice", [self = shared_from_this()] { self->begin_auto_slice(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::SliceAllCold) {
@@ -7754,6 +7775,7 @@ private:
 
 #include "print_issues_scenario.inc"
 #include "print_issue_readers_scenario.inc"
+#include "auto_slice_scenario.inc"
 #include "check_print_scenario.inc"
 #include "project_prompt_scenario.inc"
 
@@ -10598,7 +10620,8 @@ void install_harness_agent(HarnessState::Mode mode)
         host.set_agent(std::make_unique<ChoicesAgent>(), Agent::AgentAvailability::Ready);
         return;
     case HarnessState::Mode::PrintIssues:
-    case HarnessState::Mode::ManualPrintIssues: {
+    case HarnessState::Mode::ManualPrintIssues:
+    case HarnessState::Mode::AutoSlice: {
         if (g_issue_no_agent)
             return;
         auto agent = std::make_unique<RecordingAgent>();
@@ -10932,6 +10955,8 @@ int main(int argc, char** argv)
         }
         else if (argument == "--print-issues")
             state->mode = HarnessState::Mode::PrintIssues;
+        else if (argument == "--auto-slice")
+            state->mode = HarnessState::Mode::AutoSlice;
         else if (argument == "--print-issue-readers") {
             state->mode = HarnessState::Mode::PrintIssues;
             g_issue_readers = true;

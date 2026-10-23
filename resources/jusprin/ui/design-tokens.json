@@ -504,6 +504,17 @@
     "setupCard": {
       "iconSize": 14
     },
+    "providerRow": {
+      "fieldHeight": 32
+    },
+    "preferences": {
+      "width": 800,
+      "height": 640,
+      "navWidth": 208,
+      "navRowHeight": 32,
+      "controlWidth": 200,
+      "segmentWidth": 96
+    },
     "field": {
       "height": 26,
       "radius": 4,

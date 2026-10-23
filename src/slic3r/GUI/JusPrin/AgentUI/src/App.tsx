@@ -23,7 +23,7 @@ import {
   BridgeErrorPane,
   ConnectingPane,
 } from './components/Panels';
-import { ConnectedBanner, DEFAULT_PROVIDER, SetupApiKey, SetupChooser } from './components/Setup';
+import { ConnectedBanner, SetupApiKey, SetupChooser } from './components/Setup';
 import { SetupLocalTool } from './components/SetupLocalTool';
 
 let clientMessageCounter = 0;
@@ -152,6 +152,21 @@ export function App({
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // The shell's own Ctrl+, cannot see keys while this page has the focus.
+  // Setup embedded in a dialog and the printer conversation have no shell
+  // behind them that would answer.
+  useEffect(() => {
+    if (embedded || printerPanel) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+        event.preventDefault();
+        client.send('shell_action', { action: 'open_preferences' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [client, embedded, printerPanel]);
 
   // The printer panel's first line, which the model is shown as having said:
   // written here, posted by the app, once per session. Before the
@@ -324,9 +339,8 @@ export function App({
     if (state.setup.phase !== 'verified') return;
     // The host installs the verified service right after saying so, so the
     // dock is about to become a working chat; carry the confirmation across.
-    // The key screen stays up until that happens, so the round-trip the check
-    // measured is actually readable rather than flashing past.
-    setConnected({ provider: state.setup.provider ?? DEFAULT_PROVIDER, warning: state.setup.warning });
+    // The key screen stays up until that happens, showing the key saved.
+    setConnected({ provider: state.setup.provider ?? '', warning: state.setup.warning });
     if (state.agentStatus === 'ready') setView('chat');
   }, [state.setup.phase, state.setup.provider, state.setup.warning, state.agentStatus]);
 
@@ -527,6 +541,9 @@ export function App({
         if (conversationId !== viewedId) client.send('switch_conversation', { conversationId });
         setView('chat');
       }} onCreate={createChat} agentUnavailable={unavailable} onConfigure={() => {
+        // An agent that is set up is changed where every way of connecting
+        // is listed: Preferences › Agent. Setting one up starts here.
+        if (!unavailable) { client.send('shell_action', { action: 'open_preferences', section: 'agent' }); return; }
         setupReturn.current = 'list'; setSetupScreen('chooser'); setView('setup');
       }} onCollapse={collapseAgentPane} />;
 

@@ -82,6 +82,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/HomeWebView.hpp
     GUI/JusPrin/Home/PrinterWindow.cpp
     GUI/JusPrin/Home/PrinterWindow.hpp
+    GUI/JusPrin/Preferences/PreferencesSettings.cpp
+    GUI/JusPrin/Preferences/PreferencesSettings.hpp
+    GUI/JusPrin/Preferences/PreferencesWindow.cpp
+    GUI/JusPrin/Preferences/PreferencesWindow.hpp
     GUI/JusPrin/Mcp/McpProtocol.cpp
     GUI/JusPrin/Mcp/McpProtocol.hpp
     GUI/JusPrin/Mcp/McpServer.cpp
@@ -118,6 +122,9 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Canvas/ViewportToolStripLayout.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
+    GUI/JusPrin/Shell/AutoSlice.cpp
+    GUI/JusPrin/Shell/AutoSlice.hpp
+    GUI/JusPrin/Shell/AutoSlicePolicy.hpp
     GUI/JusPrin/Shell/McpSetupCommand.cpp
     GUI/JusPrin/Shell/McpSetupCommand.hpp
     GUI/JusPrin/Mcp/McpConnections.hpp
@@ -131,6 +138,13 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/ShellTheme.hpp
     GUI/JusPrin/Shell/ShellRecipes.cpp
     GUI/JusPrin/Shell/ShellRecipes.hpp
+    GUI/JusPrin/Updates/ReleaseFeed.cpp
+    GUI/JusPrin/Updates/ReleaseFeed.hpp
+    GUI/JusPrin/Updates/UpdateCheck.cpp
+    GUI/JusPrin/Updates/UpdateCheck.hpp
+    GUI/JusPrin/Updates/UpdateRecord.cpp
+    GUI/JusPrin/Updates/UpdateRecord.hpp
+    GUI/JusPrin/Updates/Version.hpp
     GUI/JusPrin/Shell/StatusRow.cpp
     GUI/JusPrin/Shell/StatusRow.hpp
     GUI/JusPrin/Shell/HeaderControls.cpp

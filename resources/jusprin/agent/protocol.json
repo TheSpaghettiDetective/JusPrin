@@ -27,7 +27,8 @@
     "model_choice",
     "all_settings",
     "settings_actions",
-    "saved_keys"
+    "saved_keys",
+    "preferences"
   ],
   "pageMessageTypes": [
     "hello",
@@ -62,7 +63,8 @@
     "skills",
     "settings_catalog_request",
     "settings_action",
-    "setup_remove_key"
+    "setup_remove_key",
+    "preferences_action"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -92,6 +94,7 @@
     "chat_model",
     "printer_session",
     "settings_catalog",
-    "setup_keys"
+    "setup_keys",
+    "preferences"
   ]
 }

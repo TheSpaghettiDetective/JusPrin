@@ -19,7 +19,8 @@
     "connect_printer",
     "open_printer_settings",
     "rename_printer",
-    "remove_printer"
+    "remove_printer",
+    "open_preferences"
   ],
   "hostMessageTypes": [
     "hello_ack",
