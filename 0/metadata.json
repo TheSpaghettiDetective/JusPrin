@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5KMXH1XRY9W5JZBYA5REZXE",
+  "session_id": "122e5b89-1893-497a-9fcd-c587e318d0be",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-23T05:49:39.061912Z",
+  "branch": "claude/reverent-northcutt-dd4d63",
+  "checkpoints_count": 5,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "6831315df6f5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3768,
+    "cache_creation_tokens": 4889432,
+    "cache_read_tokens": 59556500,
+    "output_tokens": 229986,
+    "api_call_count": 144
+  },
+  "session_metrics": {
+    "turn_count": 5
+  }
+}
