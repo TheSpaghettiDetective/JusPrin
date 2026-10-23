@@ -20,6 +20,8 @@ export interface HomeState {
   loaded: boolean;
   appearance: Appearance;
   projects: ProjectInfo[];
+  // Why there are no projects to show, when they could not be read.
+  projectsProblem?: string;
   printers: PrinterInfo[];
   error?: string;
   // The last printer action the host refused. The host follows a refusal with
@@ -59,6 +61,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         loaded: true,
         appearance: next.appearance,
         projects: next.projects ?? [],
+        projectsProblem: next.projectsProblem || undefined,
         printers: next.printers ?? [],
         error: undefined,
         highlightPrinter: next.highlightPrinter || undefined,

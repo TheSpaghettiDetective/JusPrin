@@ -23,7 +23,7 @@ public:
 
     // Reads. Called whenever Home is shown or asks for state.
     virtual bool                      dark() const              = 0;
-    virtual std::vector<ProjectEntry> recent_projects() const   = 0;
+    virtual ProjectList               recent_projects() const   = 0;
     virtual std::vector<PrinterEntry> printers() const          = 0;
 
     // Actions. Each is the whole product gesture, not a step of one, so the

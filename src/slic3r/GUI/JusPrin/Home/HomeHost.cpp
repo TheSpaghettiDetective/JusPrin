@@ -39,7 +39,9 @@ Snapshot HomeHost::collect() const
 {
     Snapshot snapshot;
     snapshot.dark     = m_backend.dark();
-    snapshot.projects = m_backend.recent_projects();
+    ProjectList listed = m_backend.recent_projects();
+    snapshot.projects = std::move(listed.projects);
+    snapshot.projects_problem = std::move(listed.problem);
     snapshot.printers = ordered_printers();
     return snapshot;
 }
@@ -75,6 +77,7 @@ void HomeHost::send_state(Snapshot snapshot)
                                     [this](const PrinterEntry& printer) { return !m_added.empty() && printer.name == m_added; });
     snapshot.highlight_printer = listed ? m_added : std::string();
     m_sent_printers            = printers_json(snapshot.printers);
+    m_sent_projects_problem    = snapshot.projects_problem;
     send("state", state_payload(snapshot));
 }
 
@@ -91,11 +94,16 @@ bool HomeHost::refresh_if_changed()
     if (!m_connected)
         return false;
     std::vector<PrinterEntry> printers = ordered_printers();
-    if (printers_json(printers) == m_sent_printers)
+    const bool same_printers = printers_json(printers) == m_sent_printers;
+    if (same_printers && m_sent_projects_problem.empty())
+        return false;
+    ProjectList listed = m_backend.recent_projects();
+    if (same_printers && listed.problem == m_sent_projects_problem)
         return false;
     Snapshot snapshot;
     snapshot.dark     = m_backend.dark();
-    snapshot.projects = m_backend.recent_projects();
+    snapshot.projects = std::move(listed.projects);
+    snapshot.projects_problem = std::move(listed.problem);
     snapshot.printers = std::move(printers);
     send_state(std::move(snapshot));
     return true;

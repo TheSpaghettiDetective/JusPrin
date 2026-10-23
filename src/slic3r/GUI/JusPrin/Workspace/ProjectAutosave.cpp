@@ -135,6 +135,26 @@ bool project_edit(WorkspaceChangeReasons reasons)
            has_reason(reasons, WorkspaceChangeReasons::History);
 }
 
+// The folders in the projects folder, or nothing when that folder exists but
+// cannot be listed (its permissions, a storage fault): callers say so rather
+// than treat it as holding no projects. No projects folder yet is a new
+// installation with none.
+std::optional<std::vector<std::filesystem::path>> project_folders(const std::filesystem::path& root)
+{
+    std::vector<std::filesystem::path> folders;
+    std::error_code error;
+    if (!std::filesystem::is_directory(root, error) && !error)
+        return folders;
+    std::filesystem::directory_iterator it(root, error);
+    for (const std::filesystem::directory_iterator end; !error && it != end; it.increment(error))
+        folders.push_back(it->path());
+    if (error) {
+        BOOST_LOG_TRIVIAL(error) << "Local projects could not be listed: " << root.string() << ": " << error.message();
+        return std::nullopt;
+    }
+    return folders;
+}
+
 bool authored_head(const std::filesystem::path& project)
 {
     std::ifstream head(project / "HEAD", std::ios::binary);
@@ -741,29 +761,31 @@ bool ProjectAutosave::resume_latest()
     }
 }
 
-std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
+std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::projects()
 {
     settle(true);
     // Home can be opened before the first project switch. Render the current
     // project once here; the preview is independent of the frequent backups.
     ensure_current_preview();
+    const auto folders = project_folders(m_root);
+    if (!folders)
+        return std::nullopt;
     std::vector<ManagedProject> result;
-    // Nothing has been saved yet on a new installation.
-    if (!std::filesystem::is_directory(m_root))
-        return result;
-    for (const auto& entry : std::filesystem::directory_iterator(m_root)) {
-        if (!entry.is_directory() || !std::filesystem::exists(entry.path() / "HEAD"))
-            continue;
+    for (const auto& folder : *folders) {
         try {
-            if (!authored_head(entry.path()))
+            // Inside the try: a project folder that cannot be read is skipped
+            // like any other unavailable project, not the whole list.
+            if (!std::filesystem::is_directory(folder) || !std::filesystem::exists(folder / "HEAD"))
                 continue;
-            const std::string id = entry.path().filename().string();
-            const auto add = [&result, &entry, &id](const ProjectVersionStore::Version& version) {
+            if (!authored_head(folder))
+                continue;
+            const std::string id = folder.filename().string();
+            const auto add = [&result, &folder, &id](const ProjectVersionStore::Version& version) {
                 const auto source = std::filesystem::u8path(version.source_path);
                 const std::string name = !version.project_name.empty() ? version.project_name : source.stem().u8string();
-                ManagedProject project{id, name, version.created_at, version.source_path, entry.path().u8string()};
+                ManagedProject project{id, name, version.created_at, version.source_path, folder.u8string()};
                 try {
-                    project.thumbnail_url = saved_preview(entry.path(), version.id);
+                    project.thumbnail_url = saved_preview(folder, version.id);
                     if (project.thumbnail_url.empty()) {
                         // A project whose latest version was never rendered
                         // here has no preview sidecar for it. Orca's original
@@ -771,7 +793,7 @@ std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
                         // project is next opened and rendered locally.
                         project.thumbnail_url = source_preview(version.source_path);
                         if (!project.thumbnail_url.empty())
-                            write_preview(entry.path(), version.id, project.thumbnail_url);
+                            write_preview(folder, version.id, project.thumbnail_url);
                     }
                 } catch (const std::exception& error) {
                     // A damaged preview must not hide an otherwise healthy
@@ -791,7 +813,7 @@ std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
                     add(versions.back());
             }
         } catch (const std::exception& error) {
-            BOOST_LOG_TRIVIAL(warning) << "Managed project unavailable: " << entry.path().string() << ": " << error.what();
+            BOOST_LOG_TRIVIAL(warning) << "Managed project unavailable: " << folder.string() << ": " << error.what();
         }
     }
     std::sort(result.begin(), result.end(), [](const ManagedProject& a, const ManagedProject& b) {
@@ -802,13 +824,14 @@ std::vector<ProjectAutosave::ManagedProject> ProjectAutosave::projects()
 
 bool ProjectAutosave::has_local_project_for_source(const std::filesystem::path& source) const
 {
-    return !projects_for_source(source).empty();
+    const auto matches = projects_for_source(source);
+    return matches && !matches->empty();
 }
 
-std::vector<ProjectAutosave::SourceMatch> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
+std::optional<std::vector<ProjectAutosave::SourceMatch>> ProjectAutosave::projects_for_source(const std::filesystem::path& source) const
 {
     if (source.empty())
-        return {};
+        return std::vector<SourceMatch>{};
     std::optional<std::string> digest_now; // read once, when a match needs it
     const auto changed = [&](const std::string& digest) -> std::optional<bool> {
         if (digest.empty())
@@ -818,13 +841,15 @@ std::vector<ProjectAutosave::SourceMatch> ProjectAutosave::projects_for_source(c
         return *digest_now != digest;
     };
     std::vector<std::pair<std::filesystem::file_time_type, SourceMatch>> matches;
-    if (!std::filesystem::is_directory(m_root))
-        return {};
-    for (const auto& entry : std::filesystem::directory_iterator(m_root)) {
-        if (!entry.is_directory() || !std::filesystem::is_regular_file(entry.path() / "HEAD"))
-            continue;
+    const auto folders = project_folders(m_root);
+    if (!folders)
+        return std::nullopt;
+    for (const auto& folder : *folders) {
         try {
-            std::ifstream head_file(entry.path() / "HEAD", std::ios::binary);
+            // A project folder that cannot be read is skipped, as in projects().
+            if (!std::filesystem::is_directory(folder) || !std::filesystem::is_regular_file(folder / "HEAD"))
+                continue;
+            std::ifstream head_file(folder / "HEAD", std::ios::binary);
             const std::string head((std::istreambuf_iterator<char>(head_file)), std::istreambuf_iterator<char>());
             if (head.empty()) continue;
             std::vector<std::string> versions;
@@ -837,21 +862,21 @@ std::vector<ProjectAutosave::SourceMatch> ProjectAutosave::projects_for_source(c
             }
             for (auto it = versions.rbegin(); it != versions.rend(); ++it) {
                 if (it->empty() || it->find_first_of("/\\") != std::string::npos) continue;
-                std::ifstream manifest_file(entry.path() / "versions" / *it / "manifest.json", std::ios::binary);
+                std::ifstream manifest_file(folder / "versions" / *it / "manifest.json", std::ios::binary);
                 if (!manifest_file) continue;
                 const nlohmann::json manifest = nlohmann::json::parse(manifest_file);
                 if (same_source_path(source, std::filesystem::u8path(manifest.value("sourcePath", std::string()))) ||
                     same_source_path(source, std::filesystem::u8path(manifest.value("openedFrom", std::string())))) {
-                    auto updated = std::filesystem::last_write_time(entry.path() / "HEAD");
-                    if (std::filesystem::is_regular_file(entry.path() / "current-state.json"))
-                        updated = std::max(updated, std::filesystem::last_write_time(entry.path() / "current-state.json"));
-                    matches.emplace_back(updated, SourceMatch{entry.path().filename().string(), manifest.value("projectName", std::string()),
+                    auto updated = std::filesystem::last_write_time(folder / "HEAD");
+                    if (std::filesystem::is_regular_file(folder / "current-state.json"))
+                        updated = std::max(updated, std::filesystem::last_write_time(folder / "current-state.json"));
+                    matches.emplace_back(updated, SourceMatch{folder.filename().string(), manifest.value("projectName", std::string()),
                                                               false, changed(manifest.value("openedDigest", std::string()))});
                     break;
                 }
             }
         } catch (const std::exception& error) {
-            BOOST_LOG_TRIVIAL(warning) << "Local project source index unavailable: " << entry.path().string()
+            BOOST_LOG_TRIVIAL(warning) << "Local project source index unavailable: " << folder.string()
                                        << ": " << error.what();
         }
     }
@@ -1079,7 +1104,14 @@ std::string ProjectAutosave::pin_current()
             return {};
     }
     const std::string id = m_store->head_id();
-    m_store->pin(id);
+    try {
+        m_store->pin(id);
+    } catch (const std::exception& error) {
+        // Pinning writes into the project folder like any save, so a folder
+        // that cannot be written is a failed save, reported and retried.
+        fail(error.what());
+        return {};
+    }
     return id;
 }
 

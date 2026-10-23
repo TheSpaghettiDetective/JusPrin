@@ -129,6 +129,9 @@ export interface PrinterErrorPayload {
 export interface StatePayload {
   appearance: Appearance;
   projects: ProjectInfo[];
+  // Host-formatted and already translated; non-empty when the saved projects
+  // could not be read, which the gallery says instead of "No projects yet".
+  projectsProblem?: string;
   printers: PrinterInfo[];
   // A printer the conversation just added; empty for any other push.
   highlightPrinter?: string;

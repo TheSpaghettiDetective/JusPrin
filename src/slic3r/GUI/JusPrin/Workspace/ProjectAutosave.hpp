@@ -67,7 +67,9 @@ public:
     // Restores the version a chat was left on and makes the chat active.
     bool restore_chat(const std::string& version_id, const std::string& conversation_id);
     bool resume_latest();
-    std::vector<ManagedProject> projects();
+    // The saved projects, newest first, leaving out any that cannot be read;
+    // nothing when the projects folder itself cannot be read.
+    std::optional<std::vector<ManagedProject>> projects();
     // A saved project made from `source`, matched by the file's path: the open
     // project first when it came from that file, then the most recently
     // updated. `changed` says whether the file now differs from the one the
@@ -80,8 +82,10 @@ public:
         std::optional<bool> changed;
     };
     // Read-only lookup also works when another app instance owns the store lock.
+    // Nothing when the projects folder cannot be read: whether the file was
+    // opened before is then unknown, which is not the same as "no".
     bool has_local_project_for_source(const std::filesystem::path& source) const;
-    std::vector<SourceMatch> projects_for_source(const std::filesystem::path& source) const;
+    std::optional<std::vector<SourceMatch>> projects_for_source(const std::filesystem::path& source) const;
     // The file the open project was opened from, kept with its MD5 from now
     // on, unless one is kept already. A .3mf is recorded on its own: it is
     // the project's file.

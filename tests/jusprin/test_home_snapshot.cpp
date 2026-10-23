@@ -53,6 +53,7 @@ TEST_CASE("the payload carries the three fields the page reads", "[home]")
     CHECK(payload.at("projects").is_array());
     CHECK(payload.at("printers").is_array());
     CHECK(payload.at("projects").empty());
+    CHECK(payload.at("projectsProblem") == "");
     CHECK(payload.at("highlightPrinter") == "");
 }
 

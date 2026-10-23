@@ -139,9 +139,17 @@ public:
         bool                current{false};
         std::optional<bool> changed;
     };
+    // What a lookup found: the project made from the file before, if any, or
+    // that the saved projects could not be read to tell.
+    struct EarlierLookup
+    {
+        EarlierLookup(std::optional<EarlierProject> found = std::nullopt) : project(std::move(found)) {}
+        std::optional<EarlierProject> project;
+        bool                          unreadable{false};
+    };
     // Finds, opens, and tells the owner which file the new project came
     // from. Without them every file opens as a new project.
-    void set_earlier_projects(std::function<std::optional<EarlierProject>(const std::string& path)> find,
+    void set_earlier_projects(std::function<EarlierLookup(const std::string& path)> find,
                               std::function<bool(const std::string& id)> open,
                               std::function<void(const std::string& path)> opened_from)
     {
@@ -235,7 +243,7 @@ private:
     std::function<std::string(const ToolActivity&)> m_version_before;
     std::function<void(const ToolActivity&, const std::string&)> m_version_after;
     std::function<void(const ToolActivity&)> m_document_boundary;
-    std::function<std::optional<EarlierProject>(const std::string&)> m_find_earlier;
+    std::function<EarlierLookup(const std::string&)> m_find_earlier;
     std::function<bool(const std::string&)>                          m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;
     std::function<void(const Workspace::LoadReport&)>                m_agent_project_opened;

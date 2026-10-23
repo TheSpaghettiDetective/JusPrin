@@ -118,6 +118,7 @@ json state_payload(const Snapshot& snapshot)
     return json{
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
+        {"projectsProblem", snapshot.projects_problem},
         {"printers", std::move(printers)},
         {"highlightPrinter", snapshot.highlight_printer},
     };

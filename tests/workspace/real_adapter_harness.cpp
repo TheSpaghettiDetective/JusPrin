@@ -20,6 +20,8 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/format.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/PartPlate.hpp"
@@ -2110,7 +2112,8 @@ private:
         const std::string initial_version = autosave->current_version();
         const std::string initial_layer_height = m_app.preset_bundle->prints.get_edited_preset().config.opt_serialize("layer_height");
         bool found_metadata = false;
-        for (const auto& project : autosave->projects()) {
+        const auto saved_projects = autosave->projects().value();
+        for (const auto& project : saved_projects) {
             const auto metadata = std::filesystem::u8path(project.store_path) / "versions" /
                                   autosave->current_version() / "metadata.3mf";
             if (!std::filesystem::is_regular_file(metadata))
@@ -2254,8 +2257,16 @@ private:
             check(!refused.slicing.running && plate != nullptr && !plate->sliced, "slice_failure_nothing_runs");
             const bool recorded = plate != nullptr && plate->slice_failure && plate->slice_failure->kind == SliceFailureKind::Refused;
             check(recorded, "slice_failure_recorded_inside_the_call");
+            // OrcaSlicer's own message, built as Plater builds it. Its English
+            // catalogue rewords this string, and on Windows the source text
+            // is shown instead, so the expected text goes through the same
+            // translation lookup rather than naming one of the two.
+            const std::string orca_words = Slic3r::format(
+                _u8L("Plate %d: %s is not suggested to be used to print filament %s (%s). "
+                     "If you still want to do this print job, please set this filament's bed temperature to non-zero."),
+                1, "Cool Plate", 1, "Bambu PETG HF");
             check(recorded && plate->slice_failure->severity == "blocker" &&
-                      plate->slice_failure->message.find("is not suggested for use printing filament 1 (Bambu PETG HF)") != std::string::npos &&
+                      plate->slice_failure->message.find(orca_words) != std::string::npos &&
                       plate->slice_failure->code == "filament_not_match_bed_type",
                   "slice_failure_in_orca_words");
             check(refused.revision > before.revision, "slice_failure_advances_the_revision");

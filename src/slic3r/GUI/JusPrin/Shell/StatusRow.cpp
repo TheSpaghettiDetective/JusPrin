@@ -518,7 +518,13 @@ void StatusRow::show_recent_projects(std::size_t offset)
     try {
         if (!m_autosave->save_now())
             throw std::runtime_error(m_autosave->error());
-        const auto projects = m_autosave->projects();
+        const auto listed = m_autosave->projects();
+        if (!listed) {
+            show_project_error(this, _L("Couldn't load projects"), _L("Projects couldn't be loaded. Try again."),
+                               "the projects folder could not be read");
+            return;
+        }
+        const auto& projects = *listed;
         std::vector<HeaderMenuItem> menu{
             {_L("Projects"),HeaderIcon::None,{},false,false,{}},
             {_L("Back"),HeaderIcon::Back,{},true,false,[this] { show_overflow_menu(); }}

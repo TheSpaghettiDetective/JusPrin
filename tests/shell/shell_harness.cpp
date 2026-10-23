@@ -222,6 +222,7 @@
 #include <shellapi.h>
 #include <objbase.h>
 #include <WebView2.h>
+#include <aclapi.h>
 #include <wrl.h>
 #include <wrl/client.h>
 #endif
@@ -233,6 +234,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -311,6 +313,7 @@
 #include <wx/dcmemory.h>
 #include <wx/dcscreen.h>
 #include <wx/glcanvas.h>
+#include <wx/modalhook.h>
 #include <wx/dialog.h>
 #include <wx/dnd.h>
 #include <wx/hyperlink.h>
@@ -422,6 +425,64 @@ bool preview_has_subject(const std::string& url)
         return value != 0;
     });
 }
+
+// Takes away this user's access to a folder and everything in it, as a
+// permission change or a storage fault would, until destroyed. POSIX mode
+// bits are not enforced on Windows, so there it denies read and write through
+// the folder's ACL; the read denial matches icacls' "W", which includes
+// SYNCHRONIZE and so blocks opening a file for reading as well.
+class UnavailableFolder
+{
+public:
+    explicit UnavailableFolder(std::filesystem::path folder) : m_folder(std::move(folder))
+    {
+#ifdef _WIN32
+        PACL original = nullptr;
+        if (GetNamedSecurityInfoW(m_folder.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr,
+                                  &original, nullptr, &m_descriptor) != ERROR_SUCCESS)
+            throw std::runtime_error("cannot read the folder's access list: " + m_folder.string());
+        m_original = original;
+        EXPLICIT_ACCESSW deny{};
+        BuildExplicitAccessWithNameW(&deny, const_cast<LPWSTR>(L"CURRENT_USER"),
+                                     FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD, DENY_ACCESS,
+                                     SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        PACL denied = nullptr;
+        if (SetEntriesInAclW(1, &deny, original, &denied) != ERROR_SUCCESS)
+            throw std::runtime_error("cannot build the denying access list");
+        const DWORD applied = SetNamedSecurityInfoW(const_cast<LPWSTR>(m_folder.c_str()), SE_FILE_OBJECT,
+                                                    DACL_SECURITY_INFORMATION, nullptr, nullptr, denied, nullptr);
+        LocalFree(denied);
+        if (applied != ERROR_SUCCESS)
+            throw std::runtime_error("cannot deny access to " + m_folder.string());
+#else
+        m_original = std::filesystem::status(m_folder).permissions();
+        std::filesystem::permissions(m_folder, std::filesystem::perms::none, std::filesystem::perm_options::replace);
+#endif
+    }
+
+    ~UnavailableFolder()
+    {
+#ifdef _WIN32
+        SetNamedSecurityInfoW(const_cast<LPWSTR>(m_folder.c_str()), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr,
+                              nullptr, static_cast<PACL>(m_original), nullptr);
+        LocalFree(m_descriptor);
+#else
+        std::filesystem::permissions(m_folder, m_original, std::filesystem::perm_options::replace);
+#endif
+    }
+
+    UnavailableFolder(const UnavailableFolder&) = delete;
+    UnavailableFolder& operator=(const UnavailableFolder&) = delete;
+
+private:
+    std::filesystem::path m_folder;
+#ifdef _WIN32
+    PSECURITY_DESCRIPTOR m_descriptor{nullptr};
+    void* m_original{nullptr};
+#else
+    std::filesystem::perms m_original{};
+#endif
+};
 
 // Managed project folders holding no saved state: what a blank project that
 // nothing was saved for would leave behind.
@@ -840,7 +901,8 @@ struct HarnessState
         LeftPane,
         LeftPaneEditor,
         LeftPaneSlicedCapture,
-        AutoSlice
+        AutoSlice,
+        UnavailableStorage
     };
 
     std::atomic<int>  result{-1};
@@ -974,6 +1036,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PresetClose) {
                 verify_preset_close();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::UnavailableStorage) {
+                verify_unavailable_project_storage();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -2050,15 +2116,20 @@ private:
         check(installed_shell()->autosave()->save_now(), "restart_seed_committed");
         Slic3r::set_backup_interval(1);
         Slic3r::backup_soon();
-        const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+        const auto home_projects = installed_shell()->home_view()->backend().recent_projects().projects;
         check(std::any_of(home_projects.begin(), home_projects.end(), [id = document.project_id()](const auto& project) {
             return project.id == id;
         }), "home_lists_saved_local_project");
         const auto home_entry = std::find_if(home_projects.begin(), home_projects.end(),
             [id = document.project_id()](const auto& project) { return project.id == id; });
+        // The path is the project's folder in its native form (backslashes on
+        // Windows), shown as the card's tooltip.
+        std::error_code same_folder_error;
         check(home_entry != home_projects.end() && home_entry->name == "restart-source" &&
                   home_entry->status_text == "Saved" &&
-                  home_entry->path.find("/jusprin/projects/") != std::string::npos,
+                  std::filesystem::equivalent(std::filesystem::u8path(home_entry->path),
+                                              std::filesystem::path(data_dir()) / "jusprin" / "projects" / document.project_id(),
+                                              same_folder_error),
               "home_describes_managed_project");
         check(home_entry != home_projects.end() &&
                   preview_has_subject(home_entry->thumbnail_url),
@@ -2159,7 +2230,7 @@ private:
             self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n') ==
                             wxString::FromUTF8("restart-source \xE2\x80\x94 ") + wxGetTranslation("Saved"),
                         "restart_title_uses_local_project_name_and_save_state");
-            const auto home_projects = installed_shell()->home_view()->backend().recent_projects();
+            const auto home_projects = installed_shell()->home_view()->backend().recent_projects().projects;
             self->check(std::any_of(home_projects.begin(), home_projects.end(),
                 [&project_id](const auto& project) {
                     return project.id == project_id && project.name == "restart-source" &&
@@ -2181,6 +2252,163 @@ private:
                         "restart_quiet_plate_rename_restored");
             self->finish();
         });
+    }
+
+    // The project folder stops being readable and writable while the project
+    // is open. Every save is refused and says so, the Agent page and the
+    // version list keep working from what was saved, and saving resumes on
+    // its own once the folder is available again.
+    void verify_unavailable_project_storage()
+    {
+        auto* autosave = installed_shell()->autosave();
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "unavailable_storage_model_loaded");
+        check(autosave->save_now(), "unavailable_storage_project_saved");
+        const auto saved = autosave->history();
+        const std::string saved_head = autosave->current_version();
+        const auto ids = [](const std::vector<Workspace::ProjectVersionStore::Version>& versions) {
+            std::vector<std::string> result;
+            for (const auto& version : versions)
+                result.push_back(version.id);
+            return result;
+        };
+        auto folder = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects" /
+                                                          persistence().document().project_id());
+        auto& host = installed_shell()->agent_pane()->web_view().host();
+        // Nothing is unsaved, but a chat checkpoint still has to pin the saved
+        // version in the folder.
+        check(!host.checkpoint_active_chat() && autosave->state() == Workspace::ProjectAutosave::State::Failed,
+              "unavailable_storage_refuses_a_checkpoint_visibly");
+        // The page's restore points are built from the version list.
+        host.refresh_page_state();
+        check(ids(autosave->history()) == ids(saved), "unavailable_storage_keeps_the_saved_version_list");
+        // Home reads each project's folder; one it cannot read is left out
+        // like any other unavailable project, not the whole list.
+        const auto listed = installed_shell()->home_view()->backend().recent_projects();
+        check(listed.problem.empty() &&
+                  std::none_of(listed.projects.begin(), listed.projects.end(),
+                               [id = persistence().document().project_id()](const auto& project) { return project.id == id; }),
+              "unavailable_storage_home_leaves_out_the_unreadable_project");
+        check(m_plater->rename_object(0, "Edited while unavailable"), "unavailable_storage_edit_applied");
+        // Long enough for several of autosave's 2 s retries.
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+        auto saved_while_unavailable = std::make_shared<bool>(false);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "unavailable_storage_retry_window",
+                   [self = shared_from_this(), autosave, folder, saved, saved_head, saved_while_unavailable, ids]() mutable {
+            self->check(!*saved_while_unavailable && autosave->state() == Workspace::ProjectAutosave::State::Failed &&
+                            autosave->current_version() == saved_head,
+                        "unavailable_storage_edit_stays_unsaved_and_reported");
+            self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(
+                            wxGetTranslation("Couldn't save")),
+                        "unavailable_storage_has_plain_status_text");
+            installed_shell()->agent_pane()->web_view().host().refresh_page_state();
+            self->check(ids(autosave->history()) == ids(saved), "unavailable_storage_version_list_survives_retries");
+            folder.reset();
+            self->wait_until([autosave, saved_head] {
+                return autosave->state() == Workspace::ProjectAutosave::State::Saved &&
+                       autosave->current_version() != saved_head;
+            }, "unavailable_storage_saving_resumes_by_itself", [self, autosave, saved] {
+                const auto history = autosave->history();
+                self->check(history.size() == saved.size() + 1 && history.back().id == autosave->current_version() &&
+                                self->m_plater->model().objects[0]->name == "Edited while unavailable",
+                            "unavailable_storage_edit_saved_after_recovery");
+                self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(
+                                wxGetTranslation("Saved")),
+                            "unavailable_storage_status_returns_to_saved");
+                self->verify_unavailable_projects_folder();
+            });
+        }, [autosave, saved_while_unavailable] {
+            *saved_while_unavailable |= autosave->state() == Workspace::ProjectAutosave::State::Saved;
+        });
+    }
+
+    // Home lists the saved projects by reading the projects folder itself. When
+    // that folder cannot be read, Home says so instead of showing an empty
+    // gallery, and lists the projects again once it can.
+    void verify_unavailable_projects_folder()
+    {
+        const std::string project_id = persistence().document().project_id();
+        auto folder = std::make_shared<UnavailableFolder>(std::filesystem::path(data_dir()) / "jusprin" / "projects");
+        const auto listed = installed_shell()->home_view()->backend().recent_projects();
+        check(listed.projects.empty() && !listed.problem.empty(), "unavailable_projects_folder_is_reported");
+
+        // Opening a file asks whether it was opened before, which cannot be
+        // told now: nothing opens, it says why, and the current project stays.
+        Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        const std::string agent_open = host.tools().submit({"project_open", nlohmann::json{{"path", cube}}.dump()}, "unreadable").action_id;
+        const Agent::ToolActivity* refused = host.tools().find(agent_open);
+        check(refused != nullptr && refused->error && refused->error->code == "local_save_failed" &&
+                  refused->error->message.find("could not read its saved projects") != std::string::npos &&
+                  persistence().document().project_id() == project_id,
+              "unavailable_projects_folder_agent_open_says_why_and_opens_nothing");
+        struct Answer : wxModalDialogHook
+        {
+            std::string text;
+            int Enter(wxDialog* dialog) override
+            {
+                text = Workspace::read_dialog(*dialog).text;
+                return wxID_OK;
+            }
+        } answer;
+        answer.Register();
+        const std::size_t objects = m_plater->model().objects.size();
+        m_plater->load_project(wxString::FromUTF8(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/jusprin/prusaslicer_cube.3mf"));
+        answer.Unregister();
+        check(answer.text.find("couldn't be read") != std::string::npos &&
+                  persistence().document().project_id() == project_id && m_plater->model().objects.size() == objects,
+              "unavailable_projects_folder_person_open_says_why_and_opens_nothing");
+
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        wait_for_home_projects([problem = listed.problem](const nlohmann::json& page) {
+            return page.value("cards", -1) == 0 && page.value("text", "").find(problem) != std::string::npos;
+        }, "unavailable_projects_folder_home_says_so", [self = shared_from_this(), folder, project_id]() mutable {
+            // Home stays open: its own refresh has to notice the folder is back.
+            folder.reset();
+            const auto listed = installed_shell()->home_view()->backend().recent_projects();
+            self->check(listed.problem.empty() && std::any_of(listed.projects.begin(), listed.projects.end(),
+                            [&project_id](const auto& project) { return project.id == project_id; }),
+                        "unavailable_projects_folder_lists_again");
+            self->wait_for_home_projects([](const nlohmann::json& page) { return page.value("cards", 0) >= 1; },
+                                         "unavailable_projects_folder_home_shows_the_project_again",
+                                         [self] { self->finish(); });
+        });
+    }
+
+    nlohmann::json m_home_projects;
+    bool           m_home_projects_bound{false};
+
+    // Waits until Home's project gallery, as the page draws it, satisfies
+    // `drawn`: { cards: number of project cards, text: the gallery's text }.
+    void wait_for_home_projects(std::function<bool(const nlohmann::json&)> drawn, const std::string& name,
+                                std::function<void()> then)
+    {
+        wxWebView* view = installed_shell()->home_view()->webview();
+        if (!m_home_projects_bound) {
+            view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [weak = std::weak_ptr<Scenario>(shared_from_this())](wxWebViewEvent& event) {
+                event.Skip();
+                const auto self = weak.lock();
+                const nlohmann::json message = nlohmann::json::parse(event.GetString().ToUTF8().data(), nullptr, false);
+                if (self && message.is_object() && message.value("harness", "") == "home-projects")
+                    self->m_home_projects = message;
+            });
+            m_home_projects_bound = true;
+        }
+        m_home_projects = nullptr;
+        auto ticks = std::make_shared<unsigned>(0);
+        wait_until([this, drawn] { return m_home_projects.is_object() && drawn(m_home_projects); }, name, std::move(then),
+                   [view, ticks] {
+                       if ((*ticks)++ % 25 == 0)
+                           WebView::RunScript(view,
+                               "(function () {"
+                               "  var gallery = document.querySelector('.gallery');"
+                               "  window.wx.postMessage(JSON.stringify({ harness: 'home-projects',"
+                               "    cards: document.querySelectorAll('.project-card').length,"
+                               "    text: gallery ? gallery.textContent : '' }));"
+                               "})()");
+                   });
     }
 
     void verify_preset_close()
@@ -8646,7 +8874,7 @@ private:
         check(prompt_count == 5 && persistence().document().project_id() == newest, "reopen_open_project_menu_asks_too");
 
         const std::filesystem::path file(source.string());
-        const auto unchanged = autosave->projects_for_source(file);
+        const auto unchanged = autosave->projects_for_source(file).value();
         const auto describe = [&](const char* label, const std::vector<Workspace::ProjectAutosave::SourceMatch>& matches) {
             std::cout << "HARNESS NOTE " << label << " current project " << persistence().document().project_id() << ":";
             for (const auto& match : matches)
@@ -8660,7 +8888,7 @@ private:
         const std::string  original((std::istreambuf_iterator<char>(original_file)), std::istreambuf_iterator<char>());
         original_file.close();
         std::ofstream(source.string(), std::ios::binary | std::ios::app) << ' ';
-        const auto changed = autosave->projects_for_source(file);
+        const auto changed = autosave->projects_for_source(file).value();
         describe("changed", changed);
         check(!changed.empty() && changed.front().changed == true, "reopen_changed_file_is_noticed");
         std::ofstream(source.string(), std::ios::binary | std::ios::trunc) << original;
@@ -10778,6 +11006,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::ClassicSwitch;
         else if (argument == "--preset-close")
             state->mode = HarnessState::Mode::PresetClose;
+        else if (argument == "--unavailable-storage")
+            state->mode = HarnessState::Mode::UnavailableStorage;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
         else if (argument == "--reopen-prompt") {

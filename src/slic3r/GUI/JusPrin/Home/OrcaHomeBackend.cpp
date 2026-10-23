@@ -172,10 +172,17 @@ OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame)
 
 bool OrcaHomeBackend::dark() const { return wxGetApp().dark_mode(); }
 
-std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
+ProjectList OrcaHomeBackend::recent_projects() const
 {
     if (m_autosave == nullptr)
         return {};
+    const auto managed = m_autosave->projects();
+    // The projects folder itself could not be read; a project in it that
+    // cannot be read is left out by projects() on its own. Home says so
+    // instead of showing an empty gallery, and HomeHost keeps reading the
+    // folder while Home is on screen.
+    if (!managed)
+        return {{}, utf8(_L("Your projects couldn't be loaded. JusPrin will keep trying."))};
     // Match printing jobs by the project's display name, which is what Orca
     // uses for a job. The source file may have been deleted after import.
     std::map<std::string, std::string> printing_by_stem;
@@ -189,8 +196,8 @@ std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
         }
     }
 
-    std::vector<ProjectEntry> projects;
-    for (const auto& saved : m_autosave->projects()) {
+    ProjectList listed;
+    for (const auto& saved : *managed) {
         ProjectEntry project;
         project.id = saved.id;
         project.name = saved.name.empty() || saved.name == utf8(_L("Untitled")) ?
@@ -207,9 +214,9 @@ std::vector<ProjectEntry> OrcaHomeBackend::recent_projects() const
             project.status_kind = ProjectStatusKind::Unknown;
             project.status_text = utf8(_L("Saved"));
         }
-        projects.push_back(std::move(project));
+        listed.projects.push_back(std::move(project));
     }
-    return projects;
+    return listed;
 }
 
 std::vector<PrinterEntry> OrcaHomeBackend::printers() const

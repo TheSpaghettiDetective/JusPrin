@@ -38,7 +38,7 @@ public:
     void set_autosave(Workspace::ProjectAutosave* autosave) { m_autosave = autosave; }
 
     bool                      dark() const override;
-    std::vector<ProjectEntry> recent_projects() const override;
+    ProjectList               recent_projects() const override;
     std::vector<PrinterEntry> printers() const override;
 
     void open_project(const std::string& project_id) override;

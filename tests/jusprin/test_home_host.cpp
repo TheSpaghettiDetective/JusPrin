@@ -24,6 +24,7 @@ class FakeBackend final : public IHomeBackend
 public:
     bool                      is_dark{false};
     std::vector<ProjectEntry> projects;
+    std::string               projects_problem;
     std::vector<PrinterEntry> machines;
 
     std::vector<std::string> opened;
@@ -33,7 +34,7 @@ public:
     int                      wizards{0};
 
     bool                      dark() const override { return is_dark; }
-    std::vector<ProjectEntry> recent_projects() const override { return projects; }
+    ProjectList               recent_projects() const override { return {projects, projects_problem}; }
     std::vector<PrinterEntry> printers() const override { return machines; }
 
     void open_project(const std::string& id) override { opened.push_back(id); }
@@ -134,7 +135,47 @@ TEST_CASE("the handshake is answered with an ack and the whole screen", "[home]"
     const json state = wire.of_type("state").front().at("payload");
     CHECK(state.at("projects").size() == 1);
     CHECK(state.at("projects").at(0).at("name") == "Garage bracket");
+    CHECK(state.at("projectsProblem") == "");
     CHECK(host.connected());
+}
+
+// A projects folder that cannot be read is a different screen from an empty
+// one: the page is told why there is nothing to show.
+TEST_CASE("projects that could not be listed reach the page as a problem", "[home]")
+{
+    FakeBackend backend;
+    backend.projects_problem = "Your projects couldn't be loaded.";
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+
+    host.on_page_message(hello());
+
+    const json state = wire.of_type("state").front().at("payload");
+    CHECK(state.at("projects").empty());
+    CHECK(state.at("projectsProblem") == "Your projects couldn't be loaded.");
+}
+
+// The live refresh keeps reading a projects folder it could not read, and
+// fills the gallery in once it can, without the person leaving Home.
+TEST_CASE("a gallery that could not be read fills in once it can", "[home]")
+{
+    FakeBackend backend;
+    backend.projects_problem = "Your projects couldn't be loaded.";
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    CHECK_FALSE(host.refresh_if_changed());
+
+    backend.projects_problem.clear();
+    backend.projects = {a_project("0", "Garage bracket")};
+    CHECK(host.refresh_if_changed());
+    const json latest = wire.of_type("state").back().at("payload");
+    CHECK(latest.at("projectsProblem") == "");
+    CHECK(latest.at("projects").size() == 1);
+
+    // Readable again, the projects go back to being read only with a send.
+    CHECK_FALSE(host.refresh_if_changed());
 }
 
 // A page speaking a version this build does not must be told so, not left

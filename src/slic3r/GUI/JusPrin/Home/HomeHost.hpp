@@ -42,7 +42,9 @@ public:
     // the last push_state named keeps its place and its highlight, so a live
     // push never reorders the column or cuts the highlight short. Projects
     // are re-read with any send; nothing that changes them alone happens
-    // while Home is on screen. Returns whether it sent.
+    // while Home is on screen, except a projects folder that could not be
+    // read becoming readable: while the page shows that problem, the
+    // projects are re-read on every refresh too. Returns whether it sent.
     bool refresh_if_changed();
     void push_appearance(bool dark);
 
@@ -68,6 +70,8 @@ private:
     // compares against.
     std::string        m_added;
     std::string        m_sent_printers;
+    // Why the last state sent had no projects, when they could not be read.
+    std::string        m_sent_projects_problem;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

@@ -85,7 +85,20 @@ files and uses `MoveFileExW` with `MOVEFILE_WRITE_THROUGH`. Restart discards
 unfinished staging, unindexed versions, unreachable resources, and old
 disposable restore directories. If saving
 fails, the current model stays open, the header reports a local save failure,
-and the next save retries it. Project replacement is blocked until the live
+and the next save retries it. A project folder that can no longer be read or
+written is such a failure: the version list is read once when the project
+opens and then kept in memory, so the Agent page and Version history keep
+working from it while every save is refused, and saving resumes on the next
+retry once the folder is available again. Home and Recent projects list
+projects by reading the projects folder. A project whose folder cannot be
+read is left out of the list, like a damaged one. If the projects folder
+itself cannot be read, Home says the projects couldn't be loaded instead of
+showing an empty gallery, and keeps reading the folder while it is on
+screen, so the projects reappear once the folder is readable; the header's
+Recent projects menu says they couldn't be loaded. Opening a file while the
+projects folder cannot be read stops before anything is replaced, because
+whether the file was opened before cannot be told: a person is told so, and
+the Agent's `project_open` fails with `local_save_failed` saying why. Project replacement is blocked until the live
 state is saved. Explicit export validates a temporary 3MF before replacing
 its destination.
 
@@ -144,7 +157,13 @@ channels, empty restore, corrupt and missing resource rejection, export
 replacement, locks, retention, and attachment reachability. The shell harness
 checks streamed replies without per-word model exports, legacy adoption,
 failed-save behavior, restore, restart, and Agent
-boundaries. Separate process tests stop publication after resources, version,
+boundaries. Its `--unavailable-storage` mode takes away access to the open
+project's folder (through the folder's access list on Windows, where POSIX
+permission bits are not enforced), then checks that saves are refused and
+reported, the page and version list keep working, and saving resumes once
+access returns. It then does the same to the whole projects folder, checks
+that a person's and the Agent's open of a file stop and say why, and that
+Home reports it and fills the gallery in by itself once access returns. Separate process tests stop publication after resources, version,
 and `HEAD`, then verify recovery in a fresh process. These checks run on macOS;
 Windows and Linux runtime behavior still needs platform verification before
 those builds are released.

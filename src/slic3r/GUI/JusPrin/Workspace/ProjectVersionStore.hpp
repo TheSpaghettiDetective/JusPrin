@@ -101,6 +101,10 @@ public:
     void seed_from_live(Model& live);
     Materialization materialize(const std::string& version_id) const;
     void remove_materialization(const Materialization& materialization) const;
+    // Committed manifests are immutable and this store is their only writer,
+    // so the list is read when the project opens and then kept in memory. The
+    // Agent page builds its restore points from it, so a folder that stops
+    // being readable cannot break the page; saves into it still fail.
     std::vector<Version> history() const;
     void pin(const std::string& version_id);
     // A chat restore spans Orca model publication and the independent
@@ -135,6 +139,7 @@ private:
     std::string m_project_id;
     std::string m_head_id;
     std::vector<std::string> m_committed_ids;
+    std::vector<Version> m_history; // the committed ids that have a manifest, in order
     std::map<std::uint64_t, ObjectResource> m_last_resources;
     std::map<std::uint64_t, std::string> m_last_signatures;
     std::shared_ptr<Model> m_last_model;

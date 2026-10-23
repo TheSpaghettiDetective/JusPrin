@@ -97,17 +97,27 @@ struct PrinterEntry
     bool                    can_launch_monitor{false};
 };
 
+// The project gallery: the saved projects, or why they could not be listed.
+struct ProjectList
+{
+    std::vector<ProjectEntry> projects;
+    // Already translated; set when the projects folder could not be read, and
+    // shown instead of the empty gallery.
+    std::string               problem;
+};
+
 struct Snapshot
 {
     bool                      dark{false};
     std::vector<ProjectEntry> projects;
+    std::string               projects_problem; // ProjectList::problem
     std::vector<PrinterEntry> printers;
     // A printer the conversation just added: the page leads with it and
     // draws attention to its card once. Empty for any other push.
     std::string               highlight_printer;
 };
 
-// The `state` payload: { appearance, projects, printers, highlightPrinter }.
+// The `state` payload: { appearance, projects, projectsProblem, printers, highlightPrinter }.
 nlohmann::json state_payload(const Snapshot& snapshot);
 
 

@@ -440,7 +440,23 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             // A tool's own open settles this in the conversation instead.
             if (!m_autosave || m_workspace->tool_load_active())
                 return false;
-            const auto matches = m_autosave->projects_for_source(source);
+            const auto found = m_autosave->projects_for_source(source);
+            if (!found) {
+                // Whether the file was opened before cannot be told, and a
+                // project made from it could not be saved either. The open
+                // stops, the current project stays, and opening the file
+                // again works once the projects folder can be read.
+                MessageDialog dialog(m_frame,
+                                     _L("Your saved projects couldn't be read, so JusPrin can't check whether you've opened this "
+                                        "file before. The file wasn't opened. Try again once JusPrin can read its projects folder."),
+                                     _L("Couldn't open file"), wxOK | wxICON_WARNING);
+                Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
+                    return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
+                });
+                dialog.ShowModal();
+                return true;
+            }
+            const auto& matches = *found;
             if (matches.empty())
                 return false;
             const bool current = matches.front().current;
@@ -511,13 +527,20 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         };
         m_agent_pane->web_view().host().tools().set_version_callbacks(version_before, version_after);
         m_agent_pane->web_view().host().tools().set_earlier_projects(
-            [this](const std::string& path) -> std::optional<Agent::ToolExecutionCoordinator::EarlierProject> {
-                const auto matches = m_autosave ? m_autosave->projects_for_source(std::filesystem::u8path(path)) :
-                                                  std::vector<Workspace::ProjectAutosave::SourceMatch>{};
-                if (matches.empty())
-                    return std::nullopt;
-                return Agent::ToolExecutionCoordinator::EarlierProject{matches.front().id, matches.front().name,
-                                                                       matches.front().current, matches.front().changed};
+            [this](const std::string& path) {
+                using Coordinator = Agent::ToolExecutionCoordinator;
+                if (!m_autosave)
+                    return Coordinator::EarlierLookup{};
+                const auto found = m_autosave->projects_for_source(std::filesystem::u8path(path));
+                if (!found) {
+                    Coordinator::EarlierLookup unreadable;
+                    unreadable.unreadable = true;
+                    return unreadable;
+                }
+                if (found->empty())
+                    return Coordinator::EarlierLookup{};
+                const auto& match = found->front();
+                return Coordinator::EarlierLookup{Coordinator::EarlierProject{match.id, match.name, match.current, match.changed}};
             },
             [this](const std::string& id) { return m_autosave && m_autosave->open_managed_project(id); },
             [this](const std::string& path) {

@@ -91,7 +91,9 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             </button>
           </div>
         </header>
-        {state.projects.length === 0 ? (
+        {state.projectsProblem ? (
+          <p className="empty" role="alert">{state.projectsProblem}</p>
+        ) : state.projects.length === 0 ? (
           <p className="empty">No projects yet.</p>
         ) : (
           <div className="project-grid">

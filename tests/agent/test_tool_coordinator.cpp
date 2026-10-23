@@ -1057,6 +1057,25 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     CHECK(recorded == std::vector<std::string>{model});
     CHECK_FALSE(registry.validate_call(*registry.find("project_open"), R"({"new":true,"openedBefore":"new"})").valid());
     CHECK_FALSE(registry.validate_call(*registry.find("project_open"), json{{"path", model}, {"openedBefore", "keep"}}.dump()).valid());
+
+    // Saved projects that cannot be read leave the question unanswerable:
+    // nothing opens, at the request or at its run, and the call says why.
+    h.coordinator.set_earlier_projects(
+        [](const std::string&) {
+            ToolExecutionCoordinator::EarlierLookup lookup;
+            lookup.unreadable = true;
+            return lookup;
+        },
+        [&](const std::string& id) { continued.push_back(id); return true; }, {});
+    const int opens_before_unreadable = h.workspace.opens;
+    const ToolActivity unreadable = submit(json{{"path", model}});
+    REQUIRE(unreadable.error.has_value());
+    CHECK(unreadable.error->code == "local_save_failed");
+    CHECK(unreadable.error->message.find("could not read its saved projects") != std::string::npos);
+    const ToolActivity unreadable_existing = submit(json{{"path", model}, {"openedBefore", "existing"}});
+    settle(unreadable_existing);
+    CHECK(h.workspace.opens == opens_before_unreadable);
+    CHECK(continued == std::vector<std::string>{"p-1"});
     h.coordinator.set_earlier_projects({}, {}, {});
 
     const auto& definition = *registry.find("project_open");

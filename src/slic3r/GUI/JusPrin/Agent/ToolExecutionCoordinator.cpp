@@ -350,6 +350,9 @@ SettingsTargetLookup settings_target(const json& arguments, const Workspace::Wor
 
 constexpr const char* kMissingTarget = "That object is not in the open project. Read workspace_inspect again.";
 constexpr const char* kPlateNotFound = "That plate is not in the open project. Read workspace_inspect for the plate ids.";
+constexpr const char* kProjectsUnreadable =
+    "Nothing was opened: JusPrin could not read its saved projects to check whether this file was opened before. "
+    "Tell the person; the file can be opened once JusPrin can read its projects folder again.";
 
 Workspace::SettingsPatch settings_patch(const json& arguments, const Workspace::SettingsTarget& target)
 {
@@ -733,7 +736,12 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
             }
             // A file opened before: whether to continue its project is the
             // person's to say, through the caller.
-            const auto earlier = m_find_earlier ? m_find_earlier(path.u8string()) : std::nullopt;
+            const EarlierLookup lookup = m_find_earlier ? m_find_earlier(path.u8string()) : EarlierLookup{};
+            if (lookup.unreadable) {
+                fail(stored, "local_save_failed", kProjectsUnreadable);
+                return stored;
+            }
+            const auto& earlier = lookup.project;
             if (earlier && !arguments.contains("openedBefore")) {
                 const std::string changed = !earlier->changed ? "" : *earlier->changed ? " The file has changed since." :
                                                                                          " The file has not changed since.";
@@ -1026,9 +1034,15 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             m_product_state->flush_to_project();
         Workspace::LoadReport report;
         const std::string action_id = activity.action_id;
-        const auto earlier = arguments.value("openedBefore", "") == "existing" && m_find_earlier ? m_find_earlier(request.path) :
-                                                                                                std::nullopt;
+        const EarlierLookup lookup = arguments.value("openedBefore", "") == "existing" && m_find_earlier ?
+                                         m_find_earlier(request.path) : EarlierLookup{};
+        const auto& earlier = lookup.project;
         auto opened = Workspace::CommandResult::success();
+        if (lookup.unreadable) {
+            fail(activity, "local_save_failed", kProjectsUnreadable);
+            forget_if_closed(action_id);
+            return;
+        }
         if (earlier) {
             report.project_opened = true;
             if (!m_open_earlier || !m_open_earlier(earlier->id))

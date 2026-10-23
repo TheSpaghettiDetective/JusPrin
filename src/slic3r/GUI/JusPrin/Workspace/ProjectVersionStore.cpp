@@ -610,6 +610,9 @@ void ProjectVersionStore::load_head()
                 "current version does not match committed-version index");
         require(safe_component(m_head_id), "invalid current version id");
         const Version version = read_version(m_head_id);
+        for (const std::string& id : m_committed_ids)
+            if (fs::exists(version_dir(id) / "manifest.json"))
+                m_history.push_back(read_version(id));
         m_last_metadata_digest = archive_digest(version_dir(m_head_id) / "metadata.3mf");
         m_last_regions = version.regions;
         for (const ObjectResource& object : version.objects)
@@ -768,7 +771,8 @@ void ProjectVersionStore::publish(Capture capture)
             pending / "new-resources" / (object.resource.id + ".zip") : resource_path(object.resource.id);
         require(fs::exists(path), "referenced object resource is missing");
     }
-    checked_write(pending / "manifest.json", version_json(capture.version).dump(2));
+    const std::string manifest = version_json(capture.version).dump(2);
+    checked_write(pending / "manifest.json", manifest);
     sync_file(pending / "metadata.3mf");
     sync_directory(pending);
     for (const ObjectResource& object : capture.version.objects) {
@@ -790,10 +794,12 @@ void ProjectVersionStore::publish(Capture capture)
         next_resources[object.object_id] = object;
     std::string next_head = capture.version.id;
     std::string next_digest = archive_digest(version_dir(capture.version.id) / "metadata.3mf");
+    Version committed_version = parse_version(manifest);
     checked_write(m_root / "HEAD.pending",
                   json{{"schema", 1}, {"current", capture.version.id}, {"versions", committed}}.dump());
     replace_file(m_root / "HEAD.pending", m_root / "HEAD");
     m_committed_ids.swap(committed);
+    m_history.push_back(std::move(committed_version));
     m_head_id.swap(next_head);
     m_last_resources.swap(next_resources);
     m_last_signatures = std::move(capture.signatures);
@@ -842,11 +848,7 @@ ProjectVersionStore::Version ProjectVersionStore::read_version(const std::string
 
 std::vector<ProjectVersionStore::Version> ProjectVersionStore::history() const
 {
-    std::vector<Version> versions;
-    for (const std::string& id : m_committed_ids)
-        if (fs::exists(version_dir(id) / "manifest.json"))
-            versions.push_back(read_version(id));
-    return versions;
+    return m_history;
 }
 
 ProjectVersionStore::Materialization ProjectVersionStore::materialize(const std::string& version_id) const
@@ -973,6 +975,7 @@ void ProjectVersionStore::prune(std::size_t max_versions, std::uintmax_t max_byt
                       json{{"schema", 1}, {"current", m_head_id}, {"versions", committed}}.dump());
         atomic_replace(m_root / "HEAD.pending", m_root / "HEAD");
         m_committed_ids.swap(committed);
+        m_history = versions;
         for (const std::string& id : removed)
             fs::remove_all(version_dir(id));
         sync_directory(m_root / "versions");

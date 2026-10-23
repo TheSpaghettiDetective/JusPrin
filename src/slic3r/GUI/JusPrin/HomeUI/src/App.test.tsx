@@ -90,6 +90,16 @@ describe('Home', () => {
     expect((hello!.payload as { protocolVersions: number[] }).protocolVersions).toEqual([PROTOCOL_VERSION]);
   });
 
+  it('says the projects could not be read rather than showing an empty gallery', () => {
+    const host = start();
+    host.deliver('state', state({ projects: [], projectsProblem: "Your projects couldn't be loaded." }));
+    expect(screen.getByRole('alert')).toHaveTextContent("Your projects couldn't be loaded.");
+    expect(screen.queryByText('No projects yet.')).not.toBeInTheDocument();
+    host.deliver('state', state());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Garage bracket')).toBeInTheDocument();
+  });
+
   it('waits for the host rather than showing an empty gallery', () => {
     const host = new MockHost();
     render(<App getTransport={() => host.transport} />);
