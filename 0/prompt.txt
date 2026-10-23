@@ -1,0 +1,350 @@
+Background (from the session that started this one):
+JusPrin is an AI-piloted fork of OrcaSlicer (C++17, wxWidgets, CMake). On 2026-10-22 Kenneth decided:
+- JusPrin checks for its own new versions against the release list of TheSpaghettiDetective/JusPrin on GitHub.
+- Download opens the release page; installing from inside the app comes later.
+- JusPrin's first v2 version is 2.0.0, kept separate from OrcaSlicer's SoftFever_VERSION (2.4.2), which 3MF files, profile updates and config upgrades read.
+
+That check is built on branch claude/no-orca-update-window: it reads GitHub's releases API about 10 s after start and then daily. OrcaSlicer's own update check is handed to it through a small GUI_App seam (app_update_check).
+
+The repo's CI is still OrcaSlicer's, so no JusPrin 2.x release exists on GitHub yet; the only releases are JusPrin 1.x (tags v1.3.0, jusprin/v1.4.0) and a stale "nightly-builds" pre-release. Kenneth prefers reports in plain English.
+
+Task:
+Design, then build what Kenneth approves: how JusPrin publishes its own app releases and built-in profile updates. JusPrin's update check already reads these releases, but nothing publishes them yet.
+
+Start from:
+- `.github/workflows/build_all.yml`, `build_orca.yml` and `publish_release.yml`. Every upload step is gated to `github.repository == 'OrcaSlicer/OrcaSlicer'`. Files are named `OrcaSlicer_…`. `publish_release.yml` only runs for the actor in the repo variable `RELEASE_PUBLISHER`, which is SoftFever. The MSIX step (`scripts/msix`) uses OrcaSlicer's Store identity.
+- `src/slic3r/GUI/JusPrin/Updates/` on branch `claude/no-orca-update-window`. `Version.hpp` holds JusPrin's version (2.0.0) by hand. `ReleaseFeed.cpp` reads tags `vX.Y.Z` or `jusprin/vX.Y.Z` from GitHub's release list. Drafts and pre-releases are skipped. Release notes come from the release body.
+- Profile updates: OrcaSlicer's `PresetUpdater` (`src/slic3r/Utils/PresetUpdater.cpp`, around line 666) asks `AppConfig::profile_update_url()`, which is `check-version.orcaslicer.com/profile`, sending the vendor and `SoftFever_VERSION`. Preferences > Updates' "Update built-in printer and filament profiles" row (`sync_system_preset`) turns it on. Its detail text says "Only the profiles JusPrin ships", which is not what happens.
+
+Answer in plain English, with 2 or 3 options and a recommendation:
+1. CI. How the Windows installer and zip, macOS dmg, Linux AppImage and Flatpak get built and attached to a JusPrin GitHub release with a `vX.Y.Z` tag, published by Kenneth.
+2. Version. How the tag and `Version.hpp` stay in step: a CI check, or the version derived from the tag.
+3. Signing and notarisation. What each platform needs, and what accounts or secrets Kenneth must provide.
+4. Profiles. Keep OrcaSlicer's profile server and reword the Preferences row, or publish JusPrin's own profile bundles (for example as release files) and point the updater there. Cover privacy: what each request sends.
+
+Follow `agent-docs/jusprin/fork-stewardship.md` for any change to OrcaSlicer-owned workflow or source files: prefer fork-owned workflows or small neutral switches, and record the rebase evidence.
+
+Done means: the recommendation reported. Then, once Kenneth approves, the workflows and code on a branch cut from `claude/no-orca-update-window`, verified by a dry-run release to a draft, without publishing anything public. Don't push or publish a release without Kenneth's explicit go-ahead.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): C:\Users\guitest\AppData\Roaming\Claude\side-session-notes\local_6d12e3c2-d1ec-4939-9214-7be5e8398a61
+
+---
+
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Kenneth's answers: (1) yes to all three recommendations: a release workflow started by hand that uploads to a draft release, Version.hpp as the only place the version lives, and profile updates off with profiles shipping in each release; (2) 2.0.0 replaces JusPrin 1.x on Windows; (3) unsigned for the dry run, with signing set up before the public release (Kenneth will check the 1.x Apple secrets himself); (4) Flatpak in 2.0.1, not 2.0.0. (5) The dry run is NOT approved yet: don't push, don't touch main, don't create any release or tag. Go ahead locally on claude/jusprin-release-publishing: fix the packaging so JusPrin no longer installs as OrcaSlicer (keep the OrcaSlicer CMakeLists change to the one additive line), write the workflow, turn profile updates off, and verify everything you can on this machine (including that a local Windows package build has JusPrin's name, IDs and version 2.0.0 and doesn't claim OrcaSlicer's uninstall key). Commit to your branch and report what's ready and exactly what the dry run would do, so Kenneth can approve it in one step.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bfityjff9</task-id>
+<tool-use-id>toolu_01PnDwUTGt8m9m4e1euM95ed</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\bfityjff9.output</output-file>
+<status>completed</status>
+<summary>Background command "Compile the makensis stand-in" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bly6wbknl</task-id>
+<tool-use-id>toolu_01VSF1J8T79TPstt4GrVSzPx</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\bly6wbknl.output</output-file>
+<status>completed</status>
+<summary>Background command "Configure and build a JusPrin Windows tree" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbl0w5ckw</task-id>
+<tool-use-id>toolu_0122eMWEqpBZTZrFx7eCZh1c</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\bbl0w5ckw.output</output-file>
+<status>completed</status>
+<summary>Background command "Install, build the portable zip, inspect it" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Kenneth approved the dry run. His words: "go ahead with the push and the dry run". Run it exactly as you described: push claude/jusprin-release-publishing and the same commit as jusprin-release/dry-run, let the workflow build the draft "JusPrin 2.0.0 (UNSIGNED TEST BUILD: do not publish)", don't touch main, don't publish anything, and delete jusprin-release/dry-run afterwards. If a step fails, fix it and re-run without asking, as long as it stays within that scope. Report when the draft exists, with what's in it and anything that failed.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bxlw30ozy</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Check the version: completed/success
+Build macOS x86_64 / Find the deps cache: in_progress/
+Build Linux x64 / Find the deps cache: completed/success
+Build macOS arm64 / Find the deps cache: in_progress/
+Build Windows x64 / Find the deps cache: in_progress/
+Build Linux x64 / Build deps / Build Deps: queued/</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxlw30ozy</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build macOS x86_64 / Find the deps cache: completed/success
+Build macOS arm64 / Find the deps cache: completed/success
+Build Windows x64 / Find the deps cache: completed/success
+Build Linux x64 / Build deps / Build Deps: in_progress/
+Build macOS x86_64 / Build deps / Build Deps: in_progress/
+Build macOS arm64 / Build deps / Build Deps: in_progress/
+Build Windows x64 / Build deps / Build Deps: in_progress/</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bliv9axtd</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build Linux x64 / Build deps / Build Deps: completed/success
+Build Linux x64 / Build deps / Build OrcaSlicer: completed/skipped</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk3gur4w3</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build macOS arm64 / Build deps / Build Deps: completed/success
+Build macOS arm64 / Build deps / Build OrcaSlicer: completed/skipped</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk3gur4w3</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build Windows x64 / Build deps / Build Deps: completed/success
+Build Windows x64 / Build deps / Build OrcaSlicer: completed/skipped</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk3gur4w3</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build Linux x64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bk3gur4w3</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build macOS x86_64 / Build deps / Build Deps: completed/success
+Build macOS x86_64 / Build deps / Build OrcaSlicer: completed/skipped</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7ojdcwv3</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>[Monitor expired after 30m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was unexpected.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjvj0xwfs</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build Windows x64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjvj0xwfs</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>by1boepyc</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build macOS arm64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>by1boepyc</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>Build macOS x86_64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>by1boepyc</task-id>
+<summary>Monitor event: "JusPrin dry-run workflow jobs (run 39895946628)"</summary>
+<event>[Monitor expired after 30m with 2 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5ipnt5s6</task-id>
+<summary>Monitor event: "JusPrin dry-run: draft upload and run result"</summary>
+<event>Upload to the draft release: in_progress/</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5ipnt5s6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\b5ipnt5s6.output</output-file>
+<status>completed</status>
+<summary>Monitor "JusPrin dry-run: draft upload and run result" stream ended</summary>
+<event>Upload to the draft release: completed/success
+RUN completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzwgg6x30</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Check the version: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzwgg6x30</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Build Linux x64 / Build deps: completed/skipped
+Build macOS x86_64 / Build deps: completed/skipped
+Build macOS arm64 / Build deps: completed/skipped
+Build Windows x64 / Build deps: completed/skipped</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzwgg6x30</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>[Monitor expired after 30m with 2 events delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bo2248x0c</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Build Linux x64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bo2248x0c</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+Delete the old v2.0.0 draft too
+
+---
+
+<task-notification>
+<task-id>bbryb6hfh</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Build Windows x64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbryb6hfh</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>[Monitor expired after 30m with 1 event delivered. Re-arm it if you still need the watch.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bv3isfxxp</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Build macOS x86_64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bv3isfxxp</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>Build macOS arm64 / Build JusPrin: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bv3isfxxp</task-id>
+<summary>Monitor event: "JusPrin dry run 2 (run 39965436650): finished jobs and failures"</summary>
+<event>macOS universal: completed/success
+Upload to the draft release: completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bv3isfxxp</task-id>
+<tool-use-id>toolu_01MhP457UaH1dMzTvkuzRTDH</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\bv3isfxxp.output</output-file>
+<status>completed</status>
+<summary>Monitor "JusPrin dry run 2 (run 39965436650): finished jobs and failures" stream ended</summary>
+<event>RUN completed/success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<cross-session-message from="local_6d12e3c2-d1ec-4939-9214-7be5e8398a61" name="Design JusPrin's own update check">
+I've added two commits to your branch claude/jusprin-release-publishing, in your worktree, which is clean. Nothing is pushed.
+- bcfa2299e8 merges the current jusprin-newui, which now has Preferences and the update check. There were two conflicts. In ReleaseFeed.cpp I kept your jusprin/vX.Y.Z comment. In ShellController.cpp's attach_shell I kept both sides: jusprin-newui's Help > Check for Updates opening Preferences > Updates, and your sync_system_preset = false.
+- 5700b1d598 replaces the "Update built-in printer and filament profiles" checkbox in Preferences > Updates with a plain line: "Built-in printer and filament profiles — Update with each JusPrin release. Your own presets never change." updateProfiles is gone from the payload and from the settings.
+Checked: jusprin_profile_tests and jusprin_update_tests pass, the page's tests pass (17), and the running app shows the line with no profile checkbox. The branch jusprin-release/dry-run is already gone from GitHub, so there is nothing left to delete. Please pull these commits in before your next push.
+</cross-session-message>
+
+---
+
+tell me what the new release process is now.
+
+---
+
+have all tests passed? If so, squash your commits into 1 and merge to jusprin-newui.
+
+---
+
+then push
