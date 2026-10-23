@@ -1,0 +1,45 @@
+Background (from the session that started this one):
+JusPrin is an AI-piloted fork of OrcaSlicer (C++17, wxWidgets, CMake). On 2026-10-22 Kenneth decided:
+- JusPrin checks for its own new versions against the release list of TheSpaghettiDetective/JusPrin on GitHub.
+- Download opens the release page; installing from inside the app comes later.
+- JusPrin's first v2 version is 2.0.0, kept separate from OrcaSlicer's SoftFever_VERSION (2.4.2), which 3MF files, profile updates and config upgrades read.
+
+That check is built on branch claude/no-orca-update-window: it reads GitHub's releases API about 10 s after start and then daily. OrcaSlicer's own update check is handed to it through a small GUI_App seam (app_update_check).
+
+The repo's CI is still OrcaSlicer's, so no JusPrin 2.x release exists on GitHub yet; the only releases are JusPrin 1.x (tags v1.3.0, jusprin/v1.4.0) and a stale "nightly-builds" pre-release. Kenneth prefers reports in plain English.
+
+Task:
+Design, then build what Kenneth approves: how JusPrin publishes its own app releases and built-in profile updates. JusPrin's update check already reads these releases, but nothing publishes them yet.
+
+Start from:
+- `.github/workflows/build_all.yml`, `build_orca.yml` and `publish_release.yml`. Every upload step is gated to `github.repository == 'OrcaSlicer/OrcaSlicer'`. Files are named `OrcaSlicer_…`. `publish_release.yml` only runs for the actor in the repo variable `RELEASE_PUBLISHER`, which is SoftFever. The MSIX step (`scripts/msix`) uses OrcaSlicer's Store identity.
+- `src/slic3r/GUI/JusPrin/Updates/` on branch `claude/no-orca-update-window`. `Version.hpp` holds JusPrin's version (2.0.0) by hand. `ReleaseFeed.cpp` reads tags `vX.Y.Z` or `jusprin/vX.Y.Z` from GitHub's release list. Drafts and pre-releases are skipped. Release notes come from the release body.
+- Profile updates: OrcaSlicer's `PresetUpdater` (`src/slic3r/Utils/PresetUpdater.cpp`, around line 666) asks `AppConfig::profile_update_url()`, which is `check-version.orcaslicer.com/profile`, sending the vendor and `SoftFever_VERSION`. Preferences > Updates' "Update built-in printer and filament profiles" row (`sync_system_preset`) turns it on. Its detail text says "Only the profiles JusPrin ships", which is not what happens.
+
+Answer in plain English, with 2 or 3 options and a recommendation:
+1. CI. How the Windows installer and zip, macOS dmg, Linux AppImage and Flatpak get built and attached to a JusPrin GitHub release with a `vX.Y.Z` tag, published by Kenneth.
+2. Version. How the tag and `Version.hpp` stay in step: a CI check, or the version derived from the tag.
+3. Signing and notarisation. What each platform needs, and what accounts or secrets Kenneth must provide.
+4. Profiles. Keep OrcaSlicer's profile server and reword the Preferences row, or publish JusPrin's own profile bundles (for example as release files) and point the updater there. Cover privacy: what each request sends.
+
+Follow `agent-docs/jusprin/fork-stewardship.md` for any change to OrcaSlicer-owned workflow or source files: prefer fork-owned workflows or small neutral switches, and record the rebase evidence.
+
+Done means: the recommendation reported. Then, once Kenneth approves, the workflows and code on a branch cut from `claude/no-orca-update-window`, verified by a dry-run release to a draft, without publishing anything public. Don't push or publish a release without Kenneth's explicit go-ahead.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): C:\Users\guitest\AppData\Roaming\Claude\side-session-notes\local_6d12e3c2-d1ec-4939-9214-7be5e8398a61
+
+---
+
+<cross-session-message from="local_626ee175-7819-464c-a97e-9269b2eefe7e" name="JusPrin v2 preferences">
+Kenneth's answers: (1) yes to all three recommendations: a release workflow started by hand that uploads to a draft release, Version.hpp as the only place the version lives, and profile updates off with profiles shipping in each release; (2) 2.0.0 replaces JusPrin 1.x on Windows; (3) unsigned for the dry run, with signing set up before the public release (Kenneth will check the 1.x Apple secrets himself); (4) Flatpak in 2.0.1, not 2.0.0. (5) The dry run is NOT approved yet: don't push, don't touch main, don't create any release or tag. Go ahead locally on claude/jusprin-release-publishing: fix the packaging so JusPrin no longer installs as OrcaSlicer (keep the OrcaSlicer CMakeLists change to the one additive line), write the workflow, turn profile updates off, and verify everything you can on this machine (including that a local Windows package build has JusPrin's name, IDs and version 2.0.0 and doesn't claim OrcaSlicer's uninstall key). Commit to your branch and report what's ready and exactly what the dry run would do, so Kenneth can approve it in one step.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bfityjff9</task-id>
+<tool-use-id>toolu_01PnDwUTGt8m9m4e1euM95ed</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin--claude-worktrees-great-blackburn-283b43\f8fab3b0-1e11-4d9a-b374-77f1c5202967\tasks\bfityjff9.output</output-file>
+<status>completed</status>
+<summary>Background command "Compile the makensis stand-in" completed (exit code 0)</summary>
+</task-notification>
