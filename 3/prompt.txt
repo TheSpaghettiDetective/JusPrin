@@ -1,0 +1,5 @@
+Board 8 shows Backpack hook's card as "Sliced, ready · Gray PETG". Today every Home project card says just "Saved", and Home doesn't know a closed project's slice state or filament. Should this calibration work also change every project card's status line?
+
+---
+
+redraw board 8. then tell the coding agent what to do
