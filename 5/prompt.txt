@@ -1,0 +1,15 @@
+> The row leaves Home for the workspace with the Agent pane open, the same move the setup offer makes today. Nothing is generated yet and the current project is untouched.
+> With no agent, the pane shows its setup flow first. The board 3 confirmation is deferred until setup completes, then appears in the pane, and the flow continues to board 4. This matters because the test cannot proceed without an agent: generating the tower is OrcaSlicer’s code, but choosing the range, reading the photo and saving the preset are the skill’s work, so starting the test before setup would strand the person in a test project with nobody to answer.
+> If the person cancels setup, they are in the workspace with their project as it was, the pane open and nothing changed. No test, no closed project.
+
+this seems really clunkly and surprising. On the homepage, most users don't have a workspace open. So we just randomly open a new workspace?
+
+---
+
+tell the main session to spin up a task chip to discuss how we can  consolidate the agent setup flow
+
+---
+
+<cross-session-message from="local_55a98461-8604-47d5-87b0-2a7c9d1c964a" name="Printer calibration placement brainstorm">
+Done: a card "Consolidate the agent setup flow (design discussion)" is waiting in Kenneth's sidebar (task_7a0fe10b). Its brief is design-only, names the three existing answers with their code locations, carries his objection about Home having no workspace open, asks for decisions on where the one flow lives, how each entry point reaches it, what follows setup and what cancel leaves, and ends in an untracked decisions document plus a paragraph for the calibration handoff's section 5.3. I also noted in memory that the no-agent case for Calibrate… is undecided until that discussion.
+</cross-session-message>
