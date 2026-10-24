@@ -11,10 +11,14 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
+#include <boost/filesystem/path.hpp>
+
 #include <memory>
 #include <optional>
 #include <functional>
 #include <string>
+#include <vector>
+#include <wx/arrstr.h>
 #include <wx/event.h>
 #include <wx/string.h>
 #include <wx/timer.h>
@@ -111,6 +115,15 @@ public:
     Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
     void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
         { m_reimport_confirmation = std::move(confirmation); }
+    // How a file that arrives is opened (architecture.md, "Opening and
+    // importing files"). Dropped on the Prepare canvas, a model file is added
+    // to the open project; the canvas's drop target calls add_dropped_files.
+    // Home's Open… and a drop on Home call open_files_as_new_project: a model
+    // file (or a zip of them) opens in a new project named after it. A .3mf
+    // opens as a project either way, through OrcaSlicer's load_project and
+    // its "Previously opened file" question. The harness calls both.
+    bool add_dropped_files(const wxArrayString& files);
+    bool open_files_as_new_project(const wxArrayString& files);
 
     void apply_current_appearance();
 
@@ -158,6 +171,21 @@ public:
     void open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown);
 
 private:
+    // OrcaSlicer's load_files(wxArrayString) hands a person's files here
+    // first (Plater::set_external_file_open_handler): files from the OS,
+    // another instance, the command line, a download, and the two calls
+    // above. True when it opened them in a new project, or the open stopped;
+    // false leaves them to OrcaSlicer, which opens a .3mf as a project and
+    // adds the rest.
+    bool take_opened_files(const std::vector<boost::filesystem::path>& files);
+    // OrcaSlicer puts its own drop target back after every slice; the
+    // canvas's is put back on the next idle turn.
+    void on_plater_idle(wxIdleEvent& event);
+    void install_drop_target();
+    bool m_adding_files{false};
+    // File > Import > Import Zip Archive goes through load_files too, so a
+    // lone zip adds unless it came through open_files_as_new_project.
+    bool m_zip_opens_project{false};
     void on_frame_destroy(wxWindowDestroyEvent& event);
     // Applies what the Notebook's current page implies for the shell: Home
     // refreshes its gallery and takes the Agent panel off the screen.

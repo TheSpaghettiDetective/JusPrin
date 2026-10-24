@@ -120,6 +120,40 @@ This pane is native code owned by the fork (`Shell/LeftPane`). It sits to the le
 
 The ledger is the record of physical prints. It can have any number of subscribers, through `ProjectPersistence::subscribe_ledger`. The pane and the header's overflow menu each subscribe to it separately.
 
+### Opening and importing files
+
+Decided 2026-10-24. A file reaches JusPrin in a handful of ways, and they mean one of two things: **start from this file**, or **add this to the project I am working on**. The first is what a person means almost every time they bring a file in; the second is the minority case (a multi-part print), and the person signals it by aiming at the plate or by asking the agent. Because autosave keeps every project, starting a new project by mistake costs one click on Recent, while adding to the wrong project leaves a stray part in it. So every way in starts a new project unless the person aimed at the plate.
+
+| How the file arrives | Model file (STL, STEP, OBJ, AMF, …) | .3mf |
+|---|---|---|
+| Opened from the OS: a double-click in Finder or Explorer, "Open with", a browser's "open in JusPrin" | New project, named after the file; the app goes to Prepare | New project; the "Previously opened file" question if the file was opened before |
+| Dropped on Home | Same | Same |
+| Home's **Open…** button, File › Open Project (Cmd+O) | Same | Same |
+| Dropped on the Prepare canvas | Added to the open project | New project, as above. OrcaSlicer's "open as project or import geometry?" question is not asked |
+| **Add model…** in the Plates and Project pane, File › Import (Cmd+I) | Added to the open project | Its geometry is added to the open project, without its settings (OrcaSlicer's Import) |
+| The Agent composer's + › 3D model, a drop on the Agent pane, or a request in the chat | Attached; the agent adds it to the open project (`object_import`) | Same |
+
+Rules that follow from the table:
+
+- A model file never silently lands in whatever project happened to be open behind Home. Before 2026-10-24 Home's Import button did exactly that, because it called OrcaSlicer's `add_model`, and from 2026-09-30 a project was always open behind Home (the most recent one resumes at startup).
+- A file opened from the OS lands in the running JusPrin. OrcaSlicer's default starts a second process for a .3mf; JusPrin runs as a single instance on every platform.
+- Several files opened or dropped together make one new project holding all of them.
+- Opening a .3mf as a project is the only thing a .3mf does on the Prepare canvas. Wanting only the geometry out of a .3mf is rare, and the agent or File › Import can do it on request. The one question JusPrin asks on a file open stays the "Previously opened file" question described in the [autosave document](autosave-version-history.md).
+- Home's primary action is **Open…**, not Import: there is nothing on Home to import into. The whole Home page accepts a dropped file, and its empty state says so ("Drop a model or project here, or Open…"). Home shows no blank-project button beside Open; a blank project stays reachable through File › New Project.
+- G-code files keep OrcaSlicer's behavior (the G-code viewer) for now.
+
+**Finding the way to add a part.** With Home's button named Open, the person who wants a second part in the project they have needs to find it from Prepare. Every slicer solves this the same way, with a control inside the workspace that is always on screen: PrusaSlicer's Add button on the top toolbar and Cmd+I, Cura's folder icon at the top left of Prepare, and OrcaSlicer's own Add button on the main toolbar, which JusPrin hides. Dragging onto the plate is in addition to that control in all three, never the only way. JusPrin keeps the same shape: an **Add model…** button at the top of the Plates tab of the Plates and Project pane, which is where the objects are listed, plus File › Import (Cmd+I), the composer's + menu, and the empty plate's hint ("Drop a model here or add one"). A person who asks the agent to add a file gets it added as well.
+
+Ownership: the policy is fork-owned (the Home backend, the shell's file handler and the Prepare canvas's drop target, the Plates pane's button). OrcaSlicer keeps its file dialogs, its loading code and its "Previously opened file" seam; the fork adds one seam, `Plater::set_external_file_open_handler`, that lets it take the files handed to `Plater::load_files(wxArrayString)` (the OS, another instance, the command line, a download, a drop) before OrcaSlicer adds them to the open project, and sets two of OrcaSlicer's own settings (`single_instance`, `project_load_behaviour`) to the values the table needs.
+
+How the paths come out of that one seam:
+
+- The shell's handler (`ShellController::take_opened_files`) leaves a .3mf to OrcaSlicer, which opens it as a project through `load_project` and so asks the "Previously opened file" question; files given with it are added to that project. Any other files are opened in a new project named after the first one: the open project is saved and released the way the agent's `project_open` releases it, then OrcaSlicer's own load runs into the new project, and the app goes to Prepare.
+- A drop on the Prepare canvas must add, so the shell replaces OrcaSlicer's `PlaterDropTarget` with its own, which loads through the same call while telling the handler to stand aside. OrcaSlicer reinstalls its own target after every slice; the shell puts its own back on the next idle turn. OrcaSlicer's one-SVG emboss on drop is not kept (the shell hides that gizmo); a dropped SVG loads as an object.
+- File › Import › Import Zip Archive also reaches `load_files(wxArrayString)`, so a zip on its own keeps OrcaSlicer's behavior and adds. Home's Open… and a drop on Home open a zip in a new project like any model file.
+- A file dropped on Home reaches the app as its name and bytes, not its path: the web view takes the drop. On macOS a native drop target on the web view would not see it: wxWidgets 3.3 gives its WebKit view none of the drag methods it gives its own views, so WebKit's own handling runs (read from the wxWidgets source on 2026-10-24; not yet tried with a real drag). The bytes are written to `JusPrin-dropped/<MD5>/<name>` under the system temp folder and opened from there, so the "Previously opened file" question recognizes a .3mf dropped on Home before, but not one first opened from its own folder.
+- The agent's tools load through the vector overload of `load_files` and `load_project`, which the seam does not see, and the handler stands aside while a tool's load runs.
+
 ### Print issues and OrcaSlicer's notifications
 
 Inside the shell OrcaSlicer's own notifications are held but not drawn. JusPrin reads the list back and draws what it holds: print problems as a status pill in the canvas's lower right corner, the list it opens, and a bubble beside the object the selected issue is about, with **Ask AI** and **Resolve with AI**; the outcome of an action (export finished, an arrange that was refused) as a short confirmation above the pill; and work that is still running (a slice, an arrange, an export) as an entry in the chat.

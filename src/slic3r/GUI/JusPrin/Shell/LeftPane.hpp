@@ -87,6 +87,10 @@ public:
     void toggle_row(const PaneRow& row);
     void open_row_menu(const PaneRow& row);
     void add_plate();
+    // Add model… at the top of the Plates tab: the always-visible way to add
+    // a part to the open project. Unset, the button is not drawn.
+    void set_add_model(std::function<void()> add_model) { m_add_model = std::move(add_model); Refresh(); }
+    void add_model();
 
     // Offers the pane the keys it handles. Returns true when it used one.
     bool handle_key(int key_code);
@@ -98,6 +102,7 @@ public:
     wxRect rect_of(std::size_t row, Part part) const;
     wxRect tab_rect(PaneTab tab) const;
     wxRect add_plate_rect() const;
+    wxRect add_model_rect() const;
     // The Project tab's controls as drawn, in order, and a way to press one by
     // its label -- the same record the pointer reads.
     std::vector<wxString> action_labels() const;
@@ -114,7 +119,7 @@ private:
     // One drawn control: where it is, and what it does.
     struct Hit
     {
-        enum class Kind : std::uint8_t { Tab, Row, Expander, Overflow, AddPlate, Action, Mark };
+        enum class Kind : std::uint8_t { Tab, Row, Expander, Overflow, AddPlate, AddModel, Action, Mark };
         Kind       kind{Kind::Row};
         wxRect     rect;
         std::size_t row{0};  // index into m_rows for the row kinds
@@ -220,6 +225,7 @@ private:
     HeaderButton* m_menu_anchor{nullptr};
     HeaderButton* m_pane_toggle{nullptr};
     std::function<void()> m_pane_toggle_callback;
+    std::function<void()> m_add_model;
     // Keeps a menu's rows alive until the owner has run the chosen command.
     std::function<void()> m_pending_command;
 };
