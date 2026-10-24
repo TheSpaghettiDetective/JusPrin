@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5R2NRQ62ZV36KRA8WYPXCYW",
   "strategy": "manual-commit",
   "branch": "claude/mac-url-schemes",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "cmake/modules/MacOSXBundleInfo.plist.in",
     "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake"
@@ -15,13 +15,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 68,
-    "cache_creation_tokens": 125560,
-    "cache_read_tokens": 4730100,
-    "output_tokens": 31993,
-    "api_call_count": 34
+    "input_tokens": 358,
+    "cache_creation_tokens": 540170,
+    "cache_read_tokens": 49852965,
+    "output_tokens": 176711,
+    "api_call_count": 179
   }
 }
