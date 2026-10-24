@@ -114,6 +114,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/CanvasPresentationController.hpp
     GUI/JusPrin/Canvas/CanvasIcons.cpp
     GUI/JusPrin/Canvas/CanvasIcons.hpp
+    GUI/JusPrin/Canvas/EmptyPlateHint.cpp
+    GUI/JusPrin/Canvas/EmptyPlateHint.hpp
     GUI/JusPrin/Canvas/ToolValuePanel.cpp
     GUI/JusPrin/Canvas/ToolValuePanel.hpp
     GUI/JusPrin/Canvas/ViewportToolStrip.cpp

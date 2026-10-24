@@ -14250,6 +14250,10 @@ bool Plater::load_files(const wxArrayString& filenames)
         return false;
     }
 
+    // Rebase note: keep this before anything below adds to the model.
+    if (m_external_file_open_handler && m_external_file_open_handler(normal_paths))
+        return true;
+
     //// searches for project files
     //for (std::vector<fs::path>::const_reverse_iterator it = normal_paths.rbegin(); it != normal_paths.rend(); ++it) {
     //    std::string filename = (*it).filename().string();

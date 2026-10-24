@@ -18,8 +18,8 @@ export type PageMessageType =
   | 'hello'
   | 'state_request'
   | 'open_project'
-  | 'new_project'
-  | 'import_project'
+  | 'open_file'
+  | 'open_dropped_files'
   | 'launch_monitor'
   | 'add_printer'
   | 'connect_printer'
@@ -144,7 +144,7 @@ export interface StatePayload {
   appearance: Appearance;
   projects: ProjectInfo[];
   // Host-formatted and already translated; non-empty when the saved projects
-  // could not be read, which the gallery says instead of "No projects yet".
+  // could not be read, which the gallery says instead of its empty-gallery line.
   projectsProblem?: string;
   printers: PrinterInfo[];
   // A printer the conversation just added; empty for any other push.

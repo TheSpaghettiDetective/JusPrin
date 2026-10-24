@@ -232,6 +232,12 @@ void LeftPane::add_plate()
     run_command(m_workspace.add_plate(), "add plate");
 }
 
+void LeftPane::add_model()
+{
+    if (m_add_model)
+        m_add_model();
+}
+
 // A customization is a choice the person made, so it is one quiet mark, not a
 // colour: a small diamond in the secondary text colour. A mesh problem is a
 // defect in the model and is spelled out in the danger colour instead.
@@ -644,6 +650,10 @@ void LeftPane::on_left_down(wxMouseEvent& event)
         add_plate();
         return;
     }
+    if (hit_at(point, {Hit::Kind::AddModel})) {
+        add_model();
+        return;
+    }
     if (const Hit* mark = hit_at(point, {Hit::Kind::Mark})) {
         const PaneRow& row = m_rows[mark->row];
         if (row.kind == PaneRow::Kind::Plate)
@@ -753,6 +763,14 @@ wxRect LeftPane::add_plate_rect() const
 {
     for (const Hit& hit : m_hits)
         if (hit.kind == Hit::Kind::AddPlate)
+            return hit.rect;
+    return wxRect();
+}
+
+wxRect LeftPane::add_model_rect() const
+{
+    for (const Hit& hit : m_hits)
+        if (hit.kind == Hit::Kind::AddModel)
             return hit.rect;
     return wxRect();
 }
@@ -886,6 +904,23 @@ int LeftPane::draw_plates(wxGraphicsContext& gc, int top, int width)
     const ShellPalette&    p    = m_theme.palette(m_dark);
     const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
     int y = top + FromDIP(pane.list_padding_y);
+
+    // Add model…, above the plates, drawn as Add plate is drawn below them.
+    if (m_add_model) {
+        const int padding_x = FromDIP(pane.add_plate_padding_x);
+        const wxRect button(padding_x, y, width - 2 * padding_x, FromDIP(pane.add_plate_button_height));
+        gc.SetPen(wxPen(p.border_subtle, 1));
+        gc.SetBrush(*wxTRANSPARENT_BRUSH);
+        gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
+                                FromDIP(m_theme.metrics().radius_medium));
+        gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
+        const wxString label = _L("Add model…");
+        double tw = 0, th = 0;
+        gc.GetTextExtent(label, &tw, &th);
+        gc.DrawText(label, button.x + (button.width - tw) / 2, button.y + (button.height - th) / 2);
+        m_hits.push_back({Hit::Kind::AddModel, button, 0, PaneTab::Plates});
+        y += button.height + FromDIP(pane.row_gap);
+    }
 
     std::size_t index = 0;
     while (index < m_rows.size()) {

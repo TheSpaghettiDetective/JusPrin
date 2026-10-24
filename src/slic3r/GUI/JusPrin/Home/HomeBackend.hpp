@@ -16,6 +16,13 @@
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
+// One file dropped on the page: its name as the page saw it, and its bytes.
+struct DroppedFile
+{
+    std::string name;
+    std::string bytes;
+};
+
 class IHomeBackend
 {
 public:
@@ -29,8 +36,12 @@ public:
     // Actions. Each is the whole product gesture, not a step of one, so the
     // adapter can use whichever upstream entry point already performs it.
     virtual void open_project(const std::string& project_id)    = 0;
-    virtual void new_project()                                  = 0;
-    virtual void import_model()                                 = 0;
+    // A file from the OS file dialog, opened as a new project the way a file
+    // opened from Finder or Explorer is; cancelling leaves Home as it is.
+    virtual void open_file()                                    = 0;
+    // Files dropped on the page, which hands over their names and bytes but
+    // not where they came from; opened as open_file opens one.
+    virtual void open_dropped_files(const std::vector<DroppedFile>& files) = 0;
     virtual void launch_monitor(const std::string& printer_id)  = 0;
     virtual void add_printer()                                  = 0;
     // JusPrin's Preferences window, over Home.

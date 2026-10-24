@@ -112,13 +112,17 @@ remembers the file it was opened from (`openedFrom`) and that file's MD5 then
 (`openedDigest`) in each version manifest: a .3mf from its project path, a model
 file the agent's `project_open` opened as a new project from the path it gave.
 Every way a person opens a .3mf asks, because the check sits in
-`Plater::load_project` (File > Open Project, recent files, Finder, drops); the
+`Plater::load_project` (File > Open Project, recent files, Finder, Home's
+Open…, drops on Home and on the Prepare canvas); the
 agent's `project_open` returns the question as `opened_before` and takes the
 answer as `openedBefore`. A file whose MD5 differs is a likely new export, so
 the question says so and defaults to a new project; otherwise it defaults to
-the saved one. Importing a file into a project never asks. If several
+the saved one. Adding a file to the open project (Add model…, File > Import,
+the agent's `object_import`) never asks. If several
 projects match, it continues the current one when it came from that file;
-otherwise it opens the most recently updated match.
+otherwise it opens the most recently updated match. Which ways in open a file
+as a new project and which add to the open one is decided in
+[Opening and importing files](architecture.md#opening-and-importing-files).
 The project document has one schema version and no migration (the project is
 not live yet): a document of any other version, like a corrupt one, is
 replaced by a fresh document. The local store reads only its current index,

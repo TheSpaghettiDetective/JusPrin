@@ -707,7 +707,7 @@ Home is the hub for:
 
 - Printer cards showing availability, condition, and loaded filament
 - Project gallery, open, and project status
-- Import of 3MF, STL, STEP, SVG, OBJ, AMF, and ZIP files
+- Opening 3MF, STL, STEP, SVG, OBJ, AMF, and ZIP files, each as a new project (Open… and the page as a drop target; see [Opening and importing files](architecture.md#opening-and-importing-files))
 - Entry to project versions and backups
 - Launching Monitor
 

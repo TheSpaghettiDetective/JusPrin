@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useReducer } from 'react';
+import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import type { PrinterActions } from './components/PrinterMenu';
-import { PlusGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}
 
 // Home is the screen before a project: the gallery takes the width that is
 // left, the printer column is a fixed rail. The page draws no top bar -- the
@@ -80,26 +90,36 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     );
   }
 
+  // The whole page takes a dropped file, which opens as a new project. The
+  // page sees a file's name and bytes, not where it came from.
+  const openDropped = (event: DragEvent) => {
+    const files = Array.from(event.dataTransfer.files ?? []);
+    event.preventDefault();
+    if (files.length === 0) return;
+    Promise.all(files.map((file) => readAsDataUrl(file).then((dataBase64) => ({ name: file.name, dataBase64 }))))
+      .then((read) => client.send('open_dropped_files', { files: read }))
+      .catch(() => {
+        // A file the browser could not read opens nothing.
+      });
+  };
+
   return (
-    <div className="app">
+    <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
       <main className="gallery">
         <header className="gallery-header">
           <span className="section-label">Projects</span>
           <div className="gallery-actions">
-            <button type="button" className="button-secondary" onClick={() => client.send('import_project', {})}>
+            {/* Every file opens as a new project; a blank one is File > New Project. */}
+            <button type="button" className="button-primary" onClick={() => client.send('open_file', {})}>
               <UploadGlyph />
-              Import
-            </button>
-            <button type="button" className="button-primary" onClick={() => client.send('new_project', {})}>
-              <PlusGlyph />
-              New
+              Open…
             </button>
           </div>
         </header>
         {state.projectsProblem ? (
           <p className="empty" role="alert">{state.projectsProblem}</p>
         ) : state.projects.length === 0 ? (
-          <p className="empty">No projects yet.</p>
+          <p className="empty">Drop a model or project here, or Open…</p>
         ) : (
           <div className="project-grid">
             {state.projects.map((project) => (

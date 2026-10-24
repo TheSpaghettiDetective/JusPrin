@@ -49,8 +49,9 @@ Home lists. Alternatively copy `Resources/profiles/BBL` into
 `~/Downloads/Tape_4_3MF.3mf` only helps after that vendor is installed.
 
 Launch a **scratch** `--datadir`. Do not point fake mode at the everyday
-config. Set `"single_instance": false` in the `app` object if another JusPrin
-is already running. Do not pass `--no-single-instance`; Boost rejects it.
+config. JusPrin turns `single_instance` on at every start; its instance lock
+lives in the data directory, so a scratch `--datadir` runs as its own instance
+beside another JusPrin. Do not pass `--no-single-instance`; Boost rejects it.
 
 The fake emulates printer type `N1` (A1 mini). Select Machine lists it as
 **JusPrin Fake A1 mini (LAN)**.
