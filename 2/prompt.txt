@@ -1,0 +1,30 @@
+the import function is broken. check what the expected import function *should be*, including improting using the button on the home page, and opening a file by directly by the OS, and drag and drop a file into the window
+
+---
+
+<!-- reply 2 -->
+> The code comments read the other way. The Home backend’s comment says “add_model imports into the project that is open”. ShellController.cpp says “Add-model remains available through File > Import and drag-drop.”
+
+This behavior is wrong. Look at Git log to see how this this bug was introduced.
+
+<!-- reply -->
+> 1. The Import button on Home (JusPrin’s code, OrcaHomeBackend::import_model)
+> 
+> It calls OrcaSlicer’s add_model, which opens the file dialog and adds the file to the project that’s already open. At startup that’s the most recent project, which you can’t see from Home.
+> It switches to Prepare only if the number of objects went up. Cancelling, or a file that brings no objects, leaves you on Home with no message.
+> A .3mf picked here only adds its geometry. It is never opened as a project.
+> Your 05:24 log matches this. general_purpose_hook.STL went into the already-open “Overture PLA Matte” project. 20mmbox…gcode.3mf added 0 objects, so nothing visible happened.
+
+Again, this behavior is wrong. The correct behavior should be "A 3MF you’ve opened before asks first. The same doc says every way a person opens a .3mf asks “Previously opened file”. It lists File › Open Project, recent files, Finder and drops.". I remember it used to work correctly. Check the get log file to see when the bug was introduced.
+
+---
+
+Let's figure out what an optimal user experience should be. We don't have to be limited to current documented behavior or implemented behavior. For instance, we can be open about what buttons we need for on the homepage or if we need any buttons at all. Based on how user usually opens a file as well as how they would expect an app to behave upon such an action.
+
+---
+
+Agreed. Record this as the expected import behavior in agent-docs and list the code changes needed per path.
+
+---
+
+I agree with everything you have recommended. The only thing I want you to add is now that we renamed the import button on the homepage to open, how can a user easily figure out how to import a model into an existing project? I know it's a Okay a case that doesn't happen a lot, but I'm not sure if dragging and dropping the model file into the prepare pane is enough of a discoverability. Maybe this. Do some research to confirm

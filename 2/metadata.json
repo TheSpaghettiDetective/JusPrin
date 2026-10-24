@@ -1,0 +1,71 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5Q5AWJCYY4RDQG1C5CRGQXK",
+  "session_id": "a7ca78be-99ed-41d2-89a0-ea1fe415521e",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-24T14:34:20.277396Z",
+  "branch": "claude/vigorous-poitras-88fa36",
+  "checkpoints_count": 10,
+  "save_step_count": 3,
+  "files_touched": [
+    "agent-docs/jusprin/architecture.md",
+    "agent-docs/jusprin/autosave-version-history.md",
+    "agent-docs/jusprin/product-definition.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "95949c216dde",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 798,
+    "cache_creation_tokens": 660872,
+    "cache_read_tokens": 20796879,
+    "output_tokens": 69510,
+    "api_call_count": 99
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-24T14:34:20.11497Z",
+    "agent_lines": 33,
+    "agent_removed": 4,
+    "human_added": 690,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 724,
+    "total_lines_changed": 803,
+    "agent_percentage": 4.60772104607721,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

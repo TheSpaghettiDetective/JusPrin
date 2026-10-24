@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5Q5AWJCYY4RDQG1C5CRGQXK",
   "strategy": "manual-commit",
   "branch": "claude/vigorous-poitras-88fa36",
-  "checkpoints_count": 6,
+  "checkpoints_count": 16,
   "files_touched": [
     "agent-docs/jusprin/architecture.md",
     "agent-docs/jusprin/autosave-version-history.md",
@@ -40,13 +40,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 232,
-    "cache_creation_tokens": 1486609,
-    "cache_read_tokens": 6986923,
-    "output_tokens": 21164,
-    "api_call_count": 11
+    "input_tokens": 1030,
+    "cache_creation_tokens": 2147481,
+    "cache_read_tokens": 27783802,
+    "output_tokens": 90674,
+    "api_call_count": 110
   }
 }
