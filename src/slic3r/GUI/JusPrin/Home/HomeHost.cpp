@@ -1,5 +1,7 @@
 #include "HomeHost.hpp"
 
+#include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -177,8 +179,24 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.open_project(payload.value("id", std::string()));
     else if (type == "new_project")
         m_backend.new_project();
-    else if (type == "import_project")
-        m_backend.import_model();
+    else if (type == "open_file")
+        m_backend.open_file();
+    else if (type == "open_dropped_files") {
+        // A file the page could not encode never reaches here; one whose
+        // bytes do not decode is left out, as the page left out its own.
+        std::vector<DroppedFile> files;
+        if (const auto listed = payload.find("files"); listed != payload.end() && listed->is_array())
+            for (const json& file : *listed) {
+                if (!file.is_object())
+                    continue;
+                DroppedFile dropped{file.value("name", std::string()), {}};
+                if (!dropped.name.empty() &&
+                    base64_decode(strip_data_url_prefix(file.value("dataBase64", std::string())), dropped.bytes))
+                    files.push_back(std::move(dropped));
+            }
+        if (!files.empty())
+            m_backend.open_dropped_files(files);
+    }
     else if (type == "launch_monitor")
         m_backend.launch_monitor(payload.value("id", std::string()));
     else if (type == "open_preferences")

@@ -102,6 +102,12 @@ public:
     // new_project replaces the empty project this adapter released the
     // person's for: the release hook has nothing of the person's to save.
     bool generating_calibration() const { return m_generating_calibration; }
+    // The open project saved to its version history, through Orca's new
+    // project and the autosave hook, then its unsaved preset edits dropped,
+    // as Orca's UnsavedChangesDialog would otherwise ask. False when it could
+    // not be saved, and nothing changed. next_name is UTF-8; empty is Untitled.
+    // Also the shell's first step when a person's file opens as a new project.
+    bool release_project(const std::string& next_name);
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
     CommandResult render_view(const RenderRequest& request, RenderedImage& image) override;
     CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override;
@@ -142,11 +148,6 @@ private:
     CommandResult change_regions(const std::vector<RegionRecord>& removed, const std::vector<RegionRecord>& added,
                                  const char* snapshot_name);
     void on_project_state_changed(const ProjectStateChanged& change);
-    // The open project saved to its version history, through Orca's new
-    // project and the autosave hook, then its unsaved preset edits dropped,
-    // as Orca's UnsavedChangesDialog would otherwise ask. False when it could
-    // not be saved, and nothing changed. next_name is UTF-8; empty is Untitled.
-    bool release_project(const std::string& next_name);
     // File loads (FileLoads.hpp). While one runs, every Orca dialog is
     // answered with the least change and written down; once it ends, it waits
     // to be reported, to the tool that started it or, a turn of the event loop

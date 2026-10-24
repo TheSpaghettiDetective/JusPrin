@@ -2,7 +2,7 @@
 // of the bridge while the real page runs in jsdom.
 
 import { describe, expect, it } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 import { Envelope, PrinterInfo, ProjectInfo, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
@@ -94,7 +94,7 @@ describe('Home', () => {
     const host = start();
     host.deliver('state', state({ projects: [], projectsProblem: "Your projects couldn't be loaded." }));
     expect(screen.getByRole('alert')).toHaveTextContent("Your projects couldn't be loaded.");
-    expect(screen.queryByText('No projects yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Drop a model or project here, or Open…')).not.toBeInTheDocument();
     host.deliver('state', state());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('Garage bracket')).toBeInTheDocument();
@@ -104,10 +104,10 @@ describe('Home', () => {
     const host = new MockHost();
     render(<App getTransport={() => host.transport} />);
     expect(screen.getByText('Connecting…')).toBeInTheDocument();
-    expect(screen.queryByText('No projects yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Drop a model or project here, or Open…')).not.toBeInTheDocument();
     host.deliver('hello_ack', {});
     host.deliver('state', state({ projects: [], printers: [] }));
-    expect(screen.getByText('No projects yet.')).toBeInTheDocument();
+    expect(screen.getByText('Drop a model or project here, or Open…')).toBeInTheDocument();
   });
 
   it('renders a card per project and opens the one that is clicked', async () => {
@@ -200,14 +200,37 @@ describe('Home', () => {
   it('sends the shell the actions it owns', async () => {
     const host = start();
     host.deliver('state', state());
-    await userEvent.click(screen.getByText('Import'));
+    await userEvent.click(screen.getByText('Open…'));
     await userEvent.click(screen.getByText('New'));
     await userEvent.click(screen.getByText('Launch monitor'));
     await userEvent.click(screen.getByText('+ Add printer'));
-    expect(host.lastOfType('import_project')).toBeDefined();
+    expect(host.lastOfType('open_file')).toBeDefined();
     expect(host.lastOfType('new_project')).toBeDefined();
     expect(host.lastOfType('launch_monitor')!.payload).toEqual({ id: 'x1' });
     expect(host.lastOfType('add_printer')).toBeDefined();
+  });
+
+  // Open… is the one primary action; a blank project is the compact outlined
+  // button beside it, so it never competes with Open.
+  it('offers Open as the primary and New as the compact secondary', () => {
+    const host = start();
+    host.deliver('state', state());
+    expect(screen.getByRole('button', { name: 'Open…' })).toHaveClass('button-primary');
+    expect(screen.getByRole('button', { name: 'New' })).toHaveClass('button-secondary', 'button-secondary-small');
+  });
+
+  it('sends the files dropped anywhere on the page to be opened', async () => {
+    const host = start();
+    host.deliver('state', state({ projects: [] }));
+    const model = new File(['solid cube'], 'cube.stl', { type: 'model/stl' });
+    const page = document.querySelector('.app')!;
+    fireEvent.dragOver(page, { dataTransfer: { files: [model] } });
+    fireEvent.drop(screen.getByText('Drop a model or project here, or Open…'), { dataTransfer: { files: [model] } });
+    await waitFor(() => expect(host.lastOfType('open_dropped_files')).toBeDefined());
+    const payload = host.lastOfType('open_dropped_files')!.payload as { files: { name: string; dataBase64: string }[] };
+    expect(payload.files).toHaveLength(1);
+    expect(payload.files[0].name).toBe('cube.stl');
+    expect(atob(payload.files[0].dataBase64.split(';base64,')[1])).toBe('solid cube');
   });
 
   it('opens Preferences from the gear and from Ctrl+,', async () => {

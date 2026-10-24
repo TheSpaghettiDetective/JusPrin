@@ -12,6 +12,7 @@
 #include "HomeBackend.hpp"
 #include "PrinterWindow.hpp"
 
+#include <wx/arrstr.h>
 #include <wx/weakref.h>
 
 #include <functional>
@@ -43,6 +44,9 @@ public:
     // Told before Home opens one of its projects, for the line a reopened
     // calibration test starts with.
     void set_project_opening(std::function<void()> opening) { m_project_opening = std::move(opening); }
+    // Stands in for Open…'s file dialog, for the integration harness: what it
+    // returns is what the person chose, nothing for Cancel. Unset, the dialog.
+    void set_file_chooser(std::function<wxArrayString()> choose) { m_choose_files = std::move(choose); }
 
     bool                      dark() const override;
     ProjectList               recent_projects() const override;
@@ -50,7 +54,8 @@ public:
 
     void open_project(const std::string& project_id) override;
     void new_project() override;
-    void import_model() override;
+    void open_file() override;
+    void open_dropped_files(const std::vector<DroppedFile>& files) override;
     void launch_monitor(const std::string& printer_id) override;
     void add_printer() override;
     void open_preferences() override;
@@ -65,12 +70,15 @@ private:
     // A print host's own page (Mainsail, Fluidd, OctoPrint) in a window of
     // its own; the project's selected printer stays as it is.
     void open_printer_window(const std::string& name);
+    // Through the shell, which opens the files in a new project.
+    void open_as_new_project(const wxArrayString& files);
 
     MainFrame&                                         m_frame;
     Workspace::ProjectAutosave*                       m_autosave{nullptr};
     OpenConversation                                   m_open_conversation;
     StartCalibration                                   m_start_calibration;
     std::function<void()>                              m_project_opening;
+    std::function<wxArrayString()>                     m_choose_files;
     std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
 };
 

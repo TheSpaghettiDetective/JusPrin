@@ -19,11 +19,17 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Utils.hpp"
+#include "slic3r/GUI/MsgDialog.hpp"
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/log/trivial.hpp>
 #include <wx/msgdlg.h>
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <optional>
 #include <set>
@@ -367,25 +373,68 @@ void OrcaHomeBackend::new_project()
     Plater* plater = wxGetApp().plater();
     if (plater == nullptr)
         return;
-    // Cancelling the unsaved-changes question leaves the old project in place,
-    // so it leaves Home in place too.
+    // new_project saves the open project through the autosave hook first;
+    // when that save fails it cancels, and Home stays where it was.
     if (plater->new_project() != wxID_CANCEL)
         m_frame.select_tab(size_t(MainFrame::tp3DEditor));
 }
 
-void OrcaHomeBackend::import_model()
+void OrcaHomeBackend::open_file()
 {
-    Plater* plater = wxGetApp().plater();
-    if (plater == nullptr)
-        return;
-    // add_model imports into the project that is open and runs its own modal
-    // file dialog. It returns void, so the object count before and after is
-    // what says whether anything arrived: cancelling the dialog leaves Home
-    // where it was, as cancelling New does.
-    const size_t before = plater->model().objects.size();
-    plater->add_model();
-    if (plater->model().objects.size() != before)
-        m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+    wxArrayString files;
+    if (m_choose_files)
+        files = m_choose_files();
+    else
+        wxGetApp().import_model(&m_frame, files);
+    // Opened as a file opened from Finder or Explorer is, in a new project,
+    // and Home is left for Prepare. Cancelling the dialog leaves Home as it is.
+    if (!files.empty())
+        open_as_new_project(files);
+}
+
+void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
+{
+    // The page gives a dropped file's bytes but not its path. Each is kept
+    // under a folder named by its content, so the same file dropped again
+    // has the same path, and a .3mf among them can be recognized as opened
+    // before. A file opened from its own folder has a different path.
+    wxArrayString paths;
+    for (const DroppedFile& file : files) {
+        try {
+            const std::filesystem::path name = std::filesystem::u8path(file.name).filename();
+            if (name.empty() || name == "." || name == "..")
+                continue;
+            const std::filesystem::path root     = std::filesystem::temp_directory_path() / "JusPrin-dropped";
+            const std::filesystem::path incoming = root / boost::filesystem::unique_path().string() / name;
+            std::filesystem::create_directories(incoming.parent_path());
+            std::ofstream(incoming, std::ios::binary).write(file.bytes.data(), std::streamsize(file.bytes.size()));
+            std::string incoming_name = incoming.u8string(), digest;
+            if (!bbl_calc_md5(incoming_name, digest) || digest.empty())
+                throw std::runtime_error("its digest could not be read");
+            const std::filesystem::path kept = root / digest / name;
+            if (!std::filesystem::exists(kept)) {
+                std::filesystem::create_directories(kept.parent_path());
+                std::filesystem::rename(incoming, kept);
+            }
+            std::filesystem::remove_all(incoming.parent_path());
+            paths.Add(wxString::FromUTF8(kept.u8string()));
+        } catch (const std::exception& error) {
+            BOOST_LOG_TRIVIAL(error) << "Home could not keep the dropped file " << file.name << ": " << error.what();
+            MessageDialog(&m_frame, wxString::Format(_L("%s couldn't be opened. Try opening it with Open… instead."),
+                                                     wxString::FromUTF8(file.name)),
+                          _L("Couldn't open file"), wxOK | wxICON_ERROR)
+                .ShowModal();
+            return;
+        }
+    }
+    if (!paths.empty())
+        open_as_new_project(paths);
+}
+
+void OrcaHomeBackend::open_as_new_project(const wxArrayString& files)
+{
+    if (ShellController* shell = installed_shell())
+        shell->open_files_as_new_project(files);
 }
 
 void OrcaHomeBackend::launch_monitor(const std::string& printer_id)

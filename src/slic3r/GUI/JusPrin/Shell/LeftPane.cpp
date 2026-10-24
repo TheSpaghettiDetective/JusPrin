@@ -232,6 +232,12 @@ void LeftPane::add_plate()
     run_command(m_workspace.add_plate(), "add plate");
 }
 
+void LeftPane::add_model()
+{
+    if (m_add_model)
+        m_add_model();
+}
+
 // A customization is a choice the person made, so it is one quiet mark, not a
 // colour: a small diamond in the secondary text colour. A mesh problem is a
 // defect in the model and is spelled out in the danger colour instead.
@@ -644,6 +650,10 @@ void LeftPane::on_left_down(wxMouseEvent& event)
         add_plate();
         return;
     }
+    if (hit_at(point, {Hit::Kind::AddModel})) {
+        add_model();
+        return;
+    }
     if (const Hit* mark = hit_at(point, {Hit::Kind::Mark})) {
         const PaneRow& row = m_rows[mark->row];
         if (row.kind == PaneRow::Kind::Plate)
@@ -753,6 +763,14 @@ wxRect LeftPane::add_plate_rect() const
 {
     for (const Hit& hit : m_hits)
         if (hit.kind == Hit::Kind::AddPlate)
+            return hit.rect;
+    return wxRect();
+}
+
+wxRect LeftPane::add_model_rect() const
+{
+    for (const Hit& hit : m_hits)
+        if (hit.kind == Hit::Kind::AddModel)
             return hit.rect;
     return wxRect();
 }
@@ -915,24 +933,32 @@ int LeftPane::draw_plates(wxGraphicsContext& gc, int top, int width)
         index = end;
     }
 
-    // Add plate.
-    const int padding_x = FromDIP(pane.add_plate_padding_x);
-    const wxRect button(padding_x, y + FromDIP(pane.add_plate_padding_top), width - 2 * padding_x,
-                        FromDIP(pane.add_plate_button_height));
-    gc.SetPen(wxPen(p.border_subtle, 1));
-    gc.SetBrush(*wxTRANSPARENT_BRUSH);
-    gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
-                            FromDIP(m_theme.metrics().radius_medium));
-    const bool can_add = m_outline.can_add_plate;
-    gc.SetFont(m_theme.font(TextRole::LabelBold), can_add ? p.text_primary : p.action_disabled_text);
-    const wxString label = wxString::FromUTF8("+ ") + _L("Add plate");
-    double tw = 0, th = 0;
-    gc.GetTextExtent(label, &tw, &th);
-    gc.DrawText(label, button.x + (button.width - tw) / 2, button.y + (button.height - th) / 2);
-    if (can_add)
-        m_hits.push_back({Hit::Kind::AddPlate, button, 0, PaneTab::Plates});
+    // Add model, then Add plate: the two things that can be added here, as
+    // matching buttons under the list. Add model comes first because it is
+    // the commoner action and acts on the open plate above it.
+    const int  padding_x = FromDIP(pane.add_plate_padding_x);
+    const int  height    = FromDIP(pane.add_plate_button_height);
+    const auto draw_add_button = [&](int button_y, const wxString& label, bool enabled, Hit::Kind kind) {
+        const wxRect button(padding_x, button_y, width - 2 * padding_x, height);
+        gc.SetPen(wxPen(p.border_subtle, 1));
+        gc.SetBrush(*wxTRANSPARENT_BRUSH);
+        gc.DrawRoundedRectangle(button.x + 0.5, button.y + 0.5, button.width - 1, button.height - 1,
+                                FromDIP(m_theme.metrics().radius_medium));
+        gc.SetFont(m_theme.font(TextRole::LabelBold), enabled ? p.text_primary : p.action_disabled_text);
+        double tw = 0, th = 0;
+        gc.GetTextExtent(label, &tw, &th);
+        gc.DrawText(label, button.x + (button.width - tw) / 2, button.y + (button.height - th) / 2);
+        if (enabled)
+            m_hits.push_back({kind, button, 0, PaneTab::Plates});
+    };
+    y += FromDIP(pane.add_plate_padding_top);
+    if (m_add_model) {
+        draw_add_button(y, wxString::FromUTF8("+ ") + _L("Add model"), true, Hit::Kind::AddModel);
+        y += height + FromDIP(pane.add_plate_padding_top);
+    }
+    draw_add_button(y, wxString::FromUTF8("+ ") + _L("Add plate"), m_outline.can_add_plate, Hit::Kind::AddPlate);
 
-    return y + FromDIP(pane.add_plate_padding_top + pane.add_plate_button_height + pane.add_plate_padding_bottom);
+    return y + height + FromDIP(pane.add_plate_padding_bottom);
 }
 
 void LeftPane::draw_focus_ring(wxGraphicsContext& gc, std::size_t index, const wxRect& rect)

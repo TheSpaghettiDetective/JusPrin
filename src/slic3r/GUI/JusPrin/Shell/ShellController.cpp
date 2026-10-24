@@ -15,6 +15,7 @@
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
+#include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -26,10 +27,12 @@
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <wx/dcbuffer.h>
+#include <wx/dnd.h>
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
@@ -170,6 +173,40 @@ std::unique_ptr<ShellController>& shell_slot()
     static std::unique_ptr<ShellController> shell;
     return shell;
 }
+
+// The Prepare canvas's drop target, in place of OrcaSlicer's PlaterDropTarget,
+// which it follows except for where the files go: they are the shell's to
+// add (ShellController::add_dropped_files). OrcaSlicer's one exception, a
+// lone SVG embossed where it lands, is not kept: its gizmo is hidden in the
+// shell, so the SVG loads as an object like any other file. Without a shell
+// to hand them to, the files take OrcaSlicer's own path.
+class PrepareDropTarget final : public wxFileDropTarget
+{
+public:
+    PrepareDropTarget(MainFrame& frame, Plater& plater, std::function<bool(const wxArrayString&)> add)
+        : m_frame(frame), m_plater(plater), m_add(std::move(add))
+    {
+        SetDefaultAction(wxDragCopy);
+    }
+
+    bool OnDropFiles(wxCoord, wxCoord, const wxArrayString& files) override
+    {
+#ifdef _WIN32
+        MSWUpdateDragImageOnLeave(); // hides the system icon
+#endif
+        m_frame.Raise();
+        m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+        m_plater.select_view_3D("3D");
+        const bool loaded = m_add ? m_add(files) : m_plater.load_files(files);
+        m_frame.update_title();
+        return loaded;
+    }
+
+private:
+    MainFrame&                                 m_frame;
+    Plater&                                    m_plater;
+    std::function<bool(const wxArrayString&)> m_add;
+};
 
 } // namespace
 
@@ -519,6 +556,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             }
             return true;
         });
+        plater->set_external_file_open_handler([this](const std::vector<Plater::fs_path>& files) {
+            return take_opened_files(files);
+        });
+        install_drop_target();
+        plater->Bind(wxEVT_IDLE, &ShellController::on_plater_idle, this);
         // Within one model turn the first edit pins the version before the
         // turn and the later edits reuse it; the turn boundary saves the
         // result. An edit outside a turn (an external MCP client's) still
@@ -624,6 +666,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this](int width) { request_left_pane_width(width); },
                 [this] { toggle_left_pane(); }});
         m_left_pane->set_pane_toggle([this] { toggle_left_pane(); });
+        // OrcaSlicer's File > Import: its file dialog, then the file's objects
+        // added to the open project.
+        m_left_pane->set_add_model([this] { m_plater->add_model(); });
         m_status_row->set_left_pane_toggle([this] { toggle_left_pane(); });
         m_status_row->set_left_pane_collapsed(m_left_pane_collapsed);
         m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
@@ -718,7 +763,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             // the press arrives inside the canvas's own frame.
             actions.set_up_agent = [this] { request_preferences("agent"); };
             m_issue_overlay = std::make_unique<PrintIssues::IssueOverlay>(*prepare_canvas, *m_print_issues, std::move(actions));
-            m_prepare_canvas_presentation.set_extra_overlay([this] {
+            m_prepare_canvas_presentation.set_extra_overlay([this, prepare_canvas] {
+                if (m_plater->model().objects.empty())
+                    render_empty_plate_hint(*prepare_canvas);
                 if (m_issue_overlay)
                     m_issue_overlay->render();
             });
@@ -848,6 +895,8 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         }
         m_plater->set_before_project_release({});
         m_plater->set_external_project_open_handler({});
+        m_plater->set_external_file_open_handler({});
+        m_plater->Unbind(wxEVT_IDLE, &ShellController::on_plater_idle, this);
         m_autosave.reset();
         m_persistence.reset();
         m_auto_slice.reset();
@@ -857,6 +906,75 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_workspace.reset();
     }
     event.Skip();
+}
+
+bool ShellController::take_opened_files(const std::vector<boost::filesystem::path>& files)
+{
+    // A drop on the canvas adds; a tool's own load settles its file in the
+    // conversation.
+    if (m_adding_files || !m_autosave || m_workspace->tool_load_active())
+        return false;
+    const auto has_extension = [](const boost::filesystem::path& file, const char* extension) {
+        return boost::algorithm::iends_with(file.string(), extension);
+    };
+    // A .3mf opens as a project through OrcaSlicer's load_project, which asks
+    // the "Previously opened file" question; files beside it are added to it.
+    if (std::any_of(files.begin(), files.end(), [&](const auto& file) { return has_extension(file, ".3mf"); }))
+        return false;
+    const auto model = std::find_if(files.begin(), files.end(), [&](const auto& file) { return !has_extension(file, ".zip"); });
+    if (model == files.end() && !m_zip_opens_project)
+        return false;
+
+    const boost::filesystem::path& named = model != files.end() ? *model : files.front();
+    BOOST_LOG_TRIVIAL(info) << "JusPrin opens " << files.size() << " file(s) in a new project: " << named.string();
+    if (!m_workspace->release_project(std::string(from_path(named.stem()).ToUTF8()))) {
+        MessageDialog dialog(m_frame, _L("The open project couldn't be saved, so the file wasn't opened. Try again."),
+                             _L("Couldn't open file"), wxOK | wxICON_ERROR);
+        Workspace::ScopedDialogListener theirs([&dialog](wxWindow& window, const Workspace::DialogFacts&) {
+            return &window == &dialog ? std::optional<int>(Workspace::kShowToPerson) : std::nullopt;
+        });
+        dialog.ShowModal();
+        return true;
+    }
+    // OrcaSlicer's own load into the new project, as a drop on the canvas
+    // adds: the same snapshot, zip and multi-file handling.
+    wxArrayString again;
+    for (const auto& file : files)
+        again.Add(from_path(file));
+    add_dropped_files(again);
+    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    return true;
+}
+
+bool ShellController::add_dropped_files(const wxArrayString& files)
+{
+    const bool was_adding = std::exchange(m_adding_files, true);
+    const bool loaded     = m_plater->load_files(files);
+    m_adding_files        = was_adding;
+    return loaded;
+}
+
+bool ShellController::open_files_as_new_project(const wxArrayString& files)
+{
+    const bool was_set  = std::exchange(m_zip_opens_project, true);
+    const bool loaded   = m_plater->load_files(files);
+    m_zip_opens_project = was_set;
+    return loaded;
+}
+
+void ShellController::install_drop_target()
+{
+    m_plater->SetDropTarget(new PrepareDropTarget(*m_frame, *m_plater, [this](const wxArrayString& files) {
+        BOOST_LOG_TRIVIAL(info) << "JusPrin adds " << files.size() << " dropped file(s) to the open project";
+        return add_dropped_files(files);
+    }));
+}
+
+void ShellController::on_plater_idle(wxIdleEvent& event)
+{
+    event.Skip();
+    if (m_installed && dynamic_cast<PrepareDropTarget*>(m_plater->GetDropTarget()) == nullptr)
+        install_drop_target();
 }
 
 void ShellController::on_frame_size(wxSizeEvent& event)
@@ -1313,6 +1431,11 @@ void ShellController::uninstall()
     // After the pane (and with it the Agent host) is gone.
     m_plater->set_before_project_release({});
     m_plater->set_external_project_open_handler({});
+    m_plater->set_external_file_open_handler({});
+    m_plater->Unbind(wxEVT_IDLE, &ShellController::on_plater_idle, this);
+    // A drop now takes OrcaSlicer's own path again; its own target comes
+    // back with the next slice.
+    m_plater->SetDropTarget(new PrepareDropTarget(*m_frame, *m_plater, {}));
     m_autosave.reset();
     if (m_plater->get_project_name().empty())
         m_frame->SetTitle(m_saved_frame_title);
@@ -1483,6 +1606,16 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
         // another maker's printer) read this preference.
         if (wxGetApp().app_config != nullptr)
             wxGetApp().app_config->set_bool("sync_system_preset", false);
+        // A file opened from the OS lands in the running JusPrin, and a .3mf
+        // opens as a project without OrcaSlicer's "open as project or import
+        // geometry?" question (architecture.md, "Opening and importing
+        // files"). OrcaSlicer reads single_instance at startup before this
+        // runs, so a second launch takes it from the value stored here; a
+        // file opened while JusPrin runs reads it when it arrives.
+        if (wxGetApp().app_config != nullptr) {
+            wxGetApp().app_config->set_bool("single_instance", true);
+            wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL);
+        }
     }
     if (tabpanel == nullptr || main_sizer == nullptr)
         return;

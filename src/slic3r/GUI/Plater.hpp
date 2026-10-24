@@ -345,6 +345,11 @@ public:
     // project. true means the request was handled.
     void set_external_project_open_handler(std::function<bool(const fs::path&)> callback)
         { m_external_project_open_handler = std::move(callback); }
+    // An optional GUI owner may handle files given to load_files(wxArrayString)
+    // (the OS, another instance, the command line, a drop) before Orca adds
+    // them to the current project. true means the request was handled.
+    void set_external_file_open_handler(std::function<bool(const std::vector<fs::path>&)> callback)
+        { m_external_file_open_handler = std::move(callback); }
 
     // Behavior-oriented object commands for the workspace adapter; they run
     // through Orca's own selection, snapshot, and history paths.
@@ -988,6 +993,7 @@ private:
     bool m_auto_preview_after_slice { true };
     std::function<bool()> m_before_project_release;
     std::function<bool(const fs::path&)> m_external_project_open_handler;
+    std::function<bool(const std::vector<fs::path>&)> m_external_file_open_handler;
     std::unique_ptr<priv> p;
     std::string           m_3mf_path;
     // Set true during PopupMenu() tracking to suppress immediate error message boxes.

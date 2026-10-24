@@ -391,6 +391,12 @@ body {
   background: var(--surface-subtle);
 }
 
+/* New beside Open…: the design system's compact outlined button, 28 px. */
+.button-secondary-small {
+  padding: var(--button-secondary-small-padding);
+  height: var(--button-secondary-small-height);
+}
+
 .launch-monitor {
   display: flex;
   align-items: center;

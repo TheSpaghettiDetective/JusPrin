@@ -30,7 +30,8 @@ public:
     std::vector<std::string> opened;
     std::vector<std::string> monitored;
     int                      new_projects{0};
-    int                      imports{0};
+    int                      file_opens{0};
+    std::vector<DroppedFile> dropped;
     int                      wizards{0};
 
     bool                      dark() const override { return is_dark; }
@@ -39,7 +40,11 @@ public:
 
     void open_project(const std::string& id) override { opened.push_back(id); }
     void new_project() override { ++new_projects; }
-    void import_model() override { ++imports; }
+    void open_file() override { ++file_opens; }
+    void open_dropped_files(const std::vector<DroppedFile>& files) override
+    {
+        dropped.insert(dropped.end(), files.begin(), files.end());
+    }
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
     void open_preferences() override { ++preferences_opened; }
@@ -209,9 +214,11 @@ TEST_CASE("actions before the handshake are ignored", "[home]")
 
     host.on_page_message(page_message("open_project", json{{"id", "0"}}));
     host.on_page_message(page_message("new_project"));
+    host.on_page_message(page_message("open_file"));
 
     CHECK(backend.opened.empty());
     CHECK(backend.new_projects == 0);
+    CHECK(backend.file_opens == 0);
 }
 
 TEST_CASE("each page message reaches its own action", "[home]")
@@ -223,17 +230,39 @@ TEST_CASE("each page message reaches its own action", "[home]")
 
     host.on_page_message(page_message("open_project", json{{"id", "2"}}));
     host.on_page_message(page_message("new_project"));
-    host.on_page_message(page_message("import_project"));
+    host.on_page_message(page_message("open_file"));
     host.on_page_message(page_message("launch_monitor", json{{"id", "FAKE001"}}));
     host.on_page_message(page_message("add_printer"));
     host.on_page_message(page_message("open_preferences"));
 
     CHECK(backend.opened == std::vector<std::string>{"2"});
     CHECK(backend.new_projects == 1);
-    CHECK(backend.imports == 1);
+    CHECK(backend.file_opens == 1);
     CHECK(backend.monitored == std::vector<std::string>{"FAKE001"});
     CHECK(backend.wizards == 1);
     CHECK(backend.preferences_opened == 1);
+}
+
+// The page hands over a dropped file's name and bytes; a file whose bytes do
+// not decode, or that has no name, is left out rather than opened empty.
+TEST_CASE("dropped files reach the backend with their bytes", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("open_dropped_files",
+                                      json{{"files", json::array({json{{"name", "cube.stl"}, {"dataBase64", "data:model/stl;base64,c29saWQgY3ViZQ=="}},
+                                                                 json{{"name", "broken.stl"}, {"dataBase64", "not base64!"}},
+                                                                 json{{"name", ""}, {"dataBase64", "c29saWQ="}}})}}));
+
+    REQUIRE(backend.dropped.size() == 1);
+    CHECK(backend.dropped[0].name == "cube.stl");
+    CHECK(backend.dropped[0].bytes == "solid cube");
+
+    host.on_page_message(page_message("open_dropped_files", json{{"files", json::array({json{{"name", "x.stl"}, {"dataBase64", "?"}}})}}));
+    CHECK(backend.dropped.size() == 1); // nothing decodable, nothing opened
 }
 
 // Adding a printer changes what the rail should show, so the screen is pushed
@@ -323,12 +352,12 @@ TEST_CASE("traffic from another surface is ignored", "[home]")
     const std::string agent = json{{"protocol", "jusprin-agent-bridge"},
                                    {"version", 1},
                                    {"id", "w-9"},
-                                   {"type", "new_project"},
+                                   {"type", "open_file"},
                                    {"payload", json::object()}}
                                   .dump();
     host.on_page_message(agent);
 
-    CHECK(backend.new_projects == 0);
+    CHECK(backend.file_opens == 0);
 }
 
 // The page is the only writer on this transport; unreadable text is dropped
@@ -341,9 +370,9 @@ TEST_CASE("unreadable page text does not break the bridge", "[home]")
     host.on_page_message(hello());
 
     host.on_page_message("{not json");
-    host.on_page_message(page_message("new_project"));
+    host.on_page_message(page_message("open_file"));
 
-    CHECK(backend.new_projects == 1);
+    CHECK(backend.file_opens == 1);
 }
 
 TEST_CASE("appearance follows the host, and only while connected", "[home]")
