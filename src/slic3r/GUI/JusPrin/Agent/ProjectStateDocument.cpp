@@ -703,7 +703,7 @@ std::optional<json> ProjectStateDocument::calibration() const
 {
     if (!m_doc.contains("calibration") || !m_doc["calibration"].is_object())
         return std::nullopt;
-    return m_doc["calibration"];
+    return std::optional<json>(std::in_place, m_doc["calibration"]);
 }
 
 void ProjectStateDocument::set_calibration(json calibration)
