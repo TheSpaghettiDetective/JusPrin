@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5R2NRQ62ZV36KRA8WYPXCYW",
+  "strategy": "manual-commit",
+  "branch": "claude/mac-url-schemes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmake/modules/MacOSXBundleInfo.plist.in",
+    "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 125560,
+    "cache_read_tokens": 4730100,
+    "output_tokens": 31993,
+    "api_call_count": 34
+  }
+}
