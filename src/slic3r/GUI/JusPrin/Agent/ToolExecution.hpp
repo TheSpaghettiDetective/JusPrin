@@ -96,6 +96,12 @@ struct ToolActivity
     std::shared_ptr<const ToolImage> image; // a picture beside the result, when the tool returns one
     std::optional<ToolError> error;
     ToolSource   source{ToolSource::Agent};
+    // The project chat's proposal to save a preset, which a settings preview
+    // with persistAs makes: the card's title, rows and buttons as JSON (see
+    // Protocol's tool_activity proposal). Empty for any other activity.
+    std::string   proposal_json;
+    // An apply the person approved from a proposal: the preview's action id.
+    std::string   approves;
     // MCP only: the client's own name for itself, as mcp_client_name() read
     // it; empty when the client gave none.
     std::string  client;

@@ -52,6 +52,12 @@
    "arguments": {}
   },
   {
+   "call": "skill_read",
+   "arguments": {
+    "name": "calibration"
+   }
+  },
+  {
    "call": "object_analyze",
    "eachObject": true,
    "arguments": {
@@ -1144,6 +1150,66 @@
       {
        "record": "slice-refused-then-ready",
        "skill": "slice-failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "calibration-symptom",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "My prints in this PLA come out with lots of thin strings between the parts, and the overhangs look droopy. Can you help?",
+     "replies": [
+      {
+       "record": "calibration-symptom"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "calibration-result",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "Calibrate the temperature for Bambu PLA Basic on my X1 Carbon. I'm fine with this project being saved and closed for the test.",
+     "replies": [
+      {
+       "call": "calibration_generate",
+       "arguments": {
+        "test": "temperature",
+        "start": 230,
+        "end": 190
+       }
+      },
+      {
+       "call": "skill_read",
+       "arguments": {
+        "name": "calibration"
+       }
+      },
+      {
+       "call": "setup_record",
+       "arguments": {
+        "purpose": "Temperature test for Bambu PLA Basic",
+        "headline": "Temperature tower, 230 to 190 °C"
+       }
+      },
+      {
+       "text": "The temperature tower is ready: nine blocks from 230 °C at the bottom to 190 °C at the top, 5 °C apart. Slice it and print it, then photograph the side with the numbers, close up, with light from one side so strings and droops show, and send the photo here."
+      }
+     ]
+    },
+    {
+     "slice": true,
+     "say": "Printed it. 230 and 225 have lots of strings between the pillars and the overhang droops. 220 has a few thin hairs. 215 is clean, no strings, and its bridge is flat. 210 and 205 look dull and their bridges sag a little, and 195 and 190 have a layer that split.",
+     "replies": [
+      {
+       "record": "calibration-result"
       }
      ]
     }

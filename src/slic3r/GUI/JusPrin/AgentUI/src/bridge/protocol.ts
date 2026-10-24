@@ -42,6 +42,8 @@ export type PageMessageType =
   | 'skills'
   | 'settings_catalog_request'
   | 'settings_action'
+  | 'save_proposal'
+  | 'undo_receipt'
   | 'setup_remove_key'
   | 'preferences_action';
 
@@ -72,8 +74,20 @@ export type HostMessageType =
   | 'chat_model'
   | 'printer_session'
   | 'settings_catalog'
+  | 'confirm'
   | 'setup_keys'
   | 'preferences';
+
+// A question the host asks before an action it cannot take back, drawn as
+// the design system's Confirmation dialog: a calibration that saves and
+// closes the open project. The answer goes back with its requestId.
+export interface ConfirmPayload {
+  requestId: string;
+  title: string;
+  body: string;
+  confirm: string;
+  cancel: string;
+}
 
 export interface Envelope<T = unknown> {
   protocol: string;
@@ -125,6 +139,10 @@ export interface WireMessage {
   // its target and the freshness of the evidence, for the model. The page
   // draws the message's text and nothing from here.
   issueContext?: unknown;
+  // Notes: the receipt for a preset the person saved from a proposal, which
+  // the page draws in place of the text (the text is for the model).
+  // undo: whether Undo can take the save back; undone: it did.
+  receipt?: { name: string; detail: string; actionId: string; undo?: { base: string; label: string; newCopy: boolean }; undone?: boolean };
 }
 
 // Raw words shown or scheduled by Orca during opening, and the app's answer
@@ -523,6 +541,8 @@ export interface WorkspaceContext {
       objectId?: string;
     };
     objects: { id: string; name: string; instances: number; selected: boolean }[];
+    // A calibration test's steps, while the plate's print holds them.
+    calibration?: { test: string; method?: string; start: number; end: number; step: number };
   }[];
   selection: { status: 'none' | 'objects' | 'unsupported'; objectIds: string[] };
   history: { canUndo: boolean; canRedo: boolean };
@@ -535,6 +555,11 @@ export interface WorkspaceContext {
   // not say. OrcaSlicer itself has no currency concept, so this is the only
   // thing that says what a cost is denominated in.
   currency: string;
+  // Present when this is a calibration project: what it calibrates, and once
+  // the test is made, the test. A test whose plate no longer holds its steps
+  // was reopened (board 7).
+  calibration?: { startedFrom: string; filament: string; printer: string; symptom: string; test?: string; method?: string;
+    start?: number; end?: number; step?: number; generatedAt?: string; result?: string; savedAs?: string };
   // The card's chat's own records, which the host adds to the workspace for
   // the card: they are never saved with a checkpoint's summary.
   // The agent's restatement of what this chat asked the setup to be, in the
@@ -593,6 +618,19 @@ export interface ToolActivityInfo {
   progress: { current: number; total: number };
   result?: Record<string, unknown>;
   error?: { code: string; message: string };
+  // A settings preview that saves a preset, from the project chat's Agent:
+  // the card the person saves it from (ProposalCard).
+  proposal?: Proposal;
+  // The apply a Save preset started: the preview's action id.
+  approves?: string;
+}
+
+export interface Proposal {
+  title: string;
+  rows: { icon: string; text: string }[];
+  save: string;
+  other?: string; // the other choice, which the person sends as their reply
+  receipt: string;
 }
 
 // A call that did not run because the project changed after it was made.

@@ -71,6 +71,8 @@ nlohmann::json object_analysis_result(Workspace::ObjectId id, const Workspace::O
 // the run failed, its rating, its words, and the setting and object it named.
 // `full` adds the native check and the object's name, for slice_report.
 nlohmann::json slice_failure_result(const Workspace::SliceFailure& failure, bool full = false);
+// The calibration steps a plate's print applies when it slices.
+nlohmann::json calibration_steps_result(const Workspace::CalibrationSteps& steps);
 
 
 // What a plate's current slice warned about: how many warnings, and the first

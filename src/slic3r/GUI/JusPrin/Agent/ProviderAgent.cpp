@@ -54,6 +54,9 @@ json workspace_json(const AgentRequest& request)
         // What its current slice warned about, whoever sliced it.
         if (plate.slice_warnings)
             entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
+        // A calibration test's steps, while the plate's print holds them.
+        if (plate.calibration)
+            entry["calibration"] = calibration_steps_result(*plate.calibration);
         plates.push_back(std::move(entry));
     }
     json selected = json::array();

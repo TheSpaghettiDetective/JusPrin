@@ -6,6 +6,7 @@ const encoder = new TextEncoder();
 describe('project skills', () => {
   it('loads every SKILL.md, sorted by name, one per trigger', () => {
     expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
+      ['calibration', 'calibration_started'],
       ['file-loaded', 'file_loaded'],
       ['print-issues', 'print_issues'],
       ['project-setup-changed', 'setup_changed'],
@@ -230,5 +231,91 @@ describe('the skill for a setup to check against the print\'s purpose', () => {
   it('never words a change as needing the person\'s permission', () => {
     for (const word of [/approv/i, /authori[sz]/i, /confirm before/i, /ask the user then call again/i])
       expect(text).not.toMatch(word);
+  });
+});
+
+describe('the skill for calibrating a filament', () => {
+  const skill = skills.find((candidate) => candidate.name === 'calibration')!;
+  const text = skill.text;
+
+  it("is fired by a calibration project's handover, listed by its description, and fits in the app", () => {
+    expect(skill.trigger).toBe('calibration_started');
+    expect(skill.description).toContain('calibrate a filament or printer');
+    expect(skill.description).toContain('a calibration project');
+    expect(encoder.encode(skill.description!).length).toBeLessThanOrEqual(300);
+    expect(encoder.encode(text).length).toBeLessThanOrEqual(16 * 1024);
+    expect(text).toMatch(/^# [^\r\n]+\r?\n\r?\nThe rules above still apply\./);
+  });
+
+  it('says which symptom points to which test, and what comes before any test', () => {
+    expect(text).toContain('Stringing, hairs or blobs between parts');
+    expect(text).toContain('temperature first');
+    expect(text).toContain('retraction is next');
+    expect(text).toContain('Gaps between lines');
+    expect(text).toContain('Bulging corners and seams');
+    expect(text).toContain('temperature, then flow, then pressure advance');
+    expect(text).toContain('suggest drying it first');
+    expect(text).toContain('a partial clog, a worn nozzle');
+  });
+
+  it("asks before the person's project closes, and hands the symptom over", () => {
+    expect(text).toContain('the open project will be saved to its version history and closed');
+    expect(text).toContain('nothing is saved to a preset until the person chooses');
+    expect(text).toContain('Choices: Start the temperature test | Not now');
+    expect(text).toContain('Say both in the message that offers the test');
+    expect(text).toContain('what they saw, in their words, as symptom');
+  });
+
+  it('in a calibration project, asks which test only when the handover leaves it open, and makes it first', () => {
+    expect(text).toContain('do not repeat the two facts');
+    expect(text).toContain('ask first which filament is in the printer, as reply choices');
+    expect(text).toContain('or the installed filaments (presets_list). Never assume one.');
+    expect(text).toContain('When the note\'s symptom, or what the person says, decides the test, make it at once');
+    expect(text).toContain('"Choices: Temperature tower | Flow tiles | Pressure advance"');
+    expect(text).toContain('Make the test before changing any setting');
+  });
+
+  it('takes its temperature ranges from OrcaSlicer\'s own dialog', () => {
+    // Temp_Calibration_Dlg::on_filament_type_changed.
+    for (const range of ['PLA 230 to 190', 'ABS and ASA 270 to 230', 'PETG 250 to 230', 'PCTG 280 to 240',
+      'TPU 240 to 210', 'PA-CF and PET-CF 320 to 280'])
+      expect(text).toContain(range);
+  });
+
+  it('records the test, then reads a reopened one by the workspace\'s calibration fact', () => {
+    expect(text).toContain("Call setup_record with the project's name as the purpose");
+    expect(text).not.toContain('projectName');
+    expect(text).toContain("the plate's calibration carries the test and its range");
+    expect(text).toContain('tell the person to slice and print it');
+    expect(text).toContain('while the plate carries calibration, its steps are in place');
+    expect(text).toContain('offer to make it again with the same range');
+    expect(text).toContain('"Choices: Regenerate tower | Just look at it"');
+    expect(text).toContain('"Temperature tower, 230 → 190 °C in 5 °C blocks; result 215 °C saved"');
+  });
+
+  it('saves one result under the naming rule, asking only about a preset of the person\'s own', () => {
+    expect(text).toContain('settings_preview_patch on the filament preset in use, with persistAs');
+    expect(text).toContain('never call settings_apply_patch for it');
+    expect(text).toContain('"<filament preset> · <printer> calibrated"');
+    expect(text).toContain('never a printer preset\'s name with its nozzle');
+    expect(text).toContain('never a second copy');
+    expect(text).toContain('ask whether to write the result into it or save it as a copy');
+    expect(text).toContain('saves_unsaved_edits');
+    expect(text).toContain('at its saved value');
+    expect(text).toContain('Say the preset\'s name exactly');
+    expect(text).toContain('other projects keep their filament until the person picks this one');
+    expect(text).toContain('without starting it');
+  });
+
+  it('never words a change as needing the person\'s permission', () => {
+    for (const word of [/approv/i, /authori[sz]/i, /confirm before/i])
+      expect(text).not.toMatch(word);
+  });
+});
+
+describe('the print-issues skill points material symptoms at calibration', () => {
+  it('names the calibration skill once', () => {
+    const text = skills.find((skill) => skill.trigger === 'print_issues')!.text;
+    expect(text.match(/the calibration skill/g)).toHaveLength(1);
   });
 });

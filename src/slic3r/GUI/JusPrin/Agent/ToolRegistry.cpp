@@ -543,6 +543,33 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                             !arguments.contains("openedBefore")));
     }
 
+    if (definition.handler == ToolHandler::CalibrationGenerate) {
+        // Each test takes the parameters its Orca dialog takes; the ranges
+        // themselves are the dialog's to judge (calibration_request_problem).
+        if (!has_only(arguments, {"test", "symptom", "start", "end", "step", "method", "extruderType", "pass", "linear"}) ||
+            !arguments.contains("test") || !arguments["test"].is_string() || !optional_text(arguments, "symptom") ||
+            !optional_number(arguments, "start") || !optional_number(arguments, "end") || !optional_number(arguments, "step"))
+            return false;
+        const std::string& test = arguments["test"].get_ref<const std::string&>();
+        const auto absent = [&arguments](std::initializer_list<const char*> keys) {
+            return std::none_of(keys.begin(), keys.end(), [&arguments](const char* key) { return arguments.contains(key); });
+        };
+        if (test == "temperature")
+            return arguments.contains("start") && arguments.contains("end") &&
+                   absent({"step", "method", "extruderType", "pass", "linear"});
+        if (test == "pressure_advance")
+            return absent({"pass", "linear"}) &&
+                   (!arguments.contains("method") || arguments["method"] == "tower" || arguments["method"] == "line" ||
+                    arguments["method"] == "pattern") &&
+                   (!arguments.contains("extruderType") || arguments["extruderType"] == "direct_drive" ||
+                    arguments["extruderType"] == "bowden");
+        if (test == "flow")
+            return absent({"start", "end", "step", "method", "extruderType"}) &&
+                   (!arguments.contains("pass") || arguments["pass"] == 1 || arguments["pass"] == 2) &&
+                   (!arguments.contains("linear") || arguments["linear"].is_boolean());
+        return false;
+    }
+
     if (definition.handler == ToolHandler::PrinterSetupPreview || definition.handler == ToolHandler::PrinterSetup) {
         const bool apply = definition.handler == ToolHandler::PrinterSetup;
         if (!(apply ? has_only(arguments, {"printerPreset", "plateType", "processPreset", "filamentPresets", "confirmFacts"}) :
@@ -1020,7 +1047,10 @@ std::vector<ToolDefinition> make_definitions()
                                               {"estimateStatus", {{"type", "string"},
                                                                   {"enum", json::array({"current", "recomputing", "stale", "none"})}}},
                                               {"invalidatedBy", string_schema()}, {"sliceFailure", slice_failure},
-                                              {"sliceWarnings", slice_warnings}},
+                                              {"sliceWarnings", slice_warnings},
+                                              {"calibration", object_schema({{"test", id}, {"method", id}, {"start", number_schema()},
+                                                                             {"end", number_schema()}, {"step", number_schema()}},
+                                                                            {"test", "start", "end", "step"})}},
                                              {"plateId", "name", "sliced", "estimateStatus", "invalidatedBy"});
     const json jobs_list = {{"type", "array"}, {"maxItems", 16},
                             {"items", object_schema({{"handle", id},
@@ -1110,6 +1140,39 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"projectName", "path", "plateCount", "objectCount", "report", "sessionId", "revision"}),
          ActionClass::Destructive, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::ProjectOpen},
+        {"calibration_generate", "Make a calibration test",
+         // Both adapters: an external client reads the result; in the app the
+         // calibration project's chat holds it.
+         "Make one of OrcaSlicer's calibration tests in a calibration project of its own: temperature, a tower of blocks "
+         "from start °C at the bottom to end °C at the top, 5 °C apart (start hotter than end, both multiples of 5); flow, "
+         "OrcaSlicer's flow-ratio tiles (pass 1 or 2, default 1; linear true, the default, for its YOLO tiles, false for "
+         "its classic ones); or pressure_advance (method tower, the default, line or pattern; extruderType direct_drive, "
+         "the default, or bowden; start, end and step default to OrcaSlicer's for the method and extruder). In a "
+         "calibration project the test is made in it, and the project and its chat go on. In any other project, call it "
+         "only once the person has agreed to that project being closed: it is saved to its version history, where it can "
+         "be restored, its unsaved preset edits are dropped, and a calibration project for its filament and printer opens "
+         "with the test; symptom, in the person's words, is handed over to it. The test edits the presets of its project "
+         "for itself, unsaved; a preset edit made in a calibration project before the test carries into it. The result is "
+         "what OrcaSlicer made: the plate, its objects (the flow tiles are named for their change) and the range it "
+         "applies, with summary, a sentence saying what it made. IDs from before are no longer valid afterwards.",
+         object_schema({{"test", {{"type", "string"}, {"enum", json::array({"temperature", "flow", "pressure_advance"})}}},
+                        {"symptom", {{"type", "string"}, {"maxLength", kToolTextLimit}}},
+                        {"start", number_schema()}, {"end", number_schema()}, {"step", number_schema()},
+                        {"method", {{"type", "string"}, {"enum", json::array({"tower", "line", "pattern"})}}},
+                        {"extruderType", {{"type", "string"}, {"enum", json::array({"direct_drive", "bowden"})}}},
+                        {"pass", {{"type", "integer"}, {"enum", json::array({1, 2})}}},
+                        {"linear", boolean_schema()}},
+                       {"test"}),
+         object_schema({{"projectName", string_schema()}, {"test", id}, {"plateId", id},
+                        {"objects", {{"type", "array"}, {"maxItems", 64},
+                                     {"items", object_schema({{"objectId", id}, {"name", string_schema()}}, {"objectId", "name"})}}},
+                        {"applied", object_schema({{"start", number_schema()}, {"end", number_schema()}, {"step", number_schema()},
+                                                   {"method", id}, {"extruderType", id}, {"pass", integer_schema()},
+                                                   {"linear", boolean_schema()}})},
+                        {"messages", list_schema(orca_message)}, {"summary", string_schema()},
+                        {"sessionId", id}, {"revision", revision}},
+                       {"projectName", "test", "plateId", "objects", "applied", "messages", "summary", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::CalibrationGenerate},
         {"printer_setup", "Set up the printer",
          "Establish the hardware for this job in OrcaSlicer's order: printer preset, plate type, process preset, then filament presets from the first slot. Names come from presets_list; plate types from printer_setup_preview's issues or the printer section. Preview first. Unsaved edits to a preset it switches away from are dropped and listed in discarded; the project's version history keeps them. confirmFacts records what the user said about the physical printer that no sensor reports (for example fact \"plate\", value \"Textured PEI Plate\"; or \"bed_clear\"), each lasting hours (default 24). The result lists what OrcaSlicer replaced on its own. A material and its saved filament preset are separate choices.",
          object_schema({{"printerPreset", string_schema()}, {"plateType", string_schema()}, {"processPreset", string_schema()},
@@ -1784,6 +1847,9 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 message += " " + outside + ".";
             if (definition.handler == ToolHandler::ProjectOpen && arguments.contains("path") == arguments.contains("new"))
                 message += " Give exactly one of path and new.";
+            if (definition.handler == ToolHandler::CalibrationGenerate)
+                message += " temperature takes start and end; pressure_advance takes start, end, step, method and "
+                           "extruderType, all optional; flow takes pass and linear, both optional.";
             if (definition.handler == ToolHandler::SettingsSearch || definition.handler == ToolHandler::SettingsGet ||
                 definition.handler == ToolHandler::SettingsPreviewPatch || definition.handler == ToolHandler::SettingsApplyPatch) {
                 message += " scope process takes no target; object takes target.objectId; filament and printer take "

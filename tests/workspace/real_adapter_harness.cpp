@@ -15,6 +15,8 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp"
@@ -64,7 +66,7 @@ struct HarnessState
     std::atomic<int>  result{-1};
     std::atomic<bool> stop{false};
     std::shared_ptr<void> runner;
-    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(180)};
+    std::chrono::steady_clock::time_point deadline{std::chrono::steady_clock::now() + std::chrono::seconds(300)};
     Mode mode{Mode::Automated};
     std::filesystem::path crash_root;
     std::string crash_stage;
@@ -2298,10 +2300,423 @@ private:
                     check(sliced, "slice_failure_fixed_plate_sliced");
                     const WorkspacePlate* plate = active_plate(workspace->snapshot());
                     check(plate != nullptr && !plate->slice_failure, "slice_failure_absent_once_sliced");
-                    finish();
+                    verify_calibration();
                 });
             });
         });
+    }
+
+    // A person's project with one object and an unsaved filament edit of
+    // their own, named so its version can be found after it is closed.
+    // Returns the edited first nozzle temperature.
+    int person_project_with_unsaved_edit(const std::string& name)
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_new_project");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
+                      .size() == 1,
+              name + "_cube_loaded");
+        check(m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, name + "_cube_on_the_plate");
+        m_plater->canvas3D()->reload_scene(true, true);
+        m_plater->set_project_name(from_u8(name));
+        // The project's own first filament, which its versions save.
+        check(JusPrin::SetupCommands::select_filament_preset(*m_plater, 0, kCalibrationFilament), name + "_stock_filament_in_slot");
+        PresetCollection&  filaments = m_app.preset_bundle->filaments;
+        // Edited where the sidebar's edit button edits it: the tab may still
+        // hold a preset an earlier scenario saved.
+        filaments.discard_current_changes();
+        check(m_app.get_tab(Preset::TYPE_FILAMENT)->select_preset(kCalibrationFilament) &&
+                  filaments.get_selected_preset_name() == kCalibrationFilament,
+              name + "_stock_filament_edited");
+        DynamicPrintConfig edited    = filaments.get_edited_preset().config;
+        auto&              values    = edited.option<ConfigOptionInts>("nozzle_temperature")->values;
+        for (int& value : values) value = (value == 223 ? 224 : 223);
+        m_app.get_tab(Preset::TYPE_FILAMENT)->load_config(edited);
+        check(filaments.current_is_dirty(), name + "_unsaved_filament_edit");
+        return values.front();
+    }
+
+    // The scaling the screen has that this DPI-unaware process does not see
+    // (shell_harness.cpp's desktop_scale).
+    static double desktop_scale()
+    {
+#ifdef _WIN32
+        HDC       hdc      = ::GetDC(nullptr);
+        const int physical = ::GetDeviceCaps(hdc, DESKTOPHORZRES);
+        const int logical  = ::GetDeviceCaps(hdc, HORZRES);
+        ::ReleaseDC(nullptr, hdc);
+        if (logical > 0 && physical > 0)
+            return double(physical) / double(logical);
+#endif
+        return 1.0;
+    }
+
+    // With JUSPRIN_CALIBRATION_CAPTURE set to a folder, the application
+    // window as it is on the screen, for a person to look at each step.
+    void capture_window(const std::string& name)
+    {
+        const char* folder = std::getenv("JUSPRIN_CALIBRATION_CAPTURE");
+        if (folder == nullptr || *folder == '\0')
+            return;
+        std::filesystem::create_directories(std::filesystem::u8path(folder));
+        const double scale   = desktop_scale();
+        const wxRect logical = m_app.mainframe->GetScreenRect();
+        const wxRect rect(int(logical.x * scale), int(logical.y * scale), int(logical.width * scale), int(logical.height * scale));
+        wxScreenDC screen;
+        wxBitmap   bitmap(rect.GetWidth(), rect.GetHeight());
+        {
+            wxMemoryDC memory(bitmap);
+            memory.Blit(0, 0, rect.GetWidth(), rect.GetHeight(), &screen, rect.GetLeft(), rect.GetTop());
+        }
+        const std::string file = (std::filesystem::u8path(folder) / (name + ".png")).u8string();
+        check(bitmap.IsOk() && bitmap.ConvertToImage().SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG),
+              "calibration_window_" + name);
+    }
+
+    // Lets the event loop paint for a moment, then captures the window.
+    void captured_then(const std::string& name, std::function<void()> then)
+    {
+        m_app.mainframe->Raise();
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, 3000, [this, name, then](bool) {
+            capture_window(name);
+            then();
+        });
+    }
+
+    // The sliced plate in Preview, coloured by the value the test varies.
+    void preview_captured_then(libvgcode::EViewType view, const std::string& name, std::function<void()> then)
+    {
+        m_app.mainframe->select_tab(size_t(MainFrame::tpPreview));
+        // Preview loads a new slice when it is first drawn, which sets its
+        // own colouring; it is set once that has happened.
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, 3000, [this, view, name, then](bool) {
+            GLCanvas3D* preview = m_plater->get_preview_canvas3D();
+            preview->get_gcode_viewer().set_view_type(view);
+            preview->set_as_dirty();
+            preview->request_extra_frame();
+            captured_then(name, [this, then] {
+                m_app.mainframe->select_tab(size_t(MainFrame::tp3DEditor));
+                then();
+            });
+        });
+    }
+
+    // The newest version saved of a managed project, by its name: one
+    // setting as its project_settings.config holds it.
+    std::string saved_project_setting(ProjectAutosave& autosave, const std::string& project, const std::string& key)
+    {
+        for (const auto& managed : autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{})) {
+            if (managed.name != project)
+                continue;
+            std::filesystem::path newest;
+            std::error_code       error;
+            for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::u8path(managed.store_path) / "versions", error))
+                if (std::filesystem::is_regular_file(entry.path() / "metadata.3mf") &&
+                    (newest.empty() || entry.last_write_time() > std::filesystem::last_write_time(newest)))
+                    newest = entry.path();
+            if (newest.empty())
+                return {};
+            mz_zip_archive archive;
+            mz_zip_zero_struct(&archive);
+            if (!open_zip_reader(&archive, (newest / "metadata.3mf").u8string()))
+                return {};
+            size_t size = 0;
+            void*  data = mz_zip_reader_extract_file_to_heap(&archive, "Metadata/project_settings.config", &size, 0);
+            close_zip_reader(&archive);
+            if (data == nullptr)
+                return {};
+            const auto config = nlohmann::json::parse(std::string(static_cast<const char*>(data), size));
+            mz_free(data);
+            const auto& value = config.value(key, nlohmann::json());
+            return value.is_array() && !value.empty() ? value.front().get<std::string>() : value.is_string() ? value.get<std::string>() : "";
+        }
+        return {};
+    }
+
+    // One test from a person's project with an unsaved preset edit, as the
+    // popup path makes it (handoff 5.1 and 5.3): the person's project is
+    // saved and released through the open path, the empty calibration
+    // project opens with its chat, and the test is made in that project,
+    // which keeps its identity, its chat and its name across the generator's
+    // own new project. The window captured before and after.
+    void generate_test(const std::string& label, CalibrationRequest request, CalibMode mode,
+                       std::function<void(CalibrationResult)> then)
+    {
+        auto*             shell     = Slic3r::GUI::JusPrin::installed_shell();
+        IWorkspace&       workspace = *shell->workspace();
+        ProjectAutosave&  autosave  = *shell->autosave();
+        const std::string person    = "Person " + label;
+        const int         edited    = person_project_with_unsaved_edit(person);
+        captured_then(label + "-1-person-project", [this, &workspace, &autosave, label, request, mode, person, edited, then]() mutable {
+            PresetCollection&     filaments = m_app.preset_bundle->filaments;
+            auto*                 shell     = Slic3r::GUI::JusPrin::installed_shell();
+            auto&                 persistence = *shell->persistence();
+            const std::string     name      = "Calibration · " + label;
+            ProjectOpenRequest    open;
+            open.new_project = true;
+            open.name        = name;
+            LoadReport report;
+            check(workspace.open_project(open, report).succeeded(), label + "_calibration_project_opened");
+            shell->agent_pane()->web_view().host().open_calibration_chat({person, kCalibrationFilament, "Workshop", {}, {}},
+                                                                         /*start=*/true);
+            // The person's project, edits included, was saved before any
+            // preset was edited for the test.
+            check(saved_project_setting(autosave, person, "nozzle_temperature") == std::to_string(edited),
+                  label + "_version_saved_with_the_unsaved_edit");
+            check(autosave.save_now(), label + "_calibration_project_saved");
+            const std::size_t home_before = autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size();
+            const std::string project     = persistence.document().project_id();
+            const std::string chat        = persistence.document().active_conversation_id();
+            const std::size_t messages    = persistence.document().messages(chat).size();
+            CalibrationResult made;
+            CommandResult     generated = CommandResult::success();
+            persistence.continuing_project([&] { generated = workspace.generate_calibration(request, made); });
+            check(generated.succeeded(), label + "_generated");
+            if (!generated.succeeded()) std::cerr << "HARNESS CALIBRATION " << label << " refused: " << generated.message << '\n';
+            // One project: its identity, its chat and its name carry across
+            // the generator's own new project, and no second project is saved.
+            check(persistence.document().project_id() == project, label + "_keeps_the_project_identity");
+            check(persistence.document().active_conversation_id() == chat &&
+                      persistence.document().messages(chat).size() == messages,
+                  label + "_keeps_the_chat");
+            const WorkspaceSnapshot now = workspace.snapshot();
+            check(made.project_name == name && now.setup.project_name == name, label + "_project_named");
+            check(autosave.save_now(), label + "_test_saved_in_the_project");
+            check(autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size() == home_before,
+                  label + "_home_count_unchanged");
+            std::cerr << "HARNESS CALIBRATION " << label << " home=" << home_before << " -> " << autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size()
+                      << " project=" << project << " -> " << persistence.document().project_id() << '\n';
+            check(!now.plates.empty() && now.plates.front().id == made.plate && !made.objects.empty() &&
+                      made.objects.size() == m_plater->model().objects.size() &&
+                      std::all_of(made.objects.begin(), made.objects.end(), [&now](const ObjectId& id) {
+                          const auto& objects = now.plates.front().objects;
+                          return std::any_of(objects.begin(), objects.end(), [&id](const WorkspaceObject& object) { return object.id == id; });
+                      }),
+                  label + "_plate_holds_the_test");
+            const Calib_Params& applied = m_plater->get_partplate_list().get_current_fff_print().calib_params();
+            check(applied.mode == mode, label + "_print_mode");
+            if (request.start)
+                check(applied.start == *made.start && *made.start == *request.start && applied.end == *request.end,
+                      label + "_print_range_matches");
+            // The workspace fact the calibration skill reads: present while
+            // the plate's print holds the steps; a flow test needs none.
+            const auto& fact = now.plates.front().calibration;
+            check(mode == CalibMode::Calib_None ? !fact :
+                      fact && fact->start == applied.start && fact->end == applied.end &&
+                          fact->test == (mode == CalibMode::Calib_Temp_Tower ? "temperature" : "pressure_advance"),
+                  label + "_workspace_reports_the_steps");
+            check(filaments.get_edited_preset().config.option<ConfigOptionInts>("nozzle_temperature")->values.front() != edited,
+                  label + "_person_edit_not_carried_into_the_test");
+            std::cerr << "HARNESS CALIBRATION " << label << " objects=" << made.objects.size() << " first=\""
+                      << made.object_names.front() << "\" mode=" << int(applied.mode) << " start=" << applied.start
+                      << " end=" << applied.end << " step=" << applied.step << " messages=" << made.messages.size()
+                      << " filament_dirty=" << listed(filaments.current_dirty_options()) << '\n';
+            // The test is the one project of its name, saved under it.
+            const auto projects = autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{});
+            check(std::count_if(projects.begin(), projects.end(),
+                                [&name](const auto& managed) { return managed.name == name; }) == 1,
+                  label + "_one_project_for_the_test");
+            captured_then(label + "-2-test-project", [then, made] { then(made); });
+        });
+    }
+
+    // calibration_generate's workspace command: each of the three tests,
+    // then what a saved test is when reopened, then saving a result as a
+    // calibrated copy.
+    void verify_calibration()
+    {
+        auto* shell = Slic3r::GUI::JusPrin::installed_shell();
+        check(shell != nullptr && shell->workspace() != nullptr && shell->autosave() != nullptr, "calibration_shell_workspace");
+        if (shell == nullptr || shell->workspace() == nullptr || shell->autosave() == nullptr) {
+            finish();
+            return;
+        }
+        CalibrationRequest flow;
+        flow.test = CalibrationTest::Flow;
+        // calib_flowrate keeps its ratios on the tiles, not on the print.
+        generate_test("Flow", flow, CalibMode::Calib_None, [this](CalibrationResult) {
+            CalibrationRequest pressure;
+            pressure.test = CalibrationTest::PressureAdvance;
+            generate_test("Pressure advance", pressure, CalibMode::Calib_PA_Tower, [this](CalibrationResult tower) {
+                check(tower.start == 0. && tower.end == 0.1 && tower.step == 0.002, "pressure_advance_dialog_defaults_applied");
+                IWorkspace& workspace = *Slic3r::GUI::JusPrin::installed_shell()->workspace();
+                slice_then(workspace, "pressure_advance", [this, &workspace](bool sliced) {
+                    check(sliced, "pressure_advance_sliced");
+                    preview_captured_then(libvgcode::EViewType::PressureAdvance, "Pressure advance-3-sliced-preview", [this, &workspace] {
+                        verify_calibrated_copy_without_test_edits(workspace);
+                        captured_then("Pressure advance-4-saved-as-calibrated-copy", [this, &workspace] {
+                        check(m_app.get_tab(Preset::TYPE_FILAMENT)->select_preset(kCalibrationFilament) &&
+                                  m_app.preset_bundle->filaments.get_selected_preset_name() == kCalibrationFilament,
+                              "calibration_stock_filament_reselected");
+                        CalibrationRequest temperature;
+                        temperature.test  = CalibrationTest::Temperature;
+                        temperature.start = 250;
+                        temperature.end   = 230;
+                        generate_test("Temperature", temperature, CalibMode::Calib_Temp_Tower,
+                                      [this, &workspace, temperature](CalibrationResult made) {
+                                          check(made.step == 5., "temperature_step_is_the_towers");
+                                          verify_reopened_calibration(workspace, temperature);
+                                      });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    // The temperature range of a sliced plate after its first layer, which
+    // has a setting of its own, in whole degrees from the preview's layers.
+    std::pair<long, long> sliced_temperatures(IWorkspace& workspace, PlateId plate)
+    {
+        long low = 100000, high = -1;
+        for (std::size_t first = 0;;) {
+            const SliceInspection inspected = workspace.inspect_slice({plate, false, first, 1000});
+            for (const SliceLayer& layer : inspected.layers)
+                if (layer.index > 0 && layer.temperature_max > 0)
+                    low = std::min(low, std::lround(layer.temperature_min)), high = std::max(high, std::lround(layer.temperature_max));
+            first += inspected.layers.size();
+            if (inspected.layers.empty() || first >= inspected.layer_count)
+                break;
+        }
+        return {low, high};
+    }
+
+    void slice_then(IWorkspace& workspace, const std::string& label, std::function<void(bool)> then)
+    {
+        const PlateId plate = workspace.snapshot().plates.front().id;
+        check(workspace.start_slice(plate, true).succeeded(), label + "_slice_started");
+        wait_until([&workspace] {
+            const WorkspaceSnapshot now = workspace.snapshot();
+            return !now.slicing.running && !now.plates.empty() && now.plates.front().sliced;
+        }, 120000, std::move(then));
+    }
+
+    // Fact 2 of the calibration handoff: the test slices as a tower of
+    // temperatures; saved and reopened, the steps are gone, and the
+    // workspace says so. (Set again on the reopened plate's print they came
+    // back, 2026-10-21; Kenneth chose the workspace fact over that seam.)
+    void verify_reopened_calibration(IWorkspace& workspace, CalibrationRequest request)
+    {
+        slice_then(workspace, "calibration_generated", [this, &workspace, request](bool sliced) {
+            check(sliced, "calibration_generated_sliced");
+            const auto generated = sliced_temperatures(workspace, workspace.snapshot().plates.front().id);
+            std::cerr << "HARNESS CALIBRATION generated temperatures " << generated.first << ".." << generated.second << '\n';
+            check(generated.first == *request.end && generated.second == *request.start, "calibration_generated_slices_the_range");
+            preview_captured_then(libvgcode::EViewType::Temperature, "Temperature-3-sliced-preview", [this, &workspace] {
+                const fs::path saved = fs::path(data_dir()) / "temperature-test.3mf";
+                check(m_plater->export_3mf(saved, SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh) >= 0,
+                      "calibration_test_saved");
+                LoadReport         report;
+                ProjectOpenRequest open;
+                open.path = saved.string();
+                check(workspace.open_project(open, report).succeeded(), "calibration_reopened");
+                check(m_plater->get_partplate_list().get_current_fff_print().calib_mode() == CalibMode::Calib_None,
+                      "calibration_reopened_has_no_steps");
+                check(!workspace.snapshot().plates.front().calibration, "calibration_reopened_workspace_reports_no_steps");
+                captured_then("Temperature-4-test-reopened", [this, &workspace] {
+                    slice_then(workspace, "calibration_reopened", [this, &workspace](bool sliced) {
+                        check(sliced, "calibration_reopened_sliced");
+                        const auto plain = sliced_temperatures(workspace, workspace.snapshot().plates.front().id);
+                        std::cerr << "HARNESS CALIBRATION reopened temperatures " << plain.first << ".." << plain.second << '\n';
+                        check(plain.first == plain.second, "calibration_reopened_slices_one_temperature");
+                        preview_captured_then(libvgcode::EViewType::Temperature, "Temperature-5-reopened-preview",
+                                              [this, &workspace] { verify_calibrated_copy(workspace); });
+                    });
+                });
+            });
+        });
+    }
+
+    // A result saved as a named copy of a stock filament: the stock one
+    // cannot be overwritten, the copy is saved and selected, and a second
+    // result under the same name updates it.
+    void verify_calibrated_copy(IWorkspace& workspace)
+    {
+        PresetCollection& filaments = m_app.preset_bundle->filaments;
+        const std::string base      = filaments.get_selected_preset_name();
+        const SettingsTarget slot{SettingsScope::Filament, {}, base};
+        const bool stock = filaments.get_selected_preset().is_system;
+        const auto temperatures = [&filaments](int value) {
+            std::string text;
+            for (std::size_t index = 0; index < filaments.get_edited_preset().config.option<ConfigOptionInts>("nozzle_temperature")->values.size(); ++index)
+                text += (text.empty() ? "" : ",") + std::to_string(value);
+            return text;
+        };
+        if (stock) {
+            const auto in_place = workspace.preview_settings({{{"nozzle_temperature", temperatures(235)}}, slot, base});
+            // Orca's next free copy name: an earlier scenario took "- Copy".
+            check(!in_place.issues.empty() && in_place.issues.front().code == "read_only_preset" &&
+                      in_place.issues.front().suggestions.size() == 1 &&
+                      in_place.issues.front().suggestions.front().rfind(base + " - Copy", 0) == 0,
+                  "calibrated_copy_stock_is_read_only");
+        }
+        const std::string copy = base + " · " + m_app.preset_bundle->printers.get_selected_preset_name() + " calibrated";
+        SettingsPreview   applied;
+        const SettingsPatch first{{{"nozzle_temperature", temperatures(235)}, {"nozzle_temperature_initial_layer", temperatures(235)}},
+                                  slot, copy};
+        const auto first_preview = workspace.preview_settings(first);
+        check(first_preview.valid, "calibrated_copy_preview_valid");
+        for (const auto& issue : first_preview.issues) std::cerr << "HARNESS CALIBRATION copy issue " << issue.code << ": " << issue.message << '\n';
+        check(workspace.apply_settings(first, previewed_changes(first_preview), applied).succeeded() && applied.saved_as == copy &&
+                  filaments.get_selected_preset_name() == copy && !filaments.current_is_dirty(),
+              "calibrated_copy_saved_and_selected");
+        const auto copies = [&filaments, &copy] {
+            return std::count_if(filaments.begin(), filaments.end(), [&copy](const Preset& preset) { return preset.name == copy; });
+        };
+        const SettingsTarget own{SettingsScope::Filament, {}, copy};
+        const SettingsPatch second{{{"nozzle_temperature", temperatures(240)}}, own, copy};
+        const auto second_preview = workspace.preview_settings(second);
+        check(second_preview.valid && workspace.apply_settings(second, previewed_changes(second_preview), applied).succeeded() &&
+                  applied.saved_as == copy && copies() == 1 &&
+                  filaments.find_preset(copy, false)->config.option<ConfigOptionInts>("nozzle_temperature")->values.front() == 240,
+              "calibrated_copy_second_result_updates_it");
+        captured_then("Temperature-6-saved-as-calibrated-copy", [this] { finish(); });
+    }
+
+    // The pressure-advance tower edits the filament for itself
+    // (slow_down_layer_time); saving the result as a copy would save that
+    // too. Preview names the edit with the value it replaces, so the copy can
+    // keep the saved one.
+    void verify_calibrated_copy_without_test_edits(IWorkspace& workspace)
+    {
+        PresetCollection& filaments = m_app.preset_bundle->filaments;
+        const std::string base      = filaments.get_selected_preset_name();
+        const std::string saved     = filaments.get_selected_preset().config.opt_serialize("slow_down_layer_time");
+        const std::string copy      = base + " · PA calibrated";
+        const SettingsTarget slot{SettingsScope::Filament, {}, base};
+        // One value per entry the list holds (Bambu's X1C filaments hold two).
+        const auto as_list = [&filaments](const char* key, const std::string& value) {
+            const auto* option = dynamic_cast<const ConfigOptionVectorBase*>(filaments.get_edited_preset().config.option(key));
+            std::string text;
+            for (std::size_t index = 0; index < (option != nullptr ? option->size() : 1); ++index)
+                text += (text.empty() ? "" : ",") + value;
+            return text;
+        };
+        SettingsPatch patch{{{"enable_pressure_advance", as_list("enable_pressure_advance", "1")},
+                             {"pressure_advance", as_list("pressure_advance", "0.032")}},
+                            slot, copy};
+        const auto preview = workspace.preview_settings(patch);
+        const auto swept   = std::find_if(preview.warnings.begin(), preview.warnings.end(),
+                                          [](const SettingIssue& issue) { return issue.code == "saves_unsaved_edits"; });
+        check(swept != preview.warnings.end() &&
+                  std::find(swept->allowed.begin(), swept->allowed.end(), "slow_down_layer_time") != swept->allowed.end() &&
+                  swept->message.find("slow_down_layer_time (saved value " + saved + ")") != std::string::npos,
+              "calibration_test_edit_named_with_its_saved_value");
+        if (swept != preview.warnings.end()) std::cerr << "HARNESS CALIBRATION " << swept->message << '\n';
+        if (swept != preview.warnings.end())
+            for (const std::string& key : swept->allowed)
+                patch.changes[key] = filaments.get_selected_preset().config.opt_serialize(key);
+        SettingsPreview applied;
+        const auto clean = workspace.preview_settings(patch);
+        check(clean.valid && workspace.apply_settings(patch, previewed_changes(clean), applied).succeeded() && applied.saved_as == copy,
+              "calibration_clean_copy_saved");
+        const Preset* saved_copy = filaments.find_preset(copy, false);
+        check(saved_copy != nullptr && saved_copy->config.opt_serialize("slow_down_layer_time") == saved &&
+                  saved_copy->config.opt_serialize("pressure_advance").find("0.032") == 0,
+              "calibration_clean_copy_keeps_only_the_result");
     }
 
     // Polls on a timer so the event loop, and the backup's hand-offs to it,
@@ -2376,6 +2791,8 @@ private:
     }
 
     static constexpr std::size_t invalid_index = static_cast<std::size_t>(-1);
+    // A stock filament of the harness's Bambu X1C, for the calibration checks.
+    static constexpr const char* kCalibrationFilament = "Bambu PLA Basic @BBL X1C";
 
     GUI_App&                              m_app;
     std::shared_ptr<HarnessState>         m_state;

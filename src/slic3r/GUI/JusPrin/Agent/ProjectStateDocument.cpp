@@ -114,6 +114,14 @@ void write_message_fields(json& entry, const ConversationMessage& message)
         entry["issueContext"] = message.issue_context;
     else
         entry.erase("issueContext");
+    if (!message.receipt.empty())
+        entry["receipt"] = message.receipt;
+    else
+        entry.erase("receipt");
+    if (!message.for_model.empty())
+        entry["forModel"] = message.for_model;
+    else
+        entry.erase("forModel");
 }
 
 ConversationMessage read_message(const json& entry)
@@ -138,6 +146,8 @@ ConversationMessage read_message(const json& entry)
     message.file_report      = entry.value("fileReport", "");
     message.file_report_card = entry.value("fileReportCard", false);
     message.issue_context    = entry.value("issueContext", "");
+    message.receipt          = entry.value("receipt", "");
+    message.for_model        = entry.value("forModel", "");
     return message;
 }
 
@@ -338,6 +348,10 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
                                 {"details", json::parse(activity.error->details_json)}};
     else
         entry.erase("error");
+    if (!activity.proposal_json.empty())
+        entry["proposal"] = activity.proposal_json;
+    if (!activity.approves.empty())
+        entry["approves"] = activity.approves;
 }
 
 ToolActivity read_activity(const json& entry)
@@ -366,6 +380,8 @@ ToolActivity read_activity(const json& entry)
         activity.progress_total   = entry["progress"].value("total", 1);
     }
     activity.result_json = entry.value("result", "");
+    activity.proposal_json = entry.value("proposal", "");
+    activity.approves      = entry.value("approves", "");
     if (entry.contains("error") && entry["error"].is_object())
         activity.error = ToolError{entry["error"].value("code", ""), entry["error"].value("message", ""),
                                    entry["error"].value("details", json::object()).dump()};
@@ -681,6 +697,19 @@ std::string ProjectStateDocument::setup_intent(const std::string& conversation_i
 {
     const json* conversation = conversation_json(conversation_id);
     return conversation ? conversation->value("setupIntent", "") : std::string();
+}
+
+std::optional<json> ProjectStateDocument::calibration() const
+{
+    if (!m_doc.contains("calibration") || !m_doc["calibration"].is_object())
+        return std::nullopt;
+    return m_doc["calibration"];
+}
+
+void ProjectStateDocument::set_calibration(json calibration)
+{
+    m_doc["calibration"] = std::move(calibration);
+    touch();
 }
 
 bool ProjectStateDocument::set_setup_intent(const std::string& conversation_id, const std::string& intent)
@@ -1264,7 +1293,7 @@ void ProjectStateDocument::restore_regions(const json& regions)
 ChangeEntry ProjectStateDocument::add_change(ChangeEntry entry, const std::string& timestamp)
 {
     entry.conversation_id = active_conversation_id();
-    entry.after_id        = last_item_id(entry.conversation_id);
+    entry.after_id        = m_change_anchor.empty() ? last_item_id(entry.conversation_id) : m_change_anchor;
     entry.seq             = next_seq();
     entry.created_at      = timestamp;
     json record{{"seq", entry.seq},

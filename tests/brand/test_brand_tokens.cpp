@@ -367,6 +367,15 @@ TEST_CASE("the printer dialog geometry is explicit", "[brand]")
         "component.printerDialog");
 }
 
+// The design system's Confirmation dialog at its Standard layout, as board 3
+// of the calibration page draws the question a Calibrate… row asks.
+TEST_CASE("the confirmation dialog width is explicit", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("confirmationDialog"), {{"width", 360}},
+        "component.confirmationDialog");
+}
+
 TEST_CASE("printer setup has a readable conversation width", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("printerSetup"),

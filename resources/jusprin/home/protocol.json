@@ -17,9 +17,11 @@
     "launch_monitor",
     "add_printer",
     "connect_printer",
+    "calibrate_printer",
     "open_printer_settings",
     "rename_printer",
     "remove_printer",
+    "confirm_answer",
     "open_preferences"
   ],
   "hostMessageTypes": [
@@ -30,6 +32,7 @@
     "printers",
     "appearance",
     "printer_error",
-    "bridge_error"
+    "bridge_error",
+    "confirm"
   ]
 }

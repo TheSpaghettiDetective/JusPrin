@@ -7,6 +7,8 @@
 #include <fstream>
 #include <random>
 #include <sstream>
+#include <stdexcept>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -239,6 +241,12 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
 {
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();
     m_attached         = true;
+    // A calibration generator's own new project: the same project goes on.
+    if (std::exchange(m_continuing_project, false)) {
+        m_dirty = true;
+        flush();
+        return;
+    }
     m_draft.clear();
 
     if (in_place_reset) {
@@ -301,6 +309,19 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     m_dirty = true;
     flush();
     notify_document_replaced();
+}
+
+void ProjectPersistence::continuing_project(const std::function<void()>& operation)
+{
+    if (m_continuing_project)
+        throw std::logic_error("a project continuation is already armed");
+    m_continuing_project = true;
+    struct Disarm {
+        bool& armed;
+        ~Disarm() { armed = false; }
+    } disarm{m_continuing_project};
+    operation();
+    resolve_pending_boundary();
 }
 
 void ProjectPersistence::notify_document_replaced()

@@ -42,6 +42,8 @@ public:
     // out, such as a name another profile has.
     virtual std::string open_printer_settings(const std::string& printer_id)                       = 0;
     virtual std::string connect_printer(const std::string& printer_id) { return "Connection is unavailable."; }
+    // A calibration of a filament on this printer, in the project chat.
+    virtual std::string calibrate_printer(const std::string& printer_id) { return "Calibration is unavailable."; }
     virtual std::string rename_printer(const std::string& printer_id, const std::string& new_name) = 0;
     virtual std::string remove_printer(const std::string& printer_id)                              = 0;
 };

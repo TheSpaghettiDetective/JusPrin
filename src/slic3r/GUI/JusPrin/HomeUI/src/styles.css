@@ -532,7 +532,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--popover-row-gap);
-  min-width: max-content;
+  /* The design system's Menu/Popover width, as the header's menus have it. */
+  min-width: var(--popover-width);
   padding: var(--popover-padding-y) 0;
   background: var(--surface-raised);
   border: var(--popover-border-width) solid var(--border-subtle);
@@ -622,6 +623,12 @@ body {
   background: var(--surface-raised);
   border-radius: var(--printer-dialog-radius);
   box-shadow: var(--elevation-strong);
+}
+
+/* The host's question: the design system's Confirmation dialog, narrower
+   than the printer dialogs. */
+.printer-dialog.confirmation {
+  max-width: var(--confirmation-dialog-width);
 }
 
 .printer-dialog h2 {

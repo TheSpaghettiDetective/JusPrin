@@ -289,6 +289,20 @@ public:
         return CommandResult::success();
     }
 
+    CommandResult remove_filament(const PresetRemoval& removal)
+    {
+        const auto found = filaments.find(removal.name);
+        if (found == filaments.end() || found->second.system)
+            return CommandResult::failure(WorkspaceError::NotFound, "There is no filament preset of yours named \"" + removal.name + "\".");
+        if (filaments.count(removal.replacement) == 0)
+            return CommandResult::failure(WorkspaceError::NotFound, "Filament preset \"" + removal.replacement + "\" is gone.");
+        std::replace(filament_slots.begin(), filament_slots.end(), removal.name, removal.replacement);
+        if (selected_filament == removal.name)
+            selected_filament = removal.replacement;
+        filaments.erase(found);
+        return CommandResult::success();
+    }
+
     std::vector<SettingDefinition> definitions, filament_definitions, printer_definitions;
     std::map<std::string, std::string> values, preset_values;
     std::map<std::uint64_t, std::map<std::string, std::string>> overrides;

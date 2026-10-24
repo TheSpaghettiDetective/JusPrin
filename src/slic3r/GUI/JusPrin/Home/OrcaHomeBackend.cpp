@@ -352,6 +352,8 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
 {
     if (project_id.empty() || m_autosave == nullptr)
         return;
+    if (m_project_opening)
+        m_project_opening();
     if (!m_autosave->open_managed_project(project_id)) {
         wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
                      wxOK | wxICON_ERROR, &m_frame);
@@ -472,6 +474,26 @@ std::string OrcaHomeBackend::connect_printer(const std::string& printer_id)
         return gone();
     if (m_open_conversation)
         m_open_conversation(*name, true);
+    return {};
+}
+
+std::string OrcaHomeBackend::calibrate_printer(const std::string& printer_id)
+{
+    const auto name = strip(printer_id, kNamedPrefix);
+    if (!name)
+        return gone();
+    const auto saved = Printers::named_printers();
+    if (std::none_of(saved.begin(), saved.end(), [&](const auto& printer) { return printer.name == *name; }))
+        return gone();
+    // Its loaded spools, as the card shows them, for the person to say which
+    // one the test is for.
+    std::vector<std::string> spools;
+    for (const PrinterEntry& printer : printers())
+        if (printer.id == printer_id)
+            for (const SpoolEntry& spool : printer.spools)
+                spools.push_back(spool.material + (spool.colour.empty() || spool.material.empty() ? "" : " ") + spool.colour);
+    if (m_start_calibration)
+        m_start_calibration(*name, spools);
     return {};
 }
 

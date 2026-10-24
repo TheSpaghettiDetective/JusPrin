@@ -167,10 +167,10 @@ void PrinterMenu::show_root(const Ptr& self)
     if (has_other_printers)
         rows.push_back(separator());
 
-    // Both of these open the printer conversation. Settings are about the
-    // selected preset, named as Orca keys it: the header shows a stock
-    // profile's model instead, which names no preset. Orca's placeholder is
-    // no printer at all, so its settings are adding one.
+    // Printer settings and Add a printer open the printer conversation.
+    // Settings are about the selected preset, named as Orca keys it: the
+    // header shows a stock profile's model instead, which names no preset.
+    // Orca's placeholder is no printer at all, so its settings are adding one.
     const bool placeholder = wxGetApp().preset_bundle->printers.get_selected_preset().is_default;
     HeaderMenuItem settings;
     settings.label  = _L("Printer settings…");
@@ -179,6 +179,21 @@ void PrinterMenu::show_root(const Ptr& self)
             shell->open_printer_conversation(preset);
     };
     rows.push_back(std::move(settings));
+
+    // A calibration of the first slot's filament on this printer; which test
+    // is the assistant's question. Board 1 puts it after Printer settings….
+    HeaderMenuItem calibrate;
+    calibrate.label   = _L("Calibrate…");
+    calibrate.enabled = !placeholder && printer.valid;
+    if (calibrate.enabled) {
+        const auto slots = SetupCommands::filament_slots();
+        calibrate.invoke = [name = std::string(printer.nickname.ToUTF8()),
+                            filament = slots.empty() ? std::string() : std::string(slots.front().filament.alias.ToUTF8())] {
+            if (ShellController* shell = installed_shell())
+                shell->start_calibration(name, filament);
+        };
+    }
+    rows.push_back(std::move(calibrate));
 
     HeaderMenuItem add;
     add.label  = _L("Add a printer…");

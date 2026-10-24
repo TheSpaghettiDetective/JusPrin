@@ -2,6 +2,7 @@
 #include "ToolRegistry.hpp"
 #include "ProviderProfile.hpp"
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "libslic3r/Exception.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
@@ -16,7 +17,9 @@
 #include <fstream>
 #include <iterator>
 #include <set>
+#include <sstream>
 #include <string_view>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -88,6 +91,8 @@ json message_json(const ConversationMessage& message)
     }
     if (!message.issue_context.empty())
         result["issueContext"] = json::parse(message.issue_context, nullptr, false);
+    if (!message.receipt.empty())
+        result["receipt"] = json::parse(message.receipt, nullptr, false);
     return result;
 }
 
@@ -126,6 +131,10 @@ json activity_json(const ToolActivity& activity)
     if (activity.error)
         result["error"] = json{{"code", activity.error->code}, {"message", activity.error->message},
                                 {"details", json::parse(activity.error->details_json)}};
+    if (!activity.proposal_json.empty())
+        result["proposal"] = parsed_or_object(activity.proposal_json);
+    if (!activity.approves.empty())
+        result["approves"] = activity.approves;
     return result;
 }
 
@@ -572,6 +581,9 @@ json context_json(const WorkspaceSnapshot& snapshot,
             entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
         if (plate.slice_warnings)
             entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
+        // A calibration test's steps, while the plate's print holds them.
+        if (plate.calibration)
+            entry["calibration"] = calibration_steps_result(*plate.calibration);
         plates.push_back(std::move(entry));
     }
 
@@ -649,6 +661,8 @@ json card_context(json context, const ProjectStateDocument& document, const std:
 {
     context["setupIntent"]  = document.setup_intent(conversation_id);
     context["planHeadline"] = document.plan(conversation_id).headline;
+    if (const auto calibration = document.calibration())
+        context["calibration"] = *calibration;
     return context;
 }
 
@@ -710,6 +724,13 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     });
     m_tools.set_agent_project_opened(
         [this](const Workspace::LoadReport& report) { m_agent_opened_reports.push_back(report); });
+    m_tools.set_calibration_project(
+        {[this] { return m_persistence.document().calibration().has_value(); },
+         [this](const CalibrationHandover& handover, bool) { open_calibration_chat(handover, /*start=*/false); },
+         [this](const std::function<void()>& generate) { m_persistence.continuing_project(generate); },
+         [this](bool made, bool by_agent) { on_calibration_finished(made, by_agent); }});
+    m_tools.set_saves_need_approval(true);
+    m_tools.set_proposal_saved([this](const ToolActivity& apply) { m_saved_proposals.push_back(apply.action_id); });
     m_tools.set_slice_ended([this](const std::string& action_id) { m_ended_slices.push_back(action_id); });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         // The last word of an action that replaced the project belongs to the
@@ -803,6 +824,7 @@ void AgentHost::on_document_replaced()
     m_tools.clear();
     // Work that was running belongs to the project that was closed.
     m_live_work.clear();
+    m_check_reopened_test = true;
     if (m_handshake)
         send_state();
 }
@@ -1041,6 +1063,10 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_retry(envelope_id, payload);
     else if (type == Protocol::kToolCancel)
         handle_tool_cancel(envelope_id, payload);
+    else if (type == Protocol::kSaveProposal)
+        handle_save_proposal(envelope_id, payload);
+    else if (type == Protocol::kUndoReceipt)
+        handle_undo_receipt(envelope_id, payload);
     else if (type == Protocol::kWorkCancel)
         handle_work_cancel(envelope_id, payload);
     else if (type == Protocol::kCreateConversation)
@@ -1295,6 +1321,8 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
         send_model_catalog();
         request_model_lists();
     }
+    if (!m_held_confirmation.empty())
+        send_envelope(Protocol::kConfirm, std::exchange(m_held_confirmation, {}));
     if (m_handshake_listener)
         m_handshake_listener();
 }
@@ -1679,6 +1707,179 @@ void AgentHost::on_file_loaded(const Workspace::LoadReport& report)
         start_turn(note.id);
 }
 
+void AgentHost::open_calibration_chat(const CalibrationHandover& handover, bool start)
+{
+    // The project was just opened: settle its boundary so this is its
+    // document, not the one it replaced.
+    m_persistence.resolve_pending_boundary();
+    ProjectStateDocument& document        = m_persistence.document();
+    const std::string     conversation_id = document.active_conversation_id();
+    const std::string     target          = handover.filament.empty() ? handover.printer + " · filament not chosen"
+                                                                          : handover.filament + " on " + handover.printer;
+    // Board 4's line, which the page draws; the model reads the fuller words.
+    ConversationMessage note;
+    note.id    = document.allocate_message_id();
+    note.role  = MessageRole::Note;
+    note.state = MessageState::Complete;
+    note.text  = "From " + handover.started_from + " · " + target + " · temporary test settings" +
+                (handover.symptom.empty() ? std::string() : " · " + handover.symptom);
+    std::string spools;
+    for (const std::string& spool : handover.spools)
+        spools += (spools.empty() ? "" : ", ") + spool;
+    note.for_model =
+        "This is a calibration project, opened from " + handover.started_from + " to calibrate " +
+        (handover.filament.empty() ? "a filament on " + handover.printer + "; which filament is not known yet" +
+                                         (spools.empty() ? std::string(".") : ". The printer reports these spools loaded: " + spools + ".")
+                                   : handover.filament + " on " + handover.printer + ".") +
+        " The person agreed to their project being saved and closed for it, and knows the test's settings are temporary." +
+        (handover.symptom.empty() ? std::string() : " What they saw, in their words: \"" + handover.symptom + "\".");
+    note.created_at = m_persistence.timestamp();
+    document.append_message(conversation_id, note, note.created_at);
+    document.set_calibration({{"startedFrom", handover.started_from},
+                              {"filament", handover.filament},
+                              {"printer", handover.printer},
+                              {"symptom", handover.symptom},
+                              {"handover", note.id}});
+    // The chat has no message of the person's to title it from: it takes the
+    // project's one name, as a title the person can change.
+    const bool titled = document.rename_conversation(conversation_id, calibration_project_name(handover.filament, handover.printer),
+                                                     /*generated=*/true);
+    m_persistence.flush();
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
+    if (titled)
+        send_conversations();
+    if (!start)
+        m_handover_turn = note.id;
+    else if (m_availability == AgentAvailability::Ready && m_agent && m_agent->ready() && m_session_profile.tool_names.empty())
+        start_turn(note.id);
+}
+
+void AgentHost::on_calibration_finished(bool made, bool by_agent)
+{
+    ProjectStateDocument& document    = m_persistence.document();
+    auto                  calibration = document.calibration();
+    // The test this project holds, with its steps as the plate's print has
+    // them: OrcaSlicer keeps those only in memory (board 7).
+    const auto snapshot = m_workspace.snapshot();
+    const auto plate    = std::find_if(snapshot.plates.begin(), snapshot.plates.end(),
+                                       [](const Workspace::WorkspacePlate& item) { return item.active && item.calibration; });
+    if (made && calibration && plate != snapshot.plates.end()) {
+        (*calibration)["test"]        = plate->calibration->test;
+        (*calibration)["method"]      = plate->calibration->method;
+        (*calibration)["start"]       = plate->calibration->start;
+        (*calibration)["end"]         = plate->calibration->end;
+        (*calibration)["step"]        = plate->calibration->step;
+        (*calibration)["generatedAt"] = m_persistence.timestamp();
+        calibration->erase("result");
+        calibration->erase("savedAs");
+        document.set_calibration(std::move(*calibration));
+        m_persistence.flush();
+    }
+    // A project the tool opened from the person's own: its chat's first
+    // turn, which finds the test made (or not) as it opens. Only the in-app
+    // Agent's call speaks; an MCP client's project is not spoken about.
+    const std::string handover = std::exchange(m_handover_turn, {});
+    if (!handover.empty() && by_agent && m_availability == AgentAvailability::Ready && m_agent && m_agent->ready() &&
+        m_session_profile.tool_names.empty())
+        start_turn(handover);
+}
+
+namespace {
+// "21 Oct 2026", from a stored timestamp's date.
+std::string day_month_year(const std::string& timestamp)
+{
+    static const char* const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    const int month = std::stoi(timestamp.substr(5, 2));
+    return std::to_string(std::stoi(timestamp.substr(8, 2))) + " " + months[month - 1] + " " + timestamp.substr(0, 4);
+}
+
+// A number as a person writes it: 230, 0.002.
+std::string plain_number(double value)
+{
+    std::ostringstream text;
+    text << value;
+    return text.str();
+}
+} // namespace
+
+void AgentHost::tell_reopened_test()
+{
+    const std::string     opened_from = std::exchange(m_opened_from, {});
+    ProjectStateDocument& document    = m_persistence.document();
+    const auto            test        = document.calibration();
+    if (!test || !test->contains("test"))
+        return;
+    // Only the tower and line tests keep their steps in the print alone; the
+    // pressure-advance pattern's are in the plate's G-code, and flow tiles
+    // carry their ratios.
+    const std::string kind   = test->value("test", "");
+    const std::string method = test->value("method", "");
+    if (kind != "temperature" && !(kind == "pressure_advance" && method != "pattern"))
+        return;
+    const auto snapshot = m_workspace.snapshot();
+    if (std::any_of(snapshot.plates.begin(), snapshot.plates.end(), [](const Workspace::WorkspacePlate& plate) { return plate.calibration; }))
+        return;
+    const std::string generated = day_month_year(test->value("generatedAt", ""));
+    const std::string result    = test->value("result", "");
+    const bool        temperature = kind == "temperature";
+    const std::string unit        = temperature ? " °C" : "";
+    const std::string start       = plain_number(test->value("start", 0.0)) + unit;
+    const std::string end         = plain_number(test->value("end", 0.0)) + unit;
+    ConversationMessage note;
+    note.id    = document.allocate_message_id();
+    note.role  = MessageRole::Note;
+    note.state = MessageState::Complete;
+    note.text  = (opened_from.empty() ? std::string("Reopened") : "Opened from " + opened_from) + " · generated " + generated +
+                (result.empty() ? std::string() : " · result " + result + " saved");
+    note.for_model = (opened_from.empty() ? std::string("The person reopened") : "The person opened from " + opened_from) +
+                     " this calibration test project, a " + (temperature ? "temperature tower" : "pressure-advance " + method) +
+                     " from " + start + " to " + end + ", generated on " + generated + "." +
+                     (result.empty() ? std::string(" No result was saved from it.")
+                                     : " Its result, " + result + ", is saved in the person's preset.") +
+                     " Reopening a project does not bring back the test's per-" + (temperature ? "block temperatures" : "step pressure advance") +
+                     ": the plate has none now, so slicing it would print the whole " + (method == "line" ? "test" : "tower") +
+                     " at " + start + ".";
+    note.created_at = m_persistence.timestamp();
+    document.append_message(document.active_conversation_id(), note, note.created_at);
+    m_persistence.flush();
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
+    if (m_availability == AgentAvailability::Ready && m_agent && m_agent->ready() && m_session_profile.tool_names.empty())
+        start_turn(note.id);
+}
+
+void AgentHost::on_proposal_saved(const std::string& apply_action_id)
+{
+    const ToolActivity* apply   = m_tools.find(apply_action_id);
+    const ToolActivity* preview = apply ? m_tools.find(apply->approves) : nullptr;
+    if (preview == nullptr || preview->proposal_json.empty())
+        throw std::logic_error("A saved proposal lost its preview.");
+    const json        proposal = json::parse(preview->proposal_json);
+    const std::string name     = json::parse(apply->result_json).value("savedAs", "");
+    const std::string detail   = proposal.value("receipt", "");
+    ProjectStateDocument& document = m_persistence.document();
+    ConversationMessage   note;
+    note.id         = document.allocate_message_id();
+    note.role       = MessageRole::Note;
+    note.state      = MessageState::Complete;
+    note.text       = "The person pressed Save preset on your proposal. Saved " + name + ": " + detail + ".";
+    json receipt{{"name", name}, {"detail", detail}, {"actionId", apply->action_id}};
+    // The result the project's record carries, until Undo takes it back.
+    if (auto calibration = document.calibration()) {
+        (*calibration)["result"]  = proposal.value("value", "");
+        (*calibration)["savedAs"] = name;
+        document.set_calibration(std::move(*calibration));
+    }
+    if (proposal.contains("undo"))
+        receipt["undo"] = proposal["undo"];
+    note.receipt    = receipt.dump();
+    note.created_at = m_persistence.timestamp();
+    document.append_message(document.active_conversation_id(), note, note.created_at);
+    m_persistence.flush();
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(note)}}.dump());
+    if (m_availability == AgentAvailability::Ready && m_agent && m_agent->ready())
+        start_turn(note.id);
+}
+
 bool AgentHost::slice_ended(const std::string& action_id)
 {
     // Only a slice the chat's model started: an MCP client has no chat, and
@@ -1885,6 +2086,111 @@ void AgentHost::handle_tool_cancel(const std::string& envelope_id, const std::st
         if (const ToolActivity* activity = m_tools.find(action_id))
             send_tool_activity(*activity, envelope_id);
     }
+}
+
+void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::string& payload_json)
+{
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    ProjectStateDocument& document = m_persistence.document();
+    if (document.viewed_conversation_id() != document.active_conversation_id()) {
+        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        return;
+    }
+    const json          payload   = json::parse(payload_json, nullptr, false);
+    const std::string   action_id = payload.is_object() ? payload.value("actionId", "") : std::string();
+    const ToolActivity* preview   = m_tools.find(action_id);
+    if (preview == nullptr) {
+        send_bridge_error("unknown_action", "No tool action \"" + action_id + "\" exists.", envelope_id);
+        return;
+    }
+    // A message of the person's after the proposal answered it another way:
+    // the card says it was not saved, and a stale press saves nothing.
+    const auto messages = document.messages(document.active_conversation_id());
+    const auto proposed = std::find_if(messages.begin(), messages.end(),
+                                       [preview](const ConversationMessage& message) { return message.id == preview->correlation_id; });
+    if (proposed == messages.end() ||
+        std::any_of(std::next(proposed), messages.end(), [](const ConversationMessage& message) { return message.role == MessageRole::User; })) {
+        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask the Agent again.", envelope_id);
+        return;
+    }
+    if (const std::string refusal = m_tools.approve_proposal(action_id); !refusal.empty())
+        send_bridge_error("proposal_closed", refusal, envelope_id);
+}
+
+void AgentHost::handle_undo_receipt(const std::string& envelope_id, const std::string& payload_json)
+{
+    if (m_chat_transition_blocked) {
+        send_bridge_error("recovery_required", "Project chat is blocked until restoration is recovered.", envelope_id);
+        return;
+    }
+    ProjectStateDocument& document = m_persistence.document();
+    const std::string     chat     = document.active_conversation_id();
+    if (document.viewed_conversation_id() != chat) {
+        send_bridge_error("inactive_conversation", "Historical tool actions cannot be changed.", envelope_id);
+        return;
+    }
+    const json        payload    = json::parse(payload_json, nullptr, false);
+    const std::string message_id = payload.is_object() ? payload.value("messageId", "") : std::string();
+    const auto        messages   = document.messages(chat);
+    const auto        found      = std::find_if(messages.begin(), messages.end(), [&message_id](const ConversationMessage& message) {
+        return message.id == message_id && message.role == MessageRole::Note && !message.receipt.empty();
+    });
+    if (found == messages.end()) {
+        send_bridge_error("unknown_message", "No receipt \"" + message_id + "\" exists in this chat.", envelope_id);
+        return;
+    }
+    ConversationMessage receipt_note = *found;
+    json                receipt      = json::parse(receipt_note.receipt);
+    // A second press that arrived before the page redrew the first.
+    if (!receipt.contains("undo") || receipt.value("undone", false)) {
+        send_bridge_error("receipt_closed", "This save can no longer be undone.", envelope_id);
+        return;
+    }
+    const json&       undo = receipt["undo"];
+    const std::string name = receipt["name"];
+    const std::string base = undo["base"];
+    // The switch back is the person's, said by the receipt: its changes
+    // follow the receipt, which the thread draws in their place.
+    document.set_change_anchor(receipt_note.id);
+    Workspace::CommandResult result;
+    if (undo["newCopy"].get<bool>())
+        result = m_workspace.remove_filament_preset({name, base});
+    else {
+        Workspace::SettingsPatch patch;
+        patch.target     = {Workspace::SettingsScope::Filament, std::nullopt, name};
+        patch.persist_as = name;
+        for (const auto& [key, value] : undo["restore"].items())
+            patch.changes[key] = value.get<std::string>();
+        const Workspace::SettingsPreview preview = m_workspace.preview_settings(patch);
+        Workspace::SettingsPreview       applied;
+        result = preview.valid ? m_workspace.apply_settings(patch, Workspace::previewed_changes(preview), applied)
+                               : Workspace::CommandResult::failure(Workspace::WorkspaceError::InvalidSettings,
+                                                                   preview.issues.empty() ? "The earlier values cannot be put back."
+                                                                                          : preview.issues.front().message);
+    }
+    document.set_change_anchor({});
+    if (!result.succeeded()) {
+        send_bridge_error("undo_failed", result.message, envelope_id);
+        return;
+    }
+    receipt["undone"]    = true;
+    receipt_note.receipt = receipt.dump();
+    if (auto calibration = document.calibration(); calibration && calibration->contains("result")) {
+        calibration->erase("result");
+        calibration->erase("savedAs");
+        document.set_calibration(std::move(*calibration));
+    }
+    receipt_note.text    = undo["newCopy"].get<bool>()
+                               ? "The person pressed Undo on the receipt: " + name + " is deleted, and this test uses " + base + " again."
+                               : "The person pressed Undo on the receipt: " + name + " has its earlier values again.";
+    document.update_message(chat, receipt_note);
+    m_persistence.flush();
+    send_envelope(Protocol::kMessageAdded, json{{"message", message_json(receipt_note)}}.dump());
+    if (m_availability == AgentAvailability::Ready && m_agent && m_agent->ready())
+        start_turn(receipt_note.id);
 }
 
 bool AgentHost::checkpoint_active_chat()
@@ -2397,6 +2703,13 @@ void AgentHost::pump_tools()
         m_agent_opened_reports.pop_front();
         on_file_loaded(report);
     }
+    while (!m_saved_proposals.empty()) {
+        const std::string apply = std::move(m_saved_proposals.front());
+        m_saved_proposals.pop_front();
+        on_proposal_saved(apply);
+    }
+    if (std::exchange(m_check_reopened_test, false))
+        tell_reopened_test();
     for (auto ended = m_ended_slices.begin(); ended != m_ended_slices.end();)
         ended = slice_ended(*ended) ? m_ended_slices.erase(ended) : std::next(ended);
     if (!m_chat_transition_blocked && m_mcp) m_mcp->poll();
@@ -2576,7 +2889,7 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     else if (user && user->role == MessageRole::Note) {
         // The app's own note starts this turn (a slice the model started has
         // ended): the model reads it as the app's, not the person's words.
-        request.user_text = "JusPrin app note, not the person's words: " + user->text;
+        request.user_text = "JusPrin app note, not the person's words: " + (user->for_model.empty() ? user->text : user->for_model);
     }
     else if (user) {
         request.user_text = user->text;
@@ -2624,6 +2937,13 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     // skill on this request, which carries the report to the model first.
     if (file_report_turn)
         if (std::optional<AgentSkillUse> skill = fire_skill(Protocol::SkillTrigger::kFileLoaded, conversation_id,
+                                                            request.workspace))
+            request.skills.push_back(std::move(*skill));
+    // A calibration project's first turn, which its handover note starts:
+    // the calibration skill is in force without the model choosing it.
+    if (const auto calibration = document.calibration();
+        user && user->role == MessageRole::Note && calibration && calibration->value("handover", "") == user->id)
+        if (std::optional<AgentSkillUse> skill = fire_skill(Protocol::SkillTrigger::kCalibrationStarted, conversation_id,
                                                             request.workspace))
             request.skills.push_back(std::move(*skill));
     // Keep app policy separate from file-supplied text, including metadata
@@ -3113,6 +3433,17 @@ void AgentHost::set_availability(AgentAvailability availability)
     m_availability = availability;
     if (m_handshake)
         send_envelope(Protocol::kAgentStatus, json{{"status", availability_name(m_availability)}}.dump());
+}
+
+void AgentHost::ask_confirmation(const Confirmation& question)
+{
+    std::string payload = json{{"requestId", question.request_id}, {"title", question.title}, {"body", question.body},
+                               {"confirm", question.confirm}, {"cancel", question.cancel}}.dump();
+    if (!m_handshake) {
+        m_held_confirmation = std::move(payload);
+        return;
+    }
+    send_envelope(Protocol::kConfirm, payload);
 }
 
 void AgentHost::set_agent(AgentServicePtr agent, AgentAvailability availability)

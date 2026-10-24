@@ -36,6 +36,7 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/Search.hpp"
@@ -471,6 +472,26 @@ std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before,
                 edits.push_back(edit(delta, delta.value, now));
         }
     return edits;
+}
+
+// A print's calibration parameters in the workspace's terms.
+CalibrationSteps calibration_steps(const Calib_Params& params)
+{
+    CalibrationSteps steps;
+    steps.start = params.start;
+    steps.end   = params.end;
+    steps.step  = params.step;
+    switch (params.mode) {
+    case CalibMode::Calib_Temp_Tower:
+        steps.test = "temperature";
+        steps.step = kTemperatureTowerStep;
+        break;
+    case CalibMode::Calib_PA_Tower:   steps.test = "pressure_advance", steps.method = "tower"; break;
+    case CalibMode::Calib_PA_Line:    steps.test = "pressure_advance", steps.method = "line"; break;
+    case CalibMode::Calib_PA_Pattern: steps.test = "pressure_advance", steps.method = "pattern"; break;
+    default:                          steps.test = "other"; break;
+    }
+    return steps;
 }
 
 // Orca's Discard for the preset a tab edits: nothing asks about it after.
@@ -1061,6 +1082,8 @@ WorkspaceSnapshot OrcaWorkspaceAdapter::snapshot() const
         projected_plate.active = index == active_index;
         projected_plate.bed_type = plate_label(plate->get_bed_type(true));
         projected_plate.sliced = plate->is_slice_result_valid();
+        if (const Print* print = plate->fff_print(); print != nullptr && print->calib_mode() != CalibMode::Calib_None)
+            projected_plate.calibration = calibration_steps(print->calib_params());
         const std::uint64_t plate_key = plate->id().id;
         const bool this_plate_slicing = result.slicing.running && result.slicing.plate == projected_plate.id;
         if (projected_plate.sliced && !this_plate_slicing && plate->get_slice_result()) {
@@ -2483,6 +2506,19 @@ private:
     int& m_count;
 };
 
+// Marks generate_calibration's call to Orca's generator.
+class GeneratingCalibration
+{
+public:
+    explicit GeneratingCalibration(bool& flag) : m_flag(flag) { m_flag = true; }
+    ~GeneratingCalibration() { m_flag = false; }
+    GeneratingCalibration(const GeneratingCalibration&)            = delete;
+    GeneratingCalibration& operator=(const GeneratingCalibration&) = delete;
+
+private:
+    bool& m_flag;
+};
+
 // What the tool's own safety net answered outside the load itself, as a
 // record of its own so the Agent reads it with the rest.
 void add_outside_messages(LoadReport& report, std::vector<OrcaMessage> messages)
@@ -2513,16 +2549,10 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     // anything Orca asks around it.
     ScopedLeastChangeAnswers outside;
 
-    // Orca's new project releases the open one through the autosave hook,
-    // which saves it, edited presets included, or cancels when it cannot. A
-    // model file opens as a new project named after it, as New and Import do.
+    // A model file opens as a new project named after it, as New and Import do.
     const bool model_file = !request.new_project && extension != ".3mf";
-    const bool released   = m_plater.new_project(true, true, model_file ? from_u8(path.stem().string()) : wxString()) != wxID_CANCEL;
+    const bool released   = release_project(model_file ? path.stem().string() : request.name);
     bool       loaded     = released;
-    // Orca asks about edited presets in UnsavedChangesDialog; once saved
-    // they are dropped, so it is never asked.
-    for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
-        if (released) drop_unsaved_edits(wxGetApp().get_tab(type));
     if (released && extension == ".3mf") {
         // "<loadall>" is Orca's own way to open a project with its settings
         // without asking how ("<silence>" would also leave the project
@@ -2554,6 +2584,106 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         return CommandResult::failure(WorkspaceError::Failed, "The open project could not be saved, so it stays open");
     if (!loaded)
         return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not open that file");
+    return CommandResult::success();
+}
+
+bool OrcaWorkspaceAdapter::release_project(const std::string& next_name)
+{
+    // Orca's new project releases the open one through the autosave hook,
+    // which saves it, edited presets included, or cancels when it cannot.
+    if (m_plater.new_project(true, true, from_u8(next_name)) == wxID_CANCEL)
+        return false;
+    // Orca asks about edited presets in UnsavedChangesDialog; once saved
+    // they are dropped, so it is never asked.
+    for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
+        drop_unsaved_edits(wxGetApp().get_tab(type));
+    return true;
+}
+
+CommandResult OrcaWorkspaceAdapter::generate_calibration(const CalibrationRequest& asked, CalibrationResult& result)
+{
+    wxASSERT(wxIsMainThread());
+    if (const std::string problem = calibration_request_problem(asked); !problem.empty())
+        return CommandResult::failure(WorkspaceError::InvalidArgument, problem);
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptFFF)
+        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer's calibration tests are for FFF printers");
+    const CalibrationRequest request = with_dialog_defaults(asked);
+    // The generator's own loads are this tool's, not the person's.
+    const ToolLoad tool_load(m_tool_loads);
+    ScopedLeastChangeAnswers outside;
+
+    // The caller opened the calibration project this test is made in. Every
+    // generator starts with Orca's own new_project all the same; the release
+    // hook is told the project goes on, so it neither saves nor asks (handoff
+    // fact 9). The generator then names the project after its test, and the
+    // project's own name is put back before anything saves a version of it.
+    const wxString            project_name = m_plater.get_project_name();
+    const GeneratingCalibration generating(m_generating_calibration);
+
+    // The fields Orca's dialogs set; the rest of Calib_Params has no default.
+    Calib_Params params;
+    params.start = params.end = params.step = 0.;
+    params.freqStartX = params.freqEndX = params.freqStartY = params.freqEndY = 0.;
+    params.test_model    = 0;
+    params.print_numbers = false;
+    switch (request.test) {
+    case CalibrationTest::Temperature:
+        params.mode  = CalibMode::Calib_Temp_Tower;
+        params.start = *request.start;
+        params.end   = *request.end;
+        m_plater.calib_temp(params);
+        break;
+    case CalibrationTest::PressureAdvance:
+        params.mode = request.method == PressureAdvanceMethod::Line    ? CalibMode::Calib_PA_Line :
+                      request.method == PressureAdvanceMethod::Pattern ? CalibMode::Calib_PA_Pattern :
+                                                                         CalibMode::Calib_PA_Tower;
+        params.start         = *request.start;
+        params.end           = *request.end;
+        params.step          = *request.step;
+        params.print_numbers = request.method != PressureAdvanceMethod::Tower;
+        m_plater.calib_pa(params);
+        break;
+    case CalibrationTest::Flow:
+        m_plater.calib_flowrate(request.flow_linear, request.flow_pass);
+        break;
+    }
+    // Not set_project_filename: on Windows it passes the name through the
+    // system code page and back as UTF-8, which empties a name with "·".
+    m_plater.set_project_name(project_name);
+    m_plater.update_title_dirty_status();
+
+    // What Orca asked around the generator. What it said while loading its
+    // own test model is about that model before the generator cut it to the
+    // range (the full temperature tower is taller than any printer, and Orca
+    // flags it as over the build volume), not about the test as made; the
+    // test's real problems are the slice's to find. The loads are taken all
+    // the same, so they are not reported later as someone else's.
+    result.messages = outside.take_messages();
+    take_load_report(/*started_by_agent=*/true);
+    // Orca may report the generator's changes after it returns; they are the
+    // new project's starting content too.
+    remember_history();
+    record_settings_edits(/*report=*/false);
+    result.project_name = into_u8(m_plater.get_project_name());
+    PartPlateList& plates = m_plater.get_partplate_list();
+    PartPlate*     plate  = plates.get_plate(0);
+    result.plate          = PlateId(m_session, plate->id().id);
+    for (const ModelObject* object : m_plater.model().objects) {
+        result.objects.push_back(ObjectId(m_session, object->id().id));
+        result.object_names.push_back(object->name);
+    }
+    // What the plate's print applies per layer, as Orca stored it. Plater::fff_print
+    // is the Plater's first Print, not the plate's the generators write to.
+    const Calib_Params& applied = plate->fff_print()->calib_params();
+    if (request.test != CalibrationTest::Flow) {
+        result.start = applied.start;
+        result.end   = applied.end;
+        result.step  = request.test == CalibrationTest::Temperature ? double(kTemperatureTowerStep) : applied.step;
+    }
+    // A generator that returned without making its test (calib_flowrate's
+    // cancelled new_project, a missing resource) leaves an empty project.
+    if (result.objects.empty() || (request.test != CalibrationTest::Flow && applied.mode != params.mode))
+        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not generate the test");
     return CommandResult::success();
 }
 
@@ -2792,6 +2922,12 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         // in it is an edit.
         remember_history();
         m_first_model_pending = m_plater.model().objects.empty();
+        record_settings_edits(/*report=*/false);
+    } else if (m_generating_calibration) {
+        // What a calibration generator builds after its own new project, the
+        // test model and the test's preset edits, is that project's starting
+        // content, as an opened file's is: none of it is an edit.
+        remember_history();
         record_settings_edits(/*report=*/false);
     } else {
         record_history_edits();
@@ -3063,10 +3199,22 @@ void check_persist(const SettingsPatch& patch, const PresetOwner& owner, Setting
         for (const std::string& key : collection.current_dirty_options())
             if (!patch.changes.count(key))
                 others.push_back(key);
+        // With the values they replace, so a caller that wants a clean copy
+        // (a calibration's result, without the test's own edits) can put them
+        // back in the same patch. The selected preset is the saved one; the
+        // name finds the edited copy.
+        const DynamicPrintConfig& saved_config = collection.get_selected_preset().config;
+        std::string saved;
+        for (std::size_t index = 0; index < others.size() && index < 8; ++index)
+            saved += (index == 0 ? ": " : ", ") + others[index] + " (saved value " +
+                     saved_config.opt_serialize(others[index]) + ")";
+        if (others.size() > 8)
+            saved += ", and " + std::to_string(others.size() - 8) + " more";
         if (!others.empty())
             result.warnings.push_back({"", "saves_unsaved_edits",
                                        "Saving also saves " + std::to_string(others.size()) + " unsaved changes already made to \"" +
-                                           preset.name + "\".", others});
+                                           preset.name + "\"" + saved + ". To keep a saved value, give it in changes.",
+                                       others});
     }
 }
 
@@ -3306,10 +3454,17 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
             issues.push_back({key, "incompatible_settings", message});
         }
     }
+    // The preset as saved: the selected one's saved copy, or the preset itself.
+    const DynamicPrintConfig* saved_config =
+        object ? nullptr : owner.selected ? &owner.collection->get_selected_preset().config : &owner.preset->config;
     for (const auto& [key, text] : patch.changes) {
         const std::string before = current.option(key)->serialize(), after = next.option(key)->serialize();
-        if (before != after) result.changes.push_back({key, before, after});
-        else result.warnings.push_back({key, "unchanged", "The setting already has this value."});
+        if (before != after) {
+            result.changes.push_back({key, before, after, std::nullopt});
+            if (saved_config != nullptr && saved_config->has(key))
+                result.changes.back().saved = saved_config->opt_serialize(key);
+        } else
+            result.warnings.push_back({key, "unchanged", "The setting already has this value."});
     }
     // The confirmations OrcaSlicer asks of a person who makes these changes,
     // or saves them, by hand, which the patch skips.
@@ -3325,6 +3480,53 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
     }
     result.valid = result.issues.empty();
     return result;
+}
+
+CommandResult OrcaWorkspaceAdapter::remove_filament_preset(const PresetRemoval& removal)
+{
+    wxASSERT(wxIsMainThread());
+    PresetBundle&     bundle    = *wxGetApp().preset_bundle;
+    PresetCollection& filaments = bundle.filaments;
+    const Preset*     preset    = filaments.find_preset(removal.name, false);
+    if (preset == nullptr || !preset->is_user())
+        return CommandResult::failure(WorkspaceError::NotFound, "There is no filament preset of yours named \"" + removal.name + "\".");
+    if (filaments.find_preset(removal.replacement, false) == nullptr)
+        return CommandResult::failure(WorkspaceError::NotFound, "Filament preset \"" + removal.replacement + "\" is gone.");
+    auto transaction = m_plater.project_state_transaction();
+    // A reopened project loads the copy with the test's own edits on top,
+    // and switching away would ask about them in a modal. They are the
+    // test's temporary settings, dropped first as printer setup drops them.
+    Tab* tab = wxGetApp().get_tab(Preset::TYPE_FILAMENT);
+    if (filaments.get_selected_preset_name() == removal.name)
+        drop_unsaved_edits(tab);
+    // Each slot that uses it takes the preset it was made from, as picking
+    // that preset in the slot's chip does.
+    for (std::size_t slot = 0; slot < bundle.filament_presets.size(); ++slot)
+        if (bundle.filament_presets[slot] == removal.name && !SetupCommands::select_filament_preset(m_plater, slot, removal.replacement))
+            return CommandResult::failure(WorkspaceError::Failed,
+                                          "OrcaSlicer did not switch the filament back to \"" + removal.replacement + "\".");
+    if (filaments.get_selected_preset_name() == removal.name && !tab->select_preset(removal.replacement))
+        throw std::runtime_error("Orca did not open filament preset " + removal.replacement + " for editing");
+    // Orca's order for an unselected preset, as CreatePresetsDialog deletes
+    // one (and NamedPrinters::delete_unselected a printer): queue the cloud
+    // deletion, then drop the preset and its files. delete_preset leaves the
+    // selection index where it was, so the selected preset is selected again
+    // by name, keeping its unsaved edits.
+    preset = filaments.find_preset(removal.name, false);
+    if (!preset->setting_id.empty())
+        wxGetApp().delete_preset_from_cloud(preset->setting_id, preset->file);
+    const std::string        selected = filaments.get_selected_preset_name();
+    const DynamicPrintConfig edits    = filaments.get_edited_preset().config;
+    if (!filaments.delete_preset(removal.name))
+        throw std::runtime_error("Orca refused to delete filament preset " + removal.name);
+    filaments.select_preset_by_name(selected, true);
+    if (filaments.get_selected_preset_name() != selected)
+        throw std::runtime_error("Filament preset " + selected + " could not be selected again");
+    filaments.get_edited_preset().config = edits;
+    tab->update_tab_ui(true);
+    if (MainFrame* frame = wxGetApp().mainframe)
+        frame->update_side_preset_ui();
+    return CommandResult::success();
 }
 
 CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,

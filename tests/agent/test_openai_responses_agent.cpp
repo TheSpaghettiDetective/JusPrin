@@ -11,7 +11,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -126,7 +128,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["parallel_tool_calls"] == true);
     // Exactly what the page sent, with no words of the app's own.
     CHECK(body["instructions"] == kPageProjectInstructions);
-    REQUIRE(body["tools"].size() == 27);
+    REQUIRE(body["tools"].size() == 28);
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
@@ -138,7 +140,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     // The person's words exactly as typed, then the app's snapshot in its own
     // tag, then the attachments: one part each.
     const json& content = body["input"].back()["content"];
@@ -489,9 +491,28 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     CHECK(json::parse(file) == sent);
 }
 
+// The skills the page lists for skill_read: every SKILL.md it ships with a
+// description, by name, as skillParser.ts reads the front matter.
+std::vector<AgentSkill> page_skill_index()
+{
+    std::vector<AgentSkill> index;
+    for (const auto& entry : std::filesystem::directory_iterator(std::string(JUSPRIN_SOURCE_DIR) + "/src/slic3r/GUI/JusPrin/AgentUI/src/skills")) {
+        std::ifstream file(entry.path() / "SKILL.md", std::ios::binary);
+        std::string   text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+        const std::size_t end = text.find("\n---\n", 4);
+        const std::size_t at  = text.find("\ndescription: ");
+        if (at < end)
+            index.push_back(AgentSkill{entry.path().filename().string(), {}, text.substr(at + 14, text.find('\n', at + 1) - at - 14), {}});
+    }
+    std::sort(index.begin(), index.end(), [](const AgentSkill& a, const AgentSkill& b) { return a.name < b.name; });
+    return index;
+}
+
 // tests/project_prompt/run_prompt_tests.py sends the model the project chat's
 // tools from this file: the project session's (no tools of its own, the
-// workspace included) with nothing attached, so no import tool.
+// workspace included) with nothing attached, so no import tool, and the
+// page's skills listed in skill_read.
 // JUSPRIN_UPDATE_PROJECT_TOOLS=1 rewrites it from the registry.
 TEST_CASE("the project prompt tests send the project chat's tools as the app does", "[agent][openai][project]")
 {
@@ -500,6 +521,8 @@ TEST_CASE("the project prompt tests send the project chat's tools as the app doe
     OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
     AgentRequest request = request_fixture();
     request.attachments.clear();
+    request.skill_index = page_skill_index();
+    REQUIRE_FALSE(request.skill_index.empty());
     REQUIRE(request.session.tool_names.empty());
     REQUIRE(request.session.include_workspace);
     REQUIRE(agent.start(request));
@@ -613,7 +636,7 @@ TEST_CASE("OpenAI exposes attachment import only when its registered availabilit
     std::vector<std::string> names;
     for (const json& tool : tools)
         names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"activity_cancel", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},

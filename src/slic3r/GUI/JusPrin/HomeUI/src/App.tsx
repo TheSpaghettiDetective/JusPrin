@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import type { PrinterActions } from './components/PrinterMenu';
 import { PlusGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
@@ -32,13 +33,17 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   // Each action clears the last refusal first: its message was about the
   // previous request, not this one.
   const printerActions = useMemo<PrinterActions>(() => {
-    const send = (type: 'open_printer_settings' | 'rename_printer' | 'remove_printer' | 'connect_printer', payload: object) => {
+    const send = (
+      type: 'open_printer_settings' | 'rename_printer' | 'remove_printer' | 'connect_printer' | 'calibrate_printer',
+      payload: object,
+    ) => {
       dispatch({ kind: 'printer_action' });
       client.send(type, payload);
     };
     return {
       onConnect: (id) => send('connect_printer', { id }),
       onOpenSettings: (id) => send('open_printer_settings', { id }),
+      onCalibrate: (id) => send('calibrate_printer', { id }),
       onRename: (id, name) => send('rename_printer', name === undefined ? { id } : { id, name }),
       onRemove: (id) => send('remove_printer', { id }),
     };
@@ -134,6 +139,15 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           + Add printer
         </button>
       </aside>
+      {state.confirmation && (
+        <ConfirmDialog
+          question={state.confirmation}
+          onAnswer={(confirmed) => {
+            client.send('confirm_answer', { requestId: state.confirmation!.requestId, confirmed });
+            dispatch({ kind: 'confirmation_answered' });
+          }}
+        />
+      )}
     </div>
   );
 }

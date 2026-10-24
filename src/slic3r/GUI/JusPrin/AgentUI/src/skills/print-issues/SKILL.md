@@ -29,4 +29,6 @@ A finding counts as resolved only when a new slice no longer reports it, never b
 | "The nozzle hardness required by the filament is higher than …" | An abrasive filament wears the installed nozzle. Physical, the person's call: nozzle or filament. |
 | Traditional timelapse "may cause surface imperfections"; smooth timelapse with the prime tower off | Only for a print that records a timelapse. timelapse_type, enable_prime_tower. |
 
+When the person describes a problem in a print they made that points at the filament or its settings (stringing, gaps, bulging corners), the calibration skill says whether a test is worth it.
+
 I raise no slicing warning for thin walls, bridges, bed adhesion, brims or cooling. When the person asks about those, read slice_report's firstLayer, islands and supports sections and the settings; never present one as a warning I gave.

@@ -465,6 +465,9 @@
       "radius": 12,
       "scrimAlpha": 88
     },
+    "confirmationDialog": {
+      "width": 360
+    },
     "printerSetup": {
       "contentWidth": 720
     },

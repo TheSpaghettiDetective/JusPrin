@@ -28,11 +28,18 @@ namespace Slic3r::GUI::JusPrin::SetupCommands {
 namespace {
 
 // The alias Orca shows in the sidebar: the preset's alias, with the
-// "@<printer>" qualifier trimmed the way StatusRow already trims it.
+// "@<printer>" qualifier trimmed the way StatusRow already trims it. A name
+// that goes on past the qualifier keeps the rest: a calibrated copy,
+// "Bambu PLA Basic @BBL A1M · Fake A1 mini calibrated", reads
+// "Bambu PLA Basic · Fake A1 mini calibrated", not as the preset it came from.
 wxString display_alias(const Preset& preset)
 {
     wxString alias = wxString::FromUTF8(preset.alias.empty() ? preset.name : preset.alias);
-    alias = alias.BeforeFirst('@');
+    if (const int at = alias.Find('@'); at != wxNOT_FOUND) {
+        const wxString qualified = alias.Mid(at);
+        const int      rest      = qualified.Find(wxString::FromUTF8(" · "));
+        alias = alias.Left(at).Trim() + (rest == wxNOT_FOUND ? wxString() : qualified.Mid(rest));
+    }
     alias.Trim();
     return alias;
 }

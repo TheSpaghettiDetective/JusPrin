@@ -625,3 +625,29 @@ describe('saved and fallback cards', () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+// Board 7: a calibration test reopened later. OrcaSlicer kept its steps only
+// in memory, so the card reads Out of date and warns before anyone slices.
+describe('a reopened calibration test', () => {
+  const tower = { startedFrom: 'Backpack hook', filament: 'Gray PETG', printer: 'Prusa MK4', symptom: '', test: 'temperature',
+    method: '', start: 230, end: 190, step: 5, generatedAt: '2026-10-21T10:00:00Z', result: '215 °C' };
+
+  it('is out of date and says the steps are not in the file', () => {
+    const card = show({ ...context(), calibration: tower });
+    expect(within(card).getByText('Out of date')).toBeInTheDocument();
+    expect(within(card).getByText('Temperature steps not kept in the file')).toBeInTheDocument();
+    cleanup();
+  });
+
+  it('says nothing while the plate still holds the steps, or for a test that keeps its own', () => {
+    const value = context();
+    const holding = { ...value, calibration: tower,
+      plates: value.plates.map((plate) => ({ ...plate, calibration: { test: 'temperature', start: 230, end: 190, step: 5 } })) };
+    expect(deterministicAttention(holding)).toEqual([]);
+    expect(deterministicAttention({ ...value, calibration: { ...tower, test: 'pressure_advance', method: 'pattern' } })).toEqual([]);
+    expect(deterministicAttention({ ...value, calibration: { ...tower, test: 'pressure_advance', method: 'tower' } }))
+      .toEqual([{ title: 'Pressure advance steps not kept in the file' }]);
+    // A calibration project whose test is not made yet has nothing to lose.
+    expect(deterministicAttention({ ...value, calibration: { ...tower, test: undefined } })).toEqual([]);
+  });
+});

@@ -81,7 +81,22 @@ public:
     // its own surface, and the state its surface pins above the thread.
 
     // Stamped on every request this host makes.
-    void set_session_profile(AgentSessionProfile profile) { m_session_profile = std::move(profile); }
+    // A session with tools of its own saves its own presets; in the project
+    // chat the person saves one, from the card the Agent's preview proposes.
+    // The surface the person opens the next project from, for the line a
+    // reopened calibration test starts with.
+    void set_project_opened_from(std::string surface) { m_opened_from = std::move(surface); }
+    // The calibration project just opened (by the app after the popup, or by
+    // calibration_generate from the person's own project): it is marked as
+    // one, its chat is named for it and opens with the handover line, and,
+    // when start is set, the Agent's first turn starts with the calibration
+    // skill in force.
+    void open_calibration_chat(const CalibrationHandover& handover, bool start);
+    void set_session_profile(AgentSessionProfile profile)
+    {
+        m_session_profile = std::move(profile);
+        m_tools.set_saves_need_approval(m_session_profile.tool_names.empty());
+    }
     // The model answers next, from the conversation as it stands. A file
     // report supplies its note ID so that its data belongs to this turn;
     // other app-initiated turns have no message of their own.
@@ -172,6 +187,14 @@ public:
     // composer's pickers, switchable between any two turns. The choice is
     // kept with the chat; each turn is started on an agent built for it.
     void set_chat_model_source(std::shared_ptr<IChatModelSource> source);
+    // Asks the page a Confirmation question (Protocol::kConfirm); held until
+    // the page is connected. A reload drops a question on screen; the person
+    // asks again.
+    struct Confirmation
+    {
+        std::string request_id, title, body, confirm, cancel;
+    };
+    void ask_confirmation(const Confirmation& question);
 
     bool              handshake_complete() const { return m_handshake; }
     bool              stream_active() const { return m_stream.has_value(); }
@@ -258,6 +281,17 @@ public:
     // that brought its conversation back is spoken about only when OrcaSlicer
     // said something while loading it.
     void on_file_loaded(const Workspace::LoadReport& report);
+    // A calibration test the Agent generated: its project's chat opens with
+    // the app's note of what OrcaSlicer made, and the Agent speaks first.
+    // calibration_generate's test, made or not: the project's record, and
+    // the handover turn of a project the tool opened.
+    void on_calibration_finished(bool made, bool by_agent);
+    // The receipt for a preset the person saved from a proposal, and the
+    // Agent's turn that follows it.
+    void on_proposal_saved(const std::string& apply_action_id);
+    // A calibration test reopened without its steps (board 7): the app's
+    // line, and the Agent's turn that offers to make it again.
+    void tell_reopened_test();
 
     // A message the person sends by pressing a button outside the page (the
     // print-issue bubble on the canvas): the same durable user message a typed
@@ -325,6 +359,8 @@ private:
     void handle_stop(const std::string& payload_json);
     void handle_retry(const std::string& envelope_id, const std::string& payload_json);
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
+    void handle_save_proposal(const std::string& envelope_id, const std::string& payload_json);
+    void handle_undo_receipt(const std::string& envelope_id, const std::string& payload_json);
     void handle_work_cancel(const std::string& envelope_id, const std::string& payload_json);
     void send_work(const WorkEntry& work);
 
@@ -552,6 +588,19 @@ private:
     // Load reports of projects the Agent opened, posted to the opened
     // project's chat on the next timer tick, once its document is in place.
     std::deque<Workspace::LoadReport> m_agent_opened_reports;
+    // The same for calibration tests the Agent generated, by their summary.
+    // The handover note of a calibration project calibration_generate
+    // opened, whose turn starts once the test is made.
+    std::string                     m_handover_turn;
+    // Saves the person approved that succeeded, by the apply's action id,
+    // receipted on the next timer tick, outside the coordinator's callback.
+    std::deque<std::string>         m_saved_proposals;
+    // A project's document came in; the next tick checks whether it is a
+    // calibration test that lost its steps.
+    bool                            m_check_reopened_test{false};
+    // Where the person opened the next project from ("Home"), said by the
+    // surface that opens it; used once.
+    std::string                     m_opened_from;
     // Runs the chat's slice_start began that have ended, by that call's
     // action id, told on a timer tick once the turn that started them has
     // ended (slice_ended). A tool result the model reads before then carries
@@ -569,6 +618,7 @@ private:
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};
+    std::string       m_held_confirmation; // a kConfirm payload asked before the handshake
 
     std::optional<ActiveStream> m_stream;
     struct PendingTitle { std::string conversation_id; std::string text; };

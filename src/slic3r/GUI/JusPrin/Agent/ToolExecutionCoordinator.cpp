@@ -3,6 +3,7 @@
 #include "IntentChecks.hpp"
 #include "ToolErrors.hpp"
 #include "ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SettingDisplay.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 
@@ -287,6 +288,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::ExportFile:
     case ToolHandler::PrinterSetupPreview:
     case ToolHandler::ProjectOpen:
+    case ToolHandler::CalibrationGenerate: // saves the project it closes, as an open does
     case ToolHandler::PrinterList:
     case ToolHandler::SliceStart:
     case ToolHandler::SliceReportRead:
@@ -382,6 +384,175 @@ json stale_settings_details(const json& arguments, const Workspace::WorkspaceSna
             {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}};
 }
 
+// The request a calibration_generate call makes, its dialog's defaults not
+// yet filled in.
+Workspace::CalibrationRequest calibration_request(const json& arguments)
+{
+    using Workspace::CalibrationTest;
+    using Workspace::PressureAdvanceMethod;
+    Workspace::CalibrationRequest request;
+    const std::string test = arguments.at("test").get<std::string>();
+    request.test = test == "flow" ? CalibrationTest::Flow : test == "pressure_advance" ? CalibrationTest::PressureAdvance :
+                                                                                         CalibrationTest::Temperature;
+    if (arguments.contains("start")) request.start = arguments["start"].get<double>();
+    if (arguments.contains("end")) request.end = arguments["end"].get<double>();
+    if (arguments.contains("step")) request.step = arguments["step"].get<double>();
+    const std::string method = arguments.value("method", "tower");
+    request.method      = method == "line" ? PressureAdvanceMethod::Line : method == "pattern" ? PressureAdvanceMethod::Pattern :
+                                                                                               PressureAdvanceMethod::Tower;
+    request.bowden      = arguments.value("extruderType", "direct_drive") == "bowden";
+    request.flow_pass   = arguments.value("pass", 1);
+    request.flow_linear = arguments.value("linear", true);
+    return request;
+}
+
+// Unrounded: a pressure-advance step is a few thousandths.
+std::string calibration_number(double value)
+{
+    std::ostringstream out;
+    out << value;
+    return out.str();
+}
+
+const char* pa_method_name(Workspace::PressureAdvanceMethod method)
+{
+    return method == Workspace::PressureAdvanceMethod::Line    ? "line" :
+           method == Workspace::PressureAdvanceMethod::Pattern ? "pattern" : "tower";
+}
+
+std::string calibration_title(const Workspace::CalibrationRequest& request)
+{
+    switch (request.test) {
+    case Workspace::CalibrationTest::Temperature:
+        return "Make a temperature tower, " + calibration_number(*request.start) + " °C to " + calibration_number(*request.end) + " °C";
+    case Workspace::CalibrationTest::Flow:
+        return std::string("Make a flow-ratio test, ") + (request.flow_linear ? "YOLO" : "classic") + " pass " +
+               std::to_string(request.flow_pass);
+    case Workspace::CalibrationTest::PressureAdvance:
+        return std::string("Make a pressure-advance ") + pa_method_name(request.method) + ", " +
+               calibration_number(*request.start) + " to " + calibration_number(*request.end);
+    }
+    throw std::logic_error("calibration test has no title");
+}
+
+// The sentence the test's project opens its chat with: what was made, in the
+// person's terms and the app's own voice, from what Orca reports it applies.
+// The word for what the person picks on the print of the test that measures
+// a setting (board 5b's {step}), by the setting a result writes: a block of
+// the temperature tower, a flow tile, or a pressure-advance height, line or
+// corner by the active plate's method. None for a setting no test measures.
+std::string calibration_pick(const std::string& key, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    if (key == "nozzle_temperature")
+        return "block";
+    if (key == "filament_flow_ratio")
+        return "tile";
+    if (key != "pressure_advance")
+        return {};
+    const auto plate = std::find_if(snapshot.plates.begin(), snapshot.plates.end(), [](const auto& item) { return item.active; });
+    const std::string method = plate != snapshot.plates.end() && plate->calibration ? plate->calibration->method : "";
+    return method == "line" ? "line" : method == "pattern" ? "corner" : "height";
+}
+
+// The card a preview that saves a preset is approved from (board 5b): every
+// slot comes from the preview -- the setting with its saved and new values,
+// the preset's scope, the name it is saved as -- and from the settings' own
+// labels and units. A change that only puts a temporary edit back to its
+// saved value is not part of the result and draws no row. Null when nothing
+// would differ from the saved preset.
+json settings_proposal(const Workspace::SettingsPreview& preview, const Workspace::SettingsTarget& target,
+                       const std::string& persist_as, const std::vector<Workspace::SettingValue>& values,
+                       const std::string& base, const Workspace::WorkspaceSnapshot& snapshot)
+{
+    const std::string scope = target.scope == Workspace::SettingsScope::Filament ? "filament" :
+                              target.scope == Workspace::SettingsScope::Printer  ? "printer" :
+                                                                                   "process";
+    const bool in_place = persist_as == preview.preset;
+    json rows = json::array({json{{"icon", "save"}, {"text", (in_place ? "Preset · " : "New preset · ") + persist_as}}});
+    std::string value, saved_settings, pick;
+    json        restore = json::object();
+    for (const Workspace::SettingChange& change : preview.changes) {
+        if (change.saved && *change.saved == change.after)
+            continue;
+        const auto known = std::find_if(values.begin(), values.end(), [&change](const auto& item) { return item.key == change.key; });
+        Workspace::SettingDefinition definition;
+        if (known != values.end())
+            definition = known->definition;
+        if (definition.label.empty())
+            definition.label = change.key;
+        const std::string after = Workspace::display_value(definition, change.after);
+        rows.push_back({{"icon", change.key.find("temperature") != std::string::npos ? "thermometer" : "sliders"},
+                        {"text", definition.label + " " +
+                                     Workspace::display_change(definition, change.saved.value_or(change.before), change.after)}});
+        std::string named = definition.label;
+        named.front() = char(std::tolower(static_cast<unsigned char>(named.front())));
+        saved_settings += (saved_settings.empty() ? "" : ", ") + named + " " + after;
+        if (value.empty()) {
+            value = after;
+            pick  = calibration_pick(change.key, snapshot);
+        }
+        restore[change.key] = change.saved.value_or(change.before);
+    }
+    if (value.empty())
+        return nullptr;
+    if (!in_place)
+        rows.push_back({{"icon", "info"}, {"text", base + " itself is unchanged"}});
+    std::string kind = scope;
+    kind.front() = char(std::toupper(static_cast<unsigned char>(kind.front())));
+    json proposal{{"title", in_place ? "Save " + value + " to " + persist_as : "Save " + value + " as a new " + scope + " preset"},
+                  {"rows", std::move(rows)},
+                  {"save", "Save preset"},
+                  {"value", value},
+                  // Board 6's receipt, once it is saved.
+                  {"receipt", kind + " preset · " + saved_settings}};
+    if (!pick.empty())
+        proposal["other"] = "Pick another " + pick;
+    // Board 6's Undo, for a filament: a copy is deleted and the preset it was
+    // made from used again; a preset saved in place gets its values back.
+    if (target.scope == Workspace::SettingsScope::Filament)
+        proposal["undo"] = {{"base", preview.preset}, {"label", base}, {"newCopy", !in_place}, {"restore", std::move(restore)}};
+    return proposal;
+}
+
+// The line the test's own chat opens with (board 4's system line): where it
+// came from, and that its settings are temporary. What the test is, the
+// model reads from the workspace: the plate's calibration and the objects.
+// A preset by the name OrcaSlicer's menus show it under: its alias.
+std::string preset_label(const Workspace::IWorkspace& workspace, Workspace::PresetKind kind, const std::string& name)
+{
+    const auto presets = workspace.list_presets({kind, name, false, 100, {}}).items;
+    const auto entry   = std::find_if(presets.begin(), presets.end(), [&name](const auto& item) { return item.name == name; });
+    return entry != presets.end() && !entry->label.empty() ? entry->label : name;
+}
+
+std::string calibration_summary(const Workspace::CalibrationRequest& request, const Workspace::CalibrationResult& made)
+{
+    const std::string in = " is ready in this project, \"" + made.project_name + "\": ";
+    std::string text;
+    switch (request.test) {
+    case Workspace::CalibrationTest::Temperature:
+        text = "The temperature tower" + in + "blocks from " + calibration_number(*made.start) +
+               " °C at the bottom to " + calibration_number(*made.end) + " °C at the top, " + calibration_number(*made.step) +
+               " °C apart.";
+        break;
+    case Workspace::CalibrationTest::Flow:
+        text = std::string("The ") + (request.flow_linear ? "YOLO" : "classic") + " flow-ratio test, pass " +
+               std::to_string(request.flow_pass) + "," + in + std::to_string(made.objects.size()) +
+               " tiles, each named for its change to the flow ratio.";
+        break;
+    case Workspace::CalibrationTest::PressureAdvance:
+        text = request.method == Workspace::PressureAdvanceMethod::Tower ?
+                   "The pressure-advance tower" + in + "pressure advance from " + calibration_number(*made.start) +
+                       " at the bottom to " + calibration_number(*made.end) + " at the top, rising " +
+                       calibration_number(*made.step) + " per millimetre." :
+                   std::string("The pressure-advance ") + pa_method_name(request.method) + " test" + in +
+                       "pressure advance from " + calibration_number(*made.start) + " to " + calibration_number(*made.end) +
+                       " in steps of " + calibration_number(*made.step) + ", numbered on the print.";
+        break;
+    }
+    return text + " Its changes to the presets are for this test only and are not saved.";
+}
+
 } // namespace
 
 ToolExecutionCoordinator::ToolExecutionCoordinator(Workspace::IWorkspace& workspace, const ToolRegistry& registry)
@@ -432,6 +603,7 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
     activity.correlation_id    = correlation_id;
     activity.call_id           = call_id;
     activity.source            = source;
+    activity.approves          = m_approving;
     activity.client            = client;
     activity.server            = kServerName;
     activity.tool              = request.tool;
@@ -763,8 +935,28 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
         if (stored.title.size() > kToolLabelLimit) stored.title.resize(kToolLabelLimit - 3), stored.title += "...";
     }
 
+    if (definition->handler == ToolHandler::CalibrationGenerate) {
+        // A range the dialog would refuse is refused here, before the open
+        // project is closed for it.
+        const Workspace::CalibrationRequest request = calibration_request(json::parse(stored.arguments_json));
+        if (const std::string problem = Workspace::calibration_request_problem(request); !problem.empty()) {
+            fail(stored, "invalid_arguments", problem);
+            return stored;
+        }
+        stored.title = calibration_title(Workspace::with_dialog_defaults(request));
+    }
+
     if (definition->handler == ToolHandler::SettingsApplyPatch) {
         auto arguments = json::parse(stored.arguments_json);
+        // In the project chat a preset is saved by the person, from the card
+        // the Agent's preview drew.
+        if (m_saves_need_approval && stored.source == ToolSource::Agent && stored.approves.empty() &&
+            arguments.contains("persistAs")) {
+            fail(stored, "refused",
+                 "Saving a preset is the person's: your settings_preview_patch with persistAs shows them a card with Save "
+                 "preset, and the app saves it when they press it. Do not apply it yourself; say what you propose and wait.");
+            return stored;
+        }
         if (!settings_revision_holds(arguments, snapshot, m_last_settings_revision)) {
             fail(stored, "stale_workspace", "The workspace changed. Read and preview again.", stale_settings_details(arguments, snapshot).dump());
             return stored;
@@ -800,6 +992,28 @@ const ToolActivity& ToolExecutionCoordinator::submit(const ToolRequest& request,
 
     start_running(stored);
     return stored;
+}
+
+std::string ToolExecutionCoordinator::approve_proposal(const std::string& preview_action_id)
+{
+    const ToolActivity* preview = find(preview_action_id);
+    if (preview == nullptr || preview->proposal_json.empty() || preview->state != ToolState::Succeeded)
+        return "This proposal is no longer open. Ask the Agent again.";
+    const bool saving = std::any_of(m_activities.begin(), m_activities.end(), [&preview_action_id](const ToolActivity& item) {
+        return item.approves == preview_action_id && item.state != ToolState::Failed && item.state != ToolState::Cancelled;
+    });
+    if (saving)
+        return "This proposal is already saved.";
+    // The preview's own stamp: a settings change since it makes the save
+    // stale instead of saving something the card did not show.
+    json arguments = json::parse(preview->arguments_json);
+    arguments["expectedSessionId"] = std::to_string(preview->session);
+    arguments["expectedRevision"]  = preview->expected_revision;
+    const std::string correlation = preview->correlation_id;
+    m_approving = preview_action_id;
+    submit(ToolRequest{"settings_apply_patch", arguments.dump()}, correlation);
+    m_approving.clear();
+    return {};
 }
 
 bool ToolExecutionCoordinator::cancel(const std::string& action_id)
@@ -884,6 +1098,9 @@ void ToolExecutionCoordinator::pump()
                     return;
                 }
             }
+            // A tool that replaces the project clears the other activities
+            // while it runs, which may move this one: read it before.
+            const ActionClass action_class = activity.action_class;
             execute(activity);
             if (versioned) {
                 try {
@@ -892,8 +1109,9 @@ void ToolExecutionCoordinator::pump()
                     std::clog << "Could not save after Agent action: " << error.what() << '\n';
                     fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
                 }
-            } else if (m_document_boundary && activity.action_class != ActionClass::ReadOnly && definition != nullptr &&
-                       definition->handler != ToolHandler::ProjectOpen && definition->handler != ToolHandler::SliceStart) {
+            } else if (m_document_boundary && action_class != ActionClass::ReadOnly && definition != nullptr &&
+                       definition->handler != ToolHandler::ProjectOpen && definition->handler != ToolHandler::CalibrationGenerate &&
+                       definition->handler != ToolHandler::SliceStart) {
                 try {
                     m_document_boundary(activity);
                 } catch (const std::exception& error) {
@@ -1075,6 +1293,96 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         forget_if_closed(action_id);
         if (by_agent && m_agent_project_opened)
             m_agent_project_opened(report);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::CalibrationGenerate) {
+        // Read first: opening a calibration project clears the other
+        // activities and may move this one, so `activity` is not used after.
+        const json                          arguments = json::parse(activity.arguments_json);
+        const Workspace::CalibrationRequest request   = Workspace::with_dialog_defaults(calibration_request(arguments));
+        const std::string                   action_id = activity.action_id;
+        const bool                          by_agent  = activity.source == ToolSource::Agent;
+        // One rule, whichever path reached the tool: the test is made in a
+        // calibration project. From any other project (the symptom path) that
+        // project is released as an open releases it, and the calibration
+        // project for its filament and printer opened through the same path.
+        const bool in_calibration_project = m_calibration.is_open && m_calibration.is_open();
+        if (!in_calibration_project) {
+            const auto          snapshot = m_workspace.snapshot();
+            CalibrationHandover handover{snapshot.setup.project_name,
+                                         preset_label(m_workspace, Workspace::PresetKind::Filament, snapshot.setup.filament_preset),
+                                         preset_label(m_workspace, Workspace::PresetKind::Printer, snapshot.setup.printer_preset),
+                                         arguments.value("symptom", "")};
+            // The conversation belongs to the project being closed.
+            if (m_product_state != nullptr)
+                m_product_state->flush_to_project();
+            Workspace::ProjectOpenRequest open;
+            open.new_project = true;
+            open.name        = calibration_project_name(handover.filament, handover.printer);
+            Workspace::LoadReport report;
+            const auto opened = m_workspace.open_project(open, report);
+            if (!opened.succeeded()) {
+                fail(*find_mutable(action_id), workspace_error_code(opened.error), opened.message);
+                forget_if_closed(action_id);
+                return;
+            }
+            if (m_calibration.opened)
+                m_calibration.opened(handover, by_agent);
+        }
+        Workspace::CalibrationResult made;
+        auto generated = Workspace::CommandResult::success();
+        const auto generate = [&] { generated = m_workspace.generate_calibration(request, made); };
+        if (m_calibration.continuing)
+            m_calibration.continuing(generate);
+        else
+            generate();
+        ToolActivity& current = *find_mutable(action_id);
+        // The generator starts a new workspace session. A test made in the
+        // calibration project that asked continues that project, so the call
+        // takes the session it made: AgentHost records a call only in the
+        // session it belongs to, and this one's result belongs to the chat
+        // that asked. From another project the call stays with the project it
+        // closed, as an open's does, and that chat keeps the last word.
+        if (in_calibration_project)
+            current.session = m_workspace.snapshot().session.value();
+        if (!generated.succeeded()) {
+            fail(current, workspace_error_code(generated.error), generated.message);
+            forget_if_closed(action_id);
+            if (m_calibration.finished)
+                m_calibration.finished(false, by_agent);
+            return;
+        }
+        json objects = json::array();
+        for (std::size_t index = 0; index < made.objects.size() && index < 64; ++index)
+            objects.push_back({{"objectId", std::to_string(made.objects[index].value())}, {"name", made.object_names[index]}});
+        json applied = json::object();
+        if (made.start) applied["start"] = *made.start;
+        if (made.end) applied["end"] = *made.end;
+        if (made.step) applied["step"] = *made.step;
+        if (request.test == Workspace::CalibrationTest::PressureAdvance) {
+            applied["method"]       = pa_method_name(request.method);
+            applied["extruderType"] = request.bowden ? "bowden" : "direct_drive";
+        }
+        if (request.test == Workspace::CalibrationTest::Flow) {
+            applied["pass"]   = request.flow_pass;
+            applied["linear"] = request.flow_linear;
+        }
+        Workspace::LoadReport said;
+        said.loads.push_back({{}, false, made.messages});
+        const std::string summary = calibration_summary(request, made);
+        const auto snapshot = m_workspace.snapshot();
+        current.result_json = json{{"projectName", made.project_name}, {"test", arguments["test"]},
+                                   {"plateId", std::to_string(made.plate.value())}, {"objects", std::move(objects)},
+                                   {"applied", std::move(applied)}, {"messages", orca_messages_result(said)},
+                                   {"summary", summary}, {"sessionId", std::to_string(snapshot.session.value())},
+                                   {"revision", snapshot.revision}}
+                                  .dump();
+        current.state = ToolState::Succeeded;
+        notify(current);
+        forget_if_closed(action_id);
+        if (m_calibration.finished)
+            m_calibration.finished(true, by_agent);
         return;
     }
 
@@ -1965,7 +2273,21 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             fail(activity, result.issues.front().code, result.issues.front().message);
             return;
         }
-        activity.result_json = settings_preview_result(result, target.target.scope, m_workspace.snapshot()).dump();
+        const auto snapshot = m_workspace.snapshot();
+        activity.result_json = settings_preview_result(result, target.target.scope, snapshot).dump();
+        if (m_saves_need_approval && activity.source == ToolSource::Agent && result.valid && args.contains("persistAs")) {
+            std::vector<std::string> keys;
+            for (const auto& change : result.changes)
+                keys.push_back(change.key);
+            const Workspace::PresetKind kind = target.target.scope == Workspace::SettingsScope::Filament ? Workspace::PresetKind::Filament :
+                                               target.target.scope == Workspace::SettingsScope::Printer  ? Workspace::PresetKind::Printer :
+                                                                                                           Workspace::PresetKind::Process;
+            const json proposal = settings_proposal(result, target.target, args["persistAs"].get<std::string>(),
+                                                    m_workspace.read_settings(keys, target.target).items,
+                                                    preset_label(m_workspace, kind, result.preset), snapshot);
+            if (!proposal.is_null())
+                activity.proposal_json = proposal.dump();
+        }
         activity.state = ToolState::Succeeded;
         notify(activity);
         return;
@@ -2001,6 +2323,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         activity.result_json = settings_apply_result(applied, target.target.scope, m_workspace.snapshot(), result.succeeded()).dump();
         activity.state = ToolState::Succeeded;
         notify(activity);
+        if (!activity.approves.empty() && !applied.saved_as.empty() && m_proposal_saved)
+            m_proposal_saved(activity);
         return;
     }
 

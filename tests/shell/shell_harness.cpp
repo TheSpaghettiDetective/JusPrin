@@ -42,7 +42,10 @@
 //   --manual-mcp <fixture-directory>
 //                 leaves a two-plate native fixture open for real MCP clients;
 //                 exposes Orca's sidebar for native-edit/stale-revision checks;
-//                 reuse the directory to test restarts without reconfiguration
+//                 reuse the directory to test restarts without reconfiguration;
+//                 with --fake-printer, the project's printer is first a
+//                 saved Bambu A1 mini connected to the in-process fake
+//                 (src/slic3r/GUI/JusPrin/Testing/README.md)
 //   --header-visual <fixture-directory>
 //                 same fixture without the expert sidebar, with the header menu open
 //   --right-pane-visual <fixture-directory>
@@ -95,6 +98,14 @@
 //              headline under "Edited by you"
 //              (setup-differences-edited-card) and marks the plan
 //              needs_reassessment. That minute makes the run about two long.
+//   --calibration-capture <output-directory>
+//              the three Calibrate… rows with a stand-in project assistant:
+//              the filament row's and the Home card's dialogs are cancelled
+//              and change nothing; the printer row's is accepted, the
+//              assistant asks which test, the Temperature chip is tapped,
+//              and calibration_generate opens the test's own project and
+//              chat. Writes a picture of the window, menu or dialog at each
+//              step
 //   --reply-choices-capture <output-directory>
 //              a stand-in project assistant ends its reply with a Choices
 //              line; asserts the page draws it as chips and not as text,
@@ -409,6 +420,7 @@ bool snapshot_web_view(void* native_web_view, const char* path)
     }
     return out.good() && remaining == 0;
 }
+
 #endif
 
 namespace Slic3r::GUI::JusPrin {
@@ -794,6 +806,187 @@ private:
     bool                          m_active{false};
 };
 
+// --calibration-capture: a model that answers a symptom as board 2 does
+// (two reads, then the two facts and a choice), asks which test a
+// Calibrate… row's request wants, makes the temperature tower when told,
+// and opens the test's own chat with what to print and photograph.
+class CalibrationAgent final : public Agent::IAgentService
+{
+public:
+    // Board 2's state: the chat already holds the print's purpose and plan.
+    static constexpr const char* kPurpose = "It's a wall hook for a 5 kg backpack.";
+    static constexpr const char* kPurposeReply = "Noted: a wall hook for a 5 kg backpack.";
+    static constexpr const char* kSymptom = "The last one came out stringy, lots of hairs between the posts.";
+    static constexpr const char* kSymptomReply =
+        "Hairs between separate parts usually mean the nozzle is a little hot for this spool, or the spool has taken "
+        "on moisture. Gray PETG is printing at 240 °C here, the top of its range, so a temperature tower is the "
+        "quickest way to find out: one 48-minute print with seven blocks from 240 °C down to 210 °C.\n\n"
+        "If you start it, I will save and close Backpack hook and open a separate test project. The tower’s settings "
+        "are temporary, and nothing is written to your filament until you choose a result.\n"
+        "Choices: Start the temperature test | Dry the spool first | Not now";
+    // Board 4: the calibration project the popup opened. Its handover names
+    // no test, so the Agent asks which; the person's chip makes it, and the
+    // test is recorded with setup_record in the same turn.
+    static constexpr const char* kHandoverNote = "JusPrin app note, not the person's words: This is a calibration project";
+    static constexpr const char* kQuestion =
+        "Which test first? For a spool you are dialling in from scratch, go in this order, because each one reads best "
+        "once the one before is settled: temperature, then flow, then pressure advance.\n"
+        "Choices: Temperature tower | Flow tiles | Pressure advance";
+    static constexpr const char* kAnswer = "Temperature tower";
+    static constexpr const char* kTestProject = "Calibration · Bambu PLA Basic · Workshop X1C";
+    static constexpr const char* kFirstMessage =
+        "The tower is on the plate: hottest at the bottom, 230 °C, dropping 5 °C every block to 190 °C at the top. Slice "
+        "it and print it as usual.\n\n"
+        "When it is done, send me a photo from the front with the numbers readable, and I will pick the block.\n"
+        "Choices: Slice the tower | Change the range";
+    // Board 5: the person's photo of the print, the block it shows, and the
+    // preset proposed from it as a card. Board 6: the reply to its receipt.
+    static constexpr const char* kPhotoText = "Here it is.";
+    static constexpr const char* kReading =
+        "215 °C is the cleanest block: no hairs between the posts and the bridges are straight. 220 °C shows fine "
+        "hairs; 210 °C and below look dull and the layers bond less well.\n\n"
+        "I would set Bambu PLA Basic to 215 °C on this printer.";
+    static constexpr const char* kSavedPreset = "Bambu PLA Basic · Workshop X1C calibrated";
+    static constexpr const char* kSavedReply =
+        "From now on, pick Bambu PLA Basic · Workshop X1C calibrated as the filament whenever you print this spool on "
+        "the Workshop X1C. Nothing switches by itself: this test uses it now, and your other projects keep the filament "
+        "they have until you change it in the chip.\n\n"
+        "The hairs between the posts should mostly be gone; if some remain after a real print, a retraction test is the "
+        "next step.\n"
+        "Choices: Run the flow test next";
+    // Board 7: the reply to a reopened test's note, which names the day it
+    // was generated ("generated on 22 Oct 2026.").
+    static constexpr const char* kReopenedStart = "This tower was generated on ";
+    static std::string reopened_reply(const std::string& note)
+    {
+        static const char* const months[] = {"January", "February", "March", "April", "May", "June", "July",
+                                             "August", "September", "October", "November", "December"};
+        static const std::string short_months = "JanFebMarAprMayJunJulAugSepOctNovDec";
+        const std::size_t at    = note.find("generated on ") + 13;
+        const std::size_t space = note.find(' ', at);
+        const std::string day   = note.substr(at, space - at);
+        const std::string month = months[short_months.find(note.substr(space + 1, 3)) / 3];
+        return std::string(kReopenedStart) + day + " " + month +
+               ". Reopening it does not bring back the per-block temperatures, so slicing it now would print the whole "
+               "tower at 230 °C. I can regenerate it with the same range if you want to print it again.\n"
+               "Choices: Regenerate tower | Just look at it";
+    }
+    static constexpr const char* kUndoneReply =
+        "Undone: this test is back on Bambu PLA Basic, and the calibrated copy is gone. Pick another block, or send a "
+        "clearer photo, and I will propose it again.";
+
+    bool ready() const override { return true; }
+    bool busy() const override { return m_active; }
+    bool start(const Agent::AgentRequest& request) override
+    {
+        m_active = true;
+        if (request.purpose == Agent::AgentRequest::Purpose::ConversationTitle)
+            m_events.push_back(Agent::AgentEvent::delta("Stringing between the posts"));
+        else if (request.user_text == kPurpose) {
+            m_purpose_recorded = true;
+            const nlohmann::json arguments{{"purpose", "Wall hook for a 5 kg backpack"},
+                                           {"headline", "Laid flat, 5 walls, 35% gyroid; screw holes kept accurate"}};
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-p1", Agent::ToolRequest{"setup_record", arguments.dump()}, true}));
+            return true;
+        } else if (request.user_text == kSymptom) {
+            m_symptom_reads = 2;
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-s1", Agent::ToolRequest{"workspace_inspect", "{}"}, true}));
+            return true;
+        } else if (request.user_text == kAnswer) {
+            // Made in this calibration project; the result comes back to this
+            // turn, which records the test before it says what to print.
+            m_test_steps = 2;
+            const nlohmann::json arguments{{"test", "temperature"}, {"start", 230}, {"end", 190}};
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-1", Agent::ToolRequest{"calibration_generate", arguments.dump()}, true}));
+            return true;
+        } else if (request.user_text == kPhotoText) {
+            m_reading = true;
+            const nlohmann::json arguments{{"scope", "filament"},
+                                           {"target", {{"preset", request.workspace.setup.filament_preset}}},
+                                           {"changes", {{"nozzle_temperature", "215"}}},
+                                           {"persistAs", kSavedPreset}};
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-r1", Agent::ToolRequest{"settings_preview_patch", arguments.dump()}, true}));
+            return true;
+        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person pressed Save preset", 0) == 0) {
+            // The result goes into the test's headline first.
+            m_recording_result = true;
+            const nlohmann::json arguments{{"purpose", kTestProject},
+                                           {"headline", "Temperature tower, 230 → 190 °C in 5 °C blocks; result 215 °C saved"}};
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-v1", Agent::ToolRequest{"setup_record", arguments.dump()}, true}));
+            return true;
+        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person opened from Home", 0) == 0) {
+            m_events.push_back(Agent::AgentEvent::delta(reopened_reply(request.user_text)));
+        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person pressed Undo", 0) == 0) {
+            m_events.push_back(Agent::AgentEvent::delta(kUndoneReply));
+        } else if (request.user_text.rfind(kHandoverNote, 0) == 0) {
+            // The skill is in force on this turn without being read.
+            const bool fired = std::any_of(request.skills.begin(), request.skills.end(),
+                                           [](const Agent::AgentSkillUse& skill) { return skill.trigger == "calibration_started"; });
+            m_events.push_back(Agent::AgentEvent::delta(fired ? kQuestion : "The calibration skill did not fire."));
+        } else
+            m_events.push_back(Agent::AgentEvent::delta(kQuestion));
+        m_events.push_back(Agent::AgentEvent::completed());
+        return true;
+    }
+    bool continue_after_tool(const Agent::AgentToolResult&) override
+    {
+        if (m_purpose_recorded) {
+            m_purpose_recorded = false;
+            m_events.push_back(Agent::AgentEvent::delta(kPurposeReply));
+        } else if (m_reading) {
+            m_reading = false;
+            m_events.push_back(Agent::AgentEvent::delta(kReading));
+        } else if (m_recording_result) {
+            m_recording_result = false;
+            m_events.push_back(Agent::AgentEvent::delta(kSavedReply));
+        } else if (m_test_steps == 2) {
+            m_test_steps = 1;
+            const nlohmann::json arguments{{"purpose", kTestProject},
+                                           {"headline", "Temperature tower, 230 → 190 °C in 5 °C blocks; read the cleanest block"}};
+            m_events.push_back(Agent::AgentEvent::tool_call({"call-t2", Agent::ToolRequest{"setup_record", arguments.dump()}, true}));
+            return true;
+        } else if (m_test_steps == 1) {
+            m_test_steps = 0;
+            m_events.push_back(Agent::AgentEvent::delta(kFirstMessage));
+        } else if (m_symptom_reads == 2) {
+            m_symptom_reads = 1;
+            m_events.push_back(Agent::AgentEvent::tool_call(
+                {"call-s2", Agent::ToolRequest{"workspace_inspect", nlohmann::json{{"sections", {"printer"}}}.dump()}, true}));
+            return true;
+        }
+        else if (m_symptom_reads == 1) {
+            m_symptom_reads = 0;
+            m_events.push_back(Agent::AgentEvent::delta(kSymptomReply));
+        }
+        m_events.push_back(Agent::AgentEvent::completed());
+        return true;
+    }
+    void cancel() override
+    {
+        m_active = false;
+        m_events.clear();
+    }
+    std::optional<Agent::AgentEvent> poll() override
+    {
+        if (m_events.empty())
+            return std::nullopt;
+        Agent::AgentEvent event = std::move(m_events.front());
+        m_events.pop_front();
+        if (event.kind == Agent::AgentEventKind::Completed || event.kind == Agent::AgentEventKind::Failed)
+            m_active = false;
+        return event;
+    }
+
+private:
+    std::deque<Agent::AgentEvent> m_events;
+    bool                          m_active{false};
+    int                           m_symptom_reads{0}; // reads left before the symptom's reply
+    bool                          m_purpose_recorded{false};
+    int                           m_test_steps{0};     // the generate turn: calls left before its reply
+    bool                          m_reading{false};    // the photo's turn: its preview is out, its words are next
+    bool                          m_recording_result{false}; // the saved result's headline is out, the reply is next
+};
+
 // The recording agent the project chat was given in the print-issues modes,
 // for the scenario to read.
 RecordingAgent* g_issue_agent = nullptr;
@@ -886,6 +1079,7 @@ struct HarnessState
         RecomputingCapture,
         SetupDifferencesCapture,
         ReplyChoicesCapture,
+        CalibrationCapture,
         TimelineCapture,
         FigmaTimelineCapture,
         ToolStripCapture,
@@ -939,7 +1133,8 @@ struct HarnessState
     // network plug-in, and without the fake printer standing in for it.
     bool no_plugin{false};
     // --fake-printer: the in-process fake Bambu printer is on, and found
-    // on the network, in a hands-on run (Testing/README.md).
+    // on the network, in a hands-on run (Testing/README.md); with
+    // --manual-mcp, the fixture's saved printer is connected to it.
     bool fake_printer{false};
     // --printer-settings-live, --filament-settings-live: a settings change to
     // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
@@ -1134,8 +1329,18 @@ public:
                 });
                 return;
             }
-            if (m_state->mode == HarnessState::Mode::ManualMcp) {
+            if (m_state->mode == HarnessState::Mode::ManualMcp && m_state->fake_printer && !m_fake_printer_ready) {
+                // The startup checks first, on the fixture as it starts.
                 verify_canvas_interaction();
+                connect_fixture_to_fake_printer([self = shared_from_this()] {
+                    self->m_fake_printer_ready = true;
+                    self->run_shell_mode();
+                });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ManualMcp) {
+                if (!m_fake_printer_ready)
+                    verify_canvas_interaction();
                 prepare_mcp_slice([self = shared_from_this()] {
                     // Real-client tests need a native setting edit while the
                     // MCP fixture remains live.
@@ -1192,6 +1397,11 @@ public:
             if (m_state->mode == HarnessState::Mode::ReplyChoicesCapture) {
                 verify_canvas_interaction();
                 wait_for_agent_page("reply_choices", [self = shared_from_this()] { self->begin_reply_choices_capture(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::CalibrationCapture) {
+                verify_canvas_interaction();
+                wait_for_agent_page("calibration", [self = shared_from_this()] { self->begin_calibration_capture(); });
                 return;
             }
             if (m_state->mode == HarnessState::Mode::TimelineCapture) {
@@ -4976,6 +5186,45 @@ private:
     // sees -- rather than from the backend. A card menu opened at the start
     // must still be open at the end.
     static constexpr const char* kHomeLivePrinter = "Live A1 mini";
+    static constexpr const char* kFakeFixturePrinter = "Fake A1 mini";
+    bool m_fake_printer_ready{false};
+
+    // The fixture's printer, saved as a Bambu Lab A1 mini and connected to the
+    // in-process fake the way a person's LAN printer is, then selected for
+    // the project. A fixture directory reused from an earlier run has it
+    // already, so it is only connected again.
+    void connect_fixture_to_fake_printer(std::function<void()> then)
+    {
+        wxGetApp().app_config->set("jusprin", "fake_printer", "true");
+        m_home_live_backend = std::make_shared<PrinterSetup::OrcaPrinterBackend>(
+            *m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        const auto saved = Printers::named_printers();
+        if (std::none_of(saved.begin(), saved.end(), [](const auto& printer) { return printer.name == kFakeFixturePrinter; })) {
+            PrinterSetup::AddPrinterRequest request;
+            request.vendor_id = "BBL";
+            request.model_id  = "Bambu Lab A1 mini";
+            request.variant   = "0.4";
+            request.name      = kFakeFixturePrinter;
+            PrinterSetup::SavedPrinter added;
+            check(m_home_live_backend->add_printer(request, added).empty() && added.name == kFakeFixturePrinter,
+                  "fake_fixture_printer_saved");
+        }
+        m_home_live_backend->prepare_connection(kFakeFixturePrinter);
+        wait_until([self = shared_from_this()] { return !self->m_home_live_backend->connection(kFakeFixturePrinter).candidates.empty(); },
+                   "fake_fixture_printer_discovered", [self = shared_from_this(), then] {
+                       const std::string device = self->m_home_live_backend->connection(kFakeFixturePrinter).candidates.front().id;
+                       self->check(Printers::link_named_printer(kFakeFixturePrinter, device).empty() &&
+                                       self->m_home_live_backend->connect_printer(kFakeFixturePrinter, device, "").empty(),
+                                   "fake_fixture_connect_starts");
+                       self->wait_until([self] { return self->m_home_live_backend->connection(kFakeFixturePrinter).state == "verified"; },
+                                        "fake_fixture_printer_connected", [self, then] {
+                                            self->check(SetupCommands::select_named_printer(*self->m_plater, kFakeFixturePrinter),
+                                                        "fake_fixture_printer_selected");
+                                            std::cerr << "HARNESS MCP FAKE PRINTER " << kFakeFixturePrinter << " connected\n";
+                                            then();
+                                        });
+                   });
+    }
 
     std::shared_ptr<PrinterSetup::OrcaPrinterBackend> m_home_live_backend;
     std::string                                       m_home_live_control;
@@ -5703,9 +5952,9 @@ private:
 
     // The one-slot filament menu, as the design lists it: a colour row, the
     // installed filaments that fit in brand-then-name order with the current
-    // one ticked, then Other filament…, Filament settings… and Add a slot. The
-    // fixture printer reports no trays, so the tray row is absent rather than
-    // greyed.
+    // one ticked, then Other filament…, Filament settings…, Calibrate this
+    // filament… and Add a slot. The fixture printer reports no trays, so the
+    // tray row is absent rather than greyed.
     void verify_filament_menu()
     {
         installed_shell()->status_row()->open_filament_menu();
@@ -5716,7 +5965,7 @@ private:
         std::vector<std::string> expected;
         for (const auto& filament : SetupCommands::compatible_filaments()) expected.push_back(ui_text(filament.alias));
         check(!expected.empty(), "the_printer_has_installed_filaments");
-        for (const char* tail : {"Other filament…", "Filament settings…", "Add a slot"})
+        for (const char* tail : {"Other filament…", "Filament settings…", "Calibrate this filament…", "Add a slot"})
             expected.push_back(tail);
         const std::vector<std::string> names = menu_row_names(menu);
         check(names == expected, "filament_menu_lists_the_installed_filaments_then_the_quiet_rows");
@@ -6904,6 +7153,426 @@ private:
             });
         });
     }
+
+    // The three Calibrate… rows. A row asks first, in the page's Confirmation
+    // dialog (the project chat's, or Home's for its card), since the test
+    // will close the open project: Cancel there changes nothing, and Start
+    // test sends the request to the project chat as the person's own words. The stand-in assistant then asks which test, and
+    // the tapped answer makes it in a project of its own.
+    static constexpr const char* kCalibrationPrinter = "Workshop X1C";
+    static constexpr const char* kCalibrationProject = "Backpack hook";
+
+    // The page's Confirmation dialog: waits for it, reads its title and body
+    // through the page's title (the one thing the harness can read back from
+    // either page), takes a picture of the page with it open, and presses the
+    // named button.
+    void answer_page_dialog(wxWebView* view, const std::string& name, const std::string& button, std::function<void()> then)
+    {
+        m_dialog_seen.clear();
+        WebView::RunScript(view, "(function(){ var tries = 0; var timer = setInterval(function(){"
+                                 "  var dialog = document.querySelector('[role=dialog]');"
+                                 "  if (!dialog && ++tries < 100) return;"
+                                 "  clearInterval(timer);"
+                                 "  document.title = 'confirm:' + (dialog ? dialog.querySelector('h2').innerText + '\\n' +"
+                                 "                                          dialog.querySelector('p').innerText : '');"
+                                 "}, 100); })()");
+        wait_until([view] { return view->GetCurrentTitle().StartsWith("confirm:"); }, name + "_shown",
+                   [self = shared_from_this(), view, name, button, then] {
+            self->m_dialog_seen = ui_text(view->GetCurrentTitle().Mid(8));
+            std::cout << "HARNESS CALIBRATION DIALOG " << name << " " << self->m_dialog_seen << std::endl;
+            self->check(self->m_dialog_seen.rfind("Calibrate ", 0) == 0 &&
+                            self->m_dialog_seen.find("Settings the test changes are temporary") != std::string::npos,
+                        name + "_drawn");
+            self->capture_web_view(view, name);
+            WebView::RunScript(view, wxString::FromUTF8(
+                "document.title = ''; Array.prototype.filter.call(document.querySelectorAll('[role=dialog] button'),"
+                " function (b) { return b.innerText === '" + button + "'; })[0].click()"));
+            // The answer reaches the shell on its next turn.
+            self->after_painting(name + "_answered", then);
+        });
+    }
+
+    // What a cancelled dialog must have left as it was.
+    struct CalibrationBefore
+    {
+        std::uint64_t session{0};
+        std::size_t   messages{0};
+    };
+    CalibrationBefore calibration_before() const
+    {
+        return {m_workspace_adapter().snapshot().session.value(), installed_shell()->agent_pane()->web_view().host().conversation().size()};
+    }
+    void check_untouched(const CalibrationBefore& before, const std::string& name)
+    {
+        check(m_workspace_adapter().snapshot().session.value() == before.session &&
+                  m_workspace_adapter().snapshot().setup.project_name == kCalibrationProject,
+              name + "_cancel_keeps_the_project");
+        check(installed_shell()->agent_pane()->web_view().host().conversation().size() == before.messages,
+              name + "_cancel_sends_nothing");
+    }
+    Workspace::IWorkspace& m_workspace_adapter() const { return *installed_shell()->workspace(); }
+
+    // A popup is on the screen only once the event loop has painted it.
+    void after_painting(const std::string& name, std::function<void()> then)
+    {
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, name, std::move(then));
+    }
+
+    void begin_calibration_capture()
+    {
+        // A saved printer, so Home has a card for it and the chip names it.
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(Printers::add_named_printer(*m_plater, kCalibrationPrinter, {}) == kCalibrationPrinter &&
+                  SetupCommands::select_named_printer(*m_plater, kCalibrationPrinter),
+              "calibration_printer_saved_and_selected");
+        m_plater->set_project_name(wxString::FromUTF8(kCalibrationProject));
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        installed_shell()->status_row()->refresh();
+        wxYield();
+#ifndef __APPLE__
+        // OrcaSlicer's own Calibration button stays out of the title bar
+        // while the shell is installed.
+        bool orca_calibration_found = false, orca_calibration_shown = false;
+        BBLTopbar* topbar = m_frame->topbar();
+        for (size_t index = 0; index < topbar->GetToolCount(); ++index)
+            if (wxAuiToolBarItem* item = topbar->FindToolByIndex(int(index)); item->GetLabel() == _L("Calibration")) {
+                orca_calibration_found = true;
+                orca_calibration_shown = item->GetSizerItem() != nullptr && item->GetSizerItem()->IsShown();
+            }
+        check(orca_calibration_found && !orca_calibration_shown, "calibration_orca_title_bar_button_hidden");
+#endif
+
+        calibration_from_symptom();
+    }
+
+    // A message from the Agent page, as the page sends it.
+    void send_page_message(const char* type, const std::string& id, nlohmann::json payload)
+    {
+        installed_shell()->agent_pane()->web_view().host().on_page_message(
+            nlohmann::json{{"protocol", Agent::Protocol::kName}, {"version", Agent::Protocol::kVersion}, {"id", id},
+                           {"type", type}, {"payload", std::move(payload)}}
+                .dump());
+    }
+    void send_person_text(const std::string& id, const std::string& text)
+    {
+        send_page_message(Agent::Protocol::kUserMessage, id,
+                          {{"clientMessageId", id + "-c"}, {"text", text}, {"attachmentIds", nlohmann::json::array()}});
+    }
+
+    // Board 2: a symptom typed into the project chat, answered with the two
+    // facts and a choice before any test is made. Its state first, as the
+    // board draws it: a chat of its own whose purpose and plan are recorded,
+    // on a sliced plate.
+    void calibration_from_symptom()
+    {
+        send_page_message(Agent::Protocol::kCreateConversation, "calibration-chat", nlohmann::json::object());
+        send_person_text("calibration-purpose", CalibrationAgent::kPurpose);
+        wait_until([this] { return assistant_reply_complete(CalibrationAgent::kPurposeReply); }, "calibration_purpose_recorded",
+                   [self = shared_from_this()] {
+            installed_shell()->status_row()->request_slice(false);
+            self->wait_until([self] {
+                const auto snapshot = self->m_workspace_adapter().snapshot();
+                return !self->m_plater->is_background_process_slicing() && !snapshot.plates.empty() && snapshot.plates.front().sliced;
+            }, "calibration_board_2_plate_sliced", [self] { self->calibration_symptom_turn(); });
+        });
+    }
+
+    void calibration_symptom_turn()
+    {
+        send_person_text("calibration-symptom", CalibrationAgent::kSymptom);
+        wait_until([this] { return assistant_reply_complete(CalibrationAgent::kSymptomReply); }, "calibration_symptom_answered",
+                   [self = shared_from_this()] {
+            self->check(self->m_workspace_adapter().snapshot().setup.project_name == kCalibrationProject,
+                        "calibration_symptom_makes_no_test");
+            self->capture_chat_pane("0-symptom-chat");
+            // The filament slot's row, cancelled.
+            installed_shell()->status_row()->open_filament_menu();
+            self->after_painting("calibration_filament_menu_painted", [self] { self->calibration_from_filament(); });
+        });
+    }
+
+    void calibration_from_filament()
+    {
+        HeaderMenu* menu = visible_header_menu();
+        auto* row = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(ui_name("Calibrate this filament…"), menu)) : nullptr;
+        check(row != nullptr && row->IsEnabled(), "calibration_filament_menu_has_the_row");
+        if (row == nullptr) {
+            finish();
+            return;
+        }
+        blit_screen(m_frame->GetScreenRect(), "1-filament-menu");
+        const CalibrationBefore before = calibration_before();
+        click_row(menu, row);
+        answer_page_dialog(installed_shell()->agent_pane()->web_view().webview(), "2-dialog-from-filament-cancelled", "Cancel",
+                           [self = shared_from_this(), before] {
+            const std::string filament = ui_text(SetupCommands::current_filament().alias);
+            self->check(self->m_dialog_seen.find(kCalibrationProject) != std::string::npos &&
+                            self->m_dialog_seen.find(filament) != std::string::npos &&
+                            self->m_dialog_seen.find("temporary") != std::string::npos,
+                        "calibration_dialog_says_the_project_closes_and_the_settings_are_temporary");
+            self->check_untouched(before, "calibration_filament");
+            self->calibration_from_home();
+        });
+    }
+
+    void calibration_from_home()
+    {
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        installed_shell()->home_view()->refresh();
+        const std::string kebab = std::string("document.querySelector('.printer-menu-button[aria-label=\"Actions for ") +
+                                  kCalibrationPrinter + "\"]')";
+        // The card is drawn once the page has the printers.
+        run_in_home_page("window.__calibrationCard = null; setTimeout(function(){ var b = " + kebab + "; if (b) { b.click(); "
+                         "window.__calibrationCard = 'open'; } }, 1500)");
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(3000);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "calibration_home_card_menu",
+                   [self = shared_from_this()] {
+            // The page's own picture: a screen copy shows whatever covers it.
+            self->capture_web_view(installed_shell()->home_view()->webview(), "3-home-card-menu");
+            const CalibrationBefore before = self->calibration_before();
+            self->run_in_home_page("Array.prototype.filter.call(document.querySelectorAll('.printer-menu [role=menuitem]'),"
+                                   " function (b) { return b.textContent === 'Calibrate…'; })[0].click()");
+            self->answer_page_dialog(installed_shell()->home_view()->webview(), "4-dialog-from-home-cancelled", "Cancel",
+                                     [self, before] {
+                // The card's printer only: which spool is in it is the person's
+                // to say, in the calibration project.
+                self->check(self->m_dialog_seen.rfind(std::string("Calibrate ") + kCalibrationPrinter + "? A new calibration project opens for " +
+                                                          kCalibrationPrinter + ", and the agent picks the spool", 0) == 0,
+                            "calibration_home_dialog_names_the_printer_and_no_filament");
+                self->check(installed_shell()->home_view()->IsShown(), "calibration_home_cancel_stays_on_home");
+                self->check_untouched(before, "calibration_home");
+                self->calibration_from_printer();
+            });
+        });
+    }
+
+    void calibration_from_printer()
+    {
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        wxYield();
+        installed_shell()->status_row()->open_printer_menu();
+        after_painting("calibration_printer_menu_painted", [self = shared_from_this()] { self->calibration_printer_row(); });
+    }
+
+    void calibration_printer_row()
+    {
+        HeaderMenu* menu = visible_header_menu();
+        auto* row = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(ui_name("Calibrate…"), menu)) : nullptr;
+        check(row != nullptr && row->IsEnabled(), "calibration_printer_menu_has_the_row");
+        if (row == nullptr) {
+            finish();
+            return;
+        }
+
+        const auto names = menu_row_names(menu);
+        const auto at    = std::find(names.begin(), names.end(), "Calibrate…");
+        check(at != names.end() && at != names.begin() && *(at - 1) == "Printer settings…",
+              "calibration_row_follows_printer_settings");
+        blit_screen(m_frame->GetScreenRect(), "5-printer-menu");
+        const std::string filament = ui_text(SetupCommands::current_filament().alias);
+        click_row(menu, row);
+        const std::size_t home_before = installed_shell()->autosave()->projects().value_or(std::vector<Workspace::ProjectAutosave::ManagedProject>{}).size();
+        answer_page_dialog(installed_shell()->agent_pane()->web_view().webview(), "6-dialog-from-printer-started", "Start",
+                           [self = shared_from_this(), filament, home_before] {
+            self->check(self->m_dialog_seen.rfind("Calibrate " + filament + " on " + kCalibrationPrinter + "? ", 0) == 0,
+                        "calibration_popup_names_the_filament_and_printer");
+            // On Start the app opens the calibration project and its chat
+            // with the handover line; the Agent's first turn asks which test.
+            self->wait_until([self] { return self->assistant_reply_complete(CalibrationAgent::kQuestion); },
+                             "calibration_project_asks_which_test", [self, home_before] {
+                const auto& document     = self->persistence().document();
+                const auto& conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                self->check(!conversation.empty() && conversation.front().role == Agent::MessageRole::Note &&
+                                conversation.front().text == std::string("From ") + kCalibrationProject +
+                                                                 " · Bambu PLA Basic on " + kCalibrationPrinter + " · temporary test settings",
+                            "calibration_project_opens_with_the_handover_line");
+                if (!conversation.empty()) std::cout << "HARNESS NOTE handover_line " << conversation.front().text << std::endl;
+                self->check(std::none_of(conversation.begin(), conversation.end(),
+                                         [](const auto& message) { return message.role == Agent::MessageRole::User; }),
+                            "calibration_row_posts_nothing_in_the_persons_voice");
+                self->check(self->m_workspace_adapter().snapshot().setup.project_name == CalibrationAgent::kTestProject,
+                            "calibration_project_is_named_for_what_it_calibrates");
+                const auto chats = document.conversations();
+                const auto chat  = std::find_if(chats.begin(), chats.end(),
+                                                [&document](const auto& info) { return info.id == document.active_conversation_id(); });
+                self->check(chat != chats.end() && chat->title == CalibrationAgent::kTestProject, "calibration_chat_takes_the_project_name");
+                self->capture_chat_pane("7-chat-asks-which-test");
+                self->blit_screen(self->m_frame->GetScreenRect(), "7-window");
+                const std::string project = document.project_id(), chat_id = document.active_conversation_id();
+                self->run_in_agent_page(
+                    "(function(){ var tries = 0; var timer = setInterval(function(){"
+                    "  var chips = Array.prototype.filter.call(document.querySelectorAll('.reply-chip'),"
+                    "                                          function (c) { return c.textContent === 'Temperature tower'; });"
+                    "  if (chips.length && !chips[0].disabled) { clearInterval(timer); chips[0].click(); }"
+                    "  else if (++tries > 100) clearInterval(timer);"
+                    "}, 100); })()");
+                self->wait_until([self] { return self->assistant_reply_complete(CalibrationAgent::kFirstMessage); },
+                                 "calibration_test_is_made_in_the_same_project", [self, project, chat_id, home_before] {
+                    const auto& document = self->persistence().document();
+                    // One project and one chat, before and after: no second
+                    // project reaches Home, and the name is kept.
+                    self->check(document.project_id() == project, "calibration_generate_keeps_the_project_identity");
+                    self->check(document.active_conversation_id() == chat_id, "calibration_generate_keeps_the_chat");
+                    const std::string name = self->m_workspace_adapter().snapshot().setup.project_name;
+                    self->check(name == CalibrationAgent::kTestProject, "calibration_generate_keeps_the_project_name");
+                    std::cout << "HARNESS NOTE project_name_after_generate " << name << " / home "
+                              << installed_shell()->autosave()->project_name() << std::endl;
+                    installed_shell()->autosave()->save_now();
+                    const auto projects = installed_shell()->autosave()->projects().value_or(std::vector<Workspace::ProjectAutosave::ManagedProject>{});
+                    self->check(projects.size() == home_before + 1, "calibration_leaves_one_project_on_home");
+                    std::cout << "HARNESS NOTE home_projects " << home_before << " -> " << projects.size() << std::endl;
+                    const auto plates = self->m_workspace_adapter().snapshot().plates;
+                    self->check(!plates.empty() && plates.front().calibration && plates.front().calibration->test == "temperature",
+                                "calibration_test_project_reports_its_steps");
+                    const auto activities = document.activities();
+                    self->check(std::any_of(activities.begin(), activities.end(),
+                                            [](const auto& activity) { return activity.tool == "calibration_generate"; }),
+                                "calibration_generate_is_recorded_in_the_chat_that_asked");
+                    self->capture_chat_pane("8-test-project-chat");
+                    self->blit_screen(self->m_frame->GetScreenRect(), "8-window");
+                    self->calibration_reads_the_photo();
+                });
+            });
+        });
+    }
+
+    // Board 5: the person sends the print's photo, and the Agent names the
+    // block and proposes the preset as a card; nothing is saved yet. Board 6:
+    // Save preset saves it, and the receipt starts the Agent's reply.
+    void calibration_reads_the_photo()
+    {
+        static const char kPhoto[] =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        send_page_message(Agent::Protocol::kAttachFile, "calibration-photo",
+                          {{"clientAttachmentId", "calibration-photo"}, {"name", "tower.png"}, {"source", "picker"},
+                           {"dataBase64", kPhoto}});
+        const auto photo = persistence().document().find_attachment_by_client_id("calibration-photo");
+        check(photo && photo->state != "error", "calibration_photo_attaches");
+        send_page_message(Agent::Protocol::kUserMessage, "calibration-photo-message",
+                          {{"clientMessageId", "calibration-photo-message-c"}, {"text", CalibrationAgent::kPhotoText},
+                           {"attachmentIds", nlohmann::json::array({photo ? photo->id : std::string()})}});
+        wait_until([this] { return assistant_reply_complete(CalibrationAgent::kReading); }, "calibration_agent_reads_the_photo",
+                   [self = shared_from_this()] {
+            const auto& activities = installed_shell()->agent_pane()->web_view().host().tools().activities();
+            const bool proposed = std::any_of(activities.begin(), activities.end(), [](const Agent::ToolActivity& activity) {
+                return activity.tool == "settings_preview_patch" && !activity.proposal_json.empty();
+            });
+            self->check(proposed, "calibration_result_is_proposed_as_a_card");
+            self->check(self->m_workspace_adapter().snapshot().setup.filament_preset != CalibrationAgent::kSavedPreset,
+                        "calibration_result_waits_for_save_preset");
+            self->capture_chat_pane("9-reading-the-tower");
+            self->blit_screen(self->m_frame->GetScreenRect(), "9-window");
+            self->run_in_agent_page(
+                "(function(){ var tries = 0; var timer = setInterval(function(){"
+                "  var save = document.querySelector('.proposal-card button.primary');"
+                "  if (save && !save.disabled) { clearInterval(timer); save.click(); }"
+                "  else if (++tries > 100) clearInterval(timer);"
+                "}, 100); })()");
+            self->wait_until([self] { return self->assistant_reply_complete(CalibrationAgent::kSavedReply); },
+                             "calibration_save_preset_saves", [self] {
+                self->check(self->m_workspace_adapter().snapshot().setup.filament_preset == CalibrationAgent::kSavedPreset,
+                            "calibration_saved_preset_is_in_use");
+                const auto& conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                self->check(std::any_of(conversation.begin(), conversation.end(),
+                                        [](const Agent::ConversationMessage& message) { return !message.receipt.empty(); }),
+                            "calibration_save_is_receipted");
+                self->capture_chat_pane("10-saved");
+                self->blit_screen(self->m_frame->GetScreenRect(), "10-window");
+                self->calibration_reopened_later();
+            });
+        });
+    }
+
+    // Board 7: the person goes back to Backpack hook, then reopens the test
+    // from Home. The steps are gone; the chat says so and offers to make it
+    // again. Then Undo on the receipt from before takes the save back.
+    void calibration_reopened_later()
+    {
+        const auto projects = installed_shell()->autosave()->projects().value_or(std::vector<Workspace::ProjectAutosave::ManagedProject>{});
+        const auto id_of    = [&projects](const std::string& name) {
+            const auto found = std::find_if(projects.begin(), projects.end(), [&name](const auto& project) { return project.name == name; });
+            return found == projects.end() ? std::string() : found->id;
+        };
+        const std::string hook = id_of(kCalibrationProject), test = id_of(CalibrationAgent::kTestProject);
+        check(!hook.empty() && !test.empty(), "calibration_projects_are_on_home");
+        installed_shell()->home_view()->backend().open_project(hook);
+        // A reopened project's name is the store's; Orca's own reads Untitled.
+        wait_until([] { return installed_shell()->autosave()->project_name() == kCalibrationProject; },
+                   "calibration_person_goes_back_to_their_project", [self = shared_from_this(), test] {
+            installed_shell()->home_view()->backend().open_project(test);
+            self->wait_until([self] {
+                for (const auto& message : installed_shell()->agent_pane()->web_view().host().conversation())
+                    if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete &&
+                        message.text.rfind(CalibrationAgent::kReopenedStart, 0) == 0)
+                        return true;
+                return false;
+            }, "calibration_reopened_test_offers_to_regenerate", [self] {
+                const auto& conversation = installed_shell()->agent_pane()->web_view().host().conversation();
+                const auto  note = std::find_if(conversation.begin(), conversation.end(), [](const Agent::ConversationMessage& message) {
+                    return message.role == Agent::MessageRole::Note && message.text.rfind("Opened from Home · generated ", 0) == 0;
+                });
+                self->check(note != conversation.end() && note->text.find(" · result 215 ") != std::string::npos,
+                            "calibration_reopened_test_opens_with_its_line");
+                if (note != conversation.end()) std::cout << "HARNESS NOTE reopened_line " << note->text << std::endl;
+                const auto plates = self->m_workspace_adapter().snapshot().plates;
+                self->check(std::none_of(plates.begin(), plates.end(), [](const auto& plate) { return plate.calibration.has_value(); }),
+                            "calibration_reopened_test_has_lost_its_steps");
+                self->capture_chat_pane("11-reopened");
+                self->blit_screen(self->m_frame->GetScreenRect(), "11-window");
+                self->calibration_undo();
+            });
+        });
+    }
+
+    void calibration_undo()
+    {
+        // Undo on the receipt takes the save back.
+        run_in_agent_page(
+            "(function(){ var tries = 0; var timer = setInterval(function(){"
+            "  var undo = document.querySelector('.printer-added-undo');"
+            "  if (undo && !undo.disabled) { clearInterval(timer); undo.click(); }"
+            "  else if (++tries > 100) clearInterval(timer);"
+            "}, 100); })()");
+        wait_until([this] { return assistant_reply_complete(CalibrationAgent::kUndoneReply); }, "calibration_undo_takes_the_save_back",
+                   [self = shared_from_this()] {
+            self->check(self->m_workspace_adapter().snapshot().setup.filament_preset != CalibrationAgent::kSavedPreset,
+                        "calibration_undo_switches_the_filament_back");
+            const auto presets = self->m_workspace_adapter().list_presets(
+                {Workspace::PresetKind::Filament, CalibrationAgent::kSavedPreset, false, 10, {}});
+            self->check(std::none_of(presets.items.begin(), presets.items.end(),
+                                     [](const auto& item) { return item.name == CalibrationAgent::kSavedPreset; }),
+                        "calibration_undo_deletes_the_copy");
+            self->capture_chat_pane("12-undone");
+            self->calibration_on_home();
+        });
+    }
+
+    // Board 8: the test is an ordinary project on Home, told apart by its
+    // name; its card reads "Saved" like every other.
+    void calibration_on_home()
+    {
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        wait_until([] { return installed_shell()->home_view()->IsShown(); }, "calibration_home_shows", [self = shared_from_this()] {
+            const auto projects = installed_shell()->home_view()->backend().recent_projects().projects;
+            const auto test     = std::find_if(projects.begin(), projects.end(),
+                                               [](const auto& project) { return project.name == CalibrationAgent::kTestProject; });
+            self->check(test != projects.end() && test->status_text == "Saved", "calibration_test_is_an_ordinary_project_on_home");
+            for (int settle = 0; settle < 20; ++settle) {
+                wxYield();
+                wxMilliSleep(50);
+            }
+            self->capture_web_view(installed_shell()->home_view()->webview(), "13-home");
+            self->finish();
+        });
+    }
+
+    void run_in_home_page(const std::string& script)
+    {
+        WebView::RunScript(installed_shell()->home_view()->webview(), wxString::FromUTF8(script));
+    }
+
+    std::string m_dialog_seen;
 
     bool assistant_reply_complete(const std::string& text)
     {
@@ -8708,7 +9377,9 @@ private:
         const std::string instructions = parsed.is_object() ? parsed.value("instructions", std::string()) : std::string();
         std::ifstream fixture_file(std::string(JUSPRIN_SOURCE_DIR) + "/src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
                                    std::ios::binary);
-        const std::string fixture((std::istreambuf_iterator<char>(fixture_file)), std::istreambuf_iterator<char>());
+        std::string fixture((std::istreambuf_iterator<char>(fixture_file)), std::istreambuf_iterator<char>());
+        // A Windows checkout has CRLF; the page sends the prompt with LF.
+        fixture.erase(std::remove(fixture.begin(), fixture.end(), '\r'), fixture.end());
         check(!fixture.empty(), "project_instructions_fixture_read");
         check(instructions == fixture, "project_request_carries_the_page_instructions");
         std::cerr << "HARNESS DETAIL project request instructions bytes=" << instructions.size()
@@ -10959,6 +11630,9 @@ void install_harness_agent(HarnessState::Mode mode)
     case HarnessState::Mode::ReplyChoicesCapture:
         host.set_agent(std::make_unique<ChoicesAgent>(), Agent::AgentAvailability::Ready);
         return;
+    case HarnessState::Mode::CalibrationCapture:
+        host.set_agent(std::make_unique<CalibrationAgent>(), Agent::AgentAvailability::Ready);
+        return;
     case HarnessState::Mode::PrintIssues:
     case HarnessState::Mode::ManualPrintIssues:
     case HarnessState::Mode::AutoSlice: {
@@ -11265,6 +11939,14 @@ int main(int argc, char** argv)
                 return 2;
             }
             state->mode = HarnessState::Mode::SetupDifferencesCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
+        else if (argument == "--calibration-capture") {
+            if (++index == argc) {
+                std::cerr << "--calibration-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode = HarnessState::Mode::CalibrationCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
         else if (argument == "--reply-choices-capture") {

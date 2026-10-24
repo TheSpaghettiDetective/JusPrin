@@ -21,6 +21,7 @@ import {
   SavedKeyInfo,
   SetupKeysPayload,
   SetupStatusPayload,
+  ConfirmPayload,
   StatePayload,
   ToolActivityInfo,
   WireMessage,
@@ -91,6 +92,9 @@ export interface AgentUiState {
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
+  // The host's open question, until the person answers it; a newer one
+  // replaces it.
+  confirmation: ConfirmPayload | null;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
   needsResync: boolean;
@@ -131,6 +135,7 @@ export const initialState: AgentUiState = {
   preferences: null,
   navigation: { focused: false },
   settingsCatalog: null,
+  confirmation: null,
   needsResync: false,
   diagnostics: [],
 };
@@ -138,7 +143,8 @@ export const initialState: AgentUiState = {
 export type Action =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
   | { kind: 'host'; envelope: Envelope }
-  | { kind: 'resync-requested' };
+  | { kind: 'resync-requested' }
+  | { kind: 'confirmation-answered' };
 
 function fromWire(message: WireMessage): Message {
   return { ...message, lastSeq: -1 };
@@ -162,6 +168,8 @@ export function reducer(state: AgentUiState, action: Action): AgentUiState {
       return { ...state, connection: action.state, connectionDetail: action.detail };
     case 'resync-requested':
       return { ...state, needsResync: false };
+    case 'confirmation-answered':
+      return { ...state, confirmation: null };
     case 'host':
       return applyHostEnvelope(state, action.envelope);
   }
@@ -243,6 +251,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, agentStatus: payload.status as AgentStatus };
     case 'setup_status':
       return { ...state, setup: envelope.payload as SetupStatusPayload };
+    case 'confirm':
+      return { ...state, confirmation: envelope.payload as ConfirmPayload };
     case 'setup_keys':
       return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
     case 'model_catalog':

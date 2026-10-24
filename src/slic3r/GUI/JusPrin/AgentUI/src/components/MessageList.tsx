@@ -29,6 +29,7 @@ import { TurnActivity } from './TurnActivity';
 import { collapseWork, WorkCard } from './WorkCard';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
 import { PrinterBlockView } from './PrinterPanel';
+import { ProposalCard } from './ProposalCard';
 import { openChoices, splitChoices, withoutPartialChoices } from '../replyChoices';
 
 interface Props {
@@ -46,6 +47,10 @@ interface Props {
   onRevert?: (versionId: string) => void;
   onRetry: (messageId: string) => void;
   onToolCancel: (actionId: string) => void;
+  // Save preset on a proposal card, by the preview's action id.
+  onSaveProposal?: (actionId: string) => void;
+  // Undo on a saved preset's receipt, by the receipt note's id.
+  onUndoReceipt?: (messageId: string) => void;
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
   replyDisabled?: boolean;
@@ -155,6 +160,8 @@ export function MessageList({
   onRevert,
   onRetry,
   onToolCancel,
+  onSaveProposal,
+  onUndoReceipt,
   onSend,
   replyDisabled = false,
   readOnly = false,
@@ -210,7 +217,14 @@ export function MessageList({
       turnOfItem.set(message.id, turn.anchor.id);
       for (const activity of activitiesOf(message.id)) turnOfItem.set(activity.actionId, turn.anchor.id);
     }
-  const changesAfter = (turnId: string) => changes.filter((change) => turnOfItem.get(change.afterId) === turnId);
+  // A save the person approved, and its Undo, change the setup; the receipt
+  // says so, and draws in place of the change rows.
+  const receipted = new Set([
+    ...toolActivities.filter((activity) => activity.approves).map((activity) => activity.actionId),
+    ...messages.filter((message) => message.receipt).map((message) => message.id),
+  ]);
+  const changesAfter = (turnId: string) =>
+    changes.filter((change) => turnOfItem.get(change.afterId) === turnId && !receipted.has(change.afterId));
   const leadingChanges = changes.filter((change) => !turnOfItem.has(change.afterId));
   // Work keeps the place it started at: after the item that was last then,
   // so a message that arrived later reads below it.
@@ -232,16 +246,49 @@ export function MessageList({
   // say. A file's load report is for the model: the person sees it only
   // when the Agent could not speak about it, as the card of what OrcaSlicer
   // said.
-  const bubble = (message: Message): ReactNode => {
+  const bubble = (message: Message, after?: ReactNode): ReactNode => {
     if (message.role === 'note' && message.fileReport)
       return message.fileReportCard ? <FileNotesCard report={message.fileReport} /> : null;
+    // Chat/Receipt: a preset the person saved from a proposal, in the same
+    // words every time, from what the app saved. Undo takes the save back,
+    // and the receipt stays to say so, as an added printer's does.
+    if (message.role === 'note' && message.receipt) {
+      const receipt = message.receipt;
+      const removed = receipt.undone && receipt.undo?.newCopy;
+      return (
+        <div className={receipt.undone ? 'printer-added printer-added-removed' : 'printer-added'} role="status">
+          <span className="printer-notice-heading">
+            <span className={`jp-icon jp-icon-${receipt.undone ? 'rotate-ccw' : 'check'}`} aria-hidden="true" />
+            <span className="printer-added-caption">
+              {removed ? 'Removed:' : receipt.undone ? 'Undone:' : 'Saved:'} <span className="printer-added-name">{receipt.name}</span>
+            </span>
+          </span>
+          {receipt.undone ? (
+            <span className="printer-notice-body">
+              {removed ? `Deleted from your filaments. This test uses ${receipt.undo!.label} again.` : 'Its earlier values are back.'}
+            </span>
+          ) : (
+            <span className="printer-added-detail">
+              <small>{receipt.detail}</small>
+              {receipt.undo && onUndoReceipt && !readOnly && (
+                <button type="button" className="panel-link-button printer-added-undo" disabled={replyDisabled}
+                  onClick={() => onUndoReceipt(message.id)}>
+                  Undo
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+      );
+    }
     if (message.role === 'note')
       return (
         <div className="message note" role="status">
           {/* The colour a change landed on, drawn and never named: the
               app holds a colour as a value, not a word. */}
           {message.swatch && <span className="note-swatch" style={{ background: message.swatch }} aria-hidden="true" />}
-          {message.text}
+          {/* One line; the whole of it stays in the tooltip. */}
+          <span className="note-text" title={message.text}>{message.text}</span>
         </div>
       );
     // In the printer panel a photo is how the person says which printer
@@ -321,6 +368,7 @@ export function MessageList({
               ))}
             </div>
           )}
+          {after}
           {message.state === 'failed' && message.error && (
             <div className="message-failure">
               <div className="error">{message.error.message}</div>
@@ -342,6 +390,20 @@ export function MessageList({
       return <ToolActivityCard key={activity.actionId} activity={activity} onCancel={onToolCancel} readOnly={readOnly} />;
     });
 
+  // The proposal cards of a turn's previews, drawn in its last reply with
+  // words, the way the board draws them in the Agent's bubble. A message of
+  // the person's after the preview answered the card another way.
+  const messageIndex = new Map(messages.map((message, index) => [message.id, index]));
+  const answeredAfter = (messageId: string) =>
+    messages.slice((messageIndex.get(messageId) ?? messages.length) + 1).some((message) => message.role === 'user');
+  const proposalCards = (activities: ToolActivityInfo[]) =>
+    activities.filter((activity) => activity.proposal).map((preview) => (
+      <ProposalCard key={preview.actionId} preview={preview}
+        save={toolActivities.filter((activity) => activity.approves === preview.actionId).pop()}
+        closed={answeredAfter(preview.correlationId)} disabled={replyDisabled || readOnly}
+        onSave={(actionId) => onSaveProposal?.(actionId)} onSend={onSend} />
+    ));
+
   return (
     <div className="message-list" role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
@@ -349,7 +411,11 @@ export function MessageList({
         onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
       {turns.map((turn) => {
         const turnMessages = messagesOf(turn);
-        const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id));
+        // A save the person approved is theirs, receipted by its note, not
+        // part of the Agent's work.
+        const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id)).filter((activity) => !activity.approves);
+        const proposals = printerPanel ? [] : proposalCards(turnActivities);
+        const proposalHost = [...turn.replies].reverse().find((reply) => reply.role === 'assistant' && reply.text);
         const working = turnMessages.some((message) => message.id === streamingMessageId);
         const last = turnMessages[turnMessages.length - 1];
         // The project chat's turn: the person's words, the line for the
@@ -368,10 +434,11 @@ export function MessageList({
               )}
               {turn.replies.map((reply) => (
                 <Fragment key={reply.id}>
-                  {bubble(reply)}
+                  {bubble(reply, reply === proposalHost && proposals.length > 0 ? proposals : undefined)}
                   {printerPanel && activityCards(reply)}
                 </Fragment>
               ))}
+              {!proposalHost && proposals}
             </div>
             {turnMessages.map((message) => printerBlockViews(message.id))}
             <TimelineBlocks blocks={timeline(historyAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}

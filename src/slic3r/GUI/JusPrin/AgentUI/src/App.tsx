@@ -488,6 +488,12 @@ export function App({
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
   const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
+  // The host's question, answered once: Escape and Cancel say no.
+  const answerConfirmation = (confirmed: boolean) => {
+    if (!state.confirmation) return;
+    client.send('shell_action', { action: 'confirm_answer', requestId: state.confirmation.requestId, confirmed });
+    dispatch({ kind: 'confirmation-answered' });
+  };
 
   const errorNotice = commandError && <div className="chat-error" role="alert">
     <span>{commandError}</span><button className="icon" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCommandError(null)}><span className="jp-icon jp-icon-close" aria-hidden="true" /></button>
@@ -526,6 +532,8 @@ export function App({
           onRevert={(versionId) => client.send('shell_action', { action: 'revert_to_here', versionId })}
           onRetry={(messageId) => client.send('retry_message', { messageId, conversationId: viewedId })}
           onToolCancel={sendToolCancel}
+          onSaveProposal={(actionId) => client.send('save_proposal', { actionId })}
+          onUndoReceipt={(messageId) => client.send('undo_receipt', { messageId })}
           onSend={sendMessage}
           replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
           readOnly={historical || state.projectChatBlocked}
@@ -727,6 +735,13 @@ export function App({
               conversationId: viewedId, activeConversationId: state.activeConversationId, docRevision: state.docRevision,
             });
           }}>Restore and resume</button>
+        </div>
+      </Dialog>}
+      {state.confirmation && <Dialog className="confirmation" title={state.confirmation.title} onClose={() => answerConfirmation(false)}>
+        <p>{state.confirmation.body}</p>
+        <div className="chat-dialog-buttons">
+          <button type="button" onClick={() => answerConfirmation(false)}>{state.confirmation.cancel}</button>
+          <button type="button" className="primary" onClick={() => answerConfirmation(true)}>{state.confirmation.confirm}</button>
         </div>
       </Dialog>}
       </div>

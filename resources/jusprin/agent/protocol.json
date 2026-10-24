@@ -27,6 +27,7 @@
     "model_choice",
     "all_settings",
     "settings_actions",
+    "proposals",
     "saved_keys",
     "preferences"
   ],
@@ -63,6 +64,8 @@
     "skills",
     "settings_catalog_request",
     "settings_action",
+    "save_proposal",
+    "undo_receipt",
     "setup_remove_key",
     "preferences_action"
   ],
@@ -93,6 +96,7 @@
     "chat_model",
     "printer_session",
     "settings_catalog",
+    "confirm",
     "setup_keys",
     "preferences"
   ]

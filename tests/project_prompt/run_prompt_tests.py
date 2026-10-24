@@ -53,7 +53,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 22 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 26 cases,
 never more than MAX_RUNS for one case.
 
 Exit code 0 when every case passes at least --must-pass of its runs (default:
@@ -109,13 +109,13 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # responses of reads answered in one run
-RUN_BUDGET = 66
+RUN_BUDGET = 78
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
 READS = {"workspace_inspect", "settings_search", "settings_get", "settings_preview_patch", "presets_list", "printer_list",
          "printer_setup_preview", "slice_report", "slice_inspect", "view_render", "object_analyze",
-         "object_divide_preview", "project_attachment_read"}
+         "object_divide_preview", "project_attachment_read", "skill_read"}
 # ProviderAgent::next_call's kRejectedCallLimit: refused calls answered in one
 # turn; the next one fails the turn (malformed_tool_call).
 REFUSAL_LIMIT = 2
@@ -870,12 +870,75 @@ class SliceRefusedThenReady(SliceRefused):
     name = "slice-refused-then-ready"
 
 
+class CalibrationSymptom(Case):
+    """"My prints in this PLA come out with lots of thin strings between the
+    parts, and the overhangs look droopy." on the "single" fixture, with no
+    history. The calibration skill (skills/calibration/SKILL.md), which the
+    model reads with skill_read: "Say two things in your own words and get a
+    reply before calling calibration_generate: the open project will be saved
+    to its version history and closed, and the test opens as a project of its
+    own; the test changes settings only for itself, and nothing is saved to a
+    preset until the person chooses. End with a Choices line". The person
+    sees every message of the turn, and models often say the facts before a
+    last read, so the judge reads the turn's messages together. Passes on a
+    turn the judge reads as offering a test with both facts and ending by
+    asking the person to choose; fails on calibration_generate or any other
+    change, or a turn that does not."""
+
+    name = "calibration-symptom"
+
+    def check(self, step):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        yes, why = self.judged(step, "Taking together every assistant message after the person's message, does the "
+                                     "assistant offer to make a calibration test, say that the open project will be "
+                                     "saved and closed and the test opens as a project of its own, say that the test "
+                                     "changes settings only for itself and nothing is saved to a preset until the "
+                                     "person chooses, and does its last message end by asking the person to choose?")
+        return (PASS, str(step)) if yes else (FAIL, "NOT THE TWO FACTS AND A CHOICE: " + why)
+
+
+# The copy a calibration result is saved as: "<filament preset> · <printer>
+# calibrated", the printer as the person named it ("my X1 Carbon").
+CALIBRATED_COPY = re.compile(r"^Bambu PLA Basic( @BBL X1C)? · (Bambu Lab )?X1 Carbon calibrated$")
+
+
+class CalibrationResult(Case):
+    """The person made a temperature tower from Bambu PLA Basic (230 to 190
+    °C) in an earlier turn, which opened its own project; in that project's
+    chat the model read the calibration skill and recorded the test as the
+    purpose. The person pressed Slice, printed it and describes it in words,
+    since the pinned hosts refuse a picture: 215 is the coolest block that
+    bridges cleanly. The calibration skill: "Then propose one write:
+    settings_preview_patch on the filament preset in use, with persistAs,
+    then settings_apply_patch with what the preview showed. The name: when
+    the preset in use comes with the app, save a copy named "<filament
+    preset> · <printer> calibrated", with the printer named as the person
+    named it". Passes on a filament preview setting nozzle_temperature to
+    215 with persistAs in that form (CALIBRATED_COPY); fails on any other
+    preview, any change, or a reply without the preview. The apply after
+    the preview is after-preview's to judge: a preview is not answered."""
+
+    name = "calibration-result"
+
+    def check(self, step):
+        if step.tool == "settings_preview_patch":
+            changes = step.arguments.get("changes") or {}
+            name = str(step.arguments.get("persistAs", ""))
+            if step.arguments.get("scope") == "filament" and str(changes.get("nozzle_temperature")) == "215" and                     CALIBRATED_COPY.match(name):
+                return PASS, str(step)
+            return FAIL, "NOT THE RESULT AS A CALIBRATED COPY: " + str(step)
+        if step.reads():
+            return CONTINUE, str(step)
+        return FAIL, ("CHANGED: " if step.tool else "NO PREVIEW: ") + str(step)
+
+
 CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterIntent, AfterPreview, AfterApply, AfterSlice, IssueFix,
     IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
     FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
-    ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady)}
+    ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady, CalibrationSymptom, CalibrationResult)}
 assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
 
 
@@ -909,6 +972,7 @@ def recorded_answer(name, step):
     - object_analyze: the recording for that object and session, with every
       include but measure, whichever the model named; not with measure or
       candidates;
+    - skill_read: the recording of the same skill;
     - view_render: the recording of the same plate (none named: the active
       plate) and view (iso when none is named), whatever size the model
       asked for. The recording keeps the result's text only: the pinned hosts
@@ -918,6 +982,8 @@ def recorded_answer(name, step):
     arguments = step.arguments
     if step.tool in ("workspace_inspect", "printer_list"):
         return answers[0]["output"] if answers else None
+    if step.tool == "skill_read":
+        return next((answer["output"] for answer in answers if answer["arguments"] == arguments), None)
     if step.tool == "object_analyze":
         if "measure" in arguments.get("include", []) or "candidates" in arguments or "measure" in arguments:
             return None

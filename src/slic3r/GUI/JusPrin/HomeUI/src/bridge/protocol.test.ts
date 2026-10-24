@@ -25,9 +25,11 @@ describe('protocol constants come from the shared file', () => {
       'launch_monitor',
       'add_printer',
       'connect_printer',
+      'calibrate_printer',
       'open_printer_settings',
       'rename_printer',
       'remove_printer',
+      'confirm_answer',
       'open_preferences',
     ];
     const host: HostMessageType[] = [
@@ -39,6 +41,7 @@ describe('protocol constants come from the shared file', () => {
       'appearance',
       'printer_error',
       'bridge_error',
+      'confirm',
     ];
     expect([...page].sort()).toEqual([...protocolJson.pageMessageTypes].sort());
     expect([...host].sort()).toEqual([...protocolJson.hostMessageTypes].sort());

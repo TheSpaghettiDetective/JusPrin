@@ -31,8 +31,8 @@ inline const std::vector<std::string>& capabilities()
                                                  "mcp_setup", "system_notes", "reveal_path", "change_log",
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
-                                                 "model_choice", "all_settings", "settings_actions", "saved_keys",
-                                                 "preferences"};
+                                                 "model_choice", "all_settings", "settings_actions", "proposals",
+                                                 "saved_keys", "preferences"};
     return values;
 }
 
@@ -87,6 +87,14 @@ inline constexpr const char* kSettingsCatalogRequest = "settings_catalog_request
 // comes back as bridge_error. Added additively; the settings_actions
 // capability advertises it.
 inline constexpr const char* kSettingsAction         = "settings_action";
+// The person's Save preset on the card a settings preview proposed:
+// {actionId}, the preview's. The host applies exactly what the preview
+// showed; a refusal comes back as bridge_error, and the save's receipt as a
+// note. Added additively; the proposals capability advertises it.
+inline constexpr const char* kSaveProposal           = "save_proposal";
+// Undo on the receipt of such a save: {messageId}, the receipt note's. The
+// receipt then says what Undo did; a refusal comes back as bridge_error.
+inline constexpr const char* kUndoReceipt            = "undo_receipt";
 
 // Messages the host sends to the page.
 inline constexpr const char* kHelloAck           = "hello_ack";
@@ -126,6 +134,11 @@ inline constexpr const char* kChatModel          = "chat_model";
 // settings under OrcaSlicer's tab pages, each plate's own settings and each
 // object's customizations. all_settings capability.
 inline constexpr const char* kSettingsCatalog    = "settings_catalog";
+// A question before an action the person cannot take back, which the page
+// draws as the design system's Confirmation dialog: {requestId, title, body,
+// confirm, cancel}. The answer comes back as a shell_action confirm_answer
+// with the same requestId.
+inline constexpr const char* kConfirm            = "confirm";
 // The printer panel's own: what its surface shows above and inside the
 // thread, a tap on one of the cards it draws there, and the model's
 // instructions, which the page writes.
@@ -175,6 +188,11 @@ inline constexpr const char* kPrintIssues  = "print_issues";
 // as checked and fires nothing), or the person restored an earlier version
 // while one is recorded.
 inline constexpr const char* kSetupChanged = "setup_changed";
+// A calibration project's chat opened with its handover (the app's note of
+// where it was started from, for which filament and printer): fired on the
+// turn that note starts, so the model has the calibration skill without
+// choosing it.
+inline constexpr const char* kCalibrationStarted = "calibration_started";
 } // namespace SkillTrigger
 
 } // namespace Protocol
@@ -215,6 +233,13 @@ struct ConversationMessage
     // draws it only as a card, when the Agent could not speak about it.
     std::string               file_report;
     bool                      file_report_card{false};
+    // Notes: the receipt for a preset the person saved from a proposal (JSON
+    // {name, detail, actionId, undo?, undone?}), which the page draws in
+    // place of the text; the text tells the model.
+    std::string               receipt;
+    // Notes: what the model reads in place of the text, when the line the
+    // page draws says less than the model needs.
+    std::string               for_model;
     // User messages sent from a print-issue bubble: the issue, its target and
     // the freshness of the evidence (JSON), which the model reads beside the
     // text and the page does not draw.

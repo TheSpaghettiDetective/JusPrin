@@ -64,6 +64,13 @@ public:
     // Orca emits project-boundary events while loading a historical model.
     // The caller restores the existing managed identity when the load ends.
     void during_managed_restore(const std::function<void()>& operation);
+    // An OrcaSlicer calibration generator starts its own new project; run
+    // here, the project boundary it makes continues this project instead: the
+    // document (identity, chats, setup) is kept, nothing is told it was
+    // replaced, and version history goes on in the same store. Armed for the
+    // operation only, and a boundary still parked when it returns is settled
+    // first, so no later boundary is taken for this one.
+    void continuing_project(const std::function<void()>& operation);
 
     ProjectStateDocument&       document() { return m_document; }
     const ProjectStateDocument& document() const { return m_document; }
@@ -155,6 +162,7 @@ private:
     bool        m_attached{false};
     bool        m_boundary_pending{false};
     bool        m_managed_restore_active{false};
+    bool        m_continuing_project{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

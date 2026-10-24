@@ -5,7 +5,9 @@
 
 #include <memory>
 #include <set>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Workspace;
 
@@ -667,4 +669,79 @@ TEST_CASE("A guessed setting name with the right words suggests the real one fir
     definitions[2].writable = true;
     CHECK(setting_suggestions("support_build_plate_only", definitions).front() == "support_on_build_plate_only");
     CHECK(setting_suggestions("support_enable", definitions).front() == "enable_support");
+}
+
+TEST_CASE("A calibration test takes the values its OrcaSlicer dialog takes", "[workspace][calibration]")
+{
+    CalibrationRequest temperature;
+    temperature.test  = CalibrationTest::Temperature;
+    temperature.start = 250;
+    temperature.end   = 230;
+    CHECK(calibration_request_problem(temperature).empty());
+    // Temp_Calibration_Dlg: start at most 500, end at least 155, start at
+    // least 5 hotter; the tower's blocks are 5 °C apart.
+    for (const auto& [start, end] : std::vector<std::pair<double, double>>{{505, 230}, {250, 150}, {230, 230}, {232, 212}}) {
+        CalibrationRequest refused = temperature;
+        refused.start = start;
+        refused.end   = end;
+        CHECK_FALSE(calibration_request_problem(refused).empty());
+    }
+    CalibrationRequest stepped = temperature;
+    stepped.step = 5;
+    CHECK_FALSE(calibration_request_problem(stepped).empty());
+    CalibrationRequest open_ended = temperature;
+    open_ended.end.reset();
+    CHECK_FALSE(calibration_request_problem(open_ended).empty());
+
+    // PA_Calibration_Dlg::reset_params, per method and extruder.
+    CalibrationRequest pressure;
+    pressure.test = CalibrationTest::PressureAdvance;
+    CHECK(calibration_request_problem(pressure).empty());
+    const auto filled = [&pressure](PressureAdvanceMethod method, bool bowden) {
+        CalibrationRequest request = pressure;
+        request.method = method;
+        request.bowden = bowden;
+        const CalibrationRequest result = with_dialog_defaults(request);
+        return std::vector<double>{*result.start, *result.end, *result.step};
+    };
+    CHECK(filled(PressureAdvanceMethod::Tower, false) == std::vector<double>{0., 0.1, 0.002});
+    CHECK(filled(PressureAdvanceMethod::Line, false) == std::vector<double>{0., 0.1, 0.002});
+    CHECK(filled(PressureAdvanceMethod::Pattern, false) == std::vector<double>{0., 0.08, 0.005});
+    CHECK(filled(PressureAdvanceMethod::Tower, true) == std::vector<double>{0., 1., 0.02});
+    CHECK(filled(PressureAdvanceMethod::Pattern, true) == std::vector<double>{0., 1., 0.05});
+    CalibrationRequest given = pressure;
+    given.end = 0.06;
+    CHECK(*with_dialog_defaults(given).end == 0.06);
+    // PA_Calibration_Dlg::on_start: start >= 0, step >= 0.001, end >= start + step.
+    for (const auto& [start, end, step] : std::vector<std::tuple<double, double, double>>{{-0.01, 0.1, 0.002}, {0, 0.1, 0.0005}, {0.05, 0.051, 0.002}}) {
+        CalibrationRequest refused = pressure;
+        refused.start = start;
+        refused.end   = end;
+        refused.step  = step;
+        CHECK_FALSE(calibration_request_problem(refused).empty());
+    }
+
+    CalibrationRequest flow;
+    flow.test = CalibrationTest::Flow;
+    CHECK(calibration_request_problem(flow).empty());
+    flow.flow_pass = 3;
+    CHECK_FALSE(calibration_request_problem(flow).empty());
+    flow.flow_pass = 2;
+    flow.start     = 0.95;
+    CHECK_FALSE(calibration_request_problem(flow).empty());
+}
+
+TEST_CASE("A refused calibration test closes nothing", "[workspace][calibration]")
+{
+    FakeWorkspace workspace(sample_workspace());
+    const ProjectSessionId session = workspace.snapshot().session;
+    CalibrationRequest refused;
+    refused.test  = CalibrationTest::Temperature;
+    refused.start = 230;
+    refused.end   = 250;
+    CalibrationResult made;
+    const CommandResult result = workspace.generate_calibration(refused, made);
+    CHECK(result.error == WorkspaceError::InvalidArgument);
+    CHECK(workspace.snapshot().session == session);
+    CHECK(workspace.calibrations == 0);
 }

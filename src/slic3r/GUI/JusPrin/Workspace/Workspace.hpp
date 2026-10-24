@@ -1,10 +1,12 @@
 #pragma once
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -182,6 +184,18 @@ struct SliceWarnings
     std::uint64_t           sequence{0};
 };
 
+// The per-layer steps of an OrcaSlicer calibration test that a plate's print
+// applies when it slices (Print::calib_params). Orca keeps them in memory
+// only: a test saved and reopened has none, and Orca drops them whenever a
+// file is loaded into the project. A flow test's tiles carry their own ratios
+// and need none.
+struct CalibrationSteps
+{
+    std::string test;   // temperature, pressure_advance, or other for Orca's other tests
+    std::string method; // pressure advance: tower, line or pattern
+    double      start{0}, end{0}, step{0};
+};
+
 struct WorkspacePlate
 {
     PlateId                      id;
@@ -207,6 +221,7 @@ struct WorkspacePlate
     // ("Textured PEI Plate"): its own choice, else the project's. Empty when
     // neither names one.
     std::string                  bed_type;
+    std::optional<CalibrationSteps> calibration;
 };
 
 // One process setting whose value in force differs from the preset it came
@@ -779,6 +794,7 @@ struct ProjectOpenRequest
 {
     std::string path; // absolute, UTF-8; empty with new_project
     bool        new_project{false};
+    std::string name; // new_project: the new project's name; empty is Orca's Untitled
     bool        load_project_settings{true};
     UnitChoice  units{UnitChoice::Keep};
 };
@@ -881,6 +897,89 @@ struct LoadReport
                 return true;
         return false;
     }
+};
+
+// One of OrcaSlicer's calibration tests, generated as a project of its own:
+// Orca's generators replace the open project and edit the project-wide
+// presets, so a test cannot live on a plate of another project. The
+// parameters are the ones Orca's own dialogs take.
+enum class CalibrationTest : std::uint8_t { Temperature, Flow, PressureAdvance };
+enum class PressureAdvanceMethod : std::uint8_t { Tower, Line, Pattern };
+
+struct CalibrationRequest
+{
+    CalibrationTest       test{CalibrationTest::Temperature};
+    // Temperature: start is the bottom block's, the hotter one. Pressure
+    // advance: unset takes the dialog's defaults for the method and extruder.
+    std::optional<double> start, end, step;
+    PressureAdvanceMethod method{PressureAdvanceMethod::Tower};
+    bool                  bowden{false};
+    int                   flow_pass{1};
+    bool                  flow_linear{true}; // Orca's "YOLO" tests
+};
+
+// The tower's blocks are labelled in 5 °C steps and the G-code rounds each
+// layer's temperature to one (GCode::interpolate_value_across_layers).
+inline constexpr int kTemperatureTowerStep = 5;
+
+// The values Orca's pressure-advance dialog fills in for whatever the request
+// leaves unset (PA_Calibration_Dlg::reset_params).
+inline CalibrationRequest with_dialog_defaults(CalibrationRequest request)
+{
+    if (request.test != CalibrationTest::PressureAdvance)
+        return request;
+    const bool pattern = request.method == PressureAdvanceMethod::Pattern;
+    if (!request.start) request.start = 0.;
+    if (!request.end) request.end = request.bowden ? 1. : pattern ? 0.08 : 0.1;
+    if (!request.step) request.step = request.bowden ? (pattern ? 0.05 : 0.02) : (pattern ? 0.005 : 0.002);
+    return request;
+}
+
+// Why Orca's dialog would refuse these values, in its terms; empty when it
+// would start the test. The caller checks this before the open project is
+// released, so a refused test closes nothing.
+inline std::string calibration_request_problem(const CalibrationRequest& request)
+{
+    switch (request.test) {
+    case CalibrationTest::Temperature: {
+        // Temp_Calibration_Dlg::on_start, plus the tower's own 5 °C blocks:
+        // a range off them prints labels that do not match the temperatures.
+        if (!request.start || !request.end || request.step)
+            return "The temperature test takes start and end, in °C; its blocks are 5 °C apart.";
+        const double start = *request.start, end = *request.end;
+        if (start > 500 || end < 155 || end > start - kTemperatureTowerStep)
+            return "Start must be at most 500 °C, end at least 155 °C, and start at least 5 °C hotter than end.";
+        if (std::fmod(start, kTemperatureTowerStep) != 0. || std::fmod(end, kTemperatureTowerStep) != 0.)
+            return "The tower's blocks are 5 °C apart: give start and end as multiples of 5.";
+        return {};
+    }
+    case CalibrationTest::PressureAdvance: {
+        // PA_Calibration_Dlg::on_start.
+        const CalibrationRequest filled = with_dialog_defaults(request);
+        if (*filled.start < 0. || *filled.step < 0.001 || *filled.end < *filled.start + *filled.step)
+            return "Start must be at least 0, step at least 0.001, and end at least start plus step.";
+        return {};
+    }
+    case CalibrationTest::Flow:
+        if (request.start || request.end || request.step)
+            return "The flow test takes pass and linear, not a range.";
+        if (request.flow_pass != 1 && request.flow_pass != 2)
+            return "The flow test has pass 1 and pass 2.";
+        return {};
+    }
+    throw std::logic_error("calibration test has no dialog rules");
+}
+
+// What the generator made, read back from Orca rather than restated from the
+// request: the test's range is what the plate's print will apply per layer.
+struct CalibrationResult
+{
+    std::string           project_name;
+    PlateId               plate;
+    std::vector<ObjectId> objects;
+    std::vector<std::string> object_names; // one per object; the flow tiles are named for their change
+    std::optional<double> start, end, step; // absent for flow, whose tiles carry their own ratios
+    std::vector<OrcaMessage> messages;      // what Orca said while generating, answered least-change
 };
 
 inline constexpr std::size_t kReportedObjectLimit = 32;
@@ -1693,7 +1792,23 @@ struct SettingsPatch
     // another creates a copy, as Orca's Save does. Not for an object.
     std::optional<std::string> persist_as;
 };
-struct SettingChange { std::string key, before, after; };
+// Undo on the receipt of a filament preset the person saved as a copy
+// (board 6): the project's filament slots that use `name` take
+// `replacement`, the preset it was made from, again, and `name`, a preset of
+// the person's own, is deleted as OrcaSlicer deletes one.
+struct PresetRemoval
+{
+    std::string name, replacement;
+};
+
+struct SettingChange
+{
+    std::string key, before, after;
+    // A preview of a process, filament or printer preset: the value saved in
+    // the preset, which a change being saved reads against (before is the
+    // value in force, with any unsaved edit). Absent for an object.
+    std::optional<std::string> saved;
+};
 struct SettingsPreview
 {
     bool valid{false};
@@ -1892,6 +2007,7 @@ public:
     virtual SettingsPreview preview_settings(const SettingsPatch& patch) const = 0;
     virtual CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                          SettingsPreview& applied) = 0;
+    virtual CommandResult remove_filament_preset(const PresetRemoval& removal) = 0;
     // Every setting in force, for the All settings panel. Read-only, like
     // read_settings, and read fresh from Orca on every call.
     virtual SettingsCatalog settings_catalog() const = 0;
@@ -1926,6 +2042,12 @@ public:
     virtual CommandResult cancel_slice(bool& stopped) = 0;
     virtual CommandResult cancel_job(const std::string& handle, bool& stopped) = 0;
     virtual CommandResult open_project(const ProjectOpenRequest& request, LoadReport& report) = 0;
+    // Replaces the open project the way open_project does (saved to its
+    // version history first, unsaved preset edits then dropped) with one of
+    // Orca's calibration tests. The test's edits to the presets stay
+    // unsaved. A request calibration_request_problem refuses is refused
+    // before anything is closed.
+    virtual CommandResult generate_calibration(const CalibrationRequest& request, CalibrationResult& result) = 0;
 
     // Imports a model or project file's geometry into the CURRENT project,
     // adding objects rather than replacing the project. It is a single

@@ -18,6 +18,67 @@
     "type": "function"
   },
   {
+    "description": "Make one of OrcaSlicer's calibration tests in a calibration project of its own: temperature, a tower of blocks from start °C at the bottom to end °C at the top, 5 °C apart (start hotter than end, both multiples of 5); flow, OrcaSlicer's flow-ratio tiles (pass 1 or 2, default 1; linear true, the default, for its YOLO tiles, false for its classic ones); or pressure_advance (method tower, the default, line or pattern; extruderType direct_drive, the default, or bowden; start, end and step default to OrcaSlicer's for the method and extruder). In a calibration project the test is made in it, and the project and its chat go on. In any other project, call it only once the person has agreed to that project being closed: it is saved to its version history, where it can be restored, its unsaved preset edits are dropped, and a calibration project for its filament and printer opens with the test; symptom, in the person's words, is handed over to it. The test edits the presets of its project for itself, unsaved; a preset edit made in a calibration project before the test carries into it. The result is what OrcaSlicer made: the plate, its objects (the flow tiles are named for their change) and the range it applies, with summary, a sentence saying what it made. IDs from before are no longer valid afterwards.",
+    "name": "calibration_generate",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "type": "number"
+        },
+        "extruderType": {
+          "enum": [
+            "direct_drive",
+            "bowden"
+          ],
+          "type": "string"
+        },
+        "linear": {
+          "type": "boolean"
+        },
+        "method": {
+          "enum": [
+            "tower",
+            "line",
+            "pattern"
+          ],
+          "type": "string"
+        },
+        "pass": {
+          "enum": [
+            1,
+            2
+          ],
+          "type": "integer"
+        },
+        "start": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "symptom": {
+          "maxLength": 2048,
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "temperature",
+            "flow",
+            "pressure_advance"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "test"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
     "description": "Write a file to an absolute path the user chose: gcode (a sliced plate's G-code, .gcode), sliced_3mf (a sliced plate with its G-code, .3mf), project_3mf (the whole project, .3mf, without changing which file the project is), stl (objectIds, or a plate's objects, as placed, .stl), or presets (the printer, filament and process presets in use, as files in the folder path). plateId picks the plate for gcode, sliced_3mf and stl (default the active plate). An existing file is replaced only with overwrite. For gcode and sliced_3mf, inspect the current slice with slice_report first and explain unresolved issues relevant to the user's requirements. Other export kinds do not require a slice check.",
     "name": "export_file",
     "parameters": {
@@ -1196,6 +1257,24 @@
       "type": "object"
     },
     "strict": false,
+    "type": "function"
+  },
+  {
+    "description": "Read one of the skills listed below by its name: instructions for a kind of situation. Read one when its description fits what you are doing. Changes nothing.\n\nSkills:\n- calibration: Read when a print problem may come from the filament or its settings (stringing, under- or over-extrusion, gaps, bulging corners), when the person asks to calibrate a filament or printer, or when this project is a calibration project or they send a photo of a test.",
+    "name": "skill_read",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "strict": true,
     "type": "function"
   },
   {

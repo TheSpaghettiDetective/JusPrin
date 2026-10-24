@@ -465,6 +465,17 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
     };
     rows.push_back(std::move(settings));
 
+    // This slot's filament on the printer in use; which test is the
+    // assistant's question. Board 1 puts it after Filament settings….
+    HeaderMenuItem calibrate;
+    calibrate.label  = _L("Calibrate this filament…");
+    calibrate.invoke = [printer  = std::string(SetupCommands::current_printer().nickname.ToUTF8()),
+                        filament = std::string(current.filament.alias.ToUTF8())] {
+        if (ShellController* shell = installed_shell())
+            shell->start_calibration(printer, filament);
+    };
+    rows.push_back(std::move(calibrate));
+
     // Adding a slot is offered on the one-slot menu, which then becomes the
     // slot list with the new slot open; a slot's own view does not offer it.
     if (!from_list) {

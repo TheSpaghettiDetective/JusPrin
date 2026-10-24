@@ -115,6 +115,14 @@ public:
         return result;
     }
 
+    CommandResult remove_filament_preset(const PresetRemoval& removal) override
+    {
+        const auto result = m_settings.remove_filament(removal);
+        if (result.succeeded())
+            publish(WorkspaceChangeReasons::Settings);
+        return result;
+    }
+
     // The All settings panel's table is whatever a test put in `catalog`;
     // the fake's own settings are the process values the tools read.
     SettingsCatalog settings_catalog() const override { return catalog; }
@@ -1221,7 +1229,7 @@ public:
         ++opens;
         last_open = request;
         WorkspaceSnapshot next;
-        next.setup.project_name = request.new_project ? "Untitled" : target.stem().u8string();
+        next.setup.project_name = request.new_project ? (request.name.empty() ? "Untitled" : request.name) : target.stem().u8string();
         if (target.extension() == ".3mf") next.setup.project_path = request.path;
         WorkspacePlate plate;
         plate.id     = PlateId(ProjectSessionId(m_session.value() + 1), 1);
@@ -1241,6 +1249,64 @@ public:
         if (on_open_for_testing) on_open_for_testing();
         return CommandResult::success();
     }
+    // A test becomes a fresh session holding one object per tile, as Orca's
+    // generators make it, with the range the request asked for.
+    CommandResult generate_calibration(const CalibrationRequest& asked, CalibrationResult& result) override
+    {
+        if (const std::string problem = calibration_request_problem(asked); !problem.empty())
+            return CommandResult::failure(WorkspaceError::InvalidArgument, problem);
+        if (calibration_release_fails)
+            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not generate the test");
+        const CalibrationRequest request = with_dialog_defaults(asked);
+        ++calibrations;
+        last_calibration = request;
+        // The generator starts its own new project, as Orca's do; the adapter
+        // puts the project's name back.
+        WorkspaceSnapshot next;
+        next.setup = m_snapshot.setup;
+        WorkspacePlate plate;
+        plate.id     = PlateId(ProjectSessionId(m_session.value() + 1), 1);
+        plate.name   = "Plate 1";
+        plate.active = true;
+        const std::size_t tiles = request.test == CalibrationTest::Flow ? 2 : 1;
+        for (std::size_t index = 0; index < tiles; ++index) {
+            WorkspaceObject object;
+            object.id   = ObjectId(ProjectSessionId(m_session.value() + 1), index + 1);
+            object.name = request.test == CalibrationTest::Flow ? "flowrate_" + std::to_string(index) : "test";
+            object.instances.push_back({});
+            plate.objects.push_back(object);
+            result.objects.push_back(object.id);
+            result.object_names.push_back(object.name);
+        }
+        // The steps the print holds, as the adapter reports them; a flow
+        // test's tiles need none.
+        if (request.test != CalibrationTest::Flow) {
+            CalibrationSteps steps;
+            const bool temperature = request.test == CalibrationTest::Temperature;
+            steps.test   = temperature ? "temperature" : "pressure_advance";
+            steps.method = temperature ? "" : request.method == PressureAdvanceMethod::Line ? "line" :
+                                              request.method == PressureAdvanceMethod::Pattern ? "pattern" : "tower";
+            steps.start  = request.start.value_or(0);
+            steps.end    = request.end.value_or(0);
+            steps.step   = temperature ? double(kTemperatureTowerStep) : request.step.value_or(0);
+            plate.calibration = steps;
+        }
+        next.plates       = {plate};
+        next.active_plate = plate.id;
+        replace_project(std::move(next));
+        result.project_name = m_snapshot.setup.project_name;
+        result.plate        = plate.id;
+        if (request.test != CalibrationTest::Flow) {
+            result.start = request.start;
+            result.end   = request.end;
+            result.step  = request.test == CalibrationTest::Temperature ? double(kTemperatureTowerStep) : *request.step;
+        }
+        result.messages = m_load_messages;
+        return CommandResult::success();
+    }
+    std::uint32_t      calibrations{0};
+    CalibrationRequest last_calibration;
+    bool               calibration_release_fails{false};
     ProjectDetails project_details() const override { return m_details; }
     ProjectDetails m_details;
     // What Orca "says" during any load, as the file listener would report it.

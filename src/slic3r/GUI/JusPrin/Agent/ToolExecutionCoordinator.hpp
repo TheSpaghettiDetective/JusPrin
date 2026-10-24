@@ -67,6 +67,25 @@ struct ToolExecutionPacing
     int ticks{1};
 };
 
+// What a calibration project is opened with: the project it was started
+// from, the filament and printer as the person's menus name them (no
+// filament from a Home printer card, whose spool is the person's to say),
+// and the symptom that led to it, in the person's words.
+struct CalibrationHandover
+{
+    std::string started_from, filament, printer, symptom;
+    // A Home card's printer's loaded spools, as it reports them ("PLA
+    // #FFFFFF"), for the person to say which one is being calibrated.
+    std::vector<std::string> spools;
+};
+
+// "Calibration · Gray PETG · Prusa MK4", or "Calibration · Prusa MK4" with no
+// filament: the project's one name, on Home, in the title and on its chat.
+inline std::string calibration_project_name(const std::string& filament, const std::string& printer)
+{
+    return "Calibration · " + (filament.empty() ? std::string() : filament + " · ") + printer;
+}
+
 class ToolExecutionCoordinator
 {
 public:
@@ -171,6 +190,43 @@ public:
     {
         m_agent_project_opened = std::move(listener);
     }
+    // The same for a calibration test the in-app Agent generated: its result
+    // reaches no model either, and the test's project opens its chat with
+    // the note: which project it started from, and that its settings are
+    // temporary.
+    // The calibration project calibration_generate makes its test in
+    // (handoff 5.1). The host owns what a calibration project is.
+    struct CalibrationProject
+    {
+        // Whether the open project is a calibration project.
+        std::function<bool()> is_open;
+        // A calibration project the tool opened for the person's own project
+        // (the symptom path): the host marks it and posts its handover.
+        std::function<void(const CalibrationHandover& handover, bool by_agent)> opened;
+        // Runs the generator so that the new project it starts continues the
+        // calibration project instead of replacing it.
+        std::function<void(const std::function<void()>& generate)> continuing;
+        // The generator ran, made or not, for the project's record and the
+        // handover turn a project the tool opened is waiting to start.
+        std::function<void(bool made, bool by_agent)> finished;
+    };
+    void set_calibration_project(CalibrationProject hooks) { m_calibration = std::move(hooks); }
+
+    // The project chat's rule for saving a preset: the person saves it. A
+    // settings preview with persistAs from the in-app Agent then carries a
+    // proposal (ToolActivity::proposal_json) the page draws as a card with
+    // Save preset, and the Agent's own settings_apply_patch with persistAs is
+    // refused. Off for the printer panel, whose chats save their own presets.
+    void set_saves_need_approval(bool on) { m_saves_need_approval = on; }
+    // The person's Save preset on a proposal: applies exactly what the
+    // preview proposed, against its session and revision, as an apply whose
+    // approves names the preview. Empty when it was queued; otherwise why not.
+    std::string approve_proposal(const std::string& preview_action_id);
+    // An approved save that succeeded, for the host to confirm in the chat.
+    void set_proposal_saved(std::function<void(const ToolActivity& apply)> listener)
+    {
+        m_proposal_saved = std::move(listener);
+    }
 
     // Drops every record. For project replacement: the records belong to the
     // previous project session and any persisted history keeps its own copy.
@@ -247,6 +303,11 @@ private:
     std::function<bool(const std::string&)>                          m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;
     std::function<void(const Workspace::LoadReport&)>                m_agent_project_opened;
+    CalibrationProject                                               m_calibration;
+    std::function<void(const ToolActivity&)>                         m_proposal_saved;
+    bool                             m_saves_need_approval{false};
+    // The preview an approve_proposal is submitting the apply for.
+    std::string                      m_approving;
     std::vector<ToolActivity>        m_activities;
     std::uint64_t                    m_next_action_id{1};
     std::uint64_t                    m_last_invalidating_revision{0};

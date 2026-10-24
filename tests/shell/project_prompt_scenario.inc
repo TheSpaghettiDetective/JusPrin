@@ -169,6 +169,8 @@
         std::ifstream file((fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/skills" / name / "SKILL.md").string(),
                            std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        // A Windows checkout has CRLF; the page sends the skill with LF.
+        text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
         const std::size_t body = text.find("\n---\n");
         text = body == std::string::npos ? std::string() : text.substr(body + 5);
         text.erase(0, text.find_first_not_of('\n'));
@@ -697,8 +699,10 @@
         };
         const json script = json::parse(read(m_state->prompt_script), nullptr, false);
         const json tools  = json::parse(read(fs::path(JUSPRIN_SOURCE_DIR) / "tests/project_prompt/project_tools.json"), nullptr, false);
-        const std::string instructions =
+        std::string instructions =
             read(fs::path(JUSPRIN_SOURCE_DIR) / "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt");
+        // A Windows checkout has CRLF; the page sends the prompt with LF.
+        instructions.erase(std::remove(instructions.begin(), instructions.end(), '\r'), instructions.end());
         check(script.is_object() && script.contains("conversations"), "prompt_script_read");
         check(tools.is_array() && !instructions.empty(), "prompt_tools_and_instructions_read");
         json recorded = json::object();

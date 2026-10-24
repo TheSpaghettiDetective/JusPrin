@@ -12,6 +12,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <memory>
+#include <optional>
 #include <functional>
 #include <string>
 #include <wx/event.h>
@@ -97,6 +98,15 @@ public:
     // opens the chat pane. The issue is looked up again at the moment of the
     // press, so one that has cleared or gone stale since it was drawn is not sent.
     IssueSubmission submit_issue(const std::string& issue_id, const std::string& request_sentence);
+    // A Calibrate… row (printer chip, filament slot, Home printer card):
+    // board 3's one popup first, since the open project closes; on Start
+    // the app opens the calibration project and its chat. filament is empty
+    // for a Home printer card, whose loaded spools (as it reports them) the
+    // Agent offers instead.
+    void start_calibration(const std::string& printer, const std::string& filament,
+                           const std::vector<std::string>& spools = {});
+    // The page's answer to start_calibration's question.
+    void answer_calibration(const std::string& request_id, bool confirmed);
     Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
     Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
     void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
@@ -159,6 +169,14 @@ private:
     void reload_agent_config();
     void show_task_panel();
     void restore_task_panel();
+    // The calibration a Calibrate… row asked about, until the page answers.
+    struct PendingCalibration
+    {
+        std::string request_id, printer, filament, project;
+        std::vector<std::string> spools;
+        bool        needs_agent{false}; // asked with "Set up the agent…" in place of Start
+    };
+    std::optional<PendingCalibration> m_pending_calibration;
     // The width the pane may hold right now: at least its own minimum, and no
     // more than what the frame can spare beside a usable workspace.
     int  agent_pane_width_within(int width) const;
@@ -220,6 +238,11 @@ private:
     std::string m_timeline_version_head;
     std::uint64_t m_timeline_document_revision{0};
     wxString m_saved_frame_title;
+    // OrcaSlicer's own Calibration menu, off the macOS menu bar while the
+    // shell is installed, and where it stood.
+    wxMenu* m_orca_calibration_menu{nullptr};
+    int     m_orca_calibration_menu_at{wxNOT_FOUND};
+    void show_orca_calibration_menu(bool show);
 
     bool m_installed{false};
     bool m_saved_collapse_toolbar_enabled{false};

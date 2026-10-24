@@ -55,6 +55,12 @@ is already running. Do not pass `--no-single-instance`; Boost rejects it.
 The fake emulates printer type `N1` (A1 mini). Select Machine lists it as
 **JusPrin Fake A1 mini (LAN)**.
 
+For an MCP client, the shell harness does all of this in its own datadir:
+`shell_integration_harness --manual-mcp <dir> --fake-printer` saves a
+**Fake A1 mini** printer, connects it to the fake and selects it before it
+prints `HARNESS MCP FIXTURE READY`. Edits to the conf would not survive: the
+fixture rewrites it at startup.
+
 ## Drive state
 
 Write `<datadir>/jusprin/fake_printer.json` (create `jusprin/` if needed). The

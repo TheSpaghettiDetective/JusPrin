@@ -1,7 +1,7 @@
 # Project chat prompt tests
 
 The project chat's assistant is a system prompt
-(`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`), the 27 project
+(`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`), the project
 tools and the chat. `run_prompt_tests.py` asks the live model for its next
 step at a known point of a project chat and checks that step against one
 sentence of the prompt. It is run against the prompt before an edit and after it, and the
@@ -72,6 +72,8 @@ The recorded answers, kept beside each request, are the reads the script's
 - `workspace_inspect` and `slice_report` with every section, given whatever
   sections the model asked for, and `printer_list`; `slice_report` of the
   active plate (no plate named) and of every plate by its `plateId`;
+- `skill_read` of each skill the page lists for it (the calibration skill,
+  today), given for that name;
 - `object_analyze` for every object on every plate with every `include`
   but `measure`, given for that object and session whatever it included;
   never with `measure` or `candidates`;
@@ -278,6 +280,8 @@ the case, a read is answered and the run goes on.
 | `model-imported-by-tool` | "Add this part to the project too." with `part_7.drc` (the calicat) attached, then `object_import` succeeded; its result's request carries the skill and the picture | the file-loaded skill: report and offer from the report and the picture, change nothing not asked for | a reply telling the person the part was added (judged) | any further change, or a reply that does not report it |
 | `slice-refused-by-tool` | "Print this in Bambu PETG HF.", then `printer_setup` and a `slice_start` OrcaSlicer refused on the Cool Plate; its result's request carries the slice-failed skill | the slice-failed skill: a refusal sliced nothing and is refused again unchanged; the app's message is the reason, what it means is the model's to explain; the filament and plate pairing is the person's choice. The Replies section: assume a beginner, and speak in first person | a read of the plate or filament (`settings_search`, `settings_get`, `presets_list`, `printer_setup_preview`), or a reply saying the plate was not sliced, giving the app's reason without another cause, and saying what the person can do in beginner's words (judged) | another `slice_start`, any other change, a readiness claim, a reply speaking of OrcaSlicer as another program, or a reply missing any of the three |
 | `slice-refused-then-ready` | two plates, Bambu PETG HF, the second plate set to the Cool Plate; the person pressed Slice all (plate 1 sliced, plate 2 refused) and asked "is it ready to print?"; that request carries the skill | as `slice-refused-by-tool` | as `slice-refused-by-tool` | as `slice-refused-by-tool` |
+| `calibration-symptom` | "My prints in this PLA come out with lots of thin strings between the parts, and the overhangs look droopy." on the `"single"` fixture | the calibration skill (`skills/calibration/SKILL.md`, read with `skill_read`): give the two facts and a choice before calling `calibration_generate` | a turn whose messages, taken together, offer a test, give both facts and end by asking the person to choose (judged) | `calibration_generate` or any other change, or a turn that does not |
+| `calibration-result` | `calibration_generate` made a temperature tower (230 to 190 °C) from Bambu PLA Basic, opening its own project; there the model read the skill and recorded the test; the person pressed Slice and describes the print in words (215 is the best block) | the calibration skill: preview the write on the filament with `persistAs`, a copy named "<filament preset> · <printer> calibrated" with the printer as the person named it | a filament `settings_preview_patch` with `nozzle_temperature` 215 and that name (`CALIBRATED_COPY`) | any other preview, any change, or a reply without the preview |
 
 Notes on the cases:
 
@@ -462,7 +466,7 @@ tool list, MCP config and the CLI's event stream for reading afterwards.
 `claude_mcp_stub.py` serves the tools:
 
 - **System prompt**: the rendered prompt, as `--system-prompt`.
-- **Tools**: the stub is a stdio MCP server with the case's tools (the 27 of
+- **Tools**: the stub is a stdio MCP server with the case's tools (the 29 of
   `project_tools.json`, or the point's own list), with their real
   descriptions and schemas. Every call the model makes reaches the runner
   through it, and the step rules above apply unchanged: a read is answered
@@ -544,6 +548,50 @@ of 84 on three runs.
    new result is good enough, it becomes the new baseline, and the old one
    moves to "Baseline history" below, kept for audit only and not used for
    comparison.
+
+## The cases added on 2026-10-21
+
+The calibration skill is the first with a description, so since it was added
+the app offers `skill_read` in every project chat request, listing it.
+`project_tools.json` lists it as the app does (the tools test reads the
+page's skills), and a `skill_read` of a listed skill is answered from the
+recording.
+
+`calibration-symptom` and `calibration-result` were recorded on Windows with
+the shell harness from only their two conversations, and merged into
+`requests.json`; the other points are the earlier recording, unchanged, and
+have no `skill_read` answer, so a run of theirs that reads the skill ends
+unobserved until the whole file is recorded again. `calibration-result`
+describes the print in words: the pinned hosts refuse a picture.
+
+They ran five times each on 2026-10-21 (Kenneth approved the batch), DeepSeek
+V4 Flash on the pinned hosts: 23 requests, 304,272 input tokens (173,568
+cached), 8,547 output, 3 judge calls.
+
+- `calibration-result`: 2 passed, 3 failed, none unobserved. Every run
+  previewed the right write: `nozzle_temperature` and
+  `nozzle_temperature_initial_layer` 215 (the preset had both at 220), on
+  the filament, saved as a copy, before any apply.
+  The three failures named the copy after the printer preset, "Bambu PLA
+  Basic · Bambu Lab X1 Carbon 0.4 nozzle calibrated", not "X1 Carbon" as the
+  person said it.
+- `calibration-symptom`: no pass, 3 failed, 2 unobserved, judged then on
+  the last message alone. No run made the test. The two unobserved runs
+  read settings the recording does not hold (filament keys under the
+  process scope, and names OrcaSlicer does not have). One failed run gave
+  both facts word for word in a message before its last read, and its last
+  message ended with choices; the judge now reads the turn's messages
+  together, which that run would likely pass. The other two left out that
+  the test's settings are its own and nothing is saved until the person
+  chooses, and one of them asked a yes-or-no question instead of giving
+  choices. The judged numbers above came from the old question; nothing has
+  been run with the new one.
+
+After that batch the skill was tightened for both misses: the two facts go
+in the message that offers the test, ending with a Choices line, and the
+copy names the printer as the person names it, never a printer preset's
+name with its nozzle. Both points were recorded again with it. Neither case
+has been run on the new wording.
 
 ## The case added on 2026-10-16
 

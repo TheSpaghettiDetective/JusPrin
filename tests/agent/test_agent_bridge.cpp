@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -325,7 +326,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
-                                              Protocol::kSettingsAction, Protocol::kSetupRemoveKey,
+                                              Protocol::kSettingsAction, Protocol::kSaveProposal,
+                                              Protocol::kUndoReceipt, Protocol::kSetupRemoveKey,
                                               Protocol::kPreferencesAction});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
@@ -338,7 +340,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
-                                              Protocol::kPrinterSession, Protocol::kSettingsCatalog,
+                                              Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
                                               Protocol::kSetupKeys, Protocol::kPreferences});
 }
 
@@ -1915,6 +1917,25 @@ TEST_CASE("an Agent edit is logged as the Agent's, after its tool activity", "[a
     CHECK((*added)["payload"]["change"]["actor"] == "agent");
     CHECK((*added)["payload"]["change"]["afterId"] == action_id);
     CHECK(harness.of_type("change_added").size() == 1);
+}
+
+// A Calibrate… row's question (board 3): held until the page is there, sent
+// once, and a newer one replaces one still waiting.
+TEST_CASE("a confirmation question reaches the page once, after the handshake if it has to wait", "[agent][calibration]")
+{
+    Harness harness;
+    harness.host.ask_confirmation({"calibrate-1", "Calibrate Gray PETG on Prusa MK4?", "One.", "Start", "Cancel"});
+    harness.host.ask_confirmation({"calibrate-2", "Calibrate Gray PETG on Prusa MK4?", "Two.", "Start", "Cancel"});
+    CHECK(harness.of_type("confirm").empty());
+
+    harness.handshake();
+    REQUIRE(harness.of_type("confirm").size() == 1);
+    CHECK((*harness.last_of_type("confirm"))["payload"] ==
+          json{{"requestId", "calibrate-2"}, {"title", "Calibrate Gray PETG on Prusa MK4?"}, {"body", "Two."},
+               {"confirm", "Start"}, {"cancel", "Cancel"}});
+
+    harness.host.ask_confirmation({"calibrate-3", "Calibrate Gray PETG on Prusa MK4?", "Three.", "Start", "Cancel"});
+    CHECK(harness.of_type("confirm").size() == 2);
 }
 
 TEST_CASE("appearance changes reach a connected page", "[agent][appearance]")
@@ -3880,6 +3901,199 @@ TEST_CASE("a project the Agent opens is spoken about in the opened project's cha
     std::filesystem::remove(model);
 }
 
+// The calibration skill as the page sends it, fired by the handover.
+json skills_with_calibration()
+{
+    // Sorted by name, as the page sends them.
+    json  skills = test_skills();
+    json& list   = skills["skills"];
+    const auto at = std::find_if(list.begin(), list.end(), [](const json& skill) { return skill["name"] > "calibration"; });
+    list.insert(at, json{{"name", "calibration"}, {"trigger", "calibration_started"},
+                         {"description", "Read to calibrate a filament."}, {"text", "Calibration skill text."}});
+    return skills;
+}
+
+void set_fixture_presets(Workspace::FakeWorkspace& workspace)
+{
+    Workspace::WorkspaceSetup setup = workspace.snapshot().setup;
+    setup.filament_preset = "Fixture PLA";
+    setup.printer_preset  = "Fixture printer";
+    workspace.set_setup(setup);
+}
+
+// The symptom path (board 2): the Agent calls calibration_generate from the
+// person's own project. That chat keeps the last word, as an open's does;
+// the calibration project opens with the handover line naming the symptom,
+// and its first turn starts once the test is made, with the skill in force.
+TEST_CASE("a test made from the person's own project opens its calibration project with the handover", "[agent][tools][calibration]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) {
+        return ToolRequest{"calibration_generate",
+                           json{{"test", "temperature"}, {"start", 250}, {"end", 230}, {"symptom", "hairs between the posts"}}.dump()};
+    };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    set_fixture_presets(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_calibration());
+    const std::string started_from = harness.workspace.snapshot().setup.project_name;
+    harness.send_user_message("Start the temperature test", "c-calibrate");
+    const std::string asking_project = harness.persistence.document().project_id();
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    REQUIRE(harness.workspace.calibrations == 1);
+    CHECK(agent->results.empty());
+    CHECK(harness.persistence.document().project_id() != asking_project);
+    CHECK(harness.workspace.snapshot().setup.project_name == "Calibration · Fixture PLA · Fixture printer");
+
+    const auto conversation = harness.host.conversation();
+    REQUIRE_FALSE(conversation.empty());
+    const ConversationMessage& note = conversation.front();
+    CHECK(note.role == MessageRole::Note);
+    CHECK(note.text == "From " + started_from + " · Fixture PLA on Fixture printer · temporary test settings · hairs between the posts");
+    // The chat takes the project's one name.
+    const auto& document = harness.persistence.document();
+    const auto  chats    = document.conversations();
+    const auto  chat     = std::find_if(chats.begin(), chats.end(),
+                                        [&](const ConversationInfo& info) { return info.id == document.active_conversation_id(); });
+    REQUIRE(chat != chats.end());
+    CHECK(chat->title == "Calibration · Fixture PLA · Fixture printer");
+    // The project is marked, and keeps the test for when it is reopened.
+    const auto record = document.calibration();
+    REQUIRE(record.has_value());
+    CHECK((*record)["filament"] == "Fixture PLA");
+    CHECK((*record)["printer"] == "Fixture printer");
+    CHECK((*record)["symptom"] == "hairs between the posts");
+    CHECK((*record)["handover"] == note.id);
+    CHECK((*record)["test"] == "temperature");
+    CHECK((*record)["start"] == 250.);
+    CHECK((*record)["end"] == 230.);
+
+    harness.pump_all();
+    const auto found = std::find_if(agent->requests.rbegin(), agent->requests.rend(),
+                                    [](const AgentRequest& request) { return request.purpose == AgentRequest::Purpose::Reply; });
+    REQUIRE(found != agent->requests.rend());
+    const AgentRequest& reply = *found;
+    CHECK(reply.user_text.rfind("JusPrin app note, not the person's words: This is a calibration project, opened from " +
+                                    started_from + " to calibrate Fixture PLA on Fixture printer.", 0) == 0);
+    CHECK(reply.user_text.find("hairs between the posts") != std::string::npos);
+    REQUIRE(reply.skills.size() == 1);
+    CHECK(reply.skills.front().trigger == "calibration_started");
+    CHECK(reply.conversation.empty());
+}
+
+// The popup path (boards 3 and 4): the app opens the calibration project and
+// its chat; the Agent's generate continues that same project, so its result
+// comes back to the turn that asked and stays in this chat.
+TEST_CASE("a test made in a calibration project continues the project and its chat", "[agent][tools][calibration]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) {
+        return ToolRequest{"calibration_generate", json{{"test", "temperature"}, {"start", 230}, {"end", 190}}.dump()};
+    };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    set_fixture_presets(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_calibration());
+    // What the shell does on Start.
+    Workspace::ProjectOpenRequest open;
+    open.new_project = true;
+    open.name        = calibration_project_name("Fixture PLA", "Fixture printer");
+    Workspace::LoadReport report;
+    REQUIRE(harness.workspace.open_project(open, report).succeeded());
+    harness.host.open_calibration_chat({"Backpack hook", "Fixture PLA", "Fixture printer", {}, {}}, /*start=*/true);
+    const std::string project = harness.persistence.document().project_id();
+    const std::string chat_id = harness.persistence.document().active_conversation_id();
+    const json        line    = (*harness.last_of_type("message_added"))["payload"]["message"];
+    CHECK(line["text"] == "From Backpack hook · Fixture PLA on Fixture printer · temporary test settings");
+
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE(harness.workspace.calibrations == 1);
+    // One project and one chat, before and after; the name is kept.
+    CHECK(harness.persistence.document().project_id() == project);
+    CHECK(harness.persistence.document().active_conversation_id() == chat_id);
+    CHECK(harness.workspace.snapshot().setup.project_name == "Calibration · Fixture PLA · Fixture printer");
+    // The result reached the turn that asked, and the call is in this chat.
+    REQUIRE(agent->results.size() == 1);
+    CHECK(agent->results.front().state == "succeeded");
+    const auto activities = harness.persistence.document().activities();
+    CHECK(std::any_of(activities.begin(), activities.end(),
+                      [](const ToolActivity& activity) { return activity.tool == "calibration_generate"; }));
+    const auto conversation = harness.host.conversation();
+    REQUIRE(conversation.size() >= 2);
+    CHECK(conversation.front().id == line["id"]);
+    CHECK(conversation.back().role == MessageRole::Assistant);
+    const auto record = harness.persistence.document().calibration();
+    REQUIRE(record.has_value());
+    CHECK((*record)["test"] == "temperature");
+    CHECK((*record)["startedFrom"] == "Backpack hook");
+}
+
+// From a Home card the printer is known and the spool is the person's to say:
+// the project is named for the printer, and the Agent is told which spools
+// the printer reports loaded, to offer them.
+TEST_CASE("a calibration project from a Home card hands over the printer and its loaded spools", "[agent][calibration]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    harness.deliver("skills", skills_with_calibration());
+    harness.host.open_calibration_chat({"Home", {}, "Workshop X1C", {}, {"PLA #FFFFFF", "PETG #808080"}}, /*start=*/true);
+    const auto conversation = harness.host.conversation();
+    REQUIRE_FALSE(conversation.empty());
+    CHECK(conversation.front().text == "From Home · Workshop X1C · filament not chosen · temporary test settings");
+    const auto& document = harness.persistence.document();
+    const auto  chats    = document.conversations();
+    const auto  chat     = std::find_if(chats.begin(), chats.end(),
+                                        [&](const ConversationInfo& info) { return info.id == document.active_conversation_id(); });
+    REQUIRE(chat != chats.end());
+    CHECK(chat->title == "Calibration · Workshop X1C");
+    harness.pump_all();
+    REQUIRE_FALSE(agent->requests.empty());
+    const AgentRequest& reply = agent->requests.back();
+    CHECK(reply.user_text.find("which filament is not known yet. The printer reports these spools loaded: PLA #FFFFFF, PETG #808080.") !=
+          std::string::npos);
+    REQUIRE(reply.skills.size() == 1);
+    CHECK(reply.skills.front().trigger == "calibration_started");
+}
+
+// Found driving the real app over MCP (2026-10-21): with earlier calls in the
+// activity list, the host's clear() on the new project's document moved the
+// generate call's record, and reading its arguments afterwards read freed
+// memory. The result must come from what the call was asked.
+TEST_CASE("a calibration test an MCP client makes after other calls reports what it made", "[agent][tools][calibration][mcp]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    for (int index = 0; index < 4; ++index)
+        harness.host.tools().submit({"workspace_inspect", "{}"}, "mcp-read-" + std::to_string(index), ToolExecutionPacing{}, ToolSource::Mcp);
+    pump_tools_to_completion(harness);
+    std::optional<ToolActivity> last;
+    const std::string id = harness.host.tools()
+                               .submit({"calibration_generate", json{{"test", "temperature"}, {"start", 250}, {"end", 230}}.dump()},
+                                       "mcp-calibrate", ToolExecutionPacing{}, ToolSource::Mcp)
+                               .action_id;
+    ToolActivitySubscription subscription = harness.host.tools().subscribe([&](const ToolActivity& activity) {
+        if (activity.action_id == id && tool_state_terminal(activity.state)) last = activity;
+    });
+    pump_tools_to_completion(harness);
+    harness.host.pump_tools();
+    REQUIRE(last.has_value());
+    REQUIRE(last->state == ToolState::Succeeded);
+    const json result = json::parse(last->result_json);
+    CHECK(result["test"] == "temperature");
+    CHECK(result["applied"]["start"] == 250.);
+    CHECK(harness.workspace.calibrations == 1);
+    CHECK(agent->requests.empty());
+}
+
 TEST_CASE("a project an MCP client opens is not spoken about", "[agent][skills][tools][mcp]")
 {
     const std::string model = write_model_file("jusprin-skill-mcp-opened.stl");
@@ -3973,6 +4187,45 @@ TEST_CASE("skill_read reads only the skills the page described, and is offered o
         REQUIRE_FALSE(agent->requests.empty());
         CHECK(agent->requests.front().skill_index.empty());
     }
+}
+
+// The page's own calibration skill, as skillParser.ts reads it, through the
+// skills message: listed by its description and read whole.
+TEST_CASE("the calibration skill the page ships is listed and read", "[agent][skills][calibration]")
+{
+    std::ifstream file(std::string(JUSPRIN_SOURCE_DIR) + "/src/slic3r/GUI/JusPrin/AgentUI/src/skills/calibration/SKILL.md",
+                       std::ios::binary);
+    REQUIRE(file.good());
+    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());
+    const std::size_t end = text.find("\n---\n", 4);
+    REQUIRE((text.rfind("---\n", 0) == 0 && end != std::string::npos));
+    const std::string front = text.substr(4, end - 4);
+    const std::size_t at = front.find("description: ");
+    REQUIRE(at != std::string::npos);
+    const std::string description = front.substr(at + 13, front.find('\n', at) - at - 13);
+    std::string body = text.substr(end + 5);
+    body.erase(0, body.find_first_not_of('\n'));
+    body.erase(body.find_last_not_of(" \n") + 1);
+
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    agent->call = [](const AgentRequest&) { return ToolRequest{"skill_read", json{{"name", "calibration"}}.dump()}; };
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake(/*with_instructions=*/true, /*with_skills=*/false);
+    harness.deliver("skills", json{{"skills", json::array({json{{"name", "calibration"}, {"description", description},
+                                                                {"text", body}}})}});
+    CHECK(harness.of_type("bridge_error").empty());
+    harness.send_user_message("My PETG strings everywhere.", "c-calibrate");
+    harness.pump_all();
+    pump_tools_to_completion(harness);
+    harness.pump_all();
+    REQUIRE_FALSE(agent->requests.empty());
+    const auto& index = agent->requests.front().skill_index;
+    REQUIRE(index.size() == 1);
+    CHECK(index.front().description == description);
+    REQUIRE(agent->results.size() == 1);
+    CHECK(json::parse(agent->results.front().output_json)["result"] == json{{"name", "calibration"}, {"text", body}});
 }
 
 TEST_CASE("the skills message takes described skills and refuses bad descriptions", "[agent][skills]")
@@ -4897,4 +5150,130 @@ TEST_CASE("a setup change is unchecked until the model is asked to check it, onc
         })));
         CHECK_FALSE(fires_setup_skill(read));
     }
+}
+
+// Board 5: the Agent proposes a preset with a preview; the person's Save
+// preset saves exactly that, and the app's receipt starts the Agent's turn.
+TEST_CASE("a preset the Agent proposes is saved by the person's Save preset, with a receipt", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const json patch{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                     {"persistAs", "Fixture PLA · MK4 calibrated"}};
+    const AgentToolResult previewed = run_call(harness, *agent, ToolRequest{"settings_preview_patch", patch.dump()}, "Here it is.");
+    REQUIRE(previewed.state == "succeeded");
+    const auto& activities = harness.host.tools().activities();
+    const auto preview = std::find_if(activities.begin(), activities.end(),
+                                      [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+    REQUIRE(preview != activities.end());
+    const std::string preview_id = preview->action_id;
+    const json* sent = harness.last_of_type("tool_activity");
+    REQUIRE(sent != nullptr);
+    CHECK((*sent)["payload"]["activity"]["proposal"]["save"] == "Save preset");
+
+    const std::size_t requests = agent->requests.size();
+    harness.deliver("save_proposal", json{{"actionId", preview_id}});
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    pump_tools_to_completion(harness);
+    harness.host.pump_tools();
+    const json note = (*harness.last_of_type("message_added"))["payload"]["message"];
+    CHECK(note["role"] == "note");
+    CHECK(note["receipt"]["name"] == "Fixture PLA · MK4 calibrated");
+    CHECK(note["receipt"]["detail"] == "Filament preset · nozzle temperature 225 °C");
+    CHECK(harness.workspace.settings_for_testing().selected_filament == "Fixture PLA · MK4 calibrated");
+    harness.pump_all();
+    REQUIRE(agent->requests.size() > requests);
+    CHECK(last_reply(*agent).user_text ==
+          "JusPrin app note, not the person's words: The person pressed Save preset on your proposal. Saved Fixture PLA · "
+          "MK4 calibrated: Filament preset · nozzle temperature 225 °C.");
+    // The receipt survives a reload of the chat.
+    const auto stored = harness.host.conversation();
+    const auto receipt = std::find_if(stored.begin(), stored.end(), [&note](const ConversationMessage& message) {
+        return message.id == note["id"];
+    });
+    REQUIRE(receipt != stored.end());
+    CHECK_FALSE(receipt->receipt.empty());
+
+    // Board 6's Undo: the copy is deleted, this project uses the filament it
+    // was made from again, the receipt says so, and the Agent is told.
+    const std::size_t before_undo = agent->requests.size();
+    harness.deliver("undo_receipt", json{{"messageId", note["id"]}});
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    auto& fixture = harness.workspace.settings_for_testing();
+    CHECK(fixture.filaments.count("Fixture PLA · MK4 calibrated") == 0);
+    CHECK(fixture.selected_filament == "Fixture PLA");
+    const json undone = (*harness.last_of_type("message_added"))["payload"]["message"];
+    CHECK(undone["id"] == note["id"]);
+    CHECK(undone["receipt"]["undone"] == true);
+    harness.pump_all();
+    REQUIRE(agent->requests.size() > before_undo);
+    CHECK(last_reply(*agent).user_text ==
+          "JusPrin app note, not the person's words: The person pressed Undo on the receipt: Fixture PLA · MK4 calibrated is "
+          "deleted, and this test uses Fixture PLA again.");
+    // A second press has nothing left to undo.
+    harness.deliver("undo_receipt", json{{"messageId", note["id"]}});
+    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "receipt_closed");
+}
+
+TEST_CASE("a proposal the person answered another way saves nothing", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const json patch{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                     {"persistAs", "Fixture PLA · MK4 calibrated"}};
+    run_call(harness, *agent, ToolRequest{"settings_preview_patch", patch.dump()}, "Here it is.");
+    const auto& activities = harness.host.tools().activities();
+    const auto preview = std::find_if(activities.begin(), activities.end(),
+                                      [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+    REQUIRE(preview != activities.end());
+    const std::string preview_id = preview->action_id;
+    run_reply(harness, *agent, "Pick another block");
+    harness.deliver("save_proposal", json{{"actionId", preview_id}});
+    const json* error = harness.last_of_type("bridge_error");
+    REQUIRE(error != nullptr);
+    CHECK((*error)["payload"]["code"] == "proposal_closed");
+    pump_tools_to_completion(harness);
+    CHECK(harness.workspace.settings_for_testing().filaments.count("Fixture PLA · MK4 calibrated") == 0);
+}
+
+// A second test's result saved into the calibrated copy it already made:
+// Undo puts that copy's earlier values back instead of deleting it.
+TEST_CASE("undo on a preset saved in place puts its earlier values back", "[agent][tools][settings]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    auto save = [&](const json& patch, const std::string& text) {
+        run_call(harness, *agent, ToolRequest{"settings_preview_patch", patch.dump()}, text);
+        const auto& activities = harness.host.tools().activities();
+        const auto  preview    = std::find_if(activities.rbegin(), activities.rend(),
+                                              [](const ToolActivity& item) { return item.tool == "settings_preview_patch"; });
+        REQUIRE(preview != activities.rend());
+        harness.deliver("save_proposal", json{{"actionId", preview->action_id}});
+        pump_tools_to_completion(harness);
+        harness.host.pump_tools();
+        harness.pump_all();
+        return (*harness.last_of_type("message_added"))["payload"]["message"];
+    };
+    const std::string copy = "Fixture PLA · MK4 calibrated";
+    save(json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+              {"persistAs", copy}}, "Here it is.");
+    const json receipt = save(json{{"scope", "filament"}, {"target", {{"preset", copy}}}, {"changes", {{"nozzle_temperature", "220"}}},
+                                   {"persistAs", copy}}, "And the second one.");
+    REQUIRE(receipt.contains("receipt"));
+    CHECK(receipt["receipt"]["undo"]["newCopy"] == false);
+    auto& fixture = harness.workspace.settings_for_testing();
+    CHECK(fixture.filaments.at(copy).saved.at("nozzle_temperature") == "220");
+    harness.deliver("undo_receipt", json{{"messageId", receipt["id"]}});
+    CHECK(harness.last_of_type("bridge_error") == nullptr);
+    REQUIRE(fixture.filaments.count(copy) == 1);
+    CHECK(fixture.filaments.at(copy).saved.at("nozzle_temperature") == "225");
+    CHECK(fixture.selected_filament == copy);
+    CHECK((*harness.last_of_type("message_added"))["payload"]["message"]["receipt"]["undone"] == true);
 }

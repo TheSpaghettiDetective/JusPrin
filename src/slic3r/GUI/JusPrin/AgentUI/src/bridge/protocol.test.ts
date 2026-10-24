@@ -56,6 +56,8 @@ describe('protocol constants', () => {
       'skills',
       'settings_catalog_request',
       'settings_action',
+      'save_proposal',
+      'undo_receipt',
       'setup_remove_key',
       'preferences_action',
     ]);

@@ -368,6 +368,8 @@ describe('App', () => {
     expect(notes[0]).toHaveTextContent('Filament is now Prusament PETG.');
     // A note with no colour draws none.
     expect(notes[1].querySelector('.note-swatch')).toBeNull();
+    // One System Line each, its whole text in the tooltip.
+    expect(notes[0].querySelector('.note-text')).toHaveAttribute('title', 'Filament is now Prusament PETG.');
   });
 
   const fileReport = {
@@ -406,7 +408,11 @@ describe('App', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].payload).toEqual({ skills });
     expect((sent[0].payload as { skills: { trigger: string }[] }).skills.map((skill) => skill.trigger))
-      .toEqual(['file_loaded', 'print_issues', 'setup_changed', 'slice_failed']);
+      .toEqual(['calibration_started', 'file_loaded', 'print_issues', 'setup_changed', 'slice_failed']);
+    // The calibration skill is also read on demand, by the description skill_read lists it by.
+    const calibration = (sent[0].payload as { skills: { name: string; description?: string }[] }).skills
+      .find((skill) => skill.name === 'calibration');
+    expect(calibration?.description).toMatch(/^Read when a print problem may come from the filament/);
   });
 
   it('draws no file report the Agent is speaking about', () => {
@@ -1420,3 +1426,39 @@ describe('App attachments', () => {
     });
   });
 });
+
+describe('App confirmation', () => {
+  // A Calibrate… row's question (board 3): the design system's Confirmation
+  // dialog over the project chat, answered once with its request id.
+  const question = {
+    requestId: 'calibrate-1',
+    title: 'Calibrate Gray PETG on Prusa MK4?',
+    body: 'Backpack hook will be saved and closed. A new calibration project opens for Gray PETG on Prusa MK4.',
+    confirm: 'Start',
+    cancel: 'Cancel',
+  };
+
+  it("asks the host's question and sends Start back with its id", async () => {
+    const host = new MockHost();
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('confirm', question);
+    const dialog = screen.getByRole('dialog', { name: question.title });
+    expect(dialog).toHaveTextContent(question.body);
+    expect(within(dialog).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Start']);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Start' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'confirm_answer', requestId: 'calibrate-1', confirmed: true });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('answers no on Escape, as Cancel does', async () => {
+    const host = new MockHost();
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('confirm', question);
+    await userEvent.keyboard('{Escape}');
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'confirm_answer', requestId: 'calibrate-1', confirmed: false });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+

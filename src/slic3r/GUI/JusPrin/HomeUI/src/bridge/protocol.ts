@@ -23,9 +23,11 @@ export type PageMessageType =
   | 'launch_monitor'
   | 'add_printer'
   | 'connect_printer'
+  | 'calibrate_printer'
   | 'open_printer_settings'
   | 'rename_printer'
   | 'remove_printer'
+  | 'confirm_answer'
   | 'open_preferences';
 
 export type HostMessageType =
@@ -36,7 +38,8 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
-  | 'bridge_error';
+  | 'bridge_error'
+  | 'confirm';
 
 export type Appearance = 'light' | 'dark';
 
@@ -125,6 +128,17 @@ export interface PrinterErrorPayload {
   message: string;
 }
 
+
+// A question the host asks before an action it cannot take back, drawn as
+// the design system's Confirmation dialog: a calibration that saves and
+// closes the open project. The answer goes back with its requestId.
+export interface ConfirmPayload {
+  requestId: string;
+  title: string;
+  body: string;
+  confirm: string;
+  cancel: string;
+}
 
 export interface StatePayload {
   appearance: Appearance;

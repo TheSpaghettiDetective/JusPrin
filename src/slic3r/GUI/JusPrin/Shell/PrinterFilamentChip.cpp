@@ -112,13 +112,14 @@ void PrinterFilamentChip::layout()
 {
     const wxSize size = GetClientSize();
     if (size.x <= 0) return;
-    // Under pressure both halves give up width in proportion to what they
-    // asked for, so neither collapses to its ellipsis while the other keeps
-    // slack.
+    // Under pressure the filament half gives up width first: a long preset
+    // name, such as a calibrated copy's, ends in its ellipsis (the tooltip
+    // has it whole) while the printer keeps its name. The printer yields
+    // only past half the chip, so neither half collapses.
     const int wanted_left  = m_printer->GetBestSize().x;
     const int wanted_right = m_filament->GetBestSize().x;
-    const int wanted       = wanted_left + wanted_right;
-    const int left = wanted <= size.x || wanted == 0 ? wanted_left : size.x * wanted_left / wanted;
+    const int left = wanted_left + wanted_right <= size.x ? wanted_left
+                                                          : std::min(wanted_left, std::max(size.x / 2, size.x - wanted_right));
     m_printer->SetSize(0, 0, left, size.y);
     m_filament->SetSize(left, 0, size.x - left, size.y);
 }

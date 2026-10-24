@@ -692,6 +692,14 @@ json object_analysis_result(Workspace::ObjectId id, const Workspace::ObjectAnaly
     return result;
 }
 
+json calibration_steps_result(const Workspace::CalibrationSteps& steps)
+{
+    json result{{"test", steps.test}, {"start", steps.start}, {"end", steps.end}, {"step", steps.step}};
+    if (!steps.method.empty())
+        result["method"] = steps.method;
+    return result;
+}
+
 json slice_failure_result(const Workspace::SliceFailure& failure, bool full)
 {
     bool truncated = false;
@@ -733,6 +741,7 @@ json slicing_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
                    {"invalidatedBy", label(plate.invalidated_by, truncated)}};
         if (plate.slice_failure) entry["sliceFailure"] = slice_failure_result(*plate.slice_failure);
         if (plate.slice_warnings) entry["sliceWarnings"] = slice_warnings_result(*plate.slice_warnings);
+        if (plate.calibration) entry["calibration"] = calibration_steps_result(*plate.calibration);
         plates.push_back(std::move(entry));
     }
     json jobs = json::array();

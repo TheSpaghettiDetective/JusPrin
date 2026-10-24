@@ -67,12 +67,14 @@ public:
     SettingsPreview preview_settings(const SettingsPatch& patch) const override;
     CommandResult apply_settings(const SettingsPatch& patch, const std::vector<SettingChange>& expected,
                                  SettingsPreview& applied) override;
+    CommandResult remove_filament_preset(const PresetRemoval& removal) override;
     SettingsCatalog settings_catalog() const override;
     CommandResult edit_own_setting(ObjectId id, const OwnSettingEdit& edit) override;
     std::string auxiliary_data_dir() const override;
     CommandResult export_project_archive(const std::string& file_path) override;
     ProjectDetails project_details() const override;
     CommandResult open_project(const ProjectOpenRequest& request, LoadReport& report) override;
+    CommandResult generate_calibration(const CalibrationRequest& request, CalibrationResult& result) override;
     CommandResult import_objects(const ImportRequest& request, LoadReport& report,
                                  std::vector<ObjectId>& added) override;
     void set_load_report_listener(std::function<void(const LoadReport&)> listener) override;
@@ -96,6 +98,10 @@ public:
     // A tool's own open or import is running; it settles what the person
     // would otherwise be asked about the file.
     bool tool_load_active() const { return m_tool_loads != 0; }
+    // Inside generate_calibration's call to Orca's generator, whose own
+    // new_project replaces the empty project this adapter released the
+    // person's for: the release hook has nothing of the person's to save.
+    bool generating_calibration() const { return m_generating_calibration; }
     CommandResult delete_items(const std::vector<DeleteItem>& items) override;
     CommandResult render_view(const RenderRequest& request, RenderedImage& image) override;
     CommandResult read_attachment(const std::string& id, AttachmentContent& content) const override;
@@ -136,6 +142,11 @@ private:
     CommandResult change_regions(const std::vector<RegionRecord>& removed, const std::vector<RegionRecord>& added,
                                  const char* snapshot_name);
     void on_project_state_changed(const ProjectStateChanged& change);
+    // The open project saved to its version history, through Orca's new
+    // project and the autosave hook, then its unsaved preset edits dropped,
+    // as Orca's UnsavedChangesDialog would otherwise ask. False when it could
+    // not be saved, and nothing changed. next_name is UTF-8; empty is Untitled.
+    bool release_project(const std::string& next_name);
     // File loads (FileLoads.hpp). While one runs, every Orca dialog is
     // answered with the least change and written down; once it ends, it waits
     // to be reported, to the tool that started it or, a turn of the event loop
@@ -258,6 +269,7 @@ private:
     void flush_file_open_messages();
     void schedule_load_report();
     int                                    m_tool_loads{0}; // a tool's own open or import is running
+    bool                                   m_generating_calibration{false};
     std::function<void(const LoadReport&)> m_load_report_listener;
 };
 

@@ -35,7 +35,14 @@ public:
     // shell owns the panel; Home only says what the person asked about.
     using OpenConversation = std::function<void(const std::string& printer_name, bool connect)>;
     void set_conversation_opener(OpenConversation open) { m_open_conversation = std::move(open); }
+    // How Home starts a calibration on a printer: the shell asks first, then
+    // hands it to the project chat.
+    using StartCalibration = std::function<void(const std::string& printer_name, const std::vector<std::string>& spools)>;
+    void set_calibration_starter(StartCalibration start) { m_start_calibration = std::move(start); }
     void set_autosave(Workspace::ProjectAutosave* autosave) { m_autosave = autosave; }
+    // Told before Home opens one of its projects, for the line a reopened
+    // calibration test starts with.
+    void set_project_opening(std::function<void()> opening) { m_project_opening = std::move(opening); }
 
     bool                      dark() const override;
     ProjectList               recent_projects() const override;
@@ -50,6 +57,7 @@ public:
 
     std::string open_printer_settings(const std::string& printer_id) override;
     std::string connect_printer(const std::string& printer_id) override;
+    std::string calibrate_printer(const std::string& printer_id) override;
     std::string rename_printer(const std::string& printer_id, const std::string& new_name) override;
     std::string remove_printer(const std::string& printer_id) override;
 
@@ -61,6 +69,8 @@ private:
     MainFrame&                                         m_frame;
     Workspace::ProjectAutosave*                       m_autosave{nullptr};
     OpenConversation                                   m_open_conversation;
+    StartCalibration                                   m_start_calibration;
+    std::function<void()>                              m_project_opening;
     std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
 };
 

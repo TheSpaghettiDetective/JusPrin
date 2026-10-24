@@ -532,8 +532,12 @@ bool ProjectAutosave::capture(bool wait_for_commit)
         if (m_seen_semantic_revision == semantic_revision)
             m_first_semantic_edit.reset();
         const std::string plater_name(m_plater.get_project_name().ToUTF8());
+        const std::string untitled(_L("Untitled").ToUTF8());
         frozen.version.project_name = m_project_name.empty() ? plater_name : m_project_name;
-        if ((plater_name.empty() || plater_name == _L("Untitled").ToUTF8().data()) &&
+        // A project with no name yet takes its first object's. One the store
+        // already named keeps it: a reopened project's Orca name reads
+        // Untitled, and its next version must not rename it.
+        if ((m_project_name.empty() || m_project_name == untitled) && (plater_name.empty() || plater_name == untitled) &&
             !m_plater.model().objects.empty())
             frozen.version.project_name = std::filesystem::u8path(m_plater.model().objects.front()->name).stem().u8string();
         m_project_name = frozen.version.project_name;

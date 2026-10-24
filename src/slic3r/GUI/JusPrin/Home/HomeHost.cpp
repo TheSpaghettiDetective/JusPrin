@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -116,6 +117,17 @@ void HomeHost::push_appearance(bool dark)
     send("appearance", json{{"appearance", dark ? "dark" : "light"}});
 }
 
+void HomeHost::ask_confirmation(const Confirmation& question)
+{
+    const json payload{{"requestId", question.request_id}, {"title", question.title}, {"body", question.body},
+                       {"confirm", question.confirm}, {"cancel", question.cancel}};
+    if (!m_connected) {
+        m_held_confirmation = payload.dump();
+        return;
+    }
+    send("confirm", payload);
+}
+
 void HomeHost::on_page_message(const std::string& text)
 {
     ++m_received;
@@ -147,6 +159,8 @@ void HomeHost::on_page_message(const std::string& text)
         m_connected = true;
         send("hello_ack", json{{"protocolVersion", kProtocolVersion}}, correlation);
         push_state();
+        if (!m_held_confirmation.empty())
+            send("confirm", json::parse(std::exchange(m_held_confirmation, {})));
         return;
     }
 
@@ -155,6 +169,10 @@ void HomeHost::on_page_message(const std::string& text)
 
     if (type == "state_request")
         push_state();
+    else if (type == "confirm_answer") {
+        if (m_confirmation_listener)
+            m_confirmation_listener(payload.value("requestId", std::string()), payload.value("confirmed", false));
+    }
     else if (type == "open_project")
         m_backend.open_project(payload.value("id", std::string()));
     else if (type == "new_project")
@@ -169,10 +187,12 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.add_printer();
         push_state();
     }
-    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer") {
+    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer" ||
+             type == "calibrate_printer") {
         const std::string id = payload.value("id", std::string());
         const std::string problem =
             type == "connect_printer"       ? m_backend.connect_printer(id)
+            : type == "calibrate_printer"   ? m_backend.calibrate_printer(id)
             : type == "open_printer_settings" ? m_backend.open_printer_settings(id)
             : type == "rename_printer"      ? m_backend.rename_printer(id, payload.value("name", std::string()))
                                             : m_backend.remove_printer(id);

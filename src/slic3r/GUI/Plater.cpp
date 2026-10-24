@@ -13794,6 +13794,11 @@ wxString Plater::get_project_name()
     return p->get_project_name();
 }
 
+void Plater::set_project_name(const wxString& project_name)
+{
+    p->set_project_name(project_name);
+}
+
 void Plater::update_all_plate_thumbnails(bool force_update)
 {
     for (int i = 0; i < get_partplate_list().get_plate_count(); i++) {

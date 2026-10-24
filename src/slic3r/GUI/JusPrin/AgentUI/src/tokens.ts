@@ -32,7 +32,7 @@ function lengths(section: Section): Record<string, number> {
 export function staticVariableNames(): string[] {
   return [...sharedStaticVariableNames(), '--thread-row-line-gap',
     '--timeline-summary-padding', '--timeline-summary-padding-x', '--timeline-summary-icon-gap', '--printer-setup-width',
-    '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim',
+    '--printer-dialog-width', '--printer-dialog-radius', '--printer-dialog-scrim', '--confirmation-dialog-width',
     '--reply-chip-height', '--reply-chip-padding-x', '--timeline-revert-width', '--status-dot-size', '--step-dot-size',
     '--chat-attachment-max-width', '--chat-attachment-thumbnail-size', '--chat-attachment-kind-size',
     '--field-height', '--field-padding-x', '--provider-row-field-height',
@@ -64,6 +64,8 @@ export function composerInputMaxHeight(): number {
 //                          remove dialogs use, so every printer-feature
 //                          dialog has one width, radius, and scrim (its
 //                          strength, a percentage for color-mix())
+//   --confirmation-dialog-width  the design system's Confirmation dialog at
+//                          its Standard layout, for a question the host asks
 //   --provider-row-field-height  the key field inside an Agent provider
 //                          row, tall enough to hold the Paste link
 //   --preferences-*        the Preferences window's list of sections, and
@@ -92,6 +94,7 @@ export function applyStaticTokens(): void {
       timelineSummary: { paddingX: number; paddingY: number; iconGap: number };
       printerSetup: { contentWidth: number };
       printerDialog: { width: number; radius: number; scrimAlpha: number };
+      confirmationDialog: { width: number };
       timelineRevert: { width: number };
       statusDot: { size: number };
       stepDots: { size: number };
@@ -117,6 +120,7 @@ export function applyStaticTokens(): void {
   document.documentElement.style.setProperty('--printer-setup-width', `${component.printerSetup.contentWidth}px`);
   document.documentElement.style.setProperty('--printer-dialog-width', `${component.printerDialog.width}px`);
   document.documentElement.style.setProperty('--printer-dialog-radius', `${component.printerDialog.radius}px`);
+  document.documentElement.style.setProperty('--confirmation-dialog-width', `${component.confirmationDialog.width}px`);
   // The native scrim takes an alpha out of 255; CSS mixes by a percentage.
   document.documentElement.style.setProperty(
     '--printer-dialog-scrim',

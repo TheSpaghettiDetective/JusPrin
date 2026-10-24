@@ -12,6 +12,8 @@
 //   --popover-<name>        vertical padding, row gap, radius
 // and its rename and remove dialogs, which are the add-printer dialog's kind:
 //   --printer-dialog-width, --printer-dialog-radius
+//   --confirmation-dialog-width  the design system's Confirmation dialog, for
+//                          a question the host asks over Home
 //   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
@@ -36,6 +38,7 @@ interface CardTokens {
     menuRow: Record<string, number>;
     popover: Record<string, number>;
     printerDialog: { width: number; radius: number; scrimAlpha: number };
+    confirmationDialog: Record<string, number>;
   };
 }
 
@@ -80,6 +83,7 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('menu-row', component.menuRow),
     ...pixelVariableNames('popover', component.popover),
     ...Object.keys(printerDialog()).map((name) => `--printer-dialog-${name}`),
+    ...pixelVariableNames('confirmation-dialog', component.confirmationDialog),
     ...elevationVariableNames(),
     GLYPH,
   ];
@@ -102,5 +106,6 @@ export function applyStaticTokens(): void {
   for (const [name, value] of Object.entries(printerDialog())) {
     document.documentElement.style.setProperty(`--printer-dialog-${name}`, value);
   }
+  applyPixelTokens('confirmation-dialog', component.confirmationDialog);
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
 }

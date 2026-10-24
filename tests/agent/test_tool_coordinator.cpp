@@ -1092,6 +1092,129 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     std::filesystem::remove_all(folder);
 }
 
+TEST_CASE("a calibration test is made in a calibration project, opening one from any other", "[tools][calibration]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto& registry   = ToolRegistry::instance();
+    const auto& definition = *registry.find("calibration_generate");
+    CHECK(definition.action_class == ActionClass::Mutation);
+    CHECK(definition.exposure == (ToolExposure::InApp | ToolExposure::Mcp));
+    // The host's side of a calibration project, recorded.
+    bool                              in_calibration_project = false;
+    std::vector<CalibrationHandover>  opened;
+    int                               continued = 0;
+    std::vector<std::pair<bool, bool>> finished; // made, by the in-app Agent
+    h.coordinator.set_calibration_project(
+        {[&] { return in_calibration_project; },
+         [&](const CalibrationHandover& handover, bool) { opened.push_back(handover); in_calibration_project = true; },
+         [&](const std::function<void()>& generate) { ++continued; generate(); },
+         [&](bool made, bool by_agent) { finished.emplace_back(made, by_agent); }});
+    const auto submit = [&h](const json& arguments, ToolSource source = ToolSource::Agent) {
+        return ToolActivity(h.coordinator.submit({"calibration_generate", arguments.dump()}, "m-1", ToolExecutionPacing{}, source));
+    };
+    const auto settle = [&h](const ToolActivity& activity) {
+        for (int tick = 0; tick < 10 && h.coordinator.find(activity.action_id) != nullptr; ++tick) h.coordinator.pump();
+        const auto last = std::find_if(h.events.rbegin(), h.events.rend(),
+                                       [&](const ToolActivity& event) { return event.action_id == activity.action_id; });
+        REQUIRE(last != h.events.rend());
+        return *last;
+    };
+
+    // Each test takes its own dialog's parameters and no other's; the
+    // calibration project is named by the app, not the call.
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"temperature","start":230})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"temperature","start":230,"end":200,"step":5})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"flow","start":0.9})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"flow","pass":3})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"pressure_advance","linear":true})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"pressure_advance","method":"spiral"})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"retraction"})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"flow","projectName":"PETG tower"})").valid());
+    CHECK_FALSE(registry.validate_call(definition, R"({"test":"flow","symptom":5})").valid());
+    CHECK(registry.validate_call(definition, R"({"test":"pressure_advance"})").valid());
+    CHECK(registry.validate_call(definition, R"({"test":"flow","pass":2,"linear":false,"symptom":"gaps on top"})").valid());
+
+    // A range Orca's dialog refuses closes nothing.
+    const std::uint64_t session = h.workspace.snapshot().session.value();
+    for (const json& refused : {json{{"test", "temperature"}, {"start", 200}, {"end", 230}},
+                                json{{"test", "temperature"}, {"start", 232}, {"end", 212}},
+                                json{{"test", "temperature"}, {"start", 600}, {"end", 230}},
+                                json{{"test", "pressure_advance"}, {"start", 0.1}, {"end", 0.05}},
+                                json{{"test", "pressure_advance"}, {"step", 0.0001}}}) {
+        const ToolActivity activity = submit(refused);
+        REQUIRE(activity.error.has_value());
+        CHECK(activity.error->code == "invalid_arguments");
+    }
+    CHECK(h.workspace.calibrations == 0);
+    CHECK(h.workspace.snapshot().session.value() == session);
+
+    // From the person's own project (the symptom path): it is released as an
+    // open releases it, the calibration project for its filament and printer
+    // opens with the symptom handed over, and the test is made in it. The
+    // call stays with the project it closed.
+    Workspace::WorkspaceSetup setup = h.workspace.snapshot().setup;
+    setup.filament_preset = "Fixture PLA";
+    setup.printer_preset  = "Fixture printer";
+    h.workspace.set_setup(setup);
+    const std::string started_from = h.workspace.snapshot().setup.project_name;
+    const ToolActivity tower = submit(json{{"test", "temperature"}, {"start", 250}, {"end", 230}, {"symptom", "hairs between the posts"}});
+    CHECK(tower.title == "Make a temperature tower, 250 °C to 230 °C");
+    const ToolActivity done = settle(tower);
+    REQUIRE(done.state == ToolState::Succeeded);
+    CHECK(h.workspace.opens == 1);
+    CHECK(h.workspace.last_open.new_project);
+    CHECK(h.workspace.last_open.name == "Calibration · Fixture PLA · Fixture printer");
+    REQUIRE(opened.size() == 1);
+    CHECK(opened[0].started_from == started_from);
+    CHECK(opened[0].filament == "Fixture PLA");
+    CHECK(opened[0].printer == "Fixture printer");
+    CHECK(opened[0].symptom == "hairs between the posts");
+    CHECK(continued == 1);
+    CHECK(done.session == session);
+    CHECK(store.flushes == 1);
+    const json result = json::parse(done.result_json);
+    CHECK(registry.validate_output(definition, result));
+    CHECK(result["projectName"] == "Calibration · Fixture PLA · Fixture printer");
+    CHECK(result["applied"] == json{{"start", 250.}, {"end", 230.}, {"step", 5.}});
+    CHECK(result["sessionId"] != std::to_string(session));
+    CHECK(result["objects"].size() == 1);
+    CHECK(result["summary"] == "The temperature tower is ready in this project, \"Calibration · Fixture PLA · Fixture printer\": "
+                               "blocks from 250 °C at the bottom to 230 °C at the top, 5 °C apart. Its changes to the "
+                               "presets are for this test only and are not saved.");
+    CHECK(finished == std::vector<std::pair<bool, bool>>{{true, true}});
+
+    // In a calibration project the test is made in it and the project goes
+    // on: nothing is opened, and the call takes the session it made, so its
+    // result belongs to the chat that asked.
+    const json pattern_done = json::parse(settle(submit(json{{"test", "pressure_advance"}, {"method", "pattern"},
+                                                             {"extruderType", "bowden"}})).result_json);
+    CHECK(pattern_done["applied"] == json{{"start", 0.}, {"end", 1.}, {"step", 0.05}, {"method", "pattern"}, {"extruderType", "bowden"}});
+    CHECK(h.workspace.last_calibration.method == Workspace::PressureAdvanceMethod::Pattern);
+    CHECK(h.workspace.opens == 1);
+    CHECK(opened.size() == 1);
+    CHECK(continued == 2);
+    const ToolActivity flow = settle(submit(json{{"test", "flow"}}));
+    CHECK(flow.session == h.workspace.snapshot().session.value());
+    const json flow_result = json::parse(flow.result_json);
+    CHECK(flow_result["applied"] == json{{"pass", 1}, {"linear", true}});
+    CHECK(flow_result["objects"].size() == 2);
+    CHECK(flow_result["projectName"] == "Calibration · Fixture PLA · Fixture printer");
+
+    // An external client's call is told apart, for the host not to speak.
+    const ToolActivity external = settle(submit(json{{"test", "flow"}}, ToolSource::Mcp));
+    CHECK(external.state == ToolState::Succeeded);
+    CHECK(finished.back() == std::pair<bool, bool>{true, false});
+
+    // A generator that makes nothing fails the call, and the host is told.
+    h.workspace.calibration_release_fails = true;
+    const ToolActivity failed = settle(submit(json{{"test", "flow"}}));
+    REQUIRE(failed.error.has_value());
+    CHECK(failed.error->code == "failed");
+    CHECK(finished.back() == std::pair<bool, bool>{false, true});
+}
+
 TEST_CASE("the project section reports the file's own words with their source", "[tools][project]")
 {
     Harness h;
@@ -2169,6 +2292,91 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "project_3mf"}, {"path", target}, {"plateId", "1"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(*registry.find("export_file"), json{{"sessionId", session}, {"kind", "gcode"}, {"path", target}, {"objectIds", {"1"}}}.dump()).valid());
     std::filesystem::remove_all(folder);
+}
+
+TEST_CASE("in the project chat a preset is saved by the person, from the card its preview proposes", "[tools][settings]")
+{
+    Harness h;
+    h.coordinator.set_saves_need_approval(true);
+    std::vector<std::string> saved;
+    h.coordinator.set_proposal_saved([&saved](const ToolActivity& apply) { saved.push_back(apply.action_id); });
+    const json patch{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                     {"persistAs", "Fixture PLA · MK4 calibrated"}};
+    const std::string preview_id = h.coordinator.submit({"settings_preview_patch", patch.dump()}, "m-1").action_id;
+    h.coordinator.pump();
+    const ToolActivity preview = *h.coordinator.find(preview_id);
+    REQUIRE(preview.state == ToolState::Succeeded);
+    REQUIRE_FALSE(preview.proposal_json.empty());
+    // Board 5b's slots, from the preview and the setting's own label and unit.
+    const json proposal = json::parse(preview.proposal_json);
+    CHECK(proposal["title"] == "Save 225 °C as a new filament preset");
+    CHECK(proposal["rows"] == json::array({json{{"icon", "save"}, {"text", "New preset · Fixture PLA · MK4 calibrated"}},
+                                           json{{"icon", "thermometer"}, {"text", "Nozzle temperature 210 → 225 °C"}},
+                                           json{{"icon", "info"}, {"text", "Fixture PLA itself is unchanged"}}}));
+    CHECK(proposal["save"] == "Save preset");
+    CHECK(proposal["other"] == "Pick another block");
+    CHECK(proposal["receipt"] == "Filament preset · nozzle temperature 225 °C");
+    // What Undo on its receipt takes back: a copy, made from Fixture PLA.
+    CHECK(proposal["undo"] == json{{"base", "Fixture PLA"}, {"label", "Fixture PLA"}, {"newCopy", true}, {"restore", {{"nozzle_temperature", "210"}}}});
+
+    // The Agent's own save is refused, and writes nothing.
+    const auto snapshot = h.workspace.snapshot();
+    json apply = patch;
+    apply["expectedSessionId"] = std::to_string(snapshot.session.value());
+    apply["expectedRevision"]  = snapshot.revision;
+    const ToolActivity refused = h.coordinator.submit({"settings_apply_patch", apply.dump()}, "m-1");
+    REQUIRE(refused.state == ToolState::Failed);
+    CHECK(refused.error->code == "refused");
+    CHECK(h.workspace.settings_for_testing().filaments.count("Fixture PLA · MK4 calibrated") == 0);
+
+    // Save preset applies exactly what the preview showed, as the person's.
+    CHECK(h.coordinator.approve_proposal(preview_id).empty());
+    const auto approved = std::find_if(h.coordinator.activities().begin(), h.coordinator.activities().end(),
+                                       [&preview_id](const ToolActivity& item) { return item.approves == preview_id; });
+    REQUIRE(approved != h.coordinator.activities().end());
+    const std::string apply_id = approved->action_id;
+    CHECK(approved->correlation_id == "m-1");
+    h.pump_to_completion(apply_id);
+    REQUIRE(h.coordinator.find(apply_id)->state == ToolState::Succeeded);
+    CHECK(saved == std::vector<std::string>{apply_id});
+    auto& fixture = h.workspace.settings_for_testing();
+    REQUIRE(fixture.filaments.count("Fixture PLA · MK4 calibrated") == 1);
+    CHECK(fixture.selected_filament == "Fixture PLA · MK4 calibrated");
+    CHECK(fixture.filaments.at("Fixture PLA").saved.at("nozzle_temperature") == "210");
+    CHECK(h.coordinator.approve_proposal(preview_id) == "This proposal is already saved.");
+    CHECK(h.coordinator.approve_proposal("nope") == "This proposal is no longer open. Ask the Agent again.");
+
+    // A preview that saves nothing proposes nothing.
+    json unsaved = patch;
+    unsaved.erase("persistAs");
+    const std::string plain = h.coordinator.submit({"settings_preview_patch", unsaved.dump()}, "m-2").action_id;
+    h.coordinator.pump();
+    CHECK(h.coordinator.find(plain)->proposal_json.empty());
+}
+
+TEST_CASE("a save the person approves goes stale with a settings change after its preview", "[tools][settings]")
+{
+    Harness h;
+    h.coordinator.set_saves_need_approval(true);
+    const json patch{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", {{"nozzle_temperature", "225"}}},
+                     {"persistAs", "Fixture PLA · MK4 calibrated"}};
+    const std::string preview_id = h.coordinator.submit({"settings_preview_patch", patch.dump()}, "m-1").action_id;
+    h.coordinator.pump();
+    REQUIRE_FALSE(h.coordinator.find(preview_id)->proposal_json.empty());
+    // The person edits a setting before pressing Save preset.
+    const auto snapshot = h.workspace.snapshot();
+    const json edit{{"scope", "process"}, {"changes", {{"wall_loops", 3}}}, {"expectedSessionId", std::to_string(snapshot.session.value())},
+                    {"expectedRevision", snapshot.revision}};
+    const std::string edited = h.coordinator.submit({"settings_apply_patch", edit.dump()}, "m-2", {}, ToolSource::Mcp).action_id;
+    h.pump_to_completion(edited);
+    REQUIRE(h.coordinator.find(edited)->state == ToolState::Succeeded);
+    CHECK(h.coordinator.approve_proposal(preview_id).empty());
+    const auto approved = std::find_if(h.coordinator.activities().begin(), h.coordinator.activities().end(),
+                                       [&preview_id](const ToolActivity& item) { return item.approves == preview_id; });
+    REQUIRE(approved != h.coordinator.activities().end());
+    CHECK(approved->state == ToolState::Failed);
+    CHECK(approved->error->code == "stale_workspace");
+    CHECK(h.workspace.settings_for_testing().filaments.count("Fixture PLA · MK4 calibrated") == 0);
 }
 
 TEST_CASE("a wrong plate id gets not_found from every tool that takes one", "[tools][errors]")

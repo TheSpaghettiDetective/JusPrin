@@ -35,6 +35,7 @@
 #include <wx/sizer.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -362,6 +363,16 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 });
                 return true;
             }
+            if (action == "confirm_answer") {
+                // After this handler returns, as for collapsing: the answer
+                // may switch tabs and start a turn.
+                m_frame->CallAfter([this, id = payload.value("requestId", std::string()),
+                                    confirmed = payload.value("confirmed", false)] {
+                    if (m_installed)
+                        answer_calibration(id, confirmed);
+                });
+                return true;
+            }
             if (action == "compute_setup_estimates") {
                 const auto& document = m_persistence->document();
                 const auto snapshot = m_workspace->snapshot();
@@ -426,6 +437,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         Slic3r::set_backup_suspended(true);
         m_status_row->set_autosave(m_autosave.get());
         plater->set_before_project_release([this] {
+            // A calibration generator's own new_project: the person's project
+            // is already saved, and the empty one it replaces is not theirs.
+            if (m_workspace && m_workspace->generating_calibration())
+                return true;
             if (!m_autosave || !m_autosave->save_now())
                 return false;
             m_autosave->ensure_current_preview();
@@ -579,6 +594,19 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this] { return m_persistence->document().allocate_action_id(); }});
         m_home->backend().set_conversation_opener(
             [this](const std::string& printer_name, bool connect) { open_printer_conversation(printer_name, connect); });
+        m_home->backend().set_project_opening([this] { m_agent_pane->web_view().host().set_project_opened_from("Home"); });
+        // The card names its printer and no filament; the assistant sets the
+        // printer up before making the test.
+        m_home->backend().set_calibration_starter(
+            [this](const std::string& printer_name, const std::vector<std::string>& spools) {
+                start_calibration(printer_name, {}, spools);
+            });
+        m_home->host().set_confirmation_listener([this](const std::string& id, bool confirmed) {
+            m_frame->CallAfter([this, id, confirmed] {
+                if (m_installed)
+                    answer_calibration(id, confirmed);
+            });
+        });
 
         main_sizer.Detach(&tabpanel);
         m_center_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -757,6 +785,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // off again: the Notebook outlives this controller.
         tabpanel.Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
+        show_orca_calibration_menu(false);
         m_installed = true;
         on_page_changed();
         apply_current_appearance();
@@ -815,6 +844,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         if (m_home != nullptr) {
             m_home->set_live(false);
             m_home->backend().set_autosave(nullptr);
+            m_home->backend().set_project_opening({});
         }
         m_plater->set_before_project_release({});
         m_plater->set_external_project_open_handler({});
@@ -1013,6 +1043,89 @@ ShellController::IssueSubmission ShellController::submit_issue(const std::string
     return result;
 }
 
+void ShellController::start_calibration(const std::string& printer, const std::string& filament,
+                                        const std::vector<std::string>& spools)
+{
+    Agent::AgentHost& host = m_agent_pane->web_view().host();
+    // A menu row has no sentence of the Agent's before it, so board 3's one
+    // popup says the two facts: the open project is saved and closed, and
+    // the test's settings are temporary. It names the filament and printer,
+    // never a test: the test is picked in the calibration project. The page
+    // the person is looking at asks: Home for its card, the project chat for
+    // the header's rows. Nothing changes until they choose Start. With no
+    // Agent set up (decision 18) the same dialog says the test needs one, and
+    // its primary action opens Preferences › Agent instead of Start.
+    const bool        needs_agent = host.availability() != Agent::AgentAvailability::Ready;
+    const bool        home    = m_tabpanel->GetSelection() == MainFrame::tpHome;
+    const std::string project = home ? std::string() : m_workspace->snapshot().setup.project_name;
+    const wxString    target  = filament.empty() ? from_u8(printer) :
+                                                   wxString::Format(_L("%1$s on %2$s"), from_u8(filament), from_u8(printer));
+    const wxString closes = project.empty() ? wxString() : wxString::Format(_L("%s will be saved and closed. "), from_u8(project));
+    const wxString opens  = filament.empty() ?
+        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the spool and the test with you there."), target) :
+        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the test with you there."), target);
+    const wxString unset = needs_agent ? " " + _L("The agent isn't set up yet; the test needs it to choose the range and read the result.")
+                                       : wxString();
+    const std::string body = into_u8(closes + opens + " " + _L("Settings the test changes are temporary and are not saved to your filament.") +
+                                     unset);
+    const std::string id = "calibrate-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    m_pending_calibration = PendingCalibration{id, printer, filament, home ? std::string("Home") : project, spools, needs_agent};
+    const std::string title   = into_u8(wxString::Format(_L("Calibrate %s?"), target));
+    const std::string confirm = into_u8(needs_agent ? _L("Set up the agent…") : _L("Start"));
+    const std::string cancel  = into_u8(_L("Cancel"));
+    if (home) {
+        m_home->host().ask_confirmation({id, title, body, confirm, cancel});
+        return;
+    }
+    // The project chat, not the printer's: the test needs the project's tools.
+    restore_task_panel();
+    m_agent_pane_user_collapsed = false;
+    set_agent_pane_collapsed(false);
+    host.ask_confirmation({id, title, body, confirm, cancel});
+}
+
+void ShellController::answer_calibration(const std::string& request_id, bool confirmed)
+{
+    // An answer to a question a newer one replaced asks for nothing.
+    if (!m_pending_calibration || m_pending_calibration->request_id != request_id)
+        return;
+    const PendingCalibration pending = std::move(*m_pending_calibration);
+    m_pending_calibration.reset();
+    if (!confirmed)
+        return;
+    // Preferences › Agent over the screen the row was pressed on. Closed with
+    // an agent, the same question comes back with Start; closed without one,
+    // the screen is as it was. Nothing is saved, closed or started meanwhile.
+    if (pending.needs_agent) {
+        open_preferences("agent");
+        if (m_agent_pane->web_view().host().availability() == Agent::AgentAvailability::Ready)
+            start_calibration(pending.printer, pending.filament, pending.spools);
+        return;
+    }
+    restore_task_panel();
+    if (m_tabpanel->GetSelection() == MainFrame::tpHome)
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    m_agent_pane_user_collapsed = false;
+    set_agent_pane_collapsed(false);
+    // The app, not the Agent, opens the calibration project: the open one is
+    // saved to its version history and released through the project_open
+    // path, and the new one is named for what it calibrates.
+    Workspace::ProjectOpenRequest open;
+    open.new_project = true;
+    open.name        = Agent::calibration_project_name(pending.filament, pending.printer);
+    Workspace::LoadReport report;
+    if (!m_workspace->open_project(open, report).succeeded()) {
+        show_error(m_frame, _L("The calibration project could not be opened, so your project stays open."));
+        return;
+    }
+    // A Home card's printer is the one the test prints on; there is no open
+    // project to have it already.
+    if (pending.filament.empty() && !SetupCommands::select_named_printer(*m_plater, pending.printer))
+        show_error(m_frame, wxString::Format(_L("The printer \"%s\" could not be selected."), from_u8(pending.printer)));
+    m_agent_pane->web_view().host().open_calibration_chat(
+        {pending.project, pending.filament, pending.printer, {}, pending.spools}, /*start=*/true);
+}
+
 void ShellController::reload_agent_config()
 {
     Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
@@ -1083,6 +1196,28 @@ void ShellController::on_frame_char_hook(wxKeyEvent& event)
     event.Skip();
 }
 
+// OrcaSlicer's own Calibration menu stays out of sight while the shell is
+// installed: a calibration starts from the printer and filament menus or the
+// chat, which make the test through the assistant. Uninstall puts it back.
+// The title bar's button on Windows and Linux; a menu bar menu on macOS.
+void ShellController::show_orca_calibration_menu(bool show)
+{
+#ifdef __APPLE__
+    wxMenuBar* bar = m_frame->GetMenuBar();
+    if (!show && m_orca_calibration_menu == nullptr) {
+        m_orca_calibration_menu_at = bar->FindMenu(_L("Calibration"));
+        if (m_orca_calibration_menu_at == wxNOT_FOUND)
+            throw std::runtime_error("OrcaSlicer's Calibration menu is not on the menu bar");
+        m_orca_calibration_menu = bar->Remove(m_orca_calibration_menu_at);
+    } else if (show && m_orca_calibration_menu != nullptr) {
+        bar->Insert(m_orca_calibration_menu_at, m_orca_calibration_menu, wxString::Format("&%s", _L("Calibration")));
+        m_orca_calibration_menu = nullptr;
+    }
+#else
+    m_frame->topbar()->ShowCalibrationButton(show);
+#endif
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
@@ -1101,6 +1236,7 @@ void ShellController::uninstall()
     m_plater->set_sidebar_available(true);
     m_plater->set_auto_preview_after_slice(m_saved_auto_preview_after_slice);
     wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
+    show_orca_calibration_menu(true);
     // A printer connection may have installed a provider the slicing profile
     // does not select; hand the choice back to Orca's profile-driven policy.
     wxGetApp().switch_printer_agent();

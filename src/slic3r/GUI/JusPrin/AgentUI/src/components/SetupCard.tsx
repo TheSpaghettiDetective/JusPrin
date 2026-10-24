@@ -5,6 +5,7 @@
 
 import { ReactNode, useState } from 'react';
 import { ChangeInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
+import { testStepsLost } from '../calibration';
 
 export interface SetupCardProps {
   context: WorkspaceContext | null;
@@ -92,12 +93,14 @@ export function estimateView(context: WorkspaceContext): EstimateView {
 export interface Finding { title: string; detail?: string; facts?: string[]; }
 
 export function deterministicAttention(context: WorkspaceContext): Finding[] {
+  const lost = testStepsLost(context);
+  const steps: Finding[] = lost ? [{ title: lost }] : [];
   const review = context.printerReview;
-  if (!review) return [];
+  if (!review) return steps;
   const priority: Record<string, number> = { filament: 0, nozzle: 1, model: 2, plate: 3 };
   const noun: Record<string, string> = { filament: 'material', nozzle: 'nozzle', model: 'printer', plate: 'build plate' };
   const when = formatMoment(review.observed?.observedAt);
-  return [...review.mismatches].sort((a, b) => (priority[a.what] ?? 4) - (priority[b.what] ?? 4)).flatMap((mismatch) => {
+  return [...steps, ...[...review.mismatches].sort((a, b) => (priority[a.what] ?? 4) - (priority[b.what] ?? 4)).flatMap((mismatch) => {
     const thing = noun[mismatch.what] ?? 'printer setup';
     if (mismatch.source === 'device') {
       if (!when) return [];
@@ -109,7 +112,7 @@ export function deterministicAttention(context: WorkspaceContext): Finding[] {
     return [{ title: `Confirmed ${thing} differs`,
       detail: `Setup uses ${mismatch.configured}. You confirmed ${mismatch.observed}.`,
       facts: [`Setup: ${mismatch.configured}`, `You confirmed: ${mismatch.observed}`] }];
-  });
+  })];
 }
 
 export function recentAgentChange(changes: ChangeInfo[] | undefined, now: number): ChangeInfo[] {
@@ -232,7 +235,7 @@ export function setupPresentation(context: WorkspaceContext, options: SetupPrese
     : working ? 'Agent working' : justChanged.length > 0 ? 'Updated'
     : estimate.status === 'recomputing' ? 'Confirmed'
     : editedByYou ? `Edited by ${noAgent ? editor(edited.reduce((a, b) => (b.seq > a.seq ? b : a))) : 'you'}`
-    : outOfDate ? 'Out of date' : estimate.status === 'none' && !estimate.sliced ? 'Not sliced' : 'Current';
+    : outOfDate || testStepsLost(context) ? 'Out of date' : estimate.status === 'none' && !estimate.sliced ? 'Not sliced' : 'Current';
   return { label, state, title, estimate, justChanged, edited, editedByYou, editedNote, outOfDate,
     live: !historical && !outOfDate, fallback: false, noAgent: false };
 }

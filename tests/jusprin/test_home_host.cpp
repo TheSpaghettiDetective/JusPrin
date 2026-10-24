@@ -47,6 +47,7 @@ public:
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         connections_opened;
+    std::vector<std::string>                         calibrations;
     std::vector<std::pair<std::string, std::string>> renamed;
     std::vector<std::string>                         removed;
     std::string                                      refusal; // what every printer action answers
@@ -64,6 +65,11 @@ public:
     std::string connect_printer(const std::string& id) override
     {
         connections_opened.push_back(id);
+        return refusal;
+    }
+    std::string calibrate_printer(const std::string& id) override
+    {
+        calibrations.push_back(id);
         return refusal;
     }
     std::string remove_printer(const std::string& id) override
@@ -355,6 +361,29 @@ TEST_CASE("appearance follows the host, and only while connected", "[home]")
     CHECK(wire.of_type("appearance").front().at("payload").at("appearance") == "dark");
 }
 
+// A Calibrate… row's question (board 3), asked on Home: held until the page
+// is there, then answered once with its request id.
+TEST_CASE("a question asked on Home reaches the page and its answer comes back", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    std::vector<std::pair<std::string, bool>> answers;
+    host.set_confirmation_listener([&](const std::string& id, bool confirmed) { answers.emplace_back(id, confirmed); });
+
+    host.ask_confirmation({"calibrate-1", "Start a calibration test?", "Backpack hook will be saved and closed.", "Start test",
+                           "Cancel"});
+    CHECK(wire.of_type("confirm").empty());
+    host.on_page_message(hello());
+    REQUIRE(wire.of_type("confirm").size() == 1);
+    CHECK(wire.of_type("confirm").front().at("payload") ==
+          json{{"requestId", "calibrate-1"}, {"title", "Start a calibration test?"},
+               {"body", "Backpack hook will be saved and closed."}, {"confirm", "Start test"}, {"cancel", "Cancel"}});
+
+    host.on_page_message(page_message("confirm_answer", json{{"requestId", "calibrate-1"}, {"confirmed", true}}));
+    CHECK(answers == std::vector<std::pair<std::string, bool>>{{"calibrate-1", true}});
+}
+
 TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]")
 {
     FakeBackend backend;
@@ -365,17 +394,19 @@ TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]
 
     host.on_page_message(page_message("open_printer_settings", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("connect_printer", json{{"id", "named:Garage X1C"}}));
+    host.on_page_message(page_message("calibrate_printer", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Shed X1C"}}));
     host.on_page_message(page_message("remove_printer", json{{"id", "named:Shed X1C"}}));
 
     CHECK(backend.settings_opened == std::vector<std::string>{"named:Garage X1C"});
     CHECK(backend.connections_opened == std::vector<std::string>{"named:Garage X1C"});
+    CHECK(backend.calibrations == std::vector<std::string>{"named:Garage X1C"});
     CHECK(backend.wizards == 0);
     REQUIRE(backend.renamed.size() == 1);
     CHECK(backend.renamed.front() == std::make_pair(std::string("named:Garage X1C"), std::string("Shed X1C")));
     CHECK(backend.removed == std::vector<std::string>{"named:Shed X1C"});
     CHECK(wire.of_type("printer_error").empty());
-    CHECK(wire.of_type("state").size() == states_after_hello + 4);
+    CHECK(wire.of_type("state").size() == states_after_hello + 5);
 }
 
 // A refusal is the person's to read, and the rail is sent again either way so

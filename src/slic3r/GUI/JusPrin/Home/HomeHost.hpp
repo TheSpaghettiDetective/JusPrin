@@ -48,6 +48,17 @@ public:
     bool refresh_if_changed();
     void push_appearance(bool dark);
 
+    // Asks the page a question it draws as the design system's Confirmation
+    // dialog; held until the page is connected. The page's confirm_answer
+    // reaches the listener with the same request id.
+    struct Confirmation
+    {
+        std::string request_id, title, body, confirm, cancel;
+    };
+    using ConfirmationListener = std::function<void(const std::string& request_id, bool confirmed)>;
+    void ask_confirmation(const Confirmation& question);
+    void set_confirmation_listener(ConfirmationListener listener) { m_confirmation_listener = std::move(listener); }
+
     bool               connected() const { return m_connected; }
     unsigned long long messages_sent() const { return m_sent; }
     unsigned long long messages_received() const { return m_received; }
@@ -70,6 +81,8 @@ private:
     // compares against.
     std::string        m_added;
     std::string        m_sent_printers;
+    std::string        m_held_confirmation; // a confirm payload asked before the handshake
+    ConfirmationListener m_confirmation_listener;
     // Why the last state sent had no projects, when they could not be read.
     std::string        m_sent_projects_problem;
 };

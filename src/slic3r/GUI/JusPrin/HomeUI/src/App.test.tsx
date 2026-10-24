@@ -227,12 +227,42 @@ describe('Home', () => {
       expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
         'Connect…',
       'Printer settings…',
+      'Calibrate…',
       'Rename',
       'Remove printer…',
     ]);
     await userEvent.click(within(menu).getByText('Printer settings…'));
     expect(host.lastOfType('open_printer_settings')!.payload).toEqual({ id: 'mk4' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('starts a calibration on a named printer from its card header', async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Calibrate…' }));
+    expect(host.lastOfType('calibrate_printer')!.payload).toEqual({ id: 'mk4' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  // The question the host then asks on Home (board 3): the Confirmation
+  // dialog, answered once with its request id.
+  it("asks the host's question over Home and sends the answer back", async () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    host.deliver('confirm', {
+      requestId: 'calibrate-2',
+      title: 'Start a calibration test?',
+      body: 'Backpack hook will be saved and closed. A new project opens with the test on Prusa MK4.',
+      confirm: 'Start test',
+      cancel: 'Cancel',
+    });
+    const dialog = screen.getByRole('dialog', { name: 'Start a calibration test?' });
+    expect(dialog).toHaveTextContent('with the test on Prusa MK4');
+    expect(within(dialog).getAllByRole('button').map((button) => button.textContent)).toEqual(['Cancel', 'Start test']);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('confirm_answer')!.payload).toEqual({ requestId: 'calibrate-2', confirmed: false });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('connects an existing saved printer without asking to add it again', async () => {

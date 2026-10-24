@@ -5,6 +5,7 @@
 import type { ConnectionState } from '../bridge/client';
 import type {
   Appearance,
+  ConfirmPayload,
   Envelope,
   PrinterErrorPayload,
   PrinterInfo,
@@ -30,6 +31,8 @@ export interface HomeState {
   // A printer the conversation just added, which the host leads the column
   // with for this one push; its card draws attention to itself once.
   highlightPrinter?: string;
+  // The host's open question, until the person answers it.
+  confirmation?: ConfirmPayload;
 }
 
 export const initialState: HomeState = {
@@ -43,7 +46,8 @@ export const initialState: HomeState = {
 export type HomeAction =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
   | { kind: 'envelope'; envelope: Envelope }
-  | { kind: 'printer_action' };
+  | { kind: 'printer_action' }
+  | { kind: 'confirmation_answered' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -51,6 +55,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   }
   if (action.kind === 'printer_action') {
     return { ...state, printerError: undefined };
+  }
+  if (action.kind === 'confirmation_answered') {
+    return { ...state, confirmation: undefined };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -75,6 +82,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       return { ...state, appearance: (payload as { appearance: Appearance }).appearance };
     case 'printer_error':
       return { ...state, printerError: payload as PrinterErrorPayload };
+    case 'confirm':
+      return { ...state, confirmation: payload as ConfirmPayload };
     case 'bridge_error':
       return { ...state, error: (payload as { message?: string }).message };
     default:

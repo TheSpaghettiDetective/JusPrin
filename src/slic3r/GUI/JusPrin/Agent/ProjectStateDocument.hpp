@@ -245,6 +245,14 @@ public:
     // kept for the life of the chat: it is the record of a delegation, not a
     // description of the current config. Empty until the first change.
     std::string setup_intent(const std::string& conversation_id) const;
+    // What makes this a calibration project (handoff 5.1): {startedFrom,
+    // filament, printer, symptom, handover (the note that opened its chat)},
+    // and once the test is made {test, method, start, end, step, generatedAt}
+    // and the result saved from it {result, savedAs}. Kept with the project
+    // because OrcaSlicer keeps the test's steps only in memory, so a reopened
+    // test can say they are gone (board 7).
+    std::optional<nlohmann::json> calibration() const;
+    void                          set_calibration(nlohmann::json calibration);
     bool        set_setup_intent(const std::string& conversation_id, const std::string& intent);
     // The chat's own model choice, kept with the chat so reopening the
     // project resumes it. Absent until the person picks one.
@@ -352,6 +360,9 @@ public:
     // Appends with the next seq, placed in the active conversation after its
     // most recent item. Returns the entry as stored.
     ChangeEntry              add_change(ChangeEntry entry, const std::string& timestamp);
+    // While set, a change follows this item rather than the conversation's
+    // latest: the receipt whose Undo made it. Empty clears it.
+    void                     set_change_anchor(std::string item_id) { m_change_anchor = std::move(item_id); }
     std::vector<ChangeEntry> changes() const;
 
     // Work the application ran outside the chat. `begin_work` assigns the id,
@@ -380,6 +391,7 @@ private:
     void                  touch();
 
     nlohmann::json m_doc;
+    std::string    m_change_anchor;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent
