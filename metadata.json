@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5RQZA2AYNNRD3WRGBGNA6W3",
+  "strategy": "manual-commit",
+  "branch": "claude/modest-williams-e57a48",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/baseline.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 192,
+    "cache_creation_tokens": 105739,
+    "cache_read_tokens": 37422111,
+    "output_tokens": 42245,
+    "api_call_count": 92
+  }
+}
