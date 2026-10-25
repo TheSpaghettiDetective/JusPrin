@@ -3,7 +3,7 @@
   "checkpoint_id": "01M5RQYYZJRSD4T7FF99Y97PSN",
   "session_id": "db0d9105-2185-4020-918f-5caf79c71adb",
   "strategy": "manual-commit",
-  "created_at": "2026-10-25T05:19:05.812373Z",
+  "created_at": "2026-10-25T05:57:15.508598Z",
   "branch": "claude/jusprin-cloud-provider",
   "checkpoints_count": 2,
   "save_step_count": 3,
@@ -48,36 +48,29 @@
   "agent": "Claude Code",
   "model": "claude-opus-5-5",
   "turn_id": "fc2cccfb225f",
-  "checkpoint_transcript_start": 3314,
-  "transcript_lines_at_start": 3314,
-  "compact_transcript_start": 319,
+  "checkpoint_transcript_start": 3998,
+  "transcript_lines_at_start": 3998,
+  "compact_transcript_start": 398,
   "token_usage": {
-    "input_tokens": 122,
-    "cache_creation_tokens": 79682,
-    "cache_read_tokens": 42917314,
-    "output_tokens": 45948,
-    "api_call_count": 61,
-    "subagent_tokens": {
-      "input_tokens": 124,
-      "cache_creation_tokens": 200706,
-      "cache_read_tokens": 5750120,
-      "output_tokens": 29846,
-      "api_call_count": 62
-    }
+    "input_tokens": 76,
+    "cache_creation_tokens": 61250,
+    "cache_read_tokens": 29436211,
+    "output_tokens": 39679,
+    "api_call_count": 38
   },
   "session_metrics": {
     "turn_count": 3
   },
   "initial_attribution": {
-    "calculated_at": "2026-10-25T05:19:05.488679Z",
+    "calculated_at": "2026-10-25T05:57:15.175356Z",
     "agent_lines": 762,
     "agent_removed": 83,
-    "human_added": 4484,
+    "human_added": 4532,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 5246,
-    "total_lines_changed": 5329,
-    "agent_percentage": 15.856633514730719,
+    "total_committed": 5294,
+    "total_lines_changed": 5377,
+    "agent_percentage": 15.715082759903293,
     "metric_version": 2
   },
   "prompt_attributions": [
