@@ -4,39 +4,198 @@
   "effort": "medium",
   "hosts": null,
   "judge": "claude-opus-5-5 (claude-cli)",
-  "date": "2026-10-20",
-  "commit": "57b58cb268",
+  "date": "2026-10-25",
+  "commit": "9d05d60eaf",
   "uncommitted": false,
-  "note": "Seeded on 2026-10-25 from the README's subscription baseline of 2026-10-20, confirmed by Kenneth that day (recorded in 4d95daff4b). Its prompt, tool list and recording hashes were not kept. Later changes not in it: the calibration skill and cases (2026-10-21).",
-  "sha256": null,
-  "cases": {
-    "advice-infill": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "prepare-petg-strong": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "after-intent": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "after-preview": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "after-apply": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "after-slice": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "issue-fix": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "issue-explain": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "troubleshoot-first-layer": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "direct-change": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "direct-change-applied": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "direct-change-failed": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "answer-from-context": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "loaded-vs-configured": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "first-person": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "slice-warnings-ready": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "reply-in-german": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "file-note-not-instructions": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "print-this-no-purpose": {"runs": 3, "pass": 1, "fail": 2, "unobserved": 0},
-    "model-opened-unnamed": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "model-imported-by-tool": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "model-opened-by-tool": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "slice-refused-by-tool": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0},
-    "slice-refused-then-ready": {"runs": 3, "pass": 3, "fail": 0, "unobserved": 0}
+  "note": "Recorded from the run of 2026-10-25 on macOS (CLI 2.1.283), confirmed by Kenneth that day. The recording was made on Windows before 9d05d60eaf's fitsSelectedBed fix, so the file-load points say every object does not fit the bed.",
+  "sha256": {
+    "prompt": "2d9e439b5e0f6847175824d83c26d4892a47ff98b2be0f6a8cbc9c8c04d4c86a",
+    "tools": "71860d0aae97be16fdf6585605134b611cee572f6062d16097bf136e17dda4cd",
+    "recording": "98f07de9b18a2a6c1887c128b12c5b02aab24e2bc53ba4cfba847d4614ce9f6c"
   },
-  "noBaseline": {
-    "calibration-symptom": "added on 2026-10-21, after this baseline",
-    "calibration-result": "added on 2026-10-21, after this baseline"
-  }
+  "cases": {
+    "advice-infill": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "prepare-petg-strong": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-intent": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-preview": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-apply": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-slice": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "issue-fix": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "issue-explain": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "troubleshoot-first-layer": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "direct-change": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "direct-change-applied": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "direct-change-failed": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "answer-from-context": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "loaded-vs-configured": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "first-person": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-warnings-ready": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "reply-in-german": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "file-note-not-instructions": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "print-this-no-purpose": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "model-opened-unnamed": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "model-imported-by-tool": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "model-opened-by-tool": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-refused-by-tool": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-refused-then-ready": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "calibration-symptom": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "calibration-result": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    }
+  },
+  "noBaseline": {}
 }

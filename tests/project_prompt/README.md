@@ -694,29 +694,35 @@ followed by "ok, print it", was removed. It expected the model to know an
 OrcaSlicer slice-time rule that the setup preview does not report, and it
 failed the slice the prompt asks for before a print is called ready.
 
-## Current subscription baseline: claude-cli backend and judge (2026-10-20, `setup_record`)
+## Current subscription baseline: without setup_record's fields (2026-10-25)
 
-Confirmed as the subscription baseline by Kenneth on 2026-10-20; compare later
-claude-cli runs with these counts, never with the DeepSeek tables below.
-`jusprin-newui` at 57b58cb268: each chat's own intent and plan, the setup
-card's plan headline (334287e2d8), and `intent_update` and `plan_set` merged
-into `setup_record` with a required `purpose`, a flat plan and `unverified`
-(57b58cb268), with the recording made at that commit. All 24 cases, three
-runs each, `claude-opus-5-5` at effort `medium` for both model and judge,
-`--jobs 3`. 09:25 to 09:30 PDT, about 5 minutes; 103 model requests,
-1.89M input tokens (1.62M cached) and 35k output, plus 42 judge requests,
-177k input and 11k output, all on the subscription.
+Confirmed as the subscription baseline by Kenneth on 2026-10-25; its counts
+are `baseline-claude-cli.json`, recorded from the run with `--compare
+--record-baseline`. Compare later claude-cli runs with it, never with
+`baseline.json`. `jusprin-newui` at 9d05d60eaf: `setup_record` without its
+requirement fields and the stored baseline, with the recording made on
+Windows before that commit's `fitsSelectedBed` fix (see the recording
+notes). All 26 cases, three runs each, `claude-opus-5-5` at effort `medium`
+for both model and judge, `--jobs 3`, CLI 2.1.283 on macOS. 09:47 to 09:52
+PDT, about 5 minutes; 113 model requests, 2.24M input tokens (2.00M cached)
+and 36k output, plus 45 judge requests, 187k input and 12k output, all on the
+subscription.
 
-Its counts, 70 passed, 2 failed and none unobserved of 72 runs, are in
-`baseline-claude-cli.json`, seeded from this section's table on 2026-10-25
-(the table is in git history).
+All 78 runs passed; none was unobserved. Against the 2026-10-20 baseline
+only `print-this-no-purpose` moved, 1 of 3 to 3 of 3: each reply described
+the cube and the slice and asked one question, what the cube is for, ending
+on a Choices line answering it. The earlier failures also asked the person to
+confirm the plate on the printer. The case's recorded point is the same at
+both commits apart from IDs and the removed `intent` section; the prompt in
+between gained the Choices rule (f323db81c7), which may be what keeps the
+reply to one question (not tested). The two calibration cases, new to this
+baseline, passed 3 of 3.
 
-Every case was observed. The two failures are the known open one: each
-`print-this-no-purpose` reply asked what the cube is for and also asked the
-person to confirm the plate (once also the filament) on the printer, where
-the case allows exactly one question. Neither recorded a purpose. The
-previous subscription baseline, the same day before these commits, failed the
-case 3 of 3 the same way.
+One `model-opened-unnamed` reply passed while saying "The load report said it
+doesn't fit the bed, but I checked it myself and it's fully inside": the
+recording's wrong `fitsSelectedBed`, corrected by the model's own
+`object_analyze`. No run tripped on OrcaSlicer's messages being in their
+source English.
 
 ## Current baseline: without setup_record's fields (2026-10-25)
 
@@ -764,6 +770,30 @@ Neither touches the purpose or the removed fields. Read beside them:
 
 Earlier baselines, kept for audit only. Do not compare a new run against
 them.
+
+### The `setup_record` subscription baseline: claude-cli backend and judge (2026-10-20)
+
+Confirmed as the subscription baseline by Kenneth on 2026-10-20.
+`jusprin-newui` at 57b58cb268: each chat's own intent and plan, the setup
+card's plan headline (334287e2d8), and `intent_update` and `plan_set` merged
+into `setup_record` with a required `purpose`, a flat plan and `unverified`
+(57b58cb268), with the recording made at that commit. All 24 cases, three
+runs each, `claude-opus-5-5` at effort `medium` for both model and judge,
+`--jobs 3`. 09:25 to 09:30 PDT, about 5 minutes; 103 model requests,
+1.89M input tokens (1.62M cached) and 35k output, plus 42 judge requests,
+177k input and 11k output, all on the subscription.
+
+Its counts, 70 passed, 2 failed and none unobserved of 72 runs, were
+`baseline-claude-cli.json`'s, seeded from this section's table on
+2026-10-25, until the run above replaced them the same day (both are in git
+history).
+
+Every case was observed. The two failures are the known open one: each
+`print-this-no-purpose` reply asked what the cube is for and also asked the
+person to confirm the plate (once also the filament) on the printer, where
+the case allows exactly one question. Neither recorded a purpose. The
+previous subscription baseline, the same day before these commits, failed the
+case 3 of 3 the same way.
 
 ### The skills integration (2026-10-19)
 
