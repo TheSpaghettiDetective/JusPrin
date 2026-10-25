@@ -20,6 +20,13 @@ $OutDir = (Resolve-Path $OutDir).Path
 $installer = "JusPrin_Windows_Installer_V${Version}_${Arch}.exe"
 $portable = "JusPrin_Windows_V${Version}_${Arch}_portable.zip"
 
+# File Explorer's Properties > Details shows the exe's version resource
+# (OrcaSlicer.rc.in, filled from identity.cmake).
+$info = (Get-Item (Join-Path $BuildDir 'OrcaSlicer\orca-slicer.exe')).VersionInfo
+if ($info.ProductName -ne 'JusPrin' -or $info.CompanyName -ne 'Obico' -or $info.ProductVersion -ne $Version) {
+    throw "orca-slicer.exe says '$($info.ProductName)' by '$($info.CompanyName)', version '$($info.ProductVersion)'; expected JusPrin by Obico, $Version."
+}
+
 if (-not $SkipInstaller) {
     Push-Location $BuildDir
     try {

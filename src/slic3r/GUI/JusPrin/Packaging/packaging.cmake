@@ -10,22 +10,17 @@
 # The macOS app and the Linux AppImage get the same identity in the release
 # workflow (.github/workflows/jusprin_release.yml), which renames and edits
 # them after the build.
+#
+# The version and publisher come from identity.cmake, which the Windows
+# version resource of orca-slicer.exe reads too.
 
-# JusPrin's version lives in one place, Version.hpp; the release workflow
-# reads it from there too.
-set(_jusprin_version_header "${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/Version.hpp")
-file(STRINGS "${_jusprin_version_header}" _jusprin_version_line REGEX "kVersion\\[\\] = \"")
-if (NOT _jusprin_version_line MATCHES "\"(([0-9]+)\\.([0-9]+)\\.([0-9]+)[^\"]*)\"")
-    message(FATAL_ERROR "No kVersion = \"X.Y.Z\" line in ${_jusprin_version_header}")
-endif ()
-set(JUSPRIN_VERSION "${CMAKE_MATCH_1}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${CMAKE_MATCH_2}")
-set(CPACK_PACKAGE_VERSION_MINOR "${CMAKE_MATCH_3}")
-set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_MATCH_4}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${JUSPRIN_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${JUSPRIN_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${JUSPRIN_VERSION_PATCH}")
 set(CPACK_PACKAGE_VERSION "${JUSPRIN_VERSION}")
 
 set(CPACK_PACKAGE_NAME "JusPrin")
-set(CPACK_PACKAGE_VENDOR "Obico")
+set(CPACK_PACKAGE_VENDOR "${JUSPRIN_VENDOR}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "JusPrin, the AI-piloted 3D printing slicer built on OrcaSlicer")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/TheSpaghettiDetective/JusPrin")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "JusPrin")

@@ -67,6 +67,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_VERSION VERSION_LESS "3.25")
 endif ()
 
 include("version.inc")
+include(src/slic3r/GUI/JusPrin/Packaging/identity.cmake) # JusPrin: its publisher and version, for the exe's version resource and the package
 include(GNUInstallDirs)
 include(CMakeDependentOption)
 

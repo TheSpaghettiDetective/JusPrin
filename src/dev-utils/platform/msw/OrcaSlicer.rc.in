@@ -1,16 +1,19 @@
+// JusPrin: its version and publisher come from Packaging/identity.cmake. FILEVERSION takes
+// comma-separated numbers: rc reads the dotted SLIC3R_VERSION as its first number only. The
+// FileVersion string must not be empty: .NET's FileVersionInfo then reports no strings at all.
 1 VERSIONINFO
-FILEVERSION @SLIC3R_VERSION@
-PRODUCTVERSION @SLIC3R_VERSION@
+FILEVERSION @JUSPRIN_VERSION_MAJOR@,@JUSPRIN_VERSION_MINOR@,@JUSPRIN_VERSION_PATCH@,0
+PRODUCTVERSION @JUSPRIN_VERSION_MAJOR@,@JUSPRIN_VERSION_MINOR@,@JUSPRIN_VERSION_PATCH@,0
 {
  BLOCK "StringFileInfo"
  {
   BLOCK "040904E4"
   {
-   VALUE "CompanyName", "JusPrin"
+   VALUE "CompanyName", "@JUSPRIN_VENDOR@"
    VALUE "FileDescription", "@SLIC3R_APP_NAME@"
-   VALUE "FileVersion", "@SLIC3R_BUILD_ID@"
+   VALUE "FileVersion", "@JUSPRIN_VERSION@"
    VALUE "ProductName", "@SLIC3R_APP_NAME@"
-   VALUE "ProductVersion", "@SLIC3R_BUILD_ID@"
+   VALUE "ProductVersion", "@JUSPRIN_VERSION@"
    VALUE "InternalName", "@SLIC3R_APP_NAME@"
    VALUE "LegalCopyright", ""
    VALUE "OriginalFilename", "orca-slicer.exe"
