@@ -1,0 +1,74 @@
+check the recenbt commits, and tell me if you understand what this task is about:
+
+<pasted_content id="a7db">
+Repository C:\src\JusPrin, branch jusprin-newui (311eab90ab or later). Read AGENTS.md first. Write to Kenneth in plain English: ordinary sentences, lead with the answer, keep code names and counts to the few that carry the point.
+
+Goal: make the project prompt tests' subscription backend (tests/project_prompt/run_prompt_tests.py --backend claude-cli, and --judge claude-cli) work on this Windows Server box, then, only with Kenneth's go-ahead, run the suite on it and compare with the subscription baseline. Read "Running on the Claude subscription" and "Judging a prompt or skill change" in tests/project_prompt/README.md first.
+
+What is known to be broken here:
+- claude_cli.py makes its temporary folders with dir="/tmp" (in Run.__init__ and in judge()); the comment says it wants a short socket path. On Windows Python reads "/tmp" as C:\tmp, which does not exist, so every run fails with WinError 3 before reaching the model. test_claude_cli.py fails 3 of 4 tests for this reason. Find out what the short path and socket are for, and pick something that works on Windows (Python on Windows may not support the same socket type), without changing what happens on macOS, where the suite was built and must keep passing.
+- The installed CLI is 2.1.267 (C:\Users\guitest\.local\bin\claude). The README says the session-file format was verified against 2.1.283. Get test_claude_cli.py passing here (it runs the real CLI against a fake local endpoint, sends nothing, no login needed). If it shows the session format differs in this version, say so; ask Kenneth before updating the CLI.
+- Check that the CLI is logged in with a subscription, not an API key; the runner refuses otherwise. Never print or copy credentials.
+
+Then, before any live run: say the number of runs (start with one case, --runs 1, then the full suite: 26 cases × 3) and that it uses Kenneth's subscription limits, which he shares with his own Claude Code work. Get his go-ahead in this session. Keep --jobs at the default 3 or lower.
+
+Compare the full run with tests/project_prompt/baseline-claude-cli.json (the default for --backend claude-cli). That baseline is from 2026-10-20 (57b58cb268): before setup_record lost its requirement fields and before requests.json was recorded again on Windows (both in 311eab90ab), and it has no counts for the two calibration cases. The runner will note that the tool list and recording differ. Read every failed and unobserved run, say what moved and why, and whether it is the prompt, the recording or noise. Only Kenneth decides whether a run becomes the new baseline (--compare FILE --record-baseline).
+
+Known caveats of the current recording (README, recording notes): it was made on Windows, so OrcaSlicer's messages are in their source English, and every loaded object's fitsSelectedBed is wrongly false (a separate session is fixing that).
+
+Machine notes: Python 3.13 is at C:\Users\guitest\.local\python-3.13.9\python.exe; set PYTHONIOENCODING=utf-8. The runner needs a tool_call_check no older than ToolRegistry.cpp: C:\b\mwf\tests\agent\Release\tool_call_check.exe is built from 311eab90ab's registry (set JUSPRIN_TOOL_CALL_CHECK), or build your own in your own tree under C:\b (memory file windows-build-machine.md; limit build jobs). node is at C:\Users\guitest\.local\node-v24.21.0-win-x64 and the AgentUI npm install is needed to render the prompt. Commit with GIT_TERMINAL_PROMPT=0 set, in its own commit, and don't push without asking.
+</pasted_content id="a7db">
+
+---
+
+cp the files from that box, which is gcp vm jusprin-win-test
+
+---
+
+Not yet.
+
+---
+
+check what test_claude_cli.py does. I thought we already ahve a scrip to record using claude subscription on a mac
+
+---
+
+Yes, do it on the Mac. Rebuild tool_call_check (-j4), run test_claude_cli.py, then come back to me before any live subscription run.
+
+---
+
+also the jusprin-newui branch has been amended on remote. force pull again before you make any changes.
+
+---
+
+also the jusprin-newui branch has been amended on remote. force pull again before you make any changes.
+
+---
+
+Yes, run git reset --hard origin/jusprin-newui, then rebuild tool_call_check and run test_claude_cli.py.
+
+---
+
+I ran the reset. Rebuild tool_call_check and run test_claude_cli.py.
+
+---
+
+Yes, run advice-infill once (--backend claude-cli --judge claude-cli --case advice-infill --runs 1), then come back before the full suite.
+
+---
+
+Yes, run the full suite: --backend claude-cli --judge claude-cli, 3 runs per case, default --jobs 3. Save the results with --results, then read every failed and unobserved run and report.
+
+---
+
+<task-notification>
+<task-id>bnhzbv5qt</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/8458ebe7-2cea-497b-94c4-2d4d218ddaa2/tasks/bnhzbv5qt.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the full suite to finish and show its summary" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Yes, record this run as the subscription baseline with --compare FILE --record-baseline, update the README's subscription baseline section, and commit it on its own (don't push).
