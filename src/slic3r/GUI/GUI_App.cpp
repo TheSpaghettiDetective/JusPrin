@@ -2913,7 +2913,9 @@ bool GUI_App::on_init_inner()
             associate_files(L"step");
             associate_files(L"stp");
         }
+#ifndef SLIC3R_NO_ORCASLICER_URL_ASSOCIATION
         associate_url(L"orcaslicer");
+#endif
 
         if (app_config->get("associate_gcode") == "true")
             associate_files(L"gcode");
@@ -8119,7 +8121,9 @@ void GUI_App::open_preferences(size_t open_on_tab, const std::string& highlight_
                     associate_files(L"step");
                     associate_files(L"stp");
                 }
+#ifndef SLIC3R_NO_ORCASLICER_URL_ASSOCIATION
                 associate_url(L"orcaslicer");
+#endif
             }
             else {
                 if (app_config->get("associate_gcode") == "true")

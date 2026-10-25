@@ -46,3 +46,54 @@ if (NOT _jusprin_prefix_at EQUAL 0)
 endif ()
 string(REPLACE "${_jusprin_orca_file_prefix}" "JusPrin_Windows_Installer_V${JUSPRIN_VERSION}"
        CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}")
+
+# On Windows, OrcaSlicer makes itself the handler of orcaslicer:// links each
+# time it starts and when its Preferences dialog closes (GUI_App.cpp), without
+# asking. JusPrin leaves those links to OrcaSlicer; the links it opens are the
+# ones a person chooses in its Preferences (JusPrin/Preferences).
+if (SLIC3R_GUI)
+    target_compile_definitions(libslic3r_gui PRIVATE SLIC3R_NO_ORCASLICER_URL_ASSOCIATION)
+endif ()
+
+# CMake writes every macOS app bundle's Info.plist from OrcaSlicer's
+# cmake/modules/MacOSXBundleInfo.plist.in. JusPrin's bundles use a copy that
+# has JusPrin's bundle identifier and no CFBundleURLTypes. That template asks
+# macOS to send orcaslicer:// links, such as Thingiverse's and MakerWorld's
+# "Open in Orca Slicer" buttons, to the app; JusPrin must leave them to
+# OrcaSlicer. JusPrin answers no link on macOS: its "Open in slicer" links
+# (Printables, Thingiverse) are a Windows feature, see JusPrin/Preferences.
+if (APPLE)
+    set(_jusprin_plist "${CMAKE_BINARY_DIR}/jusprin/MacOSXBundleInfo.plist.in")
+    configure_file("${CMAKE_SOURCE_DIR}/cmake/modules/MacOSXBundleInfo.plist.in" "${_jusprin_plist}.orca" COPYONLY)
+    configure_file("${_jusprin_plist}.orca" "${_jusprin_plist}.edit" COPYONLY)
+    foreach (_jusprin_plist_edit "-remove;CFBundleURLTypes" "-replace;CFBundleIdentifier;-string;io.jusprin.JusPrin")
+        execute_process(COMMAND plutil ${_jusprin_plist_edit} "${_jusprin_plist}.edit"
+                        RESULT_VARIABLE _jusprin_plist_result ERROR_VARIABLE _jusprin_plist_error)
+        if (NOT _jusprin_plist_result EQUAL 0)
+            string(REPLACE ";" " " _jusprin_plist_edit "${_jusprin_plist_edit}")
+            message(FATAL_ERROR "OrcaSlicer's MacOSXBundleInfo.plist.in changed (plutil ${_jusprin_plist_edit}: "
+                                "${_jusprin_plist_error}); update src/slic3r/GUI/JusPrin/Packaging/packaging.cmake to match.")
+        endif ()
+    endforeach ()
+    # Rewrite the template only when it changes, so a reconfigure does not
+    # rebuild every bundle's Info.plist.
+    configure_file("${_jusprin_plist}.edit" "${_jusprin_plist}" COPYONLY)
+
+    # A target that names its own template keeps it.
+    function(_jusprin_use_bundle_plist dir)
+        get_property(_targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach (_target IN LISTS _targets)
+            get_target_property(_type ${_target} TYPE)
+            get_target_property(_bundle ${_target} MACOSX_BUNDLE)
+            get_target_property(_own ${_target} MACOSX_BUNDLE_INFO_PLIST)
+            if (_type STREQUAL "EXECUTABLE" AND _bundle AND NOT _own)
+                set_target_properties(${_target} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${_jusprin_plist}")
+            endif ()
+        endforeach ()
+        get_property(_subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+        foreach (_subdir IN LISTS _subdirs)
+            _jusprin_use_bundle_plist("${_subdir}")
+        endforeach ()
+    endfunction ()
+    _jusprin_use_bundle_plist("${CMAKE_SOURCE_DIR}")
+endif ()
