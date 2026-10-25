@@ -1601,9 +1601,10 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
                 shell->open_preferences("updates");
         };
         // Built-in printer and filament profiles change only with a JusPrin
-        // release, so OrcaSlicer's profile server is never asked about them.
-        // Both of OrcaSlicer's profile checks (at startup and on switching to
-        // another maker's printer) read this preference.
+        // release, so OrcaSlicer's profile server is never asked about them,
+        // nor Bambu's server for its printer configuration bundle. All three
+        // of OrcaSlicer's checks (profiles at startup and on switching to
+        // another maker's printer, the bundle at startup) read this preference.
         if (wxGetApp().app_config != nullptr)
             wxGetApp().app_config->set_bool("sync_system_preset", false);
         // A file opened from the OS lands in the running JusPrin, and a .3mf

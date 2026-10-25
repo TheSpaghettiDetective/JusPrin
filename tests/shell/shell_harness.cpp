@@ -1110,7 +1110,8 @@ struct HarnessState
         LeftPaneEditor,
         LeftPaneSlicedCapture,
         AutoSlice,
-        UnavailableStorage
+        UnavailableStorage,
+        StartupRequests
     };
 
     std::atomic<int>  result{-1};
@@ -1249,6 +1250,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::UnavailableStorage) {
                 verify_unavailable_project_storage();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::StartupRequests) {
+                verify_startup_requests();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -5234,6 +5239,42 @@ private:
                                             then();
                                         });
                    });
+    }
+
+    // --startup-requests. Built-in profiles change only with a JusPrin
+    // release, so the shell turns OrcaSlicer's built-in preset sync off, and
+    // the startup sync then asks Bambu for no printer configuration bundle.
+    // The sync runs on its own thread; its log says where it stopped. A
+    // Bambu Lab printer on the network is still found and connected after.
+    void verify_startup_requests()
+    {
+        using namespace std::chrono_literals;
+        check(!wxGetApp().app_config->get_bool("sync_system_preset"), "startup_built_in_preset_sync_off");
+        const auto log = [] {
+            std::string text;
+            for (const auto& entry : fs::directory_iterator(fs::path(data_dir()) / "log")) {
+                std::ifstream file(entry.path().string(), std::ios::binary);
+                text.append(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+            }
+            return text;
+        };
+        const std::string skipped = "sync_printer_config: skipped";
+        const std::string request = "slicer/printer/bbl";
+        const auto give_up = std::chrono::steady_clock::now() + 60s;
+        auto next_read = std::make_shared<std::chrono::steady_clock::time_point>();
+        wait_until([log, skipped, request, give_up, next_read] {
+            const auto now = std::chrono::steady_clock::now();
+            if (now < *next_read)
+                return false;
+            *next_read = now + 250ms;
+            const std::string text = log();
+            return text.find(skipped) != std::string::npos || text.find(request) != std::string::npos || now > give_up;
+        }, "startup_sync_reached_printer_config", [self = shared_from_this(), log, skipped, request] {
+            const std::string text = log();
+            self->check(text.find(skipped) != std::string::npos, "startup_sync_skips_printer_config");
+            self->check(text.find(request) == std::string::npos, "startup_sends_no_printer_config_request");
+            self->connect_fixture_to_fake_printer([self] { self->finish(); });
+        });
     }
 
     std::shared_ptr<PrinterSetup::OrcaPrinterBackend> m_home_live_backend;
@@ -11957,6 +11998,10 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::PresetClose;
         else if (argument == "--unavailable-storage")
             state->mode = HarnessState::Mode::UnavailableStorage;
+        // What OrcaSlicer's startup sync asks Bambu for, with a person's
+        // settings rather than the base conf's stealth mode.
+        else if (argument == "--startup-requests")
+            state->mode = HarnessState::Mode::StartupRequests;
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
         else if (argument == "--reopen-prompt") {
@@ -12209,6 +12254,20 @@ int main(int argc, char** argv)
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
+        }
+        if (state->mode == HarnessState::Mode::StartupRequests) {
+            // A person's data folder: OrcaSlicer's setup guide finished,
+            // stealth mode off and OrcaSlicer's built-in preset sync on, so
+            // GUI_App's startup sync runs. JusPrin's release check stays off,
+            // and HTTPS goes to a closed port, so nothing leaves the machine.
+            const auto set = [&config](const std::string& from, const std::string& to) {
+                config.replace(config.find(from), from.size(), to);
+            };
+            set("\"stealth_mode\": true", "\"stealth_mode\": false");
+            set("\"sync_system_preset\": false", "\"sync_system_preset\": true");
+            set("\"language\": \"en_US\",", "\"language\": \"en_US\",\n    \"jusprin_update_check\": false,");
+            set("\"jusprin_agent\": {", "\"firstguide\": {\n    \"finish\": true\n  },\n  \"jusprin_agent\": {");
+            wxSetEnv("HTTPS_PROXY", "http://127.0.0.1:1");
         }
 #ifdef _WIN32
         // On Windows GUI_App::dark_mode() honours dark_color_mode alone, and

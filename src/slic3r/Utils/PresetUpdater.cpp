@@ -188,6 +188,8 @@ struct PresetUpdater::priv
 
 	bool enabled_version_check;
 	bool enabled_config_update;
+	// Set by sync() from the built-in preset sync preference, before its thread starts.
+	bool sync_printer_config_enabled { true };
 	std::string version_check_url;
 
 	fs::path cache_path;
@@ -978,6 +980,10 @@ void PresetUpdater::priv::sync_plugins(std::string http_url, std::string plugin_
 
 void PresetUpdater::priv::sync_printer_config(std::string http_url)
 {
+    if (!sync_printer_config_enabled) {
+        BOOST_LOG_TRIVIAL(info) << "[Orca Updater] sync_printer_config: skipped, sync_system_preset is off";
+        return;
+    }
     std::string curr_version  = SLIC3R_VERSION;
     std::string using_version = curr_version.substr(0, 6) + "00.00";
 
@@ -1343,6 +1349,8 @@ void PresetUpdater::sync(std::string http_url, std::string language, std::string
 {
 	//p->set_download_prefs(GUI::wxGetApp().app_config);
 	if (!p->enabled_version_check && !p->enabled_config_update) { return; }
+	// Bambu's printer configuration bundle is built in too, so the built-in preset sync preference covers it.
+	p->sync_printer_config_enabled = GUI::wxGetApp().app_config->get_bool("sync_system_preset");
 
 	// Copy the whole vendors data for use in the background thread
 	// Unfortunatelly as of C++11, it needs to be copied again
