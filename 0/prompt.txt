@@ -1,0 +1,16 @@
+<pasted_content id="8e95">
+In JusPrin (a fork of OrcaSlicer, repo C:\src\JusPrin, branch jusprin-newui), the Windows program orca-slicer.exe shows blank details: in File Explorer, Properties › Details has an empty product name, description and version. Release builds should say JusPrin and its version (2.0.0, from src/slic3r/GUI/JusPrin/Updates/Version.hpp). The installer already says "JusPrin 2.0.0 by Obico". The exe itself should match.
+
+Where to look:
+- The version resource is src/dev-utils/platform/msw/OrcaSlicer.rc.in, configured in src/CMakeLists.txt (around line 118). It fills FileDescription, ProductName and the versions from SLIC3R_APP_NAME, SLIC3R_VERSION and SLIC3R_BUILD_ID.
+- JusPrin's package identity comes from src/slic3r/GUI/JusPrin/Packaging/packaging.cmake, loaded by one line in the root CMakeLists.txt (commit 13c06c3ff3).
+
+Find out why the details come out blank. Possible causes: the .rc may not be attached to the target that produces orca-slicer.exe; the values may be empty or set after the .rc is configured; or the version format may be wrong. Fix it so the exe carries JusPrin's name, publisher (Obico) and version, taken from the same place packaging.cmake uses, and no OrcaSlicer name or version. The file name orca-slicer.exe stays as it is.
+
+Before touching any OrcaSlicer-owned file, read AGENTS.md and agent-docs/jusprin/fork-stewardship.md, and keep such changes small and additive. Work in your own git worktree on a new branch cut from jusprin-newui, with your own build tree under C:\b.
+
+Done means:
+- a Release build's orca-slicer.exe shows JusPrin, Obico and 2.0.0. Show it by reading the version resource, for example with PowerShell `(Get-Item <exe>).VersionInfo`;
+- the installer and portable zip still build. For the installer, at least run the packaging step locally as far as this machine allows; it has no NSIS;
+- the work is committed to your branch, not pushed, with a short plain-English report.
+</pasted_content id="8e95">
