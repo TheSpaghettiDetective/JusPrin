@@ -12,6 +12,8 @@ import { ActionMenu, MenuItem, MenuSearch, MenuSection } from './ChatNavigation'
 
 const EFFORT_LABELS: Record<string, string> = {
   none: 'Off', minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max',
+  // JusPrin's own levels, which its gateway maps to the model's.
+  fast: 'Fast', thorough: 'Thorough',
 };
 
 export const SEARCH_FROM = 12;

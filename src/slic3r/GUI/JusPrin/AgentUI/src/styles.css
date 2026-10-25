@@ -2426,6 +2426,19 @@ p.agent-group-intro {
   flex-wrap: wrap;
 }
 
+/* What the account row says under its line: the browser it is waiting on,
+   or why the last sign-in did not finish. Empty, it takes no room. */
+.agent-account-detail {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-account-detail:empty {
+  display: none;
+}
+
 .agent-row-copy {
   flex: 1;
   min-width: 0;
@@ -4184,4 +4197,131 @@ button.prefs-button:hover:enabled {
 
 .prefs-restart p {
   font: var(--font-body-small);
+}
+
+/* The welcome-back window (canvas boards V1-01 to V1-03): one card of what
+   came from JusPrin v1, centred in the window. */
+.app--welcome {
+  background: var(--surface-canvas);
+}
+
+.welcome {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 16px;
+}
+
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.welcome-head,
+.welcome-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome-eyebrow {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+.welcome-title {
+  margin: 0;
+  font: var(--font-page-title);
+  color: var(--text-primary);
+}
+
+p.welcome-intro {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.welcome-account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+}
+
+.welcome-account-line,
+.welcome-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.welcome-account-title {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.welcome-account-action {
+  padding: var(--button-secondary-padding);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.welcome-row {
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.welcome-row-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.welcome-row-title {
+  font: var(--font-body);
+  color: var(--text-primary);
+}
+
+.welcome-row-detail,
+.welcome-row-count {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.welcome-row-count {
+  flex: none;
+}
+
+.welcome-icon--done {
+  color: var(--status-success);
+}
+
+.welcome-icon--warning {
+  color: var(--status-warning);
+}
+
+.welcome-continue {
+  align-self: stretch;
 }

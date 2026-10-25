@@ -3,6 +3,8 @@
 add_executable(agent_bridge_tests
     test_agent_bridge.cpp
     test_agent_setup.cpp
+    test_cloud_account.cpp
+    test_v1_import.cpp
     test_openai_responses_agent.cpp
     test_provider_agent.cpp
     test_provider_configuration.cpp
@@ -28,6 +30,8 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpRuntime.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/AgentSetup.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/V1Import/V1Import.cpp
     ${CMAKE_SOURCE_DIR}/tests/jusprin_support/DeterministicMockAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp

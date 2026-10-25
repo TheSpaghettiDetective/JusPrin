@@ -122,6 +122,7 @@
 #include "Notebook.hpp"
 #include "JusPrin/Brand/BrandPalette.hpp"
 #include "JusPrin/Testing/FakeBambuAgent.hpp"
+#include "JusPrin/V1Import/V1Import.hpp"
 #include "Widgets/Label.hpp"
 #include "Widgets/ProgressDialog.hpp"
 
@@ -2455,6 +2456,9 @@ void GUI_App::init_app_config()
 #endif
 
     BOOST_LOG_TRIVIAL(info) << boost::format("gui mode, Current OrcaSlicer Version %1% build %2%") % SoftFever_VERSION % GIT_COMMIT_HASH;
+
+    // JusPrin: on first launch, copy a JusPrin v1 setup in before the settings below are read
+    JusPrin::V1Import::import_on_first_launch(data_dir(), m_datadir_redefined);
 
     //BBS: remove GCodeViewer as seperate APP logic
 	if (!app_config)

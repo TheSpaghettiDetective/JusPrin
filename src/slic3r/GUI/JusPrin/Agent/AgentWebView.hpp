@@ -32,7 +32,9 @@ namespace Slic3r::GUI::JusPrin {
 //                  header, pinned card and chips around the same thread;
 //   Preferences    JusPrin's Preferences window, whose Agent section is
 //                  where the agent is set up and changed.
-enum class AgentPageMode { Conversation, PrinterPanel, Preferences };
+//   WelcomeBack    the window shown once after a JusPrin v1 setup was
+//                  imported: what came along, and the account it signs in to.
+enum class AgentPageMode { Conversation, PrinterPanel, Preferences, WelcomeBack };
 
 class AgentWebView : public wxPanel
 {

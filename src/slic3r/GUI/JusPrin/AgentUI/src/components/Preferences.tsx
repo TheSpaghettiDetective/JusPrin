@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import {
+  AccountStatusPayload,
   DragAction,
   McpCatalogPayload,
   McpPreviewPayload,
@@ -54,16 +55,29 @@ export interface PreferencesActions {
   previewTool: (toolId: string) => void;
   connectTool: (toolId: string) => void;
   revealTool: (toolId: string) => void;
+  signIn: () => void;
+  cancelSignIn: () => void;
 }
 
 export interface PreferencesProps {
   preferences: PreferencesPayload;
   setup: SetupStatusPayload;
   savedKeys: SavedKeyInfo[];
+  account: AccountStatusPayload;
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
   actions: PreferencesActions;
+}
+
+// The JusPrin account row, as Account and Agent both draw it.
+function JusPrinAccount({ savedKeys, account, actions }: {
+  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; actions: PreferencesActions;
+}) {
+  return (
+    <AccountRow account={savedKeys.find((key) => key.provider === 'jusprin')} status={account} onSignIn={actions.signIn}
+      onCancel={actions.cancelSignIn} onSignOut={() => actions.removeKey('jusprin')} />
+  );
 }
 
 function Row({ title, detail, children }: { title: string; detail?: React.ReactNode; children?: React.ReactNode }) {
@@ -143,11 +157,13 @@ function Group({ title, tag, children }: { title: string; tag?: string; children
   );
 }
 
-function AccountSection({ onAgent }: { onAgent: () => void }) {
+function AccountSection({ savedKeys, account, actions, onAgent }: {
+  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; actions: PreferencesActions; onAgent: () => void;
+}) {
   return (
     <section className="prefs-section" aria-label="Account">
       <h2 className="prefs-title">Account</h2>
-      <AccountRow />
+      <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       <p className="prefs-note">
         Local work never needs an account. Your own API key or AI tool works without one; set those up in{' '}
         <button type="button" className="link prefs-inline-link" onClick={onAgent}>Agent</button>.
@@ -156,8 +172,8 @@ function AccountSection({ onAgent }: { onAgent: () => void }) {
   );
 }
 
-function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectTool }: {
-  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[];
+function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, onConnectTool }: {
+  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[]; account: AccountStatusPayload;
   mcpCatalog: McpCatalogPayload | null; actions: PreferencesActions; onConnectTool: (tool: McpToolInfo) => void;
 }) {
   // The tools are looked for once each time the section opens.
@@ -171,7 +187,7 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
         <h2 className="prefs-title">Agent</h2>
         <p className="prefs-intro">The ways the Agent can think. Set up as many as you like; each chat picks a model from them.</p>
       </div>
-      <AccountRow />
+      <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
         onRemove={actions.removeKey} />
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
@@ -188,8 +204,9 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
       <div className="prefs-callout">
         <span className="jp-icon jp-icon-lock" aria-hidden="true" />
         <p>
-          The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin
-          doesn’t send your keys anywhere else.
+          The provider a chat uses receives your messages, the open project’s settings and anything you attach. With a
+          JusPrin account, JusPrin receives them and passes them on to the model provider it uses. JusPrin doesn’t send
+          your keys anywhere else.
         </p>
       </div>
     </section>
@@ -438,7 +455,7 @@ function rememberedSection(): PreferencesSection | null {
   }
 }
 
-export function Preferences({ preferences, setup, savedKeys, mcpCatalog, mcpPreview, mcpStatus, actions }: PreferencesProps) {
+export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog, mcpPreview, mcpStatus, actions }: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
   const [section, setSection] = useState<PreferencesSection>(() => rememberedSection() ?? preferences.section);
   // The AI tool being connected, which takes the Agent section's place.
@@ -475,7 +492,7 @@ export function Preferences({ preferences, setup, savedKeys, mcpCatalog, mcpPrev
         </div>
       </nav>
       <main className="prefs-content">
-        {section === 'account' && <AccountSection onAgent={() => go('agent')} />}
+        {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} actions={actions} onAgent={() => go('agent')} />}
         {section === 'agent' && (tool ? (
           <SetupLocalTool
             startTool={tool}
@@ -490,7 +507,8 @@ export function Preferences({ preferences, setup, savedKeys, mcpCatalog, mcpPrev
             onDone={() => setTool(null)}
           />
         ) : (
-          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} mcpCatalog={mcpCatalog} actions={actions}
+          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} account={account} mcpCatalog={mcpCatalog}
+            actions={actions}
             onConnectTool={(chosen) => setTool(chosen.id)} />
         ))}
         {section === 'appearance' && <AppearanceSection appearance={preferences.appearance} set={actions.set} run={actions.run} />}

@@ -29,7 +29,8 @@
     "settings_actions",
     "proposals",
     "saved_keys",
-    "preferences"
+    "preferences",
+    "cloud_account"
   ],
   "pageMessageTypes": [
     "hello",
@@ -67,7 +68,10 @@
     "save_proposal",
     "undo_receipt",
     "setup_remove_key",
-    "preferences_action"
+    "preferences_action",
+    "account_sign_in",
+    "account_check",
+    "account_cancel"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -98,6 +102,7 @@
     "settings_catalog",
     "confirm",
     "setup_keys",
-    "preferences"
+    "preferences",
+    "account_status"
   ]
 }

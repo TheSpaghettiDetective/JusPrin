@@ -736,7 +736,8 @@ std::optional<ChatModelChoice> ProjectStateDocument::chat_model(const std::strin
     if (!conversation || !conversation->contains("chatModel") || !(*conversation)["chatModel"].is_object())
         return std::nullopt;
     const json& stored = (*conversation)["chatModel"];
-    ChatModelChoice choice{stored.value("provider", ""), stored.value("model", ""), stored.value("effort", "")};
+    ChatModelChoice choice{stored.value("provider", ""), stored.value("model", ""), stored.value("effort", ""),
+                           stored.value("format", "")};
     if (choice.provider.empty() || choice.model.empty())
         return std::nullopt;
     return choice;
@@ -747,6 +748,8 @@ bool ProjectStateDocument::set_chat_model(const std::string& conversation_id, co
     json* conversation = conversation_json(conversation_id);
     if (!conversation || choice.provider.empty() || choice.model.empty()) return false;
     (*conversation)["chatModel"] = json{{"provider", choice.provider}, {"model", choice.model}, {"effort", choice.effort}};
+    if (!choice.format.empty())
+        (*conversation)["chatModel"]["format"] = choice.format;
     touch();
     return true;
 }

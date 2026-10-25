@@ -75,7 +75,7 @@ TEST_CASE("every provider row is complete and has an id of its own", "[agent][pr
         CHECK_FALSE(profile.display_name.empty());
         CHECK(profile_for(profile.id) == &profile);
     }
-    CHECK(ids == std::set<std::string>{"anthropic", "openai", "openrouter"});
+    CHECK(ids == std::set<std::string>{"anthropic", "jusprin", "openai", "openrouter"});
     CHECK(profile_for("other") == nullptr);
     CHECK(&openai_profile() == profile_for("openai"));
 }

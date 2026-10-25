@@ -1052,6 +1052,12 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_setup_cancel();
     else if (type == Protocol::kSetupRemoveKey)
         handle_setup_remove_key(envelope_id, payload);
+    else if (type == Protocol::kAccountSignIn)
+        handle_account_sign_in(envelope_id, false);
+    else if (type == Protocol::kAccountCheck)
+        handle_account_sign_in(envelope_id, true);
+    else if (type == Protocol::kAccountCancel)
+        handle_account_cancel();
     else if (type == Protocol::kMcpCatalog)
         handle_mcp_catalog(envelope_id);
     else if (type == Protocol::kSettingsCatalogRequest)
@@ -2601,8 +2607,11 @@ void AgentHost::send_setup_keys(const std::string& correlation_id)
     json keys = json::array();
     for (const SavedKey& saved : m_setup->saved_keys()) {
         const auto refused = m_rejected_keys.find(saved.provider);
-        keys.push_back(json{{"provider", saved.provider}, {"hint", saved.hint},
-                            {"rejected", refused != m_rejected_keys.end() && refused->second == saved.hint}});
+        json key{{"provider", saved.provider}, {"hint", saved.hint},
+                 {"rejected", refused != m_rejected_keys.end() && refused->second == saved.hint}};
+        if (!saved.account.empty())
+            key["account"] = saved.account;
+        keys.push_back(std::move(key));
     }
     send_envelope(Protocol::kSetupKeys, json{{"keys", std::move(keys)}}.dump(), correlation_id);
 }
@@ -2620,10 +2629,104 @@ void AgentHost::note_key_rejected()
         }
 }
 
+void AgentHost::send_account_status(const std::string&               phase,
+                                    const std::string&               correlation_id,
+                                    const std::optional<AgentError>& error,
+                                    bool                             expired,
+                                    const std::string&               warning)
+{
+    json payload{{"phase", phase}};
+    if (ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr; cloud != nullptr && phase == "browser")
+        payload["url"] = cloud->browser_url();
+    if (expired)
+        payload["expired"] = true;
+    if (error)
+        payload["error"] = json{{"code", error->code}, {"message", error->message}, {"retryable", error->retryable}};
+    if (!warning.empty())
+        payload["warning"] = warning;
+    send_envelope(Protocol::kAccountStatus, payload.dump(), correlation_id);
+}
+
+void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stored)
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr) {
+        send_bridge_error("setup_unavailable", "This build cannot sign in to a JusPrin account.", envelope_id);
+        return;
+    }
+    if (agent_busy()) {
+        send_bridge_error("busy", "Finish or stop the current reply before signing in.", envelope_id);
+        return;
+    }
+    if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
+        send_bridge_error("setup_busy", "A sign-in or key check is already running.", envelope_id);
+        return;
+    }
+    cancel_conversation_title();
+    if (stored) {
+        if (!cloud->check_stored()) {
+            send_bridge_error("not_signed_in", "There is no JusPrin account on this computer to check.", envelope_id);
+            return;
+        }
+        send_account_status("checking", envelope_id);
+        return;
+    }
+    if (!cloud->start()) {
+        send_account_status("idle", envelope_id,
+                            AgentError{"sign_in_failed", "JusPrin couldn't start signing in. Try again.", true});
+        return;
+    }
+    send_account_status("browser", envelope_id);
+}
+
+void AgentHost::handle_account_cancel()
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr || cloud->phase() == CloudSignInPhase::Idle)
+        return; // Cancelling a finished sign-in is a benign race.
+    cloud->cancel();
+    send_account_status("idle");
+}
+
+void AgentHost::pump_account()
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr)
+        return;
+    const CloudSignInPhase before = cloud->phase();
+    std::optional<CloudSignInOutcome> outcome = cloud->poll();
+    if (!outcome) {
+        // The browser came back with a token; the account is being checked.
+        if (before == CloudSignInPhase::Browser && cloud->phase() == CloudSignInPhase::Checking)
+            send_account_status("checking");
+        return;
+    }
+    const std::string provider = account_provider().id;
+    switch (outcome->kind) {
+    case CloudSignInOutcome::Kind::SignedIn:
+        m_rejected_keys.erase(provider);
+        send_account_status("idle", {}, std::nullopt, false,
+                            outcome->saved ? std::string() :
+                                             "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts.");
+        send_setup_keys();
+        set_agent(std::move(outcome->service), AgentAvailability::Ready);
+        break;
+    case CloudSignInOutcome::Kind::Expired:
+        for (const SavedKey& saved : m_setup->saved_keys())
+            if (saved.provider == provider)
+                m_rejected_keys[provider] = saved.hint;
+        send_account_status("idle", {}, std::nullopt, true);
+        send_setup_keys();
+        break;
+    case CloudSignInOutcome::Kind::Failed: send_account_status("idle", {}, outcome->error); break;
+    }
+}
+
 void AgentHost::pump_setup()
 {
     if (!m_setup)
         return;
+    pump_account();
     std::optional<SetupOutcome> outcome = m_setup->poll();
     if (!outcome)
         return;
@@ -3079,6 +3182,11 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
         } else if ((record->kind == "image" || record->kind == "pdf") &&
                    record->size_bytes <= kAgentBinaryContextCap && !record->stored_name.empty()) {
             context.bytes = m_persistence.read_attachment_blob(record->relative_path());
+            if (record->kind == "image" && m_image_for_model)
+                if (auto shrunk = m_image_for_model(context.bytes)) {
+                    context.mime  = std::move(shrunk->first);
+                    context.bytes = std::move(shrunk->second);
+                }
         } else if ((record->kind == "image" || record->kind == "pdf") && record->size_bytes > kAgentBinaryContextCap) {
             context.summary += (context.summary.empty() ? "" : " ") +
                                std::string("The file exceeds the 10 MiB live-Agent context limit.");
@@ -3439,6 +3547,7 @@ ChatModelChoice AgentHost::default_chat_model() const
     fallback.provider = m_model_source->default_provider();
     if (const ProviderProfile* profile = profile_for(fallback.provider))
         fallback.model = profile->model;
+    fallback.format = m_model_source->model_format(fallback.provider, fallback.model);
     return fallback;
 }
 
@@ -3452,10 +3561,15 @@ std::optional<ChatModelChoice> AgentHost::installed_agent_choice() const
 ChatModelChoice AgentHost::chat_model_choice(const std::string& conversation_id) const
 {
     const std::vector<std::string> configured = m_model_source->configured_providers();
-    if (const std::optional<ChatModelChoice> chosen = m_persistence.document().chat_model(conversation_id))
+    if (std::optional<ChatModelChoice> chosen = m_persistence.document().chat_model(conversation_id))
         // A provider whose key is gone falls back to the default.
-        if (std::find(configured.begin(), configured.end(), chosen->provider) != configured.end())
+        if (std::find(configured.begin(), configured.end(), chosen->provider) != configured.end()) {
+            // A chat that has not sent a request yet goes by the format the
+            // account is given now; use_chat_model() fixes it at the first.
+            if (chosen->format.empty())
+                chosen->format = m_model_source->model_format(chosen->provider, chosen->model);
             return *chosen;
+        }
     return default_chat_model();
 }
 
@@ -3521,6 +3635,12 @@ void AgentHost::handle_set_chat_model(const std::string& envelope_id, const std:
         throw RuntimeError("jusprin-agent-bridge: set_chat_model names a provider that is not set up: " + choice.provider);
     ProjectStateDocument& document = m_persistence.document();
     const std::string conversation_id = document.active_conversation_id();
+    // A chat keeps the format its model was first served in through a change
+    // of thinking level. Another model starts unfixed and is fixed by the
+    // chat's next request.
+    if (const std::optional<ChatModelChoice> stored = document.chat_model(conversation_id);
+        stored && stored->provider == choice.provider && stored->model == choice.model)
+        choice.format = stored->format;
     document.set_chat_model(conversation_id, choice);
     m_persistence.commit();
     send_envelope(Protocol::kChatModel,
@@ -3533,6 +3653,22 @@ bool AgentHost::use_chat_model(const std::string& conversation_id)
     if (!m_model_source)
         return true;
     const ChatModelChoice choice = chat_model_choice(conversation_id);
+    if (const ProviderProfile* profile = profile_for(choice.provider); profile != nullptr && profile->account_sign_in) {
+        if (choice.format.empty()) {
+            // The account's model list has not named this model; it is asked
+            // for again, and the person can send once it has.
+            request_model_lists();
+            fail_stream(AgentError{"account_models_unknown",
+                                   "JusPrin hasn't loaded the Agent models for your account yet. Try again in a moment.", true});
+            return false;
+        }
+        // The first request fixes the chat to the format it is served in.
+        ProjectStateDocument& document = m_persistence.document();
+        if (document.chat_model(conversation_id) != choice) {
+            document.set_chat_model(conversation_id, choice);
+            m_persistence.commit();
+        }
+    }
     if (m_agent_choice && *m_agent_choice == choice)
         return true;
     AgentServicePtr agent = m_model_source->make_agent(choice);
