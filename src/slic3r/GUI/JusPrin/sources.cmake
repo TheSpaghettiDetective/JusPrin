@@ -1,6 +1,5 @@
 list(APPEND SLIC3R_GUI_SOURCES
     GUI/ProjectState.hpp
-    GUI/JusPrin/Agent/IntentChecks.hpp
     GUI/JusPrin/Agent/AgentHost.cpp
     GUI/JusPrin/Agent/AgentHost.hpp
     GUI/JusPrin/Agent/AgentConfiguration.cpp

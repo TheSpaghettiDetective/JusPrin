@@ -1,6 +1,5 @@
 #include "ToolExecutionCoordinator.hpp"
 #include "Base64.hpp"
-#include "IntentChecks.hpp"
 #include "ToolErrors.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingDisplay.hpp"
@@ -1200,12 +1199,11 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 return std::any_of(sections.begin(), sections.end(),
                                    [name](const json& value) { return value == name; });
             };
-            sections = {asked("summary"), asked("intent"), asked("plan"), asked("slicing"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
+            sections = {asked("summary"), asked("plan"), asked("slicing"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
         }
-        if ((sections.intent || sections.plan || sections.printer) && m_product_state == nullptr)
+        if ((sections.plan || sections.printer) && m_product_state == nullptr)
             throw std::logic_error("workspace_inspect reached a coordinator with no product state");
         json result = workspace_inspection(m_workspace.snapshot(), sections);
-        if (sections.intent) result["intent"] = intent_section_result(m_product_state->print_intent());
         if (sections.plan) result["plan"] = plan_section_result(m_product_state->plan());
         if (sections.slicing) result["slicing"] = slicing_section_result(m_workspace.snapshot(), m_slice_handle);
         if (sections.printer) {
@@ -2047,10 +2045,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                                    [name](const json& value) { return value == name; });
             };
             sections = {asked("summary"), asked("findings"), asked("material"), asked("supports"),
-                        asked("seams"),   asked("firstLayer"), asked("islands"),  asked("intent")};
+                        asked("seams"),   asked("firstLayer"), asked("islands")};
         }
-        if (sections.intent && m_product_state == nullptr)
-            throw std::logic_error("slice_report reached a coordinator with no product state");
         Workspace::SliceReportRequest request;
         request.supports    = sections.supports;
         request.seams       = sections.seams;
@@ -2061,20 +2057,6 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             request.regions = m_product_state->regions();
         const Workspace::SliceReport report = m_workspace.slice_report(*plate, request);
         json result = slice_report_result(report, *plate, snapshot, sections);
-        if (sections.intent && report.valid) {
-            std::vector<std::string> unchecked;
-            const auto checks = check_intent(m_product_state->print_intent(), report.print_time_seconds, report.total_grams,
-                                             report.has_cost ? std::optional<double>(report.total_cost) : std::nullopt, unchecked);
-            json rows = json::array();
-            for (const IntentCheck& check : checks)
-                if (rows.size() < 32)
-                    rows.push_back({{"field", check.field}, {"value", check.value}, {"kind", check.kind},
-                                    {"limit", std::round(check.limit * 100) / 100}, {"actual", std::round(check.actual * 100) / 100},
-                                    {"within", check.within}});
-            if (unchecked.size() > 32)
-                unchecked.resize(32);
-            result["intent"] = {{"checks", std::move(rows)}, {"unchecked", unchecked}};
-        }
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
         notify(activity);
@@ -2139,19 +2121,13 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             throw std::logic_error("setup_record reached a coordinator with no product state");
         const auto arguments = json::parse(activity.arguments_json);
         const auto snapshot  = m_workspace.snapshot();
-        // The purpose is the chat's title and the answered fields; what this
-        // call did to it is stated in the reply, beside the setup in force
-        // now, which was chosen before a first or changed purpose.
+        // The purpose is the chat's title; what this call did to it is stated
+        // in the reply, beside the setup in force now, which was chosen before
+        // a first or changed purpose.
         const auto purpose = [this, &activity]() {
-            json answered = json::array();
-            for (const IntentField& field : m_product_state->print_intent())
-                if (field.answered())
-                    answered.push_back(json{{"field", field.field}, {"value", field.value}});
             json stated = json::object();
             if (const auto title = m_product_state->setup_title(activity.correlation_id); title && !title->empty())
                 stated["purpose"] = *title;
-            if (!answered.empty())
-                stated["fields"] = std::move(answered);
             return stated;
         };
         // The records are a chat's own; a call no chat holds has none.
@@ -2165,30 +2141,15 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             fail(activity, "invalid_arguments", "purpose must be one line.");
             return;
         }
-        std::vector<IntentField> fields;
-        for (const auto& field : arguments.value("fields", json::array())) {
-            IntentField written;
-            written.field    = field.at("field").get<std::string>();
-            written.value    = field.value("value", "");
-            written.question = field.value("question", "");
-            // An answer is confirmed unless the agent says it only assumed it.
-            written.provenance = field.value("assumed", false) || written.value.empty() ?
-                Provenance::AgentInferred : Provenance::UserConfirmed;
-            fields.push_back(std::move(written));
-        }
         // Neither record is in Orca's undo stack: say so where every other
         // mutation says it.
         json result{{"sessionId", std::to_string(snapshot.session.value())}, {"revision", snapshot.revision},
-                    {"projectUndo", false},
-                    {"intent", intent_section_result(fields.empty() ? m_product_state->print_intent() :
-                                                                      m_product_state->set_print_intent(fields))}};
+                    {"projectUndo", false}};
         const json after = purpose();
-        // A new title alone, or a call that only restates the purpose to
-        // change the plan, is no new purpose: only a first purpose or changed
-        // fields ask for the setup to be checked against it.
-        const bool changed = !before.empty() && before.value("fields", json()) != after.value("fields", json());
-        result["purposeChange"] = before.empty() ? "first" : changed ? "changed" :
-                                  before != after ? "title_only" : "unchanged";
+        // A first or changed purpose asks for the setup to be checked against
+        // it; a call that restates the purpose to change the plan does not.
+        const bool changed = !before.empty() && before != after;
+        result["purposeChange"] = before.empty() ? "first" : changed ? "changed" : "unchanged";
         if (changed)
             result["purposeBefore"] = before;
         if (before.empty() || changed) {

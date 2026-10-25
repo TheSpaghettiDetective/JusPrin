@@ -29,9 +29,6 @@ class IProductState
 public:
     virtual ~IProductState() = default;
 
-    virtual std::vector<IntentField> print_intent() const = 0;
-    // Upserts by field name and returns the record as stored.
-    virtual std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields) = 0;
     // The purpose in the person's words that setup_record records as
     // purpose, which belongs to the chat that holds `message_id`: nullopt
     // when no chat holds it, as for an external client's call.

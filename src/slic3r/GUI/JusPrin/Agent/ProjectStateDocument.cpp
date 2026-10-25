@@ -151,31 +151,6 @@ ConversationMessage read_message(const json& entry)
     return message;
 }
 
-void write_intent_field(json& entry, const IntentField& field)
-{
-    entry["field"]      = field.field;
-    entry["value"]      = field.value;
-    entry["provenance"] = provenance_name(field.provenance);
-    entry["seq"]        = field.seq;
-    entry["updatedAt"]  = field.updated_at;
-    if (!field.question.empty())
-        entry["question"] = field.question;
-    else
-        entry.erase("question");
-}
-
-IntentField read_intent_field(const json& entry)
-{
-    IntentField field;
-    field.field       = entry.value("field", "");
-    field.value       = entry.value("value", "");
-    field.question    = entry.value("question", "");
-    field.provenance  = provenance_from(entry.value("provenance", "agent_inferred"));
-    field.seq         = entry.value("seq", std::uint64_t(0));
-    field.updated_at  = entry.value("updatedAt", "");
-    return field;
-}
-
 void write_attachment_fields(json& entry, const AttachmentRecord& record)
 {
     entry["id"]           = record.id;
@@ -451,8 +426,7 @@ ChangeEntry read_change(const json& entry)
 // of its plan.
 json chat_intent(const json& chat)
 {
-    json intent{{"setupIntent", chat.value("setupIntent", "")},
-                {"printIntent", chat.value("printIntent", json::array())}};
+    json intent{{"setupIntent", chat.value("setupIntent", "")}};
     const json setup = chat.value("purposeSetup", json::object());
     if (setup.is_object() && !setup.empty())
         intent["purposeSetup"] = setup;
@@ -606,7 +580,6 @@ std::string ProjectStateDocument::add_conversation(const std::string& title, con
               {"titleSource", title.empty() ? "default" : "manual"},
               {"createdAt", timestamp},
               {"setupIntent", intent.value("setupIntent", "")},
-              {"printIntent", intent.value("printIntent", json::array())},
               {"messages", json::array()}};
     if (intent.contains("purposeSetup"))
         chat["purposeSetup"] = intent["purposeSetup"];
@@ -1129,46 +1102,6 @@ std::optional<BuildRecord> ProjectStateDocument::latest_build() const
     if (m_doc["builds"].empty())
         return std::nullopt;
     return read_build(m_doc["builds"].back());
-}
-
-std::vector<IntentField> ProjectStateDocument::print_intent() const
-{
-    std::vector<IntentField> fields;
-    const json* chat = conversation_json(active_conversation_id());
-    if (chat == nullptr || !chat->contains("printIntent"))
-        return fields;
-    for (const json& entry : (*chat)["printIntent"])
-        fields.push_back(read_intent_field(entry));
-    return fields;
-}
-
-std::vector<IntentField> ProjectStateDocument::set_print_intent(const std::vector<IntentField>& fields,
-                                                                const std::string&              timestamp)
-{
-    json& intent = active_chat()["printIntent"];
-    if (!intent.is_array())
-        intent = json::array();
-    for (const IntentField& field : fields) {
-        if (field.field.empty())
-            continue;
-        json* stored = nullptr;
-        for (json& entry : intent)
-            if (entry.value("field", "") == field.field)
-                stored = &entry;
-        if (stored == nullptr) {
-            // Ordered by field name so two builds that record the same answers
-            // in a different order still write the same document.
-            const auto after = std::find_if(intent.begin(), intent.end(),
-                                            [&field](const json& entry) { return entry.value("field", "") > field.field; });
-            stored = &*intent.insert(after, json::object());
-        }
-        IntentField written = field;
-        written.seq         = next_seq();
-        written.updated_at  = timestamp;
-        write_intent_field(*stored, written);
-    }
-    touch();
-    return print_intent();
 }
 
 json ProjectStateDocument::purpose_setup() const

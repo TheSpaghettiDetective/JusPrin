@@ -317,10 +317,6 @@ TEST_CASE("each chat owns its intent and plan, and the active chat's are the pro
     document.initialize_identity("p", "l", kT);
     const std::string first = document.active_conversation_id();
     REQUIRE(document.set_setup_intent(first, "Load-bearing bracket"));
-    IntentField purpose;
-    purpose.field = "purpose";
-    purpose.value = "final part";
-    document.set_print_intent({purpose}, kT);
     PlanRecord plan;
     plan.headline = "Four walls and gyroid infill for strength";
     document.set_plan(plan, kT);
@@ -328,14 +324,10 @@ TEST_CASE("each chat owns its intent and plan, and the active chat's are the pro
     SECTION("a new chat copies the intent and starts with no plan") {
         const std::string second = document.create_conversation({}, kT);
         CHECK(document.setup_intent(second) == "Load-bearing bracket");
-        REQUIRE(document.print_intent().size() == 1);
-        CHECK(document.print_intent()[0].value == "final part");
         CHECK(document.plan().headline.empty());
         CHECK(document.plan().seq == 0);
 
         // The copy is the new chat's own: changing it leaves the first alone.
-        purpose.value = "quick fit check";
-        document.set_print_intent({purpose}, kT);
         REQUIRE(document.set_setup_intent(second, "Quick fit check"));
         PlanRecord quick;
         quick.headline = "Coarse layers and low infill for a quick fit check";
@@ -345,15 +337,12 @@ TEST_CASE("each chat owns its intent and plan, and the active chat's are the pro
 
         // Switching the active chat switches the project's intent and plan.
         REQUIRE(document.set_active_conversation(first));
-        CHECK(document.print_intent()[0].value == "final part");
         CHECK(document.plan().headline == "Four walls and gyroid infill for strength");
         REQUIRE(document.set_active_conversation(second));
-        CHECK(document.print_intent()[0].value == "quick fit check");
         CHECK(document.plan().headline == "Coarse layers and low infill for a quick fit check");
 
         // Each is stored once, on its chat: nothing at the top of the document.
         const json raw = json::parse(document.dump());
-        CHECK_FALSE(raw.contains("printIntent"));
         CHECK_FALSE(raw.contains("plan"));
         CHECK_FALSE(raw.contains("purposeSetup"));
         CHECK(raw["conversations"][0]["plan"]["headline"] == "Four walls and gyroid infill for strength");
@@ -382,8 +371,6 @@ TEST_CASE("each chat owns its intent and plan, and the active chat's are the pro
         const std::string replacement = document.active_conversation_id();
         REQUIRE(replacement != first);
         CHECK(document.setup_intent(replacement) == "Load-bearing bracket");
-        REQUIRE(document.print_intent().size() == 1);
-        CHECK(document.print_intent()[0].value == "final part");
         CHECK(document.plan().headline.empty());
     }
 
@@ -1099,51 +1086,27 @@ TEST_CASE("settings changes and preset switches are logged", "[persistence][chan
     CHECK(reloaded.changes()[0].key == "wall_loops");
 }
 
-TEST_CASE("print intent is upserted by field and keeps its provenance", "[project-state][intent]")
+TEST_CASE("a chat's print intent from an earlier build still loads, and is not copied", "[project-state][intent]")
 {
+    // setup_record kept model-chosen requirement fields in printIntent until
+    // 2026-10-25. A document that holds them loads, keeps them untouched as
+    // it keeps any field it does not read, and a new chat does not copy them.
     ProjectStateDocument document;
     document.initialize_identity("p-1", "l-1", kT);
-    CHECK(document.print_intent().empty());
+    json raw = json::parse(document.dump());
+    raw["conversations"][0]["setupIntent"] = "Load-bearing bracket";
+    raw["conversations"][0]["printIntent"] = json::array({json{{"field", "load"}, {"value", "5 kg"},
+                                                               {"provenance", "user_confirmed"}, {"seq", 3},
+                                                               {"updatedAt", kT}}});
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(raw.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.setup_intent(loaded.active_conversation_id()) == "Load-bearing bracket");
 
-    const auto first = document.set_print_intent({{"useCase", "decorative", "", Provenance::UserConfirmed},
-                                                  {"maxPrintTime", "5h", "", Provenance::AgentInferred}},
-                                                 kT);
-    // Ordered by field name, whatever order the writer used.
-    REQUIRE(first.size() == 2);
-    CHECK(first[0].field == "maxPrintTime");
-    CHECK(first[1].field == "useCase");
-    CHECK(first[1].value == "decorative");
-    CHECK(first[1].provenance == Provenance::UserConfirmed);
-    CHECK(first[0].updated_at == kT);
-    CHECK(first[0].seq > 0);
-
-    // A field the call does not mention is left exactly as it was; the one it
-    // does mention is replaced, provenance and all.
-    const auto second = document.set_print_intent({{"maxPrintTime", "3h", "", Provenance::UserConfirmed}},
-                                                  "2026-09-16T00:00:00Z");
-    REQUIRE(second.size() == 2);
-    CHECK(second[0].value == "3h");
-    CHECK(second[0].provenance == Provenance::UserConfirmed);
-    CHECK(second[0].seq > first[0].seq);
-    CHECK(second[0].updated_at == "2026-09-16T00:00:00Z");
-    CHECK(second[1].seq == first[1].seq);
-    CHECK(second[1].value == "decorative");
-
-    // Nameless fields are ignored rather than stored under an empty name.
-    CHECK(document.set_print_intent({{"", "nothing", "", Provenance::File}}, kT).size() == 2);
-
-    ProjectStateDocument reloaded;
-    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    const auto round = reloaded.print_intent();
-    REQUIRE(round.size() == second.size());
-    for (std::size_t index = 0; index < round.size(); ++index) {
-        INFO(round[index].field);
-        CHECK(round[index].field == second[index].field);
-        CHECK(round[index].value == second[index].value);
-        CHECK(round[index].provenance == second[index].provenance);
-        CHECK(round[index].seq == second[index].seq);
-        CHECK(round[index].updated_at == second[index].updated_at);
-    }
+    const std::string second = loaded.create_conversation({}, kT);
+    CHECK(loaded.setup_intent(second) == "Load-bearing bracket");
+    const json round = json::parse(loaded.dump());
+    CHECK(round["conversations"][0]["printIntent"] == raw["conversations"][0]["printIntent"]);
+    CHECK_FALSE(round["conversations"][1].contains("printIntent"));
 }
 
 TEST_CASE("the plan is replaced whole and survives a round trip", "[project-state][plan]")
@@ -1181,31 +1144,11 @@ TEST_CASE("the plan is replaced whole and survives a round trip", "[project-stat
     CHECK(reloaded.plan().assumptions.empty());
 }
 
-TEST_CASE("an unknown key inside a stored intent field survives the next write to it", "[project-state][schema]")
-{
-    ProjectStateDocument loaded;
-    loaded.initialize_identity("p-1", "l-1", kT);
-    const auto written = loaded.set_print_intent({{"useCase", "functional", "", Provenance::AgentInferred}}, kT);
-    REQUIRE(written.size() == 1);
-
-    json edited = json::parse(loaded.dump());
-    edited["conversations"][0]["printIntent"][0]["futureAnnotation"] = "keep me";
-    ProjectStateDocument reopened;
-    REQUIRE(reopened.load(edited.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    reopened.set_print_intent({{"useCase", "decorative", "", Provenance::UserConfirmed}}, kT);
-    const json round = json::parse(reopened.dump());
-    CHECK(round["conversations"][0]["printIntent"][0]["futureAnnotation"] == "keep me");
-    CHECK(round["conversations"][0]["printIntent"][0]["value"] == "decorative");
-}
-
 TEST_CASE("intent and plan writes need an active chat to hold them", "[project-state][intent][plan]")
 {
     ProjectStateDocument document;
     CHECK(document.plan().headline.empty());
-    CHECK(document.print_intent().empty());
     CHECK_THROWS_AS(document.set_plan(PlanRecord{}, kT), std::logic_error);
-    CHECK_THROWS_AS(document.set_print_intent({{"useCase", "functional", "", Provenance::AgentInferred}}, kT),
-                    std::logic_error);
     CHECK_THROWS_AS(document.set_purpose_setup(json{{"printerPreset", "X1C"}}), std::logic_error);
 }
 

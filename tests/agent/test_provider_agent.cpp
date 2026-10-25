@@ -363,8 +363,7 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     h.fake->data(frame(json{{"turn", turn},
                             {"calls", json::array({call("call-read", "workspace_inspect", json{{"sections", json::array({"summary"})}}),
                                                    call("call-intent", "setup_record",
-                                                        json{{"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})},
-                                                             {"purpose", "Strong PETG bracket"}})})}}));
+                                                        json{{"purpose", "Strong PETG bracket"}})})}}));
     h.fake->complete();
 
     const auto first = h.poll_until(AgentEventKind::ToolCall);

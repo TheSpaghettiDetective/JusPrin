@@ -37,6 +37,8 @@ Usage:
   OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/project_prompt/run_prompt_tests.py
       [--runs N] [--must-pass N] [--case NAME] [--jobs 5] [--verbose] [--prompt-rev REV]
       [--model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
+      [--baseline FILE] [--results FILE] [--record-baseline]
+  tests/project_prompt/run_prompt_tests.py --compare RESULTS [--baseline FILE] [--record-baseline]
   tests/project_prompt/run_prompt_tests.py --backend claude-cli [--claude-model M] [--claude-effort E]
       [--judge claude-cli [--claude-judge-model M]] [--claude-keep DIR] [other flags as above]
   tests/project_prompt/run_prompt_tests.py --render-only [--case NAME] [--runs N] [--prompt-rev REV]
@@ -56,8 +58,13 @@ The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 Without --runs, the cases run share RUN_BUDGET runs: 3 each for 26 cases,
 never more than MAX_RUNS for one case.
 
-Exit code 0 when every case passes at least --must-pass of its runs (default:
-all of them), 1 otherwise. Needs python3 and node, and the page's npm install
+A run ends by printing each case beside the baseline (baseline.json, or
+baseline-claude-cli.json for the claude-cli backend), marking only large
+moves; --results saves the run in the baseline's form, --compare compares a
+saved run without sending anything, and --record-baseline makes a run the
+baseline. Exit code 1 when a case is marked worse than the baseline, 0
+otherwise; with --must-pass N, 1 when a case passes fewer than N runs. Needs
+python3 and node, and the page's npm install
 (src/slic3r/GUI/JusPrin/AgentUI/node_modules) for esbuild.
 """
 
@@ -1185,7 +1192,8 @@ def main():
     parser.add_argument("--case", action="append", choices=sorted(CASES), help="run only this case (repeatable)")
     parser.add_argument("--runs", type=int, help=f"runs per case (default: {RUN_BUDGET} shared by the cases run, "
                                                  f"at most {MAX_RUNS} each)")
-    parser.add_argument("--must-pass", type=int, help="runs per case that must pass (default: all)")
+    parser.add_argument("--must-pass", type=int,
+                        help="runs per case that must pass, instead of comparing with the baseline to set the exit code")
     parser.add_argument("--jobs", type=int, help="runs in parallel, across cases (default 5; 3 for claude-cli)")
     parser.add_argument("--model", help=f"the model under test (default {MODEL})")
     parser.add_argument("--endpoint", help=f"its Responses API endpoint (default {ENDPOINT})")
@@ -1209,7 +1217,20 @@ def main():
                         help="run the prompt as the page's source had it at this git revision (6b4b8b6188 or later)")
     parser.add_argument("--render-only", action="store_true", help="print the request bodies and their sizes; send nothing")
     parser.add_argument("--verbose", action="store_true", help="print every run's conversation, not only failures")
+    parser.add_argument("--baseline", metavar="FILE",
+                        help="the baseline to compare with (default baseline.json; baseline-claude-cli.json for claude-cli)")
+    parser.add_argument("--results", metavar="FILE", help="also write this run's counts to FILE, in the baseline's form")
+    parser.add_argument("--compare", metavar="FILE", help="send nothing: compare a run saved with --results with the baseline")
+    parser.add_argument("--record-baseline", action="store_true",
+                        help="make this run (or, with --compare, that saved run) the baseline; every case must have run")
     args = parser.parse_args()
+    baseline_path = pathlib.Path(args.baseline) if args.baseline else BASELINES[args.backend]
+    if args.compare:
+        run = json.loads(pathlib.Path(args.compare).read_text(encoding="utf-8"))
+        if args.record_baseline:
+            record_baseline(baseline_path, run)
+            sys.exit(0)
+        sys.exit(0 if finish(run, baseline_path, args.must_pass) else 1)
     global CLAUDE_JUDGE
     if args.judge == "claude-cli":
         CLAUDE_JUDGE = (args.claude_judge_model, args.claude_effort)
@@ -1217,6 +1238,11 @@ def main():
         args.jobs = 3 if args.backend == "claude-cli" else 5
     model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
     providers = args.provider or (PROVIDERS if model == MODEL else None)
+    if args.backend == "claude-cli":
+        setup = {"backend": "claude-cli", "model": args.claude_model, "effort": args.claude_effort, "hosts": None}
+    else:
+        setup = {"backend": "api", "model": model, "effort": None, "hosts": providers}
+    setup["judge"] = args.claude_judge_model + " (claude-cli)" if args.judge == "claude-cli" else JUDGE_MODEL
     names = args.case or list(CASES)
     if args.runs is None:
         args.runs = max(1, min(MAX_RUNS, RUN_BUDGET // len(names)))
@@ -1239,7 +1265,7 @@ def main():
         sys.exit(f"{key_env} is required")
     if args.judge == "openai" and not os.environ.get("OPENAI_API_KEY"):
         sys.exit("OPENAI_API_KEY is required for the judge (or --judge claude-cli)")
-    must_pass = args.runs if args.must_pass is None else args.must_pass
+    must_pass = args.must_pass
     if args.backend == "claude-cli":
         print(f"model {args.claude_model} (effort {args.claude_effort}) through the Claude Code CLI")
 
@@ -1257,7 +1283,7 @@ def main():
         started = time.monotonic()
         return once(name) + (time.monotonic() - started,)
 
-    ok = True
+    ok, tallies = True, {}
     # Every run of every case shares one pool, so --jobs caps the requests in
     # flight; the report keeps the cases' order.
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
@@ -1266,11 +1292,33 @@ def main():
             results = [future.result() for future in futures[name]]
             tally = {outcome: sum(1 for result in results if result[0] == outcome) for outcome in (PASS, FAIL, UNOBSERVED)}
             report(name, results, tally, must_pass, args)
-            ok = ok and tally[PASS] >= must_pass
+            ok = ok and (must_pass is None or tally[PASS] >= must_pass)
+            tallies[name] = {"runs": args.runs, "pass": tally[PASS], "fail": tally[FAIL], "unobserved": tally[UNOBSERVED],
+                             "errors": sum(1 for result in results if result[1].startswith("ERROR "))}
     print(f"usage: {USAGE['requests']} requests, {USAGE['input_tokens']} input tokens ({USAGE['cached_tokens']} cached), "
           f"{USAGE['output_tokens']} output; judge {USAGE['judge_requests']} requests, {USAGE['judge_input_tokens']} input, "
           f"{USAGE['judge_output_tokens']} output", file=sys.stderr)
-    sys.exit(0 if ok else 1)
+    run = results_of(setup, instructions, tallies)
+    if args.prompt_rev:
+        run["promptRev"] = args.prompt_rev
+    if args.results:
+        pathlib.Path(args.results).write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    if args.record_baseline:
+        record_baseline(baseline_path, run)
+        sys.exit(0)
+    sys.exit(0 if finish(run, baseline_path, must_pass) and ok else 1)
+
+
+def finish(run, baseline_path, must_pass):
+    """Prints the run beside the baseline. False when a case is marked worse,
+    or, with no baseline to compare with and no --must-pass, always true."""
+    if not baseline_path.exists():
+        print(f"no baseline at {baseline_path.name}: nothing to compare with")
+        return True
+    lines, worse = compare(run, json.loads(baseline_path.read_text(encoding="utf-8")))
+    print("\n" + "\n".join(lines))
+    # With --must-pass the pass counts decide, as before baselines.
+    return must_pass is not None or not worse
 
 
 def report(name, results, tally, must_pass, args):
@@ -1279,8 +1327,125 @@ def report(name, results, tally, must_pass, args):
         if args.verbose or verdict != PASS:
             for line in log[-6:] if not args.verbose else log:
                 print("    " + line.replace("\n", "\n    "))
-    print(f"{name}: {tally[PASS]} of {args.runs} passed, {tally[FAIL]} failed, {tally[UNOBSERVED]} unobserved "
-          f"(needs {must_pass})")
+    print(f"{name}: {tally[PASS]} of {args.runs} passed, {tally[FAIL]} failed, {tally[UNOBSERVED]} unobserved"
+          + (f" (needs {must_pass})" if must_pass is not None else ""))
+
+
+# --- Baseline ----------------------------------------------------------------
+#
+# A run is judged against a baseline kept in the repository, not against a
+# second run of the old prompt. The baseline and a run's results are the
+# same data: what answered (backend, model, hosts, judge), when and at which
+# commit, the SHA-256 of the prompt, tool list and recording, and per case
+# the runs, passes, fails and unobserved runs. Cases with no baseline are
+# listed in noBaseline with the reason.
+
+BASELINES = {"api": HERE / "baseline.json", "claude-cli": HERE / "baseline-claude-cli.json"}
+# A case moves "a lot" when its share of passing runs moves by this much: at
+# three runs, two runs or more (3 of 3 against 1 or 0 of 3). A move of one
+# run is within what the same prompt does from day to day.
+LARGE = 0.6
+# The fields that must match for a run to be compared with a baseline; when
+# one differs the baseline is re-recorded, not compared with.
+SETUP = ("backend", "model", "effort", "hosts", "judge")
+
+
+def sha256(data):
+    import hashlib
+    return hashlib.sha256(data.encode() if isinstance(data, str) else data).hexdigest()
+
+
+def git(*args):
+    return subprocess.run(["git", *args], cwd=HERE, capture_output=True, encoding="utf-8").stdout.strip()
+
+
+def results_of(setup, instructions, tallies):
+    """A run's results, in the baseline's form. tallies: {case: {runs, pass,
+    fail, unobserved, errors}}, errors being failed runs that got no
+    response (a host or network error). A case whose every run is an error
+    measured nothing, so it goes to noBaseline."""
+    cases = {name: tally for name, tally in tallies.items() if tally["errors"] < tally["runs"]}
+    return {**setup, "date": time.strftime("%Y-%m-%d"), "commit": git("rev-parse", "--short=10", "HEAD"),
+            "uncommitted": bool(git("status", "--porcelain", "--untracked-files=no")),
+            "sha256": {"prompt": sha256(instructions), "tools": sha256((HERE / "project_tools.json").read_bytes()),
+                       "recording": sha256((HERE / "requests.json").read_bytes())},
+            "cases": cases,
+            "noBaseline": {name: "every run failed without a response" for name in tallies if name not in cases}}
+
+
+def describe(data):
+    hosts = f" on {', '.join(data['hosts'])}" if data.get("hosts") else ""
+    effort = f" at effort {data['effort']}" if data.get("effort") else ""
+    return f"{data['model']}{effort}{hosts} ({data['backend']}), judge {data['judge']}"
+
+
+def compare(run, baseline):
+    """Each case of the run beside the baseline, marking only the large moves.
+    Returns (lines, worse): worse is the cases marked worse, or None when the
+    run cannot be compared with this baseline at all."""
+    lines = [f"Baseline: {baseline['date']} at {baseline['commit']}, {describe(baseline)}",
+             f"This run: {run['date']} at {run['commit']}{' with uncommitted changes' if run.get('uncommitted') else ''}, "
+             f"{describe(run)}"]
+    differs = [field for field in SETUP if run.get(field) != baseline.get(field)]
+    if differs:
+        lines.append(f"NOT COMPARABLE: this run's {' and '.join(differs)} {'differs' if len(differs) == 1 else 'differ'} "
+                     "from the baseline's. Compare only runs on the "
+                     "baseline's setup; a new setup needs a baseline recorded on it (--record-baseline).")
+        return lines, None
+    recorded = baseline.get("sha256") or {}
+    changed = [what for what in ("tools", "recording") if recorded.get(what) and run["sha256"][what] != recorded[what]]
+    if changed:
+        lines.append(f"Note: the {' and the '.join({'tools': 'tool list', 'recording': 'recording'}[what] for what in changed)} "
+                     "differ from the baseline's, so a moved case may come from that as well as from the prompt.")
+    worse, better, noise = [], [], []
+    lines.append(f"{'case':28} {'baseline':>16}   {'this run':>16}")
+    def counts(tally):
+        return f"{tally['pass']}/{tally['runs']} {tally['fail']}f {tally['unobserved']}u"
+    for name, tally in run["cases"].items():
+        base = baseline["cases"].get(name)
+        if base is None:
+            why = baseline.get("noBaseline", {}).get(name, "not in the baseline")
+            lines.append(f"{name:28} {'-':>16}   {counts(tally):>16}   no baseline: {why}")
+            continue
+        moved = tally["pass"] / tally["runs"] - base["pass"] / base["runs"]
+        mark = ""
+        if moved <= -LARGE:
+            worse.append(name)
+            mark = "WORSE"
+            # A drop made of runs that observed nothing, or got no response,
+            # says more about the hosts or the recording than the prompt.
+            failed_more = tally["fail"] / tally["runs"] - base["fail"] / base["runs"]
+            errors = tally.get("errors", 0)
+            if failed_more < LARGE or errors:
+                noise.append(name)
+                mark += " (may be noise: " + (f"{errors} request errors" if errors else "unobserved runs, not failures") + ")"
+        elif moved >= LARGE:
+            better.append(name)
+            mark = "BETTER"
+        lines.append(f"{name:28} {counts(base):>16}   {counts(tally):>16}   {mark}".rstrip())
+    for name in run.get("noBaseline", {}):
+        lines.append(f"{name:28} {'':>16}   {'not measured':>16}   {run['noBaseline'][name]}")
+    lines.append(f"{len(worse)} worse, {len(better)} better, {len(run['cases']) - len(worse) - len(better)} within noise "
+                 f"(a move of less than {LARGE:.0%} of the runs).")
+    if len(worse) >= 3:
+        lines.append("Several cases dropped at once. A bad host day shows as drops in cases the change did not touch: "
+                     "before reading a drop as the change, run that case alone on the previous revision "
+                     "(--case NAME --prompt-rev REV) the same day.")
+    elif worse:
+        lines.append("Read every failed and unobserved run of a worse case; to tell the change from the hosts, run it "
+                     "alone on the previous revision (--case NAME --prompt-rev REV) the same day.")
+    return lines, worse
+
+
+def record_baseline(path, results):
+    missing = sorted(set(CASES) - set(results["cases"]) - set(results.get("noBaseline", {})))
+    if missing:
+        sys.exit(f"a baseline is recorded from a run of every case; this run has no {', '.join(missing)}")
+    if results.get("promptRev"):
+        sys.exit("a baseline is recorded from the checkout's prompt, not --prompt-rev")
+    path.write_text(json.dumps(results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"recorded {path.name}: {len(results['cases'])} cases, at {results['commit']}"
+          + (" with uncommitted changes" if results.get("uncommitted") else ""))
 
 
 if __name__ == "__main__":

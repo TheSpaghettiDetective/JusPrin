@@ -1166,7 +1166,7 @@
     "type": "function"
   },
   {
-    "description": "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not, even marked assumed: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. fields record what they told you about the print: assumed marks your own inference, question something you asked and have no answer to. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+    "description": "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
     "name": "setup_record",
     "parameters": {
       "additionalProperties": false,
@@ -1197,33 +1197,6 @@
             "type": "object"
           },
           "maxItems": 16,
-          "type": "array"
-        },
-        "fields": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "assumed": {
-                "type": "boolean"
-              },
-              "field": {
-                "type": "string"
-              },
-              "question": {
-                "maxLength": 2048,
-                "type": "string"
-              },
-              "value": {
-                "maxLength": 2048,
-                "type": "string"
-              }
-            },
-            "required": [
-              "field"
-            ],
-            "type": "object"
-          },
-          "maxItems": 32,
           "type": "array"
         },
         "headline": {
@@ -1312,7 +1285,7 @@
     "type": "function"
   },
   {
-    "description": "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing, with sliceFailure when its last slice was refused or failed.",
+    "description": "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them. A plate that has not been sliced says so rather than failing, with sliceFailure when its last slice was refused or failed.",
     "name": "slice_report",
     "parameters": {
       "additionalProperties": false,
@@ -1329,12 +1302,11 @@
               "supports",
               "seams",
               "firstLayer",
-              "islands",
-              "intent"
+              "islands"
             ],
             "type": "string"
           },
-          "maxItems": 8,
+          "maxItems": 7,
           "type": "array"
         }
       },
@@ -1404,7 +1376,7 @@
     "type": "function"
   },
   {
-    "description": "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, whether every copy prints and if not how many do, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
+    "description": "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are possible. Other sections: objects (every object with its plates, instance, part and modifier counts, whether every copy prints and if not how many do, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, packed attachments, and backup state), plan (the plan in force), slicing (whether each plate's slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped to the returned sessionId. No process-setting values are exposed by this tool.",
     "name": "workspace_inspect",
     "parameters": {
       "additionalProperties": false,
@@ -1415,7 +1387,6 @@
               "summary",
               "project",
               "objects",
-              "intent",
               "plan",
               "slicing",
               "printer",
@@ -1423,7 +1394,7 @@
             ],
             "type": "string"
           },
-          "maxItems": 8,
+          "maxItems": 7,
           "type": "array"
         }
       },

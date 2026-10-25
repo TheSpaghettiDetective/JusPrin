@@ -831,8 +831,13 @@ LoadedObjectFacts OrcaWorkspaceAdapter::loaded_object_facts(std::size_t model_in
     // Whether it could stand anywhere on each bed. Its outline is the first
     // copy's convex hull, the shape the plate tests against an excluded area.
     if (!object.instances.empty()) {
+        // The hull is held by name: MSVC ends a temporary's life before the
+        // loop when the loop ranges over a member it inherits (Polygon's
+        // points come from MultiPoint), which left the footprint empty and
+        // every object "too big" on Windows.
+        const Polygon         hull = object.instances.front()->convex_hull_2d();
         std::vector<BedPoint> footprint;
-        for (const Point& point : object.instances.front()->convex_hull_2d().points)
+        for (const Point& point : hull.points)
             footprint.push_back({unscale<double>(point.x()), unscale<double>(point.y())});
         const double height = object.instance_bounding_box(0).size().z();
         facts.fits_selected_bed = fits_bed(selected_bed, footprint, height);

@@ -31,7 +31,7 @@ before-state, then link an after-version and outcome in an operation record.
 ## Storage and recovery contract
 
 The restoration rules above describe ordinary Version history. **Restore and
-resume** is a separate chat transition. Each chat owns its print intent and
+resume** is a separate chat transition. Each chat owns its print's purpose and
 plan; the project's current ones are the active chat's. A chat's checkpoint
 holds a model-version reference and a structured setup summary of the moment
 it was left. Browsing an older chat does not change the working project.

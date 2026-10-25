@@ -4,8 +4,9 @@ The project chat's assistant is a system prompt
 (`src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts`), the project
 tools and the chat. `run_prompt_tests.py` asks the live model for its next
 step at a known point of a project chat and checks that step against one
-sentence of the prompt. It is run against the prompt before an edit and after it, and the
-counts compared. The app does not run.
+sentence of the prompt. After an edit it runs once, on the checkout, and
+prints each case beside a baseline kept in the repository (`baseline.json`;
+see "Judging a prompt or skill change"). The app does not run.
 
 On Kenneth's local machine, the keys are in
 `~/.config/jusprin/prompt-test.env` (outside the repository, mode `600`). An
@@ -241,6 +242,34 @@ objects (`field`, `value`, `assumed`) under `assumptions` in two of three
 journeys, and the app refused the call. Beyond those and timestamps, only the
 `after-slice` point's known timing noise changed.
 
+Recorded again, whole, on Windows on 2026-10-25, when `setup_record` lost its
+requirement fields (`fields`), and with them the `intent` sections of
+`workspace_inspect` and `slice_report` and the fields in each turn's
+`<workspace>` intent block: the scripted `setup_record` call is the purpose
+alone, its result has no `intent` and its `purposeChange` compares the
+purpose, and the `answers` list no longer asks for an `intent` section.
+Because the file had not been recorded whole since 2026-10-19, the same
+recording also takes in what changed in between: every point now answers a
+`skill_read` of the calibration skill; the print-issues skill carries its
+calibration sentence and the calibration skill its later wording; the
+calibration project is named "Calibration · Bambu PLA Basic · Bambu Lab X1
+Carbon 0.4 nozzle". Two differences are Windows', not the app's on macOS:
+
+- OrcaSlicer's own messages are its source English. The Windows harness runs
+  in `en_US` and loads no English catalog, while the earlier macOS recordings
+  read `localization/i18n/en`: "The current hot bed temperature is relatively
+  high. The nozzle may be clogged when printing this filament in a closed
+  enclosure." where they had "heatbed ... may clog ... in a closed
+  environment", and "is not suggested to be used to print filament" for "is
+  not suggested for use printing filament" in the slice refusal.
+- Every loaded object's `fitsSelectedBed` is false, a 20 mm cube on the X1
+  Carbon's 256 mm bed included, where macOS said true. That was a fault of
+  the fit check on Windows, not of the fixture (MSVC ended the convex hull's
+  life before the loop that read its outline), fixed in the same commit after
+  this recording was made; it reaches the file-load points
+  (`file-note-not-instructions` and the three picture cases) until the file is
+  recorded again.
+
 The app streams its requests and this script does not.
 
 ## Cases
@@ -293,6 +322,13 @@ Notes on the cases:
   and answered reads now give that read's real result to the case itself,
   checked against the variants' recordings before they went. The baselines
   below keep only the cases that remain.
+
+- No case tests that a requirement the person states early in a
+  conversation (a time limit, a dimension, a load) still shapes the setup
+  many turns later. Until 2026-10-25 `setup_record` kept such requirements as
+  fields and the app returned them in every `<workspace>` block; no case
+  checked those either, and since they were removed only the conversation
+  itself carries them, within the 20 entries the app replays.
 
 - Since 2026-10-18 the slice summary counts every warning the print-issue
   chip lists, OrcaSlicer's bed-temperature warning ("The current heatbed
@@ -404,10 +440,17 @@ The runner and `test_steps.py` need the app's argument check built:
 runner takes the newest one under `build/` (or `JUSPRIN_TOOL_CALL_CHECK`) and
 stops when it is older than `ToolRegistry.cpp`.
 
-By default every case runs 3 times (`RUN_BUDGET` 60 shared by the cases run,
+By default every case runs 3 times (`RUN_BUDGET` 78 shared by the cases run,
 at most 20 for one case alone); `--runs N` sets it. `--verbose` prints every
 run's conversation. Usage is logged for every response on stderr and totalled
 at the end.
+
+A run ends with every case it ran beside the baseline (below). It exits 1
+when a case is marked worse, 0 otherwise; `--must-pass N` makes the exit code
+1 when a case passes fewer than N runs instead, as before baselines.
+`--results FILE` also saves the run's counts in the baseline's form, and
+`--compare FILE` prints a saved run beside the baseline again without sending
+anything.
 
 ```bash
 tests/project_prompt/run_prompt_tests.py --render-only --prompt-rev 6b4b8b6188 > bodies.jsonl
@@ -454,11 +497,13 @@ tool list, MCP config and the CLI's event stream for reading afterwards.
   can paper over an ambiguity a weaker one trips on, so a pass on Opus does
   not show the shipped default will pass. That run needs Kenneth's approval
   like every paid batch.
-- **The baselines below** are DeepSeek V4 Flash with the OpenAI judge, except
-  the subscription baseline, which is claude-cli's own. A claude-cli count is
-  compared only with that one. Changing the judge changes
-  what every judged case counts, so `--judge claude-cli` results start their
-  own baseline, under the same "confirmed results become the baseline" rule.
+- **The baselines** are DeepSeek V4 Flash with the OpenAI judge
+  (`baseline.json`), except the subscription baseline, which is claude-cli's
+  own (`baseline-claude-cli.json`, which `--backend claude-cli` compares with).
+  A claude-cli count is compared only with that one. Changing the judge
+  changes what every judged case counts, so the runner will not compare a
+  run on another judge with either: such results start their own baseline,
+  under the same "confirmed results become the baseline" rule.
 
 ### How a recorded request reaches the CLI
 
@@ -530,24 +575,56 @@ regressions only, not small effects. Day-to-day host noise is small next to
 what it looks for: on the printer suite the same prompt scored 76, 76 and 74
 of 84 on three runs.
 
-1. After a prompt or skill change, run the "after" batch only: the checkout,
-   same model, pinned hosts and judge, three runs a case. Compare it with the
-   current baseline table below. There is no before run.
-2. Judging the result. There are no fixed thresholds (Kenneth,
-   2026-10-19). The agent running the batch compares it with the baseline
-   case by case and reads every failure and unobserved run. It decides
-   whether anything looks like a real regression worth investigating, and
-   says why. A case with no baseline row is judged on its own expectation.
-   When it is not sure, it asks Kenneth.
-3. Only for a case that looks like a regression, run it again with
-   `--prompt-rev <previous revision>` the same day. That tells the prompt
-   apart from changed requests or a bad host day; a bad host day usually shows
-   as drops in untouched cases too. A case run alone gets 20 runs, which is
-   what to use before reading a smaller gap as real.
-4. Baselines. The current baseline is one section. When Kenneth confirms a
-   new result is good enough, it becomes the new baseline, and the old one
-   moves to "Baseline history" below, kept for audit only and not used for
-   comparison.
+1. After a prompt, skill, tool or recording change, run the new version
+   only: the checkout, the default model, pinned hosts and judge, three runs
+   a case (the runner's defaults, no flags). There is no before run. The
+   runner ends by printing every case beside the stored baseline:
+
+   ```
+   case                                 baseline           this run
+   after-apply                         2/3 1f 0u          3/3 0f 0u
+   first-person                        1/3 2f 0u          3/3 0f 0u   BETTER
+   issue-explain                       2/3 0f 1u          0/3 0f 3u   WORSE (may be noise: unobserved runs, not failures)
+   ```
+
+   (passes of runs, fails, unobserved). It marks only a large move: a case's
+   share of passing runs moving by 60% of the runs or more, which at three
+   runs means two runs or more (3 of 3 against 1 or 0 of 3). A move of one
+   run is what the same prompt does from day to day and is not marked.
+2. Judging the result. There are no fixed thresholds beyond that mark
+   (Kenneth, 2026-10-19). The agent running the batch reads every failure
+   and unobserved run of every case, marked or not, decides whether anything
+   looks like a real regression worth investigating, and says why. A case
+   with no baseline (the comparison says why) is judged on its own
+   expectation. When it is not sure, it asks Kenneth.
+3. Host noise. The comparison flags a mark that may be the hosts rather than
+   the change: a drop made of unobserved runs rather than failures (the model
+   read something the recording does not hold), a drop with request errors,
+   and three or more cases dropping at once (a bad host day shows as drops in
+   cases the change did not touch). It also says when the tool list or the
+   recording differ from the baseline's, so a move may come from them. Only
+   for a case that looks like a regression, run it again alone on the
+   previous revision, `--case NAME --prompt-rev <revision>`, the same day; a
+   case run alone gets 20 runs, which is what to use before reading a smaller
+   gap as real. `--prompt-rev` changes only the prompt: the tools and the
+   recording stay the checkout's.
+4. Re-recording the baseline. The baseline is `baseline.json` (DeepSeek V4
+   Flash on the pinned hosts, the OpenAI judge) and, for the subscription,
+   `baseline-claude-cli.json` (Opus 5.5 for model and judge). Each holds the
+   model, hosts, judge, date and commit it was recorded at, the SHA-256 of
+   its prompt, tool list and recording, and per case the runs, passes, fails
+   and unobserved runs; `noBaseline` names the cases it has no counts for
+   and why. Record a new one, with `--record-baseline` on a full run of every
+   case (or `--compare FILE --record-baseline` on a saved one), when:
+   - Kenneth accepts a deliberate change whose result differs from the
+     baseline (a case added, removed or rewritten, a prompt or tool change
+     whose new counts he confirms as good enough); or
+   - the model, the hosts or the judge change. The runner refuses to compare
+     a run on another setup than the baseline's and says so.
+   The recorded file is committed with the change it measures. The old
+   counts stay in git history; describe the new baseline in the README's
+   "Current baseline" section and move the old description to "Baseline
+   history".
 
 ## The cases added on 2026-10-21
 
@@ -559,9 +636,9 @@ recording.
 
 `calibration-symptom` and `calibration-result` were recorded on Windows with
 the shell harness from only their two conversations, and merged into
-`requests.json`; the other points are the earlier recording, unchanged, and
-have no `skill_read` answer, so a run of theirs that reads the skill ends
-unobserved until the whole file is recorded again. `calibration-result`
+`requests.json`; the other points were the earlier recording, and had no
+`skill_read` answer, until the whole file was recorded again on 2026-10-25
+(above). `calibration-result`
 describes the print in words: the pinned hosts refuse a picture.
 
 They ran five times each on 2026-10-21 (Kenneth approved the batch), DeepSeek
@@ -620,7 +697,7 @@ failed the slice the prompt asks for before a print is called ready.
 ## Current subscription baseline: claude-cli backend and judge (2026-10-20, `setup_record`)
 
 Confirmed as the subscription baseline by Kenneth on 2026-10-20; compare later
-claude-cli runs with this table, never with the DeepSeek tables below.
+claude-cli runs with these counts, never with the DeepSeek tables below.
 `jusprin-newui` at 57b58cb268: each chat's own intent and plan, the setup
 card's plan headline (334287e2d8), and `intent_update` and `plan_set` merged
 into `setup_record` with a required `purpose`, a flat plan and `unverified`
@@ -630,33 +707,9 @@ runs each, `claude-opus-5-5` at effort `medium` for both model and judge,
 1.89M input tokens (1.62M cached) and 35k output, plus 42 judge requests,
 177k input and 11k output, all on the subscription.
 
-| Case | Pass | Fail | Unobserved |
-|---|---:|---:|---:|
-| `advice-infill` | 3 | 0 | 0 |
-| `prepare-petg-strong` | 3 | 0 | 0 |
-| `after-intent` | 3 | 0 | 0 |
-| `after-preview` | 3 | 0 | 0 |
-| `after-apply` | 3 | 0 | 0 |
-| `after-slice` | 3 | 0 | 0 |
-| `issue-fix` | 3 | 0 | 0 |
-| `issue-explain` | 3 | 0 | 0 |
-| `troubleshoot-first-layer` | 3 | 0 | 0 |
-| `direct-change` | 3 | 0 | 0 |
-| `direct-change-applied` | 3 | 0 | 0 |
-| `direct-change-failed` | 3 | 0 | 0 |
-| `answer-from-context` | 3 | 0 | 0 |
-| `loaded-vs-configured` | 3 | 0 | 0 |
-| `first-person` | 3 | 0 | 0 |
-| `slice-warnings-ready` | 3 | 0 | 0 |
-| `reply-in-german` | 3 | 0 | 0 |
-| `file-note-not-instructions` | 3 | 0 | 0 |
-| `print-this-no-purpose` | 1 | 2 | 0 |
-| `model-opened-unnamed` | 3 | 0 | 0 |
-| `model-imported-by-tool` | 3 | 0 | 0 |
-| `model-opened-by-tool` | 3 | 0 | 0 |
-| `slice-refused-by-tool` | 3 | 0 | 0 |
-| `slice-refused-then-ready` | 3 | 0 | 0 |
-| **Total, 24 cases (72 runs)** | **70** | **2** | **0** |
+Its counts, 70 passed, 2 failed and none unobserved of 72 runs, are in
+`baseline-claude-cli.json`, seeded from this section's table on 2026-10-25
+(the table is in git history).
 
 Every case was observed. The two failures are the known open one: each
 `print-this-no-purpose` reply asked what the cube is for and also asked the
@@ -665,7 +718,54 @@ the case allows exactly one question. Neither recorded a purpose. The
 previous subscription baseline, the same day before these commits, failed the
 case 3 of 3 the same way.
 
-## Current baseline: the skills integration (2026-10-19)
+## Current baseline: without setup_record's fields (2026-10-25)
+
+Confirmed as the baseline by Kenneth on 2026-10-25; its counts are
+`baseline.json`, recorded from the run with `--compare --record-baseline`.
+`claude/modest-williams-e57a48` at 6cc391182b: the stored baseline
+(f697ae93f2) and `setup_record` without its requirement fields
+(6cc391182b), with the recording made on Windows at that commit (see the
+recording notes above for what else it took in). One run: all 26 cases,
+three runs each, DeepSeek V4 Flash pinned to Alibaba, Novita, Baidu and
+AtlasCloud (OpenRouter no longer listed Novita for the model that day) and
+the pinned OpenAI judge. 56 passed, 5 failed and 8 unobserved in the 23
+cases measured; the three picture cases got HTTP 404 on every run, as
+before. Usage: 111 model requests, 1,385,428 input tokens (1,246,208
+cached), 32,160 output; 30 judge requests, 65,571 input, 4,751 output; about
+$0.55 at that day's prices.
+
+Against the 2026-10-19 baseline, only two cases moved by two runs or more:
+
+- `reply-in-german`, 3 of 3 to 1 of 3: both other runs were unobserved, not
+  failures. One asked for settings the recording does not hold (`fill_pattern`
+  and other names OrcaSlicer does not have), the other was still reading after
+  three answered responses.
+- `first-person`, 1 of 3 to 3 of 3: no reply spoke of OrcaSlicer as another
+  program.
+
+Neither touches the purpose or the removed fields. Read beside them:
+
+- `prepare-petg-strong` (3 to 2): one run replied that it would ask about the
+  purpose first instead of recording "PETG, strong" or reading. The other two
+  read the presets first. It is the one move that could come from the change
+  (the tool's description lost its sentence on fields), and it is one run.
+- No response sent a `setup_record` the app refused; the runs that reached a
+  refused call were `settings_get` reads.
+- The other failures are the known ones: `print-this-no-purpose` asking two
+  questions, and the refusal cases naming OrcaSlicer as another program. The
+  other unobserved runs are reads the recording does not hold: searches with
+  new wordings, filament settings asked of a named preset, a `presets_list`
+  query.
+- `file-note-not-instructions` passed 3 of 3 although its file-load report
+  says, wrongly, that the cube does not fit the bed (the Windows fault noted
+  with the recording).
+
+## Baseline history
+
+Earlier baselines, kept for audit only. Do not compare a new run against
+them.
+
+### The skills integration (2026-10-19)
 
 Confirmed as the baseline by Kenneth on 2026-10-19. Branch
 `claude/skills-integrated` at dd9cf918af: the slice-failed, print-issues and
@@ -676,31 +776,14 @@ warning the chip lists, and the slice-failed skill speaking as the app. One
 hosts and the pinned OpenAI judge, with the recording of dd9cf918af
 (`view_render` answered as text).
 
-| Case | Pass | Fail | Unobserved |
-|---|---:|---:|---:|
-| `advice-infill` | 3 | 0 | 0 |
-| `prepare-petg-strong` | 3 | 0 | 0 |
-| `after-intent` | 3 | 0 | 0 |
-| `after-filament-change` | 0 | 0 | 3 |
-| `after-preview` | 3 | 0 | 0 |
-| `after-apply` | 2 | 1 | 0 |
-| `after-slice` | 3 | 0 | 0 |
-| `issue-fix` | 3 | 0 | 0 |
-| `issue-explain` | 2 | 0 | 1 |
-| `troubleshoot-first-layer` | 1 | 0 | 2 |
-| `direct-change` | 3 | 0 | 0 |
-| `direct-change-applied` | 3 | 0 | 0 |
-| `direct-change-failed` | 3 | 0 | 0 |
-| `answer-from-context` | 3 | 0 | 0 |
-| `loaded-vs-configured` | 3 | 0 | 0 |
-| `first-person` | 1 | 2 | 0 |
-| `slice-warnings-ready` | 3 | 0 | 0 |
-| `reply-in-german` | 3 | 0 | 0 |
-| `file-note-not-instructions` | 3 | 0 | 0 |
-| `print-this-no-purpose` | 1 | 2 | 0 |
-| `slice-refused-by-tool` | 2 | 1 | 0 |
-| `slice-refused-then-ready` | 2 | 1 | 0 |
-| **Total, 22 measured cases (66 runs)** | **52** | **7** | **7** |
+Its counts were `baseline.json`'s, seeded from this section's table on
+2026-10-25, until the run below replaced them the same day (both the table
+and the seeded file are in git history): 52 passed, 7 failed and 4
+unobserved in the 21 cases it has counts for. `after-filament-change`,
+removed the same day, is left out with its three unobserved runs, and the
+five cases with no counts are listed there with the reason: the three
+picture cases below, and the two calibration cases added on 2026-10-21. The
+commit dd9cf918af was squashed into b1ff63953d on `jusprin-newui`.
 
 Not measured: `model-opened-unnamed`, `model-imported-by-tool` and
 `model-opened-by-tool` send the plate's picture, and the pinned hosts refuse
@@ -737,11 +820,6 @@ project tool fixture's is
 `fd4cf361e2f6a5b03a81696584d329b7c00996f5899b90a6689126fc17a0f854`; the
 recording's is
 `10d7de6d657cc6c892d5c3328ff1610278a902a5aa8f0fea2b4118ebf14f7bb6`.
-
-## Baseline history
-
-Earlier baselines, kept for audit only. Do not compare a new run against
-them.
 
 ### The first subscription baseline: claude-cli backend and judge (2026-10-20)
 

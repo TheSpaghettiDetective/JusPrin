@@ -10,7 +10,6 @@
 #include "slic3r/GUI/JusPrin/Agent/ToolErrors.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpProtocol.hpp"
 #include "../jusprin_support/FakeProductState.hpp"
-#include "slic3r/GUI/JusPrin/Agent/IntentChecks.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -384,7 +383,7 @@ TEST_CASE("chat deletion forgets only terminal activities", "[tools][conversatio
     CHECK(harness.coordinator.find(other)->state == ToolState::Running);
 }
 
-TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]")
+TEST_CASE("the purpose and plan are recorded without moving the revision", "[tools][intent][plan]")
 {
     Harness h;
     FakeProductState store;
@@ -425,51 +424,30 @@ TEST_CASE("intent and plan updates preserve provenance", "[tools][intent][plan]"
     CHECK(plan_result["projectUndo"] == false);
     CHECK(registry.validate_output(*registry.find("setup_record"), plan_result));
 
-    // The activity says what the agent understood rather than naming a field.
-    const std::string intent_action = call("setup_record", json{{"purpose", "A display bracket"},
-                                                                {"fields", json::array({
-                                                json{{"field", "useCase"}, {"value", "decorative"}},
-                                                json{{"field", "maxPrintTime"}, {"question", "How long may it take?"}}})}})
-                                          .action_id;
-    CHECK(h.coordinator.find(intent_action)->state == ToolState::Running);
-    CHECK(h.coordinator.find(intent_action)->title.find("decorative") != std::string::npos);
+    // The activity says what the agent recorded.
+    const std::string purpose_action = call("setup_record", json{{"purpose", "A display bracket for the hall"}}).action_id;
+    CHECK(h.coordinator.find(purpose_action)->state == ToolState::Running);
+    CHECK(h.coordinator.find(purpose_action)->title == "Record what this print is for: A display bracket for the hall");
     CHECK(store.writes == writes_after_plan); // execution has not run yet
     h.coordinator.pump();
-    REQUIRE(h.coordinator.find(intent_action)->state == ToolState::Succeeded);
-    const auto intent_result = json::parse(h.coordinator.find(intent_action)->result_json);
-    CHECK(registry.validate_output(*registry.find("setup_record"), intent_result));
-    // An answer the user stated is confirmed; a question with no answer is
-    // still the agent's own and is what it does not know.
-    REQUIRE(intent_result["intent"]["fields"].size() == 2);
-    CHECK(intent_result["intent"]["fields"][1]["field"] == "useCase");
-    CHECK(intent_result["intent"]["fields"][1]["provenance"] == "user_confirmed");
-    CHECK(intent_result["intent"]["fields"][0]["provenance"] == "agent_inferred");
-    CHECK(intent_result["intent"]["openQuestions"] == json::array({"maxPrintTime"}));
+    REQUIRE(h.coordinator.find(purpose_action)->state == ToolState::Succeeded);
+    const auto purpose_result = json::parse(h.coordinator.find(purpose_action)->result_json);
+    CHECK(registry.validate_output(*registry.find("setup_record"), purpose_result));
+    CHECK(purpose_result["purposeAfter"] == json{{"purpose", "A display bracket for the hall"}});
     // A call with no plan keeps the one pinned before.
-    CHECK(intent_result["plan"]["headline"] == "Protect the visible face");
+    CHECK(purpose_result["plan"]["headline"] == "Protect the visible face");
 
-    // An answer the agent only assumed says so.
-    const std::string assumed = call("setup_record", json{{"purpose", "A display bracket"},
-                                                          {"fields", json::array({json{{"field", "material"},
-                                                                                       {"value", "PLA"},
-                                                                                       {"assumed", true}}})}}).action_id;
-    h.coordinator.pump();
-    const auto after = json::parse(h.coordinator.find(assumed)->result_json);
-    CHECK(after["intent"]["fields"][0]["field"] == "material");
-    CHECK(after["intent"]["fields"][0]["provenance"] == "agent_inferred");
-
-    // Both are readable back through the one read, and neither moved the
-    // revision: a queued settings change would still be valid.
+    // The plan is readable back through the one read, and neither call moved
+    // the revision: a queued settings change would still be valid.
     const auto before_revision = h.workspace.snapshot().revision;
-    const std::string read = call("workspace_inspect", json{{"sections", json::array({"intent", "plan"})}}).action_id;
+    const std::string read = call("workspace_inspect", json{{"sections", json::array({"plan"})}}).action_id;
     h.coordinator.pump();
     const auto sections = json::parse(h.coordinator.find(read)->result_json);
     CHECK(registry.validate_output(*registry.find("workspace_inspect"), sections));
-    CHECK(sections["intent"]["fields"].size() == 3);
     CHECK(sections["plan"]["unverified"] == json::array({"PLA on a smooth plate"}));
     CHECK_FALSE(sections.contains("projectName")); // the summary was not asked for
     CHECK(h.workspace.snapshot().revision == before_revision);
-    CHECK(document_boundaries == std::vector<std::string>{plan_action, intent_action, assumed});
+    CHECK(document_boundaries == std::vector<std::string>{plan_action, purpose_action});
 }
 
 TEST_CASE("setup_record says what it did to the purpose and which setup was in force", "[tools][intent]")
@@ -502,46 +480,38 @@ TEST_CASE("setup_record says what it did to the purpose and which setup was in f
 
     // The first purpose: what it is, and the setup chosen before it existed,
     // which the app keeps to tell later whether the setup has changed since.
-    const json first = record({{"purpose", "A strong hook"},
-                               {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    const json first = record({{"purpose", "A strong hook"}});
     CHECK(first["purposeChange"] == "first");
     CHECK_FALSE(first.contains("purposeBefore"));
-    CHECK(first["purposeAfter"] ==
-          json{{"purpose", "A strong hook"}, {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    CHECK(first["purposeAfter"] == json{{"purpose", "A strong hook"}});
     CHECK(first["setupInForce"] == in_force);
     CHECK(store.purpose_setup() == in_force);
     // No plan yet: the result says so rather than leaving it out.
     CHECK(first["plan"]["headline"] == "");
 
-    // The same purpose again, and a new title alone, say so and leave the
-    // setup the purpose was recorded under as it was.
+    // The same purpose again says so and leaves the setup the purpose was
+    // recorded under as it was.
     store.set_purpose_setup(json{{"printerPreset", "kept"}});
-    const json repeated = record({{"purpose", "A strong hook"},
-                                  {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}});
+    const json repeated = record({{"purpose", "A strong hook"}});
     CHECK(repeated["purposeChange"] == "unchanged");
     CHECK_FALSE(repeated.contains("purposeBefore"));
     CHECK_FALSE(repeated.contains("purposeAfter"));
-    const json retitled = record({{"purpose", "A sturdy hook"}});
-    CHECK(retitled["purposeChange"] == "title_only");
-    CHECK_FALSE(retitled.contains("purposeAfter"));
-    CHECK(retitled["setupInForce"] == in_force);
+    CHECK(repeated["setupInForce"] == in_force);
     CHECK(store.purpose_setup() == json{{"printerPreset", "kept"}});
 
     // A call that restates the purpose to change the plan is no new purpose.
-    const json planned = record({{"purpose", "A sturdy hook"},
+    const json planned = record({{"purpose", "A strong hook"},
                                  {"headline", "Four walls and gyroid infill for strength"}});
     CHECK(planned["purposeChange"] == "unchanged");
     CHECK(planned["plan"]["headline"] == "Four walls and gyroid infill for strength");
     CHECK(store.purpose_setup() == json{{"printerPreset", "kept"}});
 
-    // A changed answer is a changed purpose: before and after, and the setup
-    // recorded again under it. The plan it did not mention is kept.
-    const json changed = record({{"purpose", "A sturdy hook"},
-                                 {"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}});
+    // A changed purpose: before and after, and the setup recorded again
+    // under it. The plan it did not mention is kept.
+    const json changed = record({{"purpose", "A hook for a wet bathroom"}});
     CHECK(changed["purposeChange"] == "changed");
-    CHECK(changed["purposeBefore"]["fields"][0]["value"] == "PETG");
-    CHECK(changed["purposeAfter"]["fields"][0]["value"] == "ASA");
-    CHECK(changed["purposeAfter"]["purpose"] == "A sturdy hook");
+    CHECK(changed["purposeBefore"] == json{{"purpose", "A strong hook"}});
+    CHECK(changed["purposeAfter"] == json{{"purpose", "A hook for a wet bathroom"}});
     CHECK(changed["plan"]["headline"] == "Four walls and gyroid infill for strength");
     CHECK(store.purpose_setup() == in_force);
 
@@ -561,7 +531,12 @@ TEST_CASE("setup_record refuses a call without a purpose, a nested plan, or a pl
     const auto& registry = ToolRegistry::instance();
     const ToolDefinition& definition = *registry.find("setup_record");
     CHECK(registry.validate_call(definition, json{{"purpose", "A hook"}}.dump()).valid());
-    CHECK_FALSE(registry.validate_call(definition, json{{"fields", json::array()}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json::object().dump()).valid());
+    // Requirement fields were removed on 2026-10-25: nothing confirmed them,
+    // and they came back to the model as the person's facts.
+    CHECK_FALSE(registry.validate_call(definition, json{{"purpose", "A hook"},
+                                                        {"fields", json::array({json{{"field", "material"},
+                                                                                     {"value", "PETG"}}})}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"purpose", ""}}.dump()).valid());
     // A few words, not a sentence: at most 60 characters, counted as read.
     CHECK(registry.validate_call(definition, json{{"purpose", std::string(60, 'x')}}.dump()).valid());
@@ -576,7 +551,7 @@ TEST_CASE("setup_record refuses a call without a purpose, a nested plan, or a pl
     CHECK_FALSE(registry.validate_call(definition, json{{"purpose", "A hook"}, {"plan", "{\"headline\":\"Flat\"}"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"purpose", "A hook"}, {"risks", json::array({"Warping"})}}.dump()).valid());
     // What the plan takes as true without checking is plain sentences, never
-    // the intent fields' shape, and has its own name: "assumptions" is gone.
+    // objects, and has its own name: "assumptions" is gone.
     CHECK(registry.validate_call(definition, json{{"purpose", "A hook"}, {"headline", "Flat"},
                                                   {"unverified", json::array({"The spool is PETG"})}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json{{"purpose", "A hook"}, {"headline", "Flat"},
@@ -601,7 +576,7 @@ TEST_CASE("workspace_inspect without sections is what it always was", "[tools][i
 
     // Every app host gives the coordinator a store, so reading those
     // sections without one is a broken invariant, not an error a model sees.
-    h.coordinator.submit({"workspace_inspect", R"({"sections":["intent"]})"}, "m-2");
+    h.coordinator.submit({"workspace_inspect", R"({"sections":["plan"]})"}, "m-2");
     CHECK_THROWS_AS(h.coordinator.pump(), std::logic_error);
 }
 
@@ -2139,47 +2114,14 @@ TEST_CASE("slice_start says whether OrcaSlicer began a run, had nothing to slice
     }
 }
 
-TEST_CASE("the print intent's limits are read from its words", "[tools][intent][report]")
+TEST_CASE("neither read has an intent section", "[tools][inspect][report]")
 {
-    CHECK(intent_seconds("under five hours") == 5 * 3600.0);
-    CHECK(intent_seconds("2 h 30 min") == 2 * 3600.0 + 1800);
-    CHECK(intent_seconds("an hour and a half") == 5400.0);
-    CHECK(intent_seconds("90 minutes") == 5400.0);
-    CHECK_FALSE(intent_seconds("decorative"));
-    CHECK_FALSE(intent_seconds("0.4 mm nozzle"));
-    CHECK(intent_grams("less than 50 g") == 50.0);
-    CHECK(intent_grams("0.2 kg at most") == 200.0);
-    CHECK(intent_money("at most $2.50") == 2.5);
-    CHECK(intent_money("under 3 euros") == 3.0);
-    CHECK(intent_money("\xE2\x82\xAC" "4") == 4.0);
-    CHECK(intent_is_floor("at least 2 hours of cooling"));
-}
-
-TEST_CASE("the slice report measures the slice against the print intent", "[tools][slicing][report][intent]")
-{
-    Harness h;
-    FakeProductState store;
-    h.coordinator.set_product_state(&store);
+    // The intent section returned setup_record's fields, and slice_report's
+    // measured the slice against them; both went with the fields.
     const auto& registry = ToolRegistry::instance();
-    const auto plate = h.workspace.snapshot().plates.at(0).id;
-    store.set_print_intent({{"how long it may take", "under one hour", "", Provenance::UserConfirmed},
-                            {"filament", "less than 50 g", "", Provenance::UserConfirmed},
-                            {"what it is for", "decorative", "", Provenance::UserConfirmed},
-                            {"deadline", "", "When do you need it?", Provenance::AgentInferred}});
-    Workspace::SliceReport report;
-    report.print_time_seconds = 4500;
-    report.total_grams        = 23.5;
-    h.workspace.set_slice_report_for_testing(plate, report);
-    h.workspace.set_plate_sliced(plate, true);
-    const std::string action = h.coordinator.submit({"slice_report", json{{"sections", {"summary", "intent"}}}.dump()}, "m-1").action_id;
-    h.pump_to_completion(action);
-    const auto result = json::parse(h.coordinator.find(action)->result_json);
-    CHECK(registry.validate_output(*registry.find("slice_report"), result));
-    REQUIRE(result["intent"]["checks"].size() == 2);
-    const auto& time = result["intent"]["checks"][0]["kind"] == "time" ? result["intent"]["checks"][0] : result["intent"]["checks"][1];
-    CHECK(time == json{{"field", "how long it may take"}, {"value", "under one hour"}, {"kind", "time"},
-                       {"limit", 3600}, {"actual", 4500}, {"within", false}});
-    CHECK(result["intent"]["unchecked"] == json::array({"what it is for"}));
+    CHECK_FALSE(registry.validate_call(*registry.find("workspace_inspect"), json{{"sections", {"intent"}}}.dump()).valid());
+    CHECK_FALSE(registry.validate_call(*registry.find("slice_report"), json{{"sections", {"summary", "intent"}}}.dump()).valid());
+    CHECK(registry.validate_call(*registry.find("slice_report"), json{{"sections", {"summary", "islands"}}}.dump()).valid());
 }
 
 TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][outputs]")

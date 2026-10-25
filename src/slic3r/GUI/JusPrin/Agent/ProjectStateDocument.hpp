@@ -120,51 +120,6 @@ struct AttachmentRecord
     std::string relative_path() const { return relative_dir() + "/" + stored_name; }
 };
 
-// Where a recorded fact came from. A tool never promotes an inferred value to
-// confirmed; only a write of the user's explicit answer does.
-enum class Provenance : std::uint8_t { File, Observed, AgentInferred, UserConfirmed };
-
-// One spelling, shared by the stored document and every tool result.
-inline const char* provenance_name(Provenance provenance)
-{
-    switch (provenance) {
-    case Provenance::File: return "file";
-    case Provenance::Observed: return "observed";
-    case Provenance::UserConfirmed: return "user_confirmed";
-    case Provenance::AgentInferred: break;
-    }
-    return "agent_inferred";
-}
-
-inline Provenance provenance_from(const std::string& text)
-{
-    if (text == "file") return Provenance::File;
-    if (text == "observed") return Provenance::Observed;
-    if (text == "user_confirmed") return Provenance::UserConfirmed;
-    return Provenance::AgentInferred;
-}
-
-// One answer in the print intent: what the user wants out of this print,
-// rather than how to slice it. The field vocabulary belongs to the tool that
-// writes it and validates what it accepts; the store keeps what was written,
-// where it came from, and when. This is not a conversation's setup_intent,
-// which restates one delegation in the user's own words.
-struct IntentField
-{
-    std::string   field;
-    std::string   value;
-    // Set when the agent has asked about this field and has no answer yet: the
-    // question it asked, in the words it used. A field with a question and no
-    // value is what the agent still does not know, which is the only way to
-    // have that list when the field names are the agent's own invention.
-    std::string   question;
-    Provenance    provenance{Provenance::AgentInferred};
-    std::uint64_t seq{0};
-    std::string   updated_at;
-
-    bool answered() const { return !value.empty(); }
-};
-
 // One decision the agent made and is prepared to defend.
 struct PlanDecision
 {
@@ -225,7 +180,7 @@ public:
     std::string                   active_conversation_id() const;
     std::string                   viewed_conversation_id() const;
     // Returns the id and makes the chat active. It starts with a copy of the
-    // active chat's intent (setup title, print intent, purpose setup), which
+    // active chat's intent (setup title, purpose setup), which
     // is then its own to change, and with no plan.
     std::string create_conversation(const std::string& title, const std::string& timestamp);
     bool        set_active_conversation(const std::string& conversation_id);
@@ -319,10 +274,8 @@ public:
     // active chat's, read through activeConversationId and stored nowhere
     // else. Every call below reads or writes the active chat; writing with no
     // active chat is a logic error.
-    std::vector<IntentField> print_intent() const; // ordered by field name
-    // Upserts by field name and returns the fields as stored. A field the call
-    // does not mention keeps the value, provenance, and seq it had.
-    std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields, const std::string& timestamp);
+    // A chat's printIntent, the fields setup_record kept before 2026-10-25,
+    // is no longer read or copied; a document that holds one loads as before.
     // The setup in force (setup_in_force's shape: presets and plate type)
     // when the model was last asked to check it against the purpose: when
     // setup_record recorded a purpose for the first time or changed it, or

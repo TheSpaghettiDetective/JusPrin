@@ -973,7 +973,7 @@ TEST_CASE("setup_record brings the card's title and headline together, in one pu
     CHECK(harness.persistence.document().conversations().front().title == "Bracket chat");
 
     // A call with no plan keeps the headline.
-    run(json{{"purpose", "A load-bearing bracket"}, {"fields", json::array({json{{"field", "load"}, {"value", "5 kg"}}})}});
+    run(json{{"purpose", "A load-bearing bracket"}});
     CHECK(harness.of_type("context").back()["payload"]["context"]["planHeadline"] == "Four walls and gyroid infill for strength");
     // The card reads no plan validity, and no delta says who wrote it.
     CHECK_FALSE(context.contains("planValidity"));
@@ -3409,12 +3409,10 @@ TEST_CASE("a turn carries the chat's intent and plan when the project has them",
     harness.send_user_message("what is this?", "c-1");
     harness.pump_all();
     CHECK(last_reply().setup_title.empty());
-    CHECK(last_reply().intent.empty());
     CHECK(last_reply().plan.headline.empty());
 
     ProjectStateDocument& document = harness.persistence.document();
     REQUIRE(document.set_setup_intent(document.active_conversation_id(), "Strong PETG shelf bracket"));
-    document.set_print_intent({{"purpose", "holds a shelf of books", "", Provenance::UserConfirmed}}, "2026-10-15T10:00:00Z");
     PlanRecord plan;
     plan.headline    = "PETG, 4 walls, printed on its side";
     plan.assumptions = {"The shelf is under 10 kg."};
@@ -3424,9 +3422,6 @@ TEST_CASE("a turn carries the chat's intent and plan when the project has them",
     harness.pump_all();
     const AgentRequest& request = last_reply();
     CHECK(request.setup_title == "Strong PETG shelf bracket");
-    REQUIRE(request.intent.size() == 1);
-    CHECK(request.intent.front().field == "purpose");
-    CHECK(request.intent.front().value == "holds a shelf of books");
     CHECK(request.plan.headline == "PETG, 4 walls, printed on its side");
     CHECK(request.plan.assumptions == std::vector<std::string>{"The shelf is under 10 kg."});
 }
@@ -3685,36 +3680,6 @@ TEST_CASE("the file-loaded skill pictures only a plate with something on it, and
         REQUIRE(agent->requests.back().skills.size() == 1);
         CHECK(agent->requests.back().skills.front().picture != nullptr);
         CHECK(agent->requests.back().skills.front().text == kTestFileLoadedSkill);
-    }
-    SECTION("an intent field recorded for the project leaves the sentence out")
-    {
-        auto agent_owner = std::make_unique<RecordingAgent>();
-        RecordingAgent* agent = agent_owner.get();
-        Harness harness{AgentServicePtr(std::move(agent_owner))};
-        harness.handshake();
-        IntentField field;
-        field.field = "purpose";
-        field.value = "a hook for a coat";
-        harness.persistence.document().set_print_intent({field}, "2026-10-17T00:00:00Z");
-        harness.host.on_file_loaded(prusa_open());
-        REQUIRE_FALSE(agent->requests.empty());
-        REQUIRE(agent->requests.back().skills.size() == 1);
-        CHECK(agent->requests.back().skills.front().text == kTestFileLoadedSkill);
-    }
-    SECTION("an intent question with no answer yet still counts as nothing recorded")
-    {
-        auto agent_owner = std::make_unique<RecordingAgent>();
-        RecordingAgent* agent = agent_owner.get();
-        Harness harness{AgentServicePtr(std::move(agent_owner))};
-        harness.handshake();
-        IntentField field;
-        field.field    = "purpose";
-        field.question = "What is it for?";
-        harness.persistence.document().set_print_intent({field}, "2026-10-17T00:00:00Z");
-        harness.host.on_file_loaded(prusa_open());
-        REQUIRE_FALSE(agent->requests.empty());
-        REQUIRE(agent->requests.back().skills.size() == 1);
-        CHECK(agent->requests.back().skills.front().text == std::string(kTestFileLoadedSkill) + "\n\n" + kNoPurpose);
     }
 }
 
@@ -4887,7 +4852,7 @@ AgentRequest run_reply(Harness& harness, OneCallAgent& agent, const std::string&
 
 ToolRequest setup_call(json arguments) { return ToolRequest{"setup_record", arguments.dump()}; }
 
-const json kPetg{{"purpose", "A strong hook"}, {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}};
+const json kPetg{{"purpose", "A strong hook"}};
 
 bool fires_setup_skill(const AgentToolResult& result)
 {
@@ -4948,27 +4913,20 @@ TEST_CASE("a purpose recorded for the first time or changed fires the setup skil
     for (const json& envelope : harness.sent)
         CHECK(envelope.dump().find(kTestSetupSkill) == std::string::npos);
 
-    // A new title alone, or the same purpose again, is no new purpose.
-    const AgentToolResult retitled =
-        run_call(harness, *agent, setup_call({{"purpose", "A sturdy hook"}, {"fields", json::array()}}), "Call it sturdy.");
-    CHECK(json::parse(retitled.output_json)["result"]["purposeChange"] == "title_only");
-    CHECK_FALSE(fires_setup_skill(retitled));
-    const AgentToolResult repeated = run_call(
-        harness, *agent, setup_call({{"purpose", "A sturdy hook"},
-                                     {"fields", json::array({json{{"field", "material"}, {"value", "PETG"}}})}}), "PETG, yes.");
+    // The same purpose again is no new purpose.
+    const AgentToolResult repeated = run_call(harness, *agent, setup_call(kPetg), "PETG, yes.");
     CHECK(json::parse(repeated.output_json)["result"]["purposeChange"] == "unchanged");
     CHECK_FALSE(fires_setup_skill(repeated));
     // Nor is a call that restates the purpose to change the plan.
     const AgentToolResult planned = run_call(
-        harness, *agent, setup_call({{"purpose", "A sturdy hook"},
+        harness, *agent, setup_call({{"purpose", "A strong hook"},
                                      {"headline", "Four walls and gyroid infill for strength"}}), "Plan it.");
     CHECK(json::parse(planned.output_json)["result"]["purposeChange"] == "unchanged");
     CHECK(json::parse(planned.output_json)["result"]["plan"]["headline"] == "Four walls and gyroid infill for strength");
     CHECK_FALSE(fires_setup_skill(planned));
 
     const AgentToolResult changed = run_call(
-        harness, *agent, setup_call({{"purpose", "A sturdy hook"},
-                                     {"fields", json::array({json{{"field", "material"}, {"value", "ASA"}}})}}), "Use ASA.");
+        harness, *agent, setup_call({{"purpose", "A hook for a wet bathroom"}}), "It goes in the shower.");
     CHECK(json::parse(changed.output_json)["result"]["purposeChange"] == "changed");
     CHECK(fires_setup_skill(changed));
 }
@@ -5003,7 +4961,7 @@ TEST_CASE("the model reads its plan as current after its own changes and in doub
     harness.workspace.set_setting_for_testing("brim_width", "8");
     REQUIRE(harness.persistence.document().changes().back().actor == "person");
     const AgentToolResult after = run_call(harness, *agent,
-        setup_call({{"purpose", "A strong bracket"}, {"fields", json::array()}}), "Anything else?");
+        setup_call({{"purpose", "A strong bracket"}}), "Anything else?");
     CHECK(validity(after) == "needs_reassessment");
     CHECK_FALSE(json::parse(after.output_json)["workspace"]["planInvalidatedBy"].get<std::string>().empty());
 }

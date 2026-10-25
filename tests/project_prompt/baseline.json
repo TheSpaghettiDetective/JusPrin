@@ -1,0 +1,189 @@
+{
+  "backend": "api",
+  "model": "deepseek/deepseek-v4-flash",
+  "effort": null,
+  "hosts": [
+    "Alibaba",
+    "Novita",
+    "Baidu",
+    "AtlasCloud"
+  ],
+  "judge": "gpt-5.5-2026-04-23",
+  "date": "2026-10-25",
+  "commit": "6cc391182b",
+  "uncommitted": true,
+  "note": "Recorded from the run of 2026-10-25, confirmed by Kenneth that day. 'uncommitted' is only line endings: the AgentUI skill and prompt files were converted to LF in the Windows working copy to build the page; their content was 6cc391182b's. The three picture cases got HTTP 404 on every run: the pinned hosts refuse a request with a picture. OpenRouter no longer listed Novita for this model that day, so the other three hosts served the run.",
+  "sha256": {
+    "prompt": "2d9e439b5e0f6847175824d83c26d4892a47ff98b2be0f6a8cbc9c8c04d4c86a",
+    "tools": "e5ea8a37b8c3b985d65a9887fa34df73461a7527ae2821c5a94315ac49e0c10e",
+    "recording": "98f07de9b18a2a6c1887c128b12c5b02aab24e2bc53ba4cfba847d4614ce9f6c"
+  },
+  "cases": {
+    "advice-infill": {
+      "runs": 3,
+      "pass": 2,
+      "fail": 0,
+      "unobserved": 1,
+      "errors": 0
+    },
+    "prepare-petg-strong": {
+      "runs": 3,
+      "pass": 2,
+      "fail": 1,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-intent": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-preview": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-apply": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "after-slice": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "issue-fix": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "issue-explain": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "troubleshoot-first-layer": {
+      "runs": 3,
+      "pass": 0,
+      "fail": 0,
+      "unobserved": 3,
+      "errors": 0
+    },
+    "direct-change": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "direct-change-applied": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "direct-change-failed": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "answer-from-context": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "loaded-vs-configured": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "first-person": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-warnings-ready": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "reply-in-german": {
+      "runs": 3,
+      "pass": 1,
+      "fail": 0,
+      "unobserved": 2,
+      "errors": 0
+    },
+    "file-note-not-instructions": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "print-this-no-purpose": {
+      "runs": 3,
+      "pass": 2,
+      "fail": 1,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-refused-by-tool": {
+      "runs": 3,
+      "pass": 2,
+      "fail": 1,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "slice-refused-then-ready": {
+      "runs": 3,
+      "pass": 1,
+      "fail": 2,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "calibration-symptom": {
+      "runs": 3,
+      "pass": 1,
+      "fail": 0,
+      "unobserved": 2,
+      "errors": 0
+    },
+    "calibration-result": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    }
+  },
+  "noBaseline": {
+    "model-opened-unnamed": "every run failed without a response",
+    "model-imported-by-tool": "every run failed without a response",
+    "model-opened-by-tool": "every run failed without a response"
+  }
+}

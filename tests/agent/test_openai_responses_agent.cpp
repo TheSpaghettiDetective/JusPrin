@@ -310,15 +310,6 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
     SECTION("a project with them sends them, in workspace_inspect's words") {
         request.workspace.setup.process_preset = "0.20mm Standard @BBL X1C";
         request.setup_title = "Strong PETG shelf bracket";
-        IntentField purpose;
-        purpose.field      = "purpose";
-        purpose.value      = "holds a shelf of books";
-        purpose.provenance = Provenance::UserConfirmed;
-        purpose.updated_at = "2026-10-15T10:00:00Z";
-        IntentField load;
-        load.field    = "load";
-        load.question = "How heavy is the shelf when full?";
-        request.intent = {load, purpose};
         request.plan.headline = "PETG, 4 walls, 25% gyroid, printed on its side";
         request.plan.decisions.push_back({"orientation", "On its side so the layers run along the arm.", "high", ""});
         request.plan.assumptions = {"The shelf is under 10 kg."};
@@ -328,13 +319,7 @@ TEST_CASE("the snapshot carries the process preset, intent and plan only when th
         const json workspace = snapshot();
         REQUIRE_FALSE(workspace.is_discarded());
         CHECK(workspace["processPreset"] == "0.20mm Standard @BBL X1C");
-        CHECK(workspace["intent"] ==
-              json{{"purpose", "Strong PETG shelf bracket"},
-                   {"fields", json::array({json{{"field", "load"}, {"question", "How heavy is the shelf when full?"},
-                                                {"provenance", "agent_inferred"}},
-                                           json{{"field", "purpose"}, {"value", "holds a shelf of books"},
-                                                {"provenance", "user_confirmed"}}})},
-                   {"openQuestions", json::array({"load"})}});
+        CHECK(workspace["intent"] == json{{"purpose", "Strong PETG shelf bracket"}});
         CHECK(workspace["plan"] ==
               json{{"headline", "PETG, 4 walls, 25% gyroid, printed on its side"},
                    {"decisions", json::array({json{{"topic", "orientation"},
@@ -727,7 +712,7 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     const json read{{"type", "function_call"}, {"call_id", "call-read"}, {"name", "workspace_inspect"},
                     {"arguments", R"({"sections":["summary"]})"}};
     const json change{{"type", "function_call"}, {"call_id", "call-intent"}, {"name", "setup_record"},
-                      {"arguments", R"({"fields":[{"field":"material","value":"PETG"}],"purpose":"Strong PETG bracket"})"}};
+                      {"arguments", R"({"purpose":"Strong PETG bracket"})"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({reasoning, read, change})}}}}));
     fake->complete();
 

@@ -7,10 +7,13 @@ its first call alone.
 Usage: python3 tests/project_prompt/test_steps.py
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
 import re
+import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -419,6 +422,99 @@ class Steps(unittest.TestCase):
 
     def test_a_reply(self):
         self.assertEqual(self.run_case("advice-infill", [reply("Gyroid.")])[:2], (runner.PASS, "reply: Gyroid."))
+
+
+def tally(passed, failed=0, unobserved=0, errors=0):
+    return {"runs": passed + failed + unobserved, "pass": passed, "fail": failed, "unobserved": unobserved,
+            "errors": errors}
+
+
+class Baseline(unittest.TestCase):
+    """A run beside the baseline: only large moves are marked."""
+
+    SETUP = {"backend": "api", "model": runner.MODEL, "effort": None, "hosts": runner.PROVIDERS,
+             "judge": runner.JUDGE_MODEL}
+
+    def baseline(self, **cases):
+        return {**self.SETUP, "date": "2026-10-19", "commit": "abc", "sha256": None,
+                "cases": {name.replace("_", "-"): value for name, value in cases.items()}, "noBaseline": {}}
+
+    def compared(self, base, **cases):
+        run = runner.results_of(self.SETUP, "instructions", {name.replace("_", "-"): value for name, value in cases.items()})
+        return runner.compare(run, base)
+
+    def row(self, lines, name):
+        return next(line for line in lines if line.startswith(name + " "))
+
+    def test_a_move_of_one_run_is_not_marked(self):
+        lines, worse = self.compared(self.baseline(advice_infill=tally(3), first_person=tally(1, 2)),
+                                     advice_infill=tally(2, 1), first_person=tally(2, 1))
+        self.assertEqual(worse, [])
+        self.assertNotIn("WORSE", self.row(lines, "advice-infill"))
+        self.assertNotIn("BETTER", self.row(lines, "first-person"))
+
+    def test_two_runs_or_more_are_marked(self):
+        lines, worse = self.compared(self.baseline(advice_infill=tally(3), first_person=tally(1, 2), issue_fix=tally(3)),
+                                     advice_infill=tally(1, 2), first_person=tally(3), issue_fix=tally(0, 3))
+        self.assertEqual(worse, ["advice-infill", "issue-fix"])
+        self.assertIn("WORSE", self.row(lines, "advice-infill"))
+        self.assertNotIn("noise", self.row(lines, "advice-infill"))
+        self.assertIn("BETTER", self.row(lines, "first-person"))
+
+    def test_a_drop_of_unobserved_runs_or_errors_may_be_noise(self):
+        lines, worse = self.compared(self.baseline(advice_infill=tally(3), issue_fix=tally(3)),
+                                     advice_infill=tally(1, 0, 2), issue_fix=tally(0, 3, 0, errors=2))
+        self.assertEqual(worse, ["advice-infill", "issue-fix"])
+        self.assertIn("may be noise: unobserved runs", self.row(lines, "advice-infill"))
+        self.assertIn("may be noise: 2 request errors", self.row(lines, "issue-fix"))
+
+    def test_several_drops_point_at_the_hosts(self):
+        base = self.baseline(advice_infill=tally(3), issue_fix=tally(3), first_person=tally(3))
+        lines, worse = self.compared(base, advice_infill=tally(0, 3), issue_fix=tally(0, 3), first_person=tally(0, 3))
+        self.assertEqual(len(worse), 3)
+        self.assertTrue(any(line.startswith("Several cases dropped") for line in lines))
+
+    def test_another_setup_is_not_compared(self):
+        base = {**self.baseline(advice_infill=tally(3)), "model": "another/model"}
+        lines, worse = self.compared(base, advice_infill=tally(0, 3))
+        self.assertIsNone(worse)
+        self.assertTrue(lines[-1].startswith("NOT COMPARABLE: this run's model differs"), lines[-1])
+
+    def test_a_case_without_a_baseline_says_why(self):
+        base = self.baseline(advice_infill=tally(3))
+        base["noBaseline"] = {"calibration-result": "added later"}
+        lines, worse = self.compared(base, advice_infill=tally(3), calibration_result=tally(0, 3))
+        self.assertEqual(worse, [])
+        self.assertIn("no baseline: added later", self.row(lines, "calibration-result"))
+
+    def test_a_case_that_got_no_response_measured_nothing(self):
+        run = runner.results_of(self.SETUP, "instructions", {"advice-infill": tally(3),
+                                                             "model-opened-unnamed": tally(0, 3, errors=3)})
+        self.assertEqual(list(run["cases"]), ["advice-infill"])
+        self.assertIn("model-opened-unnamed", run["noBaseline"])
+
+    def test_a_baseline_is_recorded_from_every_case(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "baseline.json"
+            partial = runner.results_of(self.SETUP, "instructions", {"advice-infill": tally(3)})
+            with self.assertRaises(SystemExit):
+                runner.record_baseline(path, partial)
+            self.assertFalse(path.exists())
+            run = runner.results_of(self.SETUP, "instructions", {name: tally(3) for name in runner.CASES})
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.record_baseline(path, run)
+            recorded = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(recorded, run)
+            self.assertEqual(runner.compare(run, recorded)[1], [])
+
+    def test_the_stored_baselines_name_every_case_and_no_other(self):
+        for backend, path in runner.BASELINES.items():
+            stored = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(stored["backend"], backend)
+            self.assertEqual(set(stored["cases"]) | set(stored["noBaseline"]), set(runner.CASES), path.name)
+            self.assertFalse(set(stored["cases"]) & set(stored["noBaseline"]), path.name)
+            for name, counts in stored["cases"].items():
+                self.assertEqual(counts["runs"], counts["pass"] + counts["fail"] + counts["unobserved"], name)
 
 
 if __name__ == "__main__":

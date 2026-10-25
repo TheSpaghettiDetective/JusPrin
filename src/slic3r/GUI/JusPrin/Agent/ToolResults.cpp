@@ -161,26 +161,6 @@ json settings_apply_result(const Workspace::SettingsPreview& applied, Workspace:
     return result;
 }
 
-json intent_section_result(const std::vector<IntentField>& fields)
-{
-    bool truncated = false;
-    json items = json::array(), open = json::array();
-    for (const IntentField& field : fields) {
-        if (items.size() == kToolListLimit) { truncated = true; break; }
-        items.push_back({{"field", label(field.field, truncated)},
-                         {"value", text(field.value, truncated)},
-                         {"question", text(field.question, truncated)},
-                         {"provenance", provenance_name(field.provenance)},
-                         {"updatedAt", field.updated_at}});
-        // What the agent asked about and still has no answer for. With field
-        // names the agent invents, this list can only come from the agent
-        // having said what it asked.
-        if (!field.answered() && !field.question.empty() && open.size() < 32)
-            open.push_back(label(field.field, truncated));
-    }
-    return {{"fields", std::move(items)}, {"openQuestions", std::move(open)}, {"truncated", truncated}};
-}
-
 json plan_section_result(const PlanRecord& plan)
 {
     bool truncated = false;

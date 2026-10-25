@@ -469,9 +469,9 @@ bool has_handler(const std::string& tool, ToolHandler handler)
     return definition != nullptr && definition->handler == handler;
 }
 
-// A setup_record that recorded a purpose for the first time or changed its
-// fields, as its own result says; a new title alone, the same purpose again,
-// or a call that only changes the plan is not.
+// A setup_record that recorded a purpose for the first time or changed it,
+// as its own result says; the same purpose again, or a call that only
+// changes the plan, is not.
 bool purpose_changed(const ToolActivity& activity)
 {
     if (!has_handler(activity.tool, ToolHandler::SetupRecord))
@@ -491,8 +491,7 @@ bool asks_setup_check(const std::vector<AgentSkillUse>& skills)
 }
 
 // The one sentence the host adds to the file-loaded skill, from state: when
-// the conversation has no purpose recorded (no setup title, no answered
-// intent field).
+// the conversation has no purpose recorded (no setup title).
 // Fixed, so the same state always gives the same bytes.
 constexpr const char* kNoPurposeSentence =
     "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
@@ -1237,10 +1236,7 @@ void AgentHost::mark_setup_checked(const WorkspaceSnapshot& workspace)
 
 bool AgentHost::purpose_recorded(const std::string& conversation_id) const
 {
-    const ProjectStateDocument&    document = m_persistence.document();
-    const std::vector<IntentField> intent   = document.print_intent();
-    return !document.setup_intent(conversation_id).empty() ||
-           std::any_of(intent.begin(), intent.end(), [](const IntentField& field) { return field.answered(); });
+    return !m_persistence.document().setup_intent(conversation_id).empty();
 }
 
 void AgentHost::handle_hello(const std::string& envelope_id, const std::string& payload_json)
@@ -2836,7 +2832,6 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
                 request.skill_index.push_back(AgentSkill{skill.name, {}, skill.description, {}});
     if (m_session_profile.include_workspace) {
         request.setup_title = document.setup_intent(conversation_id);
-        request.intent      = document.print_intent();
         request.plan        = document.plan();
         request.setup_unchecked_change = setup_unchecked(conversation_id, request.workspace);
     }

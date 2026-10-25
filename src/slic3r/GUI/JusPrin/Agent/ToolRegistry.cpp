@@ -184,14 +184,14 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true; // the summary, as every caller before sections existed asked for
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 8)
+        if (!sections.is_array() || sections.empty() || sections.size() > 7)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
             if (!section.is_string())
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
-            if ((name != "summary" && name != "intent" && name != "plan" && name != "slicing" && name != "printer" && name != "project" && name != "objects" && name != "activities") ||
+            if ((name != "summary" && name != "plan" && name != "slicing" && name != "printer" && name != "project" && name != "objects" && name != "activities") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -679,7 +679,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         if (!arguments.contains("sections"))
             return true;
         const json& sections = arguments["sections"];
-        if (!sections.is_array() || sections.empty() || sections.size() > 8)
+        if (!sections.is_array() || sections.empty() || sections.size() > 7)
             return false;
         std::set<std::string> seen;
         for (const auto& section : sections) {
@@ -687,7 +687,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                 return false;
             const std::string& name = section.get_ref<const std::string&>();
             if ((name != "summary" && name != "findings" && name != "material" && name != "supports" && name != "seams" &&
-                 name != "firstLayer" && name != "islands" && name != "intent") ||
+                 name != "firstLayer" && name != "islands") ||
                 !seen.insert(name).second)
                 return false;
         }
@@ -700,7 +700,7 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
 
     if (definition.handler == ToolHandler::SetupRecord) {
-        if (!has_only(arguments, {"purpose", "fields", "headline", "decisions", "unverified", "risks"}) ||
+        if (!has_only(arguments, {"purpose", "headline", "decisions", "unverified", "risks"}) ||
             !arguments.contains("purpose") ||
             !optional_text(arguments, "purpose"))
             return false;
@@ -711,20 +711,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                                               [](unsigned char byte) { return (byte & 0xc0) != 0x80; });
         if (purpose.empty() || characters > 60)
             return false;
-        if (arguments.contains("fields")) {
-            const json& fields = arguments["fields"];
-            if (!fields.is_array() || fields.size() > 32 ||
-                !std::all_of(fields.begin(), fields.end(), [](const json& field) {
-                    if (!has_only(field, {"field", "value", "question", "assumed"}) || !field.contains("field") ||
-                        !field["field"].is_string() || field["field"].get_ref<const std::string&>().empty() ||
-                        !optional_text(field, "value") || !optional_text(field, "question") ||
-                        (field.contains("assumed") && !field["assumed"].is_boolean()))
-                        return false;
-                    // An entry that neither answers nor asks records nothing.
-                    return !field.value("value", std::string()).empty() || !field.value("question", std::string()).empty();
-                }))
-                return false;
-        }
         // The plan is the rest, flat beside the purpose (a nested object came
         // back as a string of JSON from some models). It needs its headline:
         // decisions, unverified or risks without one are no plan to pin.
@@ -988,18 +974,8 @@ std::vector<ToolDefinition> make_definitions()
         {"valid", "changes", "dependencies", "issues", "warnings"});
 
     // Product state: what the user wants from this print, and the plan the
-    // agent means to follow. Field names are the agent's own; the fixed part
-    // is where an answer came from.
-    const json provenance{{"type", "string"},
-                          {"enum", json::array({"file", "observed", "agent_inferred", "user_confirmed"})}};
+    // agent means to follow.
     const json text{{"type", "string"}, {"maxLength", kToolTextLimit}};
-    const json intent_field = object_schema({{"field", id}, {"value", text}, {"question", text},
-                                             {"provenance", provenance}, {"updatedAt", id}},
-                                            {"field", "value", "question", "provenance", "updatedAt"});
-    const json intent_section = object_schema({{"fields", array_schema(intent_field, 64)},
-                                               {"openQuestions", array_schema(id, 32)},
-                                               {"truncated", boolean_schema()}},
-                                              {"fields", "openQuestions", "truncated"});
     const json plan_decision = object_schema({{"topic", id}, {"statement", text}, {"confidence", id},
                                               {"alternative", text}},
                                              {"topic", "statement", "confidence", "alternative"});
@@ -1009,21 +985,18 @@ std::vector<ToolDefinition> make_definitions()
                                              {"invalidatedBy", string_schema()}, {"truncated", boolean_schema()}},
                                             {"headline", "decisions", "unverified", "risks", "updatedAt",
                                              "validity", "invalidatedBy", "truncated"});
-    // The purpose is the chat's title and the answered fields: what the call
-    // did to it, and the presets and plate type in force when it did.
-    const json purpose = object_schema({{"purpose", text},
-                                        {"fields", array_schema(object_schema({{"field", id}, {"value", text}},
-                                                                              {"field", "value"}), 64)}});
+    // The purpose is the chat's title: what the call did to it, and the
+    // presets and plate type in force when it did.
+    const json purpose = object_schema({{"purpose", text}});
     const json setup_presets = object_schema({{"printerPreset", string_schema()}, {"filamentPreset", string_schema()},
                                                {"processPreset", string_schema()}, {"plateType", string_schema()}});
-    const json setup_record_output = object_schema({{"intent", intent_section},
-                                                    {"purposeChange", {{"type", "string"},
-                                                                       {"enum", json::array({"first", "changed", "title_only", "unchanged"})}}},
+    const json setup_record_output = object_schema({{"purposeChange", {{"type", "string"},
+                                                                       {"enum", json::array({"first", "changed", "unchanged"})}}},
                                                     {"purposeBefore", purpose}, {"purposeAfter", purpose},
                                                     {"setupInForce", setup_presets}, {"plan", plan_section},
                                                     {"sessionId", id}, {"revision", revision},
                                                     {"projectUndo", boolean_schema()}},
-                                                   {"intent", "setupInForce", "plan", "sessionId", "revision", "projectUndo"});
+                                                   {"setupInForce", "plan", "sessionId", "revision", "projectUndo"});
 
     // What the slicer is doing, and what each plate currently holds. One
     // background process serves the whole application, so "running" is not a
@@ -1099,13 +1072,11 @@ std::vector<ToolDefinition> make_definitions()
              {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"setup_record", "Record what this print is for and how to print it",
-         // In-app only: the records are the chat's own, the title and headline
-         // of its setup card and what the user told it. An external agent
-         // keeps what its user said, and its plan, in its own conversation.
-         "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not, even marked assumed: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. fields record what they told you about the print: assumed marks your own inference, question something you asked and have no answer to. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+         // In-app only: the records are the chat's own, the title and plan of
+         // its setup card. An external agent keeps what its user said, and its
+         // plan, in its own conversation.
+         "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
          object_schema({{"purpose", json{{"type", "string"}, {"maxLength", 60}}},
-                        {"fields", array_schema(object_schema({{"field", id}, {"value", text}, {"question", text},
-                                                               {"assumed", boolean_schema()}}, {"field"}), 32)},
                         {"headline", text},
                         {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                   {"confidence", id}, {"alternative", text}},
@@ -1471,11 +1442,11 @@ std::vector<ToolDefinition> make_definitions()
                        {"items", "total", "nextCursor", "truncated", "sessionId", "revision"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PresetsList},
         {"slice_report", "Check the sliced plate",
-         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them; intent measures the slice against each print-intent answer that names a time, a weight or a cost (under five hours, less than 50 g, at most $2), and lists the answers it could not measure. A plate that has not been sliced says so rather than failing, with sliceFailure when its last slice was refused or failed.",
+         "Read what a sliced plate says about itself, by section: summary is time and filament per extruder with weight and cost; findings are Orca's own warnings and errors (appliesWhen timelapse: only for a print that records a timelapse), the conflicts it detected, and whether a toolpath leaves the bed; material is filament and tool changes and the volume purged for them; supports lists support printed inside a hole of the mesh or inside a no_support or precision_hole region (with the support area summed over its layers); seams counts seams and how many landed on each face region that asks for or forbids them; firstLayer is the first layer height and each object's bed contact area and brim; islands lists slices with nothing of the object below them and whether support holds them. A plate that has not been sliced says so rather than failing, with sliceFailure when its last slice was refused or failed.",
          object_schema({{"plateId", id}, {"sections", {{"type", "array"},
                                                        {"items", {{"type", "string"},
-                                                                  {"enum", json::array({"summary", "findings", "material", "supports", "seams", "firstLayer", "islands", "intent"})}}},
-                                                       {"maxItems", 8}}}}),
+                                                                  {"enum", json::array({"summary", "findings", "material", "supports", "seams", "firstLayer", "islands"})}}},
+                                                       {"maxItems", 7}}}}),
          object_schema({{"valid", boolean_schema()}, {"plateId", id},
                         {"summary", object_schema({{"printTimeSeconds", integer_schema()},
                                                    {"prepareTimeSeconds", integer_schema()},
@@ -1520,13 +1491,6 @@ std::vector<ToolDefinition> make_definitions()
                                                                                              {"objectId", "object", "contactAreaMm2", "brim"}), 32)},
                                                       {"truncated", boolean_schema()}},
                                                      {"heightMm", "objects", "truncated"})},
-                        {"intent", object_schema({{"checks", array_schema(object_schema({{"field", string_schema()}, {"value", string_schema()},
-                                                                                        {"kind", {{"type", "string"}, {"enum", json::array({"time", "weight", "cost"})}}},
-                                                                                        {"limit", number_schema()}, {"actual", number_schema()},
-                                                                                        {"within", boolean_schema()}},
-                                                                                       {"field", "value", "kind", "limit", "actual", "within"}), 32)},
-                                                  {"unchecked", array_schema(string_schema(), 32)}},
-                                                 {"checks", "unchecked"})},
                         {"islands", object_schema({{"items", array_schema(object_schema({{"objectId", id}, {"object", string_schema()},
                                                                                          {"zMm", number_schema()}, {"areaMm2", number_schema()},
                                                                                          {"supported", boolean_schema()}, {"at", vector3}},
@@ -1549,15 +1513,15 @@ std::vector<ToolDefinition> make_definitions()
          "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are "
          "possible. Other sections: objects (every object with its plates, instance, part and modifier counts, whether every copy prints "
          "and if not how many do, extruder, size, and override count), project (the file's path and saved state, its own description, designer, license and copyright, "
-         "packed attachments, and backup state), intent (what this print is for), plan (the plan in force), slicing (whether each plate's "
+         "packed attachments, and backup state), plan (the plan in force), slicing (whether each plate's "
          "slice is current, what it warned about and why its last slice did not succeed, and a slice in flight), activities (the latest tool calls with their state and error), printer (the selected "
          "printer as configured and as the machine reports it, facts the user confirmed, and where they disagree). IDs are strings scoped "
          "to the returned sessionId. No process-setting values are exposed by this tool.",
          object_schema({{"sections", {{"type", "array"},
                                       {"items", {{"type", "string"},
-                                                 {"enum", json::array({"summary", "project", "objects", "intent", "plan", "slicing", "printer", "activities"})}}},
-                                      {"maxItems", 8}}}}),
-         object_schema({{"intent", intent_section}, {"plan", plan_section}, {"slicing", slicing_section},
+                                                 {"enum", json::array({"summary", "project", "objects", "plan", "slicing", "printer", "activities"})}}},
+                                      {"maxItems", 7}}}}),
+         object_schema({{"plan", plan_section}, {"slicing", slicing_section},
                         {"printer", printer_section}, {"project", project_section}, {"objects", objects_section}, {"sessionId", id}, {"revision", revision}, {"projectName", string_schema()},
                          {"projectDirty", boolean_schema()}, {"printerPreset", string_schema()},
                          {"filamentPreset", string_schema()}, {"activePlateId", id},
@@ -1881,12 +1845,9 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
 std::string ToolRegistry::activity_title(const ToolDefinition& definition, const std::string& arguments_json) const
 {
     if (definition.handler == ToolHandler::SetupRecord) {
-        // Show the interpreted answer rather than the field names.
+        // The purpose, and the plan's headline when the call sets one.
         const auto arguments = json::parse(arguments_json);
         std::string title = "Record what this print is for: " + arguments.at("purpose").get<std::string>();
-        for (const auto& field : arguments.value("fields", json::array()))
-            title += "; " + field.at("field").get<std::string>() + " = " +
-                     (field.value("value", "").empty() ? "(asked) " + field.value("question", "") : field.value("value", ""));
         if (arguments.contains("headline"))
             title += "; plan: " + arguments["headline"].get<std::string>();
         if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";

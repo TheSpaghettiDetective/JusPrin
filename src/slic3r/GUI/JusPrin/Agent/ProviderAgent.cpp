@@ -15,8 +15,8 @@ namespace {
 
 using nlohmann::json;
 
-// What the intent and plan leave out rather than send empty: an unset field,
-// an empty list, a false truncated flag.
+// What the plan leaves out rather than send empty: an unset field, an empty
+// list, a false truncated flag.
 void drop_empty(json& value)
 {
     if (!value.is_object() && !value.is_array())
@@ -71,14 +71,12 @@ json workspace_json(const AgentRequest& request)
                 {"plates", std::move(plates)}};
     if (!workspace.setup.process_preset.empty())
         result["processPreset"] = workspace.setup.process_preset;
-    // The model's own notes, in the shapes workspace_inspect's intent and plan
-    // sections return, less their timestamps: on the next turn it reads what
-    // it recorded without spending a call on it.
-    json intent = intent_section_result(request.intent);
-    intent["purpose"] = request.setup_title;
-    for (json& field : intent["fields"])
-        field.erase("updatedAt");
-    drop_empty(intent);
+    // The model's own notes: the purpose it recorded, and the plan in the
+    // shape workspace_inspect's plan section returns, less its timestamp. On
+    // the next turn it reads what it recorded without spending a call on it.
+    json intent = json::object();
+    if (!request.setup_title.empty())
+        intent["purpose"] = request.setup_title;
     if (request.setup_unchecked_change)
         intent["setupUncheckedChange"] = true;
     if (!intent.empty())

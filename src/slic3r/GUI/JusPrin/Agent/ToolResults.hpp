@@ -9,15 +9,13 @@ namespace Slic3r::GUI::JusPrin::Agent {
 // Bounded canonical read results, shared by all adapters.
 inline constexpr std::size_t kToolListLimit = 64;
 inline constexpr std::size_t kToolLabelLimit = 256;
-// Prose the agent writes for a person to read -- one intent answer, one plan
-// decision -- rather than a label projected from Orca state.
+// Prose the agent writes for a person to read -- one plan decision -- rather than a label projected from Orca state.
 inline constexpr std::size_t kToolTextLimit = 2048;
 // Which sections of workspace_inspect a call asked for. Summary is what every
 // caller got before sections existed, and what a caller that names none gets.
 struct InspectSections
 {
     bool summary{true};
-    bool intent{false};
     bool plan{false};
     bool slicing{false};
     bool printer{false};
@@ -27,7 +25,6 @@ struct InspectSections
 };
 
 nlohmann::json workspace_inspection(const Workspace::WorkspaceSnapshot& snapshot, InspectSections sections = {});
-nlohmann::json intent_section_result(const std::vector<IntentField>& fields);
 nlohmann::json plan_section_result(const PlanRecord& plan);
 // The printer, filament and process presets and the active plate's type in
 // force now, each left out when the workspace names none.
@@ -92,7 +89,6 @@ struct SliceReportSections
     bool seams{false};
     bool first_layer{false};
     bool islands{false};
-    bool intent{false};
 };
 
 nlohmann::json slice_report_result(const Workspace::SliceReport& report, Workspace::PlateId plate,

@@ -7,7 +7,6 @@
      "summary",
      "project",
      "objects",
-     "intent",
      "plan",
      "slicing",
      "printer",
@@ -25,8 +24,7 @@
      "supports",
      "seams",
      "firstLayer",
-     "islands",
-     "intent"
+     "islands"
     ]
    }
   },
@@ -42,8 +40,7 @@
      "supports",
      "seams",
      "firstLayer",
-     "islands",
-     "intent"
+     "islands"
     ]
    }
   },
@@ -604,17 +601,7 @@
        "record": "prepare-petg-strong",
        "call": "setup_record",
        "arguments": {
-        "purpose": "PETG, strong",
-        "fields": [
-         {
-          "field": "material",
-          "value": "PETG"
-         },
-         {
-          "field": "strength",
-          "value": "strong"
-         }
-        ]
+        "purpose": "PETG, strong"
        }
       },
       {

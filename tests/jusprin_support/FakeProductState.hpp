@@ -1,7 +1,6 @@
 #pragma once
 
-// In-memory stand-in for the project document behind the intent and plan
-// tools. It applies the same upsert-by-field-name rule the document does, so a
+// In-memory stand-in for the project document behind the setup tools, so a
 // coordinator test sees the behaviour the real store gives it.
 
 #include "slic3r/GUI/JusPrin/Agent/ProductState.hpp"
@@ -16,29 +15,6 @@ namespace Slic3r::GUI::JusPrin::Agent {
 class FakeProductState final : public IProductState
 {
 public:
-    std::vector<IntentField> print_intent() const override { return m_fields; }
-
-    std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields) override
-    {
-        ++writes;
-        for (const IntentField& field : fields) {
-            IntentField written = field;
-            written.seq         = ++m_seq;
-            written.updated_at  = timestamp;
-            const auto existing = std::find_if(m_fields.begin(), m_fields.end(),
-                                               [&field](const IntentField& stored) { return stored.field == field.field; });
-            if (existing != m_fields.end())
-                *existing = written;
-            else
-                m_fields.insert(std::upper_bound(m_fields.begin(), m_fields.end(), written,
-                                                 [](const IntentField& lhs, const IntentField& rhs) {
-                                                     return lhs.field < rhs.field;
-                                                 }),
-                                written);
-        }
-        return m_fields;
-    }
-
     // Every message belongs to one chat here unless a test names it in
     // chatless_messages, as an external client's call would be.
     std::optional<std::string> setup_title(const std::string& message_id) const override
@@ -120,7 +96,6 @@ public:
     std::set<std::string> chatless_messages;
 
 private:
-    std::vector<IntentField> m_fields;
     std::string              m_setup_title;
     nlohmann::json           m_purpose_setup = nlohmann::json::object();
     PlanRecord               m_plan;

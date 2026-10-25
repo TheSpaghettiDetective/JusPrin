@@ -486,13 +486,6 @@ private:
     public:
         explicit DocumentProductState(ProjectPersistence& persistence) : m_persistence(persistence) {}
 
-        std::vector<IntentField> print_intent() const override { return m_persistence.document().print_intent(); }
-        std::vector<IntentField> set_print_intent(const std::vector<IntentField>& fields) override
-        {
-            auto stored = m_persistence.document().set_print_intent(fields, m_persistence.timestamp());
-            m_persistence.flush();
-            return stored;
-        }
         std::optional<std::string> setup_title(const std::string& message_id) const override
         {
             const std::string conversation_id = m_persistence.document().conversation_of_message(message_id);
