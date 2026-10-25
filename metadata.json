@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5R5Q4NA2Z9067ZQ4D8FVQ31",
+  "strategy": "manual-commit",
+  "branch": "claude/no-bambu-printer-config",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 95961,
+    "cache_read_tokens": 4215637,
+    "output_tokens": 32406,
+    "api_call_count": 34
+  }
+}
