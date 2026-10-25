@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5RGR3BQFTQ620C8MTH6PTC9",
+  "session_id": "e64b1beb-a3aa-44b9-88e0-487449942496",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-25T03:13:01.833491Z",
+  "branch": "claude/mac-url-schemes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmake/modules/MacOSXBundleInfo.plist.in",
+    "src/slic3r/GUI/GUI_App.cpp",
+    "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "3cbc5ff3cef0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 450140,
+    "cache_read_tokens": 23944101,
+    "output_tokens": 99135,
+    "api_call_count": 114
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-25T03:13:01.704857Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 46,
+    "human_modified": 18,
+    "human_removed": 0,
+    "total_committed": 50,
+    "total_lines_changed": 64,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
