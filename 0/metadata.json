@@ -1,0 +1,80 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5RF7M2S48QFQJRG4TQWET51",
+  "session_id": "a3cc81de-9d62-45b3-a48c-553e0275bc00",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-25T02:46:30.878069Z",
+  "branch": "claude/mac-url-schemes",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/GUI_App.cpp",
+    "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "fe5336a10811",
+  "checkpoint_transcript_start": 445,
+  "transcript_lines_at_start": 445,
+  "compact_transcript_start": 38,
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 264248,
+    "cache_read_tokens": 10788860,
+    "output_tokens": 36649,
+    "api_call_count": 50
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-25T02:46:30.770411Z",
+    "agent_lines": 12,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 12,
+    "total_lines_changed": 12,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 574,
+      "user_lines_removed": 1,
+      "agent_lines_added": 12,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 90,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 101,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".codex/config.toml": 4
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    }
+  ]
+}
