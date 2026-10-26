@@ -517,7 +517,7 @@ json load_report_result(const Workspace::LoadReport& report)
     result["setupPrinters"] = std::move(setup_printers);
     if (report.selected_bed.width > 0)
         result["selectedPrinterBedMm"] = bed_mm(report.selected_bed);
-    // The app's own checks of each arrived object, beside its row.
+    // The app's own checks of each loaded object, beside its row.
     for (json& row : result["objects"]["items"])
         for (const Workspace::LoadedObjectFacts& facts : report.object_facts)
             if (row["objectId"] == std::to_string(facts.id.value()))

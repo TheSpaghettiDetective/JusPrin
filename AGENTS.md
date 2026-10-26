@@ -64,6 +64,7 @@ Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu i
 - C++17, selective C++20. PascalCase classes, snake_case functions/variables
 - `#pragma once` for headers. Smart pointers and RAII preferred
 - Parallelization via TBB — be mindful of shared state
+- Wording: a file or object is "opened", "imported", "loaded" or "added", never "arrived". "Arrive" is fine for messages, responses, events and lists. `AgentUI/src/wording.test.ts` guards the text the model reads.
 
 ## Key Entry Points
 

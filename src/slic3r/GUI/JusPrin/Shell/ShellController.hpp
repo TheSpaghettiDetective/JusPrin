@@ -115,7 +115,7 @@ public:
     Workspace::ProjectAutosave* autosave() const { return m_autosave.get(); }
     void set_reimport_confirmation(std::function<ReimportDecision()> confirmation)
         { m_reimport_confirmation = std::move(confirmation); }
-    // How a file that arrives is opened (architecture.md, "Opening and
+    // How a file is opened (architecture.md, "Opening and
     // importing files"). Dropped on the Prepare canvas, a model file is added
     // to the open project; the canvas's drop target calls add_dropped_files.
     // Home's Open… and a drop on Home call open_files_as_new_project: a model

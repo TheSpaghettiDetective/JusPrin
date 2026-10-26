@@ -124,7 +124,7 @@ The ledger is the record of physical prints. It can have any number of subscribe
 
 Decided 2026-10-24. A file reaches JusPrin in a handful of ways, and they mean one of two things: **start from this file**, or **add this to the project I am working on**. The first is what a person means almost every time they bring a file in; the second is the minority case (a multi-part print), and the person signals it by aiming at the plate or by asking the agent. Because autosave keeps every project, starting a new project by mistake costs one click on Recent, while adding to the wrong project leaves a stray part in it. So every way in starts a new project unless the person aimed at the plate.
 
-| How the file arrives | Model file (STL, STEP, OBJ, AMF, …) | .3mf |
+| How the file is opened | Model file (STL, STEP, OBJ, AMF, …) | .3mf |
 |---|---|---|
 | Opened from the OS: a double-click in Finder or Explorer, "Open with", a browser's "open in JusPrin" | New project, named after the file; the app goes to Prepare | New project; the "Previously opened file" question if the file was opened before |
 | Dropped on Home | Same | Same |

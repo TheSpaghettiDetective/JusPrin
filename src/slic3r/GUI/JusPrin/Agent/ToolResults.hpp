@@ -52,7 +52,7 @@ nlohmann::json project_section_result(const Workspace::WorkspaceSnapshot& snapsh
 
 // What Orca said while loading a file, each dialog with the answer JusPrin
 // gave, and the whole report: the loads, those messages, what an opened
-// project's file states, and the objects that arrived.
+// project's file states, and the objects it loaded.
 nlohmann::json orca_messages_result(const Workspace::LoadReport& report);
 nlohmann::json load_report_result(const Workspace::LoadReport& report);
 // Keep the full report in the transcript and tool result; the opening turn

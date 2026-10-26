@@ -853,7 +853,7 @@ struct LoadSetupPrinter
     BedSize     bed;   // the printable area's bounding box and printable height
 };
 
-// What the app checked about one arrived object, for the Agent's first
+// What the app checked about one loaded object, for the Agent's first
 // message: whether it can print where it is, on what, and whether the model
 // is sound. Report-only; workspace_inspect's rows stay as they are.
 struct LoadedObjectFacts
@@ -871,7 +871,7 @@ struct LoadedObjectFacts
 };
 
 // What JusPrin knows once a file has been opened or imported: what Orca said
-// while loading it, what the file itself states, and what arrived.
+// while loading it, what the file itself states, and what it loaded.
 struct LoadReport
 {
     bool                        started_by_agent{false};
@@ -885,7 +885,7 @@ struct LoadReport
     BedSize                     selected_bed; // the selected printer's, after the load
     std::string                 connected_printer; // only when fresh device data confirms a connection
     ProjectDetails              details;               // filled when project_opened
-    std::vector<ObjectDetails>  objects;               // what arrived, at most kReportedObjectLimit
+    std::vector<ObjectDetails>  objects;               // what loaded, at most kReportedObjectLimit
     bool                        objects_truncated{false};
     std::vector<LoadedObjectFacts> object_facts; // one per reported object
     std::vector<LoadedFileFacts> file_facts;     // one per loaded 3MF that states anything

@@ -264,7 +264,7 @@ private:
     std::unique_ptr<ScopedLeastChangeAnswers> m_open_answers;
     std::vector<FileLoadRecord>            m_finished_loads;
     LoadSelectedSetup                      m_setup_before_loads;
-    std::vector<std::uint64_t>             m_arrived_objects; // Orca ids of what the finished loads added
+    std::vector<std::uint64_t>             m_loaded_objects; // Orca ids of what the finished loads added
     std::uint64_t                          m_session_before_loads{0};
     bool                                   m_report_scheduled{false};
     void flush_file_open_messages();

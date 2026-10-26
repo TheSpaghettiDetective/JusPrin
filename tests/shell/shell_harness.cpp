@@ -132,8 +132,8 @@
 //              again, in its four variants (the open project or an earlier
 //              one; the file unchanged or changed), draws each to a PNG and
 //              answers it Cancel
-//   --file-arrival
-//              every way a file arrives (architecture.md, "Opening and
+//   --file-opening
+//              every way a file is opened (architecture.md, "Opening and
 //              importing files"): opened from the OS, Home's Open… with its
 //              dialog stood in for, dropped on Home and on the Prepare canvas,
 //              a .3mf on a full plate, and the canvas drop after a slice
@@ -1103,7 +1103,7 @@ struct HarnessState
         ExternalProjectHistory,
         ReopenPrompt,
         ChatRestoration,
-        FileArrival,
+        FileOpening,
         FileCorpus,
         ProjectPromptRequests,
         LeftPane,
@@ -1268,8 +1268,8 @@ public:
                 verify_chat_restoration();
                 return;
             }
-            if (m_state->mode == HarnessState::Mode::FileArrival) {
-                verify_file_arrival();
+            if (m_state->mode == HarnessState::Mode::FileOpening) {
+                verify_file_opening();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::FileCorpus) {
@@ -9923,12 +9923,12 @@ private:
                    [self = shared_from_this()] { self->finish(); });
     }
 
-    // Every way a file arrives, through the entry points OrcaSlicer and Home
+    // Every way a file is opened, through the entry points OrcaSlicer and Home
     // use: a file opened from the OS opens in a new project, as Home's Open…
     // and a drop on Home do; a drop on the Prepare canvas adds; a .3mf opens
     // as a project and asks the "Previously opened file" question, never
     // OrcaSlicer's "project or geometry?" one.
-    void verify_file_arrival()
+    void verify_file_opening()
     {
         using Decision = ShellController::ReimportDecision;
         ShellController*  shell    = installed_shell();
@@ -9949,13 +9949,13 @@ private:
         };
         const auto on_prepare = [this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor; };
 
-        check(wxGetApp().app_config->get_bool("single_instance"), "file_arrival_single_instance");
+        check(wxGetApp().app_config->get_bool("single_instance"), "file_opening_single_instance");
         check(wxGetApp().app_config->get(SETTING_PROJECT_LOAD_BEHAVIOUR) == OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL,
-              "file_arrival_no_project_or_geometry_question");
+              "file_opening_no_project_or_geometry_question");
 
         // A project with an object in it, and Home in front of it.
         m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
-        check(autosave->save_now() && objects() == 1, "file_arrival_fixture_project");
+        check(autosave->save_now() && objects() == 1, "file_opening_fixture_project");
         const std::string first = id();
         m_frame->select_tab(size_t(MainFrame::tpHome));
 
@@ -9963,45 +9963,45 @@ private:
         // all hand OrcaSlicer's load_files the file's path.
         m_plater->load_files(cube_files);
         check(id() != first && objects() == 1 && on_prepare() && m_plater->get_project_name() == "20mmbox-LF",
-              "file_arrival_os_open_makes_new_project");
+              "file_opening_os_open_makes_new_project");
         const std::string from_os = id();
 
         // Dropped on the Prepare canvas, through the drop target installed on it.
         auto* target = dynamic_cast<wxFileDropTarget*>(m_plater->GetDropTarget());
         check(target != nullptr && target->OnDropFiles(0, 0, cube_files) && id() == from_os && objects() == 2,
-              "file_arrival_canvas_drop_adds");
+              "file_opening_canvas_drop_adds");
 
         // Home's Open…: Cancel leaves Home as it is; a chosen file opens.
         m_frame->select_tab(size_t(MainFrame::tpHome));
         home.set_file_chooser([] { return wxArrayString(); });
         home.open_file();
         check(id() == from_os && objects() == 2 && m_notebook->GetSelection() == MainFrame::tpHome,
-              "file_arrival_home_open_cancel_stays_on_home");
+              "file_opening_home_open_cancel_stays_on_home");
         home.set_file_chooser([&] { return cube_files; });
         home.open_file();
         home.set_file_chooser({});
-        check(id() != from_os && objects() == 1 && on_prepare(), "file_arrival_home_open_makes_new_project");
+        check(id() != from_os && objects() == 1 && on_prepare(), "file_opening_home_open_makes_new_project");
 
         // Dropped on Home: the page hands over the name and bytes.
         m_frame->select_tab(size_t(MainFrame::tpHome));
         const std::string before_drop = id();
         home.open_dropped_files({Home::DroppedFile{"dropped cube.stl", read(cube)}});
         check(id() != before_drop && objects() == 1 && on_prepare() && m_plater->get_project_name() == "dropped cube",
-              "file_arrival_home_drop_makes_new_project");
+              "file_opening_home_drop_makes_new_project");
 
         // A .3mf opened before, opened again from the OS on a full plate:
         // the reopen question, not a silent cancel.
-        const fs::path source = fs::path(data_dir()) / "arrival.3mf";
+        const fs::path source = fs::path(data_dir()) / "opened.3mf";
         check(m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
-              "file_arrival_3mf_fixture_exported");
+              "file_opening_3mf_fixture_exported");
         const wxArrayString source_files = files_of(source.string());
         m_plater->new_project(true, true);
         m_plater->load_project(wxString::FromUTF8(source.string()), "<loadall>");
-        check(autosave->save_now(), "file_arrival_3mf_opened_once");
+        check(autosave->save_now(), "file_opening_3mf_opened_once");
         const std::string opened = id();
         m_plater->new_project(true, true);
         m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
-        check(autosave->save_now() && objects() == 1, "file_arrival_full_plate");
+        check(autosave->save_now() && objects() == 1, "file_opening_full_plate");
         const std::string full = id();
         int      prompts  = 0;
         Decision decision = Decision::Cancel;
@@ -10013,32 +10013,32 @@ private:
             DialogCounter dialogs;
             m_plater->load_files(source_files);
             check(prompts == 1 && dialogs.shown == 0 && id() == full && objects() == 1,
-                  "file_arrival_3mf_on_full_plate_asks_reopen");
+                  "file_opening_3mf_on_full_plate_asks_reopen");
         }
         decision = Decision::OpenExisting;
         m_plater->load_files(source_files);
-        check(prompts == 2 && id() == opened, "file_arrival_3mf_opens_existing_project");
+        check(prompts == 2 && id() == opened, "file_opening_3mf_opens_existing_project");
 
         // A .3mf dropped on the canvas opens as a project, not as geometry.
         m_plater->new_project(true, true);
         m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
-        check(autosave->save_now(), "file_arrival_canvas_fixture_saved");
+        check(autosave->save_now(), "file_opening_canvas_fixture_saved");
         const std::string canvas_draft = id();
         decision = Decision::CreateNew;
         target = dynamic_cast<wxFileDropTarget*>(m_plater->GetDropTarget());
         check(target != nullptr && target->OnDropFiles(0, 0, source_files) && prompts == 3 && id() != canvas_draft &&
                   id() != opened && into_path(m_plater->get_project_filename(".3mf")) == source,
-              "file_arrival_3mf_canvas_drop_opens_project");
+              "file_opening_3mf_canvas_drop_opens_project");
 
         // The same .3mf dropped on Home twice: the second time it is known.
-        check(autosave->save_now(), "file_arrival_home_3mf_fixture_saved");
+        check(autosave->save_now(), "file_opening_home_3mf_fixture_saved");
         m_frame->select_tab(size_t(MainFrame::tpHome));
-        home.open_dropped_files({Home::DroppedFile{"arrival.3mf", read(source.string())}});
+        home.open_dropped_files({Home::DroppedFile{"opened.3mf", read(source.string())}});
         const int after_first_drop = prompts;
-        check(autosave->save_now() && on_prepare(), "file_arrival_home_3mf_drop_opens");
+        check(autosave->save_now() && on_prepare(), "file_opening_home_3mf_drop_opens");
         m_frame->select_tab(size_t(MainFrame::tpHome));
-        home.open_dropped_files({Home::DroppedFile{"arrival.3mf", read(source.string())}});
-        check(prompts == after_first_drop + 1, "file_arrival_home_3mf_drop_again_asks_reopen");
+        home.open_dropped_files({Home::DroppedFile{"opened.3mf", read(source.string())}});
+        check(prompts == after_first_drop + 1, "file_opening_home_3mf_drop_again_asks_reopen");
         shell->set_reimport_confirmation({});
 
         // + Add model sits under the plate list, directly above + Add plate,
@@ -10052,24 +10052,24 @@ private:
         const wxRect add_plate = pane->add_plate_rect();
         check(!add_model.IsEmpty() && add_model.GetBottom() < add_plate.y && add_model.GetSize() == add_plate.GetSize() &&
                   add_model.y > pane->rect_of(pane->rows().size() - 1, LeftPane::Part::Row).GetBottom(),
-              "file_arrival_add_model_button_above_add_plate");
+              "file_opening_add_model_button_above_add_plate");
 
         // OrcaSlicer puts its own drop target back after every slice; a drop
         // after one still adds.
         installed_shell()->status_row()->request_slice();
-        wait_until([this] { return m_plater->is_background_process_slicing(); }, "file_arrival_slice_starts",
+        wait_until([this] { return m_plater->is_background_process_slicing(); }, "file_opening_slice_starts",
                    [self = shared_from_this(), cube_files] {
                        self->wait_until(
-                           [self] { return !self->m_plater->is_background_process_slicing(); }, "file_arrival_slice_completes",
+                           [self] { return !self->m_plater->is_background_process_slicing(); }, "file_opening_slice_completes",
                            [self, cube_files] {
-                               self->wait_until_settled("file_arrival_settled_after_slice", [self, cube_files] {
+                               self->wait_until_settled("file_opening_settled_after_slice", [self, cube_files] {
                                    const std::string project = self->persistence().document().project_id();
                                    const size_t      count   = self->m_plater->model().objects.size();
                                    auto* after = dynamic_cast<wxFileDropTarget*>(self->m_plater->GetDropTarget());
                                    self->check(after != nullptr && after->OnDropFiles(0, 0, cube_files) &&
                                                    self->persistence().document().project_id() == project &&
                                                    self->m_plater->model().objects.size() == count + 1,
-                                               "file_arrival_canvas_drop_adds_after_slice");
+                                               "file_opening_canvas_drop_adds_after_slice");
                                    self->finish();
                                });
                            });
@@ -10173,10 +10173,10 @@ private:
             print_messages("user import", *heard);
             check(!heard->started_by_agent && !heard->project_opened, "user_import_report_is_the_persons");
             check(asked_yes_no_answered_no(*heard), "user_import_records_object_too_small");
-            check(heard->objects.size() == 1, "user_import_reports_what_arrived");
-            // The app's own checks of what arrived, beside Orca's words.
+            check(heard->objects.size() == 1, "user_import_reports_what_loaded");
+            // The app's own checks of what loaded, beside Orca's words.
             check(heard->object_facts.size() == 1 && heard->object_facts.front().id == heard->objects.front().id,
-                  "user_import_checks_what_arrived");
+                  "user_import_checks_what_loaded");
             check(heard->selected_bed.width > 0 && heard->selected_bed.height > 0, "user_import_reports_the_selected_bed");
             if (!heard->object_facts.empty()) {
                 const Workspace::LoadedObjectFacts& facts = heard->object_facts.front();
@@ -10245,7 +10245,7 @@ private:
                                         message.recognized && !message.text.empty());
             check(notice, "prusa_open_records_the_settings_notice");
             check(!heard->loads.empty() && heard->loads.front().with_settings, "prusa_open_was_asked_for_settings");
-            check(heard->objects.size() == 1, "prusa_open_reports_what_arrived");
+            check(heard->objects.size() == 1, "prusa_open_reports_what_loaded");
             // Read from the archive itself: the file names the app that saved it.
             check(heard->file_facts.size() == 1 && heard->file_facts.front().file == "prusaslicer_cube.3mf" &&
                       heard->file_facts.front().application == "PrusaSlicer-2.8.1+win64",
@@ -12011,8 +12011,8 @@ int main(int argc, char** argv)
         }
         else if (argument == "--chat-restoration")
             state->mode = HarnessState::Mode::ChatRestoration;
-        else if (argument == "--file-arrival")
-            state->mode = HarnessState::Mode::FileArrival;
+        else if (argument == "--file-opening")
+            state->mode = HarnessState::Mode::FileOpening;
         else if (argument == "--project-prompt-requests") {
             if (index + 2 >= argc) {
                 std::cerr << "--project-prompt-requests needs a script and an output path\n";

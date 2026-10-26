@@ -203,11 +203,11 @@ describe('the skill for issues OrcaSlicer reports', () => {
 
 describe('the skill for a setup to check against the print\'s purpose', () => {
   const text = skills.find((skill) => skill.trigger === 'setup_changed')!.text;
-  const arrived = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
+  const fileLoaded = skills.find((skill) => skill.trigger === 'file_loaded')!.text;
 
   it('opens under the standing rules and stays short', () => {
     expect(text.split('\n\n')[1]).toMatch(/^The rules above still apply\./);
-    expect(encoder.encode(text).length).toBeLessThan(encoder.encode(arrived).length / 4);
+    expect(encoder.encode(text).length).toBeLessThan(encoder.encode(fileLoaded).length / 4);
   });
 
   it('says what checking the setup against the purpose means here', () => {

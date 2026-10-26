@@ -1658,7 +1658,7 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
         // geometry?" question (architecture.md, "Opening and importing
         // files"). OrcaSlicer reads single_instance at startup before this
         // runs, so a second launch takes it from the value stored here; a
-        // file opened while JusPrin runs reads it when it arrives.
+        // file opened while JusPrin runs reads it when the open request comes in.
         if (wxGetApp().app_config != nullptr) {
             wxGetApp().app_config->set_bool("single_instance", true);
             wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL);

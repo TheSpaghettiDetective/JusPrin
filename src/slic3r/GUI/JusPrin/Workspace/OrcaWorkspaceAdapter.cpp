@@ -687,7 +687,7 @@ void OrcaWorkspaceAdapter::file_load_finished()
     record.messages      = m_active_load->answers.take_messages();
     const ModelObjectPtrs& objects = m_plater.model().objects;
     for (std::size_t index = m_active_load->objects_before; index < objects.size(); ++index)
-        m_arrived_objects.push_back(objects[index]->id().id);
+        m_loaded_objects.push_back(objects[index]->id().id);
     m_active_load.reset();
     m_finished_loads.push_back(std::move(record));
     // A tool takes its report as soon as its call returns. Anything else is
@@ -788,10 +788,10 @@ LoadReport OrcaWorkspaceAdapter::take_load_report(bool started_by_agent)
     report.project_path   = into_u8(m_plater.get_project_filename(".3mf"));
     if (report.project_opened)
         report.details = project_details();
-    const std::set<std::uint64_t> arrived(m_arrived_objects.begin(), m_arrived_objects.end());
-    m_arrived_objects.clear();
+    const std::set<std::uint64_t> loaded(m_loaded_objects.begin(), m_loaded_objects.end());
+    m_loaded_objects.clear();
     for (ObjectDetails& row : object_details()) {
-        if (arrived.count(row.id.value()) == 0)
+        if (loaded.count(row.id.value()) == 0)
             continue;
         if (report.objects.size() == kReportedObjectLimit) {
             report.objects_truncated = true;
@@ -2978,7 +2978,7 @@ void OrcaWorkspaceAdapter::record_history_edits()
     const UndoRedo::Stack&                  stack     = m_plater.undo_redo_stack_main();
     const std::vector<UndoRedo::Snapshot>& snapshots = stack.snapshots();
     bool recorded = false;
-    // Orca takes a load's undo step before the objects arrive, so the step
+    // Orca takes a load's undo step before the objects are added, so the step
     // may be seen while the project is still empty or after: either way it
     // belongs to the project's making.
     const bool making_project = m_first_model_pending;

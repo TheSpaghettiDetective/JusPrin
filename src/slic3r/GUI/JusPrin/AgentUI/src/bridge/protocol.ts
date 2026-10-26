@@ -200,7 +200,7 @@ export interface FileReport {
   truncated: boolean;
 }
 
-// An arrived object, with what the app checked about it.
+// A loaded object, with what the app checked about it.
 interface LoadedObject {
   objectId: string;
   name: string;

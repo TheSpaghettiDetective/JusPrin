@@ -199,7 +199,7 @@ describe('attachments reducer', () => {
     expect(connected.hostCapabilities).toEqual(['attachments', 'native_file_picker']);
   });
 
-  // A file the host's own dialog chose arrives with no page-side record.
+  // A file the host's own dialog chose is added with no page-side record.
   it('adds an attachment the host staged by itself', () => {
     const picked = apply(initialState, 'attachment_updated', { attachment: { ...staged, id: 'a-9', clientId: undefined } });
     expect(picked.attachments.map((a) => a.id)).toEqual(['a-9']);
