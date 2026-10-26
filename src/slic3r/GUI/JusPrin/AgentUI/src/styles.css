@@ -103,7 +103,7 @@ body {
   margin: 0;
 }
 
-/* Header in Metadata Bold: what the card is on the left, its one state on
+/* Header in Label Bold: what the card is on the left, its one state on
    the right ("Agent working", or when a saved card was saved). One line,
    always: the dock narrows with the window, and a wrapped header silently
    costs the thread a row. The label gives way. */
@@ -111,7 +111,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font: var(--font-metadata-bold);
+  font: var(--font-label-bold);
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -146,7 +146,7 @@ body {
 /* How the agent means to print: its plan's headline, a few words that wrap
    rather than being cut. */
 .current-setup-strategy {
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--text-primary);
   overflow-wrap: anywhere;
 }
@@ -185,12 +185,12 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--text-secondary);
 }
 
 .current-setup-line {
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
@@ -201,7 +201,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  font: var(--font-label-bold);
+  font: var(--font-body-small-bold);
   color: var(--text-primary);
 }
 
@@ -224,14 +224,14 @@ body {
 }
 
 /* A warning is an annotation of the line above it, the one it contradicts:
-   the glyph in the warning colour beside Label text, on its first line when
+   the glyph in the warning colour beside Body Small text, on its first line when
    the words wrap. Colour is never the only signal: the row always has its
    glyph and words. */
 .current-setup-annotation {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--text-primary);
 }
 
@@ -268,7 +268,7 @@ body {
 .project-updates p {
   margin: 0;
   color: var(--text-primary);
-  font: var(--font-body-small);
+  font: var(--font-body);
 }
 
 .project-updates-actions {
@@ -281,7 +281,7 @@ body {
 .project-updates-actions button.primary {
   padding: var(--button-primary-padding);
   border: 0;
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 
 /* The setup offer under a thread when no agent is set up: the composer's
@@ -582,10 +582,10 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   max-width: 75%;
   padding: 8px 12px;
   border-radius: var(--radius-medium);
-  /* Body Small, which the Chat Bubble component's text node carries. A turn
-     is read in a 429px column and there are a lot of them, so the thread sets
-     its own size rather than inheriting the page's Body. */
-  font: var(--font-body-small);
+  /* Body, the size the conversation is read at. Text that supports a turn
+     sits one step below it: Body Small for card details and notes, Metadata
+     for the turn's activity line. */
+  font: var(--font-body);
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -629,7 +629,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-label);
 }
 
-/* One turn's tool work as Chat/System Line: a 24 DIP line of Label in
+/* One turn's tool work as Chat/System Line: a 22 DIP line of Metadata in
    text/secondary that opens into one such line per action, 16 in. While the
    turn runs the words shimmer from secondary to primary and back, the page's
    one motion, timed by the turnActivity token; a reader who asked for less
@@ -653,7 +653,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   border: 0;
   background: none;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-metadata);
   text-align: left;
   cursor: pointer;
 }
@@ -704,7 +704,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   min-width: 0;
   padding: 4px 0;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-metadata);
 }
 .turn-activity-action.edit { color: var(--text-primary); }
 .turn-activity-action.state-failed { color: var(--status-danger); }
@@ -718,8 +718,8 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 
 /* A host note is a statement of fact about the project, not a turn in the
    conversation, so it takes no bubble, no border, and no author side: the
-   design system's Chat/System Line, one Label line as tall as the turn's
-   activity line, ending in an ellipsis when it does not fit. */
+   design system's Chat/System Line, one Body Small line, ending in an
+   ellipsis when it does not fit. */
 .message.note {
   align-self: stretch;
   max-width: 100%;
@@ -728,7 +728,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   gap: 8px;
   padding: 4px 0;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
   white-space: nowrap;
   background: none;
   border: none;
@@ -866,6 +866,11 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-label-bold);
 }
 
+/* In a reply the cells are Body, so the header row is one step below. */
+.message .markdown-content th {
+  font: var(--font-body-small-bold);
+}
+
 .markdown-content hr {
   margin: 8px 0;
   border: 0;
@@ -907,7 +912,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-label-bold);
   overflow-wrap: anywhere;
 }
-.message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
+.message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-bold); }
 
 .message-group {
   display: flex;
@@ -917,7 +922,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 
 /* Chat/Tool Activity, Status=Proposed (board 5b): a settings preview that
    saves a preset, in the Agent's bubble 8 under its words. Status rows are
-   Body Small secondary text after a 16 DIP glyph in the primary colour;
+   Body secondary text after a 16 DIP glyph in the primary colour;
    Save preset is Button/Primary and the other choice Button/Secondary. */
 .message-content > .proposal-card { margin-top: 8px; }
 .proposal-card {
@@ -932,12 +937,12 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   box-shadow: inset 0 0 0 1px var(--border-subtle);
   white-space: normal;
 }
-.proposal-title { align-self: stretch; font: var(--font-body-small-bold); color: var(--text-primary); }
-.proposal-row { align-self: stretch; display: flex; align-items: flex-start; gap: 8px; font: var(--font-body-small); color: var(--text-secondary); }
+.proposal-title { align-self: stretch; font: var(--font-body-bold); color: var(--text-primary); }
+.proposal-row { align-self: stretch; display: flex; align-items: flex-start; gap: 8px; font: var(--font-body); color: var(--text-secondary); }
 .proposal-row > .jp-icon { margin-top: 1px; color: var(--text-primary); }
 .proposal-failure, .proposal-failure > .jp-icon { color: var(--status-danger); }
 .proposal-actions { align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.proposal-actions > button:not(.primary) { padding: var(--button-secondary-padding); border-color: var(--border-subtle); font: var(--font-body-small); }
+.proposal-actions > button:not(.primary) { padding: var(--button-secondary-padding); border-color: var(--border-subtle); font: var(--font-body); }
 .proposal-actions > button:not(.primary):hover:enabled { background: var(--surface-raised); }
 .proposal-actions > button:not(.primary):disabled { opacity: 0.5; }
 
@@ -962,7 +967,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .change-icon {
   flex: 0 0 auto;
   color: var(--action-primary);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 
 .change-text {
@@ -975,17 +980,17 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 
 .change-title {
   color: var(--text-primary);
-  font: var(--font-body-small);
+  font: var(--font-body);
   overflow-wrap: anywhere;
 }
 
 .change-title strong {
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 
 .change-meta {
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 
 .settings-changes {
@@ -1015,11 +1020,11 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 .agent-change-summary-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-change-summary > button > .settings-changes-icon { flex: 0 0 var(--button-icon-icon-size); }
-.agent-change-summary-more { display: inline-flex; align-items: center; color: var(--action-primary); font: var(--font-label-bold); white-space: nowrap; }
+.agent-change-summary-more { display: inline-flex; align-items: center; color: var(--action-primary); font: var(--font-body-small-bold); white-space: nowrap; }
 .agent-change-summary-details {
   border-top: 1px solid var(--border-subtle);
 }
@@ -1034,7 +1039,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   padding: 8px 12px;
   background: var(--surface-subtle);
   color: var(--text-secondary);
-  font: var(--font-metadata-bold);
+  font: var(--font-label-bold);
   text-transform: uppercase;
 }
 .settings-changes-icon {
@@ -1052,7 +1057,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   min-width: 0;
   padding: 8px 12px;
   border-top: 1px solid var(--border-subtle);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 .settings-change-name {
   min-width: 0;
@@ -1060,7 +1065,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 .settings-change-from { color: var(--text-secondary); }
 .settings-change-arrow { color: var(--text-secondary); }
-.settings-change-row strong { font: var(--font-label-bold); }
+.settings-change-row strong { font: var(--font-body-small-bold); }
 .settings-changes-more {
   width: 100%;
   justify-content: flex-start;
@@ -1069,7 +1074,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   border-top: 1px solid var(--border-subtle);
   border-radius: 0;
   color: var(--action-primary);
-  font: var(--font-label-bold);
+  font: var(--font-body-small-bold);
 }
 .settings-changes-more:hover:enabled { background: var(--surface-subtle); }
 
@@ -1146,12 +1151,12 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   /* The stroke is drawn inside the box, as Figma's is, so the 12 DIP inset is
      measured from the card's edge. */
   box-shadow: inset 0 0 0 1px var(--border-subtle);
-  font: var(--font-body-small);
+  font: var(--font-body);
 }
 
 .tool-card .tool-title {
   overflow-wrap: anywhere;
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 
 .tool-card .tool-meta { color: var(--text-secondary); overflow-wrap: anywhere; }
@@ -1194,12 +1199,12 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   gap: var(--button-secondary-icon-gap);
   padding: var(--button-secondary-padding);
   border-color: var(--border-subtle);
-  font: var(--font-body-small);
+  font: var(--font-body);
 }
 .tool-card .tool-actions > button.primary {
   padding: var(--button-primary-padding);
   border: 0;
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 .tool-card .tool-actions > button:not(.primary):hover:enabled { background: var(--surface-subtle); }
 .tool-card .tool-actions > button:not(.primary):disabled { opacity: 0.5; }
@@ -1234,7 +1239,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .plan-member-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .plan-member-title::before { content: counter(plan-step) '. '; }
 .plan-member.destructive .plan-member-title { color: var(--status-danger); }
-.plan-member-state { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-label); }
+.plan-member-state { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-body-small); }
 .plan-member.state-succeeded .plan-member-state { color: var(--status-success); }
 .plan-member.state-failed .plan-member-state,
 .plan-member-error { color: var(--status-danger); }
@@ -1243,7 +1248,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 /* A running plan: the track takes the row, its count and Cancel follow. */
 .tool-card .plan-execution { flex-wrap: nowrap; }
 .plan-execution .jp-progress { flex: 1 1 0; width: auto; min-width: 0; }
-.plan-progress-text { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-label); }
+.plan-progress-text { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-body-small); }
 
 /* Immutable build, external-copy, and physical-print timeline records (Figma
    "Agent/Manufacturing history card"): one card per record, its rows 12 apart,
@@ -1258,7 +1263,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   border-radius: var(--radius-medium);
   background: var(--surface-canvas);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
-  font: var(--font-body-small);
+  font: var(--font-body);
   overflow-wrap: anywhere;
 }
 
@@ -1293,7 +1298,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 
 .history-kind {
   color: var(--text-primary);
-  font: var(--font-metadata-bold);
+  font: var(--font-label-bold);
 }
 
 /* A record's short ID: what the code face is reserved for. */
@@ -1345,7 +1350,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   gap: 4px;
   min-width: 0;
   color: var(--text-secondary);
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 .history-status.success { color: var(--status-success); }
 .history-status.warning { color: var(--status-warning); }
@@ -1375,7 +1380,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .history-card dt {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 
 .history-card dd {
@@ -1404,7 +1409,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   gap: var(--button-secondary-icon-gap);
   padding: var(--button-secondary-padding);
   border-color: var(--border-subtle);
-  font: var(--font-body-small);
+  font: var(--font-body);
 }
 .history-action:hover:enabled { background: var(--surface-subtle); }
 .history-action:disabled { opacity: 0.5; }
@@ -1427,7 +1432,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 .failure-reason {
   color: var(--text-on-failure-secondary);
-  font: var(--font-label);
+  font: var(--font-body-small);
 }
 .print-failed dd,
 .print-failed .history-hash code { color: var(--text-on-failure-primary); }
@@ -1465,7 +1470,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .file-notes-more {
   margin: 0;
   color: var(--text-secondary);
-  font: var(--font-body-small);
+  font: var(--font-body);
   overflow-wrap: anywhere;
 }
 
@@ -1482,14 +1487,14 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   padding: 0 0 0 16px;
   align-self: stretch;
   color: var(--text-secondary);
-  font: var(--font-body-small);
+  font: var(--font-body);
 }
 
 .file-notes-list li > span { display: block; overflow-wrap: anywhere; }
 
 .file-notes-heading {
   color: var(--text-primary);
-  font: var(--font-body-small-bold);
+  font: var(--font-body-bold);
 }
 
 .file-notes-text {
@@ -1642,6 +1647,11 @@ button.link:disabled,
 .project-updates-link:disabled,
 .panel-link-button:disabled {
   color: var(--action-disabled-text);
+}
+
+/* The setup card's link is the size of the card's other lines. */
+.current-setup-link {
+  font: var(--font-body-small-bold);
 }
 
 input[type='radio'] {
@@ -2024,7 +2034,7 @@ input[type='radio']:checked {
   border-radius: var(--radius-small);
   background: var(--surface-canvas);
   box-shadow: inset 0 0 0 1px var(--border-subtle);
-  font: var(--font-metadata-bold);
+  font: var(--font-label-bold);
   color: var(--text-secondary);
   flex: 0 0 auto;
 }
@@ -2039,7 +2049,7 @@ input[type='radio']:checked {
 
 /* A name the user gave the file, not a path, so it stays in the UI face. */
 .attachment-name {
-  font: var(--font-body-small);
+  font: var(--font-body);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2052,7 +2062,7 @@ input[type='radio']:checked {
 }
 
 .attachment-error {
-  font: var(--font-label);
+  font: var(--font-body-small);
   color: var(--status-danger);
   overflow-wrap: anywhere;
 }
@@ -2064,7 +2074,7 @@ input[type='radio']:checked {
   border-radius: var(--radius-small);
   background: var(--surface-subtle);
   color: var(--text-primary);
-  font: var(--font-body-small);
+  font: var(--font-body);
   cursor: pointer;
 }
 
@@ -2097,7 +2107,7 @@ input[type='radio']:checked {
   border-radius: var(--radius-full);
   background: var(--surface-subtle);
   cursor: pointer;
-  font: var(--font-body-small);
+  font: var(--font-body);
   color: var(--text-primary);
 }
 
@@ -2129,7 +2139,7 @@ input[type='radio']:checked {
   width: 100%;
   min-width: 0;
   resize: none;
-  font: var(--font-body-small);
+  font: var(--font-body);
   padding: var(--composer-input-padding);
   border: none;
   background: transparent;
