@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M5X4RV4EHCKDBQFARE5W7Z1C",
+  "session_id": "68e67b92-28f5-4f94-8696-89dbc7fcb34a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-26T22:19:55.057849Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "ea28afce8851",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3004,
+    "cache_creation_tokens": 1249941,
+    "cache_read_tokens": 48796265,
+    "output_tokens": 244408,
+    "api_call_count": 107
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-26T22:19:54.337674Z",
+    "agent_lines": 129,
+    "agent_removed": 146,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 129,
+    "total_lines_changed": 275,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
