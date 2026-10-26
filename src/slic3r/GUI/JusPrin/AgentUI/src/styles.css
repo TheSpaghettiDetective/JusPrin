@@ -163,24 +163,28 @@ body {
 
 /* A fact line with the link that belongs to it at its end: the presets with
    All settings, or the line that stands in for the estimates with Compute
-   estimates. As tall as the link, so a line with one and a line without it
-   keep the card's rhythm. */
+   estimates. The row aligns on the baseline, so the link's label sits level
+   with the text's first line whether the text takes one line or two. */
 .current-setup-facts {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
   min-height: var(--button-link-height);
 }
 
-/* The presets stay on one line: the card does not grow for a long name. The
-   whole of it is in the tooltip, and on the All settings panel. */
+/* The presets wrap to two lines before they clip, the same clamp as the
+   purpose: at the pane's default width a Bambu preset name with a change
+   count overflows one line (decided 2026-10-26). The whole of it is in the
+   tooltip, and on the All settings panel. */
 .current-setup-facts-text {
   flex: 1 1 0;
   min-width: 0;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   font: var(--font-label);
   color: var(--text-secondary);
 }
