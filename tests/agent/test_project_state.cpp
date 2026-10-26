@@ -230,11 +230,11 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     activity.correlation_id = message.id;
     activity.state = ToolState::Succeeded;
     document.upsert_activity(activity, kT);
-    BuildRecord build;
-    build.conversation_id = first;
-    document.add_build(build, kT);
+    SentRecord sent;
+    sent.conversation_id = first;
     PhysicalPrintRecord print;
     print.conversation_id = first;
+    print.sent_id = document.add_sent(sent, kT);
     document.add_physical_print(print, kT);
     const auto second = document.create_conversation("Keep this chat", kT);
     REQUIRE(document.set_active_conversation(first));
@@ -246,7 +246,7 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     CHECK(document.messages(first).empty());
     CHECK(document.attachments().empty());
     CHECK(document.activities().empty());
-    CHECK(document.builds().size() == 1);
+    CHECK(document.sent().size() == 1);
     CHECK(document.physical_prints().size() == 1);
     CHECK_FALSE(document.delete_conversation(first, kT));
     REQUIRE(document.delete_conversation(second, kT));
@@ -257,7 +257,7 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     ProjectStateDocument loaded;
     REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
     CHECK(loaded.messages(first).empty());
-    CHECK(loaded.builds().size() == 1);
+    CHECK(loaded.physical_prints().size() == 1);
 }
 
 TEST_CASE("viewing history never changes authority and checkpoints bind a chat to a model", "[project-state][conversations]")
@@ -489,8 +489,6 @@ TEST_CASE("manufacturing hashes ignore presentation state and change with manufa
     const std::string original = *manufacturing_input_hash(snapshot, 0);
     CHECK(original.size() == 64);
     CHECK(sha256_hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-    CHECK(deterministic_output_hash("input", "ab", "c") !=
-          deterministic_output_hash("input", "a", "bc"));
 
     snapshot.setup.project_dirty = true;
     snapshot.plates[0].objects[0].name = "display name only";
@@ -501,67 +499,156 @@ TEST_CASE("manufacturing hashes ignore presentation state and change with manufa
     CHECK_FALSE(manufacturing_input_hash(snapshot, 99).has_value());
 }
 
-TEST_CASE("build copy and print records serialize with immutable provenance", "[project-state][history]")
+TEST_CASE("a Sent event keeps what was sent, and when it reached the printer", "[project-state][history]")
 {
     ProjectStateDocument document;
     document.initialize_identity("project-1", "lineage-1", kT);
-    const std::string conversation = document.active_conversation_id();
 
-    BuildRecord build;
-    build.project_id = document.project_id();
-    build.conversation_id = conversation;
-    build.plate_index = 0;
-    build.plate_name = "Plate 1";
-    build.printer = "JusPrin One";
-    build.material = "PLA Matte";
-    build.manufacturing_input_hash = sha256_hex("input");
-    build.output_hash = sha256_hex("gcode");
-    build.slicer_version = "JusPrin deterministic";
-    build.configuration_provenance = "printer + process + filament presets";
-    build.sent_at = kT;
-    build.delivery_confirmed_at = kT;
-    build.delivery_location = "the printer's SD";
-    build.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
-    build.warnings = {"Long warning text remains semantic and serializable."};
-    const std::string build_id = document.add_build(build, kT);
+    SentRecord sent;
+    sent.project_id = document.project_id();
+    sent.conversation_id = document.active_conversation_id();
+    sent.plate_index = 1;
+    sent.plate_name = "Plate 2";
+    sent.printer = "Bambu Lab X1 Carbon 0.4 nozzle";
+    sent.material = "Bambu PLA Basic @BBL X1C";
+    sent.manufacturing_input_hash = sha256_hex("input");
+    sent.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
+    sent.sent_at = "ignored: the document stamps the time it is given";
+    const std::string id = document.add_sent(sent, kT);
+    CHECK(id == "s-1");
 
-    ExportedCopyRecord copy;
-    copy.build_id = build_id;
-    copy.conversation_id = conversation;
-    copy.destination = "/tmp/phase-six.gcode";
-    copy.expected_output_hash = build.output_hash;
-    copy.observed_output_hash = build.output_hash;
-    document.add_exported_copy(copy, kT);
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(reloaded.sent().size() == 1);
+    const SentRecord stored = reloaded.sent()[0];
+    CHECK(stored.id == id);
+    CHECK(stored.sent_at == kT);
+    CHECK(stored.delivery_confirmed_at.empty());
+    CHECK(stored.conversation_id == sent.conversation_id);
+    CHECK(stored.plate_index == 1);
+    CHECK(stored.plate_name == "Plate 2");
+    CHECK(stored.printer == sent.printer);
+    CHECK(stored.material == sent.material);
+    CHECK(stored.manufacturing_input_hash == sent.manufacturing_input_hash);
+    CHECK(stored.statistics.layer_count == 88);
+
+    // The transport's first report is when the job arrived; a repeat changes
+    // nothing.
+    const std::uint64_t before = document.doc_revision();
+    document.confirm_delivery(id, "2026-10-20T10:02:00Z");
+    CHECK(document.doc_revision() == before + 1);
+    document.confirm_delivery(id, "2026-10-20T10:09:00Z");
+    CHECK(document.doc_revision() == before + 1);
+    CHECK(document.sent()[0].delivery_confirmed_at == "2026-10-20T10:02:00Z");
+}
+
+// What the Print button notes and the document keeps once the printer takes
+// the job: the plate as the workspace had it.
+TEST_CASE("a Sent event is made from the plate as the workspace has it", "[project-state][history]")
+{
+    Workspace::WorkspaceSnapshot snapshot = small_snapshot();
+    snapshot.setup.printer_preset  = "Bambu Lab A1 0.4 nozzle";
+    snapshot.setup.filament_preset = "Bambu PLA Basic @BBL A1";
+    Workspace::SliceEstimate estimate;
+    estimate.print_time_seconds = 2520;
+    estimate.has_time           = true;
+    estimate.material_grams     = 18.5;
+    estimate.has_material       = true;
+    estimate.material_cost      = 0.0; // a filament with no price set
+    snapshot.plates[0].estimate = estimate;
+
+    const std::optional<SentRecord> record = sent_record(snapshot, 0);
+    REQUIRE(record);
+    CHECK_FALSE(sent_record(snapshot, 1).has_value());
+
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    document.add_sent(*record, kT);
+    const SentRecord stored = document.sent().at(0);
+    CHECK(stored.plate_index == 0);
+    CHECK(stored.plate_name == "Plate 1");
+    CHECK(stored.printer == "Bambu Lab A1 0.4 nozzle");
+    CHECK(stored.material == "Bambu PLA Basic @BBL A1");
+    CHECK(stored.manufacturing_input_hash == *manufacturing_input_hash(snapshot, 0));
+    CHECK(stored.statistics.print_time_seconds == 2520.0);
+    CHECK(stored.statistics.material_grams == 18.5);
+    CHECK(stored.statistics.material_cost == 0.0);
+    CHECK(stored.sent_at == kT);
+}
+
+TEST_CASE("only an event add_sent wrote can be confirmed or printed from", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    CHECK_THROWS_AS(document.confirm_delivery("s-9", kT), std::logic_error);
+    PhysicalPrintRecord unsent;
+    unsent.outcome = "completed";
+    CHECK_THROWS_AS(document.add_physical_print(unsent, kT), std::logic_error);
+    unsent.sent_id = "s-9";
+    CHECK_THROWS_AS(document.add_physical_print(unsent, kT), std::logic_error);
+    CHECK(document.physical_prints().empty());
+}
+
+// Documents saved before Sent events existed have no list for them.
+TEST_CASE("a document without Sent events reads as none and takes one", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    json older = json::parse(document.dump());
+    older.erase("sent");
+    older["counters"].erase("nextSent");
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(older.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.sent().empty());
+    CHECK_THROWS_AS(loaded.confirm_delivery("s-1", kT), std::logic_error);
+    CHECK(loaded.add_sent(SentRecord{}, kT) == "s-1");
+    CHECK(loaded.sent().size() == 1);
+}
+
+TEST_CASE("print records serialize with immutable provenance", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
 
     PhysicalPrintRecord print;
-    print.build_id = build_id;
+    print.sent_id = document.add_sent(SentRecord{}, kT);
     print.project_id = document.project_id();
-    print.conversation_id = conversation;
-    print.plate_name = build.plate_name;
-    print.printer = build.printer;
-    print.material = build.material;
+    print.conversation_id = document.active_conversation_id();
+    print.plate_name = "Plate 1";
+    print.printer = "JusPrin One";
+    print.material = "PLA Matte";
     print.outcome = "completed";
-    print.manufacturing_input_hash = build.manufacturing_input_hash;
-    print.output_hash = build.output_hash;
-    print.gcode_hash = build.output_hash;
+    print.manufacturing_input_hash = sha256_hex("input");
+    print.output_hash = sha256_hex("gcode");
+    print.gcode_hash = print.output_hash;
     print.stopped_percent = 41;
-    print.statistics = build.statistics;
+    print.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
     document.add_physical_print(print, kT);
 
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    REQUIRE(reloaded.builds().size() == 1);
-    REQUIRE(reloaded.exported_copies().size() == 1);
     REQUIRE(reloaded.physical_prints().size() == 1);
-    CHECK(reloaded.builds()[0].manufacturing_input_hash == build.manufacturing_input_hash);
-    CHECK(reloaded.builds()[0].statistics.layer_count == 88);
-    CHECK(reloaded.builds()[0].delivery_location == "the printer's SD");
-    CHECK(reloaded.exported_copies()[0].expected_output_hash == build.output_hash);
     CHECK(reloaded.physical_prints()[0].printer == "JusPrin One");
-    CHECK(reloaded.physical_prints()[0].gcode_hash == build.output_hash);
+    CHECK(reloaded.physical_prints()[0].sent_id == print.sent_id);
+    CHECK(reloaded.physical_prints()[0].manufacturing_input_hash == print.manufacturing_input_hash);
+    CHECK(reloaded.physical_prints()[0].gcode_hash == print.output_hash);
     CHECK(reloaded.physical_prints()[0].stopped_percent == 41);
-    const json persisted = json::parse(reloaded.dump());
-    CHECK_FALSE(persisted["builds"][0].contains("stale"));
+    CHECK(reloaded.physical_prints()[0].statistics.layer_count == 88);
+}
+
+// Documents written while the app kept builds and exported copies still load.
+// The records are no longer read, and stay in the file untouched.
+TEST_CASE("a document with build and exported-copy records still loads", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    json older = json::parse(document.dump());
+    older["builds"] = json::array({json{{"id", "b-1"}, {"seq", 1}}});
+    older["exportedCopies"] = json::array({json{{"id", "e-1"}, {"seq", 2}, {"buildId", "b-1"}}});
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(older.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.has_identity());
+    CHECK(json::parse(loaded.dump())["builds"].size() == 1);
 }
 
 // Documents written before the timeline stopped saving project copies carry a

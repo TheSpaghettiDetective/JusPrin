@@ -25,8 +25,6 @@
 
 namespace Slic3r::GUI::JusPrin::SetupCommands {
 
-namespace {
-
 // The alias Orca shows in the sidebar: the preset's alias, with the
 // "@<printer>" qualifier trimmed the way StatusRow already trims it. A name
 // that goes on past the qualifier keeps the rest: a calibrated copy,
@@ -43,6 +41,8 @@ wxString display_alias(const Preset& preset)
     alias.Trim();
     return alias;
 }
+
+namespace {
 
 wxString option_string(const DynamicPrintConfig& config, const char* key, unsigned index = 0)
 {

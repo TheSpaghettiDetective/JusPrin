@@ -1,13 +1,28 @@
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
+import type { PrinterInfo } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
-import { PrinterCard } from './components/PrinterCard';
+import { PrinterCard, PrinterChip } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import type { PrinterActions } from './components/PrinterMenu';
-import { PlusGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { ChevronDownGlyph, ChevronRightGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
 import { applyAppearance } from './tokens';
+
+// What Open… and a drop open, as OrcaSlicer's own file dialog filters them.
+const FORMATS = ['STL', '3MF', 'STEP', 'OBJ', 'AMF', 'SVG', 'ZIP'];
+
+// Search and sort earn their place once the gallery is too long to scan.
+const SEARCH_FROM = 8;
+
+type SortOrder = 'recent' | 'name';
+
+// A printer that is printing or needs reconnecting opens as its full card.
+// Every other one is a chip until the person opens it.
+function startsCollapsed(printer: PrinterInfo): boolean {
+  return printer.state !== 'printing' && printer.connectionAction !== 'reconnect';
+}
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -18,12 +33,17 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// Home is the screen before a project: the gallery takes the width that is
-// left, the printer column is a fixed rail. The page draws no top bar -- the
-// native shell owns the header above this panel, and a second one here would
-// duplicate it.
+// Home is the screen before a project: a "JusPrin › Home" bar, then the
+// gallery in the width that is left and the printer column as a fixed rail.
+// The page draws that bar itself because the shell hides its project header
+// while Home is on screen: those controls act on an open project.
 export function App({ getTransport }: { getTransport: () => Transport | null }) {
   const [state, dispatch] = useReducer(reduce, initialState);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortOrder>('recent');
+  // Printers the person opened from a chip, by id. They stay open through
+  // the host's pushes, so a card does not fold away under an open menu.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
 
   const client = useMemo(
     () =>
@@ -62,6 +82,23 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // A printer the conversation just added opens as its full card and stays
+  // open after the push that named it.
+  useEffect(() => {
+    const added = state.printers.find((printer) => printer.name === state.highlightPrinter);
+    if (added) setOpened((ids) => new Set(ids).add(added.id));
+  }, [state.highlightPrinter, state.printers]);
+
+  // The host lists projects newest first, which is the Recent order.
+  const searchable = state.projects.length >= SEARCH_FROM;
+  const shown = useMemo(() => {
+    const needle = searchable ? query.trim().toLocaleLowerCase() : '';
+    const matching = needle
+      ? state.projects.filter((project) => project.name.toLocaleLowerCase().includes(needle))
+      : state.projects;
+    return searchable && sort === 'name' ? [...matching].sort((a, b) => a.name.localeCompare(b.name)) : matching;
+  }, [state.projects, searchable, query, sort]);
 
   // The shell's own Ctrl+, cannot see keys while this page has the focus.
   useEffect(() => {
@@ -103,67 +140,140 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
       });
   };
 
+  // Every file opens as a new project, so Open… is the primary action; a
+  // blank project, built up part by part, is the quiet choice beside it.
+  const newProject = (
+    <button type="button" className="button-secondary button-secondary-small" onClick={() => client.send('new_project', {})}>
+      <PlusGlyph />
+      New
+    </button>
+  );
+  const openFile = (
+    <button type="button" className="button-primary" onClick={() => client.send('open_file', {})}>
+      <UploadGlyph />
+      Open…
+    </button>
+  );
+
+  // Nothing saved yet: the gallery is one drop target that carries the two
+  // actions itself, so the header has none and Open… stays the only primary.
+  const firstRun = !state.projectsProblem && state.projects.length === 0;
+  const firstPrinter = state.printers[0]?.name;
+
   return (
     <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
-      <main className="gallery">
-        <header className="gallery-header">
-          <span className="section-label">Projects</span>
-          <div className="gallery-actions">
-            {/* Every file opens as a new project, so Open… is the primary action;
-                a blank project, built up part by part, is the quiet choice beside it. */}
-            <button type="button" className="button-secondary button-secondary-small" onClick={() => client.send('new_project', {})}>
-              <PlusGlyph />
-              New
-            </button>
-            <button type="button" className="button-primary" onClick={() => client.send('open_file', {})}>
-              <UploadGlyph />
-              Open…
-            </button>
-          </div>
-        </header>
-        {state.projectsProblem ? (
-          <p className="empty" role="alert">{state.projectsProblem}</p>
-        ) : state.projects.length === 0 ? (
-          <p className="empty">Drop a model or project here, or Open…</p>
-        ) : (
-          <div className="project-grid">
-            {state.projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onOpen={(id) => client.send('open_project', { id })}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-      <aside className="printer-column">
-        <div className="printer-column-head">
-          <span className="section-label">Printers</span>
-          <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences (Ctrl+,)"
-            onClick={() => client.send('open_preferences', {})}>
-            <SettingsGlyph />
-          </button>
-        </div>
-        {state.printerError && (
-          <p className="printer-error" role="alert">
-            {state.printerError.message}
-          </p>
-        )}
-        {state.printers.map((printer) => (
-          <PrinterCard
-            key={printer.id}
-            printer={printer}
-            otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
-            actions={printerActions}
-            onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
-            highlighted={state.highlightPrinter === printer.name}
-          />
-        ))}
-        <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
-          + Add printer
+      <header className="home-header">
+        <span className="home-header-path">
+          <span className="home-header-brand">JusPrin</span>
+          <ChevronRightGlyph />
+          <span className="home-header-page">Home</span>
+        </span>
+        <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences (Ctrl+,)"
+          onClick={() => client.send('open_preferences', {})}>
+          <SettingsGlyph />
         </button>
-      </aside>
+      </header>
+      <div className="home-body">
+        <main className="gallery">
+          <header className="gallery-header">
+            <span className="gallery-title">
+              <span className="section-label">Projects</span>
+              {!state.projectsProblem && <span className="section-count">{state.projects.length}</span>}
+            </span>
+            {!firstRun && (
+              <div className="gallery-actions">
+                {searchable && (
+                  <>
+                    <label className="gallery-search">
+                      <SearchGlyph />
+                      <input
+                        type="search"
+                        placeholder="Search projects"
+                        aria-label="Search projects"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </label>
+                    <span className="gallery-sort">
+                      <select aria-label="Sort projects" value={sort} onChange={(event) => setSort(event.target.value as SortOrder)}>
+                        <option value="recent">Recent</option>
+                        <option value="name">Name</option>
+                      </select>
+                      <ChevronDownGlyph />
+                    </span>
+                    <span className="gallery-divider" aria-hidden="true" />
+                  </>
+                )}
+                {newProject}
+                {openFile}
+              </div>
+            )}
+          </header>
+          {state.projectsProblem ? (
+            <p className="empty" role="alert">{state.projectsProblem}</p>
+          ) : firstRun ? (
+            <section className="first-run">
+              <UploadGlyph large />
+              <div className="first-run-text">
+                <h2>Drop a model or project to start</h2>
+                <p>
+                  {FORMATS.slice(0, -1).join(', ')} or {FORMATS[FORMATS.length - 1]}. JusPrin asks what the part is for, then
+                  plans the print{firstPrinter ? ` for your ${firstPrinter}` : ''}.
+                </p>
+              </div>
+              <div className="first-run-actions">
+                {newProject}
+                {openFile}
+              </div>
+              <p className="first-run-hint">Your projects will appear here, most recent first.</p>
+            </section>
+          ) : (
+            <>
+              <div className="project-grid">
+                {/* The whole page takes a drop; this tile is where it says so. */}
+                <button type="button" className="drop-tile" onClick={() => client.send('open_file', {})}>
+                  <UploadGlyph large />
+                  <span className="drop-tile-title">Drop a model or project here</span>
+                  <span className="drop-tile-formats">{FORMATS.join(' · ')}</span>
+                </button>
+                {shown.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onOpen={(id) => client.send('open_project', { id })}
+                  />
+                ))}
+              </div>
+              {shown.length === 0 && <p className="empty">No projects match “{query.trim()}”.</p>}
+            </>
+          )}
+        </main>
+        <aside className="printer-column">
+          <span className="section-label">Printers</span>
+          {state.printerError && (
+            <p className="printer-error" role="alert">
+              {state.printerError.message}
+            </p>
+          )}
+          {state.printers.map((printer) =>
+            startsCollapsed(printer) && !opened.has(printer.id) && state.highlightPrinter !== printer.name ? (
+              <PrinterChip key={printer.id} printer={printer} onExpand={(id) => setOpened((ids) => new Set(ids).add(id))} />
+            ) : (
+              <PrinterCard
+                key={printer.id}
+                printer={printer}
+                otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
+                actions={printerActions}
+                onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
+                highlighted={state.highlightPrinter === printer.name}
+              />
+            ),
+          )}
+          <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
+            + Add printer
+          </button>
+        </aside>
+      </div>
       {state.confirmation && (
         <ConfirmDialog
           question={state.confirmation}

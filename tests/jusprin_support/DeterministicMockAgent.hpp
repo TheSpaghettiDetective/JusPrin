@@ -49,11 +49,6 @@ public:
     //   text starting with "/toolslow" -> submits the duplicate with a long
     //                                     progress run for cancellation tests;
     //   text starting with "/inspect"  -> read-only selection inspection;
-    //   text starting with "/build"    -> records the sliced active plate;
-    //   text starting with "/export"   -> records a verified exported copy of
-    //                                     the latest build;
-    //   text starting with "/print"    -> records a completed physical print
-    //                                     in the ledger;
     //   text containing "duplicate"    -> submits a call to duplicate the selected
     //                                     object;
     //   anything else                  -> a streamed summary of the workspace

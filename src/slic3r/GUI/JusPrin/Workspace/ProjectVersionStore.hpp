@@ -106,6 +106,8 @@ public:
     // Agent page builds its restore points from it, so a folder that stops
     // being readable cannot break the page; saves into it still fail.
     std::vector<Version> history() const;
+    // The project document as last published; empty before the first one.
+    const std::string& current_document() const { return m_last_semantic_state; }
     void pin(const std::string& version_id);
     // A chat restore spans Orca model publication and the independent
     // document write. An interrupted marker blocks reopening rather than

@@ -10,11 +10,9 @@
 import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AttachmentInfo,
-  BuildInfo,
   ChangeInfo,
   WorkInfo,
   RestorePointInfo,
-  ExportedCopyInfo,
   PhysicalPrintInfo,
   PrinterBlock,
   ToolActivityInfo,
@@ -37,8 +35,6 @@ interface Props {
   attachments: AttachmentInfo[];
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  builds: BuildInfo[];
-  exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[]; // already filtered to this conversation
   work?: WorkInfo[]; // already filtered to this conversation
@@ -150,8 +146,6 @@ export function MessageList({
   attachments,
   streamingMessageId,
   toolActivities,
-  builds,
-  exportedCopies,
   physicalPrints,
   changes,
   work = [],
@@ -190,22 +184,11 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, builds, exportedCopies, physicalPrints, changes, printerBlocks, followBottom]);
+  }, [messages, toolActivities, physicalPrints, changes, printerBlocks, followBottom]);
   const printerPanel = printerBlocks !== undefined;
 
-  // A copy made immediately from a build is one G-code event in the thread.
-  // Keep later copies separate so an intervening edit never moves in history.
-  const pairedCopies = new Set<string>();
-  const history: ManufacturingHistoryEntry[] = [
-    ...builds.map((record) => {
-      const copy = exportedCopies.find((item) => item.buildId === record.id && item.seq === record.seq + 1);
-      if (copy) pairedCopies.add(copy.id);
-      return { kind: 'build' as const, seq: record.seq, afterMessageId: record.afterMessageId, record, copy };
-    }),
-    ...exportedCopies.filter((record) => !pairedCopies.has(record.id))
-      .map((record) => ({ kind: 'copy' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
-    ...physicalPrints.map((record) => ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record })),
-  ];
+  const history: ManufacturingHistoryEntry[] = physicalPrints.map((record) =>
+    ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record }));
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
   const turns = turnsOf(messages, printerPanel);
   const messagesOf = (turn: Turn) => [turn.anchor, ...turn.replies];

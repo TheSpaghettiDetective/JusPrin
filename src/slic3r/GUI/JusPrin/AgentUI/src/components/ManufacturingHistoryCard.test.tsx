@@ -5,7 +5,7 @@ import { ManufacturingHistoryCard } from './ManufacturingHistoryCard';
 
 const print: PhysicalPrintInfo = {
   id: 'p-1', seq: 1, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z',
-  outcome: 'failed', failure: 'Layer shift reported near layer 62.', buildId: 'b-1', projectId: 'project-1',
+  outcome: 'failed', failure: 'Layer shift reported near layer 62.', projectId: 'project-1',
   conversationId: 'conv-1', afterMessageId: 'm-1', plateIndex: 0, plateName: 'Plate 1',
   printer: 'Bambu X1C', material: 'Gray PETG', manufacturingInputHash: 'a'.repeat(64),
   outputHash: 'b'.repeat(64), gcodeHash: 'c'.repeat(64), stoppedPercent: 41,

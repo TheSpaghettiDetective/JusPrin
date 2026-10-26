@@ -460,6 +460,13 @@
       "thumbnailAspectHeight": 3,
       "radius": 12
     },
+    "projectGallery": {
+      "searchWidth": 220,
+      "headerHeight": 34
+    },
+    "homeHeader": {
+      "height": 56
+    },
     "printerDialog": {
       "width": 500,
       "radius": 12,

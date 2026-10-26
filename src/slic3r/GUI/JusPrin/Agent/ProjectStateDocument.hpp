@@ -2,7 +2,7 @@
 
 // The current semantic document of a JusPrin project: conversations,
 // their messages and tool activity records, attachments, and the
-// manufacturing history (builds, exported copies, physical prints).
+// manufacturing history (Sent events and physical prints).
 // Managed projects save it independently of model checkpoints in
 // current-state.json.
 //
@@ -218,9 +218,8 @@ public:
     // project resumes it. Absent until the person picks one.
     std::optional<ChatModelChoice> chat_model(const std::string& conversation_id) const;
     bool                           set_chat_model(const std::string& conversation_id, const ChatModelChoice& choice);
-    // Erases chat content and returns orphaned attachment directories. Builds,
-    // exported copies and physical prints retain their historical
-    // conversation IDs. Deleting the active chat makes a replacement that
+    // Erases chat content and returns orphaned attachment directories.
+    // Physical prints retain their historical conversation IDs. Deleting the active chat makes a replacement that
     // starts as create_conversation's does, from the deleted chat's intent.
     std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,
                                                                const std::string& timestamp);
@@ -261,17 +260,19 @@ public:
 
     // -- Manufacturing history --------------------------------------------
     // Add-only immutable records.
-    std::string add_build(BuildRecord record, const std::string& timestamp);
-    std::string add_exported_copy(ExportedCopyRecord record, const std::string& timestamp);
+    // Written when the person confirms Send; `timestamp` is the sent time.
+    std::string add_sent(SentRecord record, const std::string& timestamp);
+    // When the transport reports the job reached the printer. A repeat report
+    // keeps the first time; an id add_sent did not return is a logic error.
+    void        confirm_delivery(const std::string& sent_id, const std::string& timestamp);
+    std::vector<SentRecord> sent() const;
+    // A print always runs from a Sent event: one whose sent_id names no Sent
+    // event is a logic error.
     std::string add_physical_print(PhysicalPrintRecord record, const std::string& timestamp);
-    std::vector<BuildRecord>         builds() const;
-    std::vector<ExportedCopyRecord>  exported_copies() const;
     std::vector<PhysicalPrintRecord> physical_prints() const;
     // Ledger size without materializing every record; the shell's status row
     // reads this on every project change.
     std::size_t                      physical_print_count() const;
-    std::optional<BuildRecord>       find_build(const std::string& build_id) const;
-    std::optional<BuildRecord>       latest_build() const;
 
     // -- Print intent and plan ------------------------------------------------
     // Product state with no Orca owner, and not in Orca's undo stack. Each
@@ -344,6 +345,7 @@ private:
     const nlohmann::json* conversation_json(const std::string& conversation_id) const;
     // The active chat, which every intent and plan write goes to.
     nlohmann::json&       active_chat();
+    nlohmann::json*       sent_json(const std::string& sent_id);
     std::string           add_conversation(const std::string& title, const std::string& timestamp, nlohmann::json intent);
     std::uint64_t         next_seq();
     void                  touch();

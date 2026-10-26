@@ -97,7 +97,7 @@ TEST_CASE("MCP mutations report progress and results to observers", "[mcp][netwo
 TEST_CASE("MCP exposure and schema failures cannot reach a native mutation", "[mcp][network]")
 {
     RuntimeHarness h;
-    const std::string name = GENERATE("object_import", "record_build", "missing", "settings_apply_patch");
+    const std::string name = GENERATE("object_import", "setup_record", "missing", "settings_apply_patch");
     Client client(h.runtime.server(), request("tools/call", {{"name", name}, {"arguments", {{"actionClass", "read_only"}}}}));
     REQUIRE(h.finish(client));
     auto response = client.messages().back();

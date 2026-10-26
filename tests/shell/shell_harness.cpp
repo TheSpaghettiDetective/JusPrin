@@ -1775,7 +1775,7 @@ private:
         // A sparse legacy ledger entry exercises the count-only Figma state.
         // The live print path now records timestamps; this fixture deliberately
         // omits them to cover an older imported record.
-        persistence().document().add_physical_print(Agent::PhysicalPrintRecord{}, "");
+        JusPrinTest::add_print(persistence().document(), Agent::PhysicalPrintRecord{}, "");
         persistence().notify_ledger_changed();
         pane->snapshot();
         check(has_label(_L("Printed once")), "left_pane_count_only_record_is_counted");
@@ -1796,7 +1796,7 @@ private:
         record.printer    = "A1 mini";
         record.statistics.material_grams = 38.0;
         record.statistics.material_cost = 0.95;
-        persistence().document().add_physical_print(record, persistence().timestamp());
+        JusPrinTest::add_print(persistence().document(), record, persistence().timestamp());
         persistence().notify_ledger_changed();
         pane->snapshot();
         check(has_label(_L("Printed 2 times")), "left_pane_root_shows_the_print_count");
@@ -1814,7 +1814,7 @@ private:
         stopped_record.printer = "A1 mini";
         stopped_record.statistics.material_grams = 9.0;
         stopped_record.statistics.material_cost = 0.23;
-        persistence().document().add_physical_print(stopped_record, persistence().timestamp());
+        JusPrinTest::add_print(persistence().document(), stopped_record, persistence().timestamp());
         persistence().notify_ledger_changed();
         pane->snapshot();
         check(pane->press_action(_L("Printed 3 times")), "figma_26e3_three_prints_open");
@@ -2078,7 +2078,7 @@ private:
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_count_only_new_project");
         for (int index = 0; index < 3; ++index)
-            persistence().document().add_physical_print(Agent::PhysicalPrintRecord{}, "");
+            JusPrinTest::add_print(persistence().document(), Agent::PhysicalPrintRecord{}, "");
         persistence().notify_ledger_changed();
         pane->refresh_from_workspace();
         click_pane(pane, pane->tab_rect(PaneTab::Project));
@@ -8064,13 +8064,11 @@ private:
         check(installed_shell()->autosave()->save_now(), "figma_timeline_later_edit_saved");
         installed_shell()->status_row()->request_slice();
         wait_until([this] { return active_plate_sliced_and_idle(); }, "figma_timeline_revised_slice",
-                   [self = shared_from_this(), fixture] { self->finish_figma_timeline_capture(fixture); });
+                   [self = shared_from_this()] { self->finish_figma_timeline_capture(); });
     }
 
-    void finish_figma_timeline_capture(const JusPrinTest::FigmaTimelineFixture& fixture)
+    void finish_figma_timeline_capture()
     {
-        auto& document = persistence().document();
-        JusPrinTest::finish_figma_timeline(document, fixture);
         persistence().commit();
         installed_shell()->agent_pane()->web_view().host().refresh_page_state();
         m_frame->SetSize(m_frame->FromDIP(wxSize(1200, 1850)));
@@ -8162,30 +8160,13 @@ private:
     // Revision-timeline handoff B10: the thread the Figma frame
     // "print-timeline-panel-full · no revert" draws, built from real edits so
     // the rows come through the adapter, persistence and the bridge exactly
-    // as a person's would. A recorded build gives a history card, three
-    // mirrors give one merged row, and a Tab edit gives a setting row.
+    // as a person's would. Three mirrors give one merged row, and a Tab edit
+    // gives a setting row.
     void begin_timeline_capture()
     {
         installed_shell()->status_row()->request_slice();
         wait_until([this] { return active_plate_sliced_and_idle(); }, "timeline_fixture_sliced",
-                   [self = shared_from_this()] { self->timeline_record_build(); });
-    }
-
-    void timeline_record_build()
-    {
-        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        const std::size_t activities_before = web_view.host().tools().activities().size();
-        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/build')");
-        wait_until([&web_view, activities_before] {
-            const auto& activities = web_view.host().tools().activities();
-            return activities.size() > activities_before && activities.back().tool == "record_build" &&
-                   activities.back().state == Agent::ToolState::Succeeded;
-        }, "timeline_build_completed", [self = shared_from_this()] {
-            AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-            self->wait_until([self, &web_view] {
-                return self->persistence().document().builds().size() == 1 && !web_view.host().stream_active();
-            }, "timeline_build_recorded", [self] { self->timeline_ask(); });
-        });
+                   [self = shared_from_this()] { self->timeline_ask(); });
     }
 
     void timeline_ask()
@@ -9662,7 +9643,7 @@ private:
                             self->check(earlier != chats.end() &&
                                         !self->persistence().document().messages(earlier->id).empty(),
                                         "saved_messages_survive_reopen");
-                            self->agent_phase6_history();
+                            self->project_tab_print_count();
                         });
                 });
             });
@@ -10891,132 +10872,22 @@ private:
     std::vector<Workspace::RegionRecord> m_slice_check_regions;
     DynamicPrintConfig                   m_slice_check_settings;
 
-    // Phase 6: record one real sliced plate as a deterministic build, then an
-    // exported copy and completed physical print through the same page ->
-    // Agent -> coordinator path, and confirm that changing the
-    // manufacturing input makes the build's derived staleness visible.
-    void agent_phase6_history()
+    // The Project tab counts the prints the ledger holds, and follows it when
+    // a print is added.
+    void project_tab_print_count()
     {
-        const std::size_t objects_before = m_plater->model().objects.size();
-        check(m_plater->duplicate_object(0) >= 0, "phase6_manufacturing_change_before_build");
-        wait_until(
-            [this, objects_before] { return m_plater->model().objects.size() > objects_before; },
-            "phase6_manufacturing_change_applied", [self = shared_from_this()] {
-                installed_shell()->status_row()->request_slice();
-                self->wait_until(
-                    [self] {
-                        PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
-                        return plate != nullptr && plate->is_slice_result_valid();
-                    },
-                    "phase6_active_plate_sliced", [self] { self->phase6_submit_build(); });
-            });
-    }
-
-    void phase6_submit_build()
-    {
-        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        const std::size_t activities_before = web_view.host().tools().activities().size();
-        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/build')");
-        wait_until(
-            [&web_view, activities_before] {
-                const auto& activities = web_view.host().tools().activities();
-                return activities.size() > activities_before && activities.back().tool == "record_build" &&
-                       activities.back().state == Agent::ToolState::Succeeded;
-            },
-            "phase6_build_completed", [self = shared_from_this()] {
-                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-                const std::string action_id = web_view.host().tools().activities().back().action_id;
-                self->wait_until(
-                    [self, &web_view, action_id] {
-                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
-                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
-                               self->persistence().document().builds().size() == 1;
-                    },
-                    "phase6_build_recorded", [self] { self->phase6_submit_export(); });
-            });
-    }
-
-    void phase6_submit_export()
-    {
-        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        const std::size_t activities_before = web_view.host().tools().activities().size();
-        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/export')");
-        wait_until(
-            [&web_view, activities_before] {
-                const auto& activities = web_view.host().tools().activities();
-                return activities.size() > activities_before && activities.back().tool == "record_export_copy" &&
-                       activities.back().state == Agent::ToolState::Succeeded;
-            },
-            "phase6_export_completed", [self = shared_from_this()] {
-                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-                const std::string action_id = web_view.host().tools().activities().back().action_id;
-                self->wait_until(
-                    [self, &web_view, action_id] {
-                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
-                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
-                               self->persistence().document().exported_copies().size() == 1;
-                    },
-                    "phase6_export_recorded", [self] { self->phase6_submit_print(); });
-            });
-    }
-
-    void phase6_submit_print()
-    {
-        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-        const std::size_t activities_before = web_view.host().tools().activities().size();
-        WebView::RunScript(web_view.webview(), "window.__jusprinTest && window.__jusprinTest.send('/print')");
-        wait_until(
-            [&web_view, activities_before] {
-                const auto& activities = web_view.host().tools().activities();
-                return activities.size() > activities_before && activities.back().tool == "record_physical_print" &&
-                       activities.back().state == Agent::ToolState::Succeeded;
-            },
-            "phase6_print_completed", [self = shared_from_this()] {
-                AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
-                const std::string action_id = web_view.host().tools().activities().back().action_id;
-                self->wait_until(
-                    [self, &web_view, action_id] {
-                        const Agent::ToolActivity* activity = web_view.host().tools().find(action_id);
-                        return activity != nullptr && activity->state == Agent::ToolState::Succeeded &&
-                               self->persistence().document().physical_prints().size() == 1;
-                    },
-                    "phase6_physical_print_recorded", [self] { self->phase6_verify_records(); });
-            });
-    }
-
-    void phase6_verify_records()
-    {
-        // The count moved from the header's overflow menu to the Project tab.
-        {
-            LeftPane* pane = installed_shell()->left_pane();
-            pane->show_project();
-            pane->snapshot();
-            const auto labels = pane->action_labels();
-            check(std::find(labels.begin(), labels.end(), _L("Printed once")) != labels.end(),
-                  "project_tab_print_count_follows_the_ledger");
-            pane->show_plates();
-        }
-        const Agent::BuildRecord build = persistence().document().builds().front();
-        const Agent::ExportedCopyRecord copy = persistence().document().exported_copies().front();
-        const Agent::PhysicalPrintRecord print = persistence().document().physical_prints().front();
-        check(build.manufacturing_input_hash.size() == 64 && build.output_hash.size() == 64,
-              "phase6_build_has_sha256_provenance");
-        check(build.plate_name == print.plate_name, "phase6_print_keeps_plate");
-        check(!print.printer.empty() && !print.material.empty() && !print.started_at.empty() && !print.ended_at.empty(),
-              "phase6_print_keeps_setup_and_times");
-        check(print.outcome == "completed" && print.gcode_hash == build.output_hash,
-              "phase6_print_keeps_outcome_and_gcode_hash");
-        check(print.statistics.layer_count == 124 && copy.expected_output_hash == build.output_hash &&
-                  copy.observed_output_hash == build.output_hash,
-              "phase6_stats_and_export_checksum_survive");
-
-        check(m_plater->duplicate_object(0) >= 0, "phase6_change_after_build");
-        wait_until(
-            [self = shared_from_this(), input_hash = build.manufacturing_input_hash, plate_index = build.plate_index] {
-                const auto current = Agent::manufacturing_input_hash(self->installed_workspace_snapshot(), plate_index);
-                return current && *current != input_hash;
-            },
-            "phase6_old_build_becomes_stale", [self = shared_from_this()] { self->agent_import_and_clean_share(); });
+        Agent::PhysicalPrintRecord print;
+        print.outcome = "completed";
+        JusPrinTest::add_print(persistence().document(), print, "2026-10-01T13:04:00Z");
+        persistence().notify_ledger_changed();
+        LeftPane* pane = installed_shell()->left_pane();
+        pane->show_project();
+        pane->snapshot();
+        const auto labels = pane->action_labels();
+        check(std::find(labels.begin(), labels.end(), _L("Printed once")) != labels.end(),
+              "project_tab_print_count_follows_the_ledger");
+        pane->show_plates();
+        agent_import_and_clean_share();
     }
 
     Workspace::WorkspaceSnapshot installed_workspace_snapshot() const

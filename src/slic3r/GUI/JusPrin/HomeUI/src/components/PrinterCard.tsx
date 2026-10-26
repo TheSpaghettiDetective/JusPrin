@@ -26,6 +26,41 @@ function materials(spools: SpoolInfo[]): string {
   return names.join(', ');
 }
 
+// A printer with nothing running and nothing wrong takes one line in the
+// rail: its name, what it is doing, and what it has loaded. "Idle" rests on
+// a connection; a printer the app cannot reach keeps the host's own words for
+// that, such as "Not connected", with no dot. The chip opens into the full
+// card, where the menu and Launch monitor are.
+export function PrinterChip({ printer, onExpand }: { printer: PrinterInfo; onExpand: (id: string) => void }) {
+  const idle =
+    printer.state === 'idle' && (printer.connectionState === 'online' || printer.connectionState === 'connected');
+  const status = idle ? 'Idle' : printer.connectionText;
+  const loadedText = materials(printer.spools);
+  const swatches = printer.spools.filter((spool) => spool.colour);
+  return (
+    <button
+      type="button"
+      className="printer-chip"
+      aria-expanded={false}
+      aria-label={status ? `${printer.name}, ${status}` : printer.name}
+      onClick={() => onExpand(printer.id)}
+    >
+      <PrinterGlyph />
+      <span className="printer-chip-name">{printer.name}</span>
+      {idle && <span className="status-dot" aria-hidden="true" />}
+      {status && <span className="printer-chip-status">{status}</span>}
+      {(loadedText || swatches.length > 0) && (
+        <span className="printer-chip-loaded">
+          {loadedText}
+          {swatches.map((spool, index) => (
+            <span key={`${spool.colour}-${index}`} className="spool-swatch" style={{ background: spool.colour }} />
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function PrinterCard({
   printer,
   otherNames,

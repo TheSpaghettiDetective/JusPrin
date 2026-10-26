@@ -291,9 +291,6 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::PrinterList:
     case ToolHandler::SliceStart:
     case ToolHandler::SliceReportRead:
-    case ToolHandler::RecordBuild:
-    case ToolHandler::RecordExportCopy:
-    case ToolHandler::RecordPhysicalPrint:
     case ToolHandler::PrinterIdentify:
     case ToolHandler::PrinterAdd:
     case ToolHandler::PrinterConnectionStatus:
@@ -2289,12 +2286,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         return;
     }
 
-    // Records the host keeps, the page's skills, and the printer panel's own
-    // tools: each is owned by the surface that asked for it, and each still
-    // runs here, inside this execution state machine.
-    if (definition->handler == ToolHandler::RecordBuild || definition->handler == ToolHandler::RecordExportCopy ||
-        definition->handler == ToolHandler::RecordPhysicalPrint || definition->handler == ToolHandler::SkillRead ||
-        has_exposure(definition->exposure, ToolExposure::Printer)) {
+    // The page's skills and the printer panel's own tools: each is owned by
+    // the surface that asked for it, and each still runs here, inside this
+    // execution state machine.
+    if (definition->handler == ToolHandler::SkillRead || has_exposure(definition->exposure, ToolExposure::Printer)) {
         if (!m_extension_executor)
             throw std::logic_error(activity.tool + " is a surface's own tool, and no surface executes them here");
         ExtensionResult result = m_extension_executor(definition->handler, activity);

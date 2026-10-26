@@ -355,6 +355,22 @@ TEST_CASE("the project card geometry is explicit", "[brand]")
     CHECK(card.at("minWidth").get<int>() < card.at("maxWidth").get<int>());
 }
 
+// The gallery header's search field: the field geometry, at the width the
+// Main Page board (main-home-light) gives it beside the sort select.
+TEST_CASE("the project gallery search width and header height are explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("projectGallery"),
+        {{"searchWidth", 220}, {"headerHeight", 34}}, "component.projectGallery");
+}
+
+// Home's "JusPrin › Home" bar, the height of the project header it stands in
+// for while no project is in front.
+TEST_CASE("the Home header height is explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("homeHeader"),
+        {{"height", 56}}, "component.homeHeader");
+}
+
 // The printer column is a fixed rail, not a share of the window: the gallery
 // takes the width that is left. Progress thickness is shared with Agent work.
 // Home's own printer dialogs -- rename, remove -- are one small modal over

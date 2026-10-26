@@ -49,15 +49,29 @@ std::optional<std::string> manufacturing_input_hash(const Workspace::WorkspaceSn
     return sha256_hex(canonical.dump());
 }
 
-std::string deterministic_output_hash(const std::string& manufacturing_hash,
-                                      const std::string& slicer_version,
-                                      const std::string& configuration_provenance)
+std::optional<SentRecord> sent_record(const Workspace::WorkspaceSnapshot& snapshot, std::size_t plate_index)
 {
-    const json canonical{{"format", "jusprin-gcode-v1"},
-                         {"manufacturingInputHash", manufacturing_hash},
-                         {"slicerVersion", slicer_version},
-                         {"configurationProvenance", configuration_provenance}};
-    return sha256_hex(canonical.dump());
+    const std::optional<std::string> hash = manufacturing_input_hash(snapshot, plate_index);
+    if (!hash)
+        return std::nullopt;
+    const Workspace::WorkspacePlate& plate = snapshot.plates[plate_index];
+    SentRecord record;
+    record.plate_index              = plate_index;
+    record.plate_name               = plate.name;
+    record.printer                  = snapshot.setup.printer_preset;
+    record.material                 = snapshot.setup.filament_preset;
+    record.manufacturing_input_hash = *hash;
+    // An estimate OrcaSlicer did not give stays zero, which the ledger reads
+    // as not recorded.
+    if (plate.estimate) {
+        if (plate.estimate->has_time)
+            record.statistics.print_time_seconds = plate.estimate->print_time_seconds;
+        if (plate.estimate->has_material)
+            record.statistics.material_grams = plate.estimate->material_grams;
+        if (plate.estimate->has_cost)
+            record.statistics.material_cost = plate.estimate->material_cost;
+    }
+    return record;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

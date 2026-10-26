@@ -9,7 +9,6 @@ import {
   AgentStatus,
   Appearance,
   AttachmentInfo,
-  BuildInfo,
   ChatModelChoice,
   ModelCatalogPayload,
   ChangeInfo,
@@ -17,7 +16,6 @@ import {
   RestorePointInfo,
   ConversationInfo,
   Envelope,
-  ExportedCopyInfo,
   PhysicalPrintInfo,
   SavedKeyInfo,
   SetupKeysPayload,
@@ -64,8 +62,6 @@ export interface AgentUiState {
   streamingMessageId: string | null;
   conversationBusy: boolean;
   toolActivities: ToolActivityInfo[];
-  builds: BuildInfo[];
-  exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes: ChangeInfo[];
   work: WorkInfo[];
@@ -122,8 +118,6 @@ export const initialState: AgentUiState = {
   streamingMessageId: null,
   conversationBusy: false,
   toolActivities: [],
-  builds: [],
-  exportedCopies: [],
   physicalPrints: [],
   changes: [],
   work: [],
@@ -216,8 +210,6 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         streamingMessageId: full.streamingMessageId,
         conversationBusy: full.conversationBusy ?? full.streamingMessageId !== null,
         toolActivities: full.toolActivities ?? [],
-        builds: full.builds ?? [],
-        exportedCopies: full.exportedCopies ?? [],
         physicalPrints: full.physicalPrints ?? [],
         changes: full.changes ?? [],
         work: full.work ?? [],

@@ -6,6 +6,7 @@ add_executable(jusprin_tests
     test_printer_facts_store.cpp
     test_host_locale.cpp
     test_home_snapshot.cpp
+    test_project_status.cpp
     test_home_host.cpp
     test_printer_names.cpp
     test_host_lanes.cpp
@@ -23,6 +24,7 @@ add_executable(jusprin_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/PrinterFactsStore.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/LoadFacts.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeSnapshot.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/ProjectStatus.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/HomeHost.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/PrinterNames.cpp

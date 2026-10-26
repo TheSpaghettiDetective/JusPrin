@@ -18,7 +18,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { applyAppearance, applyStaticTokens } from '../tokens';
 import { Message } from '../state/store';
-import { BuildInfo, ChangeInfo, ExportedCopyInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
+import { ChangeInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
 import { yesTurnActivities, yesTurnChanges, yesTurnMessages } from '../visual/yes-turn';
 
 const message = (id: string, role: Message['role'], text: string): Message =>
@@ -34,23 +34,9 @@ const turns: Message[] = [
 const hash = 'a71f8c04'.repeat(8);
 const statistics = { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 };
 
-const build = (id: string, stale: boolean): BuildInfo => ({
-  id, seq: 10, createdAt: '2026-08-30T13:04:00Z', projectId: 'project-1',
-  conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
-  printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-  slicerVersion: 'JusPrin deterministic Phase 6', configurationProvenance: '0.20mm Standard @BBL X1C, 5 changes',
-  statistics, warnings: stale ? ['A deterministic warning'] : [], stale,
-});
-
-const copy: ExportedCopyInfo = {
-  id: 'e-1', seq: 11, createdAt: '2026-08-30T14:24:00Z', buildId: 'b-1', conversationId: 'conv-1',
-  afterMessageId: 'm4', destination: '/Users/maker/Desktop/Prints/bracket-v3.gcode',
-  expectedOutputHash: hash, observedOutputHash: hash, verified: true, modified: false,
-};
-
 const print: PhysicalPrintInfo = {
   id: 'p-1', seq: 12, startedAt: '2026-08-30T13:09:00Z', endedAt: '2026-08-30T14:13:00Z',
-  outcome: 'failed', failure: 'Layer shift reported near layer 62.', buildId: 'b-1', projectId: 'project-1',
+  outcome: 'failed', failure: 'Layer shift reported near layer 62.', projectId: 'project-1',
   conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
   printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
   gcodeHash: hash, statistics,
@@ -58,7 +44,7 @@ const print: PhysicalPrintInfo = {
 
 const noop = () => {};
 
-function thread(builds: BuildInfo[], copies: ExportedCopyInfo[], prints: PhysicalPrintInfo[], extra: {
+function thread(prints: PhysicalPrintInfo[], extra: {
   messages?: Message[]; activities?: ToolActivityInfo[]; changes?: ChangeInfo[]; streamingMessageId?: string;
 } = {}) {
   return renderToStaticMarkup(
@@ -67,8 +53,6 @@ function thread(builds: BuildInfo[], copies: ExportedCopyInfo[], prints: Physica
       attachments={[]}
       streamingMessageId={extra.streamingMessageId ?? null}
       toolActivities={extra.activities ?? []}
-      builds={builds}
-      exportedCopies={copies}
       physicalPrints={prints}
       changes={extra.changes ?? []}
       restorePoints={[{ changeSeq: 42, versionId: 'v-42' }]}
@@ -102,13 +86,13 @@ const buildCases = (): { name: string; note: string; body: string; tall?: boolea
   {
     name: 'a turn of seventeen tool calls',
     note: 'the 2026-10-20 "yes" turn: one line for the work, the reply, the turn’s changes as one block',
-    body: thread([], [], [], { messages: yesTurn, activities: yesTurnActivities, changes: yesTurnChanges }),
+    body: thread([], { messages: yesTurn, activities: yesTurnActivities, changes: yesTurnChanges }),
     tall: true,
   },
   {
     name: 'the same turn still running',
     note: 'the line names the action in flight; nothing else is drawn for the work',
-    body: thread([], [], [], {
+    body: thread([], {
       messages: yesTurn.slice(0, 5), streamingMessageId: 'm-6',
       activities: yesTurnActivities.slice(0, 3).map((activity, index) => index === 2 ? { ...activity, state: 'running' as const, progress: { current: 0, total: 0 } } : activity),
     }),
@@ -116,17 +100,12 @@ const buildCases = (): { name: string; note: string; body: string; tall?: boolea
   {
     name: 'conversation',
     note: 'user turn tinted and hugging; agent turn on canvas behind a 20px disc',
-    body: thread([], [], []),
+    body: thread([]),
   },
   {
-    name: 'with a build',
-    note: 'the build rests as a summary; its provenance stays behind the disclosure',
-    body: thread([build('b-1', false)], [], []),
-  },
-  {
-    name: 'stale build, copy and failed print',
-    note: 'every manufacturing record at resting altitude',
-    body: thread([build('b-1', true)], [copy], [print]),
+    name: 'failed print',
+    note: 'the manufacturing record at resting altitude',
+    body: thread([print]),
   },
 ];
 

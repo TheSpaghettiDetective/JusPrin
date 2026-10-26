@@ -69,8 +69,6 @@ TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][
           std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "skill_read", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Mcp)) ==
           std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import_file", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
-    CHECK(names(ToolRegistry::instance().exposed(ToolExposure::Internal)) ==
-          std::vector<std::string>{"record_build", "record_export_copy", "record_physical_print"});
 
     REQUIRE(ToolRegistry::instance().find("object_import") != nullptr);
     CHECK(ToolRegistry::instance().find("object_import")->availability == ToolAvailability::ImportableAttachment);

@@ -1,7 +1,8 @@
 #pragma once
 
-// Immutable manufacturing facts stored with a JusPrin project: builds,
-// exported copies, and the physical-print ledger.
+// Manufacturing facts stored with a JusPrin project: each plate the person
+// sent to a printer, and each print a printer finished. The app writes both;
+// the agent never does.
 
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
@@ -21,47 +22,28 @@ struct SliceStatistics
     std::uint64_t layer_count{0};
 };
 
-struct BuildRecord
+// A plate the person sent to a printer, written when they confirm Send.
+struct SentRecord
 {
     std::string   id;
     std::uint64_t seq{0};
-    std::string   created_at;
+    std::string   sent_at;
+    // Set later, when the transport reports the job reached the printer;
+    // empty until then, and for a transport that never says.
+    std::string   delivery_confirmed_at;
     std::string   project_id;
+    // The chat that was active when the plate was sent.
     std::string   conversation_id;
-    std::string   after_message_id;
     std::size_t   plate_index{0};
     std::string   plate_name;
     std::string   printer;
     std::string   material;
     std::string   manufacturing_input_hash;
-    std::string   output_hash;
-    std::string   slicer_version;
-    std::string   configuration_provenance;
-    // Present only after a printer transfer is confirmed. A build alone does
-    // not imply that its G-code was sent to a machine.
-    std::string   sent_at;
-    std::string   delivery_confirmed_at;
-    std::string   delivery_location;
+    // The slice's estimates for the plate as sent.
     SliceStatistics statistics;
-    std::vector<std::string> warnings;
 };
 
-struct ExportedCopyRecord
-{
-    std::string   id;
-    std::uint64_t seq{0};
-    std::string   created_at;
-    std::string   build_id;
-    std::string   conversation_id;
-    std::string   after_message_id;
-    std::string   destination;
-    std::string   expected_output_hash;
-    // Optional checksum observed at the destination. Whether the copy matches
-    // is always derived from the two hashes; no mutable "modified" flag is
-    // persisted.
-    std::string observed_output_hash;
-};
-
+// A print a printer finished, or that the person marked done.
 struct PhysicalPrintRecord
 {
     std::string   id;
@@ -70,7 +52,8 @@ struct PhysicalPrintRecord
     std::string   ended_at;
     std::string   outcome; // completed|failed|cancelled
     std::string   failure;
-    std::string   build_id;
+    // The Sent event this print ran from.
+    std::string   sent_id;
     std::string   project_id;
     std::string   conversation_id;
     std::string   after_message_id;
@@ -94,11 +77,10 @@ std::string sha256_hex(const std::string& bytes);
 std::optional<std::string> manufacturing_input_hash(const Workspace::WorkspaceSnapshot& snapshot,
                                                     std::size_t                         plate_index);
 
-// Deterministic G-code identity used by the typed Phase Six record workflow.
-// A production slicer adapter may replace the source bytes, but the persisted
-// contract remains an immutable SHA-256 string.
-std::string deterministic_output_hash(const std::string& manufacturing_hash,
-                                      const std::string& slicer_version,
-                                      const std::string& configuration_provenance);
+// What a Sent event says about one plate of `snapshot`: the plate, the printer
+// and material in force, its input hash and its slice estimates. The project,
+// the chat and the time are the document's to add. Nothing for a plate the
+// snapshot does not have.
+std::optional<SentRecord> sent_record(const Workspace::WorkspaceSnapshot& snapshot, std::size_t plate_index);
 
 } // namespace Slic3r::GUI::JusPrin::Agent

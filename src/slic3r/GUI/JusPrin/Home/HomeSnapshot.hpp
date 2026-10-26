@@ -17,11 +17,10 @@
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
-// Matches ProjectStatusKind in the page's protocol.ts. 'unknown' is what the
-// host sends while nothing in the codebase records per-project slice state:
-// the text carries what can be derived instead, and only 'printing' earns a
+// Matches ProjectStatusKind in the page's protocol.ts. 'unknown' is a project
+// whose records could not be read, and has no line; only 'printing' earns a
 // colored dot on the card.
-enum class ProjectStatusKind { Unknown, Draft, Sliced, Printing, Completed };
+enum class ProjectStatusKind { Unknown, Draft, Sent, Printing, Completed };
 
 const char* to_string(ProjectStatusKind kind);
 
@@ -31,6 +30,9 @@ struct ProjectEntry
     std::string        name;
     std::string        path;
     std::string        thumbnail_url; // empty when no preview is available
+    // When the model was last saved, ISO 8601 in UTC; the page says it as
+    // "Today", "Yesterday" or a date.
+    std::string        updated_at;
     ProjectStatusKind  status_kind{ProjectStatusKind::Unknown};
     std::string        status_text;
 };

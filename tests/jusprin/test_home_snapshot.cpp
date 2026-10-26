@@ -20,8 +20,8 @@ ProjectEntry a_project()
     project.id          = "p1";
     project.name        = "Garage bracket";
     project.path        = "C:/projects/garage.3mf";
-    project.status_kind = ProjectStatusKind::Sliced;
-    project.status_text = "Sliced - ready to send";
+    project.status_kind = ProjectStatusKind::Sent;
+    project.status_text = "Sent Oct 20 - X1 Carbon - PLA";
     return project;
 }
 
@@ -73,8 +73,8 @@ TEST_CASE("a project carries its identity and its status", "[home]")
     CHECK(project.at("id") == "p1");
     CHECK(project.at("name") == "Garage bracket");
     CHECK(project.at("path") == "C:/projects/garage.3mf");
-    CHECK(project.at("status").at("kind") == "sliced");
-    CHECK(project.at("status").at("text") == "Sliced - ready to send");
+    CHECK(project.at("status").at("kind") == "sent");
+    CHECK(project.at("status").at("text") == "Sent Oct 20 - X1 Carbon - PLA");
 }
 
 // A card without a thumbnail must keep its frame. The page decides that from
@@ -89,8 +89,17 @@ TEST_CASE("a missing thumbnail is an absent field, not an empty string", "[home]
     CHECK(state_payload(snapshot).at("projects").at(0).at("thumbnailUrl") == "file:///thumbs/garage.png");
 }
 
-// Nothing records per-project slice state yet, so the host says so rather than
-// guessing a kind the card would then decorate.
+// The page words the date itself, so it gets the moment and not a phrase.
+TEST_CASE("a project's last save is an ISO time, absent when unknown", "[home]")
+{
+    Snapshot snapshot;
+    snapshot.projects = {a_project()};
+    CHECK_FALSE(state_payload(snapshot).at("projects").at(0).contains("updatedAt"));
+
+    snapshot.projects[0].updated_at = "2026-10-24T18:05:00Z";
+    CHECK(state_payload(snapshot).at("projects").at(0).at("updatedAt") == "2026-10-24T18:05:00Z");
+}
+
 TEST_CASE("every status kind maps to the page's vocabulary", "[home]")
 {
     Snapshot snapshot;
@@ -98,7 +107,7 @@ TEST_CASE("every status kind maps to the page's vocabulary", "[home]")
     const std::pair<ProjectStatusKind, const char*> expected[] = {
         {ProjectStatusKind::Unknown, "unknown"},
         {ProjectStatusKind::Draft, "draft"},
-        {ProjectStatusKind::Sliced, "sliced"},
+        {ProjectStatusKind::Sent, "sent"},
         {ProjectStatusKind::Printing, "printing"},
         {ProjectStatusKind::Completed, "completed"},
     };

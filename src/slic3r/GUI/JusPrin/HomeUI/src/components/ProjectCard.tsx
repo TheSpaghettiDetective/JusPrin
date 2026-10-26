@@ -1,10 +1,13 @@
 import type { ProjectInfo } from '../bridge/protocol';
+import { savedDate } from '../savedDate';
 
-// A 4:3 thumbnail over a fixed footer: title on one line, status under it.
-// Only a printing project is tinted and dotted -- a grey tint read as disabled
-// and a filled status color hid the text, both tried and rejected in review.
+// A 4:3 thumbnail over a fixed footer: the title with when it was last saved,
+// and the host's status line under it. Only a printing project is tinted and
+// dotted -- a grey tint read as disabled and a filled status color hid the
+// text, both tried and rejected in review.
 export function ProjectCard({ project, onOpen }: { project: ProjectInfo; onOpen: (id: string) => void }) {
   const printing = project.status.kind === 'printing';
+  const saved = project.updatedAt ? savedDate(project.updatedAt) : '';
   return (
     <button
       type="button"
@@ -20,11 +23,16 @@ export function ProjectCard({ project, onOpen }: { project: ProjectInfo; onOpen:
         )}
       </span>
       <span className="project-footer">
-        <span className="project-title">{project.name}</span>
-        <span className="project-status">
-          {printing && <span className="status-dot printing" aria-hidden="true" />}
-          {project.status.text}
+        <span className="project-title-row">
+          <span className="project-title">{project.name}</span>
+          {saved && <span className="project-date">{saved}</span>}
         </span>
+        {project.status.text && (
+          <span className="project-status">
+            {printing && <span className="status-dot printing" aria-hidden="true" />}
+            <span className="project-status-text">{project.status.text}</span>
+          </span>
+        )}
       </span>
     </button>
   );

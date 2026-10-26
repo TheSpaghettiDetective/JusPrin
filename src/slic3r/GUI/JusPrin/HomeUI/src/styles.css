@@ -48,8 +48,43 @@ body {
 
 .app {
   display: flex;
+  flex-direction: column;
   height: 100%;
   min-width: 0;
+}
+
+/* "JusPrin › Home" and Preferences, the height of the project header it
+   stands in for. */
+.home-header {
+  flex: 0 0 var(--home-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.home-header-path {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.home-header-brand {
+  font: var(--font-section);
+  color: var(--action-primary);
+}
+
+.home-header-page {
+  font: var(--font-body);
+}
+
+/* The gallery and the printer rail, side by side under the header. */
+.home-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
 }
 
 .app.connecting {
@@ -78,32 +113,190 @@ body {
 .gallery {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   overflow-y: auto;
   padding: 24px;
 }
 
+/* As tall as its buttons even on first run, where it has none, so the
+   label does not move when the first project arrives. */
 .gallery-header {
+  flex: 0 0 var(--project-gallery-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+}
+
+.gallery-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .gallery-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
 }
 
 .section-label {
-  font: var(--font-label);
-  color: var(--text-secondary);
+  font: var(--font-label-bold);
+  color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+}
+
+.section-count {
+  font: var(--font-label);
+  color: var(--text-tertiary);
 }
 
 .empty {
+  margin: 0;
   color: var(--text-secondary);
+}
+
+/* The design system's field and select, at the header's 26 DIP. The field
+   draws the focus ring around itself, not around the bare input inside it. */
+.gallery-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: var(--project-gallery-search-width);
+  height: var(--field-height);
+  padding: 0 var(--field-padding-x);
+  color: var(--text-tertiary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--field-radius);
+}
+
+.gallery-search:focus-within {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.gallery-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+}
+
+.gallery-search input:focus-visible {
+  outline: none;
+}
+
+.gallery-sort {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gallery-sort select {
+  appearance: none;
+  height: var(--select-height);
+  padding: 0 calc(var(--select-padding-x) + var(--select-chevron-size) + 8px) 0 var(--select-padding-x);
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--select-radius);
+  cursor: pointer;
+}
+
+.gallery-sort .glyph {
+  position: absolute;
+  right: var(--select-padding-x);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* Separates the gallery's own controls from the two that make a project. */
+.gallery-divider {
+  align-self: stretch;
+  margin: 8px 0;
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* The grid's first cell. It carries a card's bounds so it sits in the
+   column like one, and stretches to the row's height. */
+.drop-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: var(--project-card-max-width);
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-large);
+  cursor: pointer;
+}
+
+.drop-tile-title {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.drop-tile-formats {
+  font: var(--font-label);
+}
+
+/* An empty gallery is one drop target the height of the page. */
+.first-run {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-large);
+}
+
+.first-run-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.first-run h2 {
+  margin: 0;
+  font: var(--font-section);
+  color: var(--text-primary);
+}
+
+/* Held to a readable measure; the panel itself is as wide as the gallery. */
+.first-run-text p {
+  max-width: 60ch;
+  margin: 0;
+  font: var(--font-body-small);
+}
+
+.first-run-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.first-run-hint {
+  margin: 0;
+  font: var(--font-label);
+  color: var(--text-tertiary);
 }
 
 /* As many columns as fit: the track floor sets the column count, and the card
@@ -181,13 +374,30 @@ body {
   padding: 0 12px;
 }
 
-/* A long project name truncates; it never reflows the grid. */
+.project-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A long project name truncates; it never reflows the grid or pushes the
+   date off the card. */
 .project-title {
+  min-width: 0;
   font: var(--font-body-bold);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.project-date {
+  flex: 0 0 auto;
+  font: var(--font-label);
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 .project-status {
@@ -197,6 +407,13 @@ body {
   font: var(--font-body-small);
   color: var(--text-secondary);
   white-space: nowrap;
+  overflow: hidden;
+}
+
+/* The ellipsis needs a box of its own: on the flex row's bare text it is
+   ignored and a long line is cut mid-letter. */
+.project-status-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -243,17 +460,10 @@ body {
   flex: 0 0 var(--printer-card-column-width);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
   overflow-y: auto;
   padding: 24px;
   border-left: 1px solid var(--border-subtle);
-}
-
-.printer-column-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
 }
 
 .printer-card {
@@ -267,10 +477,50 @@ body {
   box-shadow: var(--elevation-subtle);
 }
 
-.printer-card.collapsed {
-  flex-direction: row;
+/* An idle printer on one line. With the swatch at its token size, the 8 DIP
+   padding gives the board's 42 DIP chip without a height of its own. */
+.printer-chip {
+  display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  text-align: left;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+}
+
+.printer-chip:hover {
+  background: var(--surface-raised-hover);
+}
+
+.printer-chip-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.printer-chip-status {
+  flex: 0 0 auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.printer-chip-loaded {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .printer-head {
@@ -474,6 +724,14 @@ body {
 .glyph-more { -webkit-mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); mask-image: url('@resources/jusprin/ui/icons/ellipsis.svg'); }
 .glyph-plus { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); }
 .glyph-settings { -webkit-mask-image: url('@resources/jusprin/ui/icons/settings.svg'); mask-image: url('@resources/jusprin/ui/icons/settings.svg'); }
+.glyph-search { -webkit-mask-image: url('@resources/jusprin/ui/icons/search.svg'); mask-image: url('@resources/jusprin/ui/icons/search.svg'); }
+.glyph-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
+.glyph-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
+
+.glyph-large {
+  width: var(--glyph-size-large);
+  height: var(--glyph-size-large);
+}
 
 .printer-name-row {
   display: flex;
@@ -518,6 +776,11 @@ body {
 }
 
 .printer-menu-button .glyph,
+/* The header's one control, at the weight of the text beside it. */
+.home-header .preferences-button {
+  color: var(--text-primary);
+}
+
 .preferences-button .glyph {
   width: var(--button-icon-icon-size);
   height: var(--button-icon-icon-size);

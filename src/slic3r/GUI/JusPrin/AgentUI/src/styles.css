@@ -1358,8 +1358,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg');
 }
 
-.history-stats-line { font: var(--font-body-bold); }
-
 .history-line {
   min-width: 0;
   color: var(--text-secondary);
@@ -1425,21 +1423,6 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .history-hash code {
   display: block;
   color: var(--text-primary);
-}
-
-.history-provenance {
-  margin: 0;
-  color: var(--text-secondary);
-  font: var(--font-label);
-}
-
-.history-warnings {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 /* Button/Secondary: the one thing a record offers. */

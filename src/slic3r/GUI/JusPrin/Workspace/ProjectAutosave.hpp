@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <chrono>
@@ -28,6 +29,12 @@ class ProjectAutosave
 {
 public:
     enum class State { Saving, Saved, Failed };
+    // What the project document records about sending and printing the
+    // project, for a status that does not open it.
+    struct Ledger {
+        std::vector<Agent::SentRecord> sent;
+        std::vector<Agent::PhysicalPrintRecord> prints;
+    };
     struct ManagedProject {
         std::string id;
         std::string name;
@@ -35,6 +42,8 @@ public:
         std::string source_path;
         std::string store_path;
         std::string thumbnail_url;
+        // Nothing when the document is one this build does not read.
+        std::optional<Ledger> ledger;
     };
 
     ProjectAutosave(Plater& plater, Agent::ProjectPersistence& persistence, IWorkspace& workspace,

@@ -75,6 +75,9 @@ wxString     current_colour();
 // Every filament slot in the project, in slot order.
 std::vector<FilamentSlot> filament_slots();
 
+// A filament preset's short name, as FilamentInfo::alias gives it.
+wxString display_alias(const Preset& preset);
+
 struct BedTypeChoice
 {
     int      value{0};           // BedType enum value

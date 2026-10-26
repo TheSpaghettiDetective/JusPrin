@@ -8,8 +8,21 @@ export function MonitorGlyph() {
   return <span className="glyph glyph-monitor" aria-hidden="true" />;
 }
 
-export function UploadGlyph() {
-  return <span className="glyph glyph-upload" aria-hidden="true" />;
+// Large on the drop targets, where it stands alone above the text.
+export function UploadGlyph({ large }: { large?: boolean } = {}) {
+  return <span className={large ? 'glyph glyph-large glyph-upload' : 'glyph glyph-upload'} aria-hidden="true" />;
+}
+
+export function SearchGlyph() {
+  return <span className="glyph glyph-search" aria-hidden="true" />;
+}
+
+export function ChevronDownGlyph() {
+  return <span className="glyph glyph-chevron-down" aria-hidden="true" />;
+}
+
+export function ChevronRightGlyph() {
+  return <span className="glyph glyph-chevron-right" aria-hidden="true" />;
 }
 
 export function MoreGlyph() {

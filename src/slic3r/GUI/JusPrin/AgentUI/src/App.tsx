@@ -456,9 +456,6 @@ export function App({
     Project restoration needs recovery. This chat cannot run project actions.
   </div>;
   const cardContext = historical ? state.chatResume.summary ?? null : state.context;
-  // A saved summary belongs to a send when this chat sent the plate it shows.
-  const sentBuild = historical ? [...state.builds].reverse().find((record) => record.conversationId === viewedId &&
-    !!record.sentAt && record.plateIndex === cardContext?.plates.findIndex((plate) => plate.active)) : undefined;
   // The card is a band docked under the chat header, as the design has it,
   // with a divider below; it lifts while the thread is scrolled under it.
   const setupCard = view === 'chat' && cardContext && <div className={threadScrolled ? 'pinned-setup pinned-setup--scrolled' : 'pinned-setup'}>
@@ -468,7 +465,6 @@ export function App({
       now={now}
       estimateBefore={!historical && beforeChange.current?.seq === newestChange?.seq &&
         beforeChange.current?.plateId === activePlate?.id ? beforeChange.current?.estimate : null}
-      sent={sentBuild?.sentAt ? { at: sentBuild.sentAt, printer: sentBuild.printer } : undefined}
       onCompute={historical ? undefined : () => {
         const current = stateRef.current.context;
         const plate = current?.plates.find((item) => item.active);
@@ -522,8 +518,6 @@ export function App({
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
-          builds={historical ? state.builds.filter((record) => record.conversationId === viewedId) : state.builds}
-          exportedCopies={historical ? state.exportedCopies.filter((record) => record.conversationId === viewedId) : state.exportedCopies}
           physicalPrints={historical ? state.physicalPrints.filter((record) => record.conversationId === viewedId) : state.physicalPrints}
           changes={viewedChanges}
           work={viewedWork}
@@ -611,8 +605,6 @@ export function App({
               renderActivity={(activity) => activity.actionId !== session?.credentialRequest?.actionId ? undefined : (
                 <PrinterCredentialForm request={session.credentialRequest} onConnect={connectPrinter} />
               )}
-              builds={[]}
-              exportedCopies={[]}
               physicalPrints={[]}
               changes={[]}
               printerBlocks={session?.blocks ?? []}

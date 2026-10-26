@@ -48,8 +48,9 @@ export type Appearance = 'light' | 'dark';
 // 'printing' earns a colored dot; every other state takes the plain line, so
 // an idle project cannot be mistaken for a running one.
 //
-// 'unknown' means the local project store has no current slice state to report.
-export type ProjectStatusKind = 'unknown' | 'draft' | 'sliced' | 'printing' | 'completed';
+// 'unknown' means the project's records could not be read; its text is empty
+// and the card shows no line.
+export type ProjectStatusKind = 'unknown' | 'draft' | 'sent' | 'printing' | 'completed';
 
 export interface ProjectStatus {
   kind: ProjectStatusKind;
@@ -64,6 +65,8 @@ export interface ProjectInfo {
   path: string;
   // A preview URL, absent when the project carries none.
   thumbnailUrl?: string;
+  // When the model was last saved, ISO 8601 in UTC; the card words it.
+  updatedAt?: string;
   status: ProjectStatus;
 }
 

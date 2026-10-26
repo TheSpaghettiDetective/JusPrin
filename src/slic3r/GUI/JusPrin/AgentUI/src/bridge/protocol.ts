@@ -712,43 +712,6 @@ export interface SliceStatisticsInfo {
   layerCount: number;
 }
 
-export interface BuildInfo {
-  id: string;
-  seq: number;
-  createdAt: string;
-  projectId: string;
-  conversationId: string;
-  afterMessageId: string;
-  plateIndex: number;
-  plateName: string;
-  printer: string;
-  material: string;
-  manufacturingInputHash: string;
-  outputHash: string;
-  slicerVersion: string;
-  configurationProvenance: string;
-  sentAt?: string;
-  deliveryConfirmedAt?: string;
-  deliveryLocation?: string;
-  statistics: SliceStatisticsInfo;
-  warnings: string[];
-  stale: boolean; // derived by the host from the current same-plate input hash
-}
-
-export interface ExportedCopyInfo {
-  id: string;
-  seq: number;
-  createdAt: string;
-  buildId: string;
-  conversationId: string;
-  afterMessageId: string;
-  destination: string;
-  expectedOutputHash: string;
-  observedOutputHash: string;
-  verified: boolean; // derived by checksum comparison
-  modified: boolean; // derived by checksum comparison
-}
-
 export interface PhysicalPrintInfo {
   id: string;
   seq: number;
@@ -756,7 +719,6 @@ export interface PhysicalPrintInfo {
   endedAt: string;
   outcome: 'completed' | 'failed' | 'cancelled';
   failure: string;
-  buildId: string;
   projectId: string;
   conversationId: string;
   afterMessageId: string;
@@ -1031,8 +993,6 @@ export interface StatePayload {
   conversation: WireMessage[]; // messages of the viewed conversation
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  builds: BuildInfo[];
-  exportedCopies: ExportedCopyInfo[];
   physicalPrints: PhysicalPrintInfo[];
   changes?: ChangeInfo[]; // absent from hosts without the change_log capability
   work?: WorkInfo[]; // absent from hosts without the work_log capability

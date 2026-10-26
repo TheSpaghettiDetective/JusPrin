@@ -101,8 +101,6 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
     conversation: [],
     streamingMessageId: null,
     toolActivities: [],
-    builds: [],
-    exportedCopies: [],
     physicalPrints: [],
     draft: '',
     context,
@@ -314,28 +312,16 @@ describe('App', () => {
     expect(screen.getByRole('list')).toHaveTextContent('Add a brim');
   });
 
-  it('renders build copy and physical-print facts with derived statuses', () => {
+  it('renders physical-print facts', () => {
     const hash = 'a'.repeat(64);
     const statistics = { printTimeSeconds: 3720, filamentMm: 1842.5, materialGrams: 14.7, materialCost: 0.44, layerCount: 124 };
     render(<App getTransport={() => host.transport} />);
     connect(
       host,
       emptyState({
-        builds: [{
-          id: 'b-1', seq: 10, createdAt: '2026-08-30T00:00:00Z', projectId: 'project-1',
-          conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
-          printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-          slicerVersion: 'JusPrin deterministic Phase 6', configurationProvenance: 'A very long configuration provenance value that must wrap at narrow widths',
-          statistics, warnings: ['A deterministic warning'], stale: true,
-        }],
-        exportedCopies: [{
-          id: 'e-1', seq: 11, createdAt: '2026-08-30T00:00:00Z', buildId: 'b-1', conversationId: 'conv-1',
-          afterMessageId: '', destination: '/a/very/long/path/that/must/not/overflow/phase-six-demo.gcode',
-          expectedOutputHash: hash, observedOutputHash: hash, verified: true, modified: false,
-        }],
         physicalPrints: [{
           id: 'p-1', seq: 12, startedAt: '2026-08-30T00:00:00Z', endedAt: '2026-08-30T01:02:00Z',
-          outcome: 'completed', failure: '', buildId: 'b-1', projectId: 'project-1',
+          outcome: 'completed', failure: '', projectId: 'project-1',
           conversationId: 'conv-1', afterMessageId: 'removed-message', plateIndex: 0, plateName: 'Plate 1',
           printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
           gcodeHash: hash, statistics,
@@ -343,11 +329,8 @@ describe('App', () => {
       }),
     );
 
-    expect(screen.getByLabelText('Build b-1')).toHaveTextContent('Stale');
-    expect(screen.getByLabelText('Build b-1')).toHaveTextContent('phase-six-demo.gcode · Checksum verified');
-    expect(screen.queryByLabelText('Exported copy e-1')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
-    expect(screen.getAllByTitle(hash).length).toBeGreaterThanOrEqual(6);
+    expect(screen.getAllByTitle(hash)).toHaveLength(3);
   });
 
   it('leads a filament note with its colour, drawn and never named', () => {
@@ -873,37 +856,6 @@ describe('App', () => {
     expect(host.lastOfType('restore_conversation')).toBeUndefined();
   });
 
-  it('marks a saved summary as sliced and sent only for the plate this chat sent', () => {
-    render(<App getTransport={() => host.transport} />);
-    const summary: WorkspaceContext = { ...applied, plates: [{ ...applied.plates[0], sliced: true,
-      estimate: { printTimeSeconds: 2520, materialGrams: 18, materialCost: null } }] };
-    const build = { id: 'b-1', seq: 1, createdAt: '2026-10-03T10:40:00', projectId: 'p', conversationId: 'conv-a',
-      afterMessageId: '', plateIndex: 0, plateName: 'Plate 1', printer: 'Bambu A1', material: 'PLA',
-      manufacturingInputHash: 'i', outputHash: 'o', slicerVersion: '2', configurationProvenance: '',
-      sentAt: '2026-10-03T10:42:00', statistics: { printTimeSeconds: 2520, filamentMm: 1, materialGrams: 18,
-        materialCost: 0, layerCount: 10 }, warnings: [], stale: false };
-    const state = (builds: typeof build[]) => emptyState({
-      conversations: [
-        { id: 'conv-a', title: 'Earlier', createdAt: 't' },
-        { id: 'conv-b', title: 'Current', createdAt: 't' },
-      ],
-      activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
-      chatResume: { status: 'changed', versionId: 'v-a', savedAt: '2026-10-03T10:42:00', summary },
-      builds,
-    });
-    connect(host, state([{ ...build, conversationId: 'conv-b' }, { ...build, id: 'b-2', plateIndex: 1 }]));
-    const card = () => screen.getByLabelText('Earlier setup — saved with this conversation');
-    expect(card()).toHaveTextContent('Earlier setup');
-    expect(card()).not.toHaveTextContent('Sliced & sent');
-
-    host.deliver('state', state([build]));
-    expect(card()).toHaveTextContent('Saved sliced snapshot');
-    expect(card()).toHaveTextContent('Sliced & sent');
-    expect(card()).toHaveTextContent('Saved pre-slice estimates');
-    expect(card()).toHaveTextContent('Actual time & material unavailable.');
-    expect(card()).toHaveTextContent('sent to Bambu A1');
-  });
-
   it('resumes an unchanged saved setup through the checked transition', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({
@@ -1346,7 +1298,7 @@ describe('App attachments', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ physicalPrints: [{
       id: 'p-1', seq: 1, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z',
-      outcome: 'failed', failure: 'Layer shift reported near layer 62.', buildId: 'b-1', projectId: 'project-1',
+      outcome: 'failed', failure: 'Layer shift reported near layer 62.', projectId: 'project-1',
       conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
       printer: 'Bambu X1C', material: 'Gray PETG', manufacturingInputHash: 'a'.repeat(64),
       outputHash: 'b'.repeat(64), gcodeHash: 'c'.repeat(64),

@@ -33,11 +33,6 @@ json printer_spool_schema()
                          json::array({"name", "material"}));
 }
 
-json string_array_schema()
-{
-    return json{{"type", "array"}, {"items", string_schema()}};
-}
-
 // A saved printer as the printer tools return it.
 json printer_saved_schema()
 {
@@ -98,11 +93,6 @@ bool optional_string(const json& arguments, const char* key)
 bool optional_number(const json& arguments, const char* key)
 {
     return !arguments.contains(key) || arguments[key].is_number();
-}
-
-bool optional_unsigned(const json& arguments, const char* key)
-{
-    return !arguments.contains(key) || arguments[key].is_number_unsigned();
 }
 
 // Prose the agent writes: present or absent, a string either way, and bounded
@@ -742,37 +732,6 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                    !decision["statement"].get_ref<const std::string&>().empty();
         });
     }
-
-    if (definition.handler == ToolHandler::RecordBuild) {
-        if (!has_only(arguments, {"slicerVersion", "configurationProvenance", "printTimeSeconds", "filamentMm",
-                                  "materialGrams", "materialCost", "layerCount", "warnings"}) ||
-            !optional_string(arguments, "slicerVersion") || !optional_string(arguments, "configurationProvenance") ||
-            !optional_number(arguments, "printTimeSeconds") || !optional_number(arguments, "filamentMm") ||
-            !optional_number(arguments, "materialGrams") || !optional_number(arguments, "materialCost") ||
-            !optional_unsigned(arguments, "layerCount"))
-            return false;
-        if (arguments.contains("warnings")) {
-            if (!arguments["warnings"].is_array())
-                return false;
-            for (const json& warning : arguments["warnings"])
-                if (!warning.is_string())
-                    return false;
-        }
-        return true;
-    }
-
-    if (definition.handler == ToolHandler::RecordExportCopy)
-        return has_only(arguments, {"buildId", "destination", "observedOutputHash"}) &&
-               optional_string(arguments, "buildId") && optional_string(arguments, "destination") &&
-               optional_string(arguments, "observedOutputHash");
-
-    if (definition.handler == ToolHandler::RecordPhysicalPrint)
-        return has_only(arguments, {"buildId", "printer", "material", "startedAt", "endedAt", "outcome",
-                                    "failure", "gcodeHash"}) &&
-               optional_string(arguments, "buildId") && optional_string(arguments, "printer") &&
-               optional_string(arguments, "material") && optional_string(arguments, "startedAt") &&
-               optional_string(arguments, "endedAt") && optional_string(arguments, "outcome") &&
-               optional_string(arguments, "failure") && optional_string(arguments, "gcodeHash");
 
     if (definition.handler == ToolHandler::SkillRead)
         return has_only(arguments, {"name"}) && arguments.contains("name") && arguments["name"].is_string() &&
@@ -1537,53 +1496,6 @@ std::vector<ToolDefinition> make_definitions()
                          // default, so a caller that sends no sections sees what it always saw.
                          {"sessionId", "revision", "truncated"}),
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::WorkspaceInspect},
-        {"record_build",
-         "Record a build of the sliced active plate",
-         "Record the sliced active plate in the JusPrin manufacturing history.",
-         object_schema(json{{"slicerVersion", string_schema()},
-                            {"configurationProvenance", string_schema()},
-                            {"printTimeSeconds", number_schema()},
-                            {"filamentMm", number_schema()},
-                            {"materialGrams", number_schema()},
-                            {"materialCost", number_schema()},
-                            {"layerCount", integer_schema()},
-                            {"warnings", string_array_schema()}}),
-         object_schema(json{{"buildId", id}, {"recorded", boolean_schema()}},
-                       json::array({"buildId", "recorded"})),
-         ActionClass::Mutation,
-         ToolExposure::Internal,
-         ToolAvailability::Always,
-         ToolHandler::RecordBuild},
-        {"record_export_copy",
-         "Record an exported G-code copy",
-         "Record a verified external G-code copy linked to a build.",
-         object_schema(json{{"buildId", string_schema()},
-                            {"destination", string_schema()},
-                            {"observedOutputHash", string_schema()}}),
-         object_schema(json{{"exportedCopyId", id}, {"buildId", id}},
-                       json::array({"exportedCopyId", "buildId"})),
-         ActionClass::Destructive,
-         ToolExposure::Internal,
-         ToolAvailability::Always,
-         ToolHandler::RecordExportCopy},
-        {"record_physical_print",
-         "Record a completed physical print",
-         "Record a completed physical-print fact linked to a build.",
-         object_schema(json{{"buildId", string_schema()},
-                            {"printer", string_schema()},
-                            {"material", string_schema()},
-                            {"startedAt", string_schema()},
-                            {"endedAt", string_schema()},
-                            {"outcome", string_schema()},
-                            {"failure", string_schema()},
-                            {"stoppedPercent", integer_schema()},
-                            {"gcodeHash", string_schema()}}),
-         object_schema(json{{"physicalPrintId", id}, {"buildId", id}, {"recorded", boolean_schema()}},
-                       json::array({"physicalPrintId", "buildId", "recorded"})),
-         ActionClass::Destructive,
-         ToolExposure::Internal,
-         ToolAvailability::Always,
-         ToolHandler::RecordPhysicalPrint},
         // The printer panel's own tools. They exist only inside a printer
         // session, which is why they carry no in-app or MCP exposure: the
         // project conversation has no printer to add, change or connect.

@@ -10,7 +10,7 @@ const char* to_string(ProjectStatusKind kind)
 {
     switch (kind) {
     case ProjectStatusKind::Draft: return "draft";
-    case ProjectStatusKind::Sliced: return "sliced";
+    case ProjectStatusKind::Sent: return "sent";
     case ProjectStatusKind::Printing: return "printing";
     case ProjectStatusKind::Completed: return "completed";
     case ProjectStatusKind::Unknown: break;
@@ -65,6 +65,7 @@ json project_json(const ProjectEntry& project)
         {"status", json{{"kind", to_string(project.status_kind)}, {"text", project.status_text}}},
     };
     set_if_present(out, "thumbnailUrl", project.thumbnail_url);
+    set_if_present(out, "updatedAt", project.updated_at);
     return out;
 }
 

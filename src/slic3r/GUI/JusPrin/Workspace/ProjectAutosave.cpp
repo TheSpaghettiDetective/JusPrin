@@ -784,10 +784,13 @@ std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::pro
             if (!authored_head(folder))
                 continue;
             const std::string id = folder.filename().string();
-            const auto add = [&result, &folder, &id](const ProjectVersionStore::Version& version) {
+            const auto add = [&result, &folder, &id](const ProjectVersionStore::Version& version,
+                                                     const Agent::ProjectStateDocument& document, bool readable) {
                 const auto source = std::filesystem::u8path(version.source_path);
                 const std::string name = !version.project_name.empty() ? version.project_name : source.stem().u8string();
                 ManagedProject project{id, name, version.created_at, version.source_path, folder.u8string()};
+                if (readable)
+                    project.ledger = Ledger{document.sent(), document.physical_prints()};
                 try {
                     project.thumbnail_url = saved_preview(folder, version.id);
                     if (project.thumbnail_url.empty()) {
@@ -806,15 +809,19 @@ std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::pro
                 }
                 result.push_back(std::move(project));
             };
+            // The open project's document is the one in memory, which can be
+            // ahead of the file by the last few seconds of edits.
             if (m_store && id == m_store->project_id()) {
                 const auto versions = m_store->history();
                 if (!versions.empty())
-                    add(versions.back());
+                    add(versions.back(), m_persistence.document(), true);
             } else {
                 ProjectVersionStore other(m_root, id);
                 const auto versions = other.history();
+                Agent::ProjectStateDocument document;
+                const bool readable = document.load(other.current_document()) == Agent::ProjectStateDocument::LoadResult::Loaded;
                 if (!versions.empty())
-                    add(versions.back());
+                    add(versions.back(), document, readable);
             }
         } catch (const std::exception& error) {
             BOOST_LOG_TRIVIAL(warning) << "Managed project unavailable: " << folder.string() << ": " << error.what();

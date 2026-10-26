@@ -5,7 +5,7 @@
 
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BuildInfo, ChangeInfo, ExportedCopyInfo, PhysicalPrintInfo, StatePayload } from '../bridge/protocol';
+import { ChangeInfo, PhysicalPrintInfo, StatePayload } from '../bridge/protocol';
 import { ChangeRows } from '../components/ChangeRows';
 import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from '../components/ManufacturingHistoryCard';
 import { mounted, mountedApp, VisualCase } from '../test/visual';
@@ -14,22 +14,9 @@ import { chatState, workspace } from './states';
 const hash = 'a71f8c04'.repeat(8);
 const statistics = { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 };
 
-const build = (overrides: Partial<BuildInfo> = {}): BuildInfo => ({
-  id: 'b-1', seq: 10, createdAt: '2026-10-01T13:04:00Z', projectId: 'project-1', conversationId: 'conv-1',
-  afterMessageId: 'm-2', plateIndex: 0, plateName: 'Plate 1', printer: 'Bambu X1C 0.4', material: 'Generic PLA',
-  manufacturingInputHash: hash, outputHash: hash, slicerVersion: 'JusPrin deterministic Phase 6',
-  configurationProvenance: '0.20mm Standard @BBL X1C, 5 changes', statistics, warnings: [], stale: false, ...overrides,
-});
-
-const copy = (overrides: Partial<ExportedCopyInfo> = {}): ExportedCopyInfo => ({
-  id: 'e-1', seq: 11, createdAt: '2026-10-01T14:24:00Z', buildId: 'b-1', conversationId: 'conv-1', afterMessageId: 'm-2',
-  destination: '/Users/maker/Desktop/Prints/bracket-v3.gcode', expectedOutputHash: hash, observedOutputHash: hash,
-  verified: true, modified: false, ...overrides,
-});
-
 const print = (overrides: Partial<PhysicalPrintInfo> = {}): PhysicalPrintInfo => ({
   id: 'p-1', seq: 12, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z', outcome: 'completed', failure: '',
-  buildId: 'b-1', projectId: 'project-1', conversationId: 'conv-1', afterMessageId: 'm-2', plateIndex: 0, plateName: 'Plate 1',
+  projectId: 'project-1', conversationId: 'conv-1', afterMessageId: 'm-2', plateIndex: 0, plateName: 'Plate 1',
   printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash, gcodeHash: hash,
   statistics, ...overrides,
 });
@@ -42,14 +29,8 @@ const record = (id: string, name: string, expects: string[], entry: Manufacturin
     (root) => { if (open) root.querySelector('details')!.open = true; }),
 });
 
-const entry = {
-  build: (info: BuildInfo, exported?: ExportedCopyInfo): ManufacturingHistoryEntry =>
-    ({ kind: 'build', seq: info.seq, afterMessageId: info.afterMessageId, record: info, copy: exported }),
-  copy: (info: ExportedCopyInfo): ManufacturingHistoryEntry =>
-    ({ kind: 'copy', seq: info.seq, afterMessageId: info.afterMessageId, record: info }),
-  print: (info: PhysicalPrintInfo): ManufacturingHistoryEntry =>
-    ({ kind: 'print', seq: info.seq, afterMessageId: info.afterMessageId, record: info }),
-};
+const printEntry = (info: PhysicalPrintInfo): ManufacturingHistoryEntry =>
+  ({ kind: 'print', seq: info.seq, afterMessageId: info.afterMessageId, record: info });
 
 // ---- The change log between the turns -----------------------------------------
 // The matrix's own frame draws no change rows; the context screen (1424:396)
@@ -93,23 +74,12 @@ const recovery = (id: string, name: string, expects: string[], state: StatePaylo
 });
 
 export const historyCases: VisualCase[] = [
-  record('build', 'Build · Collapsed · Current', ['G-code', 'a71f 8c04', '2h 36m · 68 g · 181 layers', 'Sliced for Bambu X1C 0.4',
-    'bracket-v3.gcode · Checksum verified', 'Reprint this G-code'], entry.build(build(), copy())),
-  record('build-open', 'Build · Expanded · Current', ['<details class="history-details" open', 'Input SHA-256', '156 min', '1,842.5 mm',
-    'JusPrin deterministic Phase 6 · 0.20mm Standard @BBL X1C, 5 changes'], entry.build(build(), copy()), true),
-  record('build-stale', 'Build · Expanded · Stale warning', ['Stale · The project changed after this G-code was made.', 'A deterministic warning'],
-    entry.build(build({ stale: true, warnings: ['A deterministic warning'] }), copy()), true),
-  record('copy-verified', 'Exported copy · Verified', ['Exported copy', 'e-1', 'Checksum verified'], entry.copy(copy())),
-  record('copy-differs', 'Exported copy · Differs', ['Checksum differs', 'history-status warning'],
-    entry.copy(copy({ verified: false, modified: true }))),
-  record('copy-unchecked', 'Exported copy · Not checked', ['Not checked', 'history-status neutral'], entry.copy(copy({ verified: false }))),
-  record('copy-open', 'Exported copy · Expanded · Verified', ['Expected SHA-256', 'Destination', '<code>b-1</code>'], entry.copy(copy()), true),
-  record('print-completed', 'Physical print · Completed', ['Physical print', 'p-1', 'completed'], entry.print(print())),
+  record('print-completed', 'Physical print · Completed', ['Physical print', 'p-1', 'completed'], printEntry(print())),
   record('print-warning', 'Physical print · Warning', ['cancelled', 'First layer required intervention'],
-    entry.print(print({ outcome: 'cancelled', failure: 'First layer required intervention' }))),
+    printEntry(print({ outcome: 'cancelled', failure: 'First layer required intervention' }))),
   record('print-failed', 'Failed print · Collapsed', ['Print failed', 'Bambu X1C 0.4 · stopped at 41%, 1h 04m in',
-    'Layer shift reported near layer 62.', 'Discuss this failure'], entry.print(failed)),
-  record('print-failed-open', 'Failed print · Expanded', ['Printed G-code SHA-256', 'Started', 'Ended'], entry.print(failed), true),
+    'Layer shift reported near layer 62.', 'Discuss this failure'], printEntry(failed)),
+  record('print-failed-open', 'Failed print · Expanded', ['Printed G-code SHA-256', 'Started', 'Ended'], printEntry(failed), true),
 
   rows('summary', 'Agent change summary', ['agent-change-summary', 'Laid flat', 'settings', 'aria-expanded="false"'],
     laidFlat),

@@ -312,7 +312,7 @@ export function ChatHeader({ title, busy, onBack, onCreate, onRename, onDelete, 
         <div className="chat-dialog-buttons"><button type="button" onClick={closeDialog}>Cancel</button>
           <button className="primary" disabled={!validName} type="submit">Save</button></div>
       </form> : <>
-        <p>Delete ‘{title}’ and its messages? Your model, builds, and print history will stay. This cannot be undone.</p>
+        <p>Delete ‘{title}’ and its messages? Your model and print history will stay. This cannot be undone.</p>
         {busy && <p className="chat-dialog-note">Wait for the current action to finish before deleting.</p>}
         <div className="chat-dialog-buttons"><button onClick={closeDialog}>Cancel</button>
           <button className="danger" disabled={busy} onClick={() => { onDelete(); closeDialog(); }}>Delete</button></div>

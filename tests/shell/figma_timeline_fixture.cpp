@@ -52,41 +52,23 @@ FigmaTimelineFixture seed_figma_timeline_start(Agent::ProjectStateDocument& docu
         "Only beneath the hook tip. They won't touch the wall-facing surface.",
         "2026-10-01T13:03:00Z", support_question);
 
-    auto& build = fixture.first_build;
-    build.project_id = document.project_id();
-    build.conversation_id = fixture.conversation_id;
-    build.after_message_id = support_answer;
-    build.plate_name = "Plate 1";
-    build.printer = "Bambu X1C";
-    build.material = "Gray PETG";
-    build.manufacturing_input_hash = Agent::sha256_hex("backpack-hook-first-input");
-    build.output_hash = Agent::sha256_hex("backpack-hook-first-gcode");
-    build.slicer_version = "JusPrin";
-    build.configuration_provenance = "0.20 mm · 5 walls · 35% gyroid";
-    build.sent_at = "2026-10-01T13:04:00Z";
-    build.delivery_confirmed_at = "2026-10-01T13:06:00Z";
-    build.delivery_location = "the printer's SD";
-    build.statistics = {9360.0, 1842.5, 68.0, 1.12, 181};
-    const std::string first_build_id = document.add_build(build, "2026-10-01T13:04:00Z");
-
     Agent::PhysicalPrintRecord failed_print;
     failed_print.started_at = "2026-10-01T13:09:00Z";
     failed_print.ended_at = "2026-10-01T14:13:00Z";
     failed_print.outcome = "failed";
     failed_print.failure = "Layer shift reported near layer 62.";
-    failed_print.build_id = first_build_id;
-    failed_print.project_id = build.project_id;
+    failed_print.project_id = document.project_id();
     failed_print.conversation_id = fixture.conversation_id;
     failed_print.after_message_id = support_answer;
-    failed_print.plate_name = build.plate_name;
-    failed_print.printer = build.printer;
-    failed_print.material = build.material;
-    failed_print.manufacturing_input_hash = build.manufacturing_input_hash;
-    failed_print.output_hash = build.output_hash;
-    failed_print.gcode_hash = build.output_hash;
+    failed_print.plate_name = "Plate 1";
+    failed_print.printer = "Bambu X1C";
+    failed_print.material = "Gray PETG";
+    failed_print.manufacturing_input_hash = Agent::sha256_hex("backpack-hook-first-input");
+    failed_print.output_hash = Agent::sha256_hex("backpack-hook-first-gcode");
+    failed_print.gcode_hash = failed_print.output_hash;
     failed_print.stopped_percent = 41;
-    failed_print.statistics = build.statistics;
-    document.add_physical_print(failed_print, failed_print.ended_at);
+    failed_print.statistics = {9360.0, 1842.5, 68.0, 1.12, 181};
+    add_print(document, failed_print, "2026-10-01T13:04:00Z");
 
     const std::string failure_report = message(Agent::MessageRole::User,
         "It shifted off the plate about a third of the way up.", "2026-10-01T14:14:00Z");
@@ -118,26 +100,18 @@ FigmaTimelineFixture seed_figma_timeline_start(Agent::ProjectStateDocument& docu
     return fixture;
 }
 
-void finish_figma_timeline(Agent::ProjectStateDocument& document, const FigmaTimelineFixture& fixture)
+std::string add_print(Agent::ProjectStateDocument& document, Agent::PhysicalPrintRecord record,
+                      const std::string& timestamp)
 {
-    Agent::BuildRecord second_build = fixture.first_build;
-    second_build.after_message_id = document.last_item_id(fixture.conversation_id);
-    second_build.manufacturing_input_hash = Agent::sha256_hex("backpack-hook-revised-input");
-    second_build.output_hash = Agent::sha256_hex("backpack-hook-revised-gcode");
-    second_build.sent_at.clear();
-    second_build.delivery_confirmed_at.clear();
-    second_build.delivery_location.clear();
-    second_build.configuration_provenance = "0.20 mm · 5 walls · 45% gyroid · brim";
-    second_build.statistics = {9240.0, 1860.0, 69.0, 1.15, 181};
-    const std::string second_build_id = document.add_build(second_build, "2026-10-01T14:22:00Z");
-    Agent::ExportedCopyRecord copy;
-    copy.build_id = second_build_id;
-    copy.conversation_id = fixture.conversation_id;
-    copy.after_message_id = second_build.after_message_id;
-    copy.destination = "Desktop/Prints/bracket-v3.gcode";
-    copy.expected_output_hash = second_build.output_hash;
-    copy.observed_output_hash = second_build.output_hash;
-    document.add_exported_copy(copy, "2026-10-01T14:24:00Z");
+    Agent::SentRecord sent;
+    sent.project_id      = record.project_id;
+    sent.conversation_id = record.conversation_id;
+    sent.plate_index     = record.plate_index;
+    sent.plate_name      = record.plate_name;
+    sent.printer         = record.printer;
+    sent.material        = record.material;
+    record.sent_id       = document.add_sent(sent, timestamp);
+    return document.add_physical_print(std::move(record), timestamp);
 }
 
 } // namespace JusPrinTest

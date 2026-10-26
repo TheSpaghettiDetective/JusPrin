@@ -1,11 +1,8 @@
 import { ReactNode } from 'react';
-import { BuildInfo, ExportedCopyInfo, PhysicalPrintInfo, SliceStatisticsInfo } from '../bridge/protocol';
+import { PhysicalPrintInfo, SliceStatisticsInfo } from '../bridge/protocol';
 import { chatTimestamp } from './ChatNavigation';
 
-export type ManufacturingHistoryEntry =
-  | { kind: 'build'; seq: number; afterMessageId: string; record: BuildInfo; copy?: ExportedCopyInfo }
-  | { kind: 'copy'; seq: number; afterMessageId: string; record: ExportedCopyInfo }
-  | { kind: 'print'; seq: number; afterMessageId: string; record: PhysicalPrintInfo };
+export type ManufacturingHistoryEntry = { kind: 'print'; seq: number; afterMessageId: string; record: PhysicalPrintInfo };
 
 function decimal(value: number, digits: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(value);
@@ -23,10 +20,6 @@ function coarseDuration(seconds: number): string {
 // The <code> keeps the whole digest in its title, as the expanded rows do.
 function shortHash(hash: string): string {
   return `${hash.slice(0, 4)} ${hash.slice(4, 8)}`;
-}
-
-function summaryStats(statistics: SliceStatisticsInfo): string {
-  return `${coarseDuration(statistics.printTimeSeconds)} · ${decimal(statistics.materialGrams, 1)} g · ${statistics.layerCount} layers`;
 }
 
 function HashValue({ label, value }: { label: string; value: string }) {
@@ -101,68 +94,6 @@ export function ManufacturingHistoryCard({ entry, onDiscussFailure, discussDisab
   onDiscussFailure?: (print: PhysicalPrintInfo) => void;
   discussDisabled?: boolean;
 }) {
-  if (entry.kind === 'build') {
-    const build = entry.record;
-    const copy = entry.copy;
-    const copyName = copy?.destination.split(/[\\/]/).pop();
-    return (
-      <article className="history-card build-card" aria-label={`Build ${build.id}`}>
-        <details className="history-details">
-          <summary className="history-summary">
-            <Heading kind="G-code" id={build.outputHash ? shortHash(build.outputHash) : build.id} idTitle={build.outputHash}
-              time={chatTimestamp(build.createdAt)} />
-            <strong className="history-stats-line">{summaryStats(build.statistics)}</strong>
-            {build.printer && <span className="history-line">{build.sentAt ? 'Sent to' : 'Sliced for'} {build.printer}</span>}
-            {build.deliveryConfirmedAt && <Status tone="success">{chatTimestamp(build.deliveryConfirmedAt)} · on {build.deliveryLocation || 'the printer'}</Status>}
-            {copy && <Status tone={copy.verified ? 'success' : copy.modified ? 'warning' : 'neutral'}>
-              {copyName || copy.destination} · {copy.verified ? 'Checksum verified' : copy.modified ? 'Checksum differs' : 'Not checked'}
-            </Status>}
-          </summary>
-          <div className="history-detail">
-            {build.stale && <Status tone="warning">Stale · The project changed after this G-code was made. Slice again to match the plate.</Status>}
-            <Facts plate={build.plateName} printer={build.printer} material={build.material} />
-            <Statistics statistics={build.statistics} />
-            <dl className="history-rows">
-              <HashValue label="Input SHA-256" value={build.manufacturingInputHash} />
-              <HashValue label="G-code SHA-256" value={build.outputHash} />
-            </dl>
-            <p className="history-provenance">{build.slicerVersion} · {build.configurationProvenance}</p>
-            {build.warnings.length > 0 && <ul className="history-warnings">
-              {build.warnings.map((warning, index) => <li key={index}><Status tone="warning">{warning}</Status></li>)}
-            </ul>}
-          </div>
-        </details>
-        {/* Shown, never offered: this build keeps no G-code file to resend. */}
-        {(build.sentAt || copy?.verified) && <button type="button" className="history-action" disabled
-          title="This build does not retain a G-code file that the app can resend">Reprint this G-code</button>}
-      </article>
-    );
-  }
-
-  if (entry.kind === 'copy') {
-    const copy = entry.record;
-    return (
-      <article className="history-card copy-card" aria-label={`Exported copy ${copy.id}`}>
-        <details className="history-details">
-          <summary className="history-summary">
-            <Heading kind="Exported copy" id={copy.id} time={chatTimestamp(copy.createdAt)} />
-            {copy.destination && <span className="history-line primary long-content">{copy.destination}</span>}
-            <Status tone={copy.modified ? 'warning' : copy.verified ? 'success' : 'neutral'}>
-              {copy.modified ? 'Checksum differs' : copy.verified ? 'Checksum verified' : 'Not checked'}
-            </Status>
-          </summary>
-          <div className="history-detail">
-            <dl className="history-rows">
-              <div><dt>Build</dt><dd><code>{copy.buildId}</code></dd></div>
-              <div className="history-block"><dt>Destination</dt><dd className="long-content">{copy.destination}</dd></div>
-              <HashValue label="Expected SHA-256" value={copy.expectedOutputHash} />
-            </dl>
-          </div>
-        </details>
-      </article>
-    );
-  }
-
   const print = entry.record;
   const started = chatTimestamp(print.startedAt);
   const ended = chatTimestamp(print.endedAt);
@@ -180,7 +111,7 @@ export function ManufacturingHistoryCard({ entry, onDiscussFailure, discussDisab
       <Statistics statistics={print.statistics} />
       <dl className="history-rows">
         <HashValue label="Input SHA-256" value={print.manufacturingInputHash} />
-        <HashValue label="Build SHA-256" value={print.outputHash} />
+        <HashValue label="Sliced G-code SHA-256" value={print.outputHash} />
         <HashValue label="Printed G-code SHA-256" value={print.gcodeHash} />
       </dl>
     </div>

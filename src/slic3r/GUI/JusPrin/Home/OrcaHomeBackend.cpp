@@ -9,6 +9,8 @@
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -24,6 +26,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
+#include <wx/datetime.h>
 #include <wx/msgdlg.h>
 
 #include <algorithm>
@@ -170,6 +173,51 @@ MachineObject* my_machine(const std::string& device_id)
 
 std::string gone() { return utf8(_L("This printer no longer exists.")); }
 
+// "Oct 20" in local time, or "Oct 20, 2025" outside this year; empty for a
+// time that is not ISO 8601 in UTC, such as one a record was given by hand.
+wxString short_date(const std::string& iso_utc)
+{
+    wxDateTime when;
+    if (iso_utc.size() < 19 || !when.ParseISOCombined(wxString::FromUTF8(iso_utc.substr(0, 19))))
+        return {};
+    when.MakeFromTimezone(wxDateTime::UTC);
+    const wxString day = wxString::Format("%s %d", wxDateTime::GetMonthName(when.GetMonth(), wxDateTime::Name_Abbr), when.GetDay());
+    return when.GetYear() == wxDateTime::Now().GetYear() ? day : wxString::Format("%s, %d", day, when.GetYear());
+}
+
+// A recorded printer as the rest of Home names one, "X1 Carbon", and a
+// filament as the sidebar does, "Bambu PLA Basic". A preset no longer
+// installed keeps the name the record has.
+wxString printer_label(const std::string& preset_name)
+{
+    const Preset*     preset = wxGetApp().preset_bundle->printers.find_preset(preset_name);
+    const std::string model  = preset != nullptr ? model_name(preset->config.opt_string("printer_model")) : std::string();
+    return wxString::FromUTF8(model.empty() ? preset_name : model);
+}
+
+wxString material_label(const std::string& preset_name)
+{
+    const Preset* preset = wxGetApp().preset_bundle->filaments.find_preset(preset_name);
+    return preset != nullptr ? SetupCommands::display_alias(*preset) : wxString::FromUTF8(preset_name);
+}
+
+// "Draft", "Sent Oct 20 · X1 Carbon · PLA Matte", "Printed Oct 20 · X1
+// Carbon · PLA".
+wxString ledger_text(const LedgerStatus& status)
+{
+    const wxString date = short_date(status.at);
+    wxString       text;
+    switch (status.kind) {
+    case ProjectStatusKind::Completed: text = date.empty() ? _L("Printed") : wxString::Format(_L("Printed %s"), date); break;
+    case ProjectStatusKind::Sent: text = date.empty() ? _L("Sent") : wxString::Format(_L("Sent %s"), date); break;
+    default: return _L("Draft");
+    }
+    for (const wxString& part : {printer_label(status.printer), material_label(status.material)})
+        if (!part.empty())
+            text += middle_dot() + part;
+    return text;
+}
+
 } // namespace
 
 OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame)
@@ -191,14 +239,14 @@ ProjectList OrcaHomeBackend::recent_projects() const
         return {{}, utf8(_L("Your projects couldn't be loaded. JusPrin will keep trying."))};
     // Match printing jobs by the project's display name, which is what Orca
     // uses for a job. The source file may have been deleted after import.
-    std::map<std::string, std::string> printing_by_stem;
+    std::map<std::string, MachineObject*> printing_by_stem;
     if (DeviceManager* devices = wxGetApp().getDeviceManager()) {
         for (const auto& entry : devices->get_my_machine_list()) {
             MachineObject* machine = entry.second;
             if (machine == nullptr)
                 continue;
             if (machine_is_printing(*machine) && !machine->subtask_name.empty())
-                printing_by_stem.emplace(machine->subtask_name, machine->get_dev_name());
+                printing_by_stem.emplace(machine->subtask_name, machine);
         }
     }
 
@@ -210,16 +258,20 @@ ProjectList OrcaHomeBackend::recent_projects() const
             utf8(_L("Untitled project")) : saved.name;
         project.path = saved.store_path;
         project.thumbnail_url = saved.thumbnail_url;
+        project.updated_at = saved.updated_at;
 
-        const auto printing = printing_by_stem.find(project.name);
-        if (printing != printing_by_stem.end()) {
+        if (const auto printing = printing_by_stem.find(project.name); printing != printing_by_stem.end()) {
+            MachineObject& machine = *printing->second;
             project.status_kind = ProjectStatusKind::Printing;
-            project.status_text = std::string(
-                wxString::Format(_L("Printing on %s"), wxString::FromUTF8(printing->second)).ToUTF8());
-        } else {
-            project.status_kind = ProjectStatusKind::Unknown;
-            project.status_text = utf8(_L("Saved"));
+            project.status_text = utf8(wxString::Format(_L("Printing on %s"), wxString::FromUTF8(machine.get_dev_name())) +
+                                       middle_dot() + wxString::Format("%d%%", machine.mc_print_percent));
+        } else if (saved.ledger) {
+            const LedgerStatus status = ledger_status(saved.ledger->sent, saved.ledger->prints);
+            project.status_kind = status.kind;
+            project.status_text = utf8(ledger_text(status));
         }
+        // A document this build cannot read leaves the kind Unknown: the card
+        // shows no line rather than guess one.
         listed.projects.push_back(std::move(project));
     }
     return listed;

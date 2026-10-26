@@ -39,7 +39,7 @@ function project(overrides: Partial<ProjectInfo> = {}): ProjectInfo {
     id: 'p1',
     name: 'Garage bracket',
     path: 'C:/projects/garage.3mf',
-    status: { kind: 'sliced', text: 'Sliced · ready to send' },
+    status: { kind: 'sent', text: 'Sent Oct 20 · X1 Carbon · PLA' },
     ...overrides,
   };
 }
@@ -94,7 +94,7 @@ describe('Home', () => {
     const host = start();
     host.deliver('state', state({ projects: [], projectsProblem: "Your projects couldn't be loaded." }));
     expect(screen.getByRole('alert')).toHaveTextContent("Your projects couldn't be loaded.");
-    expect(screen.queryByText('Drop a model or project here, or Open…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Drop a model or project to start')).not.toBeInTheDocument();
     host.deliver('state', state());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByText('Garage bracket')).toBeInTheDocument();
@@ -104,10 +104,10 @@ describe('Home', () => {
     const host = new MockHost();
     render(<App getTransport={() => host.transport} />);
     expect(screen.getByText('Connecting…')).toBeInTheDocument();
-    expect(screen.queryByText('Drop a model or project here, or Open…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Drop a model or project to start')).not.toBeInTheDocument();
     host.deliver('hello_ack', {});
     host.deliver('state', state({ projects: [], printers: [] }));
-    expect(screen.getByText('Drop a model or project here, or Open…')).toBeInTheDocument();
+    expect(screen.getByText('Drop a model or project to start')).toBeInTheDocument();
   });
 
   it('renders a card per project and opens the one that is clicked', async () => {
@@ -164,7 +164,7 @@ describe('Home', () => {
     expect(bare.querySelectorAll('.project-thumbnail')).toHaveLength(1);
   });
 
-  it('shows a printing printer with its job and a never-connected one without an action', () => {
+  it('shows a printing printer with its job and a never-connected one without an action', async () => {
     const host = start();
     const never = printer({
       id: 'mk4',
@@ -183,7 +183,11 @@ describe('Home', () => {
     expect(screen.getByText('Printing · 43% · 2h left')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '43');
     expect(screen.getByText('X1 Carbon · 0.4 mm')).toBeInTheDocument();
-    // Never connected: the card says so, and connecting is in its menu.
+    // Never connected: a chip that says so in words, with no dot.
+    const chip = screen.getByRole('button', { name: 'Prusa MK4, Not connected' });
+    expect(chip.querySelector('.status-dot')).toBeNull();
+    // Opened, the card says so too, and connecting is in its menu.
+    await userEvent.click(chip);
     const idle = screen.getByText('Prusa MK4').closest('.printer-card') as HTMLElement;
     expect(within(idle).getByText('Not connected')).toBeInTheDocument();
     expect(within(idle).queryByRole('button', { name: /Connect|Reconnect|Launch monitor|Open printer window/ })).toBeNull();
@@ -225,7 +229,7 @@ describe('Home', () => {
     const model = new File(['solid cube'], 'cube.stl', { type: 'model/stl' });
     const page = document.querySelector('.app')!;
     fireEvent.dragOver(page, { dataTransfer: { files: [model] } });
-    fireEvent.drop(screen.getByText('Drop a model or project here, or Open…'), { dataTransfer: { files: [model] } });
+    fireEvent.drop(screen.getByText('Drop a model or project to start'), { dataTransfer: { files: [model] } });
     await waitFor(() => expect(host.lastOfType('open_dropped_files')).toBeDefined());
     const payload = host.lastOfType('open_dropped_files')!.payload as { files: { name: string; dataBase64: string }[] };
     expect(payload.files).toHaveLength(1);
@@ -245,6 +249,7 @@ describe('Home', () => {
   it('offers connection and printer actions from each named card header', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer(), printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Prusa MK4, Idle' }));
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
     const menu = screen.getByRole('menu');
       expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
@@ -262,6 +267,7 @@ describe('Home', () => {
   it('starts a calibration on a named printer from its card header', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer({ id: 'mk4', name: 'Prusa MK4', state: 'idle' })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Prusa MK4, Idle' }));
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Prusa MK4' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Calibrate…' }));
     expect(host.lastOfType('calibrate_printer')!.payload).toEqual({ id: 'mk4' });
@@ -291,6 +297,7 @@ describe('Home', () => {
   it('connects an existing saved printer without asking to add it again', async () => {
     const host = start();
     host.deliver('state', state({ printers: [printer({ state: 'idle', canLaunchMonitor: false })] }));
+    await userEvent.click(screen.getByRole('button', { name: 'X1 Carbon, Idle' }));
     await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Connect…' }));
     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
@@ -395,6 +402,7 @@ describe('Home', () => {
     const host = start();
     const idle = printer({ state: 'idle', statusText: undefined, progressPercent: undefined });
     host.deliver('state', state({ printers: [idle] }));
+    await userEvent.click(screen.getByRole('button', { name: 'X1 Carbon, Idle' }));
     await userEvent.click(screen.getByRole('button', { name: 'Actions for X1 Carbon' }));
     expect(screen.getByRole('menu')).toBeInTheDocument();
 
@@ -438,3 +446,155 @@ describe('Home', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'x1' });
   });
+
+// The Main Page boards on the JusPrin v2 canvas: main-home-light and
+// main-home-first-run-light.
+describe('Home gallery and rail', () => {
+  const many = (count: number) =>
+    Array.from({ length: count }, (_, index) => project({ id: `p${index}`, name: `Part ${String.fromCharCode(74 - index)}` }));
+
+  // The shell hides its project header on Home, so the page draws its own.
+  it('heads the page with JusPrin › Home and Preferences', () => {
+    const host = start();
+    host.deliver('state', state());
+    const header = document.querySelector('.home-header') as HTMLElement;
+    expect(header.textContent).toBe('JusPrinHome');
+    expect(within(header).getByRole('button', { name: 'Preferences' })).toBeInTheDocument();
+    expect(document.querySelector('.printer-column')!.querySelector('.preferences-button')).toBeNull();
+  });
+
+  it('starts with one drop target that carries both actions and names the printer', () => {
+    const host = start();
+    host.deliver('state', state({ projects: [], printers: [printer({ name: 'Bambu Lab A1', state: 'idle' })] }));
+    const header = document.querySelector('.gallery-header') as HTMLElement;
+    expect(within(header).getByText('0')).toBeInTheDocument();
+    expect(within(header).queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    const panel = document.querySelector('.first-run') as HTMLElement;
+    expect(within(panel).getByText(/then plans the print for your Bambu Lab A1\.$/)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Open…' })).toHaveClass('button-primary');
+    expect(within(panel).getByRole('button', { name: 'New' })).toHaveClass('button-secondary');
+    expect(within(panel).getByText('Your projects will appear here, most recent first.')).toBeInTheDocument();
+    expect(document.querySelectorAll('.button-primary')).toHaveLength(1);
+  });
+
+  it('leaves the printer out of the first-run line when there is none', () => {
+    const host = start();
+    host.deliver('state', state({ projects: [], printers: [] }));
+    expect(screen.getByText(/JusPrin asks what the part is for, then plans the print\.$/)).toBeInTheDocument();
+  });
+
+  it('leads the grid with a drop tile that opens the file dialog', async () => {
+    const host = start();
+    host.deliver('state', state());
+    const grid = document.querySelector('.project-grid') as HTMLElement;
+    expect(grid.firstElementChild).toHaveClass('drop-tile');
+    expect(within(grid).getByText('STL · 3MF · STEP · OBJ · AMF · SVG · ZIP')).toBeInTheDocument();
+    await userEvent.click(within(grid).getByText('Drop a model or project here'));
+    expect(host.lastOfType('open_file')).toBeDefined();
+  });
+
+  it('opens a file dropped on the tile like one dropped anywhere else', async () => {
+    const host = start();
+    host.deliver('state', state());
+    const model = new File(['solid cube'], 'cube.stl', { type: 'model/stl' });
+    fireEvent.drop(screen.getByText('Drop a model or project here'), { dataTransfer: { files: [model] } });
+    await waitFor(() => expect(host.lastOfType('open_dropped_files')).toBeDefined());
+    expect(host.lastOfType('open_file')).toBeUndefined();
+  });
+
+  it('titles a card with when it was saved, over the host status line', () => {
+    const host = start();
+    const today = new Date();
+    today.setHours(0, 1);
+    host.deliver('state', state({
+      projects: [
+        project({ id: 'a', name: 'Vent grille', updatedAt: today.toISOString(), status: { kind: 'draft', text: 'Draft' } }),
+        project({ id: 'b', name: 'Phone stand', status: { kind: 'unknown', text: '' } }),
+      ],
+    }));
+    const [first, second] = [...document.querySelectorAll('.project-card')] as HTMLElement[];
+    expect(within(first).getByText('Today')).toHaveClass('project-date');
+    expect(within(first).getByText('Draft').closest('.project-status')).not.toBeNull();
+    // No time and no line: neither is drawn empty.
+    expect(second.querySelector('.project-date')).toBeNull();
+    expect(second.querySelector('.project-status')).toBeNull();
+  });
+
+  it('offers search and sort only once the gallery is long', () => {
+    const host = start();
+    host.deliver('state', state({ projects: many(7) }));
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Sort projects' })).toBeNull();
+    host.deliver('state', state({ projects: many(8) }));
+    expect(screen.getByRole('searchbox', { name: 'Search projects' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Sort projects' })).toHaveValue('recent');
+    expect(within(document.querySelector('.gallery-header') as HTMLElement).getByText('8')).toBeInTheDocument();
+  });
+
+  it('filters by name and sorts by name, keeping the host order for Recent', async () => {
+    const host = start();
+    host.deliver('state', state({ projects: many(8) }));
+    const titles = () => [...document.querySelectorAll('.project-title')].map((title) => title.textContent);
+    expect(titles()[0]).toBe('Part J');
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort projects' }), 'name');
+    expect(titles()[0]).toBe('Part C');
+    expect(titles()[7]).toBe('Part J');
+
+    await userEvent.type(screen.getByRole('searchbox'), 'part e');
+    expect(titles()).toEqual(['Part E']);
+    await userEvent.clear(screen.getByRole('searchbox'));
+    await userEvent.type(screen.getByRole('searchbox'), 'gear');
+    expect(titles()).toEqual([]);
+    expect(screen.getByText('No projects match “gear”.')).toBeInTheDocument();
+  });
+
+  it('folds an idle printer into a chip with its material, and opens it on a click', async () => {
+    const host = start();
+    const a1 = printer({
+      id: 'a1',
+      name: 'Bambu Lab A1',
+      state: 'idle',
+      statusText: undefined,
+      progressPercent: undefined,
+      spools: [{ material: 'PLA', colour: '#262626' }],
+    });
+    host.deliver('state', state({ printers: [printer(), a1] }));
+    // The printing printer is its full card; the idle one is a chip.
+    expect(document.querySelectorAll('.printer-card')).toHaveLength(1);
+    const chip = screen.getByRole('button', { name: 'Bambu Lab A1, Idle' });
+    expect(chip).toHaveAttribute('aria-expanded', 'false');
+    expect(chip.querySelector('.status-dot')).not.toBeNull();
+    expect(within(chip).getByText('PLA')).toBeInTheDocument();
+    expect(chip.querySelectorAll('.spool-swatch')).toHaveLength(1);
+
+    await userEvent.click(chip);
+    expect(document.querySelectorAll('.printer-card')).toHaveLength(2);
+    // It stays open through the host's next push.
+    host.deliver('state', state({ printers: [printer(), a1] }));
+    expect(document.querySelectorAll('.printer-card')).toHaveLength(2);
+  });
+
+  it('keeps a printer that needs reconnecting, or was just added, as its full card', () => {
+    const host = start();
+    const offline = printer({
+      id: 'off',
+      name: 'Garage X1',
+      state: 'offline',
+      statusText: undefined,
+      progressPercent: undefined,
+      connectionState: 'offline',
+      connectionText: 'Offline',
+      connectionAction: 'reconnect',
+      canLaunchMonitor: false,
+    });
+    const added = printer({ id: 'new', name: 'Desk A1 mini', state: 'idle', statusText: undefined, progressPercent: undefined });
+    host.deliver('state', state({ printers: [added, offline], highlightPrinter: 'Desk A1 mini' }));
+    expect(screen.queryByRole('button', { name: /^Desk A1 mini,|^Garage X1,/ })).toBeNull();
+    expect(document.querySelectorAll('.printer-card')).toHaveLength(2);
+    // The added printer stays open once the push that named it has passed.
+    host.deliver('state', state({ printers: [added, offline] }));
+    expect(document.querySelectorAll('.printer-card')).toHaveLength(2);
+  });
+});

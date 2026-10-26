@@ -59,8 +59,6 @@ const statePayload: StatePayload = {
   ],
   streamingMessageId: null,
   toolActivities: [toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } })],
-  builds: [],
-  exportedCopies: [],
   physicalPrints: [],
   draft: 'unfinished thought',
   context,

@@ -21,7 +21,6 @@ enum class ToolExposure : std::uint8_t {
     None     = 0,
     InApp    = 1u << 0,
     Mcp      = 1u << 1,
-    Internal = 1u << 2,
     // The printer panel's own session. Deliberately outside InApp: the
     // project conversation has no printer panel to draw a card in.
     Printer  = 1u << 3
@@ -77,9 +76,6 @@ enum class ToolHandler : std::uint8_t {
     PrinterList,
     SliceStart,
     SliceReportRead,
-    RecordBuild,
-    RecordExportCopy,
-    RecordPhysicalPrint,
     PrinterIdentify,
     PrinterAdd,
     PrinterChange,

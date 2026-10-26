@@ -1571,51 +1571,6 @@ TEST_CASE("a read-only tool runs over the bridge", "[agent][tools]")
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
-TEST_CASE("deterministic build export and physical print records use the native coordinator",
-          "[agent][history]")
-{
-    Harness harness;
-    harness.handshake();
-    harness.workspace.set_plate_sliced(harness.workspace.snapshot().plates[0].id, true);
-
-    auto run_record_tool = [&harness](const std::string& command, const std::string& client_id) {
-        harness.send_user_message(command, client_id);
-        harness.pump_all();
-        const json submitted = (*harness.last_of_type("tool_activity"))["payload"]["activity"];
-        const std::string action_id = submitted["actionId"].get<std::string>();
-        pump_tools_to_completion(harness);
-        REQUIRE((*harness.last_of_type("tool_activity"))["payload"]["activity"]["state"] == "succeeded");
-    };
-
-    run_record_tool("/build", "c-history-build");
-    run_record_tool("/export", "c-history-export");
-    run_record_tool("/print", "c-history-print");
-
-    const json* recorded = harness.last_of_type("state");
-    REQUIRE(recorded != nullptr);
-    REQUIRE((*recorded)["payload"]["builds"].size() == 1);
-    REQUIRE((*recorded)["payload"]["exportedCopies"].size() == 1);
-    REQUIRE((*recorded)["payload"]["physicalPrints"].size() == 1);
-    const json build = (*recorded)["payload"]["builds"][0];
-    CHECK(build["stale"] == false);
-    CHECK(build["manufacturingInputHash"].get<std::string>().size() == 64);
-    CHECK(build["outputHash"].get<std::string>().size() == 64);
-    CHECK(build["statistics"]["layerCount"] == 124);
-    CHECK((*recorded)["payload"]["exportedCopies"][0]["verified"] == true);
-    CHECK((*recorded)["payload"]["physicalPrints"][0]["outcome"] == "completed");
-    CHECK((*recorded)["payload"]["physicalPrints"][0]["printer"] == "Test Printer 0.4 nozzle");
-    CHECK((*recorded)["payload"]["physicalPrints"][0]["material"] == "Generic PLA");
-
-    // A later manufacturing change changes the canonical current input hash;
-    // staleness is derived at bridge time, not persisted in the build.
-    REQUIRE(harness.workspace.duplicate_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
-    harness.deliver("state_request");
-    CHECK((*harness.last_of_type("state"))["payload"]["builds"][0]["stale"] == true);
-    const json print = (*harness.last_of_type("state"))["payload"]["physicalPrints"][0];
-    CHECK(print["outputHash"] == build["outputHash"]);
-    CHECK(print["statistics"]["layerCount"] == 124);
-}
-
 TEST_CASE("conversations are created and switched over the bridge", "[agent][conversations]")
 {
     Harness harness;

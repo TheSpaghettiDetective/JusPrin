@@ -10,10 +10,12 @@ struct FigmaTimelineFixture
 {
     std::string background_conversation_id;
     std::string conversation_id;
-    Agent::BuildRecord first_build;
 };
 
 FigmaTimelineFixture seed_figma_timeline_start(Agent::ProjectStateDocument& document);
-void finish_figma_timeline(Agent::ProjectStateDocument& document, const FigmaTimelineFixture& fixture);
+
+// A print as the app writes one: after a Sent event it ran from.
+std::string add_print(Agent::ProjectStateDocument& document, Agent::PhysicalPrintRecord record,
+                      const std::string& timestamp);
 
 } // namespace JusPrinTest

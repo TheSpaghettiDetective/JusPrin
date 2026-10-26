@@ -15,6 +15,10 @@
 //   --confirmation-dialog-width  the design system's Confirmation dialog, for
 //                          a question the host asks over Home
 //   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
+// and the gallery header's search and sort, the design system's field and
+// select at the Main Page board's width:
+//   --field-<name>, --select-<name>  height, radius, horizontal padding
+//   --project-gallery-search-width
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
@@ -30,6 +34,10 @@ export { applyAppearance } from '@shared/tokens';
 interface CardTokens {
   component: {
     projectCard: Record<string, number>;
+    projectGallery: Record<string, number>;
+    homeHeader: Record<string, number>;
+    field: Record<string, number | string>;
+    select: Record<string, number | string>;
     printerCard: Record<string, number>;
     statusDot: { size: number };
     swatch: Record<string, number>;
@@ -52,6 +60,13 @@ const ASPECT = '--project-card-thumbnail-aspect';
 // is the smallest size on the documented icon scale, so it sits on the text
 // line rather than beside it.
 const GLYPH = '--glyph-size';
+// The drop target's upload glyph is the largest size on the same scale.
+const GLYPH_LARGE = '--glyph-size-large';
+
+// A field's text role is a name, not a length; only its sizes become variables.
+function pixels(section: Record<string, number | string>): Record<string, number> {
+  return Object.fromEntries(Object.entries(section).filter(([, value]) => typeof value === 'number')) as Record<string, number>;
+}
 
 function pixelSection(section: Record<string, number>): Record<string, number> {
   const { thumbnailAspectWidth, thumbnailAspectHeight, ...rest } = section;
@@ -76,6 +91,10 @@ export function staticVariableNames(): string[] {
     ...sharedStaticVariableNames(),
     ...pixelVariableNames('project-card', pixelSection(component.projectCard)),
     ASPECT,
+    ...pixelVariableNames('project-gallery', component.projectGallery),
+    ...pixelVariableNames('home-header', component.homeHeader),
+    ...pixelVariableNames('field', pixels(component.field)),
+    ...pixelVariableNames('select', pixels(component.select)),
     ...pixelVariableNames('printer-card', component.printerCard),
     ...pixelVariableNames('status-dot', component.statusDot),
     ...pixelVariableNames('swatch', component.swatch),
@@ -86,6 +105,7 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('confirmation-dialog', component.confirmationDialog),
     ...elevationVariableNames(),
     GLYPH,
+    GLYPH_LARGE,
   ];
 }
 
@@ -97,6 +117,10 @@ export function applyStaticTokens(): void {
     ASPECT,
     `${card.thumbnailAspectWidth} / ${card.thumbnailAspectHeight}`,
   );
+  applyPixelTokens('project-gallery', component.projectGallery);
+  applyPixelTokens('home-header', component.homeHeader);
+  applyPixelTokens('field', pixels(component.field));
+  applyPixelTokens('select', pixels(component.select));
   applyPixelTokens('printer-card', component.printerCard);
   applyPixelTokens('status-dot', component.statusDot);
   applyPixelTokens('swatch', component.swatch);
@@ -108,4 +132,5 @@ export function applyStaticTokens(): void {
   }
   applyPixelTokens('confirmation-dialog', component.confirmationDialog);
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
+  document.documentElement.style.setProperty(GLYPH_LARGE, `${Math.max(...component.icon.sizes)}px`);
 }

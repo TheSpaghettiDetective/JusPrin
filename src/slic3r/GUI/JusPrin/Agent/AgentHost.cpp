@@ -147,50 +147,6 @@ json statistics_json(const SliceStatistics& statistics)
                 {"layerCount", statistics.layer_count}};
 }
 
-json build_json(const BuildRecord& record, const WorkspaceSnapshot& snapshot)
-{
-    const std::optional<std::string> current_hash = manufacturing_input_hash(snapshot, record.plate_index);
-    const bool stale = !current_hash || *current_hash != record.manufacturing_input_hash;
-    return json{{"id", record.id},
-                {"seq", record.seq},
-                {"createdAt", record.created_at},
-                {"projectId", record.project_id},
-                {"conversationId", record.conversation_id},
-                {"afterMessageId", record.after_message_id},
-                {"plateIndex", record.plate_index},
-                {"plateName", record.plate_name},
-                {"printer", record.printer},
-                {"material", record.material},
-                {"manufacturingInputHash", record.manufacturing_input_hash},
-                {"outputHash", record.output_hash},
-                {"slicerVersion", record.slicer_version},
-                {"configurationProvenance", record.configuration_provenance},
-                {"sentAt", record.sent_at},
-                {"deliveryConfirmedAt", record.delivery_confirmed_at},
-                {"deliveryLocation", record.delivery_location},
-                {"statistics", statistics_json(record.statistics)},
-                {"warnings", record.warnings},
-                {"stale", stale}};
-}
-
-json exported_copy_json(const ExportedCopyRecord& record)
-{
-    const bool verified = !record.observed_output_hash.empty() &&
-                          record.observed_output_hash == record.expected_output_hash;
-    const bool modified = !record.observed_output_hash.empty() && !verified;
-    return json{{"id", record.id},
-                {"seq", record.seq},
-                {"createdAt", record.created_at},
-                {"buildId", record.build_id},
-                {"conversationId", record.conversation_id},
-                {"afterMessageId", record.after_message_id},
-                {"destination", record.destination},
-                {"expectedOutputHash", record.expected_output_hash},
-                {"observedOutputHash", record.observed_output_hash},
-                {"verified", verified},
-                {"modified", modified}};
-}
-
 json change_json(const ChangeEntry& change)
 {
     json result{{"seq", change.seq},
@@ -241,7 +197,6 @@ json physical_print_json(const PhysicalPrintRecord& record)
                 {"endedAt", record.ended_at},
                 {"outcome", record.outcome},
                 {"failure", record.failure},
-                {"buildId", record.build_id},
                 {"projectId", record.project_id},
                 {"conversationId", record.conversation_id},
                 {"afterMessageId", record.after_message_id},
@@ -671,7 +626,7 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     });
     m_tools.set_extension_executor([this](ToolHandler handler, const ToolActivity& activity) {
         // A session with a subject of its own answers for its own tools; the
-        // host keeps the manufacturing records either way.
+        // host reads skills either way.
         if (m_session_tool_executor) {
             ToolExecutionCoordinator::ExtensionResult result = m_session_tool_executor(handler, activity);
             if (result.handled)
@@ -679,7 +634,7 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         }
         if (handler == ToolHandler::SkillRead)
             return read_skill(activity);
-        return execute_manufacturing_tool(handler, activity);
+        return ToolExecutionCoordinator::ExtensionResult{};
     });
     m_tools.set_agent_project_opened(
         [this](const Workspace::LoadReport& report) { m_agent_opened_reports.push_back(report); });
@@ -712,10 +667,6 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
             if (document.conversation_of_message(activity.correlation_id) == document.active_conversation_id())
                 send_context();
         }
-        if (m_handshake && activity.state == ToolState::Succeeded &&
-            (activity.tool == "record_build" || activity.tool == "record_export_copy" ||
-             activity.tool == "record_physical_print"))
-            send_state();
         if (tool_state_terminal(activity.state))
             continue_after_tool(activity);
     });
@@ -886,12 +837,6 @@ void AgentHost::send_state(const std::string& correlation_id)
         attachments.push_back(std::move(entry));
     }
 
-    json builds = json::array();
-    for (const BuildRecord& record : document.builds())
-        builds.push_back(build_json(record, snapshot));
-    json exported_copies = json::array();
-    for (const ExportedCopyRecord& record : document.exported_copies())
-        exported_copies.push_back(exported_copy_json(record));
     json physical_prints = json::array();
     for (const PhysicalPrintRecord& record : document.physical_prints())
         physical_prints.push_back(physical_print_json(record));
@@ -920,8 +865,6 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"toolActivities", std::move(tool_activities)},
                  {"draft", m_persistence.draft()},
                  {"attachments", std::move(attachments)},
-                 {"builds", std::move(builds)},
-                 {"exportedCopies", std::move(exported_copies)},
                  {"physicalPrints", std::move(physical_prints)},
                  {"changes", std::move(changes)},
                  {"work", std::move(work)},
@@ -2371,122 +2314,6 @@ void AgentHost::handle_draft_update(const std::string& payload_json)
 void AgentHost::send_tool_activity(const ToolActivity& activity, const std::string& correlation_id)
 {
     send_envelope(Protocol::kToolActivity, json{{"activity", activity_json(activity)}}.dump(), correlation_id);
-}
-
-ToolExecutionCoordinator::ExtensionResult AgentHost::execute_manufacturing_tool(ToolHandler handler,
-                                                                                const ToolActivity& activity)
-{
-    ToolExecutionCoordinator::ExtensionResult result;
-    result.handled = true;
-
-    const json arguments = json::parse(activity.arguments_json, nullptr, false);
-    if (!arguments.is_object()) {
-        result.error = ToolError{"invalid_arguments", "The manufacturing record arguments are invalid."};
-        return result;
-    }
-
-    ProjectStateDocument& document = m_persistence.document();
-    const WorkspaceSnapshot snapshot = m_workspace.snapshot();
-    const std::string conversation = document.conversation_of_message(activity.correlation_id);
-
-    if (handler == ToolHandler::RecordBuild) {
-        std::size_t plate_index = 0;
-        if (snapshot.active_plate)
-            for (std::size_t i = 0; i < snapshot.plates.size(); ++i)
-                if (snapshot.plates[i].id == *snapshot.active_plate) {
-                    plate_index = i;
-                    break;
-                }
-        if (plate_index >= snapshot.plates.size() || !snapshot.plates[plate_index].sliced) {
-            result.error = ToolError{"slice_required", "Slice the active plate before recording a build."};
-            return result;
-        }
-        const std::optional<std::string> input_hash = manufacturing_input_hash(snapshot, plate_index);
-        if (!input_hash) {
-            result.error = ToolError{"missing_plate", "The active plate is no longer available."};
-            return result;
-        }
-        BuildRecord record;
-        record.project_id               = document.project_id();
-        record.conversation_id          = conversation;
-        record.after_message_id         = activity.correlation_id;
-        record.plate_index              = plate_index;
-        record.plate_name               = snapshot.plates[plate_index].name;
-        record.printer                  = snapshot.setup.printer_preset;
-        record.material                 = snapshot.setup.filament_preset;
-        record.manufacturing_input_hash = *input_hash;
-        record.slicer_version           = arguments.value("slicerVersion", "JusPrin deterministic Phase 6");
-        record.configuration_provenance = arguments.value(
-            "configurationProvenance", "Active printer, process, filament, plate, objects, instances, and transforms");
-        record.output_hash = deterministic_output_hash(*input_hash, record.slicer_version,
-                                                       record.configuration_provenance);
-        record.statistics.print_time_seconds = arguments.value("printTimeSeconds", 3720.0);
-        record.statistics.filament_mm        = arguments.value("filamentMm", 1842.5);
-        record.statistics.material_grams     = arguments.value("materialGrams", 14.7);
-        record.statistics.material_cost      = arguments.value("materialCost", 0.44);
-        record.statistics.layer_count        = arguments.value("layerCount", std::uint64_t(124));
-        if (arguments.contains("warnings") && arguments["warnings"].is_array())
-            for (const json& warning : arguments["warnings"])
-                if (warning.is_string())
-                    record.warnings.push_back(warning.get<std::string>());
-        const std::string id = document.add_build(std::move(record), m_persistence.timestamp());
-        m_persistence.flush();
-        result.result_json = json{{"buildId", id}, {"recorded", true}}.dump();
-        return result;
-    }
-
-    const std::string requested_build = arguments.value("buildId", "");
-    const std::optional<BuildRecord> build = requested_build.empty() ? document.latest_build() :
-                                                                       document.find_build(requested_build);
-    if (!build) {
-        result.error = ToolError{"missing_build", "Record a build before creating this history entry."};
-        return result;
-    }
-
-    if (handler == ToolHandler::RecordExportCopy) {
-        ExportedCopyRecord record;
-        record.build_id             = build->id;
-        record.conversation_id      = conversation;
-        record.after_message_id     = activity.correlation_id;
-        record.destination          = arguments.value("destination", "Phase 6 demo.gcode");
-        record.expected_output_hash = build->output_hash;
-        record.observed_output_hash = arguments.value("observedOutputHash", build->output_hash);
-        const std::string id = document.add_exported_copy(std::move(record), m_persistence.timestamp());
-        m_persistence.flush();
-        result.result_json = json{{"exportedCopyId", id}, {"buildId", build->id}}.dump();
-        return result;
-    }
-
-    PhysicalPrintRecord record;
-    record.build_id                 = build->id;
-    record.project_id               = build->project_id;
-    record.conversation_id          = conversation;
-    record.after_message_id         = activity.correlation_id;
-    record.plate_index              = build->plate_index;
-    record.plate_name               = build->plate_name;
-    record.printer                  = arguments.value("printer", build->printer);
-    record.material                 = arguments.value("material", build->material);
-    record.started_at               = arguments.value("startedAt", m_persistence.timestamp());
-    record.ended_at                 = arguments.value("endedAt", m_persistence.timestamp());
-    record.outcome                  = arguments.value("outcome", "completed");
-    record.failure                  = arguments.value("failure", "");
-    record.manufacturing_input_hash = build->manufacturing_input_hash;
-    record.output_hash              = build->output_hash;
-    record.gcode_hash               = arguments.value("gcodeHash", build->output_hash);
-    if (arguments.contains("stoppedPercent")) {
-        const int percent = arguments["stoppedPercent"].get<int>();
-        if (percent < 0 || percent > 100) {
-            result.error = ToolError{"invalid_progress", "Print progress must be between 0 and 100 percent."};
-            return result;
-        }
-        record.stopped_percent = percent;
-    }
-    record.statistics               = build->statistics;
-    const std::string id = document.add_physical_print(std::move(record), m_persistence.timestamp());
-    m_persistence.flush();
-    m_persistence.notify_ledger_changed();
-    result.result_json = json{{"physicalPrintId", id}, {"buildId", build->id}, {"recorded", true}}.dump();
-    return result;
 }
 
 void AgentHost::send_setup_status(const std::string&               phase,
