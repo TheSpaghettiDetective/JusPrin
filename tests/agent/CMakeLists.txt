@@ -16,7 +16,6 @@ add_executable(agent_bridge_tests
     test_tool_registry.cpp
     test_printer_conversation.cpp
     test_primary_print_action.cpp
-    test_auto_slice_policy.cpp
     test_mcp_protocol.cpp
     test_mcp_runtime.cpp
     test_mcp_discovery.cpp

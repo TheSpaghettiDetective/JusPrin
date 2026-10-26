@@ -1,6 +1,5 @@
 #pragma once
 
-#include "AutoSlice.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
@@ -84,9 +83,6 @@ public:
     // What OrcaSlicer currently reports about the active plate, and its
     // pill, list and bubble on the Prepare canvas. Null while not installed.
     PrintIssues::PrintIssueMonitor* print_issues() const { return m_print_issues.get(); }
-    // The slicing JusPrin starts on its own once the project is quiet. Null
-    // while not installed.
-    AutoSlice* auto_slice() const { return m_auto_slice.get(); }
     PrintIssues::IssueOverlay*      issue_overlay() const { return m_issue_overlay.get(); }
     struct IssueSubmission
     {
@@ -286,7 +282,6 @@ private:
     std::unique_ptr<PrintIssues::PrintIssueMonitor> m_print_issues;
     std::unique_ptr<PrintIssues::IssueOverlay>      m_issue_overlay;
     std::unique_ptr<PrintIssues::WorkFeed>          m_work_feed;
-    std::unique_ptr<AutoSlice>                      m_auto_slice;
 };
 
 // The one MainFrame attachment point. Decides whether the shell should be

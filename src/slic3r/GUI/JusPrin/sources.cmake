@@ -131,9 +131,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Canvas/ViewportToolStripLayout.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
-    GUI/JusPrin/Shell/AutoSlice.cpp
-    GUI/JusPrin/Shell/AutoSlice.hpp
-    GUI/JusPrin/Shell/AutoSlicePolicy.hpp
     GUI/JusPrin/Shell/McpSetupCommand.cpp
     GUI/JusPrin/Shell/McpSetupCommand.hpp
     GUI/JusPrin/Mcp/McpConnections.hpp

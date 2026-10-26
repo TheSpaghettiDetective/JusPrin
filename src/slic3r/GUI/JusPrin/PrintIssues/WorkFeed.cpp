@@ -66,8 +66,6 @@ void WorkFeed::on_slicing_update(SlicingStatusEvent& event)
     // Warnings travel on the same event and say nothing about progress.
     if (event.status.percent < 0 || !m_plater.is_background_process_slicing())
         return;
-    if (m_slice.id.empty() && m_automatic_slice && m_automatic_slice())
-        return;
     if (m_slice.id.empty()) {
         m_slice       = {};
         m_slice.title = format(_u8L("Slicing plate %1%"), m_plater.get_partplate_list().get_curr_plate_index() + 1);
