@@ -3,6 +3,7 @@
 
 #include <wx/popupwin.h>
 #include <wx/event.h>
+#include <wx/weakref.h>
 
 class PopupWindow : public wxPopupTransientWindow
 {
@@ -26,7 +27,8 @@ protected:
 private:
 #ifdef __WXOSX__
     void OnMouseEvent2(wxMouseEvent &evt);
-    wxEvtHandler * hovered { this };
+    // Weak: a child under the pointer can be destroyed while the popup stays open.
+    wxWeakRef<wxEvtHandler> hovered { this };
 #endif
 
 #ifdef __WXGTK__

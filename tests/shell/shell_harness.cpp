@@ -6216,11 +6216,37 @@ private:
         // back row named Plate heads the list.
         check(wxWindow::FindWindowByName("Nozzle", after) == nullptr, "plate_substep_replaced_the_rows");
         check(wxWindow::FindWindowByName(ui_name("Printer settings…"), after) == nullptr, "plate_substep_hides_root_rows");
+        verify_pointer_survives_a_destroyed_child(after);
         after->close();
         wxYield();
         // Dismissing must also clear the anchor's open state, or the chip keeps
         // painting its pressed fill with no menu on screen.
         check(!chip_half_open(), "dismissing_the_menu_clears_the_chip_open_state");
+    }
+
+    // On macOS the popup remembers the child under the pointer so it can send
+    // it a leave event later. A step change destroys that child; the next
+    // pointer move must not reach it (crashed in the app, 2026-10-26). The
+    // check destroys the hovered separator directly: a rebuild usually puts a
+    // new row at the freed address, which hides the defect. Run with
+    // MallocScribble=1 so a stale pointer crashes instead of reading old bytes.
+    void verify_pointer_survives_a_destroyed_child(HeaderMenu* menu)
+    {
+        wxWindow* line = nullptr;
+        for (auto* child : menu->GetChildren())
+            if (dynamic_cast<wxStaticLine*>(child)) { line = child; break; }
+        check(line != nullptr, "menu_substep_has_a_separator_to_hover");
+        if (line == nullptr) return;
+        auto move_to = [menu](const wxPoint& at) {
+            wxMouseEvent motion(wxEVT_MOTION);
+            motion.SetPosition(at);
+            motion.SetEventObject(menu);
+            menu->GetEventHandler()->ProcessEvent(motion);
+        };
+        move_to(line->GetScreenPosition() - menu->GetScreenPosition() + wxPoint(line->GetSize().x / 2, 0));
+        line->Destroy();
+        move_to(wxPoint(1, 1)); // the popover's own edge, over no child
+        check(true, "menu_survives_a_pointer_move_after_its_hovered_child_is_destroyed");
     }
 
     // True while either chip half still believes its menu is open.

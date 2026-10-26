@@ -62,14 +62,16 @@ void PopupWindow::OnMouseEvent2(wxMouseEvent &evt)
     if (evt.GetEventType() == wxEVT_MOTION) {
         auto h = child ? child : this;
         if (hovered != h) {
-            wxMouseEvent leave(wxEVT_LEAVE_WINDOW);
-            leave.SetEventObject(hovered);
-            leave.SetId(static_cast<wxWindow*>(hovered)->GetId());
-            hovered->ProcessEventLocally(leave);
+            if (hovered) {
+                wxMouseEvent leave(wxEVT_LEAVE_WINDOW);
+                leave.SetEventObject(hovered);
+                leave.SetId(static_cast<wxWindow*>(hovered.get())->GetId());
+                hovered->ProcessEventLocally(leave);
+            }
             hovered = h;
             wxMouseEvent enter(wxEVT_ENTER_WINDOW);
             enter.SetEventObject(hovered);
-            enter.SetId(static_cast<wxWindow*>(hovered)->GetId());
+            enter.SetId(static_cast<wxWindow*>(hovered.get())->GetId());
             hovered->ProcessEventLocally(enter);
         }
     }
