@@ -32,7 +32,7 @@ The final product should therefore retain nine primary surfaces:
 5. Essential geometry editing
 6. Local meaning and overrides
 7. Print-plan verification
-8. Print preflight and live control
+8. Sending a print and live control
 9. Calibration and troubleshooting
 
 These are not remnants of a legacy slicer. They are the information and control boundary between a person, an AI agent, and a physical manufacturing process.
@@ -141,11 +141,11 @@ The Project window should not treat Prepare, Preview, and Info as three equal de
 - **Prepare is the dominant, persistent workspace.** It is where users inspect the model, communicate intent, manipulate geometry, resolve uncertainty, and review the agent's plan.
 - **Check print opens Orca Preview in a modal window.** Prepare remains underneath; closing Check returns focus to Prepare. It is a secondary action when the active plate has a valid slice.
 - **Info becomes Project details.** It is a drawer opened from the project name or menu. The agent reads its contents continuously even when the drawer is closed.
-- **Print opens Send preflight.** It never sends directly. Explicit Send remains the consequential commitment.
+- **Print opens OrcaSlicer's send dialog.** It never sends directly. The person's Send in that dialog remains the consequential commitment.
 
 The normal flow is:
 
-`Prepare -> Check print -> return to Prepare if correction is needed -> Print -> Send preflight -> explicit Send`
+`Prepare -> Check print -> return to Prepare if correction is needed -> Print -> OrcaSlicer's send dialog -> the person presses Send`
 
 ### Default Project-window composition
 
@@ -540,34 +540,25 @@ Layer count and the complete extrusion-role legend are not beginner decision aid
 
 ---
 
-## 2.9 Print preflight
+## 2.9 Sending a print
 
 This surface answers: **Is the correct job about to be sent to the correct physical machine?**
 
-Prepare should contain a visible Print entry point. Print opens this preflight; it does not bypass it:
+The answer is OrcaSlicer's own send dialog, kept as it is and shown in JusPrin's colours. JusPrin builds no checklist screen in front of it or in its place, so sending a print takes one dialog. Prepare has a visible Print entry point, and Print opens that dialog; nothing sends without it:
 
-`Print -> Send preflight -> explicit Send`
+`Print -> OrcaSlicer's send dialog -> the person presses Send`
 
-The current Print action opens Orca's existing Select Machine or printer-host send dialog, which requires a separate send/upload choice. The complete JusPrin preflight checklist below remains future product work.
+For a printer on Bambu's network the dialog is Select Machine (`SelectMachineDialog`). For a Klipper or OctoPrint printer it is OrcaSlicer's upload dialog (`Plater::send_gcode_legacy`). The person opens it with Print, or the agent opens it when the person asks to print.
 
-### What should remain
+### Why OrcaSlicer's dialog stays
 
-- Job name and thumbnail
-- Destination printer
-- Selected plate
-- Time and material estimate
-- Filament and AMS mapping
-- Plate-type confirmation
-- Bed-leveling choice
-- Flow-calibration choice
-- Timelapse choice
-- First-layer inspection
-- Build-plate detection
-- Tangle and clumping detection
-- AI-monitoring behavior and sensitivity
-- Recovery options
-- Warnings about disabled checks
-- Explicit Send control
+- It already holds the choices made at send time: the destination printer, the plate, filament-to-slot mapping (including AMS), plate type, bed leveling, flow calibration, nozzle offset calibration, timelapse, and the Send button.
+- It fills them in itself. It opens on the selected printer, works out the slot mapping, restores the options last used for that printer model, and refuses to send while it shows a problem such as a filament mismatch or a busy printer.
+- It is large and changes often upstream: about 5,400 lines, and 93 upstream commits in the year to October 2026, crash fixes and new printers among them. Upstream is also moving other printer families onto it (`a5413efc37`, printer agents for Moonraker and Qidi). The unchanged dialog takes all of that at each rebase; a JusPrin replacement would have to keep pace with it.
+
+The reskin goes through the brand palette (see [Design system](design-system.md)). A colour the dialog hard-codes, which the palette cannot reach, needs a seam that follows [Fork stewardship](fork-stewardship.md), not a change to the dialog's layout.
+
+The printer's own detection settings (first-layer inspection, build-plate detection, tangle and nozzle-clumping detection, AI failure detection and how readily it pauses) belong to the printer, not to one job. They live with Printer Configuration and Monitor, not in the send.
 
 ### Why the agent cannot decide this alone
 
@@ -577,7 +568,9 @@ Some monitoring options also involve privacy, camera use, false-positive toleran
 
 ### What the agent should do
 
-Perform the preflight, recommend safe defaults, and block obviously inconsistent jobs. The user should see a concise checklist and start the send themselves.
+The agent gets the project ready before the send: the printer, a plate type that matches the plate on the bed, filaments that match what is loaded, and a valid slice of the plate. Those are what OrcaSlicer's dialog reads when it opens. When the person asks to print, the agent opens the dialog and says in one line anything in it worth a look, such as turning on flow calibration for a new filament. It does not change the dialog's options, and it never presses Send.
+
+The dialog is modal. While it is open the person cannot type in the Agent pane, and the agent cannot change anything. The agent learns whether a job went out from the printer's state afterwards, not from the dialog.
 
 ---
 
@@ -718,7 +711,7 @@ The Project window contains the print-planning lifecycle without dividing it int
 - **Prepare:** dominant workspace containing intent, objects and plates, the 3D canvas, geometry editing, local meaning, and the agent plan
 - **Check print:** temporary sliced-verification mode
 - **Project details:** drawer for authoritative project knowledge
-- **Print:** entry point to Send preflight
+- **Print:** opens OrcaSlicer's send dialog
 
 Prepare may point to Printer Configuration, but it does not own machine calibration, filament inventory, maintenance, or privacy settings.
 
@@ -752,7 +745,7 @@ Manual movement, homing, detailed fan or light control, storage, and file manage
 
 ## 3.5 Overlays and application-level layers
 
-- **Send preflight:** final job, destination, material mapping, safety, and monitoring confirmation followed by explicit Send
+- **Send dialog:** OrcaSlicer's own send dialog in JusPrin colours: destination, plate, material mapping and send options, then the person's Send
 - **Expert layer:** raw process settings, numeric per-object and per-region overrides, manual calibration ranges, toolpath diagnostics, and G-code
 - **Preferences:** cloud region, stealth/offline behavior, network plugins, sync, updates, privacy, backup and recovery, import/export administration, and developer tools
 

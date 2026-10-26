@@ -267,7 +267,7 @@ Semantic annotations are labels a person puts on part of a model to say what tha
 4. Build the production shell without a compact object/plate pane.
 5. Build the typed Agent WebView and the bridge between the page and the app.
 6. Add the presentation controller for Move/Rotate, then convert the other groups of gizmos.
-7. Add semantic annotations, Check print reporting, Send preflight, Monitor, calibration, and troubleshooting screens as the product definition describes them.
+7. Add semantic annotations, Check print reporting, the reskinned send dialog, Monitor, calibration, and troubleshooting screens as the product definition describes them.
 8. Add the compact object/plate pane as a separately planned task when it is prioritized.
 
 Older implementations and the detailed evidence are deliberately left out of this document. See [POC reference](poc-reference.md).

@@ -129,12 +129,13 @@ The same rule applies to presets, project objects, plates, warnings, and slice r
 
 A new operation deserves its own tool when it really differs from the existing ones in at least one of these ways: which action class it belongs to (read-only, mutation or destructive), whether it applies completely or not at all, how it starts, runs, and ends, or what its result means. `slice_start` is an example. It is not one more way to change settings. It starts OrcaSlicer work that runs in the background, and it completes in a different way from a settings change. That difference justifies a separate tool.
 
-Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before submitting the change. There are four such cases:
+Split an operation into a preview tool and an apply tool only where OrcaSlicer may rewrite, replace, or refuse what the caller asked for. In those cases the caller has to see what would really happen before submitting the change. There are three such cases:
 
 - settings, because OrcaSlicer's normalizer (the code that adjusts dependent settings after an edit) can rewrite values;
 - preset selection, because OrcaSlicer may substitute a compatible preset, and dirty edits may be lost;
-- topology changes such as cutting, splitting, or merging, because the caller needs to see the resulting pieces;
-- preflight (the check before a print is sent), because of filament mapping and printer readiness.
+- topology changes such as cutting, splitting, or merging, because the caller needs to see the resulting pieces.
+
+Sending a print is not a fourth. The agent opens OrcaSlicer's send dialog, which shows the person the slot mapping and the printer's readiness, and the person presses Send there (see [Sending a print](product-definition.md#29-sending-a-print)).
 
 Everywhere else, the coordinator computes and validates the resulting state as part of the call. If a preview would only repeat its input back, do not make it a tool.
 
@@ -468,7 +469,7 @@ If a layer does not apply, say why in the PR. If something cannot be tested, sta
 
 ## Candidate catalog
 
-This catalog lists the tools the finished product would have. It was worked out one product screen at a time from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), and shaped by the rules under [tool budget and tool shape](#tool-budget-and-tool-shape). Nothing in it is implemented unless the catalog record above says so. Every row still needs what this guide requires of any tool: the eval failure, the trace of its owner, and the test matrix. The number that matters is how many definitions load per turn, not the total. The total here is 35. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral. The toolsets below are the groups that would be deferred together when that day comes. Until then they only group tools for naming and for delivery.
+This catalog lists the tools the finished product would have. It was worked out one product screen at a time from [Designing an AI-Piloted OrcaSlicer](orca-feature-discovery.md), and shaped by the rules under [tool budget and tool shape](#tool-budget-and-tool-shape). Nothing in it is implemented unless the catalog record above says so. Every row still needs what this guide requires of any tool: the eval failure, the trace of its owner, and the test matrix. The number that matters is how many definitions load per turn, not the total. The total here is 34. All of them load on every turn until the measurements under [tool budget and tool shape](#tool-budget-and-tool-shape) justify deferral. The toolsets below are the groups that would be deferred together when that day comes. Until then they only group tools for naming and for delivery.
 
 These conventions apply to every row:
 
@@ -492,7 +493,7 @@ In the Class column, **R** means read-only, **M** means mutation, and **D** mean
 | `reshape` | 4 | Cutting, splitting, merging, repairing. |
 | `regions` | 1 | Marking local meaning. |
 | `check` | 3 | Inspecting a sliced result beyond the report. |
-| `output` | 3 | Preflight, send, export. |
+| `output` | 2 | Opening the send dialog, export. |
 | `machine` | 3 | Other printers, camera, pause and stop. |
 | `calibration` | 1 | Calibration tests, each made in a calibration project of its own. |
 
@@ -567,8 +568,7 @@ Text embossing is left out until an eval needs it. When one does, embossing gets
 
 | Tool | Class | Contract | Owner | Bound |
 |---|---|---|---|---|
-| `preflight_check` | R | For a plate and destination: job name, estimates, proposed filament-to-slot mapping with problems, plate and nozzle match, options with defaults and printer support (bed leveling, flow calibration, timelapse, first-layer inspection, plate detection, tangle detection, monitoring level), blocking problems, disabled-check warnings, applicable safety notes, confirmed facts. Returns a `preflightId` bound to project revision, slice identity, printer `observedAt`, and options, with an expiry. | mapping and readiness logic lifted from `SelectMachineDialog` behind a product-neutral seam; `MachineObject` | 16 mapping rows, problems, warnings |
-| `print_send` | D | Send with a `preflightId`. Re-runs the preflight at execution; fails without sending if anything bound to the digest moved or blocking problems remain. Runs only on the person's request to send; preparing a print never sends. | `PrintJob`, `SendJob` | |
+| `print_dialog_open` | M | Opens OrcaSlicer's send dialog for one plate, the way Print does: Select Machine for a printer on Bambu's network, the upload dialog for a print host. Called only when the person asks to print; getting a print ready never opens it. Refused with `needs_step` naming `slice_start` when the plate has no valid slice. The dialog fills itself in (printer, slot mapping, options last used for that printer model); the call sets nothing in it. The dialog is modal, so the call returns once it is shown, before its modal loop starts, and reports nothing about a send: the person presses Send there. Changes no project state. | `Plater::priv::on_action_print_plate`; `Plater::send_gcode_legacy` | |
 | `export_file` | D | G-code, sliced 3mf, project 3mf, STL, or preset bundle to a path. Validation surfaces license restrictions from project details in the result and on the activity card. | `Plater` export functions | |
 
 ### `machine`
@@ -623,8 +623,7 @@ The catalog needs the following to be in place:
 
 - `validate_output` supports `enum` (used for provenance, action state, region kind, and section names) and `maxLength`, so a row may use them. Inputs that allow several alternative forms, such as the facets of `object_place`, are checked by the decoder, not by the schema validator.
 - Neither adapter needs new code for loading tools. The projection tests need to record definition bytes for each adapter, and the live regression test needs to record input and cached tokens for each request. With those numbers the deferral decision can rest on evidence.
-- Three owners exist only inside OrcaSlicer's UI code. Each needs a seam with nothing JusPrin-specific in it before its tool can be built:
-  - the mapping and readiness logic in `SelectMachineDialog`, needed by `preflight_check`;
+- Two owners exist only inside OrcaSlicer's UI code. Each needs a seam with nothing JusPrin-specific in it before its tool can be built:
   - the plane and circle detection in the Measure gizmo, needed by `object_analyze`;
   - offscreen rendering of the preview, needed by the preview mode of `view_render`.
 
@@ -637,7 +636,7 @@ The catalog needs the following to be in place:
 
 These evals must pass before the tools they need are delivered:
 
-1. Open an STL with one object, state "decorative, front face visible, under five hours, PLA", and reach a sent job without editing any setting by hand. Needs `core`, `project`, `setup`, `geometry`, `output`. The transcript of this eval is also the first call log to use for consolidation: any two tools that are always called together are candidates to merge.
+1. Open an STL with one object, state "decorative, front face visible, under five hours, PLA", and reach OrcaSlicer's send dialog, open on the right printer and plate, without editing any setting by hand. The eval ends there; the person presses Send. Needs `core`, `project`, `setup`, `geometry`, `output`. The transcript of this eval is also the first call log to use for consolidation: any two tools that are always called together are candidates to merge.
 2. Take a model that has a precision hole and an overhang that needs a lot of support. Find the hole, annotate it as protected, show that supports no longer enter it after slicing again, and place the seam on a hidden face. Needs `regions` and `check`.
 3. The user reports stringing on a Bambu printer. Judge that a temperature tower is worth it, say that the open project will be saved and closed before generating it, read the user's photo in the calibration project, and propose a filament temperature as a preview with `persistAs` under the calibrated-copy name, which the user saves from its card. Needs `calibration`, the `calibration` skill and the filament scope.
 4. An edit at the same time: the user changes a setting in the GUI before an external agent's apply executes. The apply fails as stale, and the agent recovers with one preview and one apply. Applies to every toolset.
