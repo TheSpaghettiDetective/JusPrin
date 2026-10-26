@@ -288,6 +288,10 @@ bool ProviderAgent::post()
     request.headers.push_back(auth_header(m_config.profile, m_config.api_key));
     request.headers.insert(request.headers.end(), m_config.profile.headers.begin(), m_config.profile.headers.end());
     request.headers.insert(request.headers.end(), built.headers.begin(), built.headers.end());
+    if (m_config.profile.account_sign_in) {
+        request.headers.push_back({"X-JusPrin-Turn", m_transcript.request_id});
+        request.headers.push_back({"X-JusPrin-Request", m_kind == RequestKind::ConversationTitle ? "title" : "reply"});
+    }
     request.body = built.body.dump();
     const std::uint64_t generation = ++m_http_generation;
     if (!m_transport->post(std::move(request), [this, generation](AgentHttpEvent event) {
@@ -491,6 +495,10 @@ std::optional<AgentEvent> ProviderAgent::poll()
 AgentError ProviderAgent::http_error(unsigned status, const std::string& detail) const
 {
     const std::string& name = m_config.profile.display_name;
+    if (m_config.profile.account_sign_in && (status == 401 || status == 403))
+        return {"invalid_credentials", "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.", false};
+    if (m_config.profile.account_sign_in && status == 402)
+        return {"quota_exhausted", "Your JusPrin account has used its Agent allowance for now. See your account for more.", false};
     if (status == 401 || status == 403)
         return {"invalid_credentials", "The " + name + " API key was rejected. Update the Agent configuration and try again.", false};
     if (status == 413)

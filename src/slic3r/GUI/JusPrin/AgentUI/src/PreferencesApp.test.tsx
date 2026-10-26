@@ -112,12 +112,55 @@ describe('Preferences', () => {
     expect(actionsSent(host)).toEqual([{ action: 'orca_preferences' }]);
   });
 
-  it('shows the account sign-in disabled, as setup does, and points to Agent', async () => {
+  it('signs in to a JusPrin account through the browser and points to Agent', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
-    expect(screen.getByRole('button', { name: 'Continue with JusPrin' })).toBeDisabled();
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Free · sign in with your browser');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with JusPrin' }));
+    expect(host.lastOfType('account_sign_in')?.payload).toEqual({});
+
+    // Waiting on the browser: what to do there, a way to copy the page, and Cancel.
+    host.deliver('account_status', { phase: 'browser', url: 'https://app.obico.io/o/authorize/?client_id=JusPrin2' });
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Finish signing in in your browser');
+    expect(screen.getByText(/A JusPrin tab just opened/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('account_cancel')).toBeTruthy();
+
+    // Back from the browser, the account is checked, then shown by its email.
+    host.deliver('account_status', { phase: 'checking' });
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Checking your account');
+    host.deliver('account_status', { phase: 'idle' });
+    host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(host.lastOfType('setup_remove_key')?.payload).toEqual({ provider: 'jusprin' });
+
     await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Agent' }));
     expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
+  });
+
+  it('asks to sign in again when the account’s sign-in has ended, and says why one failed', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: true, account: 'alex@example.com' }] });
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Your sign-in for alex@example.com has ended');
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    expect(host.lastOfType('account_sign_in')).toBeTruthy();
+
+    host.deliver('account_status', {
+      phase: 'idle', error: { code: 'sign_in_failed', message: 'Signing in didn’t finish. Nothing was saved. Try again.', retryable: true },
+    });
+    expect(screen.getByTestId('account-error')).toHaveTextContent('Signing in didn’t finish');
+  });
+
+  it('does not list the JusPrin account among the API keys', () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'agent' }));
+    host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
+    expect(screen.queryByTestId('agent-key-jusprin')).toBeNull();
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
   });
 
   it('draws the Agent section with setup’s rows and their messages', async () => {

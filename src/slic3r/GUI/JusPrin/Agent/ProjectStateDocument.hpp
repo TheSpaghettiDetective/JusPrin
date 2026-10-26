@@ -35,10 +35,15 @@ struct ChatModelChoice
     std::string provider;
     std::string model;
     std::string effort; // empty: the model's own default
+    // For an account provider's alias, the wire format the chat's first
+    // request was served in. A chat keeps it for its whole life, so the
+    // gateway assigning the person another backend reaches new chats only.
+    // Empty until that first request, and for every other provider.
+    std::string format;
 
     bool operator==(const ChatModelChoice& other) const
     {
-        return provider == other.provider && model == other.model && effort == other.effort;
+        return provider == other.provider && model == other.model && effort == other.effort && format == other.format;
     }
     bool operator!=(const ChatModelChoice& other) const { return !(*this == other); }
 };

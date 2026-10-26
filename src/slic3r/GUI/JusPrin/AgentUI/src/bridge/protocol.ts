@@ -45,6 +45,9 @@ export type PageMessageType =
   | 'save_proposal'
   | 'undo_receipt'
   | 'setup_remove_key'
+  | 'account_sign_in'
+  | 'account_check'
+  | 'account_cancel'
   | 'preferences_action';
 
 export type HostMessageType =
@@ -76,6 +79,7 @@ export type HostMessageType =
   | 'settings_catalog'
   | 'confirm'
   | 'setup_keys'
+  | 'account_status'
   | 'preferences';
 
 // A question the host asks before an action it cannot take back, drawn as
@@ -298,6 +302,20 @@ export interface SavedKeyInfo {
   provider: string;
   hint: string;
   rejected: boolean;
+  // The signed-in email, for the JusPrin account ('jusprin'), whose
+  // credential is a sign-in rather than a key.
+  account?: string;
+}
+
+// Where a JusPrin sign-in has got to (cloud_account capability). 'browser'
+// waits for the person in the browser tab at `url`; 'checking' asks the
+// server about the account. `expired` says the stored sign-in has ended.
+export interface AccountStatusPayload {
+  phase: 'idle' | 'browser' | 'checking';
+  url?: string;
+  expired?: boolean;
+  error?: AgentErrorInfo;
+  warning?: string;
 }
 
 export interface SetupKeysPayload {
@@ -824,6 +842,19 @@ export interface FilamentSessionPayload {
   copyName?: string; // the copy a change to a stock filament is saved as
 }
 
+// What JusPrin copied from JusPrin v1 on this computer at its first start,
+// as the welcome-back window lists it (canvas boards V1-01 to V1-03).
+export interface WelcomeBackPayload {
+  kind: 'welcome_back';
+  printers: string[];
+  presets: string[]; // filament and process presets
+  connections: string[]; // printers with a network connection
+  preferences: boolean;
+  signedIn: boolean; // v1's JusPrin sign-in came along
+  failed: string[]; // files that could not be copied
+  unusable: string[]; // imported presets OrcaSlicer could not load
+}
+
 export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';
 export type DragAction = 'none' | 'pan' | 'rotate';
 
@@ -1009,7 +1040,8 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload; // the printer and filament chats, and Preferences
+  // the printer and filament chats, Preferences and the welcome-back window
+  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload | WelcomeBackPayload;
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

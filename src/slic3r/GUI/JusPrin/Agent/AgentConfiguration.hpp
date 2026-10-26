@@ -40,6 +40,10 @@ std::string load_provider_api_key(const AppConfig* config, const std::string& pr
 // non-secret choices load_agent_runtime() reads on the next launch.
 AgentSetupServicePtr make_agent_setup(AppConfig* config);
 
+// Signing in to a JusPrin account: the account is stored where the Agent's
+// keys are, and signing in makes it the Agent's provider.
+CloudSignInPtr make_cloud_sign_in(AppConfig* config);
+
 // The docked Agent's per-chat models: every provider with a stored key, the
 // default provider setup recorded, agents built from those keys, and each
 // provider's model list fetched from the provider. `post` runs a callback on

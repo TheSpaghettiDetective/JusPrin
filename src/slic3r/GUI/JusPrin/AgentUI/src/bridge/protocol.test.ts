@@ -60,6 +60,9 @@ describe('protocol constants', () => {
       'undo_receipt',
       'setup_remove_key',
       'preferences_action',
+      'account_sign_in',
+      'account_check',
+      'account_cancel',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');
@@ -69,6 +72,7 @@ describe('protocol constants', () => {
     expect(protocolJson.hostMessageTypes).toContain('mcp_catalog');
     expect(protocolJson.hostMessageTypes).toContain('mcp_status');
     expect(protocolJson.hostMessageTypes).toContain('setup_keys');
+    expect(protocolJson.hostMessageTypes).toContain('account_status');
   });
 });
 

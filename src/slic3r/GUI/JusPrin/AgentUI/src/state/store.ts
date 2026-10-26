@@ -4,6 +4,7 @@
 // replace everything after a reload or resync.
 
 import {
+  AccountStatusPayload,
   AgentErrorInfo,
   AgentStatus,
   Appearance,
@@ -24,6 +25,7 @@ import {
   ConfirmPayload,
   StatePayload,
   ToolActivityInfo,
+  WelcomeBackPayload,
   WireMessage,
   WorkspaceContext,
   McpCatalogPayload,
@@ -79,6 +81,8 @@ export interface AgentUiState {
   filamentSession: FilamentSessionPayload | null;
   // The Preferences window's settings, in its place.
   preferences: PreferencesPayload | null;
+  // The welcome-back window's list of what came from JusPrin v1.
+  welcomeBack: WelcomeBackPayload | null;
   navigation: { focused: boolean; returnLabel?: string };
   // The All settings panel's table, read from hosts with all_settings; the
   // revision says which project state it describes.
@@ -89,6 +93,8 @@ export interface AgentUiState {
   // Providers with a stored key, by hint: never the key. The host sends it
   // after each handshake and whenever a key is stored, removed or refused.
   savedKeys: SavedKeyInfo[];
+  // Progress of a JusPrin sign-in, mirrored from the host like `setup`.
+  account: AccountStatusPayload;
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
@@ -127,12 +133,14 @@ export const initialState: AgentUiState = {
   context: null,
   setup: { phase: 'idle' },
   savedKeys: [],
+  account: { phase: 'idle' },
   mcpCatalog: null,
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
   session: null,
   filamentSession: null,
   preferences: null,
+  welcomeBack: null,
   navigation: { focused: false },
   settingsCatalog: null,
   confirmation: null,
@@ -220,6 +228,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         session: full.session && !('kind' in full.session) ? full.session : null,
         filamentSession: full.session && 'kind' in full.session && full.session.kind === 'filament' ? full.session : null,
         preferences: full.session && 'kind' in full.session && full.session.kind === 'preferences' ? full.session : null,
+        welcomeBack: full.session && 'kind' in full.session && full.session.kind === 'welcome_back' ? full.session : null,
         navigation: full.navigation ?? { focused: false },
         settingsCatalog: full.context?.sessionId === state.context?.sessionId ? state.settingsCatalog : null,
         // A full state answers a fresh handshake; any check that was in
@@ -255,6 +264,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, confirmation: envelope.payload as ConfirmPayload };
     case 'setup_keys':
       return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
+    case 'account_status':
+      return { ...state, account: envelope.payload as AccountStatusPayload };
     case 'model_catalog':
       return { ...state, modelCatalog: envelope.payload as ModelCatalogPayload };
     case 'chat_model': {

@@ -44,6 +44,8 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
       previewTool: (toolId) => client.send('mcp_preview', { toolId }),
       connectTool: (toolId) => client.send('mcp_connect', { toolId }),
       revealTool: (toolId) => client.send('reveal_path', { toolId }),
+      signIn: () => client.send('account_sign_in', {}),
+      cancelSignIn: () => client.send('account_cancel', {}),
     }),
     [client],
   );
@@ -64,6 +66,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         preferences={state.preferences}
         setup={state.setup}
         savedKeys={state.savedKeys}
+        account={state.account}
         mcpCatalog={state.mcpCatalog}
         mcpPreview={state.mcpPreview}
         mcpStatus={state.mcpStatus}

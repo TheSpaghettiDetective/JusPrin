@@ -328,7 +328,8 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
                                               Protocol::kSettingsAction, Protocol::kSaveProposal,
                                               Protocol::kUndoReceipt, Protocol::kSetupRemoveKey,
-                                              Protocol::kPreferencesAction});
+                                              Protocol::kPreferencesAction, Protocol::kAccountSignIn,
+                                              Protocol::kAccountCheck, Protocol::kAccountCancel});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -341,7 +342,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
-                                              Protocol::kSetupKeys, Protocol::kPreferences});
+                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
@@ -2079,9 +2080,90 @@ struct FakeModelSource final : IChatModelSource
         return std::make_unique<DeterministicMockAgent>();
     }
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
+    // An account's aliases and the format each is served in now.
+    std::map<std::string, std::string> formats;
+    std::string model_format(const std::string& provider, const std::string& model) const override
+    {
+        const auto found = formats.find(model);
+        return provider == "jusprin" && found != formats.end() ? found->second : std::string();
+    }
 };
 
 } // namespace
+
+// JusPrin's gateway serves an alias in the format the account is assigned,
+// and may assign the person another backend at any time. A chat stays on the
+// format its first request went out in; chats started later take the new one.
+TEST_CASE("a JusPrin chat keeps the format of its first request", "[agent][models][account]")
+{
+    Harness h;
+    auto source       = std::make_shared<FakeModelSource>();
+    source->providers = {"jusprin"};
+    source->fallback  = "jusprin";
+    source->formats["slicer-1"] = "anthropic";
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    const std::string first = h.persistence.document().active_conversation_id();
+
+    // The handed agent is the default choice's, served as Anthropic; the first
+    // request fixes the chat to that.
+    h.send_user_message("first", "c-1");
+    h.pump_all();
+    CHECK(source->built.empty());
+    CHECK(h.persistence.document().chat_model(first) == ChatModelChoice{"jusprin", "slicer-1", "", "anthropic"});
+
+    // The account is moved to the Responses backend.
+    source->formats["slicer-1"] = "responses";
+    h.send_user_message("second", "c-2");
+    h.pump_all();
+    CHECK(source->built.empty());
+
+    // A thinking level is a change within the same format.
+    h.deliver("set_chat_model", json{{"provider", "jusprin"}, {"model", "slicer-1"}, {"effort", "thorough"}});
+    CHECK(h.persistence.document().chat_model(first) == ChatModelChoice{"jusprin", "slicer-1", "thorough", "anthropic"});
+    h.send_user_message("third", "c-3");
+    h.pump_all();
+    REQUIRE(source->built.size() == 1);
+    CHECK(source->built.back() == ChatModelChoice{"jusprin", "slicer-1", "thorough", "anthropic"});
+
+    // A new chat goes by the assignment it starts under.
+    h.deliver("create_conversation", json{{"title", "Second"}});
+    const std::string second = h.persistence.document().active_conversation_id();
+    REQUIRE(second != first);
+    h.send_user_message("fourth", "c-4");
+    h.pump_all();
+    REQUIRE(source->built.size() == 2);
+    CHECK(source->built.back() == ChatModelChoice{"jusprin", "slicer-1", "", "responses"});
+    CHECK(h.persistence.document().chat_model(second) == ChatModelChoice{"jusprin", "slicer-1", "", "responses"});
+    // The first chat keeps its own.
+    CHECK(h.persistence.document().chat_model(first) == ChatModelChoice{"jusprin", "slicer-1", "thorough", "anthropic"});
+}
+
+// Before the account's model list has named any format there is nothing to
+// fix a chat to: the turn fails visibly and the list is asked for again.
+TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][account]")
+{
+    Harness h;
+    auto source       = std::make_shared<FakeModelSource>();
+    source->providers = {"jusprin"};
+    source->fallback  = "jusprin";
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    // The first list failed, so it can be asked for again.
+    REQUIRE(source->asked.count("jusprin") == 1);
+    source->asked["jusprin"](false, {});
+    source->asked.clear();
+
+    h.send_user_message("hello", "c-1");
+    h.pump_all();
+    const json* failed = h.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["code"] == "account_models_unknown");
+    CHECK((*failed)["payload"]["error"]["retryable"] == true);
+    CHECK(source->asked.count("jusprin") == 1);
+    const std::string chat = h.persistence.document().active_conversation_id();
+    CHECK_FALSE(h.persistence.document().chat_model(chat).has_value());
+}
 
 // The composer's pickers: each chat picks its provider, model and thinking
 // level, switchable between any two turns, and every turn runs on an agent
@@ -2237,6 +2319,38 @@ TEST_CASE("an image attachment's preview comes from the wired thumbnail maker, a
     REQUIRE(a.contains("previewDataUrl"));
     CHECK(a["previewDataUrl"] == "data:image/jpeg;base64,Zm9v");
     CHECK(seen == original);
+}
+
+// A photo goes to the model at the size models look at, not as taken: the
+// wired shrink function decides, and its type and bytes replace the
+// original's. A PDF is sent as it is.
+TEST_CASE("an attached image reaches the model as the shrink function returns it", "[agent][attachments]")
+{
+    auto agent_owner = std::make_unique<RecordingAgent>();
+    RecordingAgent* agent = agent_owner.get();
+    Harness h{AgentServicePtr(std::move(agent_owner))};
+    std::vector<std::string> shrunk;
+    h.host.set_image_for_model([&shrunk](const std::string& bytes) -> std::optional<std::pair<std::string, std::string>> {
+        shrunk.push_back(bytes);
+        return std::make_pair(std::string("image/jpeg"), std::string("small"));
+    });
+    h.handshake();
+    const std::string photo(300 * 1024, 'x');
+    attach(h, "ca-img", "photo.png", photo, "image/png");
+    attach(h, "ca-pdf", "manual.pdf", "%PDF-1.4 a manual", "application/pdf");
+    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"},
+                                   {"attachmentIds", json::array({"a-1", "a-2"})}});
+    h.pump_all();
+
+    REQUIRE_FALSE(agent->requests.empty());
+    const std::vector<AgentAttachmentContext>& sent = agent->requests.front().attachments;
+    REQUIRE(sent.size() == 2);
+    CHECK(sent[0].kind == "image");
+    CHECK(sent[0].mime == "image/jpeg");
+    CHECK(sent[0].bytes == "small");
+    CHECK(sent[1].kind == "pdf");
+    CHECK(sent[1].bytes == "%PDF-1.4 a manual");
+    CHECK(shrunk == std::vector<std::string>{photo});
 }
 
 TEST_CASE("an unsupported binary attachment is rejected visibly", "[agent][attachments]")

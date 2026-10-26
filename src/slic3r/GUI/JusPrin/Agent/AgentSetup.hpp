@@ -15,6 +15,7 @@
 
 #include "AgentService.hpp"
 #include "AgentTransport.hpp"
+#include "CloudAccount.hpp"
 
 #include <chrono>
 #include <functional>
@@ -39,6 +40,9 @@ struct SavedKey
 {
     std::string provider; // a provider_profiles() id
     std::string hint;     // api_key_hint()
+    // For an account provider, the signed-in account's email, which the
+    // setup screen shows instead of a key.
+    std::string account;
 };
 
 struct SetupOutcome
@@ -74,8 +78,11 @@ public:
     virtual std::vector<SavedKey> saved_keys() const = 0;
 
     // Deletes one provider's stored key. False when there was none or it
-    // could not be removed.
+    // could not be removed. For an account provider this is signing out.
     virtual bool remove_key(const std::string& provider) = 0;
+
+    // Signing in to a JusPrin account, where this build can; null otherwise.
+    virtual ICloudSignIn* cloud_sign_in() { return nullptr; }
 };
 
 using AgentSetupServicePtr = std::shared_ptr<IAgentSetupService>;
@@ -110,7 +117,8 @@ public:
                      CommitFn         commit,
                      KeyStore         keys              = {},
                      std::string      endpoint_override = {},
-                     Clock            clock             = {});
+                     Clock            clock             = {},
+                     CloudSignInPtr   cloud             = {});
     ~ProviderKeySetup() override;
 
     bool                        busy() const override { return m_candidate != nullptr; }
@@ -120,6 +128,7 @@ public:
     bool                        commit(const SetupCredentials& credentials) override;
     std::vector<SavedKey>       saved_keys() const override;
     bool                        remove_key(const std::string& provider) override;
+    ICloudSignIn*               cloud_sign_in() override { return m_cloud.get(); }
 
 private:
     int          elapsed_ms() const;
@@ -130,6 +139,7 @@ private:
     KeyStore                              m_keys;
     std::string                           m_endpoint_override;
     Clock                                 m_clock;
+    CloudSignInPtr                        m_cloud;
     AgentServicePtr                       m_candidate;
     std::chrono::steady_clock::time_point m_started{};
 };

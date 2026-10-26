@@ -53,6 +53,14 @@ public:
     // thread the host runs on, and not at all after the source is replaced.
     using ModelsDone = std::function<void(bool ok, std::vector<ModelOption> models)>;
     virtual void list_models(const std::string& provider, ModelsDone done) = 0;
+    // For an account provider, the wire format the account's model list last
+    // gave this model; empty when it gave none, and for other providers.
+    virtual std::string model_format(const std::string& provider, const std::string& model) const
+    {
+        (void) provider;
+        (void) model;
+        return {};
+    }
 };
 
 class AgentHost
@@ -131,6 +139,11 @@ public:
     // tests wire a fake.
     using ImageThumbnailFn = std::function<std::string(const std::string& bytes)>;
     void set_image_thumbnail_maker(ImageThumbnailFn maker) { m_image_thumbnail_maker = std::move(maker); }
+    // Shrinks an attached image before the model is sent it: the new mime
+    // type and bytes, or nothing to send the original. Injected for the same
+    // reason as the thumbnail maker: it needs wx to decode.
+    using ImageForModelFn = std::function<std::optional<std::pair<std::string, std::string>>(const std::string& bytes)>;
+    void set_image_for_model(ImageForModelFn shrink) { m_image_for_model = std::move(shrink); }
     // Sends one envelope of a type this protocol declares. The subject uses
     // it to push its own state between snapshots.
     void send_page_envelope(const std::string& type, const nlohmann::json& payload);
@@ -403,6 +416,12 @@ private:
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
     void handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json);
+    void handle_account_sign_in(const std::string& envelope_id, bool stored);
+    void handle_account_cancel();
+    void pump_account();
+    void send_account_status(const std::string& phase, const std::string& correlation_id = {},
+                             const std::optional<AgentError>& error = std::nullopt, bool expired = false,
+                             const std::string& warning = {});
     // The stored keys as setup_keys describes them; nothing before the
     // handshake or without a setup service.
     void send_setup_keys(const std::string& correlation_id = {});
@@ -608,6 +627,7 @@ private:
     std::function<nlohmann::json()> m_session_state_provider;
     std::function<nlohmann::json()> m_navigation_state_provider;
     ImageThumbnailFn                m_image_thumbnail_maker;
+    ImageForModelFn                 m_image_for_model;
     AgentAvailability m_availability{AgentAvailability::Ready};
     bool              m_dark{false};
     bool              m_handshake{false};

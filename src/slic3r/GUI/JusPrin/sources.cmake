@@ -8,6 +8,14 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/AgentService.hpp
     GUI/JusPrin/Agent/AgentSetup.cpp
     GUI/JusPrin/Agent/AgentSetup.hpp
+    GUI/JusPrin/Agent/CloudAccount.cpp
+    GUI/JusPrin/Agent/CloudAccount.hpp
+    GUI/JusPrin/Agent/CloudSignInMachine.cpp
+    GUI/JusPrin/Agent/CloudSignInMachine.hpp
+    GUI/JusPrin/V1Import/V1Import.cpp
+    GUI/JusPrin/V1Import/V1Import.hpp
+    GUI/JusPrin/V1Import/WelcomeBackWindow.cpp
+    GUI/JusPrin/V1Import/WelcomeBackWindow.hpp
     GUI/JusPrin/Agent/AnthropicCodec.cpp
     GUI/JusPrin/Agent/AnthropicCodec.hpp
     GUI/JusPrin/Agent/AgentTransport.hpp

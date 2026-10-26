@@ -42,6 +42,11 @@ struct AgentSettings
     std::string provider; // empty means openai
     std::string api_key;  // the stored "<provider>_api_key"
     std::string model;    // empty keeps the provider's default
+    // For an account provider: the wire format its model is served in (as
+    // the account's model list last said) and the gateway endpoint. Empty
+    // format means the account has not been checked yet.
+    std::string format;
+    std::string endpoint;
 };
 
 // The runtime those choices give: a ready service, or the reason there is

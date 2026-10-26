@@ -73,11 +73,22 @@ AgentRuntime resolve_agent_runtime(const AgentSettings&                         
         return runtime;
     }
     if (settings.api_key.empty()) {
-        runtime.unavailable_reason = "No " + profile->display_name + " API key is configured.";
+        runtime.unavailable_reason = profile->account_sign_in ? "Not signed in to a JusPrin account." :
+                                                                "No " + profile->display_name + " API key is configured.";
         return runtime;
     }
-    runtime.service = make_provider_agent(*profile, settings.api_key, settings.model, endpoint_override, transport(),
-                                          std::move(listeners));
+    if (profile->account_sign_in) {
+        const std::optional<ProviderProfile> served =
+            account_profile(*profile, endpoint_override.empty() ? settings.endpoint : endpoint_override, settings.format);
+        if (!served) {
+            runtime.unavailable_reason = "Sign in to your JusPrin account again.";
+            return runtime;
+        }
+        runtime.service = make_provider_agent(*served, settings.api_key, settings.model, {}, transport(), std::move(listeners));
+    } else {
+        runtime.service = make_provider_agent(*profile, settings.api_key, settings.model, endpoint_override, transport(),
+                                              std::move(listeners));
+    }
     runtime.availability = runtime.service->ready() ? AgentAvailability::Ready : AgentAvailability::Unavailable;
     if (runtime.availability == AgentAvailability::Unavailable)
         runtime.unavailable_reason = "The " + profile->display_name + " Agent could not be initialized.";

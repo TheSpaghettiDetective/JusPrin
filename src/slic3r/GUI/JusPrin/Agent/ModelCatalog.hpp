@@ -15,6 +15,9 @@
 //     take tools, which every Agent turn needs.
 //   - OpenAI (GET /v1/models) gives ids only, so the rules below choose the
 //     models that can hold a conversation and the levels to offer.
+//   - JusPrin's gateway (GET /ent/jusprin/v2/models) describes its aliases in
+//     this shape already, with the wire format each is served in for this
+//     account; nothing is guessed or filtered.
 
 #include "ProviderProfile.hpp"
 
@@ -35,6 +38,10 @@ struct ModelOption
     // The level the provider says the model uses when none is sent; empty
     // when the provider does not say.
     std::string              default_effort;
+    // An account provider's alias: the wire format the gateway serves it in
+    // for this account (kFormatAnthropic or kFormatResponses). Empty for every
+    // other provider, whose row decides the format.
+    std::string              format;
 };
 
 // Where a provider's list is, beside its request endpoint (an override

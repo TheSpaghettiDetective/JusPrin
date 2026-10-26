@@ -32,7 +32,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
                                                  "model_choice", "all_settings", "settings_actions", "proposals",
-                                                 "saved_keys", "preferences"};
+                                                 "saved_keys", "preferences", "cloud_account"};
     return values;
 }
 
@@ -59,6 +59,15 @@ inline constexpr const char* kSetupCancel        = "setup_cancel";
 // as setup_keys; a refusal comes back as bridge_error. Added additively; the
 // saved_keys capability advertises it.
 inline constexpr const char* kSetupRemoveKey     = "setup_remove_key";
+// Signing in to a JusPrin account (cloud_account capability): start the
+// browser sign-in, check the stored account again (its sign-in may have
+// expired; one imported from JusPrin v1 is checked this way), or stop
+// either. Progress comes back as account_status; the signed-in account
+// travels in setup_keys as the "jusprin" entry's account. Signing out is
+// setup_remove_key for "jusprin".
+inline constexpr const char* kAccountSignIn      = "account_sign_in";
+inline constexpr const char* kAccountCheck       = "account_check";
+inline constexpr const char* kAccountCancel      = "account_cancel";
 inline constexpr const char* kMcpCatalog         = "mcp_catalog";
 inline constexpr const char* kMcpPreview         = "mcp_preview";
 inline constexpr const char* kMcpConnect         = "mcp_connect";
@@ -114,10 +123,16 @@ inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
 inline constexpr const char* kSetupStatus        = "setup_status";
 // Which providers have a stored key, never the key: {keys: [{provider, hint,
-// rejected}]}, hint as api_key_hint() writes it, rejected when the provider
-// refused that key in this session. Sent after the handshake and whenever one
+// rejected, account?}]}, hint as api_key_hint() writes it, rejected when the
+// provider refused that key in this session, account the signed-in email of
+// an account provider. Sent after the handshake and whenever one
 // of them changes. saved_keys capability.
 inline constexpr const char* kSetupKeys          = "setup_keys";
+// Where a JusPrin sign-in has got to: {phase: idle|browser|checking, url?,
+// expired?, error?: {code, message, retryable}, warning?}. url is the page
+// the browser was sent to, while in the browser phase; expired says the
+// stored account's sign-in has ended. cloud_account capability.
+inline constexpr const char* kAccountStatus      = "account_status";
 inline constexpr const char* kMcpStatus          = "mcp_status";
 // One new change log entry; the full list travels in `state`.
 inline constexpr const char* kChangeAdded        = "change_added";

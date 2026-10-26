@@ -63,9 +63,10 @@ ProviderKeySetup::ProviderKeySetup(TransportFactory transport,
                                    CommitFn         commit,
                                    KeyStore         keys,
                                    std::string      endpoint_override,
-                                   Clock            clock)
+                                   Clock            clock,
+                                   CloudSignInPtr   cloud)
     : m_transport_factory(std::move(transport)), m_commit(std::move(commit)), m_keys(std::move(keys)),
-      m_endpoint_override(std::move(endpoint_override)), m_clock(std::move(clock))
+      m_endpoint_override(std::move(endpoint_override)), m_clock(std::move(clock)), m_cloud(std::move(cloud))
 {
     if (!m_clock)
         m_clock = []() { return std::chrono::steady_clock::now(); };
@@ -75,7 +76,9 @@ ProviderKeySetup::~ProviderKeySetup() = default;
 
 bool ProviderKeySetup::start_check(const SetupCredentials& credentials)
 {
-    if (busy() || credentials.api_key.empty() || !setup_provider_supported(credentials.provider))
+    // An account provider's credential comes from signing in, never a key.
+    if (busy() || credentials.api_key.empty() || !setup_provider_supported(credentials.provider) ||
+        profile_for(credentials.provider)->account_sign_in)
         return false;
 
     const std::string endpoint = credentials.endpoint.empty() ? m_endpoint_override : credentials.endpoint;
@@ -136,15 +139,24 @@ std::vector<SavedKey> ProviderKeySetup::saved_keys() const
         return saved;
     for (const ProviderProfile& profile : provider_profiles()) {
         const std::string key = m_keys.load(profile.id);
-        if (!key.empty())
-            saved.push_back(SavedKey{profile.id, api_key_hint(profile.id, key)});
+        if (key.empty())
+            continue;
+        SavedKey entry{profile.id, api_key_hint(profile.id, key), {}};
+        if (profile.account_sign_in && m_cloud)
+            if (const std::optional<CloudAccountRecord> account = m_cloud->account())
+                entry.account = account->email;
+        saved.push_back(std::move(entry));
     }
     return saved;
 }
 
 bool ProviderKeySetup::remove_key(const std::string& provider)
 {
-    return setup_provider_supported(provider) && m_keys.remove && m_keys.remove(provider);
+    if (!setup_provider_supported(provider))
+        return false;
+    if (profile_for(provider)->account_sign_in)
+        return m_cloud && m_cloud->sign_out();
+    return m_keys.remove && m_keys.remove(provider);
 }
 
 int ProviderKeySetup::elapsed_ms() const

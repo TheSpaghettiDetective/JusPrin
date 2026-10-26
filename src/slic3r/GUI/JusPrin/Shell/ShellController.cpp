@@ -14,6 +14,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
+#include "slic3r/GUI/JusPrin/V1Import/WelcomeBackWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
@@ -844,6 +845,23 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // Shell installation runs during MainFrame construction, before the
         // deferred startup wizard check. Keep this before that check, not in run_wizard.
         wxGetApp().show_config_wizard_on_startup = false;
+        // A JusPrin v1 setup imported at this start is shown once the window
+        // is on screen, OrcaSlicer has finished starting up, and none of the
+        // dialogs OrcaSlicer opens at start-up is still waiting for an answer
+        // (one opened on top of it would run inside its modal loop).
+        if (const auto report = V1Import::read_report(std::filesystem::u8path(data_dir())); report && report->pending) {
+            m_welcome_wait = std::make_unique<wxTimer>();
+            m_welcome_wait->Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+                if (!wxGetApp().post_initialized() || !m_frame->IsShownOnScreen())
+                    return;
+                for (wxWindow* window : wxTopLevelWindows)
+                    if (const auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal())
+                        return;
+                m_welcome_wait->Stop();
+                m_frame->CallAfter([this] { open_welcome_back(); });
+            });
+            m_welcome_wait->Start(250);
+        }
     } catch (...) {
         m_installed = true; // let uninstall() undo whatever was applied
         uninstall();
@@ -855,6 +873,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
 {
     if (event.GetWindow() == m_frame) {
         m_runtime_timer.Stop();
+        m_welcome_wait.reset();
         m_installed = false;
         wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
         m_prepare_canvas_presentation.abandon();
@@ -1250,17 +1269,44 @@ void ShellController::reload_agent_config()
     m_agent_pane->web_view().host().set_agent(std::move(runtime.service), runtime.availability);
 }
 
+namespace {
+
+// Keys, the account and the agent's settings live in their own section; a
+// change there is the one thing a JusPrin window over the app changes that
+// the docked panel has to hear about.
+std::map<std::string, std::string> agent_settings()
+{
+    const AppConfig& config = *wxGetApp().app_config;
+    return config.has_section("jusprin_agent") ? config.get_section("jusprin_agent") : std::map<std::string, std::string>{};
+}
+
+} // namespace
+
+void ShellController::open_welcome_back()
+{
+    const std::filesystem::path           data   = std::filesystem::u8path(data_dir());
+    const std::optional<V1Import::Report> report = V1Import::read_report(data);
+    if (!m_installed || m_preferences_open || !report || !report->pending)
+        return;
+    const auto agent_before = agent_settings();
+    // One JusPrin window over the app at a time.
+    m_preferences_open = true;
+    {
+        V1Import::WelcomeBackWindow window(m_frame, *m_theme, *m_workspace, *report);
+        window.ShowModal();
+    }
+    m_preferences_open = false;
+    V1Import::mark_shown(data);
+    // The account check there stores what the server said about the account,
+    // and a new sign-in replaces it; either way the docked agent rebuilds.
+    if (agent_settings() != agent_before)
+        reload_agent_config();
+}
+
 void ShellController::open_preferences(const std::string& section)
 {
     if (!m_installed || m_preferences_open)
         return;
-    // Keys and the agent's settings live in their own section; a change there
-    // is the one thing in the window the docked panel has to hear about.
-    const auto agent_settings = [] {
-        const AppConfig& config = *wxGetApp().app_config;
-        return config.has_section("jusprin_agent") ? config.get_section("jusprin_agent")
-                                                   : std::map<std::string, std::string>{};
-    };
     const auto agent_before = agent_settings();
 
     m_preferences_open = true;

@@ -134,6 +134,8 @@ std::string model_list_url(const ProviderProfile& profile, const std::string& en
     const std::string endpoint = endpoint_override.empty() ? profile.endpoint : endpoint_override;
     const std::size_t slash    = endpoint.rfind('/');
     const std::string base     = slash == std::string::npos ? endpoint : endpoint.substr(0, slash);
+    if (profile.account_sign_in)
+        return base + "/models";
     if (profile.family == ProviderFamily::Anthropic)
         return base + "/models?limit=1000";
     if (profile.id == "openrouter")
@@ -145,7 +147,17 @@ ModelListPage parse_model_list(const ProviderProfile& profile, const json& respo
 {
     ModelListPage page;
     const json& data = response.at("data");
-    if (profile.family == ProviderFamily::Anthropic) {
+    if (profile.account_sign_in) {
+        for (const json& model : data) {
+            ModelOption option;
+            option.id             = model.at("id").get<std::string>();
+            option.label          = model.value("label", option.id);
+            option.format         = model.at("format").get<std::string>();
+            option.efforts        = model.value("efforts", std::vector<std::string>{});
+            option.default_effort = model.value("default_effort", "");
+            page.models.push_back(std::move(option));
+        }
+    } else if (profile.family == ProviderFamily::Anthropic) {
         for (const json& model : data)
             page.models.push_back(anthropic_model(model));
         if (response.value("has_more", false))

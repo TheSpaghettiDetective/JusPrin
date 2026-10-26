@@ -6,7 +6,7 @@
 // same rows.
 
 import { KeyboardEvent, RefObject, useEffect, useRef, useState } from 'react';
-import { McpToolInfo, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
+import { AccountStatusPayload, McpToolInfo, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
 
 // The page and the host ship in the same build, so this list and the host's
 // setup_provider_supported() are two views of the same fact. The host still
@@ -29,24 +29,82 @@ export function providerLabel(id: string | undefined): string {
   return PROVIDERS.find((provider) => provider.id === id)?.label ?? 'your provider';
 }
 
-// JusPrin account sign-in is not built yet. Without onSignIn the button stays
-// on show but inert, so the way is visible without leading nowhere.
-export function AccountRow({ onSignIn }: { onSignIn?: () => void }) {
+export interface AccountRowProps {
+  // The signed-in account, from setup_keys; absent when signed out.
+  account?: SavedKeyInfo;
+  status: AccountStatusPayload;
+  onSignIn: () => void;
+  onCancel: () => void;
+  onSignOut: () => void;
+}
+
+// The JusPrin account (canvas "JusPrin v2": Agent/Account Row): signed out,
+// waiting for the browser, signed in, or signed in with a sign-in that has
+// ended. The browser does the signing in; this row only follows it.
+export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: AccountRowProps) {
+  const [copied, setCopied] = useState(false);
+  const waiting = status.phase !== 'idle';
+  const ended = !!account?.rejected;
+  const copyLink = () => {
+    if (!status.url) return;
+    navigator.clipboard.writeText(status.url).then(() => setCopied(true), () => setCopied(false));
+  };
+  let line: React.ReactNode;
+  if (waiting) {
+    line = status.phase === 'checking' ? 'Checking your account…' : 'Finish signing in in your browser';
+  } else if (account && ended) {
+    line = (
+      <span className="agent-row-status-label">
+        <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
+        <span>Your sign-in for {account.account || 'this account'} has ended</span>
+      </span>
+    );
+  } else if (account) {
+    line = (
+      <span className="agent-row-status-label">
+        <span className="jp-icon jp-icon-check" aria-hidden="true" />
+        <span>{account.account ? `Signed in as ${account.account}` : 'Signed in'}</span>
+      </span>
+    );
+  } else {
+    line = 'Free · sign in with your browser · nothing to install';
+  }
   return (
     <div className="agent-account" data-testid="agent-account">
       <div className="agent-row-copy">
-        <h2 className="agent-account-title">JusPrin account</h2>
-        <span className="agent-row-status">Free · sign in with your browser · nothing to install</span>
+          <h2 className="agent-account-title">JusPrin account</h2>
+          <span className={`agent-row-status${ended && !waiting ? ' agent-row-status--rejected' : account && !waiting ? ' agent-row-status--saved' : ''}`}
+            data-testid="agent-account-status">{line}</span>
       </div>
-      <button
-        type="button"
-        className="primary"
-        disabled={!onSignIn}
-        title={onSignIn ? undefined : 'Signing in with a JusPrin account arrives in a later JusPrin release'}
-        onClick={onSignIn}
-      >
-        Continue with JusPrin
-      </button>
+      {waiting ? (
+        <button type="button" className="link" onClick={onCancel}>Cancel</button>
+      ) : account && !ended ? (
+        <button type="button" className="agent-row-action" onClick={onSignOut}>Sign out</button>
+      ) : (
+        <button type="button" className="primary" onClick={onSignIn}>{ended ? 'Sign in again' : 'Continue with JusPrin'}</button>
+      )}
+      <div className="agent-account-detail">
+      {status.phase === 'browser' && (
+        <>
+          <p className="agent-row-note">
+            A JusPrin tab just opened. Sign in there, or create an account, and come back. This notices on its own.
+          </p>
+          {status.url && (
+            <p className="agent-row-note">
+              Didn’t open?{' '}
+              <button type="button" className="link" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link'}</button>
+            </p>
+          )}
+        </>
+      )}
+      {!waiting && status.error && (
+        <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>
+      )}
+      {!waiting && status.warning && <p className="agent-row-note">{status.warning}</p>}
+      {!waiting && account && ended && (
+        <p className="agent-row-note">Sign in again to keep using the Agent with your JusPrin account.</p>
+      )}
+      </div>
     </div>
   );
 }

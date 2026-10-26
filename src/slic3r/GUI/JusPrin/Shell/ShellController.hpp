@@ -153,6 +153,10 @@ public:
     // modal window itself (a web view's message handler, a key handler).
     // Requests that arrive before it opens open it once.
     void request_preferences(const std::string& section = {});
+    // The window shown once after JusPrin v1's setup was imported at this
+    // start (V1Import.hpp); returns once it is closed. Nothing when there is
+    // no import still to show.
+    void open_welcome_back();
 
     // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
     // decoupled from the add-printer request that opened it, so nothing else
@@ -249,6 +253,8 @@ private:
     bool m_agent_pane_user_collapsed{false};
     bool m_preferences_open{false};
     bool m_preferences_requested{false};
+    // Waits for the main window to be up before the welcome-back window.
+    std::unique_ptr<wxTimer> m_welcome_wait;
     bool m_task_open{false};
     int  m_task_origin_tab{-1};
 

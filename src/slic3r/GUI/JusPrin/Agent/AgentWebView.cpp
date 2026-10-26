@@ -52,6 +52,8 @@ wxString agent_page_url(AgentPageMode mode)
         url += "?panel=printer";
     else if (mode == AgentPageMode::Preferences)
         url += "?panel=preferences";
+    else if (mode == AgentPageMode::WelcomeBack)
+        url += "?panel=welcome";
     return url;
 }
 
@@ -111,6 +113,11 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     });
     m_host->set_image_thumbnail_maker(
         [](const std::string& bytes) { return Agent::image_thumbnail_data_url(bytes); });
+    m_host->set_image_for_model([](const std::string& bytes) -> std::optional<std::pair<std::string, std::string>> {
+        if (auto shrunk = Agent::image_for_model(bytes))
+            return std::make_pair(std::move(shrunk->mime), std::move(shrunk->bytes));
+        return std::nullopt;
+    });
     auto* sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(sizer);
 

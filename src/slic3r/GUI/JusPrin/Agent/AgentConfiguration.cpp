@@ -1,6 +1,7 @@
 #include "AgentConfiguration.hpp"
 
 #include "AgentHost.hpp"
+#include "CloudSignInMachine.hpp"
 #include "ModelCatalogFetch.hpp"
 #include "OpenAIResponsesAgent.hpp"
 #include "ProviderFactory.hpp"
@@ -8,13 +9,92 @@
 
 #include <boost/log/trivial.hpp>
 
+#include <nlohmann/json.hpp>
+
 namespace Slic3r::GUI::JusPrin::Agent {
 
 namespace {
 
 constexpr const char* kSection = "jusprin_agent";
 
+// JusPrin v1 kept the server it signs in to here; a self-hosted or staging
+// server named there is the one JusPrin 2 signs in to as well.
+constexpr const char* kServerSection = "jusprin_server";
+
 std::string api_key_item_for(const std::string& provider) { return provider + "_api_key"; }
+// An account provider keeps the account's email and the wire format of each
+// of its models beside the token.
+std::string account_item_for(const std::string& provider) { return provider + "_account"; }
+std::string formats_item_for(const std::string& provider) { return provider + "_model_formats"; }
+
+// Where an account provider's gateway is: on the server v1's setting names,
+// or the row's own.
+std::string cloud_gateway(const AppConfig* config, const ProviderProfile& row)
+{
+    std::string base = config == nullptr ? std::string() : config->get(kServerSection, "base_url");
+    while (!base.empty() && base.back() == '/')
+        base.pop_back();
+    return base.empty() ? row.endpoint : base + "/ent/jusprin/v2/responses";
+}
+
+// The endpoint a provider is reached at, where it is not the row's: the
+// developer's override for any provider, or an account provider's gateway.
+std::string endpoint_for(const AppConfig* config, const ProviderProfile& profile)
+{
+    if (std::string override_endpoint = agent_endpoint_override(); !override_endpoint.empty())
+        return override_endpoint;
+    return profile.account_sign_in ? cloud_gateway(config, profile) : std::string();
+}
+
+std::vector<std::pair<std::string, std::string>> stored_formats(const AppConfig* config, const std::string& provider)
+{
+    std::vector<std::pair<std::string, std::string>> formats;
+    if (config == nullptr)
+        return formats;
+    const nlohmann::json stored = nlohmann::json::parse(config->get(kSection, formats_item_for(provider)), nullptr, false);
+    if (stored.is_object())
+        for (const auto& [model, format] : stored.items())
+            if (format.is_string())
+                formats.emplace_back(model, format.get<std::string>());
+    return formats;
+}
+
+void store_formats(AppConfig* config, const std::string& provider, const std::vector<std::pair<std::string, std::string>>& formats)
+{
+    nlohmann::json stored = nlohmann::json::object();
+    for (const auto& [model, format] : formats)
+        stored[model] = format;
+    config->set(kSection, formats_item_for(provider), stored.dump());
+}
+
+std::string stored_format(const AppConfig* config, const std::string& provider, const std::string& model)
+{
+    for (const auto& [listed, format] : stored_formats(config, provider))
+        if (listed == model)
+            return format;
+    return {};
+}
+
+// Deletes a provider's stored key, and an account's email and formats with
+// it. A chat without a choice of its own talks to the recorded provider; once
+// its key is gone, that is the first provider that still has one.
+bool remove_provider_key(AppConfig* config, const std::string& provider)
+{
+    if (config == nullptr || config->get(kSection, api_key_item_for(provider)).empty())
+        return false;
+    config->erase(kSection, api_key_item_for(provider));
+    config->erase(kSection, account_item_for(provider));
+    config->erase(kSection, formats_item_for(provider));
+    if (config->get(kSection, "provider") == provider)
+        for (const ProviderProfile& profile : provider_profiles())
+            if (!config->get(kSection, api_key_item_for(profile.id)).empty()) {
+                config->set(kSection, "provider", profile.id);
+                break;
+            }
+    // Saved now, as a stored key is: the person was just told it is gone.
+    config->save();
+    return true;
+}
 
 ProviderListeners logging_listeners()
 {
@@ -52,6 +132,10 @@ AgentRuntime load_agent_runtime(AppConfig* config)
         settings.model    = config->get(kSection, "model");
     }
     settings.api_key = load_provider_api_key(config, settings.provider.empty() ? "openai" : settings.provider);
+    if (const ProviderProfile* profile = profile_for(settings.provider); profile != nullptr && profile->account_sign_in) {
+        settings.format   = stored_format(config, profile->id, settings.model.empty() ? profile->model : settings.model);
+        settings.endpoint = cloud_gateway(config, *profile);
+    }
     AgentRuntime runtime = resolve_agent_runtime(settings, agent_endpoint_override(), &make_openai_http_transport, logging_listeners());
     runtime.setup        = make_agent_setup(config);
     return runtime;
@@ -80,24 +164,50 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
     };
     ProviderKeySetup::KeyStore keys;
     keys.load   = [config](const std::string& provider) { return load_provider_api_key(config, provider); };
-    keys.remove = [config](const std::string& provider) {
-        if (config == nullptr || load_provider_api_key(config, provider).empty())
+    keys.remove = [config](const std::string& provider) { return remove_provider_key(config, provider); };
+    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), std::move(keys),
+                                              agent_endpoint_override(), ProviderKeySetup::Clock{},
+                                              make_cloud_sign_in(config));
+}
+
+CloudSignInPtr make_cloud_sign_in(AppConfig* config)
+{
+    const ProviderProfile& row     = account_provider();
+    const std::string      gateway = endpoint_for(config, row);
+    CloudAccountStore      store;
+    store.load = [config, id = row.id]() -> std::optional<CloudAccountRecord> {
+        if (config == nullptr)
+            return std::nullopt;
+        CloudAccountRecord record;
+        record.token   = config->get(kSection, api_key_item_for(id));
+        record.email   = config->get(kSection, account_item_for(id));
+        record.formats = stored_formats(config, id);
+        return record;
+    };
+    // Signing in is choosing the account as the Agent's provider, after the
+    // account row told the person what goes to JusPrin and on to the model's
+    // provider: the same choices and consent a verified key records.
+    store.save = [config, id = row.id](const CloudAccountRecord& record) {
+        if (config == nullptr)
             return false;
-        config->erase(kSection, api_key_item_for(provider));
-        // A chat without a choice of its own talks to the recorded provider;
-        // once its key is gone, that is the first provider that still has one.
-        if (config->get(kSection, "provider") == provider)
-            for (const ProviderProfile& profile : provider_profiles())
-                if (!load_provider_api_key(config, profile.id).empty()) {
-                    config->set(kSection, "provider", profile.id);
-                    break;
-                }
-        // Saved now, as a stored key is: the person was just told it is gone.
+        config->set(kSection, api_key_item_for(id), record.token);
+        config->set(kSection, account_item_for(id), record.email);
+        store_formats(config, id, record.formats);
+        config->set(kSection, "provider", id);
+        config->set(kSection, "enabled", "true");
+        config->set(kSection, "cloud_consent", "true");
         config->save();
         return true;
     };
-    return std::make_shared<ProviderKeySetup>(&make_openai_http_transport, std::move(commit), std::move(keys),
-                                              agent_endpoint_override());
+    store.erase = [config, id = row.id]() { return remove_provider_key(config, id); };
+    auto agents = [row, gateway](const std::string& token, const std::string& model, const std::string& format) -> AgentServicePtr {
+        const std::optional<ProviderProfile> served = account_profile(row, gateway, format);
+        if (!served)
+            return nullptr;
+        return make_provider_agent(*served, token, model, {}, make_openai_http_transport(), logging_listeners());
+    };
+    return std::make_shared<CloudSignIn>(cloud_server_from_gateway(gateway), gateway, row.model, make_cloud_account_deps(),
+                                         std::move(store), std::move(agents));
 }
 
 namespace {
@@ -138,8 +248,18 @@ public:
             return nullptr;
         ProviderProfile profile = *row;
         profile.effort          = choice.effort;
-        return make_provider_agent(profile, key, choice.model, agent_endpoint_override(), make_openai_http_transport(),
-                                   logging_listeners());
+        if (!row->account_sign_in)
+            return make_provider_agent(profile, key, choice.model, agent_endpoint_override(), make_openai_http_transport(),
+                                       logging_listeners());
+        const std::optional<ProviderProfile> served = account_profile(profile, endpoint_for(m_config, *row), choice.format);
+        if (!served)
+            return nullptr;
+        return make_provider_agent(*served, key, choice.model, {}, make_openai_http_transport(), logging_listeners());
+    }
+
+    std::string model_format(const std::string& provider, const std::string& model) const override
+    {
+        return stored_format(m_config, provider, model);
     }
 
     void list_models(const std::string& provider, ModelsDone done) override
@@ -150,11 +270,23 @@ public:
             done(false, {});
             return;
         }
-        fetch_model_list(*profile, key, agent_endpoint_override(), m_cancelled,
-                         [post = m_post, done = std::move(done), provider](ModelListResult result) {
+        fetch_model_list(*profile, key, endpoint_for(m_config, *profile), m_cancelled,
+                         [post = m_post, done = std::move(done), provider, config = m_config,
+                          account = profile->account_sign_in](ModelListResult result) {
                              if (!result.ok)
                                  BOOST_LOG_TRIVIAL(warning) << "Agent model list for " << provider << ": " << result.error;
-                             post([done, result = std::move(result)]() mutable { done(result.ok, std::move(result.models)); });
+                             post([done, result = std::move(result), provider, config, account]() mutable {
+                                 // An account's list says which format each model
+                                 // is served in now; chats not yet started go by it.
+                                 if (account && result.ok && config != nullptr) {
+                                     std::vector<std::pair<std::string, std::string>> formats;
+                                     for (const ModelOption& option : result.models)
+                                         formats.emplace_back(option.id, option.format);
+                                     store_formats(config, provider, formats);
+                                     config->save();
+                                 }
+                                 done(result.ok, std::move(result.models));
+                             });
                          });
     }
 
