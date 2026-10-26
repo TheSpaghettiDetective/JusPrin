@@ -13,6 +13,7 @@ import {
   ChangeInfo,
   WorkInfo,
   RestorePointInfo,
+  FileReport,
   PhysicalPrintInfo,
   PrinterBlock,
   ToolActivityInfo,
@@ -20,6 +21,7 @@ import {
 import { Message } from '../state/store';
 import { AttachmentChip } from './AttachmentChip';
 import { ChangeRows } from './ChangeRows';
+import { chatTimestamp } from './ChatNavigation';
 import { FileNotesCard } from './FileNotesCard';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
@@ -130,6 +132,20 @@ interface Turn {
   replies: Message[];
 }
 
+// "Opened find_my_hollow.3mf as a new project · you · 12:16": the file that
+// replaced the project, who opened it and when. A saved project reopening
+// with its chat is not new: its note follows the chat's earlier messages.
+function openedLine(message: Message, report: FileReport, isFirst: boolean): ReactNode {
+  const files = report.loads.flatMap((load) => load.files);
+  const name = (files[0] ?? '').split(/[\\/]/).pop() || 'a file';
+  const text = [`Opened ${name}${files.length > 1 ? ` and ${files.length - 1} more` : ''}${isFirst ? ' as a new project' : ''}`,
+    report.startedBy === 'agent' ? 'Agent' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
+    .filter(Boolean).join(' · ');
+  return <div className="message note" role="status">
+    <span className="note-text" title={text}>{text}</span>
+  </div>;
+}
+
 export function turnsOf(messages: Message[], perMessage: boolean): Turn[] {
   const turns: Turn[] = [];
   for (const message of messages) {
@@ -226,12 +242,16 @@ export function MessageList({
     (onDiscussFailure ?? onSend)(`Help me understand why this print failed: ${print.failure || 'The print stopped unexpectedly.'}`);
 
   // A message's bubble, or null for a tool-only reply that has nothing to
-  // say. A file's load report is for the model: the person sees it only
-  // when the Agent could not speak about it, as the card of what OrcaSlicer
-  // said.
+  // say. A file's load report is for the model: the person sees the card of
+  // what OrcaSlicer said only when the Agent could not speak about it.
+  // Otherwise the event that started the Agent's turn gets a row of its own
+  // when the load replaced the project, as the Chat/System Line; an import
+  // into the open project has its change row ("Import Object: …") already.
   const bubble = (message: Message, after?: ReactNode): ReactNode => {
-    if (message.role === 'note' && message.fileReport)
-      return message.fileReportCard ? <FileNotesCard report={message.fileReport} /> : null;
+    if (message.role === 'note' && message.fileReport) {
+      if (message.fileReportCard) return <FileNotesCard report={message.fileReport} />;
+      return message.fileReport.projectOpened ? openedLine(message, message.fileReport, messages[0]?.id === message.id) : null;
+    }
     // Chat/Receipt: a preset the person saved from a proposal, in the same
     // words every time, from what the app saved. Undo takes the save back,
     // and the receipt stays to say so, as an added printer's does.

@@ -745,7 +745,47 @@ class PrintThisNoPurpose(Case):
         return (PASS, str(step)) if yes else (FAIL, "NOT ONE QUESTION FOR THE PERSON: " + why)
 
 
-class ModelOpenedUnnamed(Case):
+# The file-loaded skill's cap on the first message about an opened file:
+# "about 80 words, with at most two bullets", ending with "exactly one
+# question". The card above the message holds the presets, the plate and the
+# estimates, so a message that restates them runs long. "About" allows a
+# fifth over; a string test, since a count needs no judge.
+OPENING_WORDS = 96
+OPENING_BULLET = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+", re.MULTILINE)
+
+
+def opening_shape(reply):
+    """Why a first message about an opened file breaks the skill's cap, or
+    an empty string when it keeps to it."""
+    words = len(reply.split())
+    bullets = len(OPENING_BULLET.findall(reply))
+    questions = reply.count("?") + reply.count("\uff1f")
+    problems = []
+    if words > OPENING_WORDS:
+        problems.append(f"{words} words")
+    if bullets > 2:
+        problems.append(f"{bullets} bullets")
+    if questions != 1:
+        problems.append(f"{questions} questions")
+    return ", ".join(problems)
+
+
+class OpeningMessage(Case):
+    """Shared by the cases whose step is the first message about an opened
+    file: a change fails, a read is answered, and a reply that breaks the
+    skill's cap (opening_shape) fails before the judge is asked anything."""
+
+    def opening(self, step, question, claim):
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        shape = opening_shape(step.reply)
+        if shape:
+            return FAIL, "OVER THE OPENING CAP (" + shape + "): " + str(step)
+        yes, why = self.judged(step, question)
+        return (PASS, str(step)) if yes else (FAIL, claim + why)
+
+
+class ModelOpenedUnnamed(OpeningMessage):
     """The person imports a model whose file name says nothing about it
     (scan_0417.drc, the Stanford bunny) into an empty project. The request
     carries the load report, the plate's picture and the file-loaded skill
@@ -753,17 +793,16 @@ class ModelOpenedUnnamed(Case):
     has not asked for", and "Look at the attached picture ... make an
     educated guess at what the object is, what it is likely for". Passes on a
     reply the judge reads as saying what the object is or looks like, or
-    asking what it is for; fails on a change or a reply that does neither."""
+    asking what it is for; fails on a change, a reply that does neither, or
+    one over the skill's cap: "about 80 words, with at most two bullets",
+    "exactly one question" (opening_shape)."""
 
     name = "model-opened-unnamed"
 
     def check(self, step):
-        if step.tool:
-            return (FAIL if step.changes() else CONTINUE), str(step)
-        yes, why = self.judged(step, "Does the assistant's last message say what the opened object is or what it looks "
-                                     "like (for example an animal, a figure or a kind of part), or ask the person what "
-                                     "it is for?")
-        return (PASS, str(step)) if yes else (FAIL, "NEITHER DESCRIBED NOR ASKED: " + why)
+        return self.opening(step, "Does the assistant's last message say what the opened object is or what it looks "
+                                  "like (for example an animal, a figure or a kind of part), or ask the person what "
+                                  "it is for?", "NEITHER DESCRIBED NOR ASKED: ")
 
 
 class ModelImportedByTool(Case):
@@ -786,23 +825,21 @@ class ModelImportedByTool(Case):
         return (PASS, str(step)) if yes else (FAIL, "DID NOT REPORT THE IMPORT: " + why)
 
 
-class ModelOpenedByTool(Case):
+class ModelOpenedByTool(OpeningMessage):
     """"Open .../part_9.drc as a new project." (the Voron design cube) on the
     one-box project; the model called project_open, which ended that turn,
     and the opened project's chat starts with the load report, the plate's
     picture and the file-loaded skill. The same sentences as
     model-opened-unnamed. Passes on a reply the judge reads as saying what
     was opened and what the object is or looks like, or asking what it is
-    for; fails on a change or a reply that does not."""
+    for; fails on a change, a reply that does not, or one over the skill's
+    cap, as model-opened-unnamed."""
 
     name = "model-opened-by-tool"
 
     def check(self, step):
-        if step.tool:
-            return (FAIL if step.changes() else CONTINUE), str(step)
-        yes, why = self.judged(step, "Does the assistant's last message tell the person the file was opened, and say what "
-                                     "the object is or looks like or ask what it is for?")
-        return (PASS, str(step)) if yes else (FAIL, "DID NOT REPORT THE OPENED MODEL: " + why)
+        return self.opening(step, "Does the assistant's last message tell the person the file was opened, and say what "
+                                  "the object is or looks like or ask what it is for?", "DID NOT REPORT THE OPENED MODEL: ")
 
 
 class SliceRefused(Case):

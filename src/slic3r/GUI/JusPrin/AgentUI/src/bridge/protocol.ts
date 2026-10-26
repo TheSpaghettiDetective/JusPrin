@@ -586,6 +586,12 @@ export interface WorkspaceContext {
   // How the agent means to print, in a few words: the headline of the plan
   // it pinned with setup_record. Empty until it pins one.
   planHeadline: string;
+  // Whether the project moved on since the plan was recorded: the app marks
+  // it after an edit that was not the agent's own (a hand edit, an import,
+  // Undo, a restore), with that edit's label as the reason. Recording the
+  // plan again clears it; nothing else does. Absent from older hosts.
+  planValidity?: 'current' | 'needs_reassessment';
+  planInvalidatedBy?: string;
 }
 
 // Lifecycle of one native tool action. Terminal states are 'succeeded',

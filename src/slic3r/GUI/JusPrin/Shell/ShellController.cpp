@@ -427,27 +427,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                                  wxOK | wxICON_ERROR, m_frame);
                 return true;
             }
-            if (action == "undo_setup_change") {
-                // The card offers this only for the agent's own project step,
-                // and Orca's undo takes whatever is on top of its stack. The
-                // step must therefore still be the newest thing that happened.
-                const auto& document = m_persistence->document();
-                const auto snapshot = m_workspace->snapshot();
-                const auto changes = document.changes();
-                const bool active_chat = document.viewed_conversation_id() == document.active_conversation_id();
-                const bool same_project = payload.value("sessionId", std::string()) == std::to_string(snapshot.session.value());
-                const bool newest_step = !changes.empty() && changes.back().kind == "step" && changes.back().actor == "agent" &&
-                    payload.value("changeSeq", std::uint64_t{0}) == changes.back().seq;
-                if (!active_chat || !same_project || !newest_step) {
-                    wxMessageBox(_L("The project changed after that step. Use Undo in the Edit menu instead."),
-                                 _L("Could not undo"), wxOK | wxICON_WARNING, m_frame);
-                    return true;
-                }
-                const auto result = m_workspace->undo();
-                if (!result.succeeded())
-                    wxMessageBox(wxString::FromUTF8(result.message), _L("Could not undo"), wxOK | wxICON_ERROR, m_frame);
-                return true;
-            }
             if (action != "revert_to_here")
                 return false;
             const std::string id = payload.value("versionId", std::string());

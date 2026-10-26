@@ -77,9 +77,13 @@
 //              recomputing-agent-pane.png and
 //              recomputing-shell.png to the directory (handoff item 6)
 //   --setup-differences-capture <output-directory>
-//              edits process, filament and per-object settings the way a
-//              person does, asserts the setup card lists none of them but
-//              counts the object override, and the setup page names every
+//              saves the fixture as a 3MF and opens it as a person does,
+//              asserting the setup card holds only the presets and the
+//              estimates and the chat says "Opened card-opened.3mf as a new
+//              project" (setup-differences-opened). It then edits process,
+//              filament and per-object settings the way a person does,
+//              asserts the setup card lists none of them but counts them,
+//              the object override included, and the setup page names every
 //              one; writes setup-differences-card.png,
 //              setup-differences-page.png and setup-differences-page-end.png
 //              to the directory. It then adds a support blocker to the cube,
@@ -88,16 +92,18 @@
 //              each row goes, each is one named undo step logged as the
 //              person's, and Orca's undo brings each back
 //              (setup-differences-object, setup-differences-object-after);
-//              then puts the values back and asserts the override note goes. It then records a purpose, pins a plan and
-//              applies a patch through the agent's own tools, slices, and
-//              writes the card just after the change, headline under
-//              "Updated" (setup-differences-agent-updated), the card a minute
-//              later under "Current" (setup-differences-agent-card) and its
-//              page (setup-differences-agent-page); the plan stays current
-//              through the agent's own patch. A hand edit then shows the
-//              headline under "Edited by you"
+//              then puts the values back and asserts the count goes. It then
+//              records a purpose, pins a plan and applies a patch through the
+//              agent's own tools, slices, and writes the card: purpose,
+//              headline, presets and estimates, with no moment of change
+//              (setup-differences-agent-card), and its page
+//              (setup-differences-agent-page); the plan stays current
+//              through the agent's own patch. A hand edit then annotates the
+//              plan line "Plan needs another look · Sparse infill density"
 //              (setup-differences-edited-card) and marks the plan
-//              needs_reassessment. That minute makes the run about two long.
+//              needs_reassessment; a setup_record with only the headline
+//              clears it and keeps the purpose; an imported part marks it
+//              again with the import's name (setup-differences-imported-card).
 //   --calibration-capture <output-directory>
 //              the three Calibrate… rows with a stand-in project assistant:
 //              the filament row's and the Home card's dialogs are cancelled
@@ -7036,18 +7042,20 @@ private:
     }
 
     // Reports only once the card carries the recomputing state
-    // (SetupCard.tsx: .current-setup-heading is the estimate area's heading,
-    // .current-setup-metric a time or material figure), so an unanswered
-    // probe and a stale card look the same: no draft.
+    // (SetupCard.tsx: .current-setup-line is the line standing in for the
+    // estimates, .current-setup-metric a time or material figure), so an
+    // unanswered probe and a stale card look the same: no draft.
     static void probe_setup_card()
     {
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
             "(function(){"
             "  var card = document.querySelector('[data-testid=\"current-setup\"]');"
-            "  var heading = card && card.querySelector('.current-setup-heading');"
-            "  if (heading && /recomputing/.test(heading.textContent) && window.__jusprinTest)"
-            "    window.__jusprinTest.setDraft('card=' + heading.textContent + '|state=' +"
-            "      card.querySelector('.current-setup-state').textContent + '|figures=' +"
+            "  var line = card && Array.prototype.find.call(card.querySelectorAll('.current-setup-line'),"
+            "    function (l) { return /recomputing/.test(l.textContent); });"
+            "  var state = card && card.querySelector('.current-setup-state');"
+            "  if (line && window.__jusprinTest)"
+            "    window.__jusprinTest.setDraft('card=' + line.textContent + '|state=' +"
+            "      (state ? state.textContent : '') + '|figures=' +"
             "      card.querySelectorAll('.current-setup-metric').length);"
             "})()");
     }
@@ -7058,9 +7066,9 @@ private:
         const bool observed = probe.rfind("card=", 0) == 0;
         check(observed, "setup_card_renders_recomputing_while_slicing");
         check(observed && probe.find("estimates recomputing") != std::string::npos, "setup_card_says_estimates_are_recomputing");
-        // The settings are confirmed and the old figures are not: none of
-        // them may stand as current while the plate is being sliced again.
-        check(observed && probe.find("|state=Confirmed") != std::string::npos, "setup_card_keeps_settings_confirmed");
+        // The only card-wide state is the agent working; a re-slice is not
+        // one. The old figures may not stand as current while it runs.
+        check(observed && probe.find("|state=|") != std::string::npos, "setup_card_shows_no_card_wide_state_while_slicing");
         check(observed && probe.find("|figures=0") != std::string::npos, "setup_card_shows_no_superseded_figure");
         std::cout << "HARNESS CARD PROBE " << probe << std::endl;
         persistence().set_draft({});
@@ -7083,7 +7091,63 @@ private:
     // edited through the process tab, the filament tab and an object's own
     // settings, so every label, group and formatted value on the page is one
     // OrcaSlicer and the adapter produced, not a fixture's.
+    // First, the fixture saved as a 3MF and opened the way a person opens
+    // one: the card has no words yet, only OrcaSlicer's facts, and the chat
+    // has one line saying the file was opened as a new project.
     void begin_setup_differences_capture()
+    {
+        const fs::path source = fs::path(data_dir()) / "card-opened.3mf";
+        m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence);
+        m_plater->new_project(true, true);
+        m_plater->load_project(wxString::FromUTF8(source.string()));
+        // The note and the turn it starts are one call (on_file_loaded), so
+        // once the note is there the host is busy until the turn ends.
+        wait_until([] {
+            const Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+            const auto messages = host.conversation();
+            return !host.busy() && std::any_of(messages.begin(), messages.end(), [](const auto& message) {
+                return message.role == Agent::MessageRole::Note && !message.file_report.empty();
+            });
+        }, "setup_differences_opened_note_and_turn", [self = shared_from_this()] {
+            self->await_setup_text("opened", "[data-testid=\"current-setup\"]", "!scope.querySelector('.current-setup-state')",
+                                   [self] { self->capture_setup_differences_opened(); });
+        });
+    }
+
+    void capture_setup_differences_opened()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        const std::string process = short_preset(wxGetApp().preset_bundle->prints.get_edited_preset().name);
+        const std::string filament = short_preset(wxGetApp().preset_bundle->filaments.get_edited_preset().name);
+        // No purpose and no plan: the facts follow the eyebrow directly.
+        check(card.find("opened=Setup summary | " + process + " \xC2\xB7 " + filament) == 0,
+              "setup_card_without_purpose_or_plan_is_facts_only");
+        check(persistence().document().setup_intent(persistence().document().active_conversation_id()).empty(),
+              "opened_project_records_no_purpose");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-opened");
+        await_setup_text("openedline", ".message.note", "true", [self = shared_from_this()] {
+            const std::string line = self->persistence().draft();
+            std::cout << "HARNESS SETUP " << line << std::endl;
+            self->check(line.find("openedline=Opened card-opened.3mf as a new project \xC2\xB7 you \xC2\xB7 ") == 0,
+                        "chat_says_the_file_was_opened_as_a_new_project");
+            self->begin_setup_differences_edits();
+        });
+    }
+
+    // "N settings changed" as the card counts it: the preset deltas and the
+    // settings objects set for themselves.
+    std::string changed_settings_text()
+    {
+        const auto snapshot = installed_workspace_snapshot();
+        std::size_t changed = snapshot.preset_deltas.size();
+        if (snapshot.applied_setup)
+            for (const auto& local : snapshot.applied_setup->local_overrides)
+                changed += local.key.empty() ? 0 : 1;
+        return std::to_string(changed) + (changed == 1 ? " setting changed" : " settings changed");
+    }
+
+    void begin_setup_differences_edits()
     {
         m_plater->model().objects.front()->config.set_key_value("wall_loops", new ConfigOptionInt(5));
         DynamicPrintConfig process;
@@ -7099,7 +7163,7 @@ private:
         DynamicPrintConfig printer;
         printer.set_deserialize_strict("retraction_length", "1.2");
         wxGetApp().get_tab(Preset::TYPE_PRINTER)->load_config(printer);
-        await_setup_text("card", "[data-testid=\"current-setup\"]", "scope.querySelector('.current-setup-note')",
+        await_setup_text("card", "[data-testid=\"current-setup\"]", "/changed/.test(scope.innerText)",
                          [self = shared_from_this()] { self->capture_setup_differences_card(); });
     }
 
@@ -7664,12 +7728,12 @@ private:
         for (const Agent::ChangeEntry& change : persistence().document().changes())
             if (change.key == "brim_type") readable = change.from == "Auto" && change.to == "Outer brim only";
         check(readable, "change_log_records_values_as_a_person_reads_them");
-        // The differences are the setup page's. The card counts the object
-        // that prints with its own settings, which nothing else on it says.
+        // The differences are the setup page's. The card counts them, the
+        // object that prints with its own settings included, beside the
+        // link to that page.
         check(card.find(" \xE2\x86\x92 ") == std::string::npos, "setup_card_lists_no_preset_difference");
-        check(card.find("more change") == std::string::npos && card.find("No changes from presets") == std::string::npos,
-              "setup_card_counts_no_differences");
-        check(card.find("1 object with overrides") != std::string::npos, "setup_card_counts_the_object_override");
+        check(card.find(" \xC2\xB7 " + changed_settings_text() + " | All settings") != std::string::npos,
+              "setup_card_counts_the_changed_settings_with_the_object_override");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
                           "function(link){return link.textContent==='All settings';}).click()");
@@ -7846,11 +7910,11 @@ private:
         restore(Preset::TYPE_PRINT, bundle.prints,
                 {"brim_type", "brim_width", "initial_layer_print_height", "initial_layer_speed"});
         await_setup_text("restored", "[data-testid=\"current-setup\"]",
-                         "!scope.querySelector('.current-setup-note')", [self = shared_from_this()] {
+                         "!/changed/.test(scope.innerText)", [self = shared_from_this()] {
             const std::string card = self->persistence().draft();
             std::cout << "HARNESS SETUP " << card << std::endl;
             self->check(card.find("No changes from presets") == std::string::npos, "setup_card_has_no_difference_fallback");
-            self->check(card.find("with overrides") == std::string::npos, "setup_card_drops_the_object_override_after_restore");
+            self->check(self->changed_settings_text() == "0 settings changed", "setup_card_counts_nothing_after_restore");
             self->begin_setup_differences_agent_turn();
         });
     }
@@ -7868,31 +7932,41 @@ private:
         m_plater->model().objects.front()->config.set_key_value("wall_loops", new ConfigOptionInt(5));
 
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        // The reply to the opened file is already there: wait for this one.
+        const auto replies = [&web_view] {
+            const auto messages = web_view.host().conversation();
+            return std::count_if(messages.begin(), messages.end(), [](const auto& message) {
+                return message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete;
+            });
+        };
+        const auto before = replies();
         run_in_agent_page("window.__jusprinTest.send('the corners keep lifting off the bed')");
-        wait_until([&web_view] {
-            for (const auto& message : web_view.host().conversation())
-                if (message.role == Agent::MessageRole::Assistant && message.state == Agent::MessageState::Complete)
-                    return true;
-            return false;
-        }, "setup_differences_agent_turn_complete", [self = shared_from_this()] { self->apply_setup_differences_as_agent(); });
+        wait_until([&web_view, replies, before] { return replies() > before && !web_view.host().busy(); },
+                   "setup_differences_agent_turn_complete", [self = shared_from_this()] { self->apply_setup_differences_as_agent(); });
     }
 
-    void apply_setup_differences_as_agent()
+    // Runs one tool as the agent would, under the chat's latest message from
+    // the person.
+    void run_setup_tool(const char* tool, const nlohmann::json& arguments, const std::string& name)
     {
         Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
         std::string message_id;
         for (const auto& message : host.conversation())
             if (message.role == Agent::MessageRole::User) message_id = message.id;
-        check(!message_id.empty(), "setup_differences_user_message_recorded");
+        check(!message_id.empty(), name + "_has_a_message");
+        const std::string action = host.tools().submit({tool, arguments.dump()}, message_id).action_id;
+        for (int tick = 0; tick < 200 && !Agent::tool_state_terminal(host.tools().find(action)->state); ++tick)
+            host.pump_tools();
+        const Agent::ToolActivity* done = host.tools().find(action);
+        if (done->state != Agent::ToolState::Succeeded)
+            std::cout << "HARNESS SETUP tool " << tool << " ended " << int(done->state) << " " << done->result_json << std::endl;
+        check(done->state == Agent::ToolState::Succeeded, name);
+    }
 
-        const auto run = [&host, &message_id, this](const char* tool, const nlohmann::json& arguments, const std::string& name) {
-            const std::string action = host.tools().submit({tool, arguments.dump()}, message_id).action_id;
-            for (int tick = 0; tick < 200 && !Agent::tool_state_terminal(host.tools().find(action)->state); ++tick)
-                host.pump_tools();
-            const Agent::ToolActivity* done = host.tools().find(action);
-            if (done->state != Agent::ToolState::Succeeded)
-                std::cout << "HARNESS SETUP tool " << tool << " ended " << int(done->state) << " " << done->result_json << std::endl;
-            check(done->state == Agent::ToolState::Succeeded, name);
+    void apply_setup_differences_as_agent()
+    {
+        const auto run = [this](const char* tool, const nlohmann::json& arguments, const std::string& name) {
+            run_setup_tool(tool, arguments, name);
         };
         run("setup_record", {{"purpose", "Stop the corners lifting"},
                              {"headline", "Wide brim and a slow first layer for adhesion"}},
@@ -7908,48 +7982,35 @@ private:
         installed_shell()->status_row()->request_slice();
         wait_until([this] { return active_plate_sliced_and_idle(); }, "setup_differences_plate_sliced", [self = shared_from_this()] {
             self->await_setup_text("updated", "[data-testid=\"current-setup\"]",
-                                   "scope.querySelector('.current-setup-metric') && scope.querySelector('.current-setup-strategy')",
+                                   "scope.querySelector('.current-setup-metric') && scope.querySelector('.current-setup-strategy') && "
+                                   "!scope.querySelector('.current-setup-state')",
                                    [self] { self->capture_setup_differences_updated(); });
         });
     }
 
-    // Straight after the agent's change the card says what just changed.
+    // After the agent's change the card names no moment of change: the
+    // purpose, the plan, then OrcaSlicer's facts.
     void capture_setup_differences_updated()
-    {
-        const std::string card = persistence().draft();
-        std::cout << "HARNESS SETUP " << card << std::endl;
-        check(card.find("updated=Setup summary | Updated | Stop the corners lifting | ") == 0,
-              "setup_card_is_titled_by_the_purpose_the_agent_recorded");
-        check(card.find("Wide brim and a slow first layer for adhesion") != std::string::npos,
-              "setup_card_shows_the_headline_when_updated");
-        // The thread lists what the agent changed under its turn; the card
-        // does not.
-        check(card.find("50 mm/s \xE2\x86\x92 25 mm/s") == std::string::npos, "setup_card_does_not_repeat_the_change_it_just_made");
-        // The agent's own patch carried out its plan; it did not put it in doubt.
-        check(persistence().document().plan().validity == "current", "agent_patch_leaves_its_plan_current");
-        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-updated");
-        // A change stays "just changed" for a minute. After it the card is
-        // the design's first frame.
-        await_setup_text("current", "[data-testid=\"current-setup\"]",
-                         "scope.querySelector('.current-setup-state').textContent === 'Current'",
-                         [self = shared_from_this()] { self->capture_setup_differences_current(); });
-    }
-
-    void capture_setup_differences_current()
     {
         const std::string card = persistence().draft();
         std::cout << "HARNESS SETUP " << card << std::endl;
         const std::string process = short_preset(wxGetApp().preset_bundle->prints.get_edited_preset().name);
         const std::string filament = short_preset(wxGetApp().preset_bundle->filaments.get_edited_preset().name);
-        const std::string lead = "current=Setup summary | Current | Stop the corners lifting | " + process + " \xC2\xB7 " + filament + " | ";
-        check(card.find(lead) == 0, "setup_card_names_the_process_and_the_filament_under_the_purpose");
-        // The headline in place of the differences, and the override note
-        // on its own.
-        check(card.find(lead + "Wide brim and a slow first layer for adhesion | 1 object with overrides | ") == 0,
-              "setup_card_shows_the_headline_then_the_override_note");
+        check(card.find("updated=Setup summary | Stop the corners lifting | ") == 0,
+              "setup_card_is_titled_by_the_purpose_the_agent_recorded");
+        check(card.find("updated=Setup summary | Stop the corners lifting | Wide brim and a slow first layer for adhesion | " +
+                        process + " \xC2\xB7 " + filament + " \xC2\xB7 " + changed_settings_text() + " | All settings | ") == 0,
+              "setup_card_shows_the_headline_then_the_presets_and_the_changed_count");
+        for (const char* moment : {"Updated", "Current", "Edited by", "Undo"})
+            check(card.find(moment) == std::string::npos, std::string("setup_card_does_not_say_") + moment);
+        // The thread lists what the agent changed under its turn; the card
+        // does not.
+        check(card.find("50 mm/s \xE2\x86\x92 25 mm/s") == std::string::npos, "setup_card_does_not_repeat_the_change_it_just_made");
         for (const char* label : {"Brim type", "Brim width", "First layer", "Bed temperature", "more change"})
             check(card.find(label) == std::string::npos, std::string("setup_card_does_not_list_") + label);
         check(card.find("~") != std::string::npos && card.find(" g | ") != std::string::npos, "setup_card_shows_the_slice_estimate");
+        // The agent's own patch carried out its plan; it did not put it in doubt.
+        check(persistence().document().plan().validity == "current", "agent_patch_leaves_its_plan_current");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-card");
         run_in_agent_page("Array.prototype.find.call(document.querySelectorAll('.current-setup-link'),"
                           "function(link){return link.textContent==='All settings';}).click()");
@@ -7972,14 +8033,12 @@ private:
         check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
         run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
-        // A person's edit after the agent's: the card keeps the headline
-        // under its own notice, and the model reads the plan as in doubt.
+        // A person's edit after the agent's: the plan line is annotated with
+        // what put it in doubt, and the model reads the plan as in doubt.
         DynamicPrintConfig edited;
         edited.set_deserialize_strict("sparse_infill_density", "40%");
         wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(edited);
-        await_setup_text("edited", "[data-testid=\"current-setup\"]",
-                         "scope.querySelector('.current-setup-state') && "
-                         "scope.querySelector('.current-setup-state').textContent === 'Edited by you'",
+        await_setup_text("edited", "[data-testid=\"current-setup\"]", "/Plan needs another look/.test(scope.innerText)",
                          [self = shared_from_this()] { self->capture_setup_differences_edited(); });
     }
 
@@ -7987,13 +8046,60 @@ private:
     {
         const std::string card = persistence().draft();
         std::cout << "HARNESS SETUP " << card << std::endl;
-        check(card.find("Wide brim and a slow first layer for adhesion") != std::string::npos,
-              "setup_card_shows_the_headline_when_edited_by_you");
-        check(card.find("outside the agent") != std::string::npos, "setup_card_names_the_hand_edit");
+        check(card.find("Wide brim and a slow first layer for adhesion | Plan needs another look \xC2\xB7 Sparse infill density | ") !=
+                  std::string::npos,
+              "setup_card_annotates_the_plan_line_with_the_hand_edit");
+        check(card.find("Edited by") == std::string::npos && card.find("outside the agent") == std::string::npos,
+              "setup_card_names_no_hand_edit_as_a_state");
         const Agent::PlanRecord plan = persistence().document().plan();
         check(plan.validity == "needs_reassessment" && plan.invalidated_by == "Sparse infill density",
               "hand_edit_marks_the_plan_for_the_model");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-edited-card");
+        // Only the agent recording the plan again clears the mark. A headline
+        // alone keeps the purpose recorded.
+        run_setup_tool("setup_record", {{"headline", "Wide brim and a slow first layer for adhesion"}},
+                       "setup_differences_agent_records_the_plan_again");
+        await_setup_text("replanned", "[data-testid=\"current-setup\"]",
+                         "!/Plan needs another look/.test(scope.innerText) && !!scope.querySelector('.current-setup-strategy')",
+                         [self = shared_from_this()] { self->import_setup_differences_part(); });
+    }
+
+    // An import into a planned project marks the plan with the import's
+    // name, and draws no line in the chat.
+    void import_setup_differences_part()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        check(card.find("replanned=Setup summary | Stop the corners lifting | Wide brim") == 0,
+              "plan_recorded_again_keeps_the_purpose_and_clears_the_mark");
+        check(persistence().document().plan().validity == "current", "plan_recorded_again_is_current");
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        // File › Import's own call, which takes the "Import Object" undo
+        // step a person's import does; the vector load_files takes none.
+        m_plater->add_model(false, cube);
+        wait_until([] { return !installed_shell()->agent_pane()->web_view().host().busy(); }, "setup_differences_import_turn_settled",
+                   [self = shared_from_this()] {
+            const auto& changes = self->persistence().document().changes();
+            const Agent::PlanRecord plan = self->persistence().document().plan();
+            std::cout << "HARNESS SETUP after import: last change " << (changes.empty() ? std::string("(none)") :
+                             changes.back().actor + " " + changes.back().kind + " " + changes.back().label)
+                      << "; plan " << plan.validity << " " << plan.invalidated_by << std::endl;
+            self->await_setup_text("imported", "[data-testid=\"current-setup\"]",
+                                   "/Plan needs another look/.test(scope.innerText) && !scope.querySelector('.current-setup-state')",
+                                   [self] { self->capture_setup_differences_imported(); });
+        });
+    }
+
+    void capture_setup_differences_imported()
+    {
+        const std::string card = persistence().draft();
+        std::cout << "HARNESS SETUP " << card << std::endl;
+        const Agent::PlanRecord plan = persistence().document().plan();
+        std::cout << "HARNESS SETUP import reason " << plan.invalidated_by << std::endl;
+        check(plan.validity == "needs_reassessment" && !plan.invalidated_by.empty(), "import_marks_the_plan");
+        check(card.find("adhesion | Plan needs another look \xC2\xB7 " + plan.invalidated_by + " | ") != std::string::npos,
+              "setup_card_annotates_the_plan_line_with_the_import");
+        capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-imported-card");
         run_in_agent_page("document.querySelector('.agent-pane-toggle').click()");
         wait_until([] { return !installed_shell()->agent_pane()->IsShown(); }, "setup_page_can_hide_the_agent_panel",
                    [self = shared_from_this()] {

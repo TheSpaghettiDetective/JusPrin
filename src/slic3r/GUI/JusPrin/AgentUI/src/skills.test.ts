@@ -78,10 +78,14 @@ describe('the skill for a file opened or imported', () => {
     expect(text).not.toContain('make an educated guess');
     expect(text).toContain('suggest the one to use, without changing it');
     expect(text).toContain('name a set-up printer it fits, from fitsSetupPrinters');
-    expect(text).toContain('Write a short message, a few sentences');
+    // The cap decided on 2026-10-26: the setup card above the message holds
+    // the presets, the plate and the estimates, so the message does not.
+    expect(text).toContain('Write about 80 words, with at most two bullets');
+    expect(text).toContain('leave those to them rather than restating them');
     expect(text).toContain('Do not explain routine loading');
-    expect(text).toContain('End with one question or offer about the next step, not a menu of alternatives');
-    expect(text).not.toContain('90 words');
+    expect(text).toContain('End with exactly one question, about the next step');
+    expect(text).toContain('not a menu of alternatives');
+    expect(text).toContain('record the plan again with setup_record in this reply');
   });
 
   it('gives the Agent raw-dialog guidance without asking native code to classify wording', () => {

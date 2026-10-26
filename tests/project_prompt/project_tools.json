@@ -1166,7 +1166,7 @@
     "type": "function"
   },
   {
-    "description": "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+    "description": "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: leave purpose out until they state one, and leave it out to keep the one recorded. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). The setup card shows it above the plan's headline. headline, decisions, unverified and risks are the plan: how you will print it, which can be recorded before there is a purpose. With a headline they replace the whole plan and clear the app's mark that the plan needs another look; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. It says how the print will be made, never what it is for. Do not repeat the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
     "name": "setup_record",
     "parameters": {
       "additionalProperties": false,
@@ -1224,9 +1224,7 @@
           "type": "array"
         }
       },
-      "required": [
-        "purpose"
-      ],
+      "required": [],
       "type": "object"
     },
     "strict": false,

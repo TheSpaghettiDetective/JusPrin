@@ -1,10 +1,13 @@
-// A compact, chat-owned account of the setup: what the chat asked for, the
-// selected presets, how the agent means to print (its plan's headline), and
-// the estimates. Native code supplies the facts; this page presents them.
-// Every setting, and what differs from the presets, is on the All settings panel.
+// The setup card: the one place in the Agent pane that is always now. Two
+// parts. Above a rule, the words someone wrote: the person's purpose and the
+// agent's plan, each present only once written. Below it, OrcaSlicer's facts:
+// the presets with how many settings differ from them, and the estimates.
+// Native code supplies everything; this page presents it. A record of a
+// moment (a step just taken, an edit by hand) belongs to the timeline rows,
+// never here, and a warning is only ever an annotation of the line it
+// contradicts, one per line. Every setting is on the All settings panel.
 
-import { ReactNode, useState } from 'react';
-import { ChangeInfo, SliceEstimateInfo, WorkspaceContext } from '../bridge/protocol';
+import { WorkspaceContext } from '../bridge/protocol';
 import { testStepsLost } from '../calibration';
 
 export interface SetupCardProps {
@@ -13,13 +16,8 @@ export interface SetupCardProps {
   historical?: boolean;
   savedAt?: string;
   agentAvailable?: boolean;
-  changes?: ChangeInfo[];
-  now?: number;
-  estimateBefore?: SliceEstimateInfo | null;
   sent?: { at: string; printer: string };
-  attention?: Finding[];
   onCompute?: () => void;
-  onUndo?: (changeSeq: number) => void;
   onViewSetup?: () => void;
 }
 
@@ -53,111 +51,33 @@ export function formatMoment(value: string | undefined): string {
   });
 }
 
-export const RECENT_CHANGE_MS = 60000;
-
 export interface EstimateView {
-  heading: string;
+  // The figures, or the one line that stands in for them.
   metrics: { icon: string; text: string }[];
   cost: string;
   plate: string;
-  description: string;
+  line: string;
   status: 'current' | 'recomputing' | 'stale' | 'none';
   sliced: boolean;
 }
 
 export function estimateView(context: WorkspaceContext): EstimateView {
   const plate = context.plates.find((item) => item.active);
-  const view: EstimateView = {
-    heading: '', metrics: [], cost: '', plate: plate?.name ?? '', description: '', status: 'none', sliced: !!plate?.sliced,
-  };
-  if (!plate) return { ...view, description: 'Estimate unavailable' };
+  const view: EstimateView = { metrics: [], cost: '', plate: plate?.name ?? '', line: '', status: 'none', sliced: !!plate?.sliced };
+  if (!plate) return { ...view, line: 'Estimate unavailable' };
   const estimate = plate.estimate;
-  const scoped = (text: string) => plate.name ? `${text} · ${plate.name}` : text;
   const metrics: EstimateView['metrics'] = [];
   if (estimate && (estimate.timeAvailable ?? estimate.printTimeSeconds > 0))
     metrics.push({ icon: 'clock', text: formatPrintTime(estimate.printTimeSeconds) });
   if (estimate && (estimate.materialAvailable ?? estimate.materialGrams > 0))
     metrics.push({ icon: 'package', text: formatGrams(estimate.materialGrams) });
   if (plate.estimateStatus === 'recomputing')
-    return { ...view, status: 'recomputing', heading: 'Time & material estimates recomputing…',
-      description: scoped('Settings confirmed') };
+    return { ...view, status: 'recomputing', line: 'Time & material estimates recomputing…' };
   if (metrics.length === 0)
-    return { ...view, description: scoped(plate.sliced ? 'Estimate unavailable' : 'Not sliced yet · estimates unavailable') };
+    return { ...view, line: plate.sliced ? 'Estimate unavailable' : 'Not sliced yet' };
   const cost = estimate && estimate.materialCost !== null && estimate.materialCost >= 0.005
     ? formatCost(estimate.materialCost, context.currency) : '';
-  if (plate.estimateStatus === 'stale')
-    return { ...view, status: 'stale', heading: 'Previous estimates · not current', metrics, cost };
-  return { ...view, status: 'current', metrics, cost };
-}
-
-export interface Finding { title: string; detail?: string; facts?: string[]; }
-
-export function deterministicAttention(context: WorkspaceContext): Finding[] {
-  const lost = testStepsLost(context);
-  const steps: Finding[] = lost ? [{ title: lost }] : [];
-  const review = context.printerReview;
-  if (!review) return steps;
-  const priority: Record<string, number> = { filament: 0, nozzle: 1, model: 2, plate: 3 };
-  const noun: Record<string, string> = { filament: 'material', nozzle: 'nozzle', model: 'printer', plate: 'build plate' };
-  const when = formatMoment(review.observed?.observedAt);
-  return [...steps, ...[...review.mismatches].sort((a, b) => (priority[a.what] ?? 4) - (priority[b.what] ?? 4)).flatMap((mismatch) => {
-    const thing = noun[mismatch.what] ?? 'printer setup';
-    if (mismatch.source === 'device') {
-      if (!when) return [];
-      const facts = [`Setup: ${mismatch.configured}`, `Printer last reported: ${mismatch.observed}`, `Reported ${when}`];
-      if (review.observed?.connection) facts.push(`Printer is ${review.observed.connection} now`);
-      return [{ title: `Last reported ${thing} differs`,
-        detail: `Setup uses ${mismatch.configured}. Printer last reported ${mismatch.observed}.`, facts }];
-    }
-    return [{ title: `Confirmed ${thing} differs`,
-      detail: `Setup uses ${mismatch.configured}. You confirmed ${mismatch.observed}.`,
-      facts: [`Setup: ${mismatch.configured}`, `You confirmed: ${mismatch.observed}`] }];
-  })];
-}
-
-export function recentAgentChange(changes: ChangeInfo[] | undefined, now: number): ChangeInfo[] {
-  const log = [...(changes ?? [])].sort((a, b) => a.seq - b.seq);
-  const last = log.at(-1);
-  if (!last || last.actor !== 'agent' || (last.kind !== 'setting' && last.kind !== 'step')) return [];
-  const made = Date.parse(last.createdAt);
-  if (!Number.isFinite(made) || now - made >= RECENT_CHANGE_MS || now < made) return [];
-  let start = log.length - 1;
-  while (start > 0 && log[start - 1].actor === 'agent' && log[start - 1].afterId === last.afterId &&
-    (log[start - 1].kind === 'setting' || log[start - 1].kind === 'step')) start -= 1;
-  return log.slice(start);
-}
-
-export function handEdits(changes: ChangeInfo[] | undefined): ChangeInfo[] {
-  const log = [...(changes ?? [])].sort((a, b) => a.seq - b.seq);
-  let start = log.length;
-  while (start > 0 && log[start - 1].actor === 'person' && log[start - 1].kind !== 'restore') start -= 1;
-  const net = new Map<string, ChangeInfo>();
-  for (const change of log.slice(start))
-    if (change.kind === 'setting') net.set(change.key || change.label, change);
-  return [...net.values()];
-}
-
-// The settings whose value in force someone set since the last restore, each
-// by its latest change: who set them is that change's author.
-export function settingEdits(changes: ChangeInfo[] | undefined): ChangeInfo[] {
-  const net = new Map<string, ChangeInfo>();
-  for (const change of [...(changes ?? [])].sort((a, b) => a.seq - b.seq)) {
-    if (change.kind === 'restore') net.clear();
-    else if (change.kind === 'setting') net.set(change.key || change.label, change);
-  }
-  return [...net.values()];
-}
-
-export function editor(change: ChangeInfo): string {
-  return change.external ? change.client || 'an external tool' : change.actor === 'agent' ? 'the Agent' : 'you';
-}
-
-function estimatePair(estimate: SliceEstimateInfo): string {
-  return `${formatPrintTime(estimate.printTimeSeconds)} / ${formatGrams(estimate.materialGrams)}`;
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
+  return { ...view, status: plate.estimateStatus === 'stale' ? 'stale' : 'current', metrics, cost };
 }
 
 function shortPreset(name: string): string {
@@ -165,203 +85,110 @@ function shortPreset(name: string): string {
   return separator < 0 ? name : name.slice(0, separator);
 }
 
-export function presetsLine(context: WorkspaceContext, title: string): string {
+// The settings in force that differ from the presets: the project's own,
+// and those an object, part, modifier or height range sets for itself.
+// Support painting and blockers set no setting and are not counted.
+export function changedSettingCount(context: WorkspaceContext): number {
+  return context.presetDeltas.length + (context.appliedSetup?.localOverrides ?? []).filter((local) => local.key).length;
+}
+
+// Process · first filament (+ how many more) · how many settings changed.
+export function presetsLine(context: WorkspaceContext): string {
   const process = context.printer.process.trim();
   if (!process) return '';
   const filaments = context.setupIdentity?.filaments ?? [];
   const first = (filaments[0]?.preset || context.printer.filament).trim();
   const filament = first ? `${shortPreset(first)}${filaments.length > 1 ? ` +${filaments.length - 1}` : ''}` : '';
-  const parts = title === process ? [filament] : [shortPreset(process), filament];
-  return parts.filter(Boolean).join(' · ');
+  const changed = changedSettingCount(context);
+  return [shortPreset(process), filament, changed > 0 ? `${changed} ${changed === 1 ? 'setting' : 'settings'} changed` : '']
+    .filter(Boolean).join(' · ');
 }
 
-// Objects that print with settings of their own. The headline cannot say so,
-// and nothing else on the card does.
-export function overrideObjectCount(context: WorkspaceContext): number {
-  return new Set((context.appliedSetup?.localOverrides ?? [])
-    .map((local) => local.object).filter((object): object is number => object !== undefined)).size;
+// The plan line's annotation: the app's own mark that the project moved on
+// since the plan was recorded, which only the agent recording it again
+// clears; failing that, a calibration test whose steps the file lost, since
+// in a calibration chat the test is the plan.
+export function planNote(context: WorkspaceContext): string {
+  if (context.planHeadline.trim() && context.planValidity === 'needs_reassessment')
+    return context.planInvalidatedBy ? `Plan needs another look · ${context.planInvalidatedBy}` : 'Plan needs another look';
+  return testStepsLost(context);
 }
 
-export interface SetupPresentationOptions {
-  historical?: boolean;
-  working?: boolean;
-  agentAvailable?: boolean;
-  changes?: ChangeInfo[];
-  now?: number;
-  sent?: { at: string; printer: string };
-  savedAt?: string;
+// The presets line's annotation: the printer last reported another material
+// than the setup's. The nozzle and the printer model are not lines of this
+// card; the header's printer chip and the chat own those.
+export function presetsNote(context: WorkspaceContext): string {
+  const review = context.printerReview;
+  if (!review?.observed?.observedAt) return '';
+  const material = review.mismatches.find((mismatch) => mismatch.what === 'filament' && mismatch.source === 'device');
+  return material ? `Printer last reported ${material.observed}` : '';
 }
 
-// What the card and the setup page both say about themselves: their label,
-// their one state, their title. Conversation status outranks live activity: a
-// saved card is never working, whatever the active chat happens to be doing.
-export function setupPresentation(context: WorkspaceContext, options: SetupPresentationOptions = {}) {
-  const historical = !!options.historical;
-  const working = !!options.working && !historical;
-  const estimate = estimateView(context);
-  const intent = context.setupIntent.trim();
-  const title = intent || context.printer.process.trim();
-  // Nothing vouches for this setup but the preset the person picked: no agent
-  // is configured and nobody changed a setting, or the host read no settings
-  // to compare with it. With no agent, a changed setting is named with who
-  // changed it: the person, an external tool, or an agent set up earlier.
-  const noAgent = !historical && options.agentAvailable === false;
-  const noAgentEdits = noAgent ? settingEdits(options.changes) : [];
-  if (noAgent ? noAgentEdits.length === 0 : !historical && !context.appliedSetup && !intent)
-    return { label: 'Preset fallback', state: noAgent ? 'No agent' : null as ReactNode, title: context.printer.process.trim(),
-      estimate, justChanged: [], edited: [], editedByYou: false, editedNote: '', outOfDate: false, live: true, fallback: true, noAgent };
-  const justChanged = historical || noAgent ? [] : recentAgentChange(options.changes, options.now ?? Date.now());
-  const edited = noAgent ? noAgentEdits
-    : historical || working || justChanged.length > 0 ? [] : handEdits(options.changes);
-  // "Edited by you" needs a setup the agent had a hand in; without one a
-  // hand edit is simply how the project was made.
-  const agentManaged = !!intent || (options.changes ?? []).some((change) => change.actor === 'agent');
-  const editedByYou = noAgent || (edited.length > 0 && agentManaged);
-  const named = edited.slice(0, 2).map((change) => `${change.label} ${change.to || 'none'}`);
-  const editedText = edited.length > 2 ? `${named.join(', ')} and ${plural(edited.length - 2, 'more setting', 'more settings')}`
-    : named.join(' and ');
-  const editors = [...new Set(edited.map(editor))].join(' and ');
-  const editedNote = !editedByYou ? ''
-    : noAgent ? `${editors.charAt(0).toUpperCase()}${editors.slice(1)} set ${editedText}.`
-    : `You set ${editedText} outside the agent. Your current settings are preserved.`;
-  // Out of date stands the card down: it drops the accent, as a saved card
-  // does, because it no longer vouches for the numbers under it.
-  const outOfDate = estimate.status === 'stale' && !working && justChanged.length === 0 && !editedByYou;
-  const saved = formatMoment(options.savedAt);
-  const label = options.sent ? 'Saved sliced snapshot' : historical || outOfDate ? 'Earlier setup' : 'Setup summary';
-  const state: ReactNode = historical
-    ? options.sent ? 'Sliced & sent' : estimate.status === 'stale' ? 'Out of date'
-      : saved ? <><span className="jp-icon jp-icon-clock" aria-hidden="true" />Saved {saved}</> : null
-    : working ? 'Agent working' : justChanged.length > 0 ? 'Updated'
-    : estimate.status === 'recomputing' ? 'Confirmed'
-    : editedByYou ? `Edited by ${noAgent ? editor(edited.reduce((a, b) => (b.seq > a.seq ? b : a))) : 'you'}`
-    : outOfDate || testStepsLost(context) ? 'Out of date' : estimate.status === 'none' && !estimate.sliced ? 'Not sliced' : 'Current';
-  return { label, state, title, estimate, justChanged, edited, editedByYou, editedNote, outOfDate,
-    live: !historical && !outOfDate, fallback: false, noAgent: false };
-}
-
-function Metrics({ estimate }: { estimate: EstimateView }) {
-  return <div className="current-setup-metrics">
-    {estimate.metrics.map((metric) => <span className="current-setup-metric" key={metric.icon}>
-      <span className={`jp-icon jp-icon-${metric.icon}`} aria-hidden="true" />{metric.text}</span>)}
-    {estimate.plate && <span className="current-setup-metric">
-      <span className="jp-icon jp-icon-grid-3x3" aria-hidden="true" />{estimate.plate}</span>}
-    {estimate.cost && <span className="current-setup-metric">{estimate.cost}</span>}
-  </div>;
-}
-
-function Attention({ findings }: { findings: Finding[] }) {
-  const [open, setOpen] = useState(false);
-  if (findings.length === 0) return null;
-  const first = findings[0];
-  const reviewable = findings.length > 1 || (first.facts ?? []).length > 0;
-  const subject = findings.length > 1 ? plural(findings.length, 'finding', 'findings')
-    : first.title.replace(/^(Last reported|Confirmed) | differs$/g, '');
-  return <>
-    <div className="current-setup-attention">
-      <p className="current-setup-warning"><span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />{first.title}</p>
-      {first.detail && <p className="current-setup-line">{first.detail}</p>}
-      {reviewable && <button type="button" className="current-setup-link" aria-expanded={open} onClick={() => setOpen(!open)}>
-        Review {subject}</button>}
-      {open && <ul className="current-setup-findings">{findings.map((finding, index) => <li key={index}>
-        {findings.length > 1 && <strong>{finding.title}</strong>}
-        {(finding.facts ?? []).map((fact) => <span key={fact}>{fact}</span>)}
-      </li>)}</ul>}
-    </div>
-    <hr className="current-setup-divider" />
-  </>;
+function Note({ text, action }: { text: string; action?: { label: string; onClick: () => void } }) {
+  if (!text) return null;
+  return <p className={action ? 'current-setup-annotation current-setup-annotation--action' : 'current-setup-annotation'}>
+    <span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />
+    <span className="current-setup-annotation-text">{text}</span>
+    {action && <button type="button" className="current-setup-link" onClick={action.onClick}>{action.label}</button>}
+  </p>;
 }
 
 export function SetupCard({ context, working: busy = false, historical = false, savedAt, agentAvailable = true,
-  changes, now = Date.now(), estimateBefore, sent, attention = [], onCompute, onUndo, onViewSetup }: SetupCardProps) {
+  sent, onCompute, onViewSetup }: SetupCardProps) {
   if (!context) return null;
   // A saved card is never working, whatever the active chat happens to be
-  // doing.
-  const working = busy && !historical;
+  // doing, and with no agent nothing is.
+  const working = busy && !historical && agentAvailable;
   const ariaLabel = historical ? 'Earlier setup — saved with this conversation' : 'Current setup';
-  const presentation = setupPresentation(context, { historical, working, agentAvailable, changes, now, sent, savedAt });
+  const eyebrow = sent ? 'Saved sliced snapshot' : historical ? 'Earlier setup' : 'Setup summary';
+  const saved = formatMoment(savedAt);
+  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'Agent working' : '';
 
-  if (presentation.fallback) {
-    const { estimate, title } = presentation;
-    return <section className="current-setup current-setup--live" data-testid="current-setup" aria-label={ariaLabel}>
-      <div className="current-setup-header"><span className="current-setup-label">{presentation.label}</span>
-        {presentation.state && <span className="current-setup-state">{presentation.state}</span>}</div>
-      {title && <h2 className="current-setup-title" title={title}>{title}</h2>}
-      {presentation.noAgent ? <p className="current-setup-line">No agent configured · using the selected preset.</p>
-        : estimate.metrics.length > 0 ? <Metrics estimate={estimate} />
-        : <p className="current-setup-line">{estimate.description}</p>}
-    </section>;
-  }
+  const purpose = context.setupIntent.trim();
+  const plan = context.planHeadline.trim();
+  const words = !!(purpose || plan);
+  const presets = presetsLine(context);
+  const estimate = estimateView(context);
+  // With no agent the card is the preset's label and offers nothing, as it
+  // offers nothing to open when it read no settings.
+  const offers = historical || agentAvailable;
+  const live = !historical && agentAvailable && !working && !!onCompute;
+  const sentWhen = sent ? formatMoment(sent.at) : '';
 
-  const { estimate, justChanged, editedByYou, editedNote, outOfDate } = presentation;
-  // The plan's headline in every state the card has: the state label and the
-  // notices say how far the card can be trusted. With no plan pinned there is
-  // no line at all.
-  const headline = context.planHeadline.trim();
-  const objects = overrideObjectCount(context);
-  const presets = presetsLine(context, presentation.title);
-
-  const withheld = editedByYou && estimate.status === 'stale';
-  const heading = withheld ? '' : estimate.heading ? estimate.heading : estimate.metrics.length === 0 ? ''
-    : sent ? 'Saved pre-slice estimates' : working ? 'Last confirmed estimates' : '';
-  const description = withheld ? (estimate.plate ? `Estimate unavailable for these edits · ${estimate.plate}`
-    : 'Estimate unavailable for these edits') : estimate.description;
-  const canCompute = !historical && !working && !!onCompute && estimate.status === 'none';
-  // What the card adds for the minute a change is new. The settings the
-  // agent changed are not listed: the thread's change rows under its turn
-  // name them, and the setup page lists every difference. A project step is
-  // named here, and it is the one thing Orca can undo: its undo takes the top
-  // of its own stack, and a preset edit is not on it.
-  const last = justChanged.at(-1);
-  const step = !working && last?.kind === 'step' ? last : undefined;
-  const undoable = !!onUndo && !!step && context.history.canUndo;
-  const plate = context.plates.find((item) => item.active);
-  const after = plate?.estimate;
-  const estimateDelta = justChanged.length > 0 && estimateBefore && after && estimate.status === 'current' &&
-    (estimateBefore.printTimeSeconds !== after.printTimeSeconds || estimateBefore.materialGrams !== after.materialGrams)
-    ? `Estimate: ${estimatePair(estimateBefore)} → ${estimatePair(after)}` : '';
-  const findings = [...deterministicAttention(context), ...attention];
-
-  return <section className={presentation.live ? 'current-setup current-setup--live' : 'current-setup'}
+  return <section className={historical ? 'current-setup' : 'current-setup current-setup--live'}
     data-testid="current-setup" aria-label={ariaLabel} aria-busy={working || undefined}>
-    <div className="current-setup-header"><span className="current-setup-label">{presentation.label}</span>
-      {presentation.state && <span className="current-setup-state">{presentation.state}</span>}</div>
-    {presentation.title && <h2 className="current-setup-title" title={presentation.title}>{presentation.title}</h2>}
-    {presets && <p className="current-setup-line current-setup-line--single" title={presets}>{presets}</p>}
-    {headline && <p className="current-setup-strategy">{headline}</p>}
-    {objects > 0 && <p className="current-setup-note">
-      {plural(objects, 'object with overrides', 'objects with overrides')}</p>}
-    {heading && <p className="current-setup-heading">{heading}</p>}
-    {!withheld && estimate.metrics.length > 0 && <Metrics estimate={estimate} />}
-    {description && <p className="current-setup-line">{description}</p>}
-    {sent && estimate.metrics.length > 0 && <p className="current-setup-line">Actual time &amp; material unavailable.</p>}
-    {canCompute && <button type="button" className="current-setup-link" onClick={onCompute}>Compute estimates</button>}
-    <hr className="current-setup-divider" />
-    {working && <><p className="current-setup-line">Agent is applying and evaluating changes…<br />
-      Shown settings remain the last confirmed setup.</p><hr className="current-setup-divider" /></>}
-    {!working && (step || estimateDelta) && <>
-      {step && <p className="current-setup-line">{step.label || 'Object settings changed'}</p>}
-      {estimateDelta && <p className="current-setup-line">{estimateDelta}</p>}
-      {undoable && <button type="button" className="current-setup-link" onClick={() => onUndo!(step!.seq)}>Undo</button>}
+    <div className="current-setup-header"><span className="current-setup-label">{eyebrow}</span>
+      {state && <span className="current-setup-state">{state}</span>}</div>
+    {words && <>
+      {purpose && <h2 className="current-setup-title" title={purpose}>{purpose}</h2>}
+      {plan && <p className="current-setup-strategy">{plan}</p>}
+      <Note text={planNote(context)} />
       <hr className="current-setup-divider" />
     </>}
-    {outOfDate && <><div className="current-setup-attention">
-      <p className="current-setup-warning"><span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />
-        {historical ? 'These estimates were already out of date when saved.' : 'Estimates no longer match the current project.'}</p>
-      {plate?.invalidatedBy && <p className="current-setup-line">{plate.invalidatedBy}</p>}
-      {!historical && onCompute && <button type="button" className="current-setup-link" onClick={onCompute}>
-        Refresh setup &amp; recompute</button>}
-    </div><hr className="current-setup-divider" /></>}
-    {editedByYou && <><p className="current-setup-info"><span className="jp-icon jp-icon-info" aria-hidden="true" />
-      <span>{editedNote}</span></p>
-      <hr className="current-setup-divider" /></>}
-    <Attention findings={findings} />
-    <button type="button" className="current-setup-link" onClick={onViewSetup}>All settings</button>
-    {historical && <><hr className="current-setup-divider" />
-      {sent && <p className="current-setup-sent">{[formatMoment(sent.at), sent.printer && `sent to ${sent.printer}`]
-        .filter(Boolean).join(' · ')}</p>}
-      <p className="current-setup-info"><span className="jp-icon jp-icon-info" aria-hidden="true" />
-        <span>{sent ? 'Saved snapshot.' : 'Saved with this chat.'} The canvas shows your current project.</span></p>
-    </>}
+    <div className="current-setup-facts">
+      <p className="current-setup-facts-text" title={presets}>{presets || 'No settings read from the project'}</p>
+      {onViewSetup && presets && offers && <button type="button" className="current-setup-link" onClick={onViewSetup}>All settings</button>}
+    </div>
+    <Note text={presetsNote(context)} />
+    {estimate.metrics.length > 0
+      ? <div className="current-setup-metrics">
+        {estimate.metrics.map((metric) => <span className="current-setup-metric" key={metric.icon}>
+          <span className={`jp-icon jp-icon-${metric.icon}`} aria-hidden="true" />{metric.text}</span>)}
+        {estimate.plate && <span className="current-setup-metric">
+          <span className="jp-icon jp-icon-grid-3x3" aria-hidden="true" />{estimate.plate}</span>}
+        {estimate.cost && <span className="current-setup-metric">{estimate.cost}</span>}
+      </div>
+      : <div className="current-setup-facts">
+        <p className="current-setup-line">{estimate.line}</p>
+        {live && estimate.status === 'none' && !estimate.sliced &&
+          <button type="button" className="current-setup-link" onClick={onCompute}>Compute estimates</button>}
+      </div>}
+    <Note text={estimate.status === 'stale' ? 'Previous estimates · not current' : ''}
+      action={live ? { label: 'Recompute', onClick: onCompute! } : undefined} />
+    {!historical && !agentAvailable && <p className="current-setup-line">{changedSettingCount(context) > 0
+      ? 'No agent configured.' : 'No agent configured · using the selected preset.'}</p>}
+    {historical && <p className="current-setup-line">{sent
+      ? `${sent.printer ? `Sent to ${sent.printer}` : 'Sent'}${sentWhen ? ` · ${sentWhen}` : ''}. Saved snapshot: the canvas shows your current project.`
+      : 'Saved with this chat. The canvas shows your current project.'}</p>}
   </section>;
 }

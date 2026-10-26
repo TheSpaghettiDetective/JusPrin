@@ -173,6 +173,8 @@ The compact summaries should keep the governing assumptions visible without expa
 
 A one-object project should not permanently display a large object tree. A complete intent questionnaire should not remain expanded after it has been answered.
 
+In the Agent pane the intent summary and the pinned plan are the top of the setup card: the purpose in the person's words and the plan's headline in the agent's, each shown only once written, above the presets and estimates in force. The card warns only about a line it shows, as an annotation of that line, such as a plan the project has moved on from; other risks stay with the canvas, the chat and the printer chip (see the setup card in [Design System](design-system.md#components-and-states)).
+
 ### Direct resolution of uncertainty
 
 Warnings should link to the user action that resolves them rather than expecting the user to translate them into legacy slicer controls:

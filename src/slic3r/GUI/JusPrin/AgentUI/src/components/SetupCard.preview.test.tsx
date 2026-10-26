@@ -37,7 +37,7 @@ describe('setup card and All settings review', () => {
     const figure = (mode: string, dock: number) => setupVisualCases.map((entry) => {
       const html = renderToStaticMarkup(renderVisualCase(entry));
       return `<figure data-case="${entry.id}" data-mode="${mode}" data-dock="${dock}">
-<figcaption>${escapeHtml(entry.id)} · ${escapeHtml(entry.name)}${entry.frame ? ` · Figma ${entry.frame}` : ''}</figcaption>
+<figcaption>${escapeHtml(entry.id)} · ${escapeHtml(entry.name)}</figcaption>
 <div class="dock ${mode}" style="width:${dock}px">${entry.kind === 'card' ? `<div class="pinned-setup">${html}</div>` : html}</div></figure>`;
     }).join('\n');
     writeFileSync(out, `<!doctype html><html lang="en"><meta charset="utf-8">

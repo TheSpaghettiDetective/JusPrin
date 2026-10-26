@@ -453,9 +453,9 @@ constexpr const char* kNoPurposeSentence =
 
 // The workspace as the setup card and the model read it. What a chat holds
 // (its setup title, its plan) is not the workspace's, and each reader adds
-// what it needs: the card its own chat's title and headline (card_context),
-// the model the plan's validity with a tool result. A chat checkpoint saves
-// this alone, so a saved card reads the title and headline from its chat.
+// what it needs: the card its own chat's title, headline and the plan's
+// validity (card_context), the model the plan with a tool result. A chat
+// checkpoint saves this alone, so a saved card reads them from its chat.
 json context_json(const WorkspaceSnapshot& snapshot,
                   const std::optional<Workspace::ConfiguredPrinter>& configured = std::nullopt,
                   const json& printer_review = nullptr)
@@ -569,12 +569,16 @@ json context_json(const WorkspaceSnapshot& snapshot,
 }
 
 // The card's context: the workspace, under the setup title and the plan
-// headline of the chat the card belongs to. A saved card reads its own
+// of the chat the card belongs to: its headline, and whether the project
+// moved on since it was recorded and by what. A saved card reads its own
 // chat's, never the active chat's; an inactive chat's plan cannot change.
 json card_context(json context, const ProjectStateDocument& document, const std::string& conversation_id)
 {
-    context["setupIntent"]  = document.setup_intent(conversation_id);
-    context["planHeadline"] = document.plan(conversation_id).headline;
+    const PlanRecord plan = document.plan(conversation_id);
+    context["setupIntent"]       = document.setup_intent(conversation_id);
+    context["planHeadline"]      = plan.headline;
+    context["planValidity"]      = plan.validity;
+    context["planInvalidatedBy"] = plan.invalidated_by;
     if (const auto calibration = document.calibration())
         context["calibration"] = *calibration;
     return context;

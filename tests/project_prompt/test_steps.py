@@ -424,6 +424,42 @@ class Steps(unittest.TestCase):
         self.assertEqual(self.run_case("advice-infill", [reply("Gyroid.")])[:2], (runner.PASS, "reply: Gyroid."))
 
 
+class OpeningCap(unittest.TestCase):
+    """The file-loaded skill's cap on the first message about an opened
+    file, checked as a string so a long or many-question reply fails before
+    the judge is asked."""
+
+    SHORT = ("This looks like a wall hook: a flat back plate with a curved arm. It is on the plate as it came, "
+             "and I changed nothing. What will it hold?")
+
+    def test_a_short_message_with_one_question_keeps_to_the_cap(self):
+        self.assertEqual(runner.opening_shape(self.SHORT), "")
+
+    def test_two_questions_break_it(self):
+        self.assertEqual(runner.opening_shape(self.SHORT + " Or is it a test?"), "2 questions")
+
+    def test_no_question_breaks_it(self):
+        self.assertEqual(runner.opening_shape("This looks like a wall hook."), "0 questions")
+
+    def test_a_long_message_breaks_it(self):
+        self.assertEqual(runner.opening_shape("word " * 120 + "What is it for?"), "124 words")
+
+    def test_three_bullets_break_it(self):
+        bullets = "It is a hook.\n- One part\n- PLA\n- Plate 1\nWhat is it for?"
+        self.assertEqual(runner.opening_shape(bullets), "3 bullets")
+
+    def test_the_case_fails_before_the_judge(self):
+        judge = runner.judge
+        runner.judge = lambda log, question: self.fail("the cap decides before the judge")
+        try:
+            case = runner.CASES["model-opened-unnamed"](runner.REQUESTS["model-opened-unnamed"], [])
+            verdict, detail = case.check(runner.Step([reply(self.SHORT + " Or a test?")]))
+        finally:
+            runner.judge = judge
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertIn("OVER THE OPENING CAP (2 questions)", detail)
+
+
 def tally(passed, failed=0, unobserved=0, errors=0):
     return {"runs": passed + failed + unobserved, "pass": passed, "fail": failed, "unobserved": unobserved,
             "errors": errors}

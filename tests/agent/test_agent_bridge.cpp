@@ -976,13 +976,27 @@ TEST_CASE("setup_record brings the card's title and headline together, in one pu
     // A call with no plan keeps the headline.
     run(json{{"purpose", "A load-bearing bracket"}});
     CHECK(harness.of_type("context").back()["payload"]["context"]["planHeadline"] == "Four walls and gyroid infill for strength");
-    // The card reads no plan validity, and no delta says who wrote it.
-    CHECK_FALSE(context.contains("planValidity"));
+    CHECK(context["planValidity"] == "current");
+    CHECK(context["planInvalidatedBy"] == "");
+
+    // A person's edit marks the plan on the card, saying what put it in
+    // doubt; no delta says who wrote it.
     harness.workspace.set_setting_for_testing("wall_loops", "4");
     const json edited = harness.of_type("context").back()["payload"]["context"];
     REQUIRE(edited["presetDeltas"].size() == 1);
     CHECK_FALSE(edited["presetDeltas"][0].contains("origin"));
     CHECK(edited["planHeadline"] == "Four walls and gyroid infill for strength");
+    CHECK(edited["planValidity"] == "needs_reassessment");
+    CHECK_FALSE(edited["planInvalidatedBy"].get<std::string>().empty());
+
+    // Nothing clears the mark but the agent recording the plan again: a
+    // purpose alone leaves it, the same headline restated clears it.
+    run(json{{"purpose", "A load-bearing bracket"}});
+    CHECK(harness.of_type("context").back()["payload"]["context"]["planValidity"] == "needs_reassessment");
+    run(json{{"headline", "Four walls and gyroid infill for strength"}});
+    const json restated = harness.of_type("context").back()["payload"]["context"];
+    CHECK(restated["planValidity"] == "current");
+    CHECK(restated["setupIntent"] == "A load-bearing bracket");
 }
 
 TEST_CASE("reload reconstructs the page from native state, mid-stream included", "[agent][reload]")

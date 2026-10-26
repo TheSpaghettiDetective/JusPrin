@@ -690,17 +690,21 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                (!arguments.contains("preempt") || arguments["preempt"].is_boolean());
 
     if (definition.handler == ToolHandler::SetupRecord) {
+        // A call records a purpose, a plan, or both; one with neither would
+        // record nothing.
         if (!has_only(arguments, {"purpose", "headline", "decisions", "unverified", "risks"}) ||
-            !arguments.contains("purpose") ||
+            (!arguments.contains("purpose") && !arguments.contains("headline")) ||
             !optional_text(arguments, "purpose"))
             return false;
         // A few words that title the card: at most 60 characters, counted as
         // a person reads them rather than as UTF-8 bytes.
-        const std::string& purpose = arguments["purpose"].get_ref<const std::string&>();
-        const auto characters = std::count_if(purpose.begin(), purpose.end(),
-                                              [](unsigned char byte) { return (byte & 0xc0) != 0x80; });
-        if (purpose.empty() || characters > 60)
-            return false;
+        if (arguments.contains("purpose")) {
+            const std::string& purpose = arguments["purpose"].get_ref<const std::string&>();
+            const auto characters = std::count_if(purpose.begin(), purpose.end(),
+                                                  [](unsigned char byte) { return (byte & 0xc0) != 0x80; });
+            if (purpose.empty() || characters > 60)
+                return false;
+        }
         // The plan is the rest, flat beside the purpose (a nested object came
         // back as a string of JSON from some models). It needs its headline:
         // decisions, unverified or risks without one are no plan to pin.
@@ -1034,14 +1038,13 @@ std::vector<ToolDefinition> make_definitions()
          // In-app only: the records are the chat's own, the title and plan of
          // its setup card. An external agent keeps what its user said, and its
          // plan, in its own conversation.
-         "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: ask them first. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). It titles the setup card, which shows the presets and the plan's headline under it. Every call states it, unchanged when it has not changed. headline, decisions, unverified and risks are the plan: how you will print it. With a headline they replace the whole plan; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. Do not repeat the person's purpose, the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
+         "Record this chat's setup: what the person wants and how you will print it. purpose is what the person wants the print to be or do, in a few words and in their terms, such as \"Wall hook for a 5 kg backpack\" or \"Vase for fresh flowers in water\". Record only a purpose the person stated, never one they have not: leave purpose out until they state one, and leave it out to keep the one recorded. It is not how to print it: leave out settings, material, printer and print mode unless the person made one of them the goal (\"PETG, strong\" is a purpose; \"Vase, spiral vase mode, PLA\" is not). The setup card shows it above the plan's headline. headline, decisions, unverified and risks are the plan: how you will print it, which can be recorded before there is a purpose. With a headline they replace the whole plan and clear the app's mark that the plan needs another look; with none the current plan is kept, as when the purpose is known before there is a strategy. headline is the printing strategy in a short phrase, about 8 to 12 words in English: the most important choices or the tradeoff. It says how the print will be made, never what it is for. Do not repeat the model's file name, the selected printer or routine preparation steps, and do not name settings you have not chosen; explanations go in decisions, unverified and risks. Give one decision per entry with the alternative you rejected; in unverified, one sentence each for what you took as true without being able to check; in risks, what could still go wrong. Call it with a headline before applying several changes for one request, so the person sees the plan and what is unverified first, and again whenever the purpose or the strategy changes, so the purpose and headline stay true. Runs immediately, including when no setting changes; project Undo does not undo this.",
          object_schema({{"purpose", json{{"type", "string"}, {"maxLength", 60}}},
                         {"headline", text},
                         {"decisions", array_schema(object_schema({{"topic", id}, {"statement", text},
                                                                   {"confidence", id}, {"alternative", text}},
                                                                  {"topic", "statement"}), 16)},
-                        {"unverified", array_schema(text, 16)}, {"risks", array_schema(text, 16)}},
-                       {"purpose"}),
+                        {"unverified", array_schema(text, 16)}, {"risks", array_schema(text, 16)}}),
          setup_record_output,
          ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::SetupRecord},
         {"printer_list", "List the printers this app knows",
@@ -1757,11 +1760,12 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
 std::string ToolRegistry::activity_title(const ToolDefinition& definition, const std::string& arguments_json) const
 {
     if (definition.handler == ToolHandler::SetupRecord) {
-        // The purpose, and the plan's headline when the call sets one.
+        // The purpose and the plan's headline, whichever the call sets.
         const auto arguments = json::parse(arguments_json);
-        std::string title = "Record what this print is for: " + arguments.at("purpose").get<std::string>();
+        std::string title = arguments.contains("purpose")
+            ? "Record what this print is for: " + arguments["purpose"].get<std::string>() : std::string("Record the plan");
         if (arguments.contains("headline"))
-            title += "; plan: " + arguments["headline"].get<std::string>();
+            title += (arguments.contains("purpose") ? "; plan: " : ": ") + arguments["headline"].get<std::string>();
         if (title.size() > kToolLabelLimit) title.resize(kToolLabelLimit - 3), title += "...";
         return title;
     }

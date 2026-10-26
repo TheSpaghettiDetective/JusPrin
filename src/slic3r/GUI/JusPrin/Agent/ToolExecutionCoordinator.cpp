@@ -2134,7 +2134,9 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         const json before = purpose();
         // The purpose goes first: one the chat refuses records nothing at all.
-        if (!m_product_state->set_setup_title(activity.correlation_id, arguments.at("purpose").get<std::string>())) {
+        // Left out, the recorded purpose stays, whether or not there is one.
+        if (arguments.contains("purpose") &&
+            !m_product_state->set_setup_title(activity.correlation_id, arguments.at("purpose").get<std::string>())) {
             fail(activity, "invalid_arguments", "purpose must be one line.");
             return;
         }
@@ -2144,12 +2146,14 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                     {"projectUndo", false}};
         const json after = purpose();
         // A first or changed purpose asks for the setup to be checked against
-        // it; a call that restates the purpose to change the plan does not.
+        // it; a call that restates or leaves out the purpose to change the
+        // plan does not.
+        const bool first   = before.empty() && !after.empty();
         const bool changed = !before.empty() && before != after;
-        result["purposeChange"] = before.empty() ? "first" : changed ? "changed" : "unchanged";
+        result["purposeChange"] = first ? "first" : changed ? "changed" : "unchanged";
         if (changed)
             result["purposeBefore"] = before;
-        if (before.empty() || changed) {
+        if (first || changed) {
             result["purposeAfter"] = after;
             m_product_state->set_purpose_setup(setup_in_force(snapshot));
         }

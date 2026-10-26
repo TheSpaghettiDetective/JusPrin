@@ -1,7 +1,7 @@
 // Acceptance for the setup card and the All settings panel: the three
-// designed frames, with the plan's headline in the card where the differences
-// were, every remaining state of the card, and the two guards that keep the
-// card and the panel from sliding back to a list of settings somebody picked.
+// designed frames, every remaining state of the two-part card, and the two
+// guards that keep the card and the panel from sliding back to a list of
+// settings somebody picked.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -16,7 +16,7 @@ import { AllSettings, catalogFromContext } from './AllSettings';
 function visual(id: string) {
   const entry = setupVisualCases.find((item) => item.id === id);
   if (!entry) throw new Error(`Missing visual case ${id}`);
-  const handlers = { onViewSetup: vi.fn(), onCompute: vi.fn(), onUndo: vi.fn(), onBack: vi.fn() };
+  const handlers = { onViewSetup: vi.fn(), onCompute: vi.fn(), onBack: vi.fn() };
   render(renderVisualCase(entry, handlers));
   return { ...handlers, root: screen.getByTestId(entry.kind === 'page' ? 'all-settings' : 'current-setup') };
 }
@@ -38,28 +38,28 @@ function draw(seed: number, count: number): string[] {
 }
 
 describe('the three designed frames', () => {
-  it('A1 · the card says how the agent means to print, not what differs', async () => {
+  it('A1 · the card says what the print is for and how the agent means to print it, then the facts', async () => {
     const { root: card, onViewSetup } = visual('A1');
-    expect(card).toHaveTextContent('Setup summary');
-    expect(card).toHaveTextContent('Current');
+    expect(card.querySelector('.current-setup-label')).toHaveTextContent('Setup summary');
+    expect(card.querySelector('.current-setup-state')).toBeNull();
     expect(within(card).getByRole('heading')).toHaveTextContent('Stop the corners lifting');
-    expect(card).toHaveTextContent('0.20mm Standard · Generic ABS +2');
     expect(card.querySelector('.current-setup-strategy')).toHaveTextContent(
       'Wide brim and a slow first layer for adhesion');
-    expect(card.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
-    expect(card.querySelector('.current-setup-note')).toHaveTextContent(/^1 object with overrides$/);
+    // Five settings differ from the presets, and the object sets two itself.
+    expect(card.querySelector('.current-setup-facts-text')).toHaveTextContent(
+      /^0\.20mm Standard · Generic ABS \+2 · 7 settings changed$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('41 g');
     await userEvent.click(within(card).getByRole('button', { name: 'All settings' }));
     expect(onViewSetup).toHaveBeenCalledOnce();
   });
 
-  it('A2 · an untouched project is titled by its preset and says nothing changed', async () => {
+  it('A2 · an untouched project is its facts alone', async () => {
     const { root: card, onCompute } = visual('A2');
-    expect(card).toHaveTextContent('Not sliced');
-    expect(within(card).getByRole('heading')).toHaveTextContent('0.20mm Standard @MyKlipper');
-    expect([...card.querySelectorAll('.current-setup-line')].map((line) => line.textContent)).toEqual([
-      'Generic ABS +2', 'Not sliced yet · estimates unavailable · Plate 1']);
+    expect(within(card).queryByRole('heading')).toBeNull();
+    expect(card.querySelector('.current-setup-divider')).toBeNull();
+    expect(card.querySelector('.current-setup-facts-text')).toHaveTextContent(/^0\.20mm Standard · Generic ABS \+2$/);
+    expect([...card.querySelectorAll('.current-setup-line')].map((line) => line.textContent)).toEqual(['Not sliced yet']);
     expect(card.querySelector('.current-setup-strategy')).toBeNull();
     await userEvent.click(within(card).getByRole('button', { name: 'Compute estimates' }));
     expect(onCompute).toHaveBeenCalledOnce();
@@ -94,19 +94,20 @@ describe('the three designed frames', () => {
 describe('the card\'s other states', () => {
   const expected: Record<string, (string | RegExp)[]> = {
     earlier: ['Earlier setup', 'Saved Oct 8, 10:42', 'Wide brim and a slow first layer for adhesion', 'Saved with this chat.'],
-    'just-changed': ['Updated', 'Add modifier: Corner tab', 'Estimate: ~2h 00m / 38 g → ~2h 18m / 41 g', 'Undo'],
-    working: ['Agent working', 'Last confirmed estimates', 'Shown settings remain the last confirmed setup.'],
-    recomputing: ['Confirmed', 'Time & material estimates recomputing…', 'Settings confirmed · Plate 1'],
-    stale: ['Earlier setup', 'Out of date', 'Previous estimates · not current', 'a setting changed', 'Refresh setup & recompute'],
-    manual: ['Edited by you', 'You set Bed temperature 105 ℃ outside the agent.', 'Estimate unavailable for these edits · Plate 1'],
-    risk: ['Coarse layers may leave visible surface lines.'],
-    'no-agent': ['Preset fallback', 'No agent', 'No agent configured · using the selected preset.'],
-    sent: ['Saved sliced snapshot', 'Sliced & sent', 'Saved pre-slice estimates', 'Oct 8, 10:42 · sent to MyKlipper'],
+    working: ['Agent working', 'Stop the corners lifting', '~2h 18m'],
+    recomputing: ['Time & material estimates recomputing…'],
+    stale: ['Setup summary', '~2h 18m', 'Previous estimates · not current', 'Recompute'],
+    'plan-mark': ['Stop the corners lifting', 'Wide brim and a slow first layer for adhesion',
+      'Plan needs another look · Import Object: Print_Bed_Level_Test.stl', 'Time & material estimates recomputing…'],
+    material: ['Generic ABS +2 · 7 settings changed', 'Printer last reported PLA'],
+    'no-agent': ['0.20mm Standard · Generic ABS +2', 'Not sliced yet', 'No agent configured · using the selected preset.'],
+    sent: ['Saved sliced snapshot', 'Sliced & sent', 'Sent to MyKlipper · Oct 8, 10:42. Saved snapshot: the canvas shows your current project.'],
     'with-currency': [/1\.12/],
-    missing: ['Preset fallback', 'Estimate unavailable'],
+    missing: ['No settings read from the project', 'Estimate unavailable'],
     dense: ['Extra-wide brim, a slow first layer and a cooler bed so the long fixture stays flat on the plate',
-      '1 object with overrides'],
-    'no-plan': ['Stop the corners lifting', '1 object with overrides', 'Current'],
+      '+5 · 22 settings changed'],
+    'no-plan': ['Stop the corners lifting', '7 settings changed'],
+    'plan-only': ['Wide brim and a slow first layer for adhesion', '7 settings changed'],
     'page-untouched': ['0.20mm Standardfrom the preset', 'Qualityfrom the preset', 'Strengthfrom the preset'],
     'page-objects': ['Shown: only what bracket.stl sets itself.',
       'bracket.stl uses the project’s settings, except in 2 regions: Mounting tabs and Screw holes.',
@@ -127,17 +128,34 @@ describe('the card\'s other states', () => {
     expect(root).not.toHaveTextContent(/undefined|NaN/);
   });
 
-  it('a change that is new is not listed on the card', () => {
-    const { root } = visual('just-changed');
-    expect(root).not.toHaveTextContent(/Brim width|0 mm → 8 mm/);
+  it('each warning annotates the one line it contradicts', () => {
+    const notes = (id: string) => {
+      const { root } = visual(id);
+      const found = [...root.querySelectorAll('.current-setup-annotation')].map((note) => ({
+        text: note.textContent, after: note.previousElementSibling?.className }));
+      cleanup();
+      return found;
+    };
+    expect(notes('plan-mark')).toEqual([{ text: 'Plan needs another look · Import Object: Print_Bed_Level_Test.stl',
+      after: 'current-setup-strategy' }]);
+    expect(notes('material')).toEqual([{ text: 'Printer last reported PLA', after: 'current-setup-facts' }]);
+    expect(notes('stale')).toEqual([{ text: 'Previous estimates · not currentRecompute', after: 'current-setup-metrics' }]);
+    for (const id of ['A1', 'A2', 'working', 'recomputing', 'no-plan', 'plan-only']) expect(notes(id)).toEqual([]);
   });
 
-  it('no card lists a difference or counts them', () => {
+  it('no card names a moment of change: those are the timeline\'s', () => {
+    for (const entry of setupVisualCases.filter((item) => item.kind === 'card')) {
+      const { root } = visual(entry.id);
+      expect(root).not.toHaveTextContent(/Updated|Confirmed|Edited by|outside the agent|Estimate:|Undo|Out of date|Preset fallback/);
+      cleanup();
+    }
+  });
+
+  it('no card lists a difference', () => {
     for (const entry of setupVisualCases.filter((item) => item.kind === 'card')) {
       const { root } = visual(entry.id);
       expect(root.querySelectorAll('.current-setup-row--change')).toHaveLength(0);
-      // A hand edit's notice names the setting from the change log; the
-      // difference itself, preset value to value, is the page's.
+      // The difference itself, preset value to value, is the page's.
       for (const delta of entry.context.presetDeltas)
         expect(root).not.toHaveTextContent(delta.display || `${delta.preset} → ${delta.value}`);
       expect(root).not.toHaveTextContent(/more change|No changes from presets/);
@@ -146,7 +164,7 @@ describe('the card\'s other states', () => {
   });
 
   it('a card with no plan has no strategy line, and no stand-in for one', () => {
-    for (const id of ['no-plan', 'A2']) {
+    for (const id of ['no-plan', 'A2', 'no-agent']) {
       const { root } = visual(id);
       expect(root.querySelector('.current-setup-strategy')).toBeNull();
       cleanup();

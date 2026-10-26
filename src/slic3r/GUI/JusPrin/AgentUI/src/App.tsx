@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import { AttachmentPickKind, AttachmentSource, Envelope, SliceEstimateInfo } from './bridge/protocol';
+import { AttachmentPickKind, AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
-import { RECENT_CHANGE_MS, SetupCard } from './components/SetupCard';
+import { SetupCard } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
@@ -344,34 +344,6 @@ export function App({
     return () => window.clearInterval(timer);
   }, [client, state.connection, state.viewedConversationId, state.activeConversationId, view, state.context?.sessionId]);
 
-  // "Just changed" is a window of time, so something has to end it: one
-  // timer per newest change, set for the moment that change stops being new.
-  const [now, setNow] = useState(() => Date.now());
-  const newestChange = state.changes.at(-1);
-  useEffect(() => {
-    setNow(Date.now());
-    if (!newestChange) return;
-    const left = Date.parse(newestChange.createdAt) + RECENT_CHANGE_MS - Date.now();
-    if (!Number.isFinite(left) || left <= 0) return;
-    const timer = window.setTimeout(() => setNow(Date.now()), left + 50);
-    return () => window.clearTimeout(timer);
-  }, [newestChange?.seq, newestChange?.createdAt]);
-
-  // The pair behind "Estimate: a → b": the plate's last current estimate, and
-  // the one that was in force when the newest change arrived. Both are native
-  // figures for the same plate; nothing here is computed.
-  const activePlate = state.context?.plates.find((plate) => plate.active);
-  const lastEstimate = useRef<{ plateId: string; estimate: SliceEstimateInfo } | null>(null);
-  const beforeChange = useRef<{ seq: number; plateId: string; estimate: SliceEstimateInfo } | null>(null);
-  useEffect(() => {
-    if (!newestChange || beforeChange.current?.seq === newestChange.seq) return;
-    beforeChange.current = lastEstimate.current ? { seq: newestChange.seq, ...lastEstimate.current } : null;
-  }, [newestChange?.seq]);
-  useEffect(() => {
-    if (activePlate?.estimate && activePlate.estimateStatus === 'current')
-      lastEstimate.current = { plateId: activePlate.id, estimate: activePlate.estimate };
-  }, [activePlate?.id, activePlate?.estimate, activePlate?.estimateStatus]);
-
   if (state.connection === 'connecting') return <div className="app"><ConnectingPane /></div>;
 
   if (state.connection !== 'connected') {
@@ -461,20 +433,12 @@ export function App({
   const setupCard = view === 'chat' && cardContext && <div className={threadScrolled ? 'pinned-setup pinned-setup--scrolled' : 'pinned-setup'}>
     <SetupCard context={cardContext} historical={historical} savedAt={historical ? state.chatResume.savedAt : undefined}
       agentAvailable={!unavailable} working={!historical && busy}
-      changes={historical ? undefined : viewedChanges}
-      now={now}
-      estimateBefore={!historical && beforeChange.current?.seq === newestChange?.seq &&
-        beforeChange.current?.plateId === activePlate?.id ? beforeChange.current?.estimate : null}
       onCompute={historical ? undefined : () => {
         const current = stateRef.current.context;
         const plate = current?.plates.find((item) => item.active);
         if (current && plate) client.send('shell_action', {
           action: 'compute_setup_estimates', sessionId: current.sessionId, plateId: plate.id,
         });
-      }}
-      onUndo={historical ? undefined : (changeSeq) => {
-        const current = stateRef.current.context;
-        if (current) client.send('shell_action', { action: 'undo_setup_change', sessionId: current.sessionId, changeSeq });
       }}
       onViewSetup={() => setView('allSettings')} />
   </div>;

@@ -225,8 +225,8 @@ struct WorkspacePlate
 
 // One process setting whose value in force differs from the preset it came
 // from. The list is how far the project has drifted from stock: its size is
-// the count the setup card rests on, and its contents are what the card shows
-// when it is opened.
+// the setup card's "N settings changed", and its contents are what the All
+// settings panel shows.
 struct PresetDelta
 {
     std::string key;         // config key, stable across languages
@@ -1829,7 +1829,7 @@ struct SettingsPreview
 // the process and printer presets' settings and each filament slot's, under
 // the page and group OrcaSlicer's settings tabs file them under; each plate's
 // own settings; and each object's customizations. A value is OrcaSlicer's own
-// serialization beside the setup card's wording of it (SettingDisplay.hpp).
+// serialization beside the wording people read (SettingDisplay.hpp).
 struct CatalogSetting
 {
     std::string key;

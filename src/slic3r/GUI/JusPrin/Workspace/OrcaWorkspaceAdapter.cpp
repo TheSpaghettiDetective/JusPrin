@@ -440,7 +440,7 @@ std::vector<CatalogSetting> plate_own_settings(PartPlate& plate, Search::Options
 // The settings edited between two readings of one preset. A key's value in
 // force is its delta's value, or the preset's own value when it has no delta.
 // The change log is read by people, so an edit carries its two values as the
-// setup card writes values: "Outer brim only" and "8 mm", not outer_only and 8.
+// All settings panel writes values: "Outer brim only" and "8 mm", not outer_only and 8.
 std::vector<WorkspaceEdit> setting_edits(const std::vector<PresetDelta>& before, const std::vector<PresetDelta>& after,
                                          const PresetCollection& collection)
 {

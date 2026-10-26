@@ -280,10 +280,12 @@ describe('App', () => {
     expect(screen.getByText('what is on the plate?')).toBeInTheDocument();
     expect(screen.getByText('Two cubes.')).toBeInTheDocument();
     // A host that reports no applied settings and a chat with no intent: the
-    // card is a label for the process preset and claims nothing else.
-    expect(screen.getByTestId('current-setup')).toHaveTextContent('Preset fallback');
-    expect(screen.getByTestId('current-setup')).toHaveTextContent('Test Printer 0.4');
-    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('No changes from presets');
+    // card is the facts alone, under its eyebrow, and claims nothing else.
+    const card = screen.getByTestId('current-setup');
+    expect(card).toHaveTextContent('Setup summary');
+    expect(card).toHaveTextContent('Test Printer 0.4');
+    expect(within(card).queryByRole('heading')).toBeNull();
+    expect(card).not.toHaveTextContent(/No changes from presets|Preset fallback/);
   });
 
   it('renders assistant Markdown while keeping user input literal', () => {
@@ -398,14 +400,38 @@ describe('App', () => {
     expect(calibration?.description).toMatch(/^Read when a print problem may come from the filament/);
   });
 
-  it('draws no file report the Agent is speaking about', () => {
+  it('draws the open that made the project as one dated line, not the report the Agent speaks about', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
+    const createdAt = '2026-10-26T12:16:03Z';
     host.deliver('message_added', {
-      message: { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1, fileReport, fileReportCard: false },
+      message: { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1, createdAt, fileReport, fileReportCard: false },
     });
     expect(screen.queryByLabelText('Notes about this file')).not.toBeInTheDocument();
+    const notes = document.querySelectorAll('.message.note');
+    expect(notes).toHaveLength(1);
+    const time = new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    // The file's name, never its folder.
+    expect(notes[0]).toHaveTextContent(new RegExp(`^Opened bracket\\.3mf as a new project · you · (${time}|Yesterday|.+ ago|Last week|[A-Z][a-z]{2} \\d+.*)$`));
+    expect(notes[0]).not.toHaveTextContent('models');
+  });
+
+  it('draws nothing for an import, whose change row is already in the thread', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('message_added', { message: { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1,
+      fileReport: { ...fileReport, projectOpened: false }, fileReportCard: false } });
     expect(document.querySelectorAll('.message.note')).toHaveLength(0);
+  });
+
+  it('does not call a saved project reopening with its chat new, and names the Agent when it opened the file', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'older message', attempt: 1 },
+      { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1,
+        fileReport: { ...fileReport, startedBy: 'agent' as const }, fileReportCard: false },
+    ] }));
+    expect(document.querySelector('.message.note')).toHaveTextContent(/^Opened bracket\.3mf · Agent$/);
   });
 
   it('places file notes above the original setup offer when no Agent is configured', async () => {
@@ -548,8 +574,6 @@ describe('App', () => {
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
     // The card stays, as a label for the preset in use and nothing more.
     const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('Preset fallback');
-    expect(card).toHaveTextContent('No agent');
     expect(card).toHaveTextContent('Test Printer 0.4');
     expect(card).toHaveTextContent('No agent configured · using the selected preset.');
     expect(within(card).queryByRole('button')).toBeNull();
@@ -572,9 +596,10 @@ describe('App', () => {
     expect(screen.queryByText('NOT SET UP')).not.toBeInTheDocument();
     expect(screen.getByText('Claude Code, in 0.20mm Standard', { exact: false })).toBeInTheDocument();
     expect(screen.getByTestId('work-work-4')).toHaveTextContent('Slicing plate 1');
+    // The thread names who edited; the card states only what is in force.
     const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('Edited by Claude Code');
-    expect(card).not.toHaveTextContent('using the selected preset');
+    expect(card).toHaveTextContent('No agent configured');
+    expect(card).not.toHaveTextContent(/Edited by|Claude Code/);
     // Setup takes the composer's place: there is nothing to type to.
     expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
     await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
@@ -997,7 +1022,7 @@ describe('App', () => {
     const card = () => screen.getByTestId('current-setup');
     expect(card()).toHaveTextContent('Test Printer 0.4');
     expect(card()).not.toHaveTextContent('No changes from presets');
-    expect(card()).toHaveTextContent('Not sliced');
+    expect(card()).toHaveTextContent('Not sliced yet');
 
     // A hand edit in Orca, a slice, an intent and a plan: no chat turn in
     // between.
@@ -1016,9 +1041,9 @@ describe('App', () => {
     expect(card()).toHaveTextContent("Strong - it'll bear weight");
     expect(card()).toHaveTextContent('Four walls and gyroid infill for strength');
     expect(card()).not.toHaveTextContent('Wall loops');
+    expect(card()).toHaveTextContent('Test Printer 0.4 · Generic PLA · 1 setting changed');
     expect(card()).toHaveTextContent('~3h 50m');
     expect(card()).toHaveTextContent('47 g');
-    expect(card()).toHaveTextContent('Current');
   });
 
   // A host that can list the settings says so in its hello.
@@ -1200,64 +1225,21 @@ describe('App', () => {
       action: 'compute_setup_estimates', sessionId: '1', plateId: '11' });
   });
 
-  it('shows a change the agent just made and stops calling it new when the window passes', () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    try {
-      vi.setSystemTime(new Date('2026-10-05T20:00:10'));
-      render(<App getTransport={() => host.transport} />);
-      connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong' }, changes: [
-        { seq: 7, createdAt: '2026-10-05T20:00:00', kind: 'setting', actor: 'agent', label: 'Wall loops',
-          from: '2', to: '4', preset: 'Standard', conversationId: 'conv-1', afterId: 'm-1' },
-        // Another chat's change is not this chat's news.
-        { seq: 8, createdAt: '2026-10-05T20:00:05', kind: 'setting', actor: 'agent', label: 'Layer height',
-          from: '0.2', to: '0.3', preset: 'Standard', conversationId: 'conv-other', afterId: 'm-9' },
-      ] }));
-      const card = () => screen.getByTestId('current-setup');
-      expect(card()).toHaveTextContent('Updated');
-      // The card marks the change as new; it does not list it again under the
-      // estimate, where the thread's own rows already are.
-      expect(card()).not.toHaveTextContent('Wall loops 2 → 4');
-      expect(card()).not.toHaveTextContent('Layer height 0.2 → 0.3');
-      // A preset edit is not on Orca's undo stack, so there is nothing to offer.
-      expect(within(card()).queryByRole('button', { name: 'Undo' })).toBeNull();
-
-      act(() => { vi.advanceTimersByTime(61000); });
-      expect(card()).not.toHaveTextContent('Updated');
-      expect(card()).toHaveTextContent('Not sliced');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('undoes the agent\'s project step through the host, naming the step', async () => {
+  it('draws the plan\'s mark the host sends, until the plan is recorded again', () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ context: { ...applied, setupIntent: 'Strong', history: { canUndo: true, canRedo: false } },
-      changes: [{ seq: 9, createdAt: new Date().toISOString(), kind: 'step', actor: 'agent', label: 'Add modifier',
-        conversationId: 'conv-1', afterId: 'm-1' }] }));
-    await userEvent.click(within(screen.getByTestId('current-setup')).getByRole('button', { name: 'Undo' }));
-    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'undo_setup_change', sessionId: '1', changeSeq: 9 });
-  });
-
-  it('shows the estimate before and after a change once the plate is sliced again', () => {
-    render(<App getTransport={() => host.transport} />);
-    const sliced = (seconds: number, grams: number, status: 'current' | 'stale' = 'current'): WorkspaceContext => ({
-      ...applied, setupIntent: 'Strong', plates: [{ ...applied.plates[0], sliced: status === 'current',
-        estimate: { printTimeSeconds: seconds, materialGrams: grams, materialCost: null }, estimateStatus: status }] });
-    const changes = [{ seq: 3, createdAt: new Date().toISOString(), kind: 'setting' as const, actor: 'agent' as const,
-      label: 'Wall loops', from: '2', to: '4', preset: 'Standard', conversationId: 'conv-1', afterId: 'm-1' }];
-    connect(host, emptyState({ context: sliced(2520, 18) }));
+    const planned: WorkspaceContext = { ...applied, setupIntent: 'Halloween headband costume for my kid',
+      planHeadline: 'P1S PLA, sturdier walls for the clip', planValidity: 'needs_reassessment',
+      planInvalidatedBy: 'Import Object: Print_Bed_Level_Test.stl' };
+    connect(host, emptyState({ context: planned, changes: [{ seq: 4, createdAt: new Date().toISOString(), kind: 'step',
+      actor: 'person', label: 'Import Object: Print_Bed_Level_Test.stl', conversationId: 'conv-1', afterId: 'm-1' }] }));
     const card = () => screen.getByTestId('current-setup');
-    expect(card()).not.toHaveTextContent('Estimate:');
-
-    // The change lands and outdates the slice: the old figure is not paired
-    // with itself, and is labelled for what it is.
-    host.deliver('state', emptyState({ context: sliced(2520, 18, 'stale'), changes }));
-    expect(card()).toHaveTextContent('Updated');
-    expect(card()).toHaveTextContent('Previous estimates · not current');
-    expect(card()).not.toHaveTextContent('Estimate:');
-
-    host.deliver('context', { context: sliced(8280, 46) });
-    expect(card()).toHaveTextContent('Estimate: ~42 min / 18 g → ~2h 18m / 46 g');
+    expect(card()).toHaveTextContent('Plan needs another look · Import Object: Print_Bed_Level_Test.stl');
+    expect(card()).toHaveTextContent('Halloween headband costume for my kid');
+    // The import is the thread's row, never the card's.
+    expect(card()).not.toHaveTextContent(/Edited by|Updated|Undo/);
+    host.deliver('context', { context: { ...planned, revision: 3, planValidity: 'current', planInvalidatedBy: '' } });
+    expect(card()).not.toHaveTextContent('Plan needs another look');
+    expect(card()).toHaveTextContent('P1S PLA, sturdier walls for the clip');
   });
 });
 

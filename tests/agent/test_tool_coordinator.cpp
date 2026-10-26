@@ -506,6 +506,16 @@ TEST_CASE("setup_record says what it did to the purpose and which setup was in f
     CHECK(planned["plan"]["headline"] == "Four walls and gyroid infill for strength");
     CHECK(store.purpose_setup() == json{{"printerPreset", "kept"}});
 
+    // A call that leaves the purpose out keeps the one recorded: the plan
+    // changes, the purpose and the setup it was recorded under do not.
+    const json restated = record({{"headline", "Four walls and gyroid infill for strength"},
+                                  {"unverified", json::array({"The hook sees no more than 5 kg"})}});
+    CHECK(restated["purposeChange"] == "unchanged");
+    CHECK_FALSE(restated.contains("purposeAfter"));
+    CHECK(restated["plan"]["unverified"] == json::array({"The hook sees no more than 5 kg"}));
+    CHECK(store.setup_title("m-1") == "A strong hook");
+    CHECK(store.purpose_setup() == json{{"printerPreset", "kept"}});
+
     // A changed purpose: before and after, and the setup recorded again
     // under it. The plan it did not mention is kept.
     const json changed = record({{"purpose", "A hook for a wet bathroom"}});
@@ -526,12 +536,35 @@ TEST_CASE("setup_record says what it did to the purpose and which setup was in f
     CHECK(submit({{"purpose", "Someone else's words"}}, "m-outside")->state == ToolState::Failed);
 }
 
-TEST_CASE("setup_record refuses a call without a purpose, a nested plan, or a plan without a headline", "[tools][intent]")
+TEST_CASE("setup_record records a plan before there is a purpose, and infers none", "[tools][intent]")
+{
+    Workspace::FakeWorkspace workspace(one_plate_snapshot());
+    ToolExecutionCoordinator coordinator(workspace);
+    FakeProductState         store;
+    coordinator.set_product_state(&store);
+    const ToolActivity& activity = coordinator.submit({"setup_record", json{{"headline", "Fine layers for the lettering"}}.dump()}, "m-1");
+    CHECK(activity.title == "Record the plan: Fine layers for the lettering");
+    const std::string action = activity.action_id;
+    coordinator.pump();
+    REQUIRE(coordinator.find(action)->state == ToolState::Succeeded);
+    const json result = json::parse(coordinator.find(action)->result_json);
+    CHECK(ToolRegistry::instance().validate_output(*ToolRegistry::instance().find("setup_record"), result));
+    CHECK(result["purposeChange"] == "unchanged");
+    CHECK_FALSE(result.contains("purposeAfter"));
+    CHECK(result["plan"]["headline"] == "Fine layers for the lettering");
+    CHECK(store.setup_title("m-1") == "");
+    CHECK(store.purpose_setup().empty());
+}
+
+TEST_CASE("setup_record refuses a call with neither purpose nor headline, a nested plan, or a plan without a headline", "[tools][intent]")
 {
     const auto& registry = ToolRegistry::instance();
     const ToolDefinition& definition = *registry.find("setup_record");
     CHECK(registry.validate_call(definition, json{{"purpose", "A hook"}}.dump()).valid());
+    // The purpose is optional: left out, the recorded one is kept.
+    CHECK(registry.validate_call(definition, json{{"headline", "Flat"}}.dump()).valid());
     CHECK_FALSE(registry.validate_call(definition, json::object().dump()).valid());
+    CHECK_FALSE(registry.validate_call(definition, json{{"unverified", json::array({"The spool is PETG"})}}.dump()).valid());
     // Requirement fields were removed on 2026-10-25: nothing confirmed them,
     // and they came back to the model as the person's facts.
     CHECK_FALSE(registry.validate_call(definition, json{{"purpose", "A hook"},

@@ -2,32 +2,24 @@
 // acceptance tests and the review page both render the production components
 // from these, so a state is covered only if it can be produced from real
 // inputs. A1, A2 and B are the three frames of the "setup card shows
-// differences from presets" design, whose card now carries the plan's
-// headline in place of the differences; the card's remaining states are the
-// ones first drawn on the Figma page "Current Setup Card", sections 6 and 7,
-// whose frame each names. Every setting value below is written the way the
-// host's formatter writes it.
+// differences from presets" design; the card's remaining states are the
+// boards of the two-part card on the canvas page "Current Setup Card"
+// (2026-10-26). Every setting value below is written the way the host's
+// formatter writes it.
 
-import { CatalogSettingInfo, ChangeInfo, PresetDeltaInfo, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
-import { Finding, SetupCard, SetupCardProps } from './SetupCard';
+import { CatalogSettingInfo, PresetDeltaInfo, SettingsCatalogPayload, WorkspaceContext } from '../bridge/protocol';
+import { SetupCard, SetupCardProps } from './SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './AllSettings';
 
-type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onUndo' | 'onViewSetup'> &
-  { compute?: boolean; undo?: boolean };
+type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onViewSetup'> & { compute?: boolean };
 
 export interface SetupVisualCase {
   id: string;
   name: string;
   kind: 'card' | 'page';
-  // The Figma frame the state was first drawn on, where there is one.
-  frame?: string;
   context: WorkspaceContext;
   props: CaseProps;
 }
-
-// When the review page and the tests "are": a fixed clock, so the window a
-// completed change stays new for does not depend on when the suite runs.
-export const VISUAL_NOW = Date.parse('2026-10-08T12:00:30');
 
 const PROCESS = '0.20mm Standard @MyKlipper';
 const FILAMENT = 'Generic ABS @System';
@@ -84,25 +76,6 @@ function variant(change: (value: WorkspaceContext) => void, base: WorkspaceConte
   return value;
 }
 
-const change = (seq: number, patch: Partial<ChangeInfo>): ChangeInfo => ({
-  seq, createdAt: '2026-10-08T10:00:00', kind: 'setting', actor: 'agent', label: '', preset: PROCESS,
-  conversationId: 'visual-chat', afterId: 'message-1', ...patch });
-
-// The agent's latest turn: one patch of the two brim settings, logged in the
-// host's order.
-export const visualChanges: ChangeInfo[] = [
-  change(1, { key: 'brim_width', label: 'Brim width', from: '0 mm', to: '8 mm' }),
-  change(2, { key: 'brim_type', label: 'Brim type', from: 'Auto', to: 'Outer brim only' }),
-];
-
-const justNow = (entry: ChangeInfo): ChangeInfo => ({ ...entry, createdAt: '2026-10-08T12:00:00' });
-const justChanged: ChangeInfo[] = [...visualChanges.map(justNow),
-  justNow(change(3, { kind: 'step', label: 'Add modifier: Corner tab', preset: undefined }))];
-
-const handChanges: ChangeInfo[] = [...visualChanges,
-  change(3, { actor: 'person', key: 'hot_plate_temp', label: 'Bed temperature', from: '100 ℃', to: '105 ℃',
-    preset: FILAMENT, afterId: 'message-2', createdAt: '2026-10-08T11:30:00' })];
-
 // A new project nobody has touched: no purpose, nothing changed, never sliced.
 const untouched = variant((value) => {
   value.setupIntent = '';
@@ -149,42 +122,42 @@ const threeObjects = variant((value) => {
 });
 
 const saved = '2026-10-08T10:42:00';
-const risk: Finding[] = [{ title: 'Coarse layers may leave visible surface lines.' }];
 
 export const setupVisualCases: SetupVisualCase[] = [
-  { id: 'A1', name: 'Card · headline', kind: 'card', context: setupWorkspace(), props: { changes: visualChanges } },
-  { id: 'A2', name: 'Card · nothing changed', kind: 'card', context: untouched, props: { compute: true } },
-  { id: 'B', name: 'All settings · whole project', kind: 'page', context: setupWorkspace(), props: { changes: visualChanges } },
+  { id: 'A1', name: 'Card · current', kind: 'card', context: setupWorkspace(), props: {} },
+  { id: 'A2', name: 'Card · no words yet, never sliced', kind: 'card', context: untouched, props: { compute: true } },
+  { id: 'B', name: 'All settings · whole project', kind: 'page', context: setupWorkspace(), props: {} },
 
-  { id: 'earlier', name: 'Earlier · saved', kind: 'card', frame: '1291:1731', context: setupWorkspace(),
+  { id: 'earlier', name: 'Earlier · saved', kind: 'card', context: setupWorkspace(),
     props: { historical: true, savedAt: saved } },
-  { id: 'just-changed', name: 'Just changed', kind: 'card', frame: '1312:5525', context: setupWorkspace(),
-    props: { changes: justChanged, undo: true, estimateBefore: { printTimeSeconds: 7200, materialGrams: 38, materialCost: null } } },
-  { id: 'working', name: 'Agent working', kind: 'card', frame: '1312:5565', context: setupWorkspace(),
-    props: { changes: visualChanges, working: true } },
-  { id: 'recomputing', name: 'Estimate recomputing', kind: 'card', frame: '1312:5603',
-    context: variant((value) => { value.plates[0].estimateStatus = 'recomputing'; }), props: { changes: visualChanges } },
-  { id: 'stale', name: 'Out of date', kind: 'card', frame: '1312:5627', context: stale, props: { compute: true } },
-  { id: 'manual', name: 'Edited by hand', kind: 'card', frame: '1312:5671', context: stale, props: { changes: handChanges } },
-  { id: 'risk', name: 'One-line risk', kind: 'card', frame: '1312:5699', context: setupWorkspace(),
-    props: { changes: visualChanges, attention: risk } },
-  { id: 'no-agent', name: 'No agent configured', kind: 'card', frame: '1312:5739',
-    context: variant((value) => { value.setupIntent = ''; }), props: { agentAvailable: false } },
-  { id: 'sent', name: 'Sliced and sent', kind: 'card', frame: '1312:5745', context: setupWorkspace(),
+  { id: 'working', name: 'Agent working', kind: 'card', context: setupWorkspace(), props: { working: true } },
+  { id: 'recomputing', name: 'Estimate recomputing', kind: 'card',
+    context: variant((value) => { value.plates[0].estimateStatus = 'recomputing'; }), props: {} },
+  { id: 'stale', name: 'Estimates not current', kind: 'card', context: stale, props: { compute: true } },
+  { id: 'plan-mark', name: 'Plan needs another look', kind: 'card',
+    context: variant((value) => { value.planValidity = 'needs_reassessment';
+      value.planInvalidatedBy = 'Import Object: Print_Bed_Level_Test.stl';
+      value.plates[0].estimateStatus = 'recomputing'; }), props: {} },
+  { id: 'material', name: 'Printer reports another material', kind: 'card',
+    context: variant((value) => { value.printerReview = { observed: { observedAt: saved, connection: 'online' },
+      mismatches: [{ what: 'filament', configured: 'ABS', observed: 'PLA', source: 'device' }] }; }), props: {} },
+  { id: 'no-agent', name: 'No agent configured', kind: 'card', context: untouched, props: { agentAvailable: false } },
+  { id: 'sent', name: 'Sliced and sent', kind: 'card', context: setupWorkspace(),
     props: { historical: true, savedAt: saved, sent: { at: saved, printer: 'MyKlipper' } } },
-  { id: 'with-currency', name: 'With currency', kind: 'card', frame: '1312:5897',
-    context: variant((value) => { value.currency = 'GBP'; value.plates[0].estimate!.materialCost = 1.12; }),
-    props: { changes: visualChanges } },
-  { id: 'missing', name: 'Nothing read', kind: 'card', frame: '1312:6081',
-    context: variant((value) => { value.setupIntent = ''; value.appliedSetup = null; value.setupIdentity = null;
-      value.printerReview = null; value.presetDeltas = []; value.plates[0].estimate = null; }), props: {} },
-  { id: 'dense', name: 'Card · long and dense', kind: 'card', frame: '1312:5791', context: dense, props: {} },
-  { id: 'no-plan', name: 'Card · no plan pinned', kind: 'card',
-    context: variant((value) => { value.planHeadline = ''; }), props: { changes: visualChanges } },
+  { id: 'with-currency', name: 'With currency', kind: 'card',
+    context: variant((value) => { value.currency = 'GBP'; value.plates[0].estimate!.materialCost = 1.12; }), props: {} },
+  { id: 'missing', name: 'Nothing read', kind: 'card',
+    context: variant((value) => { value.setupIntent = ''; value.planHeadline = ''; value.appliedSetup = null;
+      value.setupIdentity = null; value.printerReview = null; value.presetDeltas = []; value.printer.process = '';
+      value.plates[0].estimate = null; }), props: {} },
+  { id: 'dense', name: 'Card · long and dense', kind: 'card', context: dense, props: {} },
+  { id: 'no-plan', name: 'Card · purpose, no plan yet', kind: 'card',
+    context: variant((value) => { value.planHeadline = ''; }), props: {} },
+  { id: 'plan-only', name: 'Card · plan before a purpose', kind: 'card',
+    context: variant((value) => { value.setupIntent = ''; }), props: {} },
 
   { id: 'page-untouched', name: 'All settings · nothing changed', kind: 'page', context: untouched, props: {} },
-  { id: 'page-objects', name: 'All settings · one object', kind: 'page', context: threeObjects,
-    props: { changes: visualChanges } },
+  { id: 'page-objects', name: 'All settings · one object', kind: 'page', context: threeObjects, props: {} },
   { id: 'page-dense', name: 'All settings · six slots', kind: 'page', context: dense, props: {} },
 ];
 
@@ -237,16 +210,14 @@ export function visualCatalog(context: WorkspaceContext): SettingsCatalogPayload
 // case says the host could carry the action out. A panel comes with the
 // header it has in the pane.
 export function renderVisualCase(entry: SetupVisualCase, handlers: {
-  onViewSetup?: () => void; onCompute?: () => void; onUndo?: (changeSeq: number) => void; onBack?: () => void;
-  onCollapse?: () => void } = {}) {
-  const { compute, undo, ...props } = entry.props;
+  onViewSetup?: () => void; onCompute?: () => void; onBack?: () => void; onCollapse?: () => void } = {}) {
+  const { compute, ...props } = entry.props;
   // The one-object case is drawn on the object the 3D view has.
   if (entry.kind === 'page')
     return <><AllSettingsHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
       <AllSettings context={entry.context} catalog={visualCatalog(entry.context)}
         initialScope={entry.id === 'page-objects' ? { kind: 'object', id: '0' } : undefined} /></>;
-  return <SetupCard context={entry.context} now={VISUAL_NOW} {...props}
+  return <SetupCard context={entry.context} {...props}
     onViewSetup={handlers.onViewSetup ?? (() => {})}
-    onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined}
-    onUndo={undo ? handlers.onUndo ?? (() => {}) : undefined} />;
+    onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined} />;
 }

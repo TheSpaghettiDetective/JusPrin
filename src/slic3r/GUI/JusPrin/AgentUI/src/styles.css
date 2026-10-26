@@ -99,17 +99,14 @@ body {
 }
 
 .current-setup p,
-.current-setup h2,
-.current-setup h3,
-.current-setup dl,
-.current-setup dd,
-.current-setup ul {
+.current-setup h2 {
   margin: 0;
 }
 
-/* Header in Metadata Bold: what the card is on the left, the one state it is
-   in on the right. One line, always: the dock narrows with the window, and a
-   wrapped header silently costs the thread a row. The label gives way. */
+/* Header in Metadata Bold: what the card is on the left, its one state on
+   the right ("Agent working", or when a saved card was saved). One line,
+   always: the dock narrows with the window, and a wrapped header silently
+   costs the thread a row. The label gives way. */
 .current-setup-header {
   display: flex;
   align-items: center;
@@ -131,25 +128,19 @@ body {
 }
 
 .current-setup-state {
-  display: inline-flex;
   flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
 }
 
-/* Body Bold, one line. The whole sentence is in the tooltip. */
+/* Above the rule, the person's purpose in Body Bold: it wraps to two lines,
+   then clips. The whole sentence is in the tooltip. */
 .current-setup-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font: var(--font-body-bold);
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.current-setup-line {
-  font: var(--font-label);
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
 }
 
 /* How the agent means to print: its plan's headline, a few words that wrap
@@ -160,17 +151,44 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The rule between what someone wrote and what is in force. */
+.current-setup-divider {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+/* A fact line with the link that belongs to it at its end: the presets with
+   All settings, or the line that stands in for the estimates with Compute
+   estimates. As tall as the link, so a line with one and a line without it
+   keep the card's rhythm. */
+.current-setup-facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--button-link-height);
+}
+
 /* The presets stay on one line: the card does not grow for a long name. The
-   whole of it is in the tooltip, and on the setup page. */
-.current-setup-line--single {
+   whole of it is in the tooltip, and on the All settings panel. */
+.current-setup-facts-text {
+  flex: 1 1 0;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font: var(--font-label);
+  color: var(--text-secondary);
 }
 
-.current-setup-heading {
-  font: var(--font-metadata-bold);
-  color: var(--text-primary);
+.current-setup-line {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 /* Time, material, plate. They wrap as whole clauses at a narrow dock. */
@@ -189,95 +207,46 @@ body {
   gap: 8px;
 }
 
-.current-setup-metric .jp-icon,
-.current-setup-info .jp-icon,
-.current-setup-state .jp-icon {
-  color: var(--text-secondary);
-}
-
 /* The fact glyphs sit inside a row of text, so they take the card's own
-   size; the disclosure chevrons stay on the icon scale. */
+   size, below the icon scale. */
 .current-setup-metric .jp-icon,
-.current-setup-info .jp-icon,
-.current-setup-state .jp-icon,
-.current-setup-warning .jp-icon {
+.current-setup-annotation .jp-icon {
   width: var(--setup-card-icon-size);
   height: var(--setup-card-icon-size);
 }
 
-.current-setup-divider {
-  flex: 0 0 auto;
-  width: 100%;
-  height: 1px;
-  margin: 0;
-  border: 0;
-  background: var(--border-subtle);
-}
-
-.current-setup-attention {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.current-setup-warning {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font: var(--font-metadata-bold);
-  color: var(--text-primary);
-}
-
-/* Colour is never the only signal: the row always has its icon and words. */
-.current-setup-warning .jp-icon {
-  color: var(--status-warning);
-}
-
-.current-setup-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font: var(--font-label);
+.current-setup-metric .jp-icon {
   color: var(--text-secondary);
 }
 
-.current-setup-info > span:last-child {
+/* A warning is an annotation of the line above it, the one it contradicts:
+   the glyph in the warning colour beside Label text, on its first line when
+   the words wrap. Colour is never the only signal: the row always has its
+   glyph and words. */
+.current-setup-annotation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.current-setup-annotation .jp-icon {
+  flex: 0 0 auto;
+  color: var(--status-warning);
+}
+
+.current-setup-annotation--action {
+  align-items: center;
+}
+
+.current-setup-annotation-text {
+  flex: 1 1 0;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.current-setup-link { align-self: flex-start; }
-
-.current-setup-note {
-  font: var(--font-metadata);
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.current-setup-sent {
-  font: var(--font-metadata-bold);
-  color: var(--text-secondary);
-}
-
-.current-setup-findings {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0;
-  list-style: none;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
-}
-
-.current-setup-findings li {
-  display: flex;
-  flex-direction: column;
-}
-
-.current-setup-findings strong {
-  color: var(--text-primary);
-}
+.current-setup-link { flex: 0 0 auto; }
 
 /* The notice on an earlier chat (Figma "Agent/Historical chat notice"): why
    the chat cannot continue as it is, and the ways on. It sits in the
