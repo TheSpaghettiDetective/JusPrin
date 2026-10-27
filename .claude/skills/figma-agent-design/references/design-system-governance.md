@@ -30,6 +30,8 @@ A combination whose meaning belongs to one feature: a plate row, project metadat
 
 Keep it in the feature as ordinary auto-layout frames/groups or a feature-local component when implementation-oriented prototyping truly benefits from local reuse. Do not put it in the shared design system merely because it repeats across several states of the same feature.
 
+A feature composition that repeats across screens lives as one board on the Compositions page of the JusPrin v2 canvas, and screens import it by name with `<dc-import name="…">`. The Design System holds foundations and generic primitives only. A composition that is also coded in the Design System keeps its drawn source of truth and its variants on the Compositions page, so a change to it starts there.
+
 ### One-off state
 
 A menu-open example, empty state, comparison alternative, annotation, or review specimen.

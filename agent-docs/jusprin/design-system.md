@@ -213,9 +213,11 @@ only if the code goes through the token file in the first place.
    artifacts are the source of truth (Kenneth, 2026-10-20; Figma is
    retired): the Design System
    (https://claude.ai/artifact/3zgiix8rAw3rXextQnR5UL) and the "JusPrin v2"
-   canvas (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v). Change the
-   token file to match, or, when the code's value is the one to keep, change
-   the artifact first. Do not trust old commit messages about either.
+   canvas (https://claude.ai/artifact/ENCtdaz7gjynfbcy4JYbWJ). The canvas
+   frozen on 2026-10-27 (https://claude.ai/artifact/VCEppdwfT7v32W4beUxL1v)
+   is history, not a source. Change the token file to match, or, when the
+   code's value is the one to keep, change the artifact first. Do not trust
+   old commit messages about either.
 6. **Run the guards before calling UI work done:** `brand_tokens_tests`,
    `shell_theme_tests`, and `npm test` in `AgentUI`. Then look at the surface
    in the running app; the guards prove the code went through the tokens,
@@ -338,5 +340,6 @@ Every high-fidelity product frame must:
 6. Test long filenames, localized labels, dense settings, empty states, and narrow windows.
 7. Use the original logo and existing functional icon system.
 8. Label and justify any value that is not in the token files.
+9. Draw a repeated feature composition, such as the setup card, chat header, composer or printer-and-spool chip, once, on the Compositions page of the JusPrin v2 canvas, and import it into screens by name. Never paste a copy into a screen.
 
 The POC decks, rendered examples, horizontal lockup PNG, and generation sources remain available for visual-reference work through [POC reference](poc-reference.md). They are not runtime dependencies.
