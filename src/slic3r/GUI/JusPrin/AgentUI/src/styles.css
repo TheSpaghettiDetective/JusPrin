@@ -281,7 +281,7 @@ body {
 .project-updates-actions button.primary {
   padding: var(--button-primary-padding);
   border: 0;
-  font: var(--font-body-bold);
+  font: var(--font-body-small-bold);
 }
 
 /* The setup offer under a thread when no agent is set up: the composer's
@@ -561,7 +561,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .chat-dialog input[aria-invalid='true'] { border-color: var(--status-danger); }
 .chat-dialog p.chat-dialog-field-error { color: var(--status-danger); font: var(--font-label); }
 .chat-dialog-buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
-.chat-dialog-buttons button { gap: var(--button-secondary-icon-gap); padding: var(--button-secondary-padding); border-color: var(--border-subtle); background: var(--surface-raised); font: var(--font-body-small); }
+.chat-dialog-buttons button { gap: var(--button-secondary-icon-gap); min-height: var(--button-secondary-height); padding: var(--button-secondary-padding); border-color: var(--border-subtle); background: var(--surface-raised); font: var(--font-body-small); }
 .chat-dialog-buttons button:not(.primary):hover:enabled { background: var(--surface-subtle); }
 .chat-dialog-buttons button:disabled { color: var(--action-disabled-text); }
 .chat-dialog-buttons button.primary { padding: var(--button-primary-padding); border: 0; background: var(--action-primary); font: var(--font-body-small-bold); }
@@ -912,7 +912,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   font: var(--font-label-bold);
   overflow-wrap: anywhere;
 }
-.message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-bold); }
+.message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
 
 .message-group {
   display: flex;
@@ -942,7 +942,7 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .proposal-row > .jp-icon { margin-top: 1px; color: var(--text-primary); }
 .proposal-failure, .proposal-failure > .jp-icon { color: var(--status-danger); }
 .proposal-actions { align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.proposal-actions > button:not(.primary) { padding: var(--button-secondary-padding); border-color: var(--border-subtle); font: var(--font-body); }
+.proposal-actions > button:not(.primary) { min-height: var(--button-secondary-height); padding: var(--button-secondary-padding); border-color: var(--border-subtle); font: var(--font-body-small); }
 .proposal-actions > button:not(.primary):hover:enabled { background: var(--surface-raised); }
 .proposal-actions > button:not(.primary):disabled { opacity: 0.5; }
 
@@ -1132,9 +1132,9 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 .change-revert-popover strong { display: block; font: var(--font-body-bold); }
 .change-revert-popover p { margin: 8px 0 0; font: var(--font-body-small); color: var(--text-secondary); }
-.change-revert-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.change-revert-buttons button { padding: var(--button-expanded-padding); font: var(--font-body); border: 1px solid var(--border-subtle); }
-.change-revert-buttons .confirm { color: var(--action-primary-text); background: var(--action-primary); border-color: var(--action-primary); }
+.change-revert-buttons { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
+.change-revert-buttons button { min-height: var(--button-secondary-height); padding: var(--button-secondary-padding); font: var(--font-body-small); border: 1px solid var(--border-subtle); }
+.change-revert-buttons .confirm { padding: var(--button-primary-padding); border: 0; border-radius: var(--radius-medium); color: var(--action-primary-text); background: var(--action-primary); font: var(--font-body-small-bold); }
 
 /* Native tool action cards (Figma "Agent/Tool activity card" and
    "Agent/Plan activity card"): one raised card the width of the thread, its
@@ -1197,14 +1197,15 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .tool-card .tool-actions > button {
   flex: 0 0 auto;
   gap: var(--button-secondary-icon-gap);
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border-color: var(--border-subtle);
-  font: var(--font-body);
+  font: var(--font-body-small);
 }
 .tool-card .tool-actions > button.primary {
   padding: var(--button-primary-padding);
   border: 0;
-  font: var(--font-body-bold);
+  font: var(--font-body-small-bold);
 }
 .tool-card .tool-actions > button:not(.primary):hover:enabled { background: var(--surface-subtle); }
 .tool-card .tool-actions > button:not(.primary):disabled { opacity: 0.5; }
@@ -1407,9 +1408,10 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .history-action {
   align-self: flex-start;
   gap: var(--button-secondary-icon-gap);
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border-color: var(--border-subtle);
-  font: var(--font-body);
+  font: var(--font-body-small);
 }
 .history-action:hover:enabled { background: var(--surface-subtle); }
 .history-action:disabled { opacity: 0.5; }
@@ -2069,12 +2071,13 @@ input[type='radio']:checked {
 
 .attachment-remove {
   flex: 0 0 auto;
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-small);
   background: var(--surface-subtle);
   color: var(--text-primary);
-  font: var(--font-body);
+  font: var(--font-body-small);
   cursor: pointer;
 }
 
@@ -2474,6 +2477,7 @@ p.agent-group-intro {
 .agent-row-action {
   flex: 0 0 auto;
   gap: var(--button-secondary-icon-gap);
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border: 0;
   border-radius: var(--radius-small);
@@ -4025,6 +4029,7 @@ button.link.prefs-inline-link {
 
 button.prefs-button {
   flex: 0 0 auto;
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border: 0;
   border-radius: var(--radius-small);
@@ -4240,6 +4245,7 @@ p.welcome-intro {
 }
 
 .welcome-account-action {
+  min-height: var(--button-secondary-height);
   padding: var(--button-secondary-padding);
   border: 0;
   border-radius: var(--radius-small);

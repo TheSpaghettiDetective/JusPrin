@@ -631,6 +631,7 @@ body {
    stopped reading as controls. */
 .button-secondary,
 .launch-monitor {
+  min-height: var(--button-secondary-height);
   color: var(--text-primary);
   background: transparent;
   border: 1px solid var(--border-subtle);
@@ -644,6 +645,7 @@ body {
 /* New beside Open…: the design system's compact outlined button, 28 px. */
 .button-secondary-small {
   padding: var(--button-secondary-small-padding);
+  min-height: var(--button-secondary-small-height);
   height: var(--button-secondary-small-height);
 }
 

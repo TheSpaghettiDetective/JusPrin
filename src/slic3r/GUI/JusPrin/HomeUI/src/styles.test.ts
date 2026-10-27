@@ -205,6 +205,17 @@ describe('styles.css stays on the design tokens', () => {
     expect(literal).toEqual([]);
   });
 
+  // Button/Secondary is 32 high and its compact form 28, from the token file,
+  // not from the padding and line height happening to add up.
+  it('sizes the secondary buttons from their recipes', () => {
+    const regular = css.match(/\.button-secondary,\s*\.launch-monitor\s*\{[^}]*\}/);
+    expect(regular).not.toBeNull();
+    expect(regular![0]).toMatch(/min-height:\s*var\(--button-secondary-height\)/);
+    const compact = css.match(/\.button-secondary-small\s*\{[^}]*\}/);
+    expect(compact).not.toBeNull();
+    expect(compact![0]).toMatch(/min-height:\s*var\(--button-secondary-small-height\)/);
+  });
+
   // Without the border the black spool vanishes on the dark card and the white
   // one on the light card.
   it('borders every filament swatch', () => {

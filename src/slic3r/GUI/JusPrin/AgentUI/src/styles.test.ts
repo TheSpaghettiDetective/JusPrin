@@ -105,7 +105,24 @@ describe('styles.css stays on the design tokens', () => {
   it.each([
     ['.panel-link-button', ['--button-link-height', '--button-link-padding', '--font-label-bold']],
     // The Agent connection rows (canvas Agent/Provider Row, Agent/Tool Row).
-    ['.agent-row-action', ['--button-secondary-padding', '--button-secondary-icon-gap', '--radius-small', '--font-body-small']],
+    ['.agent-row-action', ['--button-secondary-height', '--button-secondary-padding', '--button-secondary-icon-gap',
+      '--radius-small', '--font-body-small']],
+    // Every Button/Secondary is Body Small at 32 high, the card buttons in
+    // the thread included: the conversation's Body text does not reach them.
+    ['.chat-dialog-buttons button', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
+    ['.proposal-actions > button:not(.primary)', ['--button-secondary-height', '--button-secondary-padding',
+      '--font-body-small']],
+    ['.change-revert-buttons button', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
+    ['.change-revert-buttons .confirm', ['--button-primary-padding', '--radius-medium', '--font-body-small-bold']],
+    ['.tool-card .tool-actions > button', ['--button-secondary-height', '--button-secondary-padding',
+      '--font-body-small']],
+    ['.tool-card .tool-actions > button.primary', ['--button-primary-padding', '--font-body-small-bold']],
+    ['.project-updates-actions button.primary', ['--button-primary-padding', '--font-body-small-bold']],
+    ['.message-failure > button.primary', ['--button-primary-padding', '--font-body-small-bold']],
+    ['.history-action', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
+    ['.attachment-remove', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
+    ['button.prefs-button', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
+    ['.welcome-account-action', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['.agent-key-field', ['--provider-row-field-height', '--field-padding-x', '--radius-small', '--border-subtle']],
     ['.change-revert-tooltip', ['--tooltip-height', '--tooltip-padding-y', '--tooltip-padding-x', '--tooltip-radius',
       '--font-metadata']],

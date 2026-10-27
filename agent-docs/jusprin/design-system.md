@@ -108,7 +108,10 @@ its detail). Code is a single role, `typography.code`, whatever size the
 text around it is.
 
 The Agent pane's conversation is read at Body: messages, reply choices, the
-message box, and the text and buttons of the cards in the thread. Text that
+message box, and the text of the cards in the thread. Buttons are not: a
+secondary button is Body Small at 32 DIP and a primary button Body Small Bold
+at 34 DIP everywhere, the buttons of the cards in the thread included (decided
+2026-10-27). Text that
 supports it sits one step below: Body Small for card details, notes from
 JusPrin and the setup card's lines, Label Bold for small card headings and the
 setup card's eyebrow. The turn's activity line and timestamps are Metadata.
