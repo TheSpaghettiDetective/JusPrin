@@ -2192,26 +2192,117 @@ private:
         m_plater->sidebar().delete_filament(1, 0);
         check(m_app.preset_bundle->filament_presets.size() == 1, "managed_mesh_second_filament_removed");
         check(autosave->save_now(), "managed_mesh_one_filament_checkpoint_saved");
-        // Managed restore answers the false-positive modified-G-code warning
-        // before it is shown. This outer hook keeps the test non-blocking and
-        // fails on that warning or any other dialog escaping the restore scope.
-        struct RestoreDialogs : wxModalDialogHook {
-            std::vector<std::string> titles;
-            int Enter(wxDialog* dialog) override {
-                titles.emplace_back(dialog->GetTitle().ToStdString());
-                return wxID_OK;
-            }
-        } restore_dialogs;
+        // A checkpoint marks every setting as the project's own, which Orca's
+        // 3MF safety check would read as modified G-code. Restoring one must
+        // not show that warning or any other dialog.
+        ShownDialogs restore_dialogs;
         restore_dialogs.Register();
         const bool restored_two_filaments = autosave->restore(two_filament_version);
         restore_dialogs.Unregister();
         check(restored_two_filaments, "managed_mesh_two_filament_checkpoint_restored");
         check(m_app.preset_bundle->filament_presets.size() == 2, "managed_mesh_two_filament_slots_restored");
         check(restore_dialogs.titles.empty(), "managed_mesh_checkpoint_restore_shows_no_dialog");
-        std::cerr << "HARNESS CHECKPOINT_RESTORE_DIALOGS count=" << restore_dialogs.titles.size();
-        for (const auto& title : restore_dialogs.titles) std::cerr << " title=" << title;
-        std::cerr << '\n';
+        restore_dialogs.print("CHECKPOINT_RESTORE_DIALOGS");
+        verify_unknown_preset_checkpoint(*autosave);
         verify_slice_failure();
+    }
+
+    // Records every dialog Orca shows and closes it with OK, so a test never
+    // waits for a person.
+    struct ShownDialogs : wxModalDialogHook
+    {
+        std::vector<std::string> titles;
+        int Enter(wxDialog* dialog) override
+        {
+            titles.emplace_back(dialog->GetTitle().ToStdString());
+            return wxID_OK;
+        }
+        void print(const char* label) const
+        {
+            std::cerr << "HARNESS " << label << " count=" << titles.size();
+            for (const auto& title : titles) std::cerr << " title=" << title;
+            std::cerr << '\n';
+        }
+    };
+
+    // Copies a 3MF, letting edit change its project settings.
+    template<class Edit> bool rewrite_project_settings(const fs::path& source, const fs::path& target, Edit edit)
+    {
+        mz_zip_archive in;
+        mz_zip_zero_struct(&in);
+        if (!open_zip_reader(&in, source.string()))
+            return false;
+        mz_zip_archive out;
+        mz_zip_zero_struct(&out);
+        bool written = open_zip_writer(&out, target.string());
+        for (mz_uint index = 0; written && index < mz_zip_reader_get_num_files(&in); ++index) {
+            mz_zip_archive_file_stat stat;
+            written = mz_zip_reader_file_stat(&in, index, &stat);
+            if (!written || stat.m_is_directory)
+                continue;
+            size_t size = 0;
+            void* data = mz_zip_reader_extract_to_heap(&in, index, &size, 0);
+            written = data != nullptr;
+            if (!written)
+                break;
+            std::string bytes(static_cast<const char*>(data), size);
+            mz_free(data);
+            if (std::string(stat.m_filename) == "Metadata/project_settings.config") {
+                auto config = nlohmann::json::parse(bytes);
+                edit(config);
+                bytes = config.dump(4);
+            }
+            written = mz_zip_writer_add_mem(&out, stat.m_filename, bytes.data(), bytes.size(), MZ_DEFAULT_COMPRESSION);
+        }
+        written = written && mz_zip_writer_finalize_archive(&out);
+        close_zip_writer(&out);
+        close_zip_reader(&in);
+        return written;
+    }
+
+    // A project made elsewhere can name a filament preset this app does not
+    // have, with no parent preset. Orca asks whether that preset's G-code is
+    // safe; the person's open answers it. Restoring JusPrin's own checkpoint
+    // of the project must not ask again.
+    void verify_unknown_preset_checkpoint(ProjectAutosave& autosave)
+    {
+        const fs::path exported = fs::path(data_dir()) / "unknown-preset-export.3mf";
+        const fs::path foreign  = fs::path(data_dir()) / "unknown-preset.3mf";
+        check(m_plater->export_3mf(exported, SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::SkipAuxiliary) >= 0,
+              "unknown_preset_exported");
+        check(rewrite_project_settings(exported, foreign,
+                                       [](nlohmann::json& config) {
+                                           for (auto& name : config.at("filament_settings_id"))
+                                               name = "Harness PLA @Not Installed";
+                                           config.erase("inherits_group");
+                                       }),
+              "unknown_preset_project_written");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "unknown_preset_new_project");
+        ShownDialogs open_dialogs;
+        open_dialogs.Register();
+        const auto loaded = m_plater->load_files(std::vector<std::string>{foreign.string()},
+                                                 LoadStrategy::LoadModel | LoadStrategy::LoadConfig, false);
+        open_dialogs.Unregister();
+        // Not checked: the adapter torn down earlier in this run took the
+        // file-load observer with it, so here Orca asks as it would in stock.
+        open_dialogs.print("UNKNOWN_PRESET_OPEN_DIALOGS");
+        check(!loaded.empty(), "unknown_preset_project_opened");
+        const Preset& opened = m_app.preset_bundle->filaments.get_selected_preset();
+        std::cerr << "HARNESS UNKNOWN_PRESET_OPENED filament=" << opened.name << '\n';
+        check(opened.is_project_embedded && opened.inherits().empty(), "unknown_preset_has_no_parent");
+        check(autosave.save_now(), "unknown_preset_checkpoint_saved");
+        const std::string version = autosave.current_version();
+        // Restoring the current version reloads nothing, so move on one first.
+        m_plater->sidebar().add_filament();
+        check(autosave.save_now(), "unknown_preset_later_checkpoint_saved");
+        ShownDialogs restore_dialogs;
+        restore_dialogs.Register();
+        const bool restored = autosave.restore(version);
+        restore_dialogs.Unregister();
+        restore_dialogs.print("UNKNOWN_PRESET_RESTORE_DIALOGS");
+        std::cerr << "HARNESS UNKNOWN_PRESET_RESTORED filament=" << m_app.preset_bundle->filaments.get_selected_preset().name << '\n';
+        check(restored, "unknown_preset_checkpoint_restored");
+        check(restore_dialogs.titles.empty(), "unknown_preset_checkpoint_restore_shows_no_dialog");
     }
 
     // The active plate as the shell's workspace reads it now.

@@ -1,7 +1,6 @@
 #include "slic3r/GUI/I18N.hpp"
 
 #include "ProjectAutosave.hpp"
-#include "DialogListeners.hpp"
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
@@ -108,17 +107,9 @@ std::vector<size_t> load_managed_checkpoint(Plater& plater,
                                             const ProjectVersionStore::Materialization& materialized,
                                             LoadStrategy strategy)
 {
-    // Commit 1fcc7e05a4 marks every captured setting as project-owned so
-    // current preset defaults cannot replace a checkpoint's values. Orca's
-    // safety check consequently sees every G-code setting as modified. The
-    // checkpoint was created locally after the original import was accepted,
-    // so suppress only that known false positive while preserving every other
-    // restore dialog.
-    ScopedDialogListener modified_gcode_answer([](wxWindow&, const DialogFacts& facts) -> std::optional<int> {
-        if (facts.ok && facts.title == _u8L("Modified G-code"))
-            return wxID_OK;
-        return std::nullopt;
-    });
+    // A Restore load skips Orca's 3MF preset safety check (Plater.cpp): the
+    // checkpoint is this app's own copy of a project already checked when it
+    // was first opened.
     return plater.load_files(
         std::vector<boost::filesystem::path>{boost_path(materialized.metadata),
                                              boost_path(materialized.absent_original)},

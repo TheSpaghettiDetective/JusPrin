@@ -6380,7 +6380,8 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                         }
 
                         auto choise = wxGetApp().app_config->get("no_warn_when_modified_gcodes");
-                        if (choise.empty() || choise != "true") {
+                        // JusPrin: a Restore reloads the app's own copy of a project, checked when it was first loaded.
+                        if (!(strategy & LoadStrategy::Restore) && (choise.empty() || choise != "true")) {
                             // BBS: first validate the printer
                             // validate the system profiles
                             std::set<std::string> modified_gcodes;
