@@ -1,0 +1,5 @@
+if there are multiple commits in JusPrin code about canvas clean up, squash them into 1 on jusprin-newui. confirm with me before you do that
+
+---
+
+Squash only 7963c4c53b and 74951a60fd into one commit. Leave c539df76ca alone. Don't push.
