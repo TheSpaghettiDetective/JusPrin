@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bvtvvy4rq</task-id>
+<tool-use-id>toolu_0197qR9cu2Qx1C8tPAKpsPBK</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\6473be59-9a99-45ab-af0a-c77e6dc8d5dc\tasks\bvtvvy4rq.output</output-file>
+<status>completed</status>
+<summary>Background command "Check build output layout before copying" completed (exit code 0)</summary>
+</task-notification>
