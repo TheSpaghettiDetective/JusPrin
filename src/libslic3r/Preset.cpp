@@ -2667,6 +2667,8 @@ std::pair<Preset*, bool> PresetCollection::load_external_preset(
         }
         //new_name = name + suffix;
         new_name = prefix + "(" + name + ")";
+        if (keep_external_preset_names && idx == 0 && !original_name.empty())
+            new_name = original_name;
         it = this->find_preset_internal(new_name);
         if (it == m_presets.end() || it->name != new_name)
             // Unique profile name. Insert a new profile.

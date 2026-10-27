@@ -110,6 +110,25 @@ std::vector<size_t> load_managed_checkpoint(Plater& plater,
     // A Restore load skips Orca's 3MF preset safety check (Plater.cpp): the
     // checkpoint is this app's own copy of a project already checked when it
     // was first opened.
+    //
+    // Orca does not reload a project preset with no parent preset. It rebuilds
+    // it from the project's settings and names it after the file, which for a
+    // checkpoint is ".3mf", so every reload added "(.3mf)" to the name the
+    // person saw. Keep the saved names while the checkpoint loads.
+    struct KeepPresetNames
+    {
+        std::vector<PresetCollection*> collections;
+        explicit KeepPresetNames(PresetBundle& bundle) : collections{&bundle.prints, &bundle.filaments, &bundle.printers}
+        {
+            for (PresetCollection* presets : collections)
+                presets->keep_external_preset_names = true;
+        }
+        ~KeepPresetNames()
+        {
+            for (PresetCollection* presets : collections)
+                presets->keep_external_preset_names = false;
+        }
+    } keep_names(*wxGetApp().preset_bundle);
     return plater.load_files(
         std::vector<boost::filesystem::path>{boost_path(materialized.metadata),
                                              boost_path(materialized.absent_original)},

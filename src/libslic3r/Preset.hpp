@@ -595,6 +595,10 @@ public:
         LoadAndSelect                select = LoadAndSelect::Always,
         const Semver                file_version = Semver(),
         const std::string           filament_id = std::string());
+    // A preset load_external_preset() creates keeps the original name instead
+    // of gaining the source file's name, when no other preset has it. For
+    // reloading a project this application saved, whose names the user saw.
+    bool keep_external_preset_names { false };
 
     // Save the preset under a new name. If the name is different from the old one,
     // a new preset is stored into the list of presets.

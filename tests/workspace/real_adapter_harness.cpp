@@ -2266,6 +2266,7 @@ private:
     // of the project must not ask again.
     void verify_unknown_preset_checkpoint(ProjectAutosave& autosave)
     {
+        const std::string earlier_version = autosave.current_version();
         const fs::path exported = fs::path(data_dir()) / "unknown-preset-export.3mf";
         const fs::path foreign  = fs::path(data_dir()) / "unknown-preset.3mf";
         check(m_plater->export_3mf(exported, SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::SkipAuxiliary) >= 0,
@@ -2287,8 +2288,10 @@ private:
         // file-load observer with it, so here Orca asks as it would in stock.
         open_dialogs.print("UNKNOWN_PRESET_OPEN_DIALOGS");
         check(!loaded.empty(), "unknown_preset_project_opened");
+        const auto selected_filament = [this] { return m_app.preset_bundle->filaments.get_selected_preset().name; };
         const Preset& opened = m_app.preset_bundle->filaments.get_selected_preset();
-        std::cerr << "HARNESS UNKNOWN_PRESET_OPENED filament=" << opened.name << '\n';
+        const std::string opened_name = opened.name;
+        std::cerr << "HARNESS UNKNOWN_PRESET_OPENED filament=" << opened_name << '\n';
         check(opened.is_project_embedded && opened.inherits().empty(), "unknown_preset_has_no_parent");
         check(autosave.save_now(), "unknown_preset_checkpoint_saved");
         const std::string version = autosave.current_version();
@@ -2300,9 +2303,42 @@ private:
         const bool restored = autosave.restore(version);
         restore_dialogs.Unregister();
         restore_dialogs.print("UNKNOWN_PRESET_RESTORE_DIALOGS");
-        std::cerr << "HARNESS UNKNOWN_PRESET_RESTORED filament=" << m_app.preset_bundle->filaments.get_selected_preset().name << '\n';
+        std::cerr << "HARNESS UNKNOWN_PRESET_RESTORED filament=" << selected_filament() << '\n';
         check(restored, "unknown_preset_checkpoint_restored");
         check(restore_dialogs.titles.empty(), "unknown_preset_checkpoint_restore_shows_no_dialog");
+        // Every reload keeps the name the person saw. Orca rebuilds a preset
+        // with no parent from the project's settings and names it after the
+        // file it came from, which for a checkpoint added "(.3mf)".
+        check(selected_filament() == opened_name, "unknown_preset_restore_keeps_name");
+        // The restore saved a version holding the name it reloaded, so
+        // restoring that version again would add to it.
+        const std::string restored_version = autosave.current_version();
+        m_plater->sidebar().add_filament();
+        check(autosave.save_now(), "unknown_preset_edit_after_restore_saved");
+        check(autosave.restore(restored_version), "unknown_preset_restored_again");
+        std::cerr << "HARNESS UNKNOWN_PRESET_RESTORED_AGAIN filament=" << selected_filament() << '\n';
+        check(selected_filament() == opened_name, "unknown_preset_second_restore_keeps_name");
+        // Opening the project from Home reloads its newest checkpoint.
+        const std::string project = project_with_version(autosave, autosave.current_version());
+        const std::string other   = project_with_version(autosave, earlier_version);
+        check(!project.empty() && !other.empty() && project != other, "unknown_preset_projects_found");
+        check(autosave.open_managed_project(other), "unknown_preset_other_project_opened");
+        check(autosave.open_managed_project(project), "unknown_preset_project_reopened");
+        std::cerr << "HARNESS UNKNOWN_PRESET_REOPENED filament=" << selected_filament() << '\n';
+        check(selected_filament() == opened_name, "unknown_preset_reopen_keeps_name");
+        const Preset& reopened = m_app.preset_bundle->filaments.get_selected_preset();
+        check(reopened.is_project_embedded && reopened.inherits().empty(), "unknown_preset_reopened_still_has_no_parent");
+        // Resuming at launch loads through the same call, but only into a
+        // fresh app's untouched draft, which this run cannot return to.
+    }
+
+    // The saved project holding `version`, or nothing.
+    std::string project_with_version(ProjectAutosave& autosave, const std::string& version)
+    {
+        for (const auto& managed : autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}))
+            if (std::filesystem::is_directory(std::filesystem::u8path(managed.store_path) / "versions" / version))
+                return managed.id;
+        return {};
     }
 
     // The active plate as the shell's workspace reads it now.
