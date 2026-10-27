@@ -1,0 +1,27 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer. It saves each project as checkpoints (`src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp`, `ProjectVersionStore.cpp`) and reloads them through `Plater::load_files` with `LoadStrategy::Restore`. Kenneth's rule: a checkpoint reload must feel like nothing happened, and any difference between what was saved and what reloads is a save/reload mismatch to fix at its source, not hide. The related fix on `claude/checkpoint-skip-preset-check` (uncommitted) makes Restore loads skip Orca's 3MF preset safety check. The harness binary there is built in Release at `build/arm64/tests/workspace/Release/JusPrinWorkspaceHarness.app`; 14 checks already fail before any change (second_model_dropped, model_added_to_a_project_is_an_edit, and 12 calibration identity checks). Build with `-- -j4` on this shared Mac.
+
+Task:
+Find and fix why restoring a JusPrin checkpoint renames a project-only filament preset by appending "(.3mf)".
+
+Observed in the workspace harness (`tests/workspace/real_adapter_harness.cpp`, `verify_unknown_preset_checkpoint`, on branch `claude/checkpoint-skip-preset-check`, worktree `.claude/worktrees/checkpoint-preset-check`): open a 3MF whose filament preset name is not installed and has no `inherits_group`. Orca creates the project-only preset `Harness PLA @Not Installed(unknown-preset.3mf)`. After `ProjectAutosave::restore` reloads a checkpoint, the selected filament is `Harness PLA @Not Installed(unknown-preset.3mf)(.3mf)`. The harness prints both names as `HARNESS UNKNOWN_PRESET_OPENED` and `HARNESS UNKNOWN_PRESET_RESTORED`.
+
+Hypothesis, not verified: the checkpoint's materialized metadata file is literally named `.3mf` (`ProjectVersionStore::materialize`, `result.metadata = result.directory / ".3mf"`). Orca's `PresetCollection::load_external_preset` (`src/libslic3r/Preset.cpp`, around `new_name = prefix + "(" + name + ")"`) names a new project-only preset after the file it came from, so every restore adds another suffix. Check whether repeated restores keep growing the name, and whether resume at launch and opening a project from Home do the same.
+
+Done means: reproduce it with a harness check first, fix it at the source in fork-owned code where possible (any Orca-file change follows `agent-docs/jusprin/fork-stewardship.md`), make the check pass, and report what the person would have seen before and after. Do not commit unless Kenneth asks.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_6aadd8e5-2142-4852-ac16-d2d6ca34f4a3
+
+---
+
+<task-notification>
+<task-id>bpuhsihzq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-vigorous-poitras-88fa36/80fbcf0e-e88d-4c12-a570-3aa867530eb9/tasks/bpuhsihzq.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 29114 2&gt;/dev/null; do sleep 20; done; tail -3 /Users/kenneth/Projects/JusPrin/.claude/worktrees/unknown-preset-suffix/build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Commit m cherry picked the commit to the main checkout.
