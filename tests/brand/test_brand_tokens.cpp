@@ -519,6 +519,34 @@ TEST_CASE("the small button recipes are explicit", "[brand]")
     CHECK(button.at("picker").at("textRole") == "label");
 }
 
+// The design system's control heights for the regular buttons: secondary 32,
+// primary and split 34. Secondary's padding and line height leave room for its
+// 1 DIP outline on each side; primary has no outline.
+TEST_CASE("the regular button recipes state their heights", "[brand]")
+{
+    const json tokens  = load_tokens();
+    const json& button = tokens.at("component").at("button");
+    const json& roles  = tokens.at("typography").at("roles");
+    require_exact_table<int>(button.at("secondary"),
+        {{"height", 32}, {"paddingX", 12}, {"paddingY", 6}, {"radius", 4}, {"iconGap", 6}}, "component.button.secondary", {"textRole"});
+    CHECK(button.at("secondary").at("textRole") == "bodySmall");
+    require_exact_table<int>(button.at("primary"),
+        {{"height", 34}, {"paddingX", 16}, {"paddingY", 8}, {"radius", 8}, {"iconGap", 6}}, "component.button.primary", {"textRole"});
+    CHECK(button.at("primary").at("textRole") == "bodySmallBold");
+    require_exact_table<int>(button.at("split"), {{"height", 34}, {"radius", 8}}, "component.button.split", {"textRole"});
+    CHECK(button.at("split").at("textRole") == "bodySmallBold");
+
+    const auto line_height = [&](const json& recipe) {
+        return roles.at(recipe.at("textRole").get<std::string>()).at("lineHeight").get<int>();
+    };
+    const json& secondary = button.at("secondary");
+    const json& primary   = button.at("primary");
+    CHECK(secondary.at("height").get<int>() == 2 * secondary.at("paddingY").get<int>() + line_height(secondary) + 2);
+    CHECK(primary.at("height").get<int>() == 2 * primary.at("paddingY").get<int>() + line_height(primary));
+    CHECK(button.at("split").at("height") == primary.at("height"));
+    CHECK(secondary.at("height") == button.at("icon").at("height"));
+}
+
 // Field/Search, the box at the top of a long menu: taller than a form field,
 // with a 16 DIP glyph, and a stroke that thickens while it has the focus.
 TEST_CASE("the search field geometry is explicit", "[brand]")

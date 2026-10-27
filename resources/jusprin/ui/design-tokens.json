@@ -321,6 +321,7 @@
         "textRole": "body"
       },
       "secondary": {
+        "height": 32,
         "paddingX": 12,
         "paddingY": 6,
         "radius": 4,
@@ -335,10 +336,16 @@
         "textRole": "bodySmall"
       },
       "primary": {
+        "height": 34,
         "paddingX": 16,
         "paddingY": 8,
         "radius": 8,
         "iconGap": 6,
+        "textRole": "bodySmallBold"
+      },
+      "split": {
+        "height": 34,
+        "radius": 8,
         "textRole": "bodySmallBold"
       },
       "primarySmall": {
