@@ -18,6 +18,40 @@
     "output_tokens": 135046,
     "api_call_count": 55
   },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Df2rq3th32rjXbgqMpZwKx",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "68584001fe4c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1188,
+        "end": 1189,
+        "entry_ids": [
+          "324c544b-6c8b-4df6-bc74-04a34b6c41e0"
+        ],
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
   "session_metrics": {
     "turn_count": 2
   },
