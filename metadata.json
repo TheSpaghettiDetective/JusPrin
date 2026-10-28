@@ -3,13 +3,15 @@
   "checkpoint_id": "01M616QJK6F49ZFN79AAGEWZQJ",
   "strategy": "manual-commit",
   "branch": "claude/gcode-print-history",
-  "checkpoints_count": 12,
+  "checkpoints_count": 13,
   "files_touched": [
     "agent-docs/jusprin/architecture.md",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
     "src/slic3r/GUI/JusPrin/Agent/AgentService.hpp",
     "src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/PrintOutcomeTracker.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/PrintOutcomeTracker.hpp",
     "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
@@ -19,6 +21,9 @@
     "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChangeRows.test.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChatPanel.preview.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/GcodeMarker.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ManufacturingHistoryCard.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ManufacturingHistoryCard.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/ProposalCard.test.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/components/TurnActivity.test.tsx",
@@ -32,6 +37,8 @@
     "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
     "src/slic3r/GUI/JusPrin/Home/ProjectStatus.cpp",
     "src/slic3r/GUI/JusPrin/Home/ProjectStatus.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp",
     "src/slic3r/GUI/JusPrin/Shell/LeftPaneProject.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ProjectPaneModel.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ProjectPaneModel.hpp",
@@ -40,11 +47,13 @@
     "src/slic3r/GUI/JusPrin/Workspace/OrcaOutputs.cpp",
     "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
     "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
     "src/slic3r/GUI/Plater.cpp",
     "src/slic3r/GUI/Plater.hpp",
     "src/slic3r/Utils/PrintHost.cpp",
     "src/slic3r/Utils/PrintHost.hpp",
     "tests/agent/CMakeLists.txt",
+    "tests/agent/test_print_outcome_tracker.cpp",
     "tests/agent/test_project_state.cpp",
     "tests/agent/test_provider_agent.cpp",
     "tests/jusprin/test_project_pane_model.cpp",
@@ -67,13 +76,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 920,
-    "cache_creation_tokens": 1013271,
-    "cache_read_tokens": 142936574,
-    "output_tokens": 313408,
-    "api_call_count": 449
+    "input_tokens": 1200,
+    "cache_creation_tokens": 2319518,
+    "cache_read_tokens": 180053883,
+    "output_tokens": 411181,
+    "api_call_count": 589
   }
 }
