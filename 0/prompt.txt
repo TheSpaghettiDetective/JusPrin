@@ -1,0 +1,13 @@
+read @C:\Users\guitest\Downloads\gcode-print-history-handoff.md and tell me if you have everything you need to impl this task
+
+---
+
+Go with your recommendations on all the open points. Work in a worktree off origin/jusprin-newui, and start with stage 1.
+
+---
+
+Commit stage 1 on claude/gcode-print-history with the message you drafted.
+
+---
+
+Leave it local and start stage 2.
