@@ -3,7 +3,7 @@
   "checkpoint_id": "01M61YAWKFWTQHBRX3R94B1TFW",
   "strategy": "manual-commit",
   "branch": "claude/issue-chip-options",
-  "checkpoints_count": 1,
+  "checkpoints_count": 5,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 90,
-    "cache_creation_tokens": 49720,
-    "cache_read_tokens": 15063476,
-    "output_tokens": 21112,
-    "api_call_count": 45
+    "input_tokens": 3258,
+    "cache_creation_tokens": 505205,
+    "cache_read_tokens": 52909061,
+    "output_tokens": 160988,
+    "api_call_count": 159
   }
 }

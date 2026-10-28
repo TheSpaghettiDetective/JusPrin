@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M61YAWKFWTQHBRX3R94B1TFW",
+  "session_id": "92399d96-cbc1-4bf7-b953-ce5b4f87ef1a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T19:03:37.386117Z",
+  "branch": "claude/issue-chip-options",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "2ffba1accf80",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3168,
+    "cache_creation_tokens": 455485,
+    "cache_read_tokens": 37845585,
+    "output_tokens": 139876,
+    "api_call_count": 114
+  },
+  "session_metrics": {
+    "turn_count": 4
+  }
+}
