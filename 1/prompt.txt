@@ -1,0 +1,120 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent pane; read `AGENTS.md` and `agent-docs/jusprin/README.md` first. On 2026-10-28 a UX walkthrough of the built app (branch jusprin-newui, commit a684aee37d, Claude Opus 5.5) found this as its most serious issue. The full critique with screenshots is at https://claude.ai/artifact/XyVvteGiKhiJ6apUx8rcmR (frames 0, 1 and 2 under "Launch"). The person in the seat owns a Bambu A1 mini, has used a slicer, and has never seen our docs. Kenneth wants to choose between fix options before any code is written: the first deliverable is a short options write-up (untracked file in the worktree root, never committed), then stop and wait. Rules: read `agent-docs/jusprin/fork-stewardship.md` before editing any OrcaSlicer-owned file; keep seams small and additive; use `Slic3r::GUI::MessageDialog`, never wxMessageBox; do not commit unless Kenneth asks. To reproduce in the real app: `ditto` the built .app out of `build/arm64/src/RelWithDebInfo/` and `~/Library/Application Support/JusPrin2` into a scratch folder, set `"jusprin": {"fake_printer": true}` and `presets.machine` to "Bambu Lab A1 mini 2" in the copied `JusPrin2.conf`, set `local_machines` to `{}` (an empty-id entry makes the fake agent loop forever), and launch with `--datadir <scratch>`; the dialogs need a project with a P1S profile (for example `~/Downloads/find_my_hollow.3mf`) to be the most recent project resumed behind Home. OrcaSlicer's custom dialog buttons need full-screen computer control; background app_* clicks do not reach them.
+
+Task:
+Problem: with a Bambu printer connected and the last project (a MakerWorld 3MF saved for a P1S) resumed behind Home, JusPrin opens with OrcaSlicer's "Tips" dialog ("Connected printer is Bambu Lab A1 mini. It must match the project preset for printing. Do you want to sync the printer information and automatically switch the preset?"), and answering Yes opens "Transfer or discard changes" for the "Bambu Lab P1S 0.4 nozzle" preset, listing two settings the person never touched, with Save (which writes a modified printer preset) and Discard. Both block Home before the person has opened anything, in OrcaSlicer's wording. Observed on 2026-10-28; frames 0 and 1 of the critique artifact show both dialogs.
+
+Task, in this order:
+1. Reproduce it in the real app with the recipe in the background notes, and find where each dialog is raised. The sync question is OrcaSlicer's TipsDialog in `src/slic3r/GUI/Plater.cpp` (search for "sync the printer information"); the second is OrcaSlicer's unsaved-preset dialog on the preset switch. Confirm with `git blame` plus `git branch -r --contains <sha> 'upstream/*'` which lines are upstream and which are fork seams (run `git fetch upstream` first). Note that the same P1S-file-on-A1-mini situation, when the file is opened from Home rather than resumed at launch, showed no dialog at all (frame 1C-01), so record why the two paths differ.
+2. Write an untracked options note (`launch-dialogs-options.md` in the worktree root) with two to four options, each with its behaviour for the person, the OrcaSlicer-owned lines it touches, the rebase cost, and a recommendation. Candidates to weigh: answer the sync question with the least change while Home is showing, the way `project_open` answers load dialogs; defer the question until the person enters Prepare and show it as a header-chip annotation instead of a modal; never auto-switch and let the agent's first message handle the mismatch (this overlaps the separate "3MF for another printer switches the printer silently" task, so say how the two should line up).
+3. Stop and wait for Kenneth to choose. Do not implement before he answers.
+
+Done, after his choice, means: in that configuration no modal appears before Home is usable; a Bambu owner whose resumed project is for another printer sees one consistent behaviour at launch and on open; the change is verified in the real app with a screenshot, and any OrcaSlicer-owned line changed is recorded as fork-stewardship requires.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_7320ec31-16af-43fc-bd96-863e8fa55bff
+
+---
+
+<task-notification>
+<task-id>bql7uh872</task-id>
+<tool-use-id>toolu_01MK88ozypA5nrsyY5ZeLoAt</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/tasks/bql7uh872.output</output-file>
+<status>completed</status>
+<summary>Background command "R=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/scratchpad/repro; until /usr/bin/grep -aq "Resume local project\|UnsavedChanges\|select_preset: machine.*P1S" $R/data/log/$(ls -t $R/data/log | head -1) 2&gt;/dev/null; do sleep 2; done; ls -t $R/data/log | head -1; /usr/bin/grep -a -n "sync\|P1S 0.4 nozzle\|unsaved\|Transfer" $R/data/log/$(ls -t $R/data/log | head -1) | tail -15 | cut -c1-220" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_441c00ad-37ec-44e6-9abc-845f07100048" from-name="Launch: OrcaSlicer dialogs block Home">
+Kenneth's decision: reopening the most recent project at startup is a bug. Remove it; this replaces options A/B/C in launch-dialogs-options.md for the two launch dialogs.
+
+Findings from a forked session (not yet in your context):
+- Origin: ProjectAutosave::resume_latest came in as one undocumented line inside 076ed1d4c3 (2026-09-30, the 4,000-line autosave commit). No decision note, memory or transcript; treated as an agent default, never Kenneth's.
+- Crash recovery does not depend on it. Opening a project from Home runs the same ProjectVersionStore constructor (recover_uncommitted discards half-written saves) and the same load_managed_checkpoint. Crash-tested in a scratch copy of a684aee37d: applied wall_loops 5 (saved), then 6 and kill -9 mid-save; relaunch came back at 5, pending/ cleared, no dialog. The open-from-Home-after-crash route was not driven (same code).
+
+What to do (fork-owned files only; no OrcaSlicer-owned lines):
+1. Remove resume_latest and m_resume_attempted from ProjectAutosave.cpp/.hpp: the !m_resume_attempted canvas-ready gate in tick() (~635-640), resume_latest (~693-778), the m_resume_attempted=true at ~995 in open_managed_project. authored_head stays (also used at ~794 for the projects list). Check the "untouched startup draft" settle(true) logic at ~727 is not needed elsewhere.
+2. Result to verify: launch lands on Home with a blank draft behind it. In the fake-A1-mini + P1S-project setup, neither "Tips" (sync) nor "Transfer or discard changes" appears. Opening that project from Home still shows nothing (FileOpenScope answers No). Screenshot it.
+3. Docs: delete autosave-version-history.md:132 ("The most recently authored local project resumes on startup."); reword architecture.md:138 so it no longer says a project is always open behind Home (the rule against files landing in the open project stays).
+4. Earlier fixes, keep vs simplify (checked by grep, please confirm):
+   - 8467e6830d (skip Orca's 3MF preset check on checkpoint reload) and f4e05bf4a6 (keep project-only preset names): KEEP, they also serve open-from-Home, restore and revert. Only drop "launch resume" from their comments and from load_managed_checkpoint's comment.
+   - d921c4b3dd (every opened file is a new project, except a canvas drop): KEEP; it protects any open project, not just the resumed one.
+   - 6165ea6aee (blank project folders): KEEP; the leaked drafts came from the shell's first project and Orca's startup project, not from the resume.
+   - Re-check the launch dialog paths those fixes mention: with no resume, Restore loads happen only on user action from Home/version history, and those already run through the same paths.
+5. Tests: grep tests/ for anything expecting a resumed project at launch (harness modes asserting a project or objects at start). f4e05bf4a6 notes launch resume was never covered, so expect few or none.
+6. The 3MF-for-another-printer sibling task is unaffected: the mismatch after an open from Home is still answered silently, and the header-chip fact (option B's second half) is still a separate decision for Kenneth.
+Commit only if Kenneth asks; record fork-stewardship evidence (expected: no OrcaSlicer-owned line touched).
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_441c00ad-37ec-44e6-9abc-845f07100048" from-name="Launch: OrcaSlicer dialogs block Home">
+Correction to my previous message about removing the startup reopen: the earlier fixes need no revision beyond comments.
+- 8467e6830d and f4e05bf4a6: the reopen was one of three triggers (also open-from-Home and revert, which share load_managed_checkpoint). Keep both; only drop "launch resume" from their comments.
+- d921c4b3dd: the reopen made Home's Import visibly add into a real project, but the rule covers Finder, command-line and Home opens on its own. No change.
+- 6165ea6aee: unrelated to the reopen (blank drafts are made at every launch either way). No change.
+- The header-chip printer-mismatch note is not part of this task; it belongs to the separate "3MF for another printer switches the printer silently" task. Do not raise it with Kenneth here.
+So the work is: delete resume_latest and its gate, delete the two doc lines, fix the comments, verify the two launch dialogs are gone in the real app.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bxjjox1zd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/tasks/bxjjox1zd.output</output-file>
+<status>completed</status>
+<summary>Background command "L=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/scratchpad/build.log; P=$(pgrep -f "cmake --build build/arm64 --config RelWithDebInfo --target OrcaSlicer jusprin-mcp" | head -1); echo cmake pid $P; until ! kill -0 $P 2&gt;/dev/null; do sleep 20; done; tail -5 $L; grep -c "FAILED" $L" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<pasted_content id="9e7d">
+The main session is asking a question that’s yours to answer, so I haven’t replied to it.
+
+What it found. With the startup reopen removed, JusPrin now launches straight to Home with no dialog. But clicking a saved project on Home, the P1S project with the fake A1 mini connected, still shows OrcaSlicer’s “sync the printer” question. Pressing Yes would then bring up “Transfer or discard changes” over the two settings that differ only in formatting. Clicking a project on Home already behaved this way before the change; the earlier frame with no dialog was a file being opened, not a project card.
+
+Why it happens. Clicking a project on Home uses the same silent load the startup reopen used. JusPrin’s automatic answering only covers files you open (Open… and drag-and-drop), so it never sees this question.
+
+Its proposed fix. In fork-owned code only, answer OrcaSlicer’s questions with the least-change choice while a project from Home is loading, the same way file opens are handled. For the sync question that choice is No, so the project stays on its own printer (P1S). Restoring an older version and reverting use the same load, so they would answer No too. No OrcaSlicer-owned line changes.
+
+My recommendation: yes. That makes every way into a project behave the same, which is what this task’s “done” means: no blocking dialog, same behaviour at launch and on open. The one thing to know: the project then stays on P1S while the A1 mini is connected, and nothing tells you. That mismatch is the separate printer-switch task’s job, not this one’s.
+
+Which answer should I send back: “yes, add it” or “stop at the removal”?
+</pasted_content id="9e7d">
+
+Is this what you are asking rn? if so, I remember we have worked on this issue before.Check previous records using git log or entire to understand what were discussed and what was the decision, and the rationale
+
+---
+
+<cross-session-message from="local_0ea13662-e2ca-4b26-9626-c5a35a7de491" from-name="Launch: OrcaSlicer dialogs block Home">
+Kenneth chose option 2 for the "Connected printer is A1 mini, switch?" popup: please proceed with it. Quoting Kenneth in the forked side session: "yes. tell the main session to proceed with this option".
+
+What option 2 means: at every startup, JusPrin stores OrcaSlicer's own "don't ask again" answer for that popup as No. That is app-config key sync_after_load_file_show_flag set to false, which makes Plater::priv::load_files skip the TipsDialog and keep the project's printer. No OrcaSlicer code changes; put the setting in fork-owned startup code.
+
+Kenneth confirmed what this means: a saved project reopened from its Home card keeps the printer it was saved with (P1S in the repro) and nothing asks. The setting also applies everywhere, so a file opened directly keeps its own printer silently too. That matches his 2026-10-28 rule that a file keeps its printer. Known gap he accepted: until the header chip shows "from the file", nothing tells the person that the project's printer differs from the connected one.
+
+Still to do: verify in the real app with the fake A1 mini that clicking the P1S project card on Home shows no popup and the project stays on P1S. Don't commit unless Kenneth asks.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bcl2b8nzx</task-id>
+<tool-use-id>toolu_01J2KgXAYgtwDeoJnkJxJ2q6</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/tasks/bcl2b8nzx.output</output-file>
+<status>completed</status>
+<summary>Background command "L=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-priceless-gagarin-f193a2/fafd3f95-d2b6-404e-9f74-0cf8294b9c90/scratchpad/build2.log; P=$(pgrep -f "cmake --build build/arm64 --config RelWithDebInfo --target OrcaSlicer -- -j4" | head -1); until ! kill -0 $P 2&gt;/dev/null; do sleep 10; done; tail -3 $L | cut -c1-200; grep -c FAILED $L" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+Allow access, retry
+
+---
+
+Commit
+
+---
+
+squash yoru commits to 1 on jusprin-newui, and push
