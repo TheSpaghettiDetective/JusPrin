@@ -1,0 +1,1 @@
+the "slice" button has 2 strange short lines at the top and bottom border, pointed by the arrows in the attached screenshot. debug it
