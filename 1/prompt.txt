@@ -1,0 +1,40 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent pane: a React/TypeScript page under `src/slic3r/GUI/JusPrin/AgentUI/` and the host under `src/slic3r/GUI/JusPrin/`. Read `AGENTS.md`, `agent-docs/jusprin/README.md`, "Writing UI code" in `agent-docs/jusprin/design-system.md`, and the tool error contract (`src/slic3r/GUI/JusPrin/Agent/ToolErrors.hpp`, one code list shared by in-app and MCP tools) first. The agent's standing instructions live in the page (`projectInstructions.ts` and the skills under `AgentUI/src/skills/`), with `AgentUI/src/wording.test.ts` guarding the text the model reads. Kenneth's prompt rules: the standing prompt holds principles only, situational text comes from state channels and skills; no live-model prompt evals without Kenneth approving a specific batch, because they cost money. On 2026-10-28 a UX walkthrough of the built app (jusprin-newui, Claude Opus 5.5) found two trust problems in the chat; critique with screenshots at https://claude.ai/artifact/XyVvteGiKhiJ6apUx8rcmR, frames 2A-03, 1A-03 and 2A-03 again. Kenneth wants the session to discuss the optimal user experience with him before implementing anything: bring him the choices, then stop. Rules: temp docs untracked, never committed; web bundle rebuilt through CMake; guard tests shown to fail first; do not commit unless Kenneth asks; check `pgrep -fl ninja` and build with `-j4`. Reproduction routes: the real app (scratch copies of the built .app and of `~/Library/Application Support/JusPrin2`, `local_machines` set to `{}`, `--datadir <scratch>`, open `~/Downloads/Tape_4_3MF.3mf`, slice, click the "1 print issue" chip, press Ask AI; the web view needs full-screen computer control, approved by Kenneth per request), or the page fixture route with a fake `window.wx` host for page-only states.
+
+Task:
+Two problems in the chat pane, both about whether the person can trust what it says.
+
+Problem 1: the activity row under an answer reads "Worked for 4s · 1 action · 1 failed" with no sentence about what failed. The answer above it was fine, but a careful person distrusts an answer that admits a failure it will not explain. The app log carried no line for the failure either. Frame 2A-03 of the critique shows the row. Find which tool call failed in that turn (it followed the Ask AI button on the heatbed warning), why the row shows a count instead of the error, and whether the failed call's error code and message are available to the page at all.
+
+Problem 2: the agent claims actions it did not take. In 1A-03 it wrote "When I opened the file, I switched the filament setting from PLA Matte to PLA Basic to match the file" when the file's embedded settings did that; in 2A-03 it wrote "I show this warning for every PLA print" when OrcaSlicer raised the warning. Find what the model is told about file-load changes (the load report's `selectedSetupChange` and the `file-loaded` skill) and about slice warnings (`sliceWarnings`, the `print-issues` skill) that leads it to speak in the first person about them, and what the instructions already say about attribution.
+
+Task, in this order:
+1. Reproduce both in the real app or from the saved project record of the walkthrough, and trace the causes as above.
+2. Write an untracked note (`chat-trust-options.md` in the worktree root) for Kenneth, and discuss it with him before any code: for problem 1, two or three ways the row can state the failure (an expandable line with the tool's name and its error message in the person's words; the agent being made to mention it in the reply; both), with where each lives (page, host, prompt) and what happens for an MCP client; for problem 2, the wording change in the instructions or skills that makes attribution honest, how a guard test in `wording.test.ts` would hold it, and what evidence short of a live-model batch would show the change works, since live runs need Kenneth's approval of a specific batch.
+3. Stop and wait for Kenneth's decisions. Do not implement before he answers.
+
+Done, after his choice, means: the activity row states what failed in plain words, covered by a Vitest test; the instruction wording changed with a guard test that was shown to fail first; a replay of the two walkthrough turns through the request recorder or a stub model shows the new wording in the request; verified in the real app with a screenshot of a failed-action row if Kenneth approves screen control; nothing committed until he says so; report what was verified and what was not.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_7320ec31-16af-43fc-bd96-863e8fa55bff
+
+---
+
+Discuss first
+
+---
+
+ignore the 2nd problem. For the first one, let's just add some debuggability for the failure. Check how other popular hard apps are currently showing debugging info. I'm under the impression that they are doing this using collapsible accordion. But check to make sure yourself. I think we can do something similar.
+
+---
+
+every action. failed ones with proper styles
+
+---
+
+<task-notification>
+<task-id>b17ou1004</task-id>
+<tool-use-id>toolu_01EqTUttuLFwNpUryZf8zSa1</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-frosty-ishizaka-2d0f4b/da15b7ba-ac2b-4511-9a26-ccb7d4eec622/tasks/b17ou1004.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-frosty-ishizaka-2d0f4b/da15b7ba-ac2b-4511-9a26-ccb7d4eec622/scratchpad; grep -c " error:" $S/build.log; ls -la resources/jusprin/agent/index.html; ./build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests --order rand 2&gt;&amp;1 | tail -4" completed (exit code 0)</summary>
+</task-notification>
