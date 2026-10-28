@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M61RPJ24XYKDFZT6GF9M7CNX",
+  "session_id": "4219b55f-d6b6-4807-b23b-1c973a54c315",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T17:39:38.184158Z",
+  "branch": "claude/file-printer-chip-mark-5f1921",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "901cc853b01b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2412,
+    "cache_creation_tokens": 1258760,
+    "cache_read_tokens": 33517152,
+    "output_tokens": 162993,
+    "api_call_count": 81
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Df2rq3th32rjXbgqMpZwKx",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "901cc853b01b",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1188,
+        "end": 1189,
+        "entry_ids": [
+          "324c544b-6c8b-4df6-bc74-04a34b6c41e0"
+        ],
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

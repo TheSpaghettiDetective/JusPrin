@@ -3,7 +3,7 @@
   "checkpoint_id": "01M61RPJ24XYKDFZT6GF9M7CNX",
   "strategy": "manual-commit",
   "branch": "claude/file-printer-chip-mark-5f1921",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": null,
   "sessions": [
     {
@@ -26,13 +26,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 442,
-    "cache_creation_tokens": 633813,
-    "cache_read_tokens": 50114241,
-    "output_tokens": 111763,
-    "api_call_count": 221
+    "input_tokens": 2854,
+    "cache_creation_tokens": 1892573,
+    "cache_read_tokens": 83631393,
+    "output_tokens": 274756,
+    "api_call_count": 302
   }
 }
