@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6255DE35JVBS5VJYFB2ENJ1",
   "strategy": "manual-commit",
   "branch": "claude/peaceful-mayer-0dbd04",
-  "checkpoints_count": 14,
+  "checkpoints_count": 15,
   "files_touched": [
     "agent-docs/jusprin/architecture.md",
     "agent-docs/jusprin/orca-integration-guide.md",
@@ -43,13 +43,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 600,
-    "cache_creation_tokens": 781478,
-    "cache_read_tokens": 70165790,
-    "output_tokens": 146472,
-    "api_call_count": 300
+    "input_tokens": 604,
+    "cache_creation_tokens": 782409,
+    "cache_read_tokens": 70740568,
+    "output_tokens": 146974,
+    "api_call_count": 302
   }
 }
