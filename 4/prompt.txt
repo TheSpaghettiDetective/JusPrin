@@ -1,0 +1,66 @@
+take a look at what the prepare screen does, and propose what should go into its kabab menu (top right corner, maybe it should be a gear menu)
+
+---
+
+<cross-session-message from="local_075b485c-f8e7-4c1f-acbf-b75ce1ff1e5c">
+Kenneth decided the Prepare header's "…" menu becomes an app-level gear menu; please update the Prepare header board on the "JusPrin v2" canvas to this shape so he can review it before any app change.
+
+Decision (Kenneth, 2026-10-27, made in a forked side session):
+- The overflow button in the Prepare header (StatusRow.cpp, show_overflow_menu) becomes a gear, the same glyph Home's Preferences button uses. Its menu holds only app-level rows: "Preferences…" with the ⌘, / Ctrl+, shortcut, then a separator, then "Switch to classic view…". Nothing project-scoped.
+- Remove from the menu: the project-name title row, the Recent projects list, and "Back to Prepare". Version history, Export project 3MF and Project details stay only in the Plates and Project pane's Project tab; the duplicate route from the menu was a discoverability hedge and Kenneth does not want it.
+- Recent projects' homes are Home's gallery and the File menu's "Recent files". OrcaSlicer's File › Recent files is fed by MainFrame's wxFileHistory from OrcaSlicer's own load path (MainFrame.cpp around line 4079). Whether JusPrin's managed autosave projects reach that list is unverified; check it, and if they don't, feed it, so File › Recent files really is the home.
+- "Back to Prepare" existed because Tab on the Prepare canvas still flips OrcaSlicer to its Preview tab under the shell (GLCanvas3D.cpp ~3747 posts the tab event; the shell's char hook handles only Ctrl+,). Stop that flip at the shell instead of keeping a repair row.
+- Keyboard shortcuts row: skip for now. No shortcut list is proposed.
+- Open item outside the menu, for the board too if it fits: the project name with save state, and the two autosave warning rows ("Changes couldn't be saved. JusPrin will retry." and "Some older project data couldn't be removed."), currently live only in that menu when the left pane is closed. They need a home in the header or a failure-only status line. Kenneth has not decided this; flag it on the board rather than inventing a design.
+
+Order: canvas board first for Kenneth's review, app change after he approves. The full write-up is in the untracked note prepare-overflow-menu-proposal.md in the main checkout root.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_075b485c-f8e7-4c1f-acbf-b75ce1ff1e5c">
+Kenneth decided Recent files: use OrcaSlicer's own path-keyed File › Recent files list, no fork-owned submenu and no path-to-project-id mapping, and picking an entry must behave exactly like opening that external file again from the OS.
+
+What "exactly like opening it again" means, from the shell's code (ShellController.cpp ~464-535): a .3mf opened as a project runs through the fork seam Plater::set_external_project_open_handler. That handler looks the path up in the managed projects (ProjectAutosave::projects_for_source) and, when a saved project came from that file, asks the "Previously opened file" MessageDialog with Open existing project / Create new project / Cancel (labels swap when the file changed since, or when it is the current project). Open existing resumes the managed project through open_managed_project and selects Prepare; Create new falls through to OrcaSlicer's load_project. Non-3mf model files follow the table in agent-docs/jusprin/architecture.md "Opening and importing files": a new project named after the file.
+
+So for the app change:
+1. Verify that OrcaSlicer's recent-menu handler (MainFrame.cpp ~2713, open_recent_project) reaches Plater::load_project and therefore that seam. If it bypasses it, route it so the same handler runs. Do not write a second copy of the question.
+2. Verify that every way JusPrin opens a file (OS open, Home's Open…, a drop on Home, a drop on Prepare, + Add model) adds the source path to OrcaSlicer's recent list the way OrcaSlicer's own open does, so the list is complete. Where a path is missing, add it through OrcaSlicer's existing add_to_recent_projects, not a new list.
+3. A missing or moved file behaves as OrcaSlicer's recent menu already behaves for one.
+4. The menu stays OrcaSlicer's "Recent files" submenu as it is; the kebab's Recent projects row goes away with the gear change.
+
+Second item: check whether the gear-menu board should be designed in both light and dark modes. Read agent-docs/jusprin/design-system.md for how light and dark are handled (tokens with a dark variant, which surfaces get both) and follow what it says; if the guide calls for both, keep both strips on the board, otherwise reduce to the one it calls for. Say in your reply which rule you applied.
+
+Kenneth will review the board; the app change waits for his approval as before. The note prepare-overflow-menu-proposal.md in the main checkout root is updated with this.
+</cross-session-message>
+
+---
+
+capture your the boards you added/changed in this chat so that i can review them
+
+---
+
+are you implement it? I didn't ask you to implement it
+
+---
+
+Yes, tell it
+
+---
+
+<!-- reply 1 -->
+> The gear menu and the Recent files addition both wait for your go-ahead after you review the boards.
+
+revert the changes you made to the boards too
+
+---
+
+capture the reverted boards for me to verify
+
+---
+
+also remove "recent projects"
+
+---
+
+Copy the hand up doc. to jusprin-win-test gcp vm, guitest user, ~/Downloads folder
