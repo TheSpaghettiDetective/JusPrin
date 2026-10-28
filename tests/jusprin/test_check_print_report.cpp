@@ -236,3 +236,46 @@ TEST_CASE("the scrollbar thumb shows the part in view", "[check_print]")
     CHECK(scrollbar_thumb(400, 500, 100000, 0, 24).length == 24);
     CHECK(scrollbar_thumb(400, 500, 100000, 99500, 24).offset == 376);
 }
+
+namespace {
+
+W::WorkspacePlate plate(const std::string& name, bool active, std::vector<std::string> objects)
+{
+    W::WorkspacePlate result;
+    result.name   = name;
+    result.active = active;
+    for (const std::string& object : objects) {
+        W::WorkspaceObject entry;
+        entry.name = object;
+        result.objects.push_back(entry);
+    }
+    return result;
+}
+
+} // namespace
+
+TEST_CASE("the header names the project, not the object inside the file", "[check_print]")
+{
+    // A MakerWorld 3MF opened as Tape_4_3MF.3mf: its one object is named
+    // after the designer's own file.
+    W::WorkspaceSnapshot snapshot;
+    snapshot.setup.printer_preset = "Bambu Lab A1 mini 0.4 nozzle";
+    snapshot.plates.push_back(plate("Plate 1", true, {"Tape_4.STL"}));
+
+    const CheckPrintContext one = check_print_context(snapshot, "Tape_4_3MF");
+    CHECK(one.project == "Tape_4_3MF");
+    CHECK(one.plate.empty()); // one plate: nothing to tell apart
+    CHECK(one.printer == "Bambu Lab A1 mini 0.4 nozzle");
+
+    // With a second plate the active one is named, by the person's name for
+    // it when they gave one.
+    snapshot.plates.front().active = false;
+    snapshot.plates.push_back(plate("Clips", true, {"Tape_4.STL", "Tape_4.STL"}));
+    const CheckPrintContext two = check_print_context(snapshot, "Tape_4_3MF");
+    CHECK(two.project == "Tape_4_3MF");
+    CHECK(two.plate == "Clips");
+
+    // No printer preset selected: nothing to say it was sliced for.
+    snapshot.setup.printer_preset.clear();
+    CHECK(check_print_context(snapshot, "Tape_4_3MF").printer.empty());
+}

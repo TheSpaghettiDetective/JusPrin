@@ -540,7 +540,7 @@ void StatusRow::request_action(PrintAction action)
     case PrintAction::Cancel: m_plater.cancel_slicing(); return;
     case PrintAction::CheckPrint: {
         const auto identity = print_target_identity();
-        CheckPrintDialog dialog(this, m_theme, m_plater, m_workspace, m_persistence.document().regions(), [this, identity] {
+        CheckPrintDialog dialog(this, m_theme, m_plater, m_workspace, project_name(), m_persistence.document().regions(), [this, identity] {
             return action_state().sliced && print_target_identity() == identity;
         });
         dialog.ShowModal();

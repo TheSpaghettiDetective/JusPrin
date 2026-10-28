@@ -298,7 +298,14 @@
                 self->check(drew_closing_line(panel), "cp_a_closing_line_is_drawn_whole");
                 self->check(drawn_closing_line(panel).Contains(_L("supports (none generated)")), "cp_a_closing_line_says_none_generated");
                 self->check(drew_line(panel, _L("Time")) && drew_line(panel, _L("Filament")), "cp_a_summary_names_time_and_filament");
-                self->check(utf8(dialog.context_label()->GetLabel()).find("sliced for") != std::string::npos, "cp_a_header_names_the_printer");
+                const std::string context = utf8(dialog.context_label()->GetLabel());
+                self->check(context.find("sliced for") != std::string::npos, "cp_a_header_names_the_printer");
+                // The project by the window title's name, never an object's name.
+                // The summary is "<name> — <save state>", as the window title shows it.
+                const std::string project = utf8(installed_shell()->status_row()->project_summary().BeforeFirst('\n').BeforeFirst(wxUniChar(0x2014)).Trim());
+                self->check(context.rfind(project, 0) == 0, "cp_a_header_starts_with_the_project_name");
+                for (const ModelObject* object : self->m_plater->model().objects)
+                    self->check(context.find(object->name) == std::string::npos, "cp_a_header_names_no_object");
                 const wxBitmap toggle_off = dialog.legend_toggle()->snapshot();
                 self->check_legend_switch(dialog, "cp_a");
                 dialog.legend_toggle()->set_checked(true);

@@ -60,11 +60,13 @@ const ModelObject* find_object(const Model& model, const CheckRow& row)
 } // namespace
 
 CheckPrintDialog::CheckPrintDialog(wxWindow* parent, const ShellTheme& theme, Plater& plater, Workspace::IWorkspace& workspace,
-                                   std::vector<Workspace::RegionRecord> regions, std::function<bool()> is_current)
+                                   wxString project_name, std::vector<Workspace::RegionRecord> regions,
+                                   std::function<bool()> is_current)
     : wxDialog(parent, wxID_ANY, _L("Check print"), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
     , m_theme(theme)
     , m_plater(plater)
     , m_workspace(workspace)
+    , m_project_name(std::move(project_name))
     , m_regions(std::move(regions))
     , m_is_current(std::move(is_current))
 {
@@ -248,21 +250,13 @@ wxWindow* CheckPrintDialog::build_header(const ShellPalette& palette)
 
 wxString CheckPrintDialog::context_text() const
 {
-    const Workspace::WorkspaceSnapshot snapshot = m_workspace.snapshot();
-    wxString                           text;
-    for (const Workspace::WorkspacePlate& plate : snapshot.plates) {
-        if (!plate.active)
-            continue;
-        text = plate.name.empty() ? _L("This plate") : wxString::FromUTF8(plate.name);
-        if (plate.objects.size() == 1)
-            text += middle_dot() + wxString::FromUTF8(plate.objects.front().name);
-        else if (plate.objects.size() > 1)
-            text += middle_dot() + wxString::Format(_L("%s and %d more"), wxString::FromUTF8(plate.objects.front().name),
-                                                    int(plate.objects.size() - 1));
-    }
-    if (!snapshot.setup.printer_preset.empty())
+    const CheckPrintContext context = check_print_context(m_workspace.snapshot(), m_project_name.ToUTF8().data());
+    wxString                text    = wxString::FromUTF8(context.project);
+    if (!context.plate.empty())
+        text += (text.empty() ? wxString() : middle_dot()) + wxString::FromUTF8(context.plate);
+    if (!context.printer.empty())
         text += (text.empty() ? wxString() : middle_dot()) +
-                wxString::Format(_L("sliced for %s"), wxString::FromUTF8(snapshot.setup.printer_preset));
+                wxString::Format(_L("sliced for %s"), wxString::FromUTF8(context.printer));
     return text;
 }
 

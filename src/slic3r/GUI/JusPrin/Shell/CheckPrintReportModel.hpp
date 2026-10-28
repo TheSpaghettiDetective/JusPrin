@@ -112,6 +112,19 @@ struct CheckPrintReportView
 CheckPrintReportView build_check_print_report(const Workspace::SliceReport&            report,
                                               const std::vector<Workspace::RegionRecord>& regions);
 
+// What the window's header says it shows: the project, by the name the
+// window title gives it; the active plate only when the project has more
+// than one; and the printer it was sliced for. Object names are left out:
+// in a downloaded 3MF they are the designer's file names ("Tape_4.STL"),
+// which the person sees nowhere else.
+struct CheckPrintContext
+{
+    std::string project;
+    std::string plate;   // empty for a project with one plate
+    std::string printer; // the printer preset; empty when none is selected
+};
+CheckPrintContext check_print_context(const Workspace::WorkspaceSnapshot& snapshot, const std::string& project_name);
+
 // The order the sections are drawn in: supports first whenever the slice
 // generated any, then by worst severity, ties going to the more consequential
 // check. Exposed so the rule is tested on its own.

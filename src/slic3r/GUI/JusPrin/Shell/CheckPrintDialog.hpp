@@ -38,8 +38,9 @@ class PreviewPresentationController;
 class CheckPrintDialog final : public wxDialog
 {
 public:
+    // `project_name` is the name the window title shows; the header repeats it.
     CheckPrintDialog(wxWindow* parent, const ShellTheme& theme, Plater& plater, Workspace::IWorkspace& workspace,
-                     std::vector<Workspace::RegionRecord> regions, std::function<bool()> is_current);
+                     wxString project_name, std::vector<Workspace::RegionRecord> regions, std::function<bool()> is_current);
     ~CheckPrintDialog() override;
 
     // What the window says about the selected finding on the canvas.
@@ -83,6 +84,7 @@ private:
     const ShellTheme&                              m_theme;
     Plater&                                        m_plater;
     Workspace::IWorkspace&                         m_workspace;
+    wxString                                       m_project_name;
     std::vector<Workspace::RegionRecord>           m_regions;
     std::function<bool()>                          m_is_current;
     Preview*                                       m_preview{nullptr};

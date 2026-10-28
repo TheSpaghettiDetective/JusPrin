@@ -256,4 +256,16 @@ CheckPrintReportView build_check_print_report(const Workspace::SliceReport&     
     return view;
 }
 
+CheckPrintContext check_print_context(const Workspace::WorkspaceSnapshot& snapshot, const std::string& project_name)
+{
+    CheckPrintContext context;
+    context.project = project_name;
+    if (snapshot.plates.size() > 1)
+        for (const Workspace::WorkspacePlate& plate : snapshot.plates)
+            if (plate.active)
+                context.plate = plate.name;
+    context.printer = snapshot.setup.printer_preset;
+    return context;
+}
+
 } // namespace Slic3r::GUI::JusPrin
