@@ -266,6 +266,7 @@ private:
     void schedule_load_report();
     int                                    m_tool_loads{0}; // a tool's own open or import is running
     bool                                   m_generating_calibration{false};
+    bool                                   m_dropping_released_edits{false};
     std::function<void(const LoadReport&)> m_load_report_listener;
 };
 

@@ -1214,6 +1214,7 @@ private:
         verify_layout_checks_before_changing();
         verify_layout_enabled_in_details();
         verify_first_model_is_not_an_edit();
+        verify_released_preset_values_are_not_edits();
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
@@ -1796,6 +1797,38 @@ private:
         check(steps("Mirror") == 1, "edit_after_first_model_is_logged");
         check(m_plater->load_files(cube) && m_plater->model().objects.size() == 2, "second_model_dropped");
         check(steps("Load File") == 1, "model_added_to_a_project_is_an_edit");
+    }
+
+    // A file opened as a new project releases the open one, which discards
+    // the unsaved preset values it had (a 3MF's embedded process is loaded as
+    // such). They belonged to the project that closed: none is an edit in the
+    // new one.
+    void verify_released_preset_values_are_not_edits()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "release_values_new_project");
+        OrcaWorkspaceAdapter workspace(*m_plater);
+        std::vector<WorkspaceEdit> edits;
+        const auto subscription = workspace.subscribe_edits([&edits](const WorkspaceEdit& edit) { edits.push_back(edit); });
+        const auto wall_edits = [&edits] {
+            return std::count_if(edits.begin(), edits.end(), [](const WorkspaceEdit& edit) {
+                return edit.kind == EditKind::Setting && edit.key == "wall_loops";
+            });
+        };
+        auto* tab = m_app.get_tab(Preset::TYPE_PRINT);
+        auto& prints = m_app.preset_bundle->prints;
+        DynamicPrintConfig unsaved;
+        unsaved.set_deserialize_strict("wall_loops", prints.get_edited_preset().config.opt_int("wall_loops") == 5 ? "6" : "5");
+        tab->load_config(unsaved);
+        check(prints.current_is_dirty() && wall_edits() == 1, "release_values_unsaved_value_set");
+        edits.clear();
+        check(workspace.release_project("Released"), "release_values_project_released");
+        check(!prints.current_is_dirty(), "release_values_unsaved_value_dropped");
+        check(std::none_of(edits.begin(), edits.end(), [](const WorkspaceEdit& edit) { return edit.kind == EditKind::Setting; }),
+              "released_preset_values_are_not_edits");
+        tab->load_config(unsaved);
+        check(wall_edits() == 1, "edit_after_release_is_logged");
+        prints.discard_current_changes();
+        tab->load_current_preset();
     }
 
     void verify_plate_type()

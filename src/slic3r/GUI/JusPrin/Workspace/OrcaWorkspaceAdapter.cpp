@@ -2597,9 +2597,12 @@ bool OrcaWorkspaceAdapter::release_project(const std::string& next_name)
     if (m_plater.new_project(true, true, from_u8(next_name)) == wxID_CANCEL)
         return false;
     // Orca asks about edited presets in UnsavedChangesDialog; once saved
-    // they are dropped, so it is never asked.
+    // they are dropped, so it is never asked. The values dropped were the
+    // released project's, saved with it: none is an edit in the new one.
+    m_dropping_released_edits = true;
     for (Preset::Type type : {Preset::TYPE_PRINTER, Preset::TYPE_PRINT, Preset::TYPE_FILAMENT})
         drop_unsaved_edits(wxGetApp().get_tab(type));
+    m_dropping_released_edits = false;
     return true;
 }
 
@@ -2931,6 +2934,9 @@ void OrcaWorkspaceAdapter::on_project_state_changed(const ProjectStateChanged& c
         // test model and the test's preset edits, is that project's starting
         // content, as an opened file's is: none of it is an edit.
         remember_history();
+        record_settings_edits(/*report=*/false);
+    } else if (m_dropping_released_edits) {
+        // The new project starts from the presets as release_project left them.
         record_settings_edits(/*report=*/false);
     } else {
         record_history_edits();
