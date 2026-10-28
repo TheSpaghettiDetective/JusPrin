@@ -1,0 +1,36 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent pane; read `AGENTS.md`, `agent-docs/jusprin/README.md`, `agent-docs/jusprin/fork-stewardship.md` (required before touching any OrcaSlicer-owned file; seams must be small and additive) and "Writing UI code" in `agent-docs/jusprin/design-system.md` first. Projects are autosaved and named after the file they were opened from (see "Opening and importing files" in `agent-docs/jusprin/architecture.md`). On 2026-10-28 a UX walkthrough of the built app (jusprin-newui, Claude Opus 5.5) found the same project shown under four names; critique with screenshots at https://claude.ai/artifact/XyVvteGiKhiJ6apUx8rcmR, frames 1A-02, 1A-04, 1A-07 and 1B-05. Kenneth decides the naming and auto-title rules; bring him the choices before implementing. Rules: temp docs untracked, never committed; web bundle rebuilt through CMake; attribute behaviour correctly (run `git blame` and `git branch -r --contains <sha> 'upstream/*'` before calling something OrcaSlicer's or the fork's); do not commit unless Kenneth asks; check `pgrep -fl ninja` and build with `-j4`. Reproduction: scratch copies of the built .app and of `~/Library/Application Support/JusPrin2` (`local_machines` set to `{}`), `--datadir <scratch>`, open `~/Downloads/Tape_4_3MF.3mf` (a MakerWorld 3MF whose object inside is named Tape_4.STL), let the agent slice, open Check Print from the Print button's menu; the web view and OrcaSlicer dialogs need full-screen computer control, which Kenneth approves per request.
+
+Task:
+Problem: one project appears under four names. The window title says "universal_cable_holder_v2", the plate label on the canvas says "Untitled" in orange (frame 1A-02), the Check print window's header says "Plate 1 · Tape_4.STL" using the object's name from inside the 3MF (frame 1A-07), and the chat is titled "New chat" until it renames itself, after the first exchange, to a sentence such as "Confirmation to Proceed With Slicing" or "Resizing a Print to Fit the Bambu A1 …" (frames 1A-04, 1B-05). A person who opened one file reads these as four different things, and the chat title changing under them is unsettling.
+
+Task, in this order:
+1. Reproduce in the real app and trace each name to its source: what sets the plate's label and why it is "Untitled" (OrcaSlicer's plate name versus the project name, and whether the fork sets either); what Check print's header reads (the ModelObject name from the 3MF, chosen where); where the chat title comes from, what rule generates it, when it runs, and whether the person can rename it; and what the window title and Home's tile use. Record for each whether the behaviour is OrcaSlicer's or the fork's.
+2. Write an untracked note (`one-name-options.md` in the worktree root) for Kenneth with the naming rule to adopt and its alternatives: what the plate label should show (the project name, nothing, or the plate's own name only when the person named it), what Check print's header should say for a single-object plate, and the chat auto-title rule (keep a generated title but derive it from the purpose or the file rather than the first exchange; name chats by the project and date; let the person rename; or stop auto-renaming once a title exists). Give each option what the person sees, where it lives (page, host, OrcaSlicer-owned line and its rebase cost), and a recommendation.
+3. Stop and wait for Kenneth's choice. Do not implement before he answers.
+
+Done, after his choice, means: the chosen rule implemented with tests (a header or page snapshot for the plate label and chat title, a Catch2 case for Check print's header), zero OrcaSlicer-owned lines unless the note justified one and fork-stewardship evidence is recorded, verified in the real app with screenshots of the canvas, Check print and the chat header for the same project; nothing committed until Kenneth says so; report what was verified and what was not.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_7320ec31-16af-43fc-bd96-863e8fa55bff
+
+---
+
+1. keep the file name, as now. 2. do not change. keep curent. 3. your suggestion. 4. do not change. keep curent.
+
+---
+
+<task-notification>
+<task-id>bv8bid1a8</task-id>
+<tool-use-id>toolu_01KcvoBFtqMKBeCFpPj69JLF</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-dazzling-poitras-8c99ba/b017643c-5b4d-4b9d-999d-79c4ff931d75/tasks/bv8bid1a8.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 93637 2&gt;/dev/null; do sleep 30; done; tail -3 /Users/kenneth/Projects/JusPrin/.claude/worktrees/dazzling-poitras-8c99ba/build-app.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Commit it
+
+---
+
+squash all of your commits into 1 on jusprin-newui. then push. then clean up
