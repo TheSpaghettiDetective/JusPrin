@@ -206,7 +206,7 @@ describe('change rows in the thread', () => {
     const { container } = thread([change(4), change(6, { label: 'Move' })], { markers: [marker] });
     // Runs and markers are thread items of their own, after the message
     // group they follow.
-    const order = [...container.querySelector('.message-list')!.children].map((child) => child.className.split(' ')[0]);
+    const order = [...container.querySelector('.message-list-content')!.children].map((child) => child.className.split(' ')[0]);
     expect(order).toEqual(['message-group', 'message-group', 'change-rows', 'gcode-marker', 'change-rows']);
   });
 
@@ -217,14 +217,14 @@ describe('change rows in the thread', () => {
       state: 'succeeded', progress: { current: 1, total: 1 },
     } satisfies ToolActivityInfo;
     const { container } = thread([change(3, { afterId: 't-1' })], { activities: [activity] });
-    const order = [...container.querySelector('.message-list')!.children].map((child) => child.className.split(' ')[0]);
+    const order = [...container.querySelector('.message-list-content')!.children].map((child) => child.className.split(' ')[0]);
     expect(order).toEqual(['message-group', 'change-rows', 'message-group']);
     expect(within(container.querySelector('.change-rows') as HTMLElement).queryAllByRole('listitem')).toHaveLength(1);
   });
 
   it('puts changes made before the first message at the top', () => {
     const { container } = thread([change(1, { afterId: '' })]);
-    expect(container.querySelector('.message-list')!.firstElementChild!.className).toBe('change-rows');
+    expect(container.querySelector('.message-list-content')!.firstElementChild!.className).toBe('change-rows');
   });
 });
 

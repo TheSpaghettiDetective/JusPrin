@@ -88,7 +88,8 @@ figcaption { font:var(--font-label); color:var(--text-secondary); margin-bottom:
 /* A block spans the dock, as the composer does. */
 .block { background:var(--surface-canvas); color:var(--text-primary); }
 /* The thread's own column, without its scroll box. */
-.specimen.thread .message-list { flex:none; padding:0; overflow:visible; }
+.specimen.thread .message-list { flex:none; overflow:visible; }
+.specimen.thread .message-list-content { padding:0; }
 .stage { box-sizing:content-box; position:relative; height:640px; overflow:hidden; border:1px solid var(--border-subtle);
   background:var(--surface-subtle); color:var(--text-primary); }
 .stage > .app, .stage > div > .app { height:100%; }
