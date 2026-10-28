@@ -293,3 +293,38 @@ HARNESS MEASURE outline-button-1x left=0+1 top=0+1 right=0+1 bottom=0+1
 HARNESS MEASURE outline-button-2x left=0+2 top=0+2 right=0+2 bottom=0+2</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>bdoajnm44</task-id>
+<summary>Monitor event: "final harness: outline and ring measures, failures, exit"</summary>
+<event>HARNESS MEASURE colour-cell-other left=4+2 top=4+2 right=4+2 bottom=4+2 inset=4 scale=2
+HARNESS MEASURE colour-cell-current left=2+4 top=2+4 right=2+4 bottom=2+4 inset=2 scale=2</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdoajnm44</task-id>
+<summary>Monitor event: "final harness: outline and ring measures, failures, exit"</summary>
+<event>HARNESS RESULT PASS failures=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdoajnm44</task-id>
+<tool-use-id>toolu_017gPde1gPY1RtQnP8GjLxKG</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bdoajnm44.output</output-file>
+<status>completed</status>
+<summary>Monitor "final harness: outline and ring measures, failures, exit" stream ended</summary>
+<event>harness exited</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+Commit
