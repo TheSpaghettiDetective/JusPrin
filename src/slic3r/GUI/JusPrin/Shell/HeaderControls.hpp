@@ -17,7 +17,7 @@ namespace Slic3r::GUI::JusPrin {
 // lighter strokes the menu rows use.
 // PanelOpen and PanelClosed are the right pane's two states; PanelLeftOpen
 // and PanelLeftClosed mirror the same glyph for the left pane.
-enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Monitor, Check, Eye, Lock, Slice, Slicing, Plates, Export, Print, Cancel,
+enum class HeaderIcon { None, Back, Down, Up, Right, Caret, More, Printer, Warning, Monitor, Check, Eye, Lock, Slice, Slicing, Plates, Export, Print, Cancel,
                         PanelOpen, PanelClosed, PanelLeftOpen, PanelLeftClosed };
 
 // Draws a semantic Lucide asset, or the product-specific solid caret/pane state,
@@ -68,8 +68,22 @@ struct HeaderRowDecoration
     // line -- "X1 Carbon · 0.4" -- while staying regular beside the bold
     // printer name, which one text run could not do.
     bool       detail_inline{false};
+    // A further inline segment after the detail, behind its own middot, in
+    // the label role and text/primary: the chip's "from the file".
+    wxString   detail_more;
+    // Colours the leading icon; None keeps the row's foreground. A warning
+    // icon is never the only signal: the row also says it in words.
+    StatusTone icon_tone{StatusTone::None};
     // Second line under the label, in text/secondary.
     wxString   sub_label;
+    // Warning draws the sub-line in text/primary behind a triangle glyph in
+    // status/warning; None keeps it plain secondary text.
+    StatusTone sub_label_tone{StatusTone::None};
+    // The sub-line's text role. Each menu's design picks its own.
+    TextRole   sub_label_role{TextRole::Metadata};
+    // Draws the sub-line in border/subtle, the faint hint the not-connected
+    // printer row carries, instead of text/secondary.
+    bool       sub_label_faint{false};
     bool       bold{false};
     bool       danger{false};
     bool       check{false};
@@ -138,6 +152,8 @@ private:
     // Width of the slot-dot run and its "+n", gap to the label included; zero
     // without slot dots. Shared by measuring and painting.
     int  slot_dots_width() const;
+    // Width of a warning sub-line's glyph and its gap.
+    int  sub_glyph_width() const;
     // Width of the leading text and its gap; zero without one.
     int  lead_width() const;
     // Screen rect of the row-action glyph, empty when there is none.

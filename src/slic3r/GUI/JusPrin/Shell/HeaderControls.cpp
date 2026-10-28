@@ -35,6 +35,7 @@ const char* icon_asset(HeaderIcon icon)
     case HeaderIcon::Eye:     return "eye";
     case HeaderIcon::Lock:    return "lock-keyhole";
     case HeaderIcon::Printer: return "printer";
+    case HeaderIcon::Warning: return "triangle-alert";
     case HeaderIcon::Monitor: return "monitor";
     case HeaderIcon::More:    return "ellipsis";
     case HeaderIcon::Cancel:  return "x";
@@ -338,6 +339,11 @@ int HeaderButton::trailing_reserve() const
     return reserve;
 }
 
+int HeaderButton::sub_glyph_width() const
+{
+    return FromDIP(m_theme.metrics().button.icon.icon_size + m_theme.metrics().space_2);
+}
+
 int HeaderButton::lead_width() const
 {
     if (m_decoration.lead.empty()) return 0;
@@ -372,8 +378,9 @@ wxSize HeaderButton::DoGetBestSize() const
     int label = GetTextExtent(GetLabel()).x;
     if (!m_decoration.sub_label.empty()) {
         wxClientDC dc(const_cast<HeaderButton*>(this));
-        dc.SetFont(m_theme.font(TextRole::Metadata));
-        label = std::max(label, dc.GetTextExtent(m_decoration.sub_label).x);
+        dc.SetFont(m_theme.font(m_decoration.sub_label_role));
+        label = std::max(label, dc.GetTextExtent(m_decoration.sub_label).x +
+                                    (m_decoration.sub_label_tone == StatusTone::None ? 0 : sub_glyph_width()));
     }
     if (m_label_cap > 0) label = std::min(label, FromDIP(m_label_cap));
     if (!m_decoration.detail.empty() && m_decoration.detail_inline) {
@@ -383,6 +390,9 @@ wxSize HeaderButton::DoGetBestSize() const
         // reserves space it never fills and the chevron drifts right.
         label += dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3) +
                  dc.GetTextExtent(m_decoration.detail).x;
+        if (!m_decoration.detail_more.empty())
+            label += dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3) +
+                     dc.GetTextExtent(m_decoration.detail_more).x;
     }
     const int leading = FromDIP(12) + (m_icon == HeaderIcon::None ? 0 : FromDIP(24)) +
                         (m_decoration.dot.has_value() ? FromDIP(16) : 0) + lead_width() + slot_dots_width();
@@ -432,7 +442,10 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     dc.Clear();
     wxGraphicsContext* gc = &context;
 
-    const auto foreground = !IsEnabled() ? p.action_disabled_text :
+    // A row that states a warning stays readable when it cannot be invoked:
+    // its words are the warning, not a greyed-out choice.
+    const bool informational = m_decoration.sub_label_tone != StatusTone::None;
+    const auto foreground = !IsEnabled() && !informational ? p.action_disabled_text :
                             m_decoration.danger ? p.status_danger :
                             primary ? p.action_primary_text :
                             m_style == HeaderStyle::Quiet ? p.text_secondary : p.text_primary;
@@ -499,7 +512,9 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
 
     double x = FromDIP(12);
     if (icon != HeaderIcon::None) {
-        draw_header_icon(*gc,icon,x,(h-icon_size)/2,icon_size,foreground);
+        const wxColour tint = m_decoration.icon_tone == StatusTone::None || !IsEnabled() ? foreground
+                                                                                         : status_colour(m_decoration.icon_tone, p);
+        draw_header_icon(*gc,icon,x,(h-icon_size)/2,icon_size,tint);
         x += FromDIP(24);
     }
     if (const int lead = lead_width(); lead > 0) {
@@ -611,6 +626,12 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         inline_run = dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3);
         dc.SetFont(detail_font());
         inline_run += dc.GetTextExtent(m_decoration.detail).x;
+        if (!m_decoration.detail_more.empty()) {
+            dc.SetFont(GetFont());
+            inline_run += dc.GetTextExtent(wxString::FromUTF8(" \xC2\xB7")).x + FromDIP(3);
+            dc.SetFont(detail_font());
+            inline_run += dc.GetTextExtent(m_decoration.detail_more).x;
+        }
         available = std::max(0, available - int(inline_run));
     }
     if (m_label_cap > 0) available = std::min(available, FromDIP(m_label_cap));
@@ -632,12 +653,33 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
         gc->SetFont(detail_font(), p.text_secondary);
         double dh, dw; gc->GetTextExtent(m_decoration.detail,&dw,&dh);
         gc->DrawText(m_decoration.detail, x+tw+sw+FromDIP(3), (h-dh)/2);
+        if (!m_decoration.detail_more.empty()) {
+            const double at = x+tw+sw+FromDIP(3)+dw;
+            gc->SetFont(GetFont(), p.text_secondary);
+            gc->DrawText(separator, at, (h-sh)/2);
+            gc->SetFont(detail_font(), p.text_primary);
+            double mw, mh; gc->GetTextExtent(m_decoration.detail_more,&mw,&mh);
+            gc->DrawText(m_decoration.detail_more, at+sw+FromDIP(3), (h-mh)/2);
+        }
     }
     if (two_line) {
-        dc.SetFont(m_theme.font(TextRole::Metadata));
-        const wxString sub = wxControl::Ellipsize(m_decoration.sub_label, dc, wxELLIPSIZE_END, available);
-        gc->SetFont(m_theme.font(TextRole::Metadata), p.text_secondary);
-        gc->DrawText(sub, x, h/2 + FromDIP(1));
+        const bool warning = m_decoration.sub_label_tone != StatusTone::None;
+        double sub_x = x;
+        int sub_room = available;
+        if (warning) {
+            const double glyph = icon_size;
+            dc.SetFont(m_theme.font(m_decoration.sub_label_role));
+            const double line = dc.GetCharHeight();
+            draw_header_icon(*gc, HeaderIcon::Warning, sub_x, h/2 + FromDIP(1) + (line-glyph)/2, glyph,
+                             status_colour(m_decoration.sub_label_tone, p));
+            sub_x += sub_glyph_width();
+            sub_room = std::max(0, sub_room - sub_glyph_width());
+        }
+        dc.SetFont(m_theme.font(m_decoration.sub_label_role));
+        const wxString sub = wxControl::Ellipsize(m_decoration.sub_label, dc, wxELLIPSIZE_END, sub_room);
+        gc->SetFont(m_theme.font(m_decoration.sub_label_role),
+                    warning ? p.text_primary : m_decoration.sub_label_faint ? p.border_subtle : p.text_secondary);
+        gc->DrawText(sub, sub_x, h/2 + FromDIP(1));
     }
     if (m_status) {
         gc->SetPen(*wxTRANSPARENT_PEN);
@@ -795,9 +837,11 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     }
     sizer->AddSpacer(FromDIP(popover.padding_y));
     SetSizerAndFit(sizer);
-    // The first build fixes the width; later rebuilds keep it so swapping to
-    // the search view does not make the popup jump under the pointer.
-    if (m_width == 0)
+    // The first build with rows fixes the width; later rebuilds keep it so
+    // swapping to the search view does not make the popup jump under the
+    // pointer. An owner that builds empty and fills in later still gets a
+    // width that fits its rows.
+    if (m_width == 0 && placed_rows > 0)
         m_width = std::clamp(GetSize().x,FromDIP(m_theme.metrics().popover.width),FromDIP(420));
     SetSize(wxSize(m_width,GetSize().y));
     Layout();

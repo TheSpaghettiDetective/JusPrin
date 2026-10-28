@@ -88,7 +88,14 @@ void PrinterMenu::show_root(const Ptr& self)
     HeaderMenuItem machine;
     machine.label           = printer.nickname.empty() ? _L("No printer selected") : printer.nickname;
     machine.decoration.bold = true;
-    machine.enabled         = connection.monitor_available;
+    machine.enabled         = connection.monitor_available && !printer.from_file;
+    if (printer.from_file) {
+        // Not one of the person's printers, so there is no machine to report
+        // on: the row says where the profile came from instead.
+        machine.decoration.sub_label      = _L("From the file · not one of your printers");
+        machine.decoration.sub_label_tone = StatusTone::Warning;
+        machine.decoration.sub_label_role = TextRole::BodySmall;
+    } else
     switch (connection.state) {
     case SetupCommands::ConnectionState::Idle:
         machine.decoration.status      = StatusTone::Positive;
@@ -110,10 +117,12 @@ void PrinterMenu::show_root(const Ptr& self)
         machine.decoration.status_word = _L("Not connected");
         // Connect… is deferred to a later slice, so the sub-line states the
         // consequence rather than offering an action that would do nothing.
-        machine.decoration.sub_label = _L("Prints go to a card.");
+        machine.decoration.sub_label       = _L("Prints go to a card.");
+        machine.decoration.sub_label_role  = TextRole::Label;
+        machine.decoration.sub_label_faint = true;
         break;
     }
-    if (connection.monitor_available)
+    if (connection.monitor_available && !printer.from_file)
         machine.invoke = [] { SetupCommands::open_monitor(); };
     rows.push_back(std::move(machine));
     rows.push_back(separator());

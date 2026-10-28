@@ -50,14 +50,19 @@ PrinterFilamentChip::PrinterFilamentChip(wxWindow* parent, const ShellTheme& the
     Bind(wxEVT_SIZE, [this](wxSizeEvent& event) { layout(); event.Skip(); });
 }
 
-void PrinterFilamentChip::set_printer(const wxString& nickname, const wxString& nozzle, const wxString& tooltip)
+void PrinterFilamentChip::set_printer(const wxString& nickname, const wxString& nozzle, const wxString& tooltip, bool from_file)
 {
     const wxString name = nickname.empty() ? _L("Select printer") : nickname;
     m_printer->SetLabel(name);
+    m_printer->set_icon(from_file ? HeaderIcon::Warning : HeaderIcon::Printer);
     HeaderRowDecoration decoration;
     // "X1 Carbon · 0.4" reads as one line.
     decoration.detail        = nozzle;
     decoration.detail_inline = true;
+    if (from_file) {
+        decoration.detail_more = _L("from the file");
+        decoration.icon_tone   = StatusTone::Warning;
+    }
     decoration.trailing      = HeaderIcon::Caret;
     m_printer->set_decoration(std::move(decoration));
     // The tooltip carries the full text the chip may have ellipsized. It says

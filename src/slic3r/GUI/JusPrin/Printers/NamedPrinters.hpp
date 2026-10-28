@@ -17,6 +17,7 @@
 // link lives in the app config under kDeviceSection, keyed by device id.
 
 #include "InstalledModels.hpp"
+#include "PrinterOrigin.hpp"
 #include "libslic3r/Preset.hpp"
 
 #include <wx/string.h>
@@ -35,10 +36,6 @@ struct NamedPrinter
     double      nozzle{0.};
     bool        selected{false};
 };
-
-// A visible user printer profile. Profiles embedded in a project, shipped in
-// a bundle, or supplied by a vendor are not printers the person added.
-bool is_named_printer(const Preset& preset);
 
 // Every named printer, in the preset collection's order.
 std::vector<NamedPrinter> named_printers();

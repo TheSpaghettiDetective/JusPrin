@@ -10,7 +10,8 @@
 // two to the pointer.
 //
 // The chip renders state and raises intent. It reads nothing and changes
-// nothing in Orca; StatusRow owns both. It states facts and never warns.
+// nothing in Orca; StatusRow owns both. It states facts; its one warning is a
+// printer profile the person did not set up, which it says in words too.
 
 #include "FilamentChipModel.hpp"
 #include "HeaderControls.hpp"
@@ -28,8 +29,9 @@ public:
     PrinterFilamentChip(wxWindow* parent, const ShellTheme& theme);
 
     // Left half. `nozzle` is already formatted for display; `tooltip` is the
-    // full text the half may ellipsize.
-    void set_printer(const wxString& nickname, const wxString& nozzle, const wxString& tooltip);
+    // full text the half may ellipsize. `from_file` marks a printer profile
+    // that is not one of the person's: a warning glyph and "from the file".
+    void set_printer(const wxString& nickname, const wxString& nozzle, const wxString& tooltip, bool from_file = false);
     // Right half: the slot dots and label the model describes. `label` is the
     // text the model resolved to -- a short name or a count.
     void set_filaments(const FilamentChipModel& model, const wxString& label, const wxString& tooltip);

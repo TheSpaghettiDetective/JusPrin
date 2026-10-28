@@ -403,7 +403,13 @@ void StatusRow::refresh_chip()
     wxString printer_tooltip = printer.nickname;
     if (!nozzle.empty())
         printer_tooltip += middle_dot() + nozzle + " mm " + (sizes.size() > 1 ? _L("nozzles") : _L("nozzle"));
-    m_chip->set_printer(printer.nickname, printer.valid ? nozzle : wxString{}, printer_tooltip);
+    if (printer.from_file) {
+        const wxString project = m_plater.get_project_name();
+        printer_tooltip += middle_dot() +
+                           wxString::Format(_L("from %s, not one of the printers you set up"),
+                                            project.empty() ? _L("the file") : project + ".3mf");
+    }
+    m_chip->set_printer(printer.nickname, printer.valid ? nozzle : wxString{}, printer_tooltip, printer.from_file);
 
     const auto slots = SetupCommands::filament_slots();
     std::vector<ChipSlot> chip_slots;

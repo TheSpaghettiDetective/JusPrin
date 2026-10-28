@@ -34,6 +34,9 @@ struct PrinterInfo
     // Every nozzle, in extruder order. One entry on a single-nozzle printer.
     std::vector<double> nozzles;
     std::size_t extruder_count{1};
+    // The selected profile is not one of the person's named printers: a
+    // system profile a 3MF named. The header marks it "from the file".
+    bool        from_file{false};
     bool        valid{false};
 };
 

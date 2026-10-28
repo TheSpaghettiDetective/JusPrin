@@ -116,6 +116,7 @@ PrinterInfo current_printer()
         info.nozzles        = nozzle->values;
         info.extruder_count = nozzle->values.size();
     }
+    info.from_file = Printers::printer_from_file(printer);
     info.valid = true;
     return info;
 }

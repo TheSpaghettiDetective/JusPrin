@@ -7,6 +7,7 @@
 
 #include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/HeaderControls.hpp"
+#include "slic3r/GUI/JusPrin/Shell/PrinterFilamentChip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
@@ -17,6 +18,7 @@
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -318,5 +320,92 @@ TEST_CASE("a header menu row is highlighted with the raised hover surface", "[sh
         row->set_menu_selected(true);
         CHECK(fill_at_right_edge() == palette.surface_raised_hover);
     }
+    frame->Destroy();
+}
+
+// The printer half of the header chip while the printer profile came from a
+// file: the warning glyph in status.warning takes the printer glyph's place,
+// and the words "from the file" make the half wider. Drawn into a bitmap, so
+// the colour checked is the one painted.
+TEST_CASE("the printer chip marks a printer from the file", "[shell][theme][wx]")
+{
+    wxInitializer wx;
+    REQUIRE(wx.IsOk());
+    const ShellTheme theme = load_packaged_theme();
+    auto* frame = new wxFrame(nullptr, wxID_ANY, "chip");
+    auto* chip  = new PrinterFilamentChip(frame, theme);
+    auto near = [](const wxColour& a, unsigned char r, unsigned char g, unsigned char b) {
+        return std::abs(a.Red() - r) < 24 && std::abs(a.Green() - g) < 24 && std::abs(a.Blue() - b) < 24;
+    };
+    for (const bool dark : {false, true}) {
+        const ShellPalette& palette = theme.palette(dark);
+        chip->set_dark(dark);
+        INFO((dark ? "dark" : "light"));
+        auto glyph_has_warning = [&] {
+            HeaderButton& half = chip->printer_half();
+            half.SetSize(half.GetBestSize());
+            const wxImage image = half.snapshot().ConvertToImage();
+            const int glyph_end = half.FromDIP(12 + theme.metrics().button.icon.icon_size);
+            for (int x = half.FromDIP(12); x < glyph_end; ++x)
+                for (int y = 0; y < image.GetHeight(); ++y)
+                    if (near(palette.status_warning, image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y)))
+                        return true;
+            return false;
+        };
+        chip->set_printer("Bambu Lab P1S", "0.4", "tooltip", false);
+        const int plain_width = chip->printer_half().GetBestSize().x;
+        CHECK_FALSE(glyph_has_warning());
+        CHECK(chip->printer_half().decoration().detail_more.empty());
+
+        chip->set_printer("Bambu Lab P1S", "0.4", "tooltip", true);
+        CHECK(glyph_has_warning());
+        CHECK(chip->printer_half().decoration().detail_more == "from the file");
+        CHECK(chip->printer_half().GetBestSize().x > plain_width);
+    }
+    frame->Destroy();
+}
+
+// A menu row's second line takes the text role its design names: the printer
+// menu's warning line is body-small and its not-connected hint is label, not
+// the metadata default. Measured, so a row cannot quietly fall back.
+TEST_CASE("a menu row's second line takes the role it is given", "[shell][theme][wx]")
+{
+    wxInitializer wx;
+    REQUIRE(wx.IsOk());
+    const ShellTheme theme = load_packaged_theme();
+    auto* frame = new wxFrame(nullptr, wxID_ANY, "rows");
+    auto width_with = [&](TextRole role) {
+        auto* row = new HeaderButton(frame, theme, HeaderStyle::Menu, "P1S", HeaderIcon::None);
+        HeaderRowDecoration decoration;
+        decoration.sub_label      = "From the file, not one of your printers";
+        decoration.sub_label_role = role;
+        row->set_decoration(decoration);
+        return row->GetBestSize().x;
+    };
+    const int metadata = width_with(TextRole::Metadata);
+    CHECK(width_with(TextRole::Label) > metadata);
+    CHECK(width_with(TextRole::BodySmall) > width_with(TextRole::Label));
+    frame->Destroy();
+}
+
+TEST_CASE("a menu built empty widens to the rows it is given", "[shell][theme][wx]")
+{
+    wxInitializer wx;
+    REQUIRE(wx.IsOk());
+    const ShellTheme theme = load_packaged_theme();
+    auto* frame = new wxFrame(nullptr, wxID_ANY, "menu");
+    // PrinterMenu creates its popup with no rows and fills it afterwards.
+    auto* menu = new HeaderMenu(frame, theme, false, {});
+    HeaderMenuItem row;
+    row.label                     = "Bambu Lab P1S";
+    row.decoration.bold           = true;
+    row.decoration.sub_label      = wxString::FromUTF8("From the file \xC2\xB7 not one of your printers");
+    row.decoration.sub_label_tone = StatusTone::Warning;
+    row.decoration.sub_label_role = TextRole::BodySmall;
+    menu->replace_items({row});
+    auto* button = dynamic_cast<HeaderButton*>(menu->FindWindow("Bambu Lab P1S"));
+    REQUIRE(button != nullptr);
+    CHECK(button->GetSize().x >= button->GetBestSize().x);
+    menu->Destroy();
     frame->Destroy();
 }

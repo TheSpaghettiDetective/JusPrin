@@ -156,8 +156,6 @@ bool select(Plater& plater, const std::string& name)
 
 } // namespace
 
-bool is_named_printer(const Preset& preset) { return preset.type == Preset::TYPE_PRINTER && preset.is_user() && preset.is_visible; }
-
 std::vector<NamedPrinter> named_printers()
 {
     std::map<std::string, std::string> device_of;
