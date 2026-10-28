@@ -6,6 +6,7 @@
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PresetLookup.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "StatusRow.hpp"
 
@@ -57,16 +58,12 @@ namespace Slic3r::GUI::JusPrin {
 
 namespace {
 
-// A preset a person could pick, by the name Orca keys it.
+// A preset someone can name, by the name Orca keys it.
 bool preset_exists(Preset::Type type, const std::string& name)
 {
     const PresetBundle* bundle = wxGetApp().preset_bundle;
-    if (bundle == nullptr)
-        return false;
-    const PresetCollection& presets = type == Preset::TYPE_FILAMENT ? static_cast<const PresetCollection&>(bundle->filaments) :
-                                                                      static_cast<const PresetCollection&>(bundle->printers);
-    const Preset* preset = presets.find_preset(name, false);
-    return preset != nullptr && preset->name == name && preset->is_visible && !preset->is_default;
+    const Preset*       preset = bundle != nullptr ? Printers::preset_by_name(*bundle, type, name) : nullptr;
+    return preset != nullptr && preset->name == name;
 }
 
 class PaneResizeHandle final : public wxPanel

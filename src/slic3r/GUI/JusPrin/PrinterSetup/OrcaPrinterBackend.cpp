@@ -17,6 +17,7 @@
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/InstalledModels.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PresetLookup.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
@@ -146,8 +147,8 @@ SavedPrinter OrcaPrinterBackend::stock_printer(const std::string& name) const
 {
     SavedPrinter stock;
     const PresetBundle* presets = wxGetApp().preset_bundle;
-    const Preset*       preset  = presets != nullptr ? presets->printers.find_preset(name, false) : nullptr;
-    if (preset == nullptr || preset->name != name || !preset->is_system || !preset->is_visible)
+    const Preset*       preset  = presets != nullptr ? Printers::preset_by_name(*presets, Preset::TYPE_PRINTER, name) : nullptr;
+    if (preset == nullptr || preset->name != name || !preset->is_system)
         return stock;
     stock.name      = preset->name;
     stock.stock     = true;

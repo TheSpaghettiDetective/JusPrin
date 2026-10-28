@@ -1339,6 +1339,7 @@ public:
             if (m_state->mode == HarnessState::Mode::PrinterMenu) {
                 check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
                 verify_other_printers_menu();
+                verify_hidden_presets_in_use();
                 finish();
                 return;
             }
@@ -3266,6 +3267,43 @@ private:
         check(selected_printer() == kSetupFixturePrinter && wxGetApp().preset_bundle->filament_presets.front() == slot_one &&
                   wxGetApp().getDeviceManager()->get_selected_machine() == nullptr,
               "form_cleanup_restores_the_fixture_printer_filament_and_machine");
+    }
+
+    // A 3MF can select a preset the person's list hides. The header's
+    // Filament settings… and Printer settings…, and the printer chat about a
+    // stock profile, still find the one the project uses.
+    void verify_hidden_presets_in_use()
+    {
+        using namespace std::chrono_literals;
+        PresetBundle& bundle = *wxGetApp().preset_bundle;
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        const std::string filament = bundle.filament_presets.front();
+        Preset* const     hidden[] = {bundle.printers.find_preset(kSetupFixturePrinter, false), bundle.filaments.find_preset(filament, false)};
+        for (Preset* preset : hidden)
+            preset->is_visible = false;
+        struct DialogCount : wxModalDialogHook
+        {
+            int count{0};
+            int Enter(wxDialog*) override { ++count; return wxID_OK; }
+        } dialogs;
+        dialogs.Register();
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        const auto closed = [this, panel] {
+            panel->close();
+            wait_for([this, panel] { return !panel->IsShown() && m_notebook->IsShownOnScreen(); }, 10s);
+        };
+        installed_shell()->open_filament_help(0, filament, SetupCommands::current_filament().alias.ToStdString());
+        check(dialogs.count == 0 && panel->IsShown(), "hidden_filament_in_use_opens_its_settings");
+        closed();
+        installed_shell()->open_printer_conversation(kSetupFixturePrinter);
+        check(dialogs.count == 0 && panel->IsShown(), "hidden_printer_in_use_opens_its_settings");
+        closed();
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        check(backend.stock_printer(kSetupFixturePrinter).name == kSetupFixturePrinter, "hidden_stock_printer_in_use_is_found");
+        dialogs.Unregister();
+        for (Preset* preset : hidden)
+            preset->is_visible = true;
     }
 
     void verify_other_printers_menu()
