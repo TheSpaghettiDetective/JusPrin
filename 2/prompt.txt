@@ -1,0 +1,43 @@
+read @C:\Users\guitest\Downloads\classic-view-return-handoff.md and tell me if you have everything you need to impl this task
+
+---
+
+pull from remote to get the updated code. check ~/Dwonloads again to see if you have all the docs you need. anything else?
+
+---
+
+surface_canvas
+
+---
+
+<task-notification>
+<task-id>b652nrctr</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\f89b1094-3a0d-407a-8916-374b0ee126ce\tasks\b652nrctr.output</output-file>
+<status>completed</status>
+<summary>Background command "Build harness and guard tests" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Fix it here
+
+---
+
+<task-notification>
+<task-id>b6knq9873</task-id>
+<tool-use-id>toolu_01MFami57BPetoxpKK9cmZdt</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\f89b1094-3a0d-407a-8916-374b0ee126ce\tasks\b6knq9873.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild harness and guard tests" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bna6c2jma</task-id>
+<tool-use-id>toolu_01Mdzb5uPF6tDC8bP86WpYR2</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\f89b1094-3a0d-407a-8916-374b0ee126ce\tasks\bna6c2jma.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the default full-shell harness" completed (exit code 0)</summary>
+</task-notification>
