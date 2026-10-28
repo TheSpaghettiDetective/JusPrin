@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M62BJC3FKXT4RRN8JAHZQE04",
+  "session_id": "e205b652-5d1b-44cc-aa1e-2a1afbfd5940",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T22:54:56.450831Z",
+  "branch": "claude/chat-scroll",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md",
+    "resources/jusprin/ui/icons/arrow-down.svg",
+    "resources/jusprin/ui/icons/lucide-map.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/package-lock.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/package.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ChangeRows.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.scroll.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/MessageList.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/AgentUiStateMatrix.preview.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "5337a19b66b2",
+  "checkpoint_transcript_start": 1274,
+  "transcript_lines_at_start": 1274,
+  "compact_transcript_start": 160,
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 10278,
+    "cache_read_tokens": 2016033,
+    "output_tokens": 3680,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-28T22:54:56.213689Z",
+    "agent_lines": 0,
+    "agent_removed": 34,
+    "human_added": 147,
+    "human_modified": 287,
+    "human_removed": 0,
+    "total_committed": 366,
+    "total_lines_changed": 468,
+    "agent_percentage": 7.264957264957266,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
