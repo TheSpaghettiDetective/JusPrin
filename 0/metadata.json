@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M62BBY4SPDJ19MFQP97ES3RE",
+  "session_id": "394370f2-402e-4289-afcd-2acddeaaff08",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T22:51:23.733713Z",
+  "branch": "claude/chat-trust",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/TurnActivity.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/TurnActivity.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "tests/agent/CMakeLists.txt"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "3af73fdde1b6",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 275259,
+    "cache_read_tokens": 12413661,
+    "output_tokens": 29100,
+    "api_call_count": 71
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-28T22:51:23.657185Z",
+    "agent_lines": 239,
+    "agent_removed": 135,
+    "human_added": 248,
+    "human_modified": 26,
+    "human_removed": 0,
+    "total_committed": 513,
+    "total_lines_changed": 648,
+    "agent_percentage": 57.71604938271605,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

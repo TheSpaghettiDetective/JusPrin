@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M62BBY4SPDJ19MFQP97ES3RE",
+  "strategy": "manual-commit",
+  "branch": "claude/chat-trust",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/TurnActivity.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/TurnActivity.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "tests/agent/CMakeLists.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 275259,
+    "cache_read_tokens": 12413661,
+    "output_tokens": 29100,
+    "api_call_count": 71
+  }
+}
