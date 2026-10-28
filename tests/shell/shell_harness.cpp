@@ -1215,6 +1215,7 @@ public:
             std::cerr << "HARNESS ERROR main loop still running 30 s after the frame was closed; forcing ExitMainLoop\n";
             m_app.ExitMainLoop();
         });
+        m_close_handler.Bind(wxEVT_TIMER, [this](wxTimerEvent&) { close_frame(); });
     }
 
     void start()
@@ -11899,6 +11900,10 @@ private:
                   agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
               "detach_fixture_installs_an_agent_the_profile_does_not_pick");
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        // The default run replaced the project just before this. The shell
+        // settles a replacement on its pacing timer; until then the document
+        // is still the previous project's, and the draft would go there.
+        installed_shell()->persistence()->resolve_pending_boundary();
         const std::string project_id = installed_shell()->persistence()->document().project_id();
         check(!project_id.empty(), "classic_fixture_project_has_an_identity");
         installed_shell()->persistence()->set_draft("unfinished classic view draft");
@@ -12175,9 +12180,23 @@ private:
         // exception is std::terminate -- a 0xC0000409 exit on Windows with
         // nothing printed. Deferred so nothing on the current stack keeps
         // using a frame that has already been shut down.
-        m_app.CallAfter([frame = m_frame] { frame->Close(true); });
+        m_app.CallAfter([self = shared_from_this()] { self->close_frame(); });
         // Safety net: a stray top-level window would keep the loop alive.
         m_exit_watchdog.StartOnce(30000);
+    }
+
+    // A run can end right after the shell came back from classic view, while
+    // one of its new web views still waits in a nested event loop for WebKit
+    // to install its script message handler (WebView::CreateWebView).
+    // Closing the frame inside that wait frees the view under the install, so
+    // the close waits it out, as detach_shell does.
+    void close_frame()
+    {
+        if (m_app.is_adding_script_handler()) {
+            m_close_retry.StartOnce(50);
+            return;
+        }
+        m_frame->Close(true);
     }
 
     GUI_App&                      m_app;
@@ -12208,6 +12227,8 @@ private:
     wxTimer               m_poll_timer{&m_poll_handler};
     wxEvtHandler          m_exit_handler;
     wxTimer               m_exit_watchdog{&m_exit_handler};
+    wxEvtHandler          m_close_handler;
+    wxTimer               m_close_retry{&m_close_handler};
     std::function<bool()> m_wait_condition;
     std::string           m_wait_name;
     std::size_t           m_changes_before_actions{0};

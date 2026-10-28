@@ -41,6 +41,7 @@
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
+#include <wx/timer.h>
 
 #include <algorithm>
 #include <chrono>
@@ -178,6 +179,10 @@ std::unique_ptr<ShellController>& shell_slot()
     static std::unique_ptr<ShellController> shell;
     return shell;
 }
+
+// How long a switch to classic view waits before trying again while a web
+// view is installing its script message handler (detach_shell).
+constexpr int kDetachRetryMs = 50;
 
 // What attach_shell received from the frame being built, kept so the shell
 // can be installed again after a switch to classic view.
@@ -1799,6 +1804,26 @@ ShellController* installed_shell()
 
 void detach_shell()
 {
+    // On macOS a new web view installs its script message handler from a
+    // CallAfter (WebView::CreateWebView), and wx waits for WebKit's reply to
+    // that install inside a nested event loop, with the app's
+    // is_adding_script_handler() flag set until it returns. A switch chosen
+    // just after the shell came back can run inside that wait, and the
+    // uninstall would free the shell's web views under the install. The
+    // switch waits for the install to end instead, as GUI_App::run_wizard
+    // and PrinterPanel do.
+    if (shell_slot() != nullptr && wxGetApp().is_adding_script_handler()) {
+        auto* retry = new wxTimer();
+        retry->Bind(wxEVT_TIMER, [retry](wxTimerEvent&) {
+            // A frame destroyed meanwhile has left the shell uninstalled.
+            if (shell_slot() != nullptr && shell_slot()->is_installed())
+                detach_shell();
+            // Last: this handler goes with the timer.
+            delete retry;
+        });
+        retry->StartOnce(kDetachRetryMs);
+        return;
+    }
     if (shell_slot() != nullptr) {
         left_project() = shell_slot()->open_project();
         shell_slot()->uninstall();
