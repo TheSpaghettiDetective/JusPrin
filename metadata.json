@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6260MYBSVN2WXVBFR64PHB7",
   "strategy": "manual-commit",
   "branch": "claude/setup-changed-entry",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "agent-docs/jusprin/design-system.md",
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
@@ -41,6 +41,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
