@@ -1,0 +1,13 @@
+what are these "fields"? what are they for? how are they populated? what was the rationale behind having them?
+
+---
+
+so the fields are not being used at all now? only get populated? if so, does it mean eb45279cd5 failed to identify it for removal?
+
+---
+
+how is assistant reading them? do we have a system prompt that tells it to read the fields as user input in additional to just raw user input? if so, is it a common practice?
+
+---
+
+the slice_report check: is it by matching keywords, or by call llm? if matching keywords, how reliable is it?
