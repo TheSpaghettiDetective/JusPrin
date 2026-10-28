@@ -651,8 +651,7 @@
         steps.push_back({"close_button", [self] {
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(frame.bubble && !frame.close.empty(), "the_bubble_has_a_close_button");
-            self->check(!rects_overlap(frame.close, frame.ask) && !rects_overlap(frame.close, frame.resolve) &&
-                            frame.close.x >= frame.bubble_rect.x && frame.close.x + frame.close.w <= frame.bubble_rect.x + frame.bubble_rect.w &&
+            self->check(!rects_overlap(frame.close, frame.ask) && frame.close.x >= frame.bubble_rect.x && frame.close.x + frame.close.w <= frame.bubble_rect.x + frame.bubble_rect.w &&
                             frame.close.y >= frame.bubble_rect.y,
                         "the_close_button_is_inside_the_bubble_and_clear_of_the_buttons");
             self->m_pill_right_after = frame.pill_text;
@@ -814,27 +813,22 @@
                         "second_press_with_nothing_changed_adds_no_second_message");
         }});
 
-        // -- 5. Resolve with AI, and the busy path -----------------------------
-        steps.push_back({"resolve_with_ai", [self] {
+        // -- 5. The busy path -------------------------------------------------
+        // Ask AI with nothing changed is the same message (above), so a turn
+        // to hold open is started with another sentence about the issue.
+        steps.push_back({"issue_turn_held_open", [self] {
             self->m_issue_agent->hold    = true; // keep the reply open to see the busy state
             self->m_user_messages_before = self->user_message_count();
             self->m_requests_before      = self->m_issue_agent->requests.size();
-            self->issue_overlay().select(self->m_warning_id);
-            const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.bubble && frame.actions_enabled && !frame.resolve.empty(), "resolve_button_is_drawn_and_enabled");
-            self->click_overlay(frame.resolve);
+            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, "Is this still a problem?").outcome;
         }, [self] { return self->user_message_count() > self->m_user_messages_before; }, [self] {
-            const auto message = self->last_user_message();
-            if (!message) { self->check(false, "resolve_added_a_user_message"); return; }
-            std::cerr << "HARNESS CHAT resolve text='" << message->text << "'\n";
-            self->check(message->text.rfind("Help fix this issue.", 0) == 0, "resolve_message_is_visible_and_says_fix");
+            self->check(self->m_last_outcome == "started", "another_question_about_the_issue_starts_a_turn");
             self->check(self->m_issue_agent->requests.size() == self->m_requests_before + 1 &&
                             self->m_issue_agent->requests.back().session.tool_names.empty(),
-                        "resolve_turn_keeps_the_ordinary_tool_set_and_no_more");
-            self->check(!self->issue_frame().bubble, "resolve_closes_the_bubble_once_the_chat_has_it");
-            // While the reply is open a bubble opened again has its buttons
+                        "an_issue_turn_keeps_the_ordinary_tool_set_and_no_more");
+            // While the reply is open a bubble opened again has its button
             // off, and a press that got through anyway is refused.
-            self->check(self->project_host().busy(), "agent_is_busy_with_the_resolve_turn");
+            self->check(self->project_host().busy(), "agent_is_busy_with_the_issue_turn");
             self->issue_overlay().select(self->m_warning_id);
             const PrintIssues::IssueOverlayFrame busy_frame = self->issue_frame();
             self->check(busy_frame.bubble && !busy_frame.actions_enabled, "buttons_are_disabled_while_a_reply_is_running");
@@ -847,7 +841,7 @@
             self->check(self->project_host().submit_issue_message("issues-queued", "Queued while busy.", "{}") ==
                             Agent::AgentHost::SubmitResult::Queued,
                         "host_queues_a_message_that_arrives_mid_reply");
-            self->capture_issues("09-resolve-busy");
+            self->capture_issues("09-issue-turn-busy");
             self->m_requests_before = self->m_issue_agent->requests.size();
             self->m_issue_agent->release();
         }});
@@ -864,8 +858,7 @@
         steps.push_back({"ignore_warning", [self] {
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(frame.bubble && frame.issue_id == self->m_warning_id && !frame.ignore.empty(), "a_warning_offers_ignore");
-            self->check(!rects_overlap(frame.ignore, frame.ask) && !rects_overlap(frame.ignore, frame.resolve) &&
-                            frame.ignore.y + frame.ignore.h <= frame.bubble_rect.y + frame.bubble_rect.h,
+            self->check(!rects_overlap(frame.ignore, frame.ask) && frame.ignore.y + frame.ignore.h <= frame.bubble_rect.y + frame.bubble_rect.h,
                         "ignore_sits_inside_the_bubble_under_the_buttons");
             self->m_generation_before    = self->issues().generation;
             self->m_announcements_before = self->issue_overlay().announcements();
@@ -947,7 +940,7 @@
         // -- 6. Agent unavailable: the status still works ----------------------
         // With no agent the bubble has one button, which opens Preferences on
         // its Agent section. Closing the window without an agent changes
-        // nothing; closing it with one brings the two buttons back, and
+        // nothing; closing it with one brings Ask AI back, and
         // nothing is sent for the person either way.
         steps.push_back({"agent_unavailable", [self] {
             self->project_host().set_agent(nullptr, Agent::AgentAvailability::Unavailable);
@@ -965,7 +958,7 @@
                         "with_no_agent_nothing_is_sent_to_the_chat");
             installed_shell()->set_agent_pane_collapsed(true);
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.bubble && !frame.set_up.empty() && frame.ask.empty() && frame.resolve.empty(),
+            self->check(frame.bubble && !frame.set_up.empty() && frame.ask.empty(),
                         "with_no_agent_the_bubble_offers_only_setup");
             self->check(std::abs(frame.set_up.w - (frame.bubble_rect.w - 2 * (frame.set_up.x - frame.bubble_rect.x))) < 1.f,
                         "the_setup_button_spans_the_bubble");
@@ -993,9 +986,8 @@
                 std::cerr << "HARNESS DETAIL agent after Preferences: "
                           << Agent::load_agent_runtime(wxGetApp().app_config).unavailable_reason << '\n';
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.bubble && frame.issue_id == self->m_warning_id && frame.set_up.empty() && !frame.ask.empty() &&
-                            !frame.resolve.empty(),
-                        "the_two_buttons_return_once_an_agent_is_there");
+            self->check(frame.bubble && frame.issue_id == self->m_warning_id && frame.set_up.empty() && !frame.ask.empty(),
+                        "ask_ai_returns_once_an_agent_is_there");
             self->check(installed_shell()->is_agent_pane_collapsed() && self->user_message_count() == self->m_user_messages_before,
                         "setting_the_agent_up_sends_nothing_for_the_person");
             self->capture_issues("06b-agent-set-up");
@@ -1021,7 +1013,7 @@
             // Orca has the edit and has not validated it: a press now.
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->m_buttons_right_after = frame.bubble && frame.actions_enabled;
-            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, "Help fix this issue.").outcome;
+            self->m_last_outcome = installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.").outcome;
             self->m_checked_right_after = self->issues().checked;
             const Issue* warning = self->issues().find(self->m_warning_id);
             self->m_stale_right_after = warning != nullptr && warning->stale;
@@ -1036,7 +1028,7 @@
             self->check(self->issues().checked && self->issues().issues.empty(), "native_revalidation_clears_the_issue");
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(!frame.bubble && self->issue_overlay().selected().empty(), "bubble_is_removed_when_the_issue_clears");
-            self->check(installed_shell()->submit_issue(self->m_warning_id, "Help fix this issue.").outcome == "expired",
+            self->check(installed_shell()->submit_issue(self->m_warning_id, "Explain this issue and my options.").outcome == "expired",
                         "a_cleared_issue_cannot_be_submitted");
             self->capture_issues("10-cleared");
         }, [self] {
@@ -1291,7 +1283,7 @@
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(frame.bubble && frame.pager_size == int(self->issues().issues.size()) && !frame.next.empty() && !frame.previous.empty(),
                         "the_bubble_pages_through_every_issue");
-            self->check(!rects_overlap(frame.next, frame.previous) && !rects_overlap(frame.next, frame.resolve) &&
+            self->check(!rects_overlap(frame.next, frame.previous) && !rects_overlap(frame.next, frame.ask) &&
                             !rects_overlap(frame.previous, frame.ignore) &&
                             frame.next.y + frame.next.h <= frame.bubble_rect.y + frame.bubble_rect.h,
                         "the_pager_sits_inside_the_bubble_clear_of_the_other_controls");
@@ -1386,7 +1378,7 @@
                 any = any || issue.object == self->m_deleted_object;
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(!any && !frame.bubble, "no_issue_or_bubble_survives_its_object");
-            self->check(installed_shell()->submit_issue(self->m_deleted_issue, "Help fix this issue.").outcome == "expired",
+            self->check(installed_shell()->submit_issue(self->m_deleted_issue, "Explain this issue and my options.").outcome == "expired",
                         "an_issue_on_a_deleted_object_cannot_be_submitted");
             self->capture_issues("21-after-delete");
         }, [self] {
@@ -1405,7 +1397,7 @@
             const Issue* step = self->issues().find(self->m_step_issue);
             std::cerr << "HARNESS SLICE supports_on step_issue=" << (step == nullptr ? "gone" : step->stale ? "stale" : "current") << '\n';
             self->check(step == nullptr || step->stale, "changing_the_setting_its_step_depends_on_stops_vouching_for_the_warning");
-            self->check(installed_shell()->submit_issue(self->m_step_issue, "Help fix this issue.").outcome !=  "started",
+            self->check(installed_shell()->submit_issue(self->m_step_issue, "Explain this issue and my options.").outcome !=  "started",
                         "a_stale_slice_warning_cannot_be_submitted");
             self->capture_issues("22-remedy-applied-not-yet-resliced");
         }});

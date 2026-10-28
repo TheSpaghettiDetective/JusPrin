@@ -8,6 +8,7 @@
 #include "SettingDisplay.hpp"
 #include "OrcaGeometry.hpp"
 #include "HostLocale.hpp"
+#include "SliceResultWarnings.hpp"
 #include "SliceWarnings.hpp"
 
 #include "libslic3r/ClipperUtils.hpp"
@@ -2406,20 +2407,20 @@ SliceReport OrcaWorkspaceAdapter::slice_report(PlateId plate, const SliceReportR
     if (!report.has_cost)
         report.total_cost = 0.0;
 
-    // Orca's own plate-level warnings, with its own words for them, shown
-    // where Orca's send dialog shows them: never the bed-temperature one, the
-    // timelapse ones only for a print that records a timelapse, and the
-    // traditional-timelapse one once although the processor records it twice
-    // (1000C003 is its copy for older A-series firmware).
-    for (const GCodeProcessorResult::SliceWarning& warning : result.warnings) {
-        if (warning.msg == BED_TEMP_TOO_HIGH_THAN_FILAMENT || warning.error_code == "1000C003")
-            continue;
+    // Orca's own plate-level warnings, with its own words for them, as Orca's
+    // send dialog shows them (SliceResultWarnings): the rule the print-issue
+    // chip reads too. The timelapse ones are listed, marked as applying only
+    // to a print that records a timelapse; the chip does not count them.
+    std::vector<std::string> kinds;
+    for (const GCodeProcessorResult::SliceWarning& warning : result.warnings)
+        kinds.push_back(warning.msg);
+    for (const std::size_t index : shown_slice_result_warnings(kinds)) {
+        const GCodeProcessorResult::SliceWarning& warning = result.warnings[index];
         auto mutable_warning = warning;
         const std::string text = Plater::get_slice_warning_string(mutable_warning).ToUTF8().data();
-        if (text.empty())
-            continue; // Orca deliberately has no words for this one
-        const bool timelapse = warning.msg == NOT_SUPPORT_TRADITIONAL_TIMELAPSE || warning.msg == SMOOTH_TIMELAPSE_WITHOUT_PRIME_TOWER;
-        report.findings.push_back({warning.error_code, text, warning.level >= 2 && !timelapse, {}, timelapse ? "timelapse" : ""});
+        const bool timelapse = slice_result_warning_shown(warning.msg) == SliceResultWarningShown::WhenRecordingTimelapse;
+        report.findings.push_back({warning.error_code, text.empty() ? warning.msg : text, warning.level >= 2 && !timelapse, {},
+                                   timelapse ? "timelapse" : ""});
     }
 
     // The step warnings, which live on the print and its objects rather than on

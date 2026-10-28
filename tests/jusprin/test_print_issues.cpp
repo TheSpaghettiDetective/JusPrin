@@ -1,5 +1,5 @@
 // The print-issue overlay's placement rules and the message a press of
-// "Ask AI" or "Resolve with AI" sends, both free of wx, ImGui and OrcaSlicer.
+// "Ask AI" sends, both free of wx, ImGui and OrcaSlicer.
 
 #include <catch2/catch_all.hpp>
 
@@ -66,8 +66,7 @@ PrintIssueSnapshot snapshot_with(const PrintIssue& issue)
     return snapshot;
 }
 
-const std::string kAsk     = "Explain this issue and my options.";
-const std::string kResolve = "Help fix this issue.";
+const std::string kAsk = "Explain this issue and my options.";
 
 IssueMessageRequest message_request(const std::string& sentence)
 {
@@ -195,11 +194,6 @@ TEST_CASE("an issue message says what was asked and carries the issue as data", 
     // The ids the tools take, so the model can act on the same workspace.
     CHECK(context["workspace"]["sessionId"] == "4");
     CHECK(context["workspace"]["revision"] == 29);
-
-    const IssueMessage resolve = make_issue_message(issue, snapshot, message_request(kResolve));
-    CHECK(resolve.text.rfind("Help fix this issue.", 0) == 0);
-    // The two buttons differ only in the sentence.
-    CHECK(resolve.context_json == ask.context_json);
 }
 
 TEST_CASE("a plate-wide issue names no object and a several-line message stays one quotation", "[print-issues][context]")
@@ -209,13 +203,13 @@ TEST_CASE("a plate-wide issue names no object and a several-line message stays o
     issue.object_name.clear();
     issue.setting = "spiral_mode";
     issue.message = "First line.\nSecond line.";
-    const IssueMessage message = make_issue_message(issue, snapshot_with(issue), message_request(kResolve));
+    const IssueMessage message = make_issue_message(issue, snapshot_with(issue), message_request(kAsk));
     const json context = json::parse(message.context_json);
     CHECK(context["target"]["scope"] == "plate");
     CHECK_FALSE(context["target"].contains("objectId"));
     CHECK_FALSE(context["target"].contains("copyId"));
     CHECK(context["issue"]["setting"] == "spiral_mode");
-    CHECK(message.text == "Help fix this issue.\n\n> First line.\n> Second line.");
+    CHECK(message.text == "Explain this issue and my options.\n\n> First line.\n> Second line.");
 }
 
 TEST_CASE("a repeated press is one message until something changes", "[print-issues][context]")
@@ -225,8 +219,7 @@ TEST_CASE("a repeated press is one message until something changes", "[print-iss
     const std::string  first    = make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id;
 
     CHECK(make_issue_message(issue, snapshot, message_request(kAsk)).client_message_id == first);
-    // The other button, new evidence, another chat or another project is a new message.
-    CHECK(make_issue_message(issue, snapshot, message_request(kResolve)).client_message_id != first);
+    // New evidence, another chat or another project is a new message.
     IssueMessageRequest other_chat = message_request(kAsk);
     other_chat.conversation_id = "c-2";
     CHECK(make_issue_message(issue, snapshot, other_chat).client_message_id != first);

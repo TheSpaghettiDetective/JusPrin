@@ -118,11 +118,10 @@ std::optional<std::vector<Workspace::SliceWarningFinding>> slice_warnings_of(con
     for (const PrintIssue& issue : snapshot.issues) {
         if (issue.severity != IssueSeverity::Warning || issue.stale || issue.plate != snapshot.plate)
             continue;
-        // Every warning the chip lists, the bed-temperature one (1000C001)
-        // and the traditional-timelapse copy for older firmware (1000C003)
-        // among them, though slice_report leaves those two out as
-        // OrcaSlicer's send dialog does: the model is told what the person
-        // is shown.
+        // Every warning the chip lists: the model is told what the person is
+        // shown. slice_report reads the same slice-result rule
+        // (SliceResultWarnings) and adds the timelapse ones the chip leaves
+        // out.
         Workspace::SliceWarningFinding finding;
         finding.id = issue.id;
         // A step's critical warning, and the two paths that cross: what

@@ -1,6 +1,6 @@
 #pragma once
 
-// What a press of "Ask AI" or "Resolve with AI" sends to the chat: the
+// What a press of "Ask AI" sends to the chat: the
 // sentence the person is shown as having said, the issue and its freshness as
 // structured data for the model, and the id that makes a repeated press one
 // message. GUI-free.
@@ -22,8 +22,7 @@ struct IssueMessage
 struct IssueMessageRequest
 {
     // The request in the person's language ("Explain this issue and my
-    // options."), the only difference between the bubble's two buttons;
-    // OrcaSlicer's own words for the issue are quoted beneath it.
+    // options."); OrcaSlicer's own words for the issue are quoted beneath it.
     std::string   request_sentence;
     // What the tools call the workspace the issue belongs to.
     std::uint64_t workspace_session{0};

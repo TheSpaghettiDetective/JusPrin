@@ -16,8 +16,7 @@ describe('projectInstructions', () => {
     expect(projectInstructions()).toBe(fixture);
   });
 
-  it('leaves the print-issue buttons to their skill (skills/print-issues)', () => {
-    expect(projectInstructions()).not.toContain('Help fix this issue.');
+  it('leaves the print-issue button to its skill (skills/print-issues)', () => {
     expect(projectInstructions()).not.toContain('Explain this issue and my options.');
     expect(projectInstructions()).toContain('<print_issue>');
   });

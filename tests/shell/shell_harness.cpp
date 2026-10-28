@@ -196,9 +196,9 @@
 //              slicing warnings and failures read back as issues; the bubble
 //              following camera, zoom, resize and object moves and staying
 //              off its object; every way the list and the bubble close;
-//              ignoring a warning and its undo; both buttons through to the
-//              chat; with no agent, the one button through Preferences ›
-//              Agent and back to the two; stale and cleared issues; deletion, undo, plate switch, project
+//              ignoring a warning and its undo; Ask AI through to the chat;
+//              with no agent, the setup button through Preferences › Agent
+//              and back to Ask AI; stale and cleared issues; deletion, undo, plate switch, project
 //              replacement; OrcaSlicer's own notices not drawn, in Prepare
 //              or in Check print
 //   --print-issues-capture <output-directory>

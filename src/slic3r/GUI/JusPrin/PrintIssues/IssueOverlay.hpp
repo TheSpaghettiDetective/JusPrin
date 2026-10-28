@@ -20,12 +20,12 @@
 //   OrcaSlicer. Turning, moving and zooming the view leave it open, and so
 //   does dragging the object. Its close button closes it and leaves the
 //   selection alone; a plate-wide issue has no object, so there it and
-//   Escape are the ways out. A press on Ask AI or Resolve with AI that
-//   reaches the chat closes it too.
-// - With no agent set up, one button, "Set up the agent…", takes the place
-//   of those two. It opens Preferences on its Agent section and leaves the
-//   bubble as it is: when the window closes with an agent, the two buttons
-//   are back and the person picks one; nothing is sent for them.
+//   Escape are the ways out. A press on Ask AI that reaches the chat closes
+//   it too.
+// - With no agent set up, "Set up the agent…" takes the place of Ask AI. It
+//   opens Preferences on its Agent section and leaves the bubble as it is:
+//   when the window closes with an agent, Ask AI is back and the person
+//   presses it; nothing is sent for them.
 // - With one issue the pill opens and closes the bubble itself: a list of one
 //   would say the same thing twice.
 //
@@ -77,8 +77,8 @@ struct IssueOverlayFrame
     BubbleSide  side{BubbleSide::Docked};
     bool        target_in_view{false};
     float       anchor_x{0}, anchor_y{0};
-    OverlayRect bubble_rect, ask, resolve, close;
-    // Drawn in place of ask and resolve while there is no agent; empty otherwise.
+    OverlayRect bubble_rect, ask, close;
+    // Drawn in place of ask while there is no agent; empty otherwise.
     OverlayRect set_up;
     // Empty unless drawn: the way to the other issues, and "Ignore this
     // warning" or its undo.

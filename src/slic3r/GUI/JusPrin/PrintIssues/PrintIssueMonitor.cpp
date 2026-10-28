@@ -17,6 +17,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/NoticeObserver.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/PlaterProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SliceBounds.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/SliceResultWarnings.hpp"
 
 #include <boost/format.hpp>
 
@@ -486,13 +487,19 @@ void PrintIssueMonitor::read_result(PartPlate& plate, const Print& print, std::v
         m_result = {result, result->id, {}};
         std::vector<PrintIssue>& read = m_result.issues;
 
-        for (const GCodeProcessorResult::SliceWarning& warning : result->warnings) {
+        // The ones OrcaSlicer's send dialog shows, except those that apply
+        // only to a print recording a timelapse, which is chosen at sending.
+        std::vector<std::string> kinds;
+        for (const GCodeProcessorResult::SliceWarning& warning : result->warnings)
+            kinds.push_back(warning.msg);
+        for (const std::size_t index : Workspace::shown_slice_result_warnings(kinds)) {
+            const GCodeProcessorResult::SliceWarning& warning = result->warnings[index];
+            if (Workspace::slice_result_warning_shown(warning.msg) != Workspace::SliceResultWarningShown::Always)
+                continue;
             GCodeProcessorResult::SliceWarning copy = warning;
             const std::string text = Plater::get_slice_warning_string(copy).ToUTF8().data();
-            if (text.empty())
-                continue; // OrcaSlicer has no words for it and shows nothing itself
             read.push_back(plate_issue(plate, IssueSource::SliceResult, IssueSeverity::Warning,
-                                       warning.error_code.empty() ? warning.msg : warning.error_code, text));
+                                       warning.error_code.empty() ? warning.msg : warning.error_code, text.empty() ? warning.msg : text));
         }
 
         // The result's own "outside" flag is only ever written when a sliced

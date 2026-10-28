@@ -57,8 +57,10 @@ add_executable(jusprin_profile_tests
     test_setup_options.cpp
     test_preferences_settings.cpp
     test_printer_origin.cpp
+    test_slice_result_warnings.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Printers/PrinterOrigin.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Workspace/SliceResultWarnings.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Preferences/PreferencesSettings.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Updates/UpdateRecord.cpp
 )

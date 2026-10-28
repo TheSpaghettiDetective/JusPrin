@@ -164,15 +164,18 @@ describe('the skill for issues OrcaSlicer reports', () => {
     expect(encoder.encode(text).length).toBeLessThan(0.75 * encoder.encode(fileLoaded).length);
   });
 
-  it('carries what the chip buttons ask for, with the scope of a fix', () => {
-    expect(text).toContain('"Explain this issue and my options." is a question');
-    expect(text).toContain('"Help fix this issue." asks you to change what the issue names, and only that');
+  it('carries what the chip button asks for, with the scope of a fix', () => {
+    expect(text).toContain('The chip\'s button sends "Explain this issue and my options.": a question');
+    expect(text).toContain('When the person then asks you to fix it, change what the issue names, and only that');
+    expect(text).not.toContain('Help fix this issue.');
     expect(text).toContain('<print_issue>');
   });
 
   it('says how to read a finding and where the warnings are', () => {
     expect(text).toContain('sliceWarnings');
-    expect(text).toContain('The current heatbed temperature is relatively high');
+    // The chip and slice_report never show it (SliceResultWarnings).
+    expect(text).not.toContain('heatbed');
+    expect(text).toContain('appliesWhen "timelapse"');
     expect(text).toContain("slice_report's findings");
     expect(text).toContain('settings_search or settings_get with that key');
     expect(text).toContain('The object, when named, narrows where');

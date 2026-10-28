@@ -660,12 +660,10 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
     const float width = std::round(s.m.print_issues.bubble_width * s.scale);
     const float wrap  = width - 2 * s.pad;
     const ImVec2 message_size = ImGui::CalcTextSize(message.c_str(), nullptr, false, wrap);
-    const ButtonRecipe& ask_recipe     = s.m.button.secondary;
-    const ButtonRecipe& resolve_recipe = s.m.button.primary;
-    // Both recipes size a button by padding around its label; the taller one
-    // sets the row so the pair lines up.
-    const float button_h = std::round(s.line + 2 * std::max(ask_recipe.padding_y, resolve_recipe.padding_y) * s.scale);
-    // Under the buttons: the lesser action on the left, the pager on the right.
+    // One button across the bubble, sized by padding around its label.
+    const ButtonRecipe& recipe   = s.m.button.primary;
+    const float         button_h = std::round(s.line + 2 * recipe.padding_y * s.scale);
+    // Under the button: the lesser action on the left, the pager on the right.
     const float footer_h = paged ? s.icon_button : ignorable ? s.line : 0.f;
 
     BubbleRequest request;
@@ -747,33 +745,25 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
     y += s.pad;
 
     if (ready) {
-        const float button_w = std::round((bubble.w - 2 * s.pad - s.gap) / 2);
-        const OverlayRect ask{bubble.x + s.pad, y, button_w, button_h};
-        const OverlayRect resolve{ask.x + ask.w + s.gap, y, bubble.w - 2 * s.pad - s.gap - button_w, button_h};
-        m_frame.ask     = ask;
-        m_frame.resolve = resolve;
+        const OverlayRect ask{bubble.x + s.pad, y, bubble.w - 2 * s.pad, button_h};
+        m_frame.ask = ask;
+        // One question, and the agent may then fix what the person asks it
+        // to: a second "fix" button sent the same context with the same tools.
         // A press that reached the chat closes the bubble: the answer is there.
-        const auto submit = [this, id = issue.id](std::string request) {
-            after_frame([id, request](IssueOverlay& self) {
-                if (self.m_actions.submit && self.m_actions.submit(id, request) && self.m_selected == id)
+        if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(recipe.radius * s.scale), enabled, s.p.action_primary,
+                   s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
+            after_frame([id = issue.id](IssueOverlay& self) {
+                if (self.m_actions.submit && self.m_actions.submit(id, _u8L("Explain this issue and my options.")) && self.m_selected == id)
                     self.close_bubble();
             });
-        };
-        // A secondary button shows the bubble behind it; hover is the quiet-control fill.
-        if (button(draw, "##ask", ask, _u8L("Ask AI"), std::round(ask_recipe.radius * s.scale), enabled, s.p.surface_raised,
-                   s.p.surface_subtle, s.p.text_primary, &s.p.border_subtle, s.p))
-            submit(_u8L("Explain this issue and my options."));
-        if (button(draw, "##resolve", resolve, _u8L("Resolve with AI"), std::round(resolve_recipe.radius * s.scale), enabled,
-                   s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
-            submit(_u8L("Help fix this issue."));
     } else {
-        // Nothing the two buttons promise could happen yet, so one button
-        // across the bubble leads to where the agent is set up. It needs no
-        // checked issue and leaves the bubble open behind the window. Three
-        // dots: the canvas font has no ellipsis character.
+        // Nothing Ask AI promises could happen yet, so the button in its
+        // place leads to where the agent is set up. It needs no checked issue
+        // and leaves the bubble open behind the window. Three dots: the
+        // canvas font has no ellipsis character.
         const OverlayRect set_up{bubble.x + s.pad, y, bubble.w - 2 * s.pad, button_h};
         m_frame.set_up = set_up;
-        if (button(draw, "##set_up", set_up, _u8L("Set up the agent..."), std::round(resolve_recipe.radius * s.scale), true,
+        if (button(draw, "##set_up", set_up, _u8L("Set up the agent..."), std::round(recipe.radius * s.scale), true,
                    s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
             after_frame([](IssueOverlay& self) {
                 if (self.m_actions.set_up_agent)

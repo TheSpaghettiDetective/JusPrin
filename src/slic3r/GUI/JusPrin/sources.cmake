@@ -216,6 +216,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/ProjectVersionStore.cpp
     GUI/JusPrin/Workspace/ProjectVersionStore.hpp
     GUI/JusPrin/Workspace/ProjectState.hpp
+    GUI/JusPrin/Workspace/SliceResultWarnings.cpp
+    GUI/JusPrin/Workspace/SliceResultWarnings.hpp
     GUI/JusPrin/Workspace/Workspace.hpp
     GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
