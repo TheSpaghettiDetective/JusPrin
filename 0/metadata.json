@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M61VWWRQ5DM67Y1QBWZV97KN",
+  "session_id": "4219b55f-d6b6-4807-b23b-1c973a54c315",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T18:21:04.076254Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "a67ec923d9c3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2772,
+    "cache_creation_tokens": 1289019,
+    "cache_read_tokens": 43126189,
+    "output_tokens": 178340,
+    "api_call_count": 96
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Df2rq3th32rjXbgqMpZwKx",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "a67ec923d9c3",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1188,
+        "end": 1189,
+        "entry_ids": [
+          "324c544b-6c8b-4df6-bc74-04a34b6c41e0"
+        ],
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Df2rq3th32rjXbgqMpZwKx"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
