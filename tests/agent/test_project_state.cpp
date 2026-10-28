@@ -1250,7 +1250,8 @@ TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[pe
     SECTION("a person's edit marks it") {
         REQUIRE(workspace.rename_object(cube, "bracket").succeeded());
         CHECK(document.plan().validity == "needs_reassessment");
-        CHECK(document.plan().invalidated_by == "Rename Object");
+        // What changed and who changed it, as the card and the model read it.
+        CHECK(document.plan().invalidated_by == "Rename Object, by hand");
     }
 
     SECTION("a person's Undo and Redo mark it, even of the agent's own step") {
@@ -1262,10 +1263,12 @@ TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[pe
         REQUIRE(workspace.undo().succeeded());
         CHECK(document.plan().validity == "needs_reassessment");
         CHECK(document.changes().back().kind == "undo");
+        CHECK(document.plan().invalidated_by == "Rename Object undone by hand");
         pin();
         REQUIRE(workspace.redo().succeeded());
         CHECK(document.plan().validity == "needs_reassessment");
         CHECK(document.changes().back().kind == "redo");
+        CHECK(document.plan().invalidated_by == "Rename Object redone by hand");
     }
 
     SECTION("another agent's edit through MCP marks it") {
@@ -1275,6 +1278,7 @@ TEST_CASE("only edits the in-app agent did not make put its plan in doubt", "[pe
         }
         CHECK(document.changes().back().external);
         CHECK(document.plan().validity == "needs_reassessment");
+        CHECK(document.plan().invalidated_by == "Rename Object, by another app");
     }
 }
 

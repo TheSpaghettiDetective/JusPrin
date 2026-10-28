@@ -450,7 +450,8 @@ export function App({
           action: 'compute_setup_estimates', sessionId: current.sessionId, plateId: plate.id,
         });
       }}
-      onViewSetup={() => setView('allSettings')} />
+      onViewSetup={() => setView('allSettings')}
+      onCheckPlan={historical ? undefined : () => sendMessage('Check the plan against what changed.', false)} />
   </div>;
   const pendingAction = state.toolActivities.some((activity) =>
     state.messages.some((message) => message.id === activity.correlationId) &&

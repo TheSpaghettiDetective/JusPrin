@@ -83,6 +83,9 @@ public:
     // ("#RRGGBB", or empty). Supplied by ShellController once the Agent pane
     // exists, so the header does not depend on the Agent host.
     void set_note_sink(std::function<void(const wxString&, const wxString&)> sink) { m_note_sink = std::move(sink); }
+    // Whether the chat holds a plan the change puts in doubt. The line then
+    // leaves out "Slice again when ready": the setup card offers the check.
+    void set_plan_recorded(std::function<bool()> recorded) { m_plan_recorded = std::move(recorded); }
 
     // The Agent-panel toggle, supplied by ShellController for the same reason
     // as the note sink: the header drives the panel without depending on it.
@@ -125,6 +128,7 @@ private:
     HeaderButton* m_agent_toggle{nullptr};
 
     std::function<void(const wxString&, const wxString&)> m_note_sink;
+    std::function<bool()>                                 m_plan_recorded;
     std::function<void()>                                 m_agent_pane_toggle;
     std::function<void()>                                 m_left_pane_toggle_callback;
     std::function<void(ProjectMenuRow)>                   m_project_rows;

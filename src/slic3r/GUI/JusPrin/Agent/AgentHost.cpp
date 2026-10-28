@@ -2854,9 +2854,13 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     // change, or one made between turns), or an earlier version the person
     // restored since the model last replied, which brings back that
     // version's setup and plan under the purpose recorded now. A restore
-    // cancels the turn in flight, so this is a turn's first request.
+    // cancels the turn in flight, so this is a turn's first request. And
+    // every turn while the plan is in doubt: only the model recording it
+    // again clears the card's mark, and the turn that answers its question
+    // about the change finds the setup checked already.
     if (request.skills.empty() &&
-        (request.setup_unchecked_change || (purpose_recorded(conversation_id) && document.restored_since_reply(assistant.id))))
+        (request.setup_unchecked_change || request.plan.validity == "needs_reassessment" ||
+         (purpose_recorded(conversation_id) && document.restored_since_reply(assistant.id))))
         if (std::optional<AgentSkillUse> skill = fire_skill(Protocol::SkillTrigger::kSetupChanged, conversation_id,
                                                             request.workspace))
             request.skills.push_back(std::move(*skill));

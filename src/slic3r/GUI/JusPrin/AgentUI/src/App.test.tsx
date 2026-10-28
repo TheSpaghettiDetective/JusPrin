@@ -1240,17 +1240,28 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     const planned: WorkspaceContext = { ...applied, setupIntent: 'Halloween headband costume for my kid',
       planHeadline: 'P1S PLA, sturdier walls for the clip', planValidity: 'needs_reassessment',
-      planInvalidatedBy: 'Import Object: Print_Bed_Level_Test.stl' };
+      planInvalidatedBy: 'Import Object: Print_Bed_Level_Test.stl, by hand' };
     connect(host, emptyState({ context: planned, changes: [{ seq: 4, createdAt: new Date().toISOString(), kind: 'step',
       actor: 'person', label: 'Import Object: Print_Bed_Level_Test.stl', conversationId: 'conv-1', afterId: 'm-1' }] }));
     const card = () => screen.getByTestId('current-setup');
-    expect(card()).toHaveTextContent('Plan needs another look · Import Object: Print_Bed_Level_Test.stl');
+    expect(card()).toHaveTextContent('Import Object: Print_Bed_Level_Test.stl, by hand');
     expect(card()).toHaveTextContent('Halloween headband costume for my kid');
     // The import is the thread's row, never the card's.
     expect(card()).not.toHaveTextContent(/Edited by|Updated|Undo/);
     host.deliver('context', { context: { ...planned, revision: 3, planValidity: 'current', planInvalidatedBy: '' } });
-    expect(card()).not.toHaveTextContent('Plan needs another look');
+    expect(card()).not.toHaveTextContent('by hand');
     expect(card()).toHaveTextContent('P1S PLA, sturdier walls for the clip');
+  });
+
+  it('sends the person\'s request to check the plan from the mark\'s link', async () => {
+    render(<App getTransport={() => host.transport} />);
+    const planned: WorkspaceContext = { ...applied, setupIntent: 'Garage wall hook for a 1.5 kg bike helmet',
+      planHeadline: 'Printed on its side for strength', planValidity: 'needs_reassessment',
+      planInvalidatedBy: 'Filament changed to Generic ABS by hand' };
+    connect(host, emptyState({ context: planned }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check plan' }));
+    expect(host.lastOfType('user_message')?.payload).toMatchObject({
+      text: 'Check the plan against what changed.', attachmentIds: [] });
   });
 });
 

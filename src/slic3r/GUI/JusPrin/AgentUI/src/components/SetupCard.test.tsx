@@ -31,7 +31,7 @@ const delta = (key: string, label: string, display: string, extra: Partial<Prese
   page: 'Strength', group: 'Walls', ...extra });
 
 const HEADLINE = 'Four walls and gyroid infill for strength';
-const REASON = 'Import Object: Print_Bed_Level_Test.stl';
+const REASON = 'Filament changed to Generic ABS by hand';
 
 function show(value: WorkspaceContext, props: Partial<SetupCardProps> = {}) {
   render(<SetupCard context={value} onViewSetup={() => {}} {...props} />);
@@ -129,7 +129,9 @@ describe('the plan\'s mark', () => {
 
   it('annotates the plan with the edit that put it in doubt, and leaves the purpose alone', () => {
     const card = show(marked());
-    expect(annotations(card)).toEqual([`Plan needs another look · ${REASON}`]);
+    // The host's words say what changed and who changed it; "needs another
+    // look" is what the Check plan link beside them offers.
+    expect(annotations(card)).toEqual([REASON]);
     expect(within(card).getByRole('heading')).toHaveTextContent('Quick fit check');
     const note = card.querySelector('.current-setup-annotation')!;
     expect(card.querySelector('.current-setup-strategy')!.compareDocumentPosition(note) &
@@ -141,6 +143,26 @@ describe('the plan\'s mark', () => {
 
   it('says only that the plan needs another look when the app gave no reason', () => {
     expect(planNote({ ...marked(), planInvalidatedBy: '' })).toBe('Plan needs another look');
+  });
+
+  it('offers Check plan on the mark of a live card, and nowhere else', async () => {
+    const onCheckPlan = vi.fn();
+    const live = { onCompute: () => {}, onCheckPlan };
+    const link = (card: HTMLElement) => within(card).queryByRole('button', { name: 'Check plan' });
+    const card = show(marked(), live);
+    expect(link(card)!.closest('.current-setup-annotation')).toHaveTextContent(REASON);
+    await userEvent.click(link(card)!);
+    expect(onCheckPlan).toHaveBeenCalledTimes(1);
+    cleanup();
+    // Not while the agent works, on a saved card, with no agent, or without
+    // the mark: a calibration test's lost steps are no plan to check.
+    for (const props of [{ working: true }, { historical: true }, { agentAvailable: false }]) {
+      expect(link(show(marked(), { ...live, ...props }))).toBeNull();
+      cleanup();
+    }
+    expect(link(show({ ...marked(), planValidity: 'current' }, live))).toBeNull();
+    cleanup();
+    expect(link(show(marked(), { onCompute: () => {} }))).toBeNull();
   });
 
   it('goes when the plan is recorded again, and is never drawn without a plan', () => {
@@ -156,7 +178,7 @@ describe('the plan\'s mark', () => {
     const value = { ...context(), calibration: tower };
     expect(annotations(show(value))).toEqual(['Temperature steps not kept in the file']);
     // One annotation per line: the app's mark first.
-    expect(planNote({ ...marked(), calibration: tower })).toBe(`Plan needs another look · ${REASON}`);
+    expect(planNote({ ...marked(), calibration: tower })).toBe(REASON);
     const holding = { ...value, plates: value.plates.map((plate) => ({ ...plate,
       calibration: { test: 'temperature', start: 230, end: 190, step: 5 } })) };
     expect(planNote(holding)).toBe('');

@@ -306,7 +306,10 @@ public:
     PlanRecord plan(const std::string& conversation_id) const;
     // Replaces the plan wholesale: it is one statement, not a list of edits.
     PlanRecord set_plan(PlanRecord record, const std::string& timestamp);
-    bool mark_plan_needs_reassessment(const std::string& reason);
+    // Puts the active chat's plan in doubt, saying why. While it is in doubt
+    // a later reason replaces the shown one unless that one weighs more: a
+    // printer switch is not hidden behind the setting edits that follow it.
+    bool mark_plan_needs_reassessment(const std::string& reason, int weight = 0);
     // Region annotations of the model in the workspace. They label modifier
     // volumes, paint and overrides that live in the model, so they belong
     // with it, not with a chat: every saved model version records the list it

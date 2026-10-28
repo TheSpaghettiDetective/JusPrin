@@ -229,6 +229,14 @@ describe('the skill for a setup to check against the print\'s purpose', () => {
     expect(text).toContain('restores an earlier version, the plan may be stale');
   });
 
+  it('keeps the card\'s mark while a choice about the change is open', () => {
+    // 2026-10-28 walkthrough: the model restated its headline mid-turn while
+    // recommending a switch back, and the mark left before the person chose.
+    expect(text).toContain('the setup card shows the mark until you record the plan again');
+    expect(text).toContain('record nothing yet: record the plan in the reply to their answer');
+    expect(text).not.toContain('record the plan again with setup_record in this reply');
+  });
+
   it('leaves asking and scope to the standing prompt', () => {
     expect(text).not.toMatch(/\bask\b/i);
     expect(text).not.toContain('did not ask for');

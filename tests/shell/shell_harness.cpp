@@ -105,8 +105,8 @@
 //              (setup-differences-agent-card), and its page
 //              (setup-differences-agent-page); the plan stays current
 //              through the agent's own patch. A hand edit then annotates the
-//              plan line "Plan needs another look · Sparse infill density"
-//              (setup-differences-edited-card) and marks the plan
+//              plan line "Sparse infill density changed to … by hand" with a
+//              Check plan link (setup-differences-edited-card) and marks the plan
 //              needs_reassessment; a setup_record with only the headline
 //              clears it and keeps the purpose; an imported part marks it
 //              again with the import's name (setup-differences-imported-card).
@@ -8936,7 +8936,7 @@ private:
         DynamicPrintConfig edited;
         edited.set_deserialize_strict("sparse_infill_density", "40%");
         wxGetApp().get_tab(Preset::TYPE_PRINT)->load_config(edited);
-        await_setup_text("edited", "[data-testid=\"current-setup\"]", "/Plan needs another look/.test(scope.innerText)",
+        await_setup_text("edited", "[data-testid=\"current-setup\"]", "/ by hand/.test(scope.innerText)",
                          [self = shared_from_this()] { self->capture_setup_differences_edited(); });
     }
 
@@ -8944,13 +8944,13 @@ private:
     {
         const std::string card = persistence().draft();
         std::cout << "HARNESS SETUP " << card << std::endl;
-        check(card.find("Wide brim and a slow first layer for adhesion | Plan needs another look \xC2\xB7 Sparse infill density | ") !=
-                  std::string::npos,
+        const Agent::PlanRecord plan = persistence().document().plan();
+        check(card.find("Wide brim and a slow first layer for adhesion | " + plan.invalidated_by) != std::string::npos,
               "setup_card_annotates_the_plan_line_with_the_hand_edit");
         check(card.find("Edited by") == std::string::npos && card.find("outside the agent") == std::string::npos,
               "setup_card_names_no_hand_edit_as_a_state");
-        const Agent::PlanRecord plan = persistence().document().plan();
-        check(plan.validity == "needs_reassessment" && plan.invalidated_by == "Sparse infill density",
+        check(plan.validity == "needs_reassessment" && plan.invalidated_by.rfind("Sparse infill density changed to ", 0) == 0 &&
+                  plan.invalidated_by.size() > 8 && plan.invalidated_by.substr(plan.invalidated_by.size() - 8) == " by hand",
               "hand_edit_marks_the_plan_for_the_model");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-edited-card");
         // Only the agent recording the plan again clears the mark. A headline
@@ -8958,7 +8958,7 @@ private:
         run_setup_tool("setup_record", {{"headline", "Wide brim and a slow first layer for adhesion"}},
                        "setup_differences_agent_records_the_plan_again");
         await_setup_text("replanned", "[data-testid=\"current-setup\"]",
-                         "!/Plan needs another look/.test(scope.innerText) && !!scope.querySelector('.current-setup-strategy')",
+                         "!/ by hand/.test(scope.innerText) && !!scope.querySelector('.current-setup-strategy')",
                          [self = shared_from_this()] { self->import_setup_differences_part(); });
     }
 
@@ -8983,7 +8983,7 @@ private:
                              changes.back().actor + " " + changes.back().kind + " " + changes.back().label)
                       << "; plan " << plan.validity << " " << plan.invalidated_by << std::endl;
             self->await_setup_text("imported", "[data-testid=\"current-setup\"]",
-                                   "/Plan needs another look/.test(scope.innerText) && !scope.querySelector('.current-setup-state')",
+                                   "/ by hand/.test(scope.innerText) && !scope.querySelector('.current-setup-state')",
                                    [self] { self->capture_setup_differences_imported(); });
         });
     }
@@ -8995,7 +8995,7 @@ private:
         const Agent::PlanRecord plan = persistence().document().plan();
         std::cout << "HARNESS SETUP import reason " << plan.invalidated_by << std::endl;
         check(plan.validity == "needs_reassessment" && !plan.invalidated_by.empty(), "import_marks_the_plan");
-        check(card.find("adhesion | Plan needs another look \xC2\xB7 " + plan.invalidated_by + " | ") != std::string::npos,
+        check(card.find("adhesion | " + plan.invalidated_by) != std::string::npos,
               "setup_card_annotates_the_plan_line_with_the_import");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-imported-card");
         run_in_agent_page("document.querySelector('.agent-pane-toggle').click()");

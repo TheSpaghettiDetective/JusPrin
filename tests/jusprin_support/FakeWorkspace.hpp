@@ -180,6 +180,17 @@ public:
         publish(WorkspaceChangeReasons::Settings);
     }
 
+    // The edit the real adapter reports for a preset the person picks by hand
+    // (the header's filament chip), named as OrcaSlicer names the preset
+    // ("Generic ABS @System"); the selection itself is apply_printer_setup's.
+    void report_preset_edit_for_testing(std::string location, std::string name)
+    {
+        WorkspaceEdit edit{EditKind::Preset, EditActor::Person, std::move(name)};
+        edit.location = std::move(location);
+        publish_edit(std::move(edit));
+        publish(WorkspaceChangeReasons::Settings);
+    }
+
     // A real undo step that changes nothing the fake projects, named as
     // OrcaSlicer names its steps (possibly empty), e.g. one paint stroke.
     void record_step_for_testing(std::string name)

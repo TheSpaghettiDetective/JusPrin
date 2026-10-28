@@ -11,7 +11,8 @@ import { CatalogSettingInfo, PresetDeltaInfo, SettingsCatalogPayload, WorkspaceC
 import { SetupCard, SetupCardProps } from './SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './AllSettings';
 
-type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onViewSetup'> & { compute?: boolean };
+type CaseProps = Omit<SetupCardProps, 'context' | 'onCompute' | 'onViewSetup' | 'onCheckPlan'> & {
+  compute?: boolean; checkPlan?: boolean };
 
 export interface SetupVisualCase {
   id: string;
@@ -136,8 +137,8 @@ export const setupVisualCases: SetupVisualCase[] = [
   { id: 'stale', name: 'Estimates not current', kind: 'card', context: stale, props: { compute: true } },
   { id: 'plan-mark', name: 'Plan needs another look', kind: 'card',
     context: variant((value) => { value.planValidity = 'needs_reassessment';
-      value.planInvalidatedBy = 'Import Object: Print_Bed_Level_Test.stl';
-      value.plates[0].estimateStatus = 'recomputing'; }), props: {} },
+      value.planInvalidatedBy = 'Filament changed to Generic ABS by hand';
+      value.plates[0].estimateStatus = 'recomputing'; }), props: { compute: true, checkPlan: true } },
   { id: 'material', name: 'Printer reports another material', kind: 'card',
     context: variant((value) => { value.printerReview = { observed: { observedAt: saved, connection: 'online' },
       mismatches: [{ what: 'filament', configured: 'ABS', observed: 'PLA', source: 'device' }] }; }), props: {} },
@@ -210,8 +211,9 @@ export function visualCatalog(context: WorkspaceContext): SettingsCatalogPayload
 // case says the host could carry the action out. A panel comes with the
 // header it has in the pane.
 export function renderVisualCase(entry: SetupVisualCase, handlers: {
-  onViewSetup?: () => void; onCompute?: () => void; onBack?: () => void; onCollapse?: () => void } = {}) {
-  const { compute, ...props } = entry.props;
+  onViewSetup?: () => void; onCompute?: () => void; onCheckPlan?: () => void; onBack?: () => void;
+  onCollapse?: () => void } = {}) {
+  const { compute, checkPlan, ...props } = entry.props;
   // The one-object case is drawn on the object the 3D view has.
   if (entry.kind === 'page')
     return <><AllSettingsHeader onBack={handlers.onBack ?? (() => {})} onCollapse={handlers.onCollapse ?? (() => {})} />
@@ -219,5 +221,6 @@ export function renderVisualCase(entry: SetupVisualCase, handlers: {
         initialScope={entry.id === 'page-objects' ? { kind: 'object', id: '0' } : undefined} /></>;
   return <SetupCard context={entry.context} {...props}
     onViewSetup={handlers.onViewSetup ?? (() => {})}
-    onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined} />;
+    onCompute={compute ? handlers.onCompute ?? (() => {}) : undefined}
+    onCheckPlan={checkPlan ? handlers.onCheckPlan ?? (() => {}) : undefined} />;
 }

@@ -98,7 +98,7 @@ describe('the card\'s other states', () => {
     recomputing: ['Time & material estimates recomputing…'],
     stale: ['Setup summary', '~2h 18m', 'Previous estimates · not current', 'Recompute'],
     'plan-mark': ['Stop the corners lifting', 'Wide brim and a slow first layer for adhesion',
-      'Plan needs another look · Import Object: Print_Bed_Level_Test.stl', 'Time & material estimates recomputing…'],
+      'Filament changed to Generic ABS by hand', 'Check plan', 'Time & material estimates recomputing…'],
     material: ['Generic ABS +2 · 7 settings changed', 'Printer last reported PLA'],
     'no-agent': ['0.20mm Standard · Generic ABS +2', 'Not sliced yet', 'No agent configured · using the selected preset.'],
     sent: ['Saved sliced snapshot', 'Sliced & sent', 'Sent to MyKlipper · Oct 8, 10:42. Saved snapshot: the canvas shows your current project.'],
@@ -136,7 +136,7 @@ describe('the card\'s other states', () => {
       cleanup();
       return found;
     };
-    expect(notes('plan-mark')).toEqual([{ text: 'Plan needs another look · Import Object: Print_Bed_Level_Test.stl',
+    expect(notes('plan-mark')).toEqual([{ text: 'Filament changed to Generic ABS by handCheck plan',
       after: 'current-setup-strategy' }]);
     expect(notes('material')).toEqual([{ text: 'Printer last reported PLA', after: 'current-setup-facts' }]);
     expect(notes('stale')).toEqual([{ text: 'Previous estimates · not currentRecompute', after: 'current-setup-metrics' }]);

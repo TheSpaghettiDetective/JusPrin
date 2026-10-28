@@ -489,7 +489,8 @@ void StatusRow::on_filament_visit(const FilamentMenu::Visit& visit)
                        wxString::Format(_L("slot %d %s"), int(slot + 1), name_of(slot));
         note = wxString::Format(_L("Filaments changed: %s."), changed);
     }
-    note += " " + _L("Slice again when ready.");
+    if (!m_plan_recorded || !m_plan_recorded())
+        note += " " + _L("Slice again when ready.");
     m_note_sink(note, colour);
 }
 

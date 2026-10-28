@@ -5193,6 +5193,115 @@ TEST_CASE("a setup change is unchecked until the model is asked to check it, onc
     }
 }
 
+// The 2026-10-28 walkthrough (frames 2C-02 to 2C-05): after a plan, the
+// person switched the filament from the header chip and sliced. The card's
+// mark must name the change in their words, survive the slice, and go only
+// when the model records the plan again, which it may leave to the turn that
+// answers its question; every turn until then carries the setup skill.
+TEST_CASE("a plan put in doubt by hand keeps its mark and the setup skill until the model records it again",
+          "[agent][skills][setup-skill][plan]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    with_printer_choices(harness.workspace);
+    harness.handshake();
+    harness.deliver("skills", skills_with_setup_check());
+    const auto fires = [](const AgentRequest& request) {
+        return std::any_of(request.skills.begin(), request.skills.end(),
+                           [](const AgentSkillUse& skill) { return skill.trigger == "setup_changed"; });
+    };
+    const auto card = [&harness] { return harness.of_type("context").back()["payload"]["context"]; };
+    const auto last_turn = [agent]() -> const AgentRequest& {
+        return *std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+            return request.purpose == AgentRequest::Purpose::Reply;
+        });
+    };
+    const std::string reason = "Filament changed to Generic PETG by hand";
+
+    run_call(harness, *agent, setup_call({{"purpose", "A strong hook"}, {"headline", "Printed on its side for strength"}}),
+             "Make it a strong hook.");
+    REQUIRE(card()["planValidity"] == "current");
+    CHECK_FALSE(fires(run_reply(harness, *agent, "Thanks.")));
+
+    // The person picks another filament from the header chip: the card names
+    // it without the preset library's suffix, and nothing starts a turn.
+    std::size_t requests = agent->requests.size();
+    hand_setup(harness.workspace, "Generic PETG");
+    harness.workspace.report_preset_edit_for_testing("filament", "Generic PETG @System");
+    harness.pump_all();
+    CHECK(agent->requests.size() == requests);
+    CHECK(card()["planValidity"] == "needs_reassessment");
+    CHECK(card()["planInvalidatedBy"] == reason);
+    // A setting edited after it does not hide the switch.
+    harness.workspace.set_setting_for_testing("wall_loops", "4");
+    CHECK(card()["planInvalidatedBy"] == reason);
+
+    // The person slices: still no turn, and the mark stays.
+    REQUIRE(harness.workspace.start_slice(std::nullopt, false).succeeded());
+    harness.workspace.finish_slice_for_testing(true);
+    harness.host.pump_tools();
+    harness.pump_all();
+    CHECK(agent->requests.size() == requests);
+    CHECK(card()["planValidity"] == "needs_reassessment");
+
+    // The card's Check plan: the turn carries the skill and reads the mark.
+    const AgentRequest check = run_reply(harness, *agent, "Check the plan against what changed.");
+    CHECK(check.setup_unchecked_change);
+    CHECK(fires(check));
+    CHECK(check.plan.validity == "needs_reassessment");
+    CHECK(check.plan.invalidated_by == reason);
+    // It recommended a change and recorded nothing: the mark stays.
+    CHECK(card()["planValidity"] == "needs_reassessment");
+
+    // The answer's turn finds the setup checked, yet still carries the skill
+    // that tells it to record the plan, and recording it clears the mark.
+    run_call(harness, *agent, setup_call({{"headline", "Printed on its side for strength, in PETG"}}), "Keep PETG.");
+    CHECK_FALSE(last_turn().setup_unchecked_change);
+    CHECK(fires(last_turn()));
+    CHECK(card()["planValidity"] == "current");
+    CHECK(card()["planInvalidatedBy"] == "");
+
+    // Recorded again: the next turn carries nothing.
+    const AgentRequest after = run_reply(harness, *agent, "Thanks.");
+    CHECK_FALSE(fires(after));
+    CHECK_FALSE(after.setup_unchecked_change);
+    CHECK(after.plan.validity == "current");
+}
+
+TEST_CASE("the plan's mark says what changed and who changed it", "[agent][plan]")
+{
+    auto agent_owner = std::make_unique<OneCallAgent>();
+    OneCallAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
+    harness.handshake();
+    const auto reason = [&harness] { return harness.persistence.document().plan().invalidated_by; };
+    const auto replan = [&] {
+        run_call(harness, *agent, setup_call({{"headline", "Printed on its side for strength"}}), "Plan it.");
+        REQUIRE(harness.persistence.document().plan().validity == "current");
+    };
+
+    replan();
+    harness.workspace.report_preset_edit_for_testing("printer", "Bambu Lab A1 mini 0.4 nozzle");
+    CHECK(reason() == "Printer changed to Bambu Lab A1 mini 0.4 nozzle by hand");
+    // A printer switch brings filament and process switches with it: the
+    // printer stays the reason, as it does over any later setting.
+    harness.workspace.report_preset_edit_for_testing("filament", "Bambu PLA Basic @BBL A1M");
+    harness.workspace.report_preset_edit_for_testing("process", "0.20mm Standard @BBL A1M");
+    CHECK(reason() == "Printer changed to Bambu Lab A1 mini 0.4 nozzle by hand");
+
+    replan();
+    harness.workspace.report_preset_edit_for_testing("process", "0.16mm Optimal @BBL A1M");
+    CHECK(reason() == "Print settings changed to 0.16mm Optimal by hand");
+    // Two switches of one kind: the later one is what holds now.
+    harness.workspace.report_preset_edit_for_testing("process", "0.20mm Standard @BBL A1M");
+    CHECK(reason() == "Print settings changed to 0.20mm Standard by hand");
+
+    replan();
+    harness.workspace.record_step_for_testing("Move Object");
+    CHECK(reason() == "Move Object, by hand");
+}
+
 // Board 5: the Agent proposes a preset with a preview; the person's Save
 // preset saves exactly that, and the app's receipt starts the Agent's turn.
 TEST_CASE("a preset the Agent proposes is saved by the person's Save preset, with a receipt", "[agent][tools][settings]")

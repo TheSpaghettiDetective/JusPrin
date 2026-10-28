@@ -71,6 +71,39 @@ const char* edit_kind_name(Workspace::EditKind kind)
     throw std::logic_error("Unknown workspace edit kind");
 }
 
+// What put the plan in doubt, as the setup card shows it and the model
+// reads it, so in words that suit both: what changed and who changed it
+// ("Filament changed to Generic ABS by hand"). A preset's library suffix
+// (" @System", " @BBL A1M") is not the person's word and is dropped.
+std::string plan_doubt_reason(const Workspace::WorkspaceEdit& edit)
+{
+    const std::string by = edit.actor == Workspace::EditActor::Person ? "by hand"
+                         : "by " + (edit.client.empty() ? std::string("another app") : edit.client);
+    const auto short_preset = [](const std::string& name) { return name.substr(0, name.find(" @")); };
+    switch (edit.kind) {
+    case Workspace::EditKind::Preset: {
+        const std::string what = edit.location == "printer"  ? "Printer"
+                               : edit.location == "filament" ? "Filament" : "Print settings";
+        return what + " changed to " + short_preset(edit.label) + " " + by;
+    }
+    case Workspace::EditKind::Setting:
+        return edit.label + " changed" + (edit.after.empty() ? std::string() : " to " + edit.after) + " " + by;
+    case Workspace::EditKind::Undo: return edit.label.empty() ? "Undone " + by : edit.label + " undone " + by;
+    case Workspace::EditKind::Redo: return edit.label.empty() ? "Redone " + by : edit.label + " redone " + by;
+    case Workspace::EditKind::Step: break;
+    }
+    return edit.label.empty() ? "The project changed " + by : edit.label + ", " + by;
+}
+
+// Which reason the card keeps while the plan is in doubt: a setup switch
+// over the setting edits and steps that follow it, the printer above all.
+int plan_doubt_weight(const Workspace::WorkspaceEdit& edit)
+{
+    if (edit.kind != Workspace::EditKind::Preset)
+        return 0;
+    return edit.location == "printer" ? 3 : edit.location == "filament" ? 2 : 1;
+}
+
 } // namespace
 
 // Shared with each subscription's unsubscribe closure, which outlives neither
@@ -147,7 +180,7 @@ void ProjectPersistence::on_edit(const Workspace::WorkspaceEdit& edit)
     // doubt. A person's edit, Undo and Redo, and an external MCP client's
     // edit do.
     if (edit.actor != Workspace::EditActor::Agent)
-        m_document.mark_plan_needs_reassessment(stored.label.empty() ? "The project changed" : stored.label);
+        m_document.mark_plan_needs_reassessment(plan_doubt_reason(edit), plan_doubt_weight(edit));
     // A paint session is a burst of edits; the owner's pacing timer writes them.
     commit();
     if (m_change_added)
@@ -400,7 +433,8 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     change.from = from_version;
     change.to = selected_version;
     current.add_change(std::move(change), m_config.clock());
-    current.mark_plan_needs_reassessment("An earlier model version was restored");
+    // A restore brings back another version's setup whole: no edit outweighs it.
+    current.mark_plan_needs_reassessment("An earlier model version was restored", 4);
     m_document = std::move(current);
     m_draft = m_document.draft();
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();

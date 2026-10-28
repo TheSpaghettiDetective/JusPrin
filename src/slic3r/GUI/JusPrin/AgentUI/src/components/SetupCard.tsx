@@ -19,6 +19,9 @@ export interface SetupCardProps {
   sent?: { at: string; printer: string };
   onCompute?: () => void;
   onViewSetup?: () => void;
+  // Asks the agent, in the person's name, to check the plan against what
+  // moved since it was recorded; offered on the plan's mark.
+  onCheckPlan?: () => void;
 }
 
 export function formatPrintTime(seconds: number): string {
@@ -104,13 +107,19 @@ export function presetsLine(context: WorkspaceContext): string {
     .filter(Boolean).join(' · ');
 }
 
-// The plan line's annotation: the app's own mark that the project moved on
-// since the plan was recorded, which only the agent recording it again
-// clears; failing that, a calibration test whose steps the file lost, since
-// in a calibration chat the test is the plan.
+// The app's own mark that the project moved on since the plan was recorded,
+// which only the agent recording it again clears.
+export function planInDoubt(context: WorkspaceContext): boolean {
+  return !!context.planHeadline.trim() && context.planValidity === 'needs_reassessment';
+}
+
+// The plan line's annotation: what moved since the plan was recorded, in the
+// words the host wrote for it ("Filament changed to Generic ABS by hand"),
+// with the Check plan link beside it; failing that, a calibration test whose
+// steps the file lost, since in a calibration chat the test is the plan.
 export function planNote(context: WorkspaceContext): string {
-  if (context.planHeadline.trim() && context.planValidity === 'needs_reassessment')
-    return context.planInvalidatedBy ? `Plan needs another look · ${context.planInvalidatedBy}` : 'Plan needs another look';
+  if (planInDoubt(context))
+    return context.planInvalidatedBy || 'Plan needs another look';
   return testStepsLost(context);
 }
 
@@ -134,7 +143,7 @@ function Note({ text, action }: { text: string; action?: { label: string; onClic
 }
 
 export function SetupCard({ context, working: busy = false, historical = false, savedAt, agentAvailable = true,
-  sent, onCompute, onViewSetup }: SetupCardProps) {
+  sent, onCompute, onViewSetup, onCheckPlan }: SetupCardProps) {
   if (!context) return null;
   // A saved card is never working, whatever the active chat happens to be
   // doing, and with no agent nothing is.
@@ -162,7 +171,8 @@ export function SetupCard({ context, working: busy = false, historical = false, 
     {words && <>
       {purpose && <h2 className="current-setup-title" title={purpose}>{purpose}</h2>}
       {plan && <p className="current-setup-strategy">{plan}</p>}
-      <Note text={planNote(context)} />
+      <Note text={planNote(context)} action={live && onCheckPlan && planInDoubt(context)
+        ? { label: 'Check plan', onClick: onCheckPlan } : undefined} />
       <hr className="current-setup-divider" />
     </>}
     <div className="current-setup-facts">

@@ -1183,6 +1183,7 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     stored["headline"]    = record.headline;
     stored["validity"]    = "current";
     stored["invalidatedBy"] = "";
+    stored.erase("invalidatedWeight");
     stored["decisions"]   = json::array();
     for (const PlanDecision& decision : record.decisions)
         stored["decisions"].push_back({{"topic", decision.topic},
@@ -1195,7 +1196,7 @@ PlanRecord ProjectStateDocument::set_plan(PlanRecord record, const std::string& 
     return record;
 }
 
-bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason)
+bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reason, int weight)
 {
     // Only the active chat's plan can go stale: nothing edits the project for
     // an inactive chat.
@@ -1206,11 +1207,12 @@ bool ProjectStateDocument::mark_plan_needs_reassessment(const std::string& reaso
     if (!stored.is_object() || (stored.value("headline", "").empty() &&
                                 (!stored.contains("decisions") || stored["decisions"].empty())))
         return false;
-    if (stored.value("validity", "current") == "needs_reassessment" &&
-        stored.value("invalidatedBy", "") == reason)
+    const bool in_doubt = stored.value("validity", "current") == "needs_reassessment";
+    if (in_doubt && (stored.value("invalidatedBy", "") == reason || stored.value("invalidatedWeight", 0) > weight))
         return false;
     stored["validity"] = "needs_reassessment";
     stored["invalidatedBy"] = reason;
+    stored["invalidatedWeight"] = weight;
     touch();
     return true;
 }
