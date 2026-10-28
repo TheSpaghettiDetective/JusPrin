@@ -140,6 +140,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Mcp/McpCatalog.hpp
     GUI/JusPrin/Mcp/McpConfigFile.cpp
     GUI/JusPrin/Mcp/McpConfigFile.hpp
+    GUI/JusPrin/Shell/ClassicView.cpp
+    GUI/JusPrin/Shell/ClassicView.hpp
     GUI/JusPrin/Shell/ShellController.cpp
     GUI/JusPrin/Shell/ShellController.hpp
     GUI/JusPrin/Shell/ShellTheme.cpp

@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "ClassicView.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "SetupCommands.hpp"
@@ -175,6 +176,77 @@ std::unique_ptr<ShellController>& shell_slot()
     return shell;
 }
 
+// What attach_shell received from the frame being built, kept so the shell
+// can be installed again after a switch to classic view.
+struct AttachPoint
+{
+    MainFrame* frame{nullptr};
+    Notebook*  tabpanel{nullptr};
+    wxSizer*   main_sizer{nullptr};
+};
+
+AttachPoint& attach_point()
+{
+    static AttachPoint point;
+    return point;
+}
+
+// The way back while the shell is off; empty whenever the shell is installed.
+std::unique_ptr<ClassicViewReturn>& classic_view_slot()
+{
+    static std::unique_ptr<ClassicViewReturn> classic;
+    return classic;
+}
+
+// What the shell left open when it switched to classic view, for the shell
+// that comes back; kept until one installs.
+std::optional<ShellController::OpenProject>& left_project()
+{
+    static std::optional<ShellController::OpenProject> left;
+    return left;
+}
+
+// Builds a controller over the attach point and installs it. On failure the
+// stock presentation is untouched and the logged reason is returned.
+std::optional<std::string> install_shell()
+{
+    const AttachPoint& point = attach_point();
+    auto controller = std::make_unique<ShellController>();
+    try {
+        controller->install(*point.frame, *point.tabpanel, *point.main_sizer, left_project());
+    } catch (const std::exception& error) {
+        BOOST_LOG_TRIVIAL(error) << "JusPrin shell could not be installed, keeping the standard "
+                                    "presentation: " << error.what();
+        return std::string(error.what());
+    }
+    shell_slot() = std::move(controller);
+    left_project().reset();
+    return std::nullopt;
+}
+
+void install_classic_view()
+{
+    // Going back installs the shell, which needs these same tokens: without
+    // them a way back could only ever fail.
+    const ShellTheme* theme = brand_theme();
+    if (theme == nullptr) {
+        BOOST_LOG_TRIVIAL(error) << "JusPrin design tokens not loaded, so classic view offers no way back to JusPrin";
+        return;
+    }
+    const AttachPoint& point = attach_point();
+    auto classic = std::make_unique<ClassicViewReturn>(*point.frame, *point.tabpanel, *point.main_sizer, *theme,
+                                                       [] { reattach_shell(); });
+    try {
+        classic->install();
+    } catch (const std::runtime_error& error) {
+        // Only the View-menu lookup throws once the banner is up; the banner
+        // stays and is the way back on its own.
+        BOOST_LOG_TRIVIAL(error) << "JusPrin's View-menu row was not added; the classic view banner remains: "
+                                 << error.what();
+    }
+    classic_view_slot() = std::move(classic);
+}
+
 // The Prepare canvas's drop target, in place of OrcaSlicer's PlaterDropTarget,
 // which it follows except for where the files go: they are the shell's to
 // add (ShellController::add_dropped_files). OrcaSlicer's one exception, a
@@ -260,7 +332,8 @@ ShellController::~ShellController()
         uninstall();
 }
 
-void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer)
+void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer,
+                              const std::optional<OpenProject>& left)
 {
     if (m_installed)
         throw std::runtime_error("the JusPrin shell is already installed");
@@ -333,8 +406,17 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         });
 
         // Adopt the currently open project once the host has registered its
-        // listeners, so the initial document reaches the pane too.
-        m_persistence->attach();
+        // listeners, so the initial document reaches the pane too. Its
+        // conversation is kept under the managed project's id, which the
+        // project itself does not carry, so a shell coming back over the
+        // project an earlier one left takes up that one's state. A project
+        // OrcaSlicer replaced or reset meanwhile has a new session or a new
+        // auxiliary directory, and starts its own.
+        if (left && left->project_session == plater->project_state_session() &&
+            left->auxiliary_dir == m_workspace->auxiliary_data_dir())
+            m_persistence->adopt_managed_state(left->state);
+        else
+            m_persistence->attach();
         m_autosave = std::make_unique<Workspace::ProjectAutosave>(
             *plater, *m_persistence, *m_workspace,
             std::filesystem::path(data_dir()) / "jusprin" / "projects");
@@ -1463,6 +1545,11 @@ void ShellController::uninstall()
     m_frame->Layout();
 }
 
+ShellController::OpenProject ShellController::open_project() const
+{
+    return {m_plater->project_state_session(), m_workspace->auxiliary_data_dir(), m_persistence->document().dump()};
+}
+
 void ShellController::apply_current_appearance()
 {
     const bool dark = wxGetApp().dark_mode();
@@ -1633,18 +1720,17 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
         return;
     if (!wxGetApp().is_editor())
         return;
-    if (wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_shell") == "0")
-        return;
-
-    auto controller = std::make_unique<ShellController>();
-    try {
-        controller->install(frame, *tabpanel, *main_sizer);
-    } catch (const std::exception& error) {
-        BOOST_LOG_TRIVIAL(error) << "JusPrin shell could not be installed, keeping the standard "
-                                    "presentation: " << error.what();
+    // A language change builds the next frame while the previous one, which
+    // may be in classic view, is still alive; its way back goes now.
+    classic_view_slot().reset();
+    left_project().reset();
+    attach_point() = {&frame, tabpanel, main_sizer};
+    if (wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_shell") == "0") {
+        install_classic_view();
         return;
     }
-    shell_slot() = std::move(controller);
+    if (install_shell())
+        install_classic_view();
 }
 
 ShellController* installed_shell()
@@ -1655,9 +1741,31 @@ ShellController* installed_shell()
 void detach_shell()
 {
     if (shell_slot() != nullptr) {
+        left_project() = shell_slot()->open_project();
         shell_slot()->uninstall();
         shell_slot().reset();
+        install_classic_view();
     }
+}
+
+void reattach_shell()
+{
+    std::unique_ptr<ClassicViewReturn>& classic = classic_view_slot();
+    if (classic == nullptr)
+        throw std::logic_error("the JusPrin view was asked back while it is not in classic view");
+    classic.reset();
+    if (const std::optional<std::string> failure = install_shell()) {
+        install_classic_view();
+        // A person pressed a button; unlike a failed start, this one is told.
+        MessageDialog(attach_point().frame,
+                      _L("JusPrin's view couldn't be opened.") + "\n" + wxString::FromUTF8(*failure),
+                      wxEmptyString, wxOK | wxICON_ERROR).ShowModal();
+    }
+}
+
+ClassicViewReturn* installed_classic_view()
+{
+    return classic_view_slot().get();
 }
 
 } // namespace Slic3r::GUI::JusPrin

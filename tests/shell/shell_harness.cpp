@@ -9,7 +9,13 @@
 //              the run's own config, the only input GUI_App::dark_mode reads
 //              there (the registry read in check_dark_mode is compiled out).
 //   (default)  automated shell checks, exits with the result
-//   --stock    automated stock-mode checks (shell disabled via app config)
+//   --stock    automated stock-mode checks (shell disabled via app config),
+//              then back into JusPrin through the classic view banner
+//   --classic-switch
+//              switches to classic view and back twice, once through the View
+//              menu row and once through the banner
+//   --classic-switch-capture <output-directory>
+//              the same run, capturing the window in classic view
 //   --manual   installs nothing extra and leaves the app open for a human
 //   --manual-live-agent
 //              leaves the isolated JusPrin shell open with the OpenAI
@@ -283,6 +289,8 @@
 #include "mcp_stdio_client.hpp"
 #include "figma_timeline_fixture.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ClassicView.hpp"
+#include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/JusPrin/Shell/LeftPane.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
@@ -2748,6 +2756,23 @@ private:
             m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); }, "stock_slice_opens_preview",
             [self = shared_from_this()] {
                 self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "stock_slice_teardown");
+                self->verify_stock_returns_to_jusprin();
+            });
+    }
+
+    // A start with the shell off still has the way into JusPrin.
+    void verify_stock_returns_to_jusprin()
+    {
+        if (!verify_classic_view_offered("stock"))
+            return;
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        ClassicViewReturn* classic = installed_classic_view();
+        wxMenu* view_menu = classic->view_menu();
+        const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
+        press_button(*classic->back_button());
+        wait_until([] { return installed_shell() != nullptr; }, "stock_banner_opens_jusprin",
+            [self = shared_from_this(), view_menu, view_menu_items] {
+                self->verify_shell_back("stock_return", view_menu, view_menu_items);
                 self->finish();
             });
     }
@@ -11580,10 +11605,14 @@ private:
                   agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
               "detach_fixture_installs_an_agent_the_profile_does_not_pick");
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        const std::string project_id = installed_shell()->persistence()->document().project_id();
+        check(!project_id.empty(), "classic_fixture_project_has_an_identity");
+        installed_shell()->persistence()->set_draft("unfinished classic view draft");
         installed_shell()->status_row()->show_overflow_menu();
-        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), agent, profile_agent, next = std::move(next)] {
+        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), agent, profile_agent, project_id,
+                                                            next = std::move(next)] {
             self->wait_until([] { return installed_shell() == nullptr; }, "menu_switches_to_classic_view",
-                [self, agent, profile_agent, next] {
+                [self, agent, profile_agent, project_id, next] {
                     self->check(agent->get_printer_agent()->get_agent_info().id == profile_agent,
                                 "detach_restores_the_profile_driven_agent");
                     self->check(self->m_notebook->IsShown() &&
@@ -11596,6 +11625,43 @@ private:
                     self->m_frame->Layout();
                     self->check(self->m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
                                 "stock_canvas_usable_after_restore");
+                    if (!self->verify_classic_view_offered("first_classic"))
+                        return;
+                    self->window_shot("classic-view");
+                    // First way back: the View-menu row, through the menu's
+                    // own dispatch, which a choice in the open menu sends.
+                    ClassicViewReturn* classic = installed_classic_view();
+                    wxMenu* view_menu = classic->view_menu();
+                    const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
+                    view_menu->SendEvent(classic->menu_row()->GetId());
+                    self->wait_until([] { return installed_shell() != nullptr; }, "view_menu_row_returns_to_jusprin",
+                        [self, view_menu, view_menu_items, project_id, next] {
+                            self->verify_shell_back("first_return", view_menu, view_menu_items);
+                            self->check(installed_shell()->persistence()->document().project_id() == project_id &&
+                                            installed_shell()->persistence()->draft() == "unfinished classic view draft",
+                                        "return_keeps_the_project_chat");
+                            installed_shell()->persistence()->set_draft({});
+                            self->verify_second_classic_round_trip(view_menu, view_menu_items, project_id, next);
+                        });
+                });
+        });
+    }
+
+    // The second switch runs OrcaSlicer's backup in classic view and starts
+    // a new project there, then goes back through the banner: two round
+    // trips, so a binding either install leaks shows up here, and the new
+    // project gets a conversation of its own.
+    void verify_second_classic_round_trip(wxMenu* view_menu, std::size_t view_menu_items, const std::string& project_id,
+                                          std::function<void()> next)
+    {
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        installed_shell()->status_row()->show_overflow_menu();
+        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), view_menu, view_menu_items, project_id, next] {
+            self->wait_until([] { return installed_shell() == nullptr; }, "menu_switches_to_classic_view_again",
+                [self, view_menu, view_menu_items, project_id, next] {
+                    if (!self->verify_classic_view_offered("second_classic"))
+                        return;
+                    self->check(installed_classic_view()->view_menu() == view_menu, "second_classic_uses_the_same_view_menu");
                     const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
                     self->check(self->m_plater->load_files(std::vector<std::string>{cube},
                                     LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
@@ -11606,9 +11672,90 @@ private:
                     self->check(wait_for([backup] { return fs::exists(backup / ".3mf"); }, std::chrono::seconds(10)),
                                 "stock_backup_resumes_after_shell_detach");
                     self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "stock_backup_fixture_cleared");
-                    next();
+
+                    Button* back = installed_classic_view()->back_button();
+                    press_button(*back);
+                    self->check(!back->IsEnabled(), "banner_button_disables_on_press");
+                    self->wait_until([] { return installed_shell() != nullptr; }, "banner_returns_to_jusprin",
+                        [self, view_menu, view_menu_items, project_id, next] {
+                            self->verify_shell_back("second_return", view_menu, view_menu_items);
+                            const std::string after = installed_shell()->persistence()->document().project_id();
+                            self->check(!after.empty() && after != project_id,
+                                        "project_replaced_in_classic_view_starts_its_own_chat");
+                            next();
+                        });
                 });
         });
+    }
+
+    // Classic view offers its way back: the banner in the main layout
+    // directly above the Notebook, and the row at the end of the View menu.
+    bool verify_classic_view_offered(const std::string& when)
+    {
+        ClassicViewReturn* classic = installed_classic_view();
+        if (classic == nullptr || classic->menu_row() == nullptr) {
+            check(false, when + "_offers_both_ways_back");
+            fail(when + ": classic view has no banner controller or no View-menu row");
+            return false;
+        }
+        wxWindow* banner = classic->banner();
+        wxSizer*  sizer  = m_notebook->GetContainingSizer();
+        const auto index_of = [sizer](wxWindow* window) {
+            int index = 0;
+            for (wxSizerItem* item : sizer->GetChildren()) {
+                if (item->GetWindow() == window)
+                    return index;
+                ++index;
+            }
+            return -1;
+        };
+        check(banner->IsShown() && banner->GetSize().y > 0 && banner->GetContainingSizer() == sizer &&
+                  index_of(banner) + 1 == index_of(m_notebook),
+              when + "_banner_directly_above_notebook");
+        check(classic->back_button()->IsEnabled() && classic->back_button()->GetLabel() == _L("Back to JusPrin"),
+              when + "_banner_button_ready");
+        check(classic->view_menu()->FindChildItem(classic->menu_row()->GetId()) == classic->menu_row() &&
+                  classic->menu_row()->IsEnabled() &&
+                  classic->menu_row()->GetItemLabelText() == _L("Switch to JusPrin view"),
+              when + "_view_menu_row_present");
+        return true;
+    }
+
+    // The installed-shell presentation the startup checks prove, now after a
+    // return from classic view, with the banner and the row gone.
+    void verify_shell_back(const std::string& when, wxMenu* view_menu, std::size_t view_menu_items)
+    {
+        ShellController* shell = installed_shell();
+        check(shell->is_installed(), when + "_shell_installed");
+        check(installed_classic_view() == nullptr &&
+                  wxWindow::FindWindowByName("Classic view banner", m_frame) == nullptr,
+              when + "_banner_removed");
+        bool row_left = false;
+        for (wxMenuItem* item : view_menu->GetMenuItems())
+            row_left = row_left || item->GetItemLabelText() == _L("Switch to JusPrin view");
+        check(!row_left && view_menu->GetMenuItemCount() == view_menu_items, when + "_view_menu_row_removed");
+        check(!m_notebook->GetBtnsListCtrl()->IsShown(), when + "_tab_strip_hidden");
+        check(!m_plater->is_sidebar_available(), when + "_sidebar_unavailable");
+        check(m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(), when + "_prepare_legacy_overlays_hidden");
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->Layout();
+        check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, when + "_canvas_usable");
+#ifdef __APPLE__
+        check(m_frame->GetMenuBar()->FindMenu(_L("Calibration")) == wxNOT_FOUND, when + "_calibration_menu_off_the_bar");
+#endif
+    }
+
+    // A pointer press and release on an OrcaSlicer Button, which sends its
+    // click on the release.
+    static void press_button(Button& button)
+    {
+        const wxPoint centre(button.GetSize().x / 2, button.GetSize().y / 2);
+        for (wxEventType type : {wxEVT_LEFT_DOWN, wxEVT_LEFT_UP}) {
+            wxMouseEvent event(type);
+            event.SetPosition(centre);
+            event.SetEventObject(&button);
+            button.GetEventHandler()->ProcessEvent(event);
+        }
     }
 
     // Polls through a one-shot wxTimer rather than a self-reposting
@@ -11974,6 +12121,11 @@ int main(int argc, char** argv)
         }
         else if (argument == "--classic-switch")
             state->mode = HarnessState::Mode::ClassicSwitch;
+        else if (argument == "--classic-switch-capture") {
+            if (++index == argc) return 2;
+            state->mode        = HarnessState::Mode::ClassicSwitch;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--preset-close")
             state->mode = HarnessState::Mode::PresetClose;
         else if (argument == "--unavailable-storage")

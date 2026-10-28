@@ -12,6 +12,7 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <functional>
@@ -35,6 +36,7 @@ class Plater;
 namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
+class ClassicViewReturn;
 class LeftPane;
 class ShellTheme;
 class StatusRow;
@@ -62,10 +64,22 @@ public:
     ShellController(const ShellController&) = delete;
     ShellController& operator=(const ShellController&) = delete;
 
+    // The open project's conversation as the shell leaves it, and what tells
+    // that project apart from the next one OrcaSlicer opens or starts.
+    struct OpenProject
+    {
+        std::uint64_t project_session{0};
+        std::string   auxiliary_dir;
+        std::string   state;
+    };
+
     // Throws on failure after restoring any partial change; the caller may
-    // then continue with the untouched stock presentation.
-    void install(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer);
+    // then continue with the untouched stock presentation. A shell installed
+    // over the project an earlier one left takes up its conversation.
+    void install(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer,
+                 const std::optional<OpenProject>& left = std::nullopt);
     void uninstall();
+    OpenProject open_project() const;
     bool is_installed() const { return m_installed; }
 
     StatusRow* status_row() const { return m_status_row; }
@@ -286,7 +300,8 @@ private:
 
 // The one MainFrame attachment point. Decides whether the shell should be
 // installed for this session, installs it, and falls back to the untouched
-// stock presentation when installation fails. Never throws.
+// stock presentation, with its way back to JusPrin, when installation fails.
+// Throws only on a broken invariant.
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer);
 
 // The controller installed by attach_shell, if any (used by tests and later
@@ -294,7 +309,17 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer);
 ShellController* installed_shell();
 
 // Removes the shell installed by attach_shell and restores the stock
-// presentation. Safe to call when no shell is installed.
+// presentation with its way back to JusPrin. Safe to call when no shell is
+// installed.
 void detach_shell();
+
+// From classic view, removes the way back and installs the shell again over
+// the frame attach_shell last received. When that fails, the way back
+// returns and the person is told why.
+void reattach_shell();
+
+// The way back while the shell is off, if any (used by tests; nullptr while
+// the shell is installed).
+ClassicViewReturn* installed_classic_view();
 
 } // namespace Slic3r::GUI::JusPrin
