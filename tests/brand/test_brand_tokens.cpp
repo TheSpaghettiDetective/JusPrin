@@ -371,6 +371,14 @@ TEST_CASE("the Home header height is explicit", "[brand]")
         {{"height", 56}}, "component.homeHeader");
 }
 
+// The Print history screen's list: a column the width of the history boards'
+// (history-01...03), centred in the screen however wide the window is.
+TEST_CASE("the Print history list width is explicit", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("printHistory"),
+        {{"listWidth", 920}}, "component.printHistory");
+}
+
 // The printer column is a fixed rail, not a share of the window: the gallery
 // takes the width that is left. Progress thickness is shared with Agent work.
 // Home's own printer dialogs -- rename, remove -- are one small modal over

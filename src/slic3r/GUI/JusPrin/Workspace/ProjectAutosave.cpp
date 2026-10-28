@@ -709,7 +709,7 @@ std::optional<std::vector<ProjectAutosave::ManagedProject>> ProjectAutosave::pro
                 const std::string name = !version.project_name.empty() ? version.project_name : source.stem().u8string();
                 ManagedProject project{id, name, version.created_at, version.source_path, folder.u8string()};
                 if (readable)
-                    project.ledger = Ledger{document.sent(), document.physical_prints()};
+                    project.gcodes = document.gcode_records();
                 try {
                     project.thumbnail_url = saved_preview(folder, version.id);
                     if (project.thumbnail_url.empty()) {

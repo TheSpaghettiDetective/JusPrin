@@ -23,7 +23,12 @@
     "rename_printer",
     "remove_printer",
     "confirm_answer",
-    "open_preferences"
+    "open_preferences",
+    "history_request",
+    "history_back",
+    "open_in_chat",
+    "export_gcode",
+    "print_again"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -34,6 +39,8 @@
     "appearance",
     "printer_error",
     "bridge_error",
-    "confirm"
+    "confirm",
+    "screen",
+    "history"
   ]
 }

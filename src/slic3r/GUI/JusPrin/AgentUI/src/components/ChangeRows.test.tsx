@@ -3,7 +3,7 @@
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ChangeInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
+import { ChangeInfo, GcodeMarkerInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { ChangeRows, groupChanges } from './ChangeRows';
 import { MessageList } from './MessageList';
@@ -22,14 +22,14 @@ const turns = [message('m-1', 'user', 'Make it strong'), message('m-2', 'assista
 
 const noop = () => {};
 
-function thread(changes: ChangeInfo[], extra: { prints?: PhysicalPrintInfo[]; activities?: ToolActivityInfo[]; messages?: Message[] } = {}) {
+function thread(changes: ChangeInfo[], extra: { markers?: GcodeMarkerInfo[]; activities?: ToolActivityInfo[]; messages?: Message[] } = {}) {
   return render(
     <MessageList
       messages={extra.messages ?? turns}
       attachments={[]}
       streamingMessageId={null}
       toolActivities={extra.activities ?? []}
-      physicalPrints={extra.prints ?? []}
+      gcodeMarkers={extra.markers ?? []}
       changes={changes}
       onRetry={noop}
       onToolCancel={noop}
@@ -198,18 +198,16 @@ describe('change rows in the thread', () => {
     expect(rows()[0]).toContain('you, on the plate');
   });
 
-  it('interleaves runs with history cards in seq order after the item they follow', () => {
-    const print = {
-      id: 'p-1', seq: 5, startedAt: now, endedAt: now, outcome: 'completed', failure: '', projectId: 'p',
-      conversationId: 'conv-1', afterMessageId: 'm-2', plateIndex: 0, plateName: 'Plate 1', printer: 'P', material: 'PLA',
-      manufacturingInputHash: 'a', outputHash: 'b', gcodeHash: 'b',
-      statistics: { printTimeSeconds: 60, filamentMm: 1, materialGrams: 1, materialCost: 0, layerCount: 1 },
-    } satisfies PhysicalPrintInfo;
-    const { container } = thread([change(4), change(6, { label: 'Move' })], { prints: [print] });
-    // Runs and history entries are thread items of their own, after the
-    // message group they follow.
+  it('interleaves runs with G-code markers in seq order after the item they follow', () => {
+    const marker = {
+      id: 'd-1', seq: 5, kind: 'send', at: now, conversationId: 'conv-1', afterId: 'm-2', hash: 'b'.repeat(64),
+      plateIndex: 0, plateName: 'Plate 1', fileName: '', printerName: 'P',
+    } satisfies GcodeMarkerInfo;
+    const { container } = thread([change(4), change(6, { label: 'Move' })], { markers: [marker] });
+    // Runs and markers are thread items of their own, after the message
+    // group they follow.
     const order = [...container.querySelector('.message-list')!.children].map((child) => child.className.split(' ')[0]);
-    expect(order).toEqual(['message-group', 'message-group', 'change-rows', 'history-card', 'change-rows']);
+    expect(order).toEqual(['message-group', 'message-group', 'change-rows', 'gcode-marker', 'change-rows']);
   });
 
   it('places a change that follows a tool activity after that activity\'s message', () => {

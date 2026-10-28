@@ -290,6 +290,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::CalibrationGenerate: // saves the project it closes, as an open does
     case ToolHandler::PrinterList:
     case ToolHandler::SliceStart:
+    case ToolHandler::PrintDialogOpen: // shows a dialog; changes no project state
     case ToolHandler::SliceReportRead:
     case ToolHandler::PrinterIdentify:
     case ToolHandler::PrinterAdd:
@@ -2056,6 +2057,51 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         json result = slice_report_result(report, *plate, snapshot, sections);
         activity.result_json = result.dump();
         activity.state       = ToolState::Succeeded;
+        notify(activity);
+        return;
+    }
+
+    if (definition->handler == ToolHandler::PrintDialogOpen) {
+        const auto arguments = json::parse(activity.arguments_json);
+        PrintDialogRequest request;
+        if (arguments.contains("plateId"))
+            request.plate = Workspace::PlateId(Workspace::ProjectSessionId(activity.session),
+                                               std::stoull(arguments["plateId"].get<std::string>()));
+        request.gcode = arguments.value("gcode", std::string());
+        if (!m_print_dialog_opener)
+            throw std::logic_error("print_dialog_open is registered with no host to open the dialog");
+        // A plate's slice is what Print sends: none, or a stale one, is a
+        // slice to run first. A recorded G-code needs no slice.
+        if (request.gcode.empty()) {
+            const auto before = m_workspace.snapshot();
+            if (!request.plate)
+                request.plate = before.active_plate;
+            if (!request.plate) {
+                fail(activity, "workspace_unavailable", "The project has no plate to print.");
+                return;
+            }
+            std::optional<Workspace::SliceFailure> failure;
+            if (!targets_sliced(before, request.plate, failure)) {
+                fail(activity, "needs_step", "This plate has no valid slice. Slice it with slice_start first, then open the print dialog.");
+                return;
+            }
+        }
+        const PrintDialogOutcome outcome = m_print_dialog_opener(request);
+        if (!outcome.error.empty()) {
+            fail(activity, outcome.error, outcome.message);
+            return;
+        }
+        // The dialog is modal: it opens after this call returns, and the
+        // person sends from it, or not. Nothing about a send is known here.
+        const auto snapshot = m_workspace.snapshot();
+        activity.result_json = json{{"opened", true},
+                                    {"dialog", outcome.dialog},
+                                    {"note", "OrcaSlicer's send dialog is open. The person checks it and presses Send there; "
+                                             "nothing is sent until they do. A send that happens shows in the print history."},
+                                    {"sessionId", std::to_string(snapshot.session.value())},
+                                    {"revision", snapshot.revision}}
+                                   .dump();
+        activity.state = ToolState::Succeeded;
         notify(activity);
         return;
     }

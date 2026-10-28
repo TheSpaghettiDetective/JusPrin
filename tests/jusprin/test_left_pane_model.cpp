@@ -314,7 +314,7 @@ TEST_CASE("Tabs land at their top level and Escape goes up one Project level", "
     CHECK(navigation.tab() == PaneTab::Project);
 
     // The Plates tab leaves a Project subview directly.
-    navigation.open(ProjectView::PrintHistory);
+    navigation.open(ProjectView::Details);
     navigation.show_plates();
     CHECK(navigation.tab() == PaneTab::Plates);
     CHECK(navigation.view() == ProjectView::Root);

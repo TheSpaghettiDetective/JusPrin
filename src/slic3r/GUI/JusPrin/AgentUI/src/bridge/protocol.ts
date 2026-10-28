@@ -73,6 +73,7 @@ export type HostMessageType =
   | 'mcp_status'
   | 'change_added'
   | 'work_updated'
+  | 'reveal_item'
   | 'model_catalog'
   | 'chat_model'
   | 'printer_session'
@@ -710,33 +711,20 @@ export interface RestorePointInfo {
   versionId: string;
 }
 
-export interface SliceStatisticsInfo {
-  printTimeSeconds: number;
-  filamentMm: number;
-  materialGrams: number;
-  materialCost: number;
-  layerCount: number;
-}
-
-export interface PhysicalPrintInfo {
-  id: string;
+// One time a G-code left the project: an export to a file or a send to a
+// printer. The chat draws it as one line after the item it followed.
+export interface GcodeMarkerInfo {
+  id: string; // the destination's id
   seq: number;
-  startedAt: string;
-  endedAt: string;
-  outcome: 'completed' | 'failed' | 'cancelled';
-  failure: string;
-  projectId: string;
+  kind: 'export' | 'send';
+  at: string;
   conversationId: string;
-  afterMessageId: string;
+  afterId: string;
+  hash: string; // the G-code's full hash
   plateIndex: number;
   plateName: string;
-  printer: string;
-  material: string;
-  manufacturingInputHash: string;
-  outputHash: string;
-  gcodeHash: string;
-  stoppedPercent?: number;
-  statistics: SliceStatisticsInfo;
+  fileName: string; // export: the file's name
+  printerName: string; // send: the printer's own name
 }
 
 // -- The printer panel ------------------------------------------------------
@@ -999,7 +987,7 @@ export interface StatePayload {
   conversation: WireMessage[]; // messages of the viewed conversation
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  physicalPrints: PhysicalPrintInfo[];
+  gcodeMarkers: GcodeMarkerInfo[];
   changes?: ChangeInfo[]; // absent from hosts without the change_log capability
   work?: WorkInfo[]; // absent from hosts without the work_log capability
   restorePoints?: RestorePointInfo[]; // committed model versions with an exact change boundary

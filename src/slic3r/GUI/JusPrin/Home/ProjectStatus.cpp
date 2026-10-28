@@ -2,23 +2,24 @@
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
-LedgerStatus ledger_status(const std::vector<Agent::SentRecord>&          sent,
-                           const std::vector<Agent::PhysicalPrintRecord>& prints)
+LedgerStatus ledger_status(const std::vector<Agent::GcodeRecord>& records)
 {
-    const Agent::SentRecord* latest_sent = nullptr;
-    for (const Agent::SentRecord& event : sent)
-        if (latest_sent == nullptr || event.seq > latest_sent->seq)
-            latest_sent = &event;
-
-    const Agent::PhysicalPrintRecord* latest_print = nullptr;
-    for (const Agent::PhysicalPrintRecord& print : prints)
-        if (print.outcome == "completed" && (latest_print == nullptr || print.seq > latest_print->seq))
-            latest_print = &print;
-
-    if (latest_print != nullptr && (latest_sent == nullptr || latest_print->seq > latest_sent->seq))
-        return {ProjectStatusKind::Completed, latest_print->printer, latest_print->material, latest_print->ended_at};
-    if (latest_sent != nullptr)
-        return {ProjectStatusKind::Sent, latest_sent->printer, latest_sent->material, latest_sent->sent_at};
+    // The records write UTC with a trailing Z in one format, so their times
+    // order as text.
+    LedgerStatus latest_send, latest_finish;
+    for (const Agent::GcodeRecord& record : records) {
+        for (const Agent::GcodeDestination& destination : record.destinations)
+            if (destination.kind == Agent::GcodeDestination::Kind::Send && destination.at > latest_send.at)
+                latest_send = {ProjectStatusKind::Sent, record.printer, record.material, destination.at};
+        for (const Agent::GcodePrint& print : record.prints)
+            if (!print.finished_at.empty() && print.finished_at > latest_finish.at)
+                latest_finish = {ProjectStatusKind::Completed, record.printer, record.material, print.finished_at};
+    }
+    if (latest_finish.kind == ProjectStatusKind::Completed &&
+        (latest_send.kind != ProjectStatusKind::Sent || latest_finish.at > latest_send.at))
+        return latest_finish;
+    if (latest_send.kind == ProjectStatusKind::Sent)
+        return latest_send;
     return {};
 }
 

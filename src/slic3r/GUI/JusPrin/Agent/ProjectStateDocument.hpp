@@ -2,7 +2,7 @@
 
 // The current semantic document of a JusPrin project: conversations,
 // their messages and tool activity records, attachments, and the
-// manufacturing history (Sent events and physical prints).
+// manufacturing history (one record per G-code that left the project).
 // Managed projects save it independently of model checkpoints in
 // current-state.json.
 //
@@ -219,7 +219,7 @@ public:
     std::optional<ChatModelChoice> chat_model(const std::string& conversation_id) const;
     bool                           set_chat_model(const std::string& conversation_id, const ChatModelChoice& choice);
     // Erases chat content and returns orphaned attachment directories.
-    // Physical prints retain their historical conversation IDs. Deleting the active chat makes a replacement that
+    // G-code records retain their historical conversation IDs. Deleting the active chat makes a replacement that
     // starts as create_conversation's does, from the deleted chat's intent.
     std::optional<std::vector<std::string>> delete_conversation(const std::string& conversation_id,
                                                                const std::string& timestamp);
@@ -259,20 +259,25 @@ public:
     std::vector<std::string> mark_attachments_sent(const std::vector<std::string>& attachment_ids);
 
     // -- Manufacturing history --------------------------------------------
-    // Add-only immutable records.
-    // Written when the person confirms Send; `timestamp` is the sent time.
-    std::string add_sent(SentRecord record, const std::string& timestamp);
-    // When the transport reports the job reached the printer. A repeat report
-    // keeps the first time; an id add_sent did not return is a logic error.
-    void        confirm_delivery(const std::string& sent_id, const std::string& timestamp);
-    std::vector<SentRecord> sent() const;
-    // A print always runs from a Sent event: one whose sent_id names no Sent
-    // event is a logic error.
-    std::string add_physical_print(PhysicalPrintRecord record, const std::string& timestamp);
-    std::vector<PhysicalPrintRecord> physical_prints() const;
-    // Ledger size without materializing every record; the shell's status row
-    // reads this on every project change.
-    std::size_t                      physical_print_count() const;
+    // One record per G-code that left the project, keyed by the hash of its
+    // bytes. Destinations and prints are only ever added; a print's finish
+    // is the one later fact written into an existing entry.
+    // Adds `destination` to the record for `facts.hash`, creating the record
+    // from `facts` (and stamping it with the active chat and its latest item)
+    // when this G-code has not left before. Returns the destination's id.
+    std::string add_gcode_destination(GcodeRecord facts, GcodeDestination destination, const std::string& timestamp);
+    // A print the printer reported starting from one of the record's sends. A
+    // hash or destination the document does not hold is a logic error.
+    std::string add_gcode_print(const std::string& hash, GcodePrint print, const std::string& timestamp);
+    // The printer reported the print finished. A repeat report keeps the first
+    // time; an unknown hash or print is a logic error.
+    void        finish_gcode_print(const std::string& hash, const std::string& print_id, const std::string& timestamp);
+    // Oldest first.
+    std::vector<GcodeRecord>   gcode_records() const;
+    std::optional<GcodeRecord> gcode_record(const std::string& hash) const;
+    // Without materializing every record; the shell reads this on every
+    // project change.
+    std::size_t                gcode_record_count() const;
 
     // -- Print intent and plan ------------------------------------------------
     // Product state with no Orca owner, and not in Orca's undo stack. Each
@@ -345,7 +350,7 @@ private:
     const nlohmann::json* conversation_json(const std::string& conversation_id) const;
     // The active chat, which every intent and plan write goes to.
     nlohmann::json&       active_chat();
-    nlohmann::json*       sent_json(const std::string& sent_id);
+    nlohmann::json*       gcode_json(const std::string& hash);
     std::string           add_conversation(const std::string& title, const std::string& timestamp, nlohmann::json intent);
     std::uint64_t         next_seq();
     void                  touch();

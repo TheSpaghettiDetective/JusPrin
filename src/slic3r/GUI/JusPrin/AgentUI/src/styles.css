@@ -1251,9 +1251,8 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 .plan-execution .jp-progress { flex: 1 1 0; width: auto; min-width: 0; }
 .plan-progress-text { flex: 0 0 auto; color: var(--text-secondary); font: var(--font-body-small); }
 
-/* Immutable build, external-copy, and physical-print timeline records (Figma
-   "Agent/Manufacturing history card"): one card per record, its rows 12 apart,
-   the stroke drawn inside the box. */
+/* A card in the thread (the file-notes card): its rows 12 apart, the stroke
+   drawn inside the box. */
 .history-card {
   align-self: stretch;
   display: flex;
@@ -1268,181 +1267,46 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   overflow-wrap: anywhere;
 }
 
-/* The card rests as its <summary>; the forensic detail stays mounted in the
-   sibling block that the disclosure reveals. */
-.history-summary {
+/* Where a G-code left the project: one line between the turns, rules either
+   side (canvas main-05 "G-code marker"). */
+.gcode-marker {
+  align-self: stretch;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  list-style: none;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.gcode-marker-rule {
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.gcode-marker-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font: var(--font-label);
+}
+.gcode-marker-link {
+  padding: 0;
+  font: var(--font-label);
+  color: var(--action-primary);
+  background: transparent;
+  border: 0;
   cursor: pointer;
 }
-
-.history-summary::-webkit-details-marker {
-  display: none;
+.gcode-marker-link:hover {
+  text-decoration: underline;
 }
-
-/* Kind and identity, the time, and the chevron that reads the disclosure. */
-.history-heading {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.history-title {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.history-kind {
-  color: var(--text-primary);
-  font: var(--font-label-bold);
-}
-
-/* A record's short ID: what the code face is reserved for. */
-.history-title code,
-.history-rows code,
-.failure-reason code {
-  font: var(--font-code);
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-.history-title code { color: var(--text-secondary); }
-
-.history-time {
-  flex: 0 0 auto;
-  color: var(--text-secondary);
-  font: var(--font-metadata);
-  white-space: nowrap;
-}
-
-/* Down while the card rests, up once it is open. A marker of our own survives
-   the `display: flex` that removes the engine's default one. */
-.history-disclosure {
-  flex: 0 0 auto;
-  display: inline-block;
-  width: var(--button-icon-icon-size);
-  height: var(--button-icon-icon-size);
-  background: currentColor;
-  color: var(--text-primary);
-  -webkit-mask: url('@resources/jusprin/ui/icons/chevron-down.svg') center / contain no-repeat;
-  mask: url('@resources/jusprin/ui/icons/chevron-down.svg') center / contain no-repeat;
-}
-
-.history-details[open] .history-disclosure {
-  -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg');
-  mask-image: url('@resources/jusprin/ui/icons/chevron-up.svg');
-}
-
-.history-line {
-  min-width: 0;
-  color: var(--text-secondary);
-}
-.history-line.primary { color: var(--text-primary); }
-.history-line.history-note { color: var(--status-warning); }
-
-/* The state of a record: glyph and words in the state's colour. */
-.history-status {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  color: var(--text-secondary);
-  font: var(--font-body-bold);
-}
-.history-status.success { color: var(--status-success); }
-.history-status.warning { color: var(--status-warning); }
-
-/* What the disclosure reveals: label left, value right, 4 apart. */
-.history-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.history-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-}
-
-.history-rows > div {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
-}
-
-.history-card dt {
-  flex: 0 0 auto;
-  color: var(--text-secondary);
-  font: var(--font-body-small);
-}
-
-.history-card dd {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-/* A value too long for one line sits under its label: a path, a digest. */
-.history-rows > .history-block {
-  flex-direction: column;
-  align-items: stretch;
-}
-.history-block dd { text-align: left; }
-
-.history-hash code {
-  display: block;
+/* The marker the Print history's Open in chat came back to. */
+.gcode-marker.revealed .gcode-marker-text {
   color: var(--text-primary);
 }
-
-/* Button/Secondary: the one thing a record offers. */
-.history-action {
-  align-self: flex-start;
-  gap: var(--button-secondary-icon-gap);
-  min-height: var(--button-secondary-height);
-  padding: var(--button-secondary-padding);
-  border-color: var(--border-subtle);
-  font: var(--font-body-small);
+.gcode-marker.revealed .gcode-marker-rule {
+  background: var(--border-focus);
 }
-.history-action:hover:enabled { background: var(--surface-subtle); }
-.history-action:disabled { opacity: 0.5; }
-
-/* A failed print is the one inverse card: every role takes its on-failure
-   counterpart. */
-.history-card.print-failed {
-  background: var(--surface-failure-inverse);
-  box-shadow: none;
-  color: var(--text-on-failure-primary);
-}
-
-.print-failed .history-kind { color: var(--status-danger-on-inverse); }
-.print-failed .history-time,
-.print-failed .history-disclosure,
-.print-failed dt { color: var(--text-on-failure-secondary); }
-.failure-title {
-  color: var(--text-on-failure-primary);
-  font: var(--font-body-bold);
-}
-.failure-reason {
-  color: var(--text-on-failure-secondary);
-  font: var(--font-body-small);
-}
-.print-failed dd,
-.print-failed .history-hash code { color: var(--text-on-failure-primary); }
-.print-failed .history-action {
-  border-color: var(--border-on-failure);
-  color: var(--text-on-failure-primary);
-}
-.print-failed .history-action:hover:enabled { border-color: var(--text-on-failure-secondary); background: transparent; }
 
 .long-content {
   overflow-wrap: anywhere;

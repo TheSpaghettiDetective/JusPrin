@@ -2,9 +2,9 @@
 // content only while the reader is at the bottom; scrolling up to reread
 // pins the viewport until they return to the bottom. In the project chat a
 // turn is one thread item: the person's message, one line for the tool work
-// the Agent did in reply, then its words; the change log and the
-// manufacturing history render after the turn they follow, in the order
-// they happened. The printer panel keeps a card per call under the message
+// the Agent did in reply, then its words; the change log and the lines
+// where a G-code left the project render after the turn they follow, in the
+// order they happened. The printer panel keeps a card per call under the message
 // that called it.
 
 import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -14,7 +14,7 @@ import {
   WorkInfo,
   RestorePointInfo,
   FileReport,
-  PhysicalPrintInfo,
+  GcodeMarkerInfo,
   PrinterBlock,
   ToolActivityInfo,
 } from '../bridge/protocol';
@@ -27,7 +27,7 @@ import { MarkdownMessage } from './MarkdownMessage';
 import { ToolActivityCard } from './ToolActivityCard';
 import { TurnActivity } from './TurnActivity';
 import { collapseWork, WorkCard } from './WorkCard';
-import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from './ManufacturingHistoryCard';
+import { GcodeMarker, MarkerActions } from './GcodeMarker';
 import { PrinterBlockView } from './PrinterPanel';
 import { ProposalCard } from './ProposalCard';
 import { openChoices, splitChoices, withoutPartialChoices } from '../replyChoices';
@@ -37,7 +37,9 @@ interface Props {
   attachments: AttachmentInfo[];
   streamingMessageId: string | null;
   toolActivities: ToolActivityInfo[];
-  physicalPrints: PhysicalPrintInfo[];
+  gcodeMarkers: GcodeMarkerInfo[];
+  // The project chat's markers link to the Print history; others draw none.
+  markerActions?: MarkerActions;
   changes: ChangeInfo[]; // already filtered to this conversation
   work?: WorkInfo[]; // already filtered to this conversation
   onWorkCancel?: (id: string) => void;
@@ -54,9 +56,8 @@ interface Props {
   replyDisabled?: boolean;
   readOnly?: boolean;
   endNotice?: ReactNode;
-  onDiscussFailure?: (text: string) => void;
   // The printer panel's own cards, each anchored after the message that drew
-  // it, the way history entries are. Absent everywhere else, and its
+  // it, the way G-code markers are. Absent everywhere else, and its
   // presence is what makes this the printer panel's thread.
   printerBlocks?: PrinterBlock[];
   // Undo on an added printer's receipt, by block id.
@@ -71,18 +72,18 @@ interface Props {
   onScrolledChange?: (scrolled: boolean) => void;
 }
 
-// What follows one conversation item: history cards and runs of changes, in
+// What follows one conversation item: G-code markers and runs of changes, in
 // seq order. Consecutive changes form one block, which draws as one group.
 type TimelineBlock =
-  | { kind: 'history'; seq: number; entry: ManufacturingHistoryEntry }
+  | { kind: 'marker'; seq: number; marker: GcodeMarkerInfo }
   | { kind: 'changes'; seq: number; changes: ChangeInfo[] }
   | { kind: 'work'; seq: number; work: WorkInfo[] };
 
-function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[], work: WorkInfo[] = []): TimelineBlock[] {
+function timeline(markers: GcodeMarkerInfo[], changes: ChangeInfo[], work: WorkInfo[] = []): TimelineBlock[] {
   const items = [
-    ...history.map((entry) => ({ seq: entry.seq, history: entry, change: undefined, work: undefined })),
-    ...changes.map((change) => ({ seq: change.seq, history: undefined, change, work: undefined })),
-    ...work.map((entry) => ({ seq: entry.seq, history: undefined, change: undefined, work: entry })),
+    ...markers.map((marker) => ({ seq: marker.seq, marker, change: undefined, work: undefined })),
+    ...changes.map((change) => ({ seq: change.seq, marker: undefined, change, work: undefined })),
+    ...work.map((entry) => ({ seq: entry.seq, marker: undefined, change: undefined, work: entry })),
   ].sort((a, b) => a.seq - b.seq);
   const blocks: TimelineBlock[] = [];
   for (const item of items) {
@@ -91,26 +92,24 @@ function timeline(history: ManufacturingHistoryEntry[], changes: ChangeInfo[], w
     else if (item.change) blocks.push({ kind: 'changes', seq: item.seq, changes: [item.change] });
     else if (item.work && previous?.kind === 'work') previous.work.push(item.work);
     else if (item.work) blocks.push({ kind: 'work', seq: item.seq, work: [item.work] });
-    else blocks.push({ kind: 'history', seq: item.seq, entry: item.history! });
+    else blocks.push({ kind: 'marker', seq: item.seq, marker: item.marker! });
   }
   return blocks;
 }
 
-function TimelineBlocks({ blocks, restorePoints, onRevert, onDiscussFailure, discussDisabled, onWorkCancel, readOnly }: {
+function TimelineBlocks({ blocks, restorePoints, onRevert, onWorkCancel, readOnly, markerActions }: {
   blocks: TimelineBlock[];
+  markerActions?: MarkerActions;
   onWorkCancel?: (id: string) => void;
   readOnly?: boolean;
   restorePoints: RestorePointInfo[];
   onRevert?: (versionId: string) => void;
-  onDiscussFailure: (print: PhysicalPrintInfo) => void;
-  discussDisabled: boolean;
 }) {
   return (
     <>
       {blocks.map((block) =>
-        block.kind === 'history' ? (
-          <ManufacturingHistoryCard key={`${block.entry.kind}-${block.entry.record.id}`} entry={block.entry}
-            onDiscussFailure={onDiscussFailure} discussDisabled={discussDisabled} />
+        block.kind === 'marker' ? (
+          <GcodeMarker key={`marker-${block.marker.id}`} marker={block.marker} actions={markerActions} />
         ) : block.kind === 'work' ? (
           collapseWork(block.work).map(({ work, times }) => (
             <WorkCard key={work.id} work={work} times={times} onCancel={onWorkCancel ?? (() => {})} readOnly={readOnly || !onWorkCancel} />
@@ -162,7 +161,8 @@ export function MessageList({
   attachments,
   streamingMessageId,
   toolActivities,
-  physicalPrints,
+  gcodeMarkers,
+  markerActions,
   changes,
   work = [],
   onWorkCancel,
@@ -176,7 +176,6 @@ export function MessageList({
   replyDisabled = false,
   readOnly = false,
   endNotice,
-  onDiscussFailure,
   printerBlocks,
   onUndoAdd,
   onInstallPlugin,
@@ -200,15 +199,13 @@ export function MessageList({
   useLayoutEffect(() => {
     const list = listRef.current;
     if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, physicalPrints, changes, printerBlocks, followBottom]);
+  }, [messages, toolActivities, gcodeMarkers, changes, printerBlocks, followBottom]);
   const printerPanel = printerBlocks !== undefined;
 
-  const history: ManufacturingHistoryEntry[] = physicalPrints.map((record) =>
-    ({ kind: 'print' as const, seq: record.seq, afterMessageId: record.afterMessageId, record }));
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
   const turns = turnsOf(messages, printerPanel);
   const messagesOf = (turn: Turn) => [turn.anchor, ...turn.replies];
-  // A change, work entry or history card follows a message or one of its
+  // A change, work entry or G-code marker follows a message or one of its
   // tool activities; all of them place it after that message's turn.
   const turnOfItem = new Map<string, string>();
   for (const turn of turns)
@@ -229,17 +226,13 @@ export function MessageList({
   // so a message that arrived later reads below it.
   const workAfter = (turnId: string) => work.filter((entry) => turnOfItem.get(entry.afterId) === turnId);
   const leadingWork = work.filter((entry) => !turnOfItem.has(entry.afterId));
-  const historyAfter = (turnId: string) => history.filter((entry) => turnOfItem.get(entry.afterMessageId) === turnId);
+  const markersAfter = (turnId: string) => gcodeMarkers.filter((marker) => turnOfItem.get(marker.afterId) === turnId);
   const printerBlockViews = (messageId: string) =>
     (printerBlocks ?? [])
       .filter((block) => block.afterMessageId === messageId)
       .sort((a, b) => a.seq - b.seq)
       .map((block) => <PrinterBlockView key={block.id} block={block} onUndoAdd={onUndoAdd} onInstallPlugin={onInstallPlugin} />);
-  const leadingHistory = history.filter(
-    (entry) => entry.afterMessageId === '' || !turnOfItem.has(entry.afterMessageId),
-  );
-  const discussFailure = (print: PhysicalPrintInfo) =>
-    (onDiscussFailure ?? onSend)(`Help me understand why this print failed: ${print.failure || 'The print stopped unexpectedly.'}`);
+  const leadingMarkers = gcodeMarkers.filter((marker) => !turnOfItem.has(marker.afterId));
 
   // A message's bubble, or null for a tool-only reply that has nothing to
   // say. A file's load report is for the model: the person sees the card of
@@ -410,8 +403,7 @@ export function MessageList({
   return (
     <div className="message-list" role="log" aria-label="Agent conversation"
       ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingHistory, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
-        onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
+      <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
       {turns.map((turn) => {
         const turnMessages = messagesOf(turn);
         // A save the person approved is theirs, receipted by its note, not
@@ -424,7 +416,7 @@ export function MessageList({
         // The project chat's turn: the person's words, the line for the
         // Agent's work (whenever it worked, or is still working), its
         // replies that have words. The group is one thread item, 8 apart.
-        // What follows it -- change runs, work and history entries -- are
+        // What follows it -- change runs, work and G-code markers -- are
         // thread items of their own.
         return (
           <Fragment key={turn.anchor.id}>
@@ -444,8 +436,7 @@ export function MessageList({
               {!proposalHost && proposals}
             </div>
             {turnMessages.map((message) => printerBlockViews(message.id))}
-            <TimelineBlocks blocks={timeline(historyAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert}
-              onDiscussFailure={discussFailure} discussDisabled={readOnly || streamingMessageId !== null} />
+            <TimelineBlocks blocks={timeline(markersAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
           </Fragment>
         );
       })}

@@ -29,7 +29,7 @@ const noop = () => {};
 
 function thread(entries: WorkInfo[], messages: Message[], onWorkCancel?: (id: string) => void) {
   return render(
-    <MessageList messages={messages} attachments={[]} streamingMessageId={null} toolActivities={[]} physicalPrints={[]} changes={[]} work={entries} onWorkCancel={onWorkCancel}
+    <MessageList messages={messages} attachments={[]} streamingMessageId={null} toolActivities={[]} gcodeMarkers={[]} changes={[]} work={entries} onWorkCancel={onWorkCancel}
       onRetry={noop} onToolCancel={noop} onSend={noop} />,
   );
 }

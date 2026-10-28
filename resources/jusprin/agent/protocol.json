@@ -96,6 +96,7 @@
     "mcp_status",
     "change_added",
     "work_updated",
+    "reveal_item",
     "model_catalog",
     "chat_model",
     "printer_session",

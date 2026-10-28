@@ -259,7 +259,7 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         names.push_back(tool["name"].get<std::string>());
         CHECK(tool["description"] == ToolRegistry::instance().find(tool["name"].get<std::string>())->description);
     }
-    CHECK(names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "print_dialog_open", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
     // The person's words, the workspace in its tag, the attachment listing,
     // then the image and the PDF as parts of their own; the model file has
     // no part, it is listed only.
@@ -299,7 +299,7 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         request.session.include_workspace = false;
         REQUIRE(h.agent->start(request));
         CHECK(h.last_body()["user"].empty());
-        CHECK(h.last_body()["tools"].size() == 28);
+        CHECK(h.last_body()["tools"].size() == 29);
     }
 
     SECTION("the request sequence counts every request of the turn")
@@ -329,6 +329,66 @@ TEST_CASE("text deltas and the completion become typed events, across split fram
     REQUIRE(h.poll_until(AgentEventKind::Completed));
     CHECK_FALSE(h.agent->busy());
     CHECK(h.last_body()["steps"].empty()); // the turn ended; no request carried its reply
+}
+
+// What the model reads when the person says how a print went: the G-code that
+// left, where it went, what the printer reported, and whether the plate's
+// inputs are still the same. No failure is recorded, so none is sent.
+TEST_CASE("the workspace carries the recent print history", "[agent][loop]")
+{
+    Harness      h;
+    AgentRequest request = request_fixture();
+    GcodeRecord  record;
+    record.hash        = std::string(64, 'a');
+    record.created_at  = "2026-10-27T13:06:00Z";
+    record.plate_name  = "Plate 1";
+    record.printer     = "Bambu Lab X1 Carbon 0.4 nozzle";
+    record.material    = "Gray PETG";
+    record.statistics  = {9360.0, 0.0, 68.0, 0.0, 0};
+    GcodeDestination exported;
+    exported.kind = GcodeDestination::Kind::Export;
+    exported.at   = "2026-10-27T13:05:00Z";
+    exported.path = "C:/prints/bracket-v3.gcode";
+    GcodeDestination sent;
+    sent.kind            = GcodeDestination::Kind::Send;
+    sent.at              = "2026-10-27T13:06:00Z";
+    sent.printer_name    = "Garage X1C";
+    sent.start_requested = true;
+    record.destinations  = {exported, sent};
+    GcodePrint finished;
+    finished.printer_name = "Garage X1C";
+    finished.started_at   = "2026-10-27T13:07:00Z";
+    finished.finished_at  = "2026-10-27T15:41:00Z";
+    GcodePrint unfinished;
+    unfinished.printer_name = "Garage X1C";
+    unfinished.started_at   = "2026-10-28T09:00:00Z";
+    record.prints           = {finished, unfinished};
+    request.gcode_history   = {{record, true}};
+    REQUIRE(h.agent->start(request));
+
+    const std::string block = h.body(0)["user"][1]["text"].get<std::string>();
+    const json workspace    = json::parse(block.substr(block.find('\n') + 1, block.rfind('\n') - block.find('\n') - 1));
+    REQUIRE(workspace["printHistory"].size() == 1);
+    const json& entry = workspace["printHistory"][0];
+    CHECK(entry["gcode"] == "aaaaaaaa");
+    CHECK(entry["plate"] == "Plate 1");
+    CHECK(entry["printerPreset"] == "Bambu Lab X1 Carbon 0.4 nozzle");
+    CHECK(entry["filamentPreset"] == "Gray PETG");
+    CHECK_FALSE(entry.contains("processPreset"));
+    CHECK(entry["sameInputsAsNow"] == true);
+    CHECK(entry["estimatedSeconds"] == 9360.0);
+    CHECK(entry["exports"] == json::array({json{{"at", "2026-10-27T13:05:00Z"}, {"file", "bracket-v3.gcode"}}}));
+    CHECK(entry["sends"] ==
+          json::array({json{{"at", "2026-10-27T13:06:00Z"}, {"printer", "Garage X1C"}, {"startRequested", true}}}));
+    REQUIRE(entry["prints"].size() == 2);
+    CHECK(entry["prints"][0]["finishedAt"] == "2026-10-27T15:41:00Z");
+    CHECK_FALSE(entry["prints"][1].contains("finishedAt"));
+    CHECK(block.find("fail") == std::string::npos);
+
+    // A project nothing left has no history to send.
+    h.agent->cancel();
+    REQUIRE(h.agent->start(request_fixture()));
+    CHECK(h.last_body()["user"][1]["text"].get<std::string>().find("printHistory") == std::string::npos);
 }
 
 TEST_CASE("a final SSE frame without a trailing delimiter is consumed", "[agent][loop]")

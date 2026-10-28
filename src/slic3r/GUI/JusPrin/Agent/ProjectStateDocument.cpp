@@ -229,49 +229,102 @@ SliceStatistics read_statistics(const json& entry)
     return statistics;
 }
 
-SentRecord read_sent(const json& entry)
+const char* destination_kind_name(GcodeDestination::Kind kind)
 {
-    SentRecord record;
-    record.id                       = entry.value("id", "");
-    record.seq                      = entry.value("seq", std::uint64_t(0));
-    record.sent_at                  = entry.value("sentAt", "");
-    record.delivery_confirmed_at    = entry.value("deliveryConfirmedAt", "");
-    record.project_id               = entry.value("projectId", "");
-    record.conversation_id          = entry.value("conversationId", "");
-    record.plate_index              = entry.value("plateIndex", std::size_t(0));
-    record.plate_name               = entry.value("plateName", "");
-    record.printer                  = entry.value("printer", "");
-    record.material                 = entry.value("material", "");
-    record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
-    if (entry.contains("statistics"))
-        record.statistics = read_statistics(entry["statistics"]);
-    return record;
+    return kind == GcodeDestination::Kind::Send ? "send" : "export";
 }
 
-PhysicalPrintRecord read_physical_print(const json& entry)
+json destination_json(const GcodeDestination& destination)
 {
-    PhysicalPrintRecord record;
-    record.id                       = entry.value("id", "");
+    json entry{{"id", destination.id},
+               {"seq", destination.seq},
+               {"kind", destination_kind_name(destination.kind)},
+               {"at", destination.at},
+               {"conversationId", destination.conversation_id},
+               {"afterId", destination.after_id}};
+    if (destination.kind == GcodeDestination::Kind::Export) {
+        entry["path"]     = destination.path;
+        entry["fileHash"] = destination.file_hash;
+    } else {
+        entry["printerName"]    = destination.printer_name;
+        entry["printerId"]      = destination.printer_id;
+        entry["transport"]      = destination.transport;
+        entry["fileName"]       = destination.file_name;
+        entry["startRequested"] = destination.start_requested;
+        entry["deliveredAt"]    = destination.delivered_at;
+        if (!destination.package_hash.empty())
+            entry["packageHash"] = destination.package_hash;
+    }
+    return entry;
+}
+
+GcodeDestination read_destination(const json& entry)
+{
+    GcodeDestination destination;
+    destination.id              = entry.value("id", "");
+    destination.seq             = entry.value("seq", std::uint64_t(0));
+    destination.kind            = entry.value("kind", "") == "send" ? GcodeDestination::Kind::Send : GcodeDestination::Kind::Export;
+    destination.at              = entry.value("at", "");
+    destination.conversation_id = entry.value("conversationId", "");
+    destination.after_id        = entry.value("afterId", "");
+    destination.path            = entry.value("path", "");
+    destination.file_hash       = entry.value("fileHash", "");
+    destination.printer_name    = entry.value("printerName", "");
+    destination.printer_id      = entry.value("printerId", "");
+    destination.transport       = entry.value("transport", "");
+    destination.file_name       = entry.value("fileName", "");
+    destination.start_requested = entry.value("startRequested", false);
+    destination.delivered_at    = entry.value("deliveredAt", "");
+    destination.package_hash    = entry.value("packageHash", "");
+    return destination;
+}
+
+json print_json(const GcodePrint& print)
+{
+    return json{{"id", print.id},
+                {"destinationId", print.destination_id},
+                {"printerName", print.printer_name},
+                {"printerId", print.printer_id},
+                {"jobId", print.job_id},
+                {"startedAt", print.started_at},
+                {"finishedAt", print.finished_at}};
+}
+
+GcodePrint read_print(const json& entry)
+{
+    GcodePrint print;
+    print.id             = entry.value("id", "");
+    print.destination_id = entry.value("destinationId", "");
+    print.printer_name   = entry.value("printerName", "");
+    print.printer_id     = entry.value("printerId", "");
+    print.job_id         = entry.value("jobId", "");
+    print.started_at     = entry.value("startedAt", "");
+    print.finished_at    = entry.value("finishedAt", "");
+    return print;
+}
+
+GcodeRecord read_gcode(const json& entry)
+{
+    GcodeRecord record;
+    record.hash                     = entry.value("hash", "");
     record.seq                      = entry.value("seq", std::uint64_t(0));
-    record.started_at               = entry.value("startedAt", "");
-    record.ended_at                 = entry.value("endedAt", "");
-    record.outcome                  = entry.value("outcome", "");
-    record.failure                  = entry.value("failure", "");
-    record.sent_id                  = entry.value("sentId", "");
-    record.project_id               = entry.value("projectId", "");
-    record.conversation_id          = entry.value("conversationId", "");
-    record.after_message_id         = entry.value("afterMessageId", "");
+    record.created_at               = entry.value("createdAt", "");
     record.plate_index              = entry.value("plateIndex", std::size_t(0));
     record.plate_name               = entry.value("plateName", "");
     record.printer                  = entry.value("printer", "");
     record.material                 = entry.value("material", "");
+    record.process                  = entry.value("process", "");
     record.manufacturing_input_hash = entry.value("manufacturingInputHash", "");
-    record.output_hash              = entry.value("outputHash", "");
-    record.gcode_hash              = entry.value("gcodeHash", "");
-    if (entry.contains("stoppedPercent") && entry["stoppedPercent"].is_number_integer())
-        record.stopped_percent = entry["stoppedPercent"].get<int>();
+    record.conversation_id          = entry.value("conversationId", "");
+    record.after_id                 = entry.value("afterId", "");
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
+    if (const auto destinations = entry.find("destinations"); destinations != entry.end() && destinations->is_array())
+        for (const json& destination : *destinations)
+            record.destinations.push_back(read_destination(destination));
+    if (const auto prints = entry.find("prints"); prints != entry.end() && prints->is_array())
+        for (const json& print : *prints)
+            record.prints.push_back(read_print(print));
     return record;
 }
 
@@ -345,7 +398,7 @@ json fresh_document()
                 {"project", json{{"projectId", ""}, {"lineageId", ""}, {"createdAt", ""}}},
                 {"counters", json{{"nextSeq", std::uint64_t(1)}, {"nextMessage", std::uint64_t(1)},
                                   {"nextAction", std::uint64_t(1)}, {"nextConversation", std::uint64_t(1)},
-                                  {"nextAttachment", std::uint64_t(1)}, {"nextSent", std::uint64_t(1)},
+                                  {"nextAttachment", std::uint64_t(1)}, {"nextDestination", std::uint64_t(1)},
                                   {"nextPrint", std::uint64_t(1)}}},
                 {"activeConversationId", ""},
                 {"viewedConversationId", ""},
@@ -353,8 +406,7 @@ json fresh_document()
                 {"conversations", json::array()},
                 {"toolActivities", json::array()},
                 {"attachments", json::array()},
-                {"sent", json::array()},
-                {"physicalPrints", json::array()},
+                {"gcodes", json::array()},
                 {"regions", json::array()},
                 {"changes", json::array()},
                 {"work", json::array()}};
@@ -453,6 +505,13 @@ ProjectStateDocument::LoadResult ProjectStateDocument::load(const std::string& j
         return LoadResult::Corrupt;
     }
     m_doc = std::move(parsed);
+    // Sent events and physical prints were replaced by the G-code record
+    // before any build wrote them outside tests; they are dropped, not kept
+    // beside the records they would contradict.
+    m_doc.erase("sent");
+    m_doc.erase("physicalPrints");
+    if (m_doc.contains("counters") && m_doc["counters"].is_object())
+        m_doc["counters"].erase("nextSent");
     return LoadResult::Loaded;
 }
 
@@ -957,105 +1016,118 @@ std::vector<std::string> ProjectStateDocument::mark_attachments_sent(const std::
     return sent;
 }
 
-std::string ProjectStateDocument::add_sent(SentRecord record, const std::string& timestamp)
+json* ProjectStateDocument::gcode_json(const std::string& hash)
 {
-    const std::uint64_t number = m_doc["counters"].value("nextSent", std::uint64_t(1));
-    m_doc["counters"]["nextSent"] = number + 1;
-    record.id = "s-" + std::to_string(number);
-    m_doc["sent"].push_back(json{{"id", record.id},
-                                 {"seq", next_seq()},
-                                 {"sentAt", timestamp},
-                                 {"deliveryConfirmedAt", ""},
-                                 {"projectId", record.project_id},
-                                 {"conversationId", record.conversation_id},
-                                 {"plateIndex", record.plate_index},
-                                 {"plateName", record.plate_name},
-                                 {"printer", record.printer},
-                                 {"material", record.material},
-                                 {"manufacturingInputHash", record.manufacturing_input_hash},
-                                 {"statistics", statistics_json(record.statistics)}});
-    touch();
-    return record.id;
-}
-
-json* ProjectStateDocument::sent_json(const std::string& sent_id)
-{
-    if (!m_doc.contains("sent"))
+    const auto entries = m_doc.find("gcodes");
+    if (entries == m_doc.end())
         return nullptr;
-    for (json& entry : m_doc["sent"])
-        if (entry.value("id", "") == sent_id)
+    for (json& entry : *entries)
+        if (entry.value("hash", "") == hash)
             return &entry;
     return nullptr;
 }
 
-void ProjectStateDocument::confirm_delivery(const std::string& sent_id, const std::string& timestamp)
+std::string ProjectStateDocument::add_gcode_destination(GcodeRecord facts, GcodeDestination destination,
+                                                        const std::string& timestamp)
 {
-    json* entry = sent_json(sent_id);
-    if (entry == nullptr)
-        throw std::logic_error("delivery confirmed for unknown Sent event " + sent_id);
-    // A transport may report the same delivery again; the first report is when
-    // the job arrived.
-    if (!entry->value("deliveryConfirmedAt", "").empty())
-        return;
-    (*entry)["deliveryConfirmedAt"] = timestamp;
+    if (facts.hash.empty())
+        throw std::logic_error("a G-code record needs the hash of its bytes");
+    const std::uint64_t number = m_doc["counters"].value("nextDestination", std::uint64_t(1));
+    m_doc["counters"]["nextDestination"] = number + 1;
+    destination.id = "d-" + std::to_string(number);
+    if (destination.at.empty())
+        destination.at = timestamp;
+    destination.seq                = next_seq();
+    const std::string conversation = active_conversation_id();
+    destination.conversation_id    = conversation;
+    destination.after_id           = conversation.empty() ? std::string() : last_item_id(conversation);
+
+    json* entry = gcode_json(facts.hash);
+    if (entry == nullptr) {
+        if (!m_doc.contains("gcodes"))
+            m_doc["gcodes"] = json::array();
+        m_doc["gcodes"].push_back(json{{"hash", facts.hash},
+                                       {"seq", destination.seq},
+                                       {"createdAt", timestamp},
+                                       {"plateIndex", facts.plate_index},
+                                       {"plateName", facts.plate_name},
+                                       {"printer", facts.printer},
+                                       {"material", facts.material},
+                                       {"process", facts.process},
+                                       {"manufacturingInputHash", facts.manufacturing_input_hash},
+                                       {"conversationId", conversation},
+                                       {"afterId", destination.after_id},
+                                       {"statistics", statistics_json(facts.statistics)},
+                                       {"destinations", json::array()},
+                                       {"prints", json::array()}});
+        entry = &m_doc["gcodes"].back();
+    }
+    (*entry)["destinations"].push_back(destination_json(destination));
     touch();
+    return destination.id;
 }
 
-std::vector<SentRecord> ProjectStateDocument::sent() const
+std::string ProjectStateDocument::add_gcode_print(const std::string& hash, GcodePrint print, const std::string& timestamp)
 {
-    std::vector<SentRecord> result;
-    if (const auto entries = m_doc.find("sent"); entries != m_doc.end())
-        for (const json& entry : *entries)
-            result.push_back(read_sent(entry));
-    return result;
-}
-
-std::string ProjectStateDocument::add_physical_print(PhysicalPrintRecord record, const std::string& timestamp)
-{
-    if (sent_json(record.sent_id) == nullptr)
-        throw std::logic_error("a print must follow a Sent event; " + record.sent_id + " is not one");
+    json* entry = gcode_json(hash);
+    if (entry == nullptr)
+        throw std::logic_error("a print must run a recorded G-code; " + hash + " is not one");
+    const json& destinations = (*entry)["destinations"];
+    if (std::none_of(destinations.begin(), destinations.end(), [&print](const json& destination) {
+            return destination.value("id", "") == print.destination_id && destination.value("kind", "") == "send";
+        }))
+        throw std::logic_error("a print must follow a send of its G-code; " + print.destination_id + " is not one");
     const std::uint64_t number = m_doc["counters"].value("nextPrint", std::uint64_t(1));
     m_doc["counters"]["nextPrint"] = number + 1;
-    record.id = "p-" + std::to_string(number);
-    if (record.started_at.empty())
-        record.started_at = timestamp;
-    if (record.ended_at.empty())
-        record.ended_at = timestamp;
-    m_doc["physicalPrints"].push_back(json{{"id", record.id},
-                                           {"seq", next_seq()},
-                                           {"startedAt", record.started_at},
-                                           {"endedAt", record.ended_at},
-                                           {"outcome", record.outcome},
-                                           {"failure", record.failure},
-                                           {"sentId", record.sent_id},
-                                           {"projectId", record.project_id},
-                                           {"conversationId", record.conversation_id},
-                                           {"afterMessageId", record.after_message_id},
-                                           {"plateIndex", record.plate_index},
-                                           {"plateName", record.plate_name},
-                                           {"printer", record.printer},
-                                           {"material", record.material},
-                                           {"manufacturingInputHash", record.manufacturing_input_hash},
-                                           {"outputHash", record.output_hash},
-                                           {"gcodeHash", record.gcode_hash},
-                                           {"statistics", statistics_json(record.statistics)}});
-    if (record.stopped_percent)
-        m_doc["physicalPrints"].back()["stoppedPercent"] = *record.stopped_percent;
+    print.id = "p-" + std::to_string(number);
+    if (print.started_at.empty())
+        print.started_at = timestamp;
+    (*entry)["prints"].push_back(print_json(print));
     touch();
-    return record.id;
+    return print.id;
 }
 
-std::vector<PhysicalPrintRecord> ProjectStateDocument::physical_prints() const
+void ProjectStateDocument::finish_gcode_print(const std::string& hash, const std::string& print_id,
+                                              const std::string& timestamp)
 {
-    std::vector<PhysicalPrintRecord> result;
-    for (const json& entry : m_doc["physicalPrints"])
-        result.push_back(read_physical_print(entry));
+    json* entry = gcode_json(hash);
+    if (entry == nullptr)
+        throw std::logic_error("finished print of unknown G-code " + hash);
+    for (json& print : (*entry)["prints"]) {
+        if (print.value("id", "") != print_id)
+            continue;
+        // A printer repeats its state; the first report is when it finished.
+        if (!print.value("finishedAt", "").empty())
+            return;
+        print["finishedAt"] = timestamp;
+        touch();
+        return;
+    }
+    throw std::logic_error("finished print " + print_id + " is not a print of " + hash);
+}
+
+std::vector<GcodeRecord> ProjectStateDocument::gcode_records() const
+{
+    std::vector<GcodeRecord> result;
+    if (const auto entries = m_doc.find("gcodes"); entries != m_doc.end())
+        for (const json& entry : *entries)
+            result.push_back(read_gcode(entry));
     return result;
 }
 
-std::size_t ProjectStateDocument::physical_print_count() const
+std::optional<GcodeRecord> ProjectStateDocument::gcode_record(const std::string& hash) const
 {
-    return m_doc["physicalPrints"].size();
+    if (const auto entries = m_doc.find("gcodes"); entries != m_doc.end())
+        for (const json& entry : *entries)
+            if (entry.value("hash", "") == hash)
+                return read_gcode(entry);
+    return std::nullopt;
+}
+
+std::size_t ProjectStateDocument::gcode_record_count() const
+{
+    const auto entries = m_doc.find("gcodes");
+    return entries == m_doc.end() ? 0 : entries->size();
 }
 
 json ProjectStateDocument::purpose_setup() const

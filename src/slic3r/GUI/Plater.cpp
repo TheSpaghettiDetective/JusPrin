@@ -193,6 +193,7 @@ wxDEFINE_EVENT(EVT_SLICING_COMPLETED,               wxCommandEvent);
 wxDEFINE_EVENT(EVT_PROCESS_COMPLETED,               SlicingProcessCompletedEvent);
 wxDEFINE_EVENT(EVT_EXPORT_BEGAN,                    wxCommandEvent);
 wxDEFINE_EVENT(EVT_EXPORT_FINISHED,                 wxCommandEvent);
+wxDEFINE_EVENT(EVT_OUTPUT_EXPORTED,                 wxCommandEvent);
 wxDEFINE_EVENT(EVT_IMPORT_MODEL_ID,                 wxCommandEvent);
 wxDEFINE_EVENT(EVT_DOWNLOAD_PROJECT,                wxCommandEvent);
 wxDEFINE_EVENT(EVT_PUBLISH,                         wxCommandEvent);
@@ -9941,6 +9942,8 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
     this->background_process.stop();
     notification_manager->set_slicing_progress_export_possible();
 
+    // Whether this run wrote its G-code to an export path, before the reset forgets it.
+    const bool exported_gcode = this->background_process.is_export_scheduled();
     // Reset the "export G-code path" name, so that the automatic background processing will be enabled again.
     this->background_process.reset_export();
     // This bool stops showing export finished notification even when process_completed_with_error is false
@@ -10047,6 +10050,12 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         }else
         if (exporting_status == ExportingStatus::EXPORTING_TO_LOCAL && !has_error)
             notification_manager->push_exporting_finished_notification(last_output_path, last_output_dir_path, false);
+        if (exported_gcode && evt.success() && !has_error) {
+            wxCommandEvent exported(EVT_OUTPUT_EXPORTED);
+            exported.SetString(from_u8(last_output_path));
+            exported.SetInt(partplate_list.get_curr_plate_index());
+            q->ProcessWindowEvent(exported);
+        }
 
         // BBS, Generate calibration thumbnail for current plate
         if (!has_error && preview) {
@@ -15229,6 +15238,10 @@ void Plater::export_gcode_3mf(bool export_all)
         // update last output dir
         appconfig.update_last_output_dir(output_path.parent_path().string(), false);
         p->notification_manager->push_exporting_finished_notification(output_path.string(), p->last_output_dir_path, on_removable);
+        wxCommandEvent exported(EVT_OUTPUT_EXPORTED);
+        exported.SetString(from_path(output_path));
+        exported.SetInt(plate_idx);
+        ProcessWindowEvent(exported);
     }
 }
 

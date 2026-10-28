@@ -6,6 +6,8 @@
 
 #include "ProjectPaneModel.hpp"
 
+#include "slic3r/GUI/JusPrin/Home/PrintHistory.hpp"
+
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
 
@@ -42,6 +44,10 @@ struct ProjectSources
     std::function<void()>       edit_project_info;
     // Asks whether to restore a version; unset asks with a dialog.
     std::function<bool()>       confirm_restore;
+    // Opens the Print history screen filtered to this project.
+    std::function<void()>       open_print_history;
+    // The jobs the printers are running now, for "printing now".
+    std::function<std::vector<Home::LivePrint>()> live_prints;
 };
 
 // The Plates / Project pane, left of the canvas. It paints what LeftPaneModel
@@ -108,6 +114,8 @@ public:
     std::vector<wxString> action_labels() const;
     bool                  press_action(const wxString& label);
     wxRect                action_rect(const wxString& label) const;
+    // The Print history row's second line as last drawn.
+    const wxString&       print_history_detail() const { return m_print_history_detail; }
     // Draws the pane into a bitmap with the code the paint event uses, so its
     // appearance can be checked from inside the running application.
     wxBitmap snapshot();
@@ -138,7 +146,8 @@ private:
     int  draw_project(wxGraphicsContext& gc, int top, int width);
     int  draw_project_root(wxGraphicsContext& gc, int y, int width);
     int  draw_project_details(wxGraphicsContext& gc, int y, int width);
-    int  draw_print_history(wxGraphicsContext& gc, int y, int width);
+    // The Print history row: the count and how it stands, into the screen.
+    int  draw_print_history_row(wxGraphicsContext& gc, int y, int width);
     int  draw_versions(wxGraphicsContext& gc, int y, int width);
     int  draw_back_row(wxGraphicsContext& gc, int y, int width, const wxString& title);
     int  draw_action_row(wxGraphicsContext& gc, int y, int width, const wxString& label, const wxString& detail,
@@ -190,6 +199,7 @@ private:
     Workspace::WorkspaceSubscription m_subscription;
     PaneNavigation          m_navigation;
     ProjectSources          m_sources;
+    wxString                m_print_history_detail;
     Workspace::WorkspaceSubscription m_ledger_subscription;
     // The model metadata and its attachments, read when the Project tab draws
     // and kept until the workspace next changes.

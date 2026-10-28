@@ -2414,3 +2414,58 @@ TEST_CASE("a failure code is one ToolErrors lists", "[tools][errors]")
         CHECK(ToolErrors::registered(listed));
     CHECK_FALSE(ToolErrors::registered("unavailable_operation"));
 }
+
+// print_dialog_open opens OrcaSlicer's own send dialog and reports nothing
+// about a send: the person presses Send there.
+TEST_CASE("the print dialog opens for a sliced plate or a recorded G-code, and never sends", "[tools][print]")
+{
+    Harness h;
+    const auto& registry = ToolRegistry::instance();
+    const auto  plate    = h.workspace.snapshot().plates.at(0).id;
+    std::vector<ToolExecutionCoordinator::PrintDialogRequest> asked;
+    ToolExecutionCoordinator::PrintDialogOutcome answer{{}, {}, "select_machine"};
+    h.coordinator.set_print_dialog_opener([&](const ToolExecutionCoordinator::PrintDialogRequest& request) {
+        asked.push_back(request);
+        return answer;
+    });
+    const auto run = [&h](const std::string& arguments, const char* correlation) -> const ToolActivity& {
+        const std::string action = h.coordinator.submit({"print_dialog_open", arguments}, correlation).action_id;
+        h.pump_to_completion(action);
+        return *h.coordinator.find(action);
+    };
+
+    // A plate with no valid slice: slice it first, and the host is not asked.
+    const ToolActivity& unsliced = run("{}", "m-1");
+    REQUIRE(unsliced.state == ToolState::Failed);
+    CHECK(unsliced.error->code == "needs_step");
+    CHECK(unsliced.error->message.find("slice_start") != std::string::npos);
+    CHECK(asked.empty());
+
+    // The active plate's slice, once it has one.
+    h.workspace.set_plate_warnings_for_testing(plate, std::nullopt);
+    const ToolActivity& opened = run("{}", "m-2");
+    REQUIRE(opened.state == ToolState::Succeeded);
+    const json result = json::parse(opened.result_json);
+    CHECK(registry.validate_output(*registry.find("print_dialog_open"), result));
+    CHECK(result["opened"] == true);
+    CHECK(result["dialog"] == "select_machine");
+    REQUIRE(asked.size() == 1);
+    CHECK(asked[0].plate == plate);
+    CHECK(asked[0].gcode.empty());
+
+    // A recorded G-code needs no slice; the host decides whether its kept
+    // file can go, and its refusal is the call's.
+    answer = {"refused", "The project no longer keeps this G-code's file.", {}};
+    const ToolActivity& refused = run(R"({"gcode":"a71f8c04"})", "m-3");
+    REQUIRE(refused.state == ToolState::Failed);
+    CHECK(refused.error->code == "refused");
+    REQUIRE(asked.size() == 2);
+    CHECK(asked[1].gcode == "a71f8c04");
+    CHECK_FALSE(asked[1].plate.has_value());
+
+    // Not both, and only hex digits.
+    CHECK(h.coordinator.submit({"print_dialog_open", json{{"plateId", std::to_string(plate.value())}, {"gcode", "a71f8c04"}}.dump()}, "m-4")
+              .error->code == "invalid_arguments");
+    CHECK(h.coordinator.submit({"print_dialog_open", R"({"gcode":"A71F8C04"})"}, "m-5").error->code == "invalid_arguments");
+    CHECK(h.coordinator.submit({"print_dialog_open", R"({"gcode":"a71f"})"}, "m-6").error->code == "invalid_arguments");
+}

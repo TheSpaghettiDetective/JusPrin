@@ -684,6 +684,16 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         return true;
     }
 
+    // A plate's slice, or a recorded G-code by its hash or leading digits;
+    // never both.
+    if (definition.handler == ToolHandler::PrintDialogOpen)
+        return has_only(arguments, {"plateId", "gcode"}) && !(arguments.contains("plateId") && arguments.contains("gcode")) &&
+               (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
+               (!arguments.contains("gcode") ||
+                (arguments["gcode"].is_string() && arguments["gcode"].get<std::string>().size() >= 8 &&
+                 arguments["gcode"].get<std::string>().size() <= 64 &&
+                 arguments["gcode"].get<std::string>().find_first_not_of("0123456789abcdef") == std::string::npos));
+
     if (definition.handler == ToolHandler::SliceStart)
         return has_only(arguments, {"plateId", "preempt"}) &&
                (!arguments.contains("plateId") || is_unsigned_string(arguments["plateId"])) &&
@@ -1470,6 +1480,13 @@ std::vector<ToolDefinition> make_definitions()
                         {"sessionId", id}, {"revision", revision}},
                        {"handle", "started", "slicing", "sessionId", "revision"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SliceStart},
+        {"print_dialog_open", "Open the print dialog",
+         "Open OrcaSlicer's own send dialog, the way the Print button does: Select Machine for a printer on Bambu's network, the upload dialog for a print host. Call it only when the person asks to print; getting a print ready never opens it. With plateId (default the active plate) it sends that plate's current slice, and is refused with needs_step naming slice_start when the plate has no valid slice. With gcode, a G-code from the workspace's printHistory (its 8 hex digits), it prints that G-code again from the copy the project kept, byte for byte, not a fresh slice; it is refused when the copy is gone or is not kept for the printer selected now (slice again instead). The dialog fills itself in and the call sets nothing in it. It opens after the call returns, and the call reports nothing about a send: the person presses Send there. Changes no project state.",
+         object_schema({{"plateId", id}, {"gcode", {{"type", "string"}, {"pattern", "^[0-9a-f]{8,64}$"}}}}),
+         object_schema({{"opened", boolean_schema()}, {"dialog", {{"type", "string"}, {"enum", json::array({"select_machine", "print_host"})}}},
+                        {"note", string_schema()}, {"sessionId", id}, {"revision", revision}},
+                       {"opened", "dialog", "note", "sessionId", "revision"}),
+         ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::PrintDialogOpen},
         {"workspace_inspect",
          "Inspect the live workspace",
          "Read the open project. The default summary covers plates and objects, setup names, selection IDs, and whether undo and redo are "

@@ -149,6 +149,9 @@ struct PrintHostJobQueue::priv
 
     PrintHostQueueDialog *queue_dialog;
 
+    size_t enqueued = 0;
+    std::function<void(size_t, const PrintHostJob &)> enqueue_observer;
+
     priv(PrintHostJobQueue *q) : q(q) {}
 
     void emit_progress(int progress);
@@ -377,12 +380,21 @@ void PrintHostJobQueue::enqueue(PrintHostJob job)
 {
     p->start_bg_thread();
     p->queue_dialog->append_job(job);
+    // The background thread numbers jobs in the order they are queued.
+    if (p->enqueue_observer)
+        p->enqueue_observer(p->enqueued, job);
+    ++p->enqueued;
     p->channel_jobs.push(std::move(job));
 }
 
 void PrintHostJobQueue::cancel(size_t id)
 {
     p->channel_cancels.push(id);
+}
+
+void PrintHostJobQueue::set_enqueue_observer(std::function<void(size_t id, const PrintHostJob &job)> observer)
+{
+    p->enqueue_observer = std::move(observer);
 }
 
 }

@@ -56,6 +56,21 @@ void set_if_present(json& target, const char* key, const std::string& value)
         target[key] = value;
 }
 
+} // namespace
+
+json summary_json(const HistorySummary& summary)
+{
+    json out{{"gcodes", summary.gcodes},
+             {"exports", summary.exports},
+             {"sends", summary.sends},
+             {"prints", summary.prints},
+             {"printingNow", summary.printing_now}};
+    set_if_present(out, "lastFinishedAt", summary.last_finished_at);
+    return out;
+}
+
+namespace {
+
 json project_json(const ProjectEntry& project)
 {
     json out{
@@ -66,6 +81,8 @@ json project_json(const ProjectEntry& project)
     };
     set_if_present(out, "thumbnailUrl", project.thumbnail_url);
     set_if_present(out, "updatedAt", project.updated_at);
+    if (!project.history.empty())
+        out["history"] = summary_json(project.history);
     return out;
 }
 
@@ -101,6 +118,8 @@ json printer_json(const PrinterEntry& printer)
     // rather than a zero-width one.
     if (printer.state == PrinterState::Printing && printer.progress_percent >= 0)
         out["progressPercent"] = printer.progress_percent;
+    if (!printer.history.empty())
+        out["history"] = summary_json(printer.history);
     return out;
 }
 

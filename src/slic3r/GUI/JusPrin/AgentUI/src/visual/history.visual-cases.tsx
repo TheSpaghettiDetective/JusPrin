@@ -1,36 +1,27 @@
-// The manufacturing history matrix (Figma 1619:2204) and the historical-chat
-// recovery matrix (1619:2557). History cards are the production card from a
-// record the host could send; the recovery states are the real App viewing an
-// earlier chat.
+// The G-code markers a chat draws where a G-code left the project (canvas
+// main-05), the change rows, and the historical-chat recovery matrix
+// (1619:2557). Markers are the production line from what the host could send;
+// the recovery states are the real App viewing an earlier chat.
 
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ChangeInfo, PhysicalPrintInfo, StatePayload } from '../bridge/protocol';
+import { ChangeInfo, GcodeMarkerInfo, StatePayload } from '../bridge/protocol';
 import { ChangeRows } from '../components/ChangeRows';
-import { ManufacturingHistoryCard, ManufacturingHistoryEntry } from '../components/ManufacturingHistoryCard';
+import { GcodeMarker } from '../components/GcodeMarker';
 import { mounted, mountedApp, VisualCase } from '../test/visual';
 import { chatState, workspace } from './states';
 
 const hash = 'a71f8c04'.repeat(8);
-const statistics = { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 };
 
-const print = (overrides: Partial<PhysicalPrintInfo> = {}): PhysicalPrintInfo => ({
-  id: 'p-1', seq: 12, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z', outcome: 'completed', failure: '',
-  projectId: 'project-1', conversationId: 'conv-1', afterMessageId: 'm-2', plateIndex: 0, plateName: 'Plate 1',
-  printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash, gcodeHash: hash,
-  statistics, ...overrides,
+const marker = (overrides: Partial<GcodeMarkerInfo> = {}): GcodeMarkerInfo => ({
+  id: 'd-1', seq: 12, kind: 'send', at: '2026-10-01T13:06:00Z', conversationId: 'conv-1', afterId: 'm-2', hash,
+  plateIndex: 0, plateName: 'Plate 1', fileName: '', printerName: 'Bambu X1C', ...overrides,
 });
 
-const failed = print({ outcome: 'failed', failure: 'Layer shift reported near layer 62.', stoppedPercent: 41 });
-
-const record = (id: string, name: string, expects: string[], entry: ManufacturingHistoryEntry, open = false): VisualCase => ({
-  node: '1619:2204', matrix: 'Manufacturing history', id: `history-${id}`, name, frame: 'card', expects,
-  build: () => mounted(<ManufacturingHistoryCard entry={entry} onDiscussFailure={() => {}} />,
-    (root) => { if (open) root.querySelector('details')!.open = true; }),
+const markerCase = (id: string, name: string, expects: string[], info: GcodeMarkerInfo): VisualCase => ({
+  node: 'main-05', matrix: 'G-code marker', id: `marker-${id}`, name, frame: 'card', expects,
+  build: () => mounted(<GcodeMarker marker={info} />),
 });
-
-const printEntry = (info: PhysicalPrintInfo): ManufacturingHistoryEntry =>
-  ({ kind: 'print', seq: info.seq, afterMessageId: info.afterMessageId, record: info });
 
 // ---- The change log between the turns -----------------------------------------
 // The matrix's own frame draws no change rows; the context screen (1424:396)
@@ -74,12 +65,9 @@ const recovery = (id: string, name: string, expects: string[], state: StatePaylo
 });
 
 export const historyCases: VisualCase[] = [
-  record('print-completed', 'Physical print · Completed', ['Physical print', 'p-1', 'completed'], printEntry(print())),
-  record('print-warning', 'Physical print · Warning', ['cancelled', 'First layer required intervention'],
-    printEntry(print({ outcome: 'cancelled', failure: 'First layer required intervention' }))),
-  record('print-failed', 'Failed print · Collapsed', ['Print failed', 'Bambu X1C 0.4 · stopped at 41%, 1h 04m in',
-    'Layer shift reported near layer 62.', 'Discuss this failure'], printEntry(failed)),
-  record('print-failed-open', 'Failed print · Expanded', ['Printed G-code SHA-256', 'Started', 'Ended'], printEntry(failed), true),
+  markerCase('send', 'Sent to a printer', ['Plate 1 · a71f 8c04 → Bambu X1C'], marker()),
+  markerCase('export', 'Exported to a file', ['bracket-v3.gcode.3mf · exported'],
+    marker({ id: 'd-2', kind: 'export', fileName: 'bracket-v3.gcode.3mf', printerName: '' })),
 
   rows('summary', 'Agent change summary', ['agent-change-summary', 'Laid flat', 'settings', 'aria-expanded="false"'],
     laidFlat),

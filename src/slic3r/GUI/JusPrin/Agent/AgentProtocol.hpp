@@ -138,6 +138,9 @@ inline constexpr const char* kMcpStatus          = "mcp_status";
 inline constexpr const char* kChangeAdded        = "change_added";
 // Work the application runs outside the chat: started, moved on, or ended.
 inline constexpr const char* kWorkUpdated        = "work_updated";
+// Scroll the viewed chat to one of its items and mark it: {itemId}. Sent
+// after the state that shows that chat.
+inline constexpr const char* kRevealItem         = "reveal_item";
 // Each configured provider's models, sent after the handshake and again as
 // each list arrives: {defaultProvider, providers: [{id, label, state, models:
 // [{id, label, efforts, defaultEffort}]}]}. model_choice capability.

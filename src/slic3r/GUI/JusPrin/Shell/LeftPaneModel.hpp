@@ -20,7 +20,7 @@ enum class PaneTab : std::uint8_t { Plates, Project };
 
 // Views inside the Project tab. Root is the tab itself; every other view is one
 // level below it and returns to it.
-enum class ProjectView : std::uint8_t { Root, Details, PrintHistory, Versions };
+enum class ProjectView : std::uint8_t { Root, Details, Versions };
 
 // Which tab and view are showing, and which objects the person has opened.
 // The expansion set is project-scoped, so it is dropped whenever the project

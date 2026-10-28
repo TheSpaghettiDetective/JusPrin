@@ -2,6 +2,7 @@
 
 #include "AgentPane.hpp"
 #include "ClassicView.hpp"
+#include "GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
 #include "SetupCommands.hpp"
@@ -47,6 +48,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
+#include <utility>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -428,6 +430,15 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_autosave = std::make_unique<Workspace::ProjectAutosave>(
             *plater, *m_persistence, *m_workspace,
             std::filesystem::path(data_dir()) / "jusprin" / "projects");
+        m_gcode_history = std::make_unique<GcodeHistoryRecorder>(
+            *plater, *m_persistence, *m_workspace, std::filesystem::path(data_dir()) / "jusprin" / "projects",
+            [this] { return gcode_records_by_project(); });
+        // A print that starts or finishes while Home is up changes its cards
+        // and, when it is open, the Print history screen.
+        m_gcode_history->set_changed_listener([this] {
+            if (m_home != nullptr && m_home_shown)
+                m_home->refresh();
+        });
         auto& project_host = m_agent_pane->web_view().host();
         project_host.set_chat_checkpoint_callbacks(
             [this] { return m_autosave->pin_current(); },
@@ -487,6 +498,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     if (m_installed && !m_agent_pane_collapsed)
                         toggle_agent_pane();
                 });
+                return true;
+            }
+            if (action == "open_print_history") {
+                open_print_history(payload.value("hash", std::string()));
                 return true;
             }
             if (action == "confirm_answer") {
@@ -676,6 +691,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 if (m_autosave)
                     m_autosave->record_opened_from(std::filesystem::u8path(path));
             });
+        m_agent_pane->web_view().host().tools().set_print_dialog_opener(
+            [this](const Agent::ToolExecutionCoordinator::PrintDialogRequest& request) {
+                return open_print_dialog(request);
+            });
         m_agent_pane->web_view().host().tools().set_document_boundary_callback(
             [this](const Agent::ToolActivity&) {
                 if (!m_autosave->save_now())
@@ -770,7 +789,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     throw std::runtime_error("the Project page is missing from the Notebook");
                 m_frame->select_tab(size_t(page));
                 project->show_info_editor(true);
-            }});
+            },
+            {},
+            [this] { open_print_history(); },
+            [] { return live_prints(); }});
         m_project_sizer->Add(m_status_row, 0, wxEXPAND);
         m_project_sizer->Add(m_workspace_sizer, 1, wxEXPAND);
         m_center_sizer->Add(m_left_pane, 0, wxEXPAND);
@@ -998,6 +1020,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_plater->set_external_project_open_handler({});
         m_plater->set_external_file_open_handler({});
         m_plater->Unbind(wxEVT_IDLE, &ShellController::on_plater_idle, this);
+        m_gcode_history.reset();
         m_autosave.reset();
         m_persistence.reset();
         m_work_feed.reset();
@@ -1586,6 +1609,7 @@ void ShellController::uninstall()
     // A drop now takes OrcaSlicer's own path again; its own target comes
     // back with the next slice.
     m_plater->SetDropTarget(new PrepareDropTarget(*m_frame, *m_plater, {}));
+    m_gcode_history.reset();
     m_autosave.reset();
     if (m_plater->get_project_name().empty())
         m_frame->SetTitle(m_saved_frame_title);
@@ -1657,6 +1681,148 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
     show_task_panel();
 }
 
+void ShellController::open_print_history(const std::string& focus_hash)
+{
+    m_frame->CallAfter([this, focus_hash] {
+        if (!m_installed || m_task_open || m_tabpanel->GetSelection() == MainFrame::tpHome)
+            return;
+        const Agent::ProjectStateDocument& document = m_persistence->document();
+        if (!document.has_identity())
+            throw std::logic_error("a Print history was asked for a project that has no identity");
+        m_history_return_tab = m_tabpanel->GetSelection();
+        m_home_screen        = nlohmann::json{{"screen", "history"}, {"projectId", document.project_id()}, {"back", "project"}};
+        if (!focus_hash.empty())
+            m_home_screen["focus"] = focus_hash;
+        m_tabpanel->SetSelection(MainFrame::tpHome);
+    });
+}
+
+void ShellController::leave_print_history()
+{
+    m_frame->CallAfter([this] {
+        if (!m_installed || m_history_return_tab < 0)
+            return;
+        m_tabpanel->SetSelection(std::exchange(m_history_return_tab, -1));
+    });
+}
+
+Agent::ToolExecutionCoordinator::PrintDialogOutcome
+ShellController::open_print_dialog(const Agent::ToolExecutionCoordinator::PrintDialogRequest& request)
+{
+    using Outcome  = Agent::ToolExecutionCoordinator::PrintDialogOutcome;
+    PresetBundle& presets = *wxGetApp().preset_bundle;
+    const std::string dialog = presets.use_bbl_network() ? "select_machine" : "print_host";
+    const Agent::ProjectStateDocument& document = m_persistence->document();
+
+    if (!request.gcode.empty()) {
+        std::vector<Agent::GcodeRecord> matches;
+        for (const Agent::GcodeRecord& record : document.gcode_records())
+            if (record.hash.rfind(request.gcode, 0) == 0)
+                matches.push_back(record);
+        if (matches.empty())
+            return Outcome{"not_found", "This project's print history has no G-code " + request.gcode + ".", {}};
+        if (matches.size() > 1)
+            return Outcome{"invalid_arguments", "More than one G-code in the print history starts with " + request.gcode +
+                                                    "; give more of its digits.", {}};
+        switch (m_gcode_history->print_again_state(document.project_id(), matches.front())) {
+        case GcodeHistoryRecorder::PrintAgain::Ready: break;
+        case GcodeHistoryRecorder::PrintAgain::NotKept:
+            return Outcome{"refused", "The project no longer keeps this G-code's file, so it can't be printed again as it was. "
+                                      "Slice the plate again and print that.", {}};
+        case GcodeHistoryRecorder::PrintAgain::NotForThisPrinter:
+            return Outcome{"refused", "This G-code's file is not kept in the form the selected printer takes: a Bambu printer "
+                                      "takes the package an earlier send to a Bambu printer left, and only some print hosts take "
+                                      "a kept copy. Slice the plate again and print that.", {}};
+        case GcodeHistoryRecorder::PrintAgain::NoPrinter:
+            return Outcome{"no_printer", "No printer connection is set up for the selected printer.", {}};
+        case GcodeHistoryRecorder::PrintAgain::Changed:
+            return Outcome{"refused", "The file kept for this G-code changed on disk after it was kept, so JusPrin will not "
+                                      "send it. Slice the plate again and print that.", {}};
+        }
+        print_again(document.project_id(), matches.front().hash);
+        return Outcome{{}, {}, dialog};
+    }
+
+    // A plate's slice, the way the header's Print sends it.
+    const auto* host = presets.printers.get_edited_preset().config.option<ConfigOptionString>("print_host");
+    if (!presets.use_bbl_network() && (host == nullptr || host->value.empty()))
+        return Outcome{"no_printer", "No printer connection is set up for the selected printer. The sliced file can be "
+                                     "exported instead.", {}};
+    m_frame->CallAfter([this, plate = *request.plate] {
+        if (!m_installed)
+            return;
+        // The plate can go between the call and this turn.
+        if (m_workspace->snapshot().active_plate != plate && !m_workspace->select_plate(plate).succeeded()) {
+            MessageDialog(m_frame, _L("The plate to print is no longer in the project."), _L("Couldn't open the print dialog"),
+                          wxOK | wxICON_INFORMATION)
+                .ShowModal();
+            return;
+        }
+        SimpleEvent print(EVT_GLTOOLBAR_PRINT_PLATE);
+        m_plater->GetEventHandler()->ProcessEvent(print);
+    });
+    return Outcome{{}, {}, dialog};
+}
+
+std::vector<std::pair<std::string, std::vector<Agent::GcodeRecord>>> ShellController::gcode_records_by_project() const
+{
+    std::vector<std::pair<std::string, std::vector<Agent::GcodeRecord>>> records;
+    // A projects folder that cannot be read has no records to read.
+    if (const auto projects = m_autosave->projects())
+        for (const auto& project : *projects)
+            if (project.gcodes)
+                records.emplace_back(project.id, *project.gcodes);
+    return records;
+}
+
+void ShellController::print_again(const std::string& project_id, const std::string& hash)
+{
+    m_frame->CallAfter([this, project_id, hash] {
+        if (!m_installed)
+            return;
+        // The page drew its button from a state that can move before the
+        // click lands (another printer selected, a copy pruned): it is read
+        // again, and a page that is behind is brought up to date instead.
+        Agent::GcodeRecord record;
+        for (const auto& [id, records] : gcode_records_by_project())
+            for (const Agent::GcodeRecord& candidate : records)
+                if (id == project_id && candidate.hash == hash)
+                    record = candidate;
+        if (record.hash.empty() ||
+            m_gcode_history->print_again_state(project_id, record) != GcodeHistoryRecorder::PrintAgain::Ready) {
+            m_home->refresh();
+            return;
+        }
+        m_gcode_history->print_again(project_id, hash);
+    });
+}
+
+void ShellController::open_in_chat(const std::string& project_id, const std::string& conversation_id, const std::string& item_id)
+{
+    m_frame->CallAfter([this, project_id, conversation_id, item_id] {
+        if (!m_installed)
+            return;
+        const Agent::ProjectStateDocument& document = m_persistence->document();
+        if (!document.has_identity() || document.project_id() != project_id) {
+            if (!m_autosave->open_managed_project(project_id)) {
+                MessageDialog(m_frame, _L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                              wxOK | wxICON_ERROR)
+                    .ShowModal();
+                return;
+            }
+        }
+        m_history_return_tab = -1;
+        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        if (m_agent_pane_collapsed)
+            toggle_agent_pane();
+        // A chat can be deleted after a G-code went out from it.
+        if (!m_agent_pane->web_view().host().reveal_item(conversation_id, item_id))
+            MessageDialog(m_frame, _L("The chat this G-code went out from is no longer in the project."), _L("Chat not found"),
+                          wxOK | wxICON_INFORMATION)
+                .ShowModal();
+    });
+}
+
 void ShellController::open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown)
 {
     if (m_task_open || m_printer_panel == nullptr || m_tabpanel == nullptr)
@@ -1715,6 +1881,11 @@ void ShellController::on_page_changed()
     const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
     if (home)
         m_home->refresh();
+    // Coming onto the screen, Home shows its gallery, or the Print history
+    // the project asked for on the way.
+    if (home && !m_home_shown)
+        m_home->show_screen(std::exchange(m_home_screen, nlohmann::json{{"screen", "home"}}));
+    m_home_shown = home;
     m_home->set_live(home);
     // Home and the Notebook share the workspace slot, so exactly one is shown.
     // The Notebook is only hidden while Home is the selection: post_init

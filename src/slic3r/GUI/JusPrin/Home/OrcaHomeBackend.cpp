@@ -10,6 +10,7 @@
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
+#include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -27,6 +28,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
 #include <wx/datetime.h>
+#include <wx/filedlg.h>
 #include <wx/msgdlg.h>
 
 #include <algorithm>
@@ -251,11 +253,17 @@ ProjectList OrcaHomeBackend::recent_projects() const
     }
 
     ProjectList listed;
+    const std::vector<LivePrint> live = live_prints();
+    m_history.clear();
     for (const auto& saved : *managed) {
         ProjectEntry project;
         project.id = saved.id;
         project.name = saved.name.empty() || saved.name == utf8(_L("Untitled")) ?
             utf8(_L("Untitled project")) : saved.name;
+        if (saved.gcodes) {
+            project.history = summarize(*saved.gcodes, live);
+            m_history.push_back({project.id, project.name, *saved.gcodes});
+        }
         project.path = saved.store_path;
         project.thumbnail_url = saved.thumbnail_url;
         project.updated_at = saved.updated_at;
@@ -265,8 +273,8 @@ ProjectList OrcaHomeBackend::recent_projects() const
             project.status_kind = ProjectStatusKind::Printing;
             project.status_text = utf8(wxString::Format(_L("Printing on %s"), wxString::FromUTF8(machine.get_dev_name())) +
                                        middle_dot() + wxString::Format("%d%%", machine.mc_print_percent));
-        } else if (saved.ledger) {
-            const LedgerStatus status = ledger_status(saved.ledger->sent, saved.ledger->prints);
+        } else if (saved.gcodes) {
+            const LedgerStatus status = ledger_status(*saved.gcodes);
             project.status_kind = status.kind;
             project.status_text = utf8(ledger_text(status));
         }
@@ -403,7 +411,164 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
             printer.spools = held->second;
         printers.push_back(std::move(printer));
     }
+
+    const HistoryFacts           facts = history_facts();
+    const std::vector<LivePrint> live  = live_prints();
+    for (PrinterEntry& printer : printers)
+        printer.history = summarize_printer(m_history, printer.id, facts, live);
     return printers;
+}
+
+HistoryFacts OrcaHomeBackend::history_facts() const
+{
+    HistoryFacts facts;
+    facts.printer_label  = [](const std::string& preset) { return utf8(printer_label(preset)); };
+    facts.material_label = [](const std::string& preset) { return utf8(material_label(preset)); };
+    // "0.20mm Strong" for "0.20mm Strong @BBL X1C": the printer is said once,
+    // beside it.
+    facts.process_label = [](const std::string& preset) { return preset.substr(0, preset.find(" @")); };
+
+    const std::vector<Printers::NamedPrinter> named = Printers::named_printers();
+    std::set<std::string>                     devices;
+    if (DeviceManager* manager = wxGetApp().getDeviceManager())
+        for (const auto& entry : manager->get_my_machine_list())
+            devices.insert(entry.first);
+    facts.card_for_preset = [named](const std::string& preset) {
+        for (const Printers::NamedPrinter& printer : named)
+            if (printer.name == preset)
+                return kNamedPrefix + printer.name;
+        return std::string();
+    };
+    // A Bambu device by the named printer that stands for it, else its own
+    // card; a print host by its name.
+    facts.card_for_printer = [named, devices](const std::string& id, const std::string& name) {
+        for (const Printers::NamedPrinter& printer : named)
+            if (!printer.device_id.empty() && printer.device_id == id)
+                return kNamedPrefix + printer.name;
+        for (const Printers::NamedPrinter& printer : named)
+            if (printer.name == name)
+                return kNamedPrefix + printer.name;
+        return devices.count(id) != 0 ? kDevicePrefix + id : std::string();
+    };
+    facts.check_export = [this](const Agent::GcodeDestination& exported) { return check_export(exported); };
+    facts.kept = [](const std::string& project_id, const std::string& hash) {
+        const ShellController* shell = installed_shell();
+        return shell != nullptr && shell->gcode_history() != nullptr && shell->gcode_history()->kept_copy_intact(project_id, hash);
+    };
+    facts.print_again = [](const std::string& project_id, const Agent::GcodeRecord& record) -> std::string {
+        const ShellController* shell = installed_shell();
+        if (shell == nullptr || shell->gcode_history() == nullptr)
+            return "no_printer";
+        switch (shell->gcode_history()->print_again_state(project_id, record)) {
+        case GcodeHistoryRecorder::PrintAgain::Ready: return "ready";
+        case GcodeHistoryRecorder::PrintAgain::NotKept: return "not_kept";
+        case GcodeHistoryRecorder::PrintAgain::NotForThisPrinter: return "not_for_this_printer";
+        case GcodeHistoryRecorder::PrintAgain::NoPrinter: return "no_printer";
+        case GcodeHistoryRecorder::PrintAgain::Changed: break;
+        }
+        // The kept file changed on disk: never sent, and said on the entry.
+        BOOST_LOG_TRIVIAL(error) << "The kept file of G-code " << record.hash << " in project " << project_id
+                                 << " no longer holds what was kept";
+        return "changed";
+    };
+    return facts;
+}
+
+std::string OrcaHomeBackend::check_export(const Agent::GcodeDestination& exported) const
+{
+    // A file that is not there, or a drive that is not plugged in, is the
+    // "not found" row, not an error.
+    const std::filesystem::path path = std::filesystem::u8path(exported.path);
+    std::error_code             absent;
+    const std::uintmax_t        size = std::filesystem::file_size(path, absent);
+    const auto                  written = absent ? std::filesystem::file_time_type() : std::filesystem::last_write_time(path, absent);
+    if (absent) {
+        m_file_checks.erase(exported.path);
+        return "missing";
+    }
+    FileCheck& check = m_file_checks[exported.path];
+    if (check.hash.empty() || check.size != size || check.written != written)
+        check = {size, written, Agent::sha256_file_hex(exported.path)};
+    return check.hash == exported.file_hash ? "matches" : "changed";
+}
+
+nlohmann::json OrcaHomeBackend::print_history()
+{
+    // Read now: the screen opens on what the projects hold this moment.
+    recent_projects();
+    return history_entries(m_history, history_facts(), live_prints());
+}
+
+void OrcaHomeBackend::leave_print_history()
+{
+    if (ShellController* shell = installed_shell())
+        shell->leave_print_history();
+}
+
+void OrcaHomeBackend::open_in_chat(const std::string& project_id, const std::string& conversation_id, const std::string& marker_id)
+{
+    if (ShellController* shell = installed_shell())
+        shell->open_in_chat(project_id, conversation_id, marker_id);
+}
+
+void OrcaHomeBackend::print_again(const std::string& project_id, const std::string& hash)
+{
+    if (ShellController* shell = installed_shell())
+        shell->print_again(project_id, hash);
+}
+
+void OrcaHomeBackend::export_gcode(const std::string& project_id, const std::string& hash, const std::string& beside)
+{
+    ShellController*      shell    = installed_shell();
+    GcodeHistoryRecorder* recorder = shell != nullptr ? shell->gcode_history() : nullptr;
+    if (recorder == nullptr)
+        return;
+    if (recorder->kept_copy(project_id, hash).empty()) {
+        MessageDialog(&m_frame, _L("JusPrin no longer keeps this G-code. Slice the project again to export it."),
+                      _L("Couldn't export G-code"), wxOK | wxICON_WARNING)
+            .ShowModal();
+        return;
+    }
+    std::filesystem::path target;
+    if (!beside.empty()) {
+        // Beside the earlier export, under a name no file has: a changed file
+        // is the person's, and is never written over.
+        const std::filesystem::path earlier = std::filesystem::u8path(beside);
+        target = earlier;
+        for (int number = 2; std::filesystem::exists(target); ++number)
+            target = earlier.parent_path() / std::filesystem::u8path(earlier.stem().u8string() + " (" + std::to_string(number) + ")" +
+                                                                    earlier.extension().u8string());
+    } else {
+        std::string name = hash.substr(0, 8);
+        for (const HistoryProject& project : m_history)
+            if (project.id == project_id)
+                for (const Agent::GcodeRecord& record : project.records)
+                    if (record.hash == hash)
+                        name = Agent::gcode_display_name(record);
+        if (std::filesystem::u8path(name).extension() != ".gcode")
+            name += ".gcode";
+        std::string chosen;
+        if (m_choose_export) {
+            chosen = m_choose_export(name);
+        } else {
+            wxFileDialog dialog(&m_frame, _L("Export G-code"), wxEmptyString, wxString::FromUTF8(name),
+                                "G-code (*.gcode)|*.gcode", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+            if (dialog.ShowModal() == wxID_OK)
+                chosen = utf8(dialog.GetPath());
+        }
+        if (chosen.empty())
+            return;
+        target = std::filesystem::u8path(chosen);
+    }
+    try {
+        recorder->export_kept_copy(project_id, hash, target);
+    } catch (const std::filesystem::filesystem_error& error) {
+        // The folder went away or cannot be written: the person picks again.
+        BOOST_LOG_TRIVIAL(warning) << "Exporting G-code " << hash << " failed: " << error.what();
+        MessageDialog(&m_frame, wxString::Format(_L("The G-code couldn't be written to %s."), wxString::FromUTF8(target.u8string())),
+                      _L("Couldn't export G-code"), wxOK | wxICON_ERROR)
+            .ShowModal();
+    }
 }
 
 void OrcaHomeBackend::open_project(const std::string& project_id)

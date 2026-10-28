@@ -149,6 +149,9 @@ public:
 
     void enqueue(PrintHostJob job);
     void cancel(size_t id);
+    // Called on the enqueuing thread with each job as it is queued, and the
+    // id its progress, error and cancel events will carry.
+    void set_enqueue_observer(std::function<void(size_t id, const PrintHostJob &job)> observer);
 
 private:
     struct priv;

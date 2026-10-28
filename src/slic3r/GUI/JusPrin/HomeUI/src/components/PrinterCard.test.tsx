@@ -25,9 +25,9 @@ function printer(overrides: Partial<PrinterInfo> = {}): PrinterInfo {
   };
 }
 
-function card(info: PrinterInfo, onLaunchMonitor = vi.fn(), onConnect = vi.fn()) {
+function card(info: PrinterInfo, onLaunchMonitor = vi.fn(), onConnect = vi.fn(), onHistory = vi.fn()) {
   const actions = { onConnect, onOpenSettings: vi.fn(), onRename: vi.fn(), onRemove: vi.fn() };
-  render(<PrinterCard printer={info} otherNames={[]} actions={actions} onLaunchMonitor={onLaunchMonitor} />);
+  render(<PrinterCard printer={info} otherNames={[]} actions={actions} onLaunchMonitor={onLaunchMonitor} onHistory={onHistory} />);
   return document.querySelector('.printer-card') as HTMLElement;
 }
 

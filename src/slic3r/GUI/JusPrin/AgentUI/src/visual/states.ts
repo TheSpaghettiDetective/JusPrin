@@ -24,7 +24,7 @@ export function chatState(overrides: Partial<StatePayload> = {}): StatePayload {
     conversation: exchange,
     streamingMessageId: null,
     toolActivities: [],
-    physicalPrints: [],
+    gcodeMarkers: [],
     draft: '',
     context: workspace,
     ...overrides,

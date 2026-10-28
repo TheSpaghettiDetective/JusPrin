@@ -101,7 +101,7 @@ function emptyState(overrides: Partial<StatePayload> = {}): StatePayload {
     conversation: [],
     streamingMessageId: null,
     toolActivities: [],
-    physicalPrints: [],
+    gcodeMarkers: [],
     draft: '',
     context,
     ...overrides,
@@ -314,25 +314,36 @@ describe('App', () => {
     expect(screen.getByRole('list')).toHaveTextContent('Add a brim');
   });
 
-  it('renders physical-print facts', () => {
-    const hash = 'a'.repeat(64);
-    const statistics = { printTimeSeconds: 3720, filamentMm: 1842.5, materialGrams: 14.7, materialCost: 0.44, layerCount: 124 };
+  it('draws a line where a G-code left from this chat, and none for another chat', () => {
+    const marker = {
+      seq: 12, at: '2026-08-30T01:02:00Z', afterId: 'removed-message', hash: 'a71f8c04'.repeat(8),
+      plateIndex: 0, plateName: 'Plate 1', fileName: '', printerName: 'Garage X1C',
+    };
     render(<App getTransport={() => host.transport} />);
-    connect(
-      host,
-      emptyState({
-        physicalPrints: [{
-          id: 'p-1', seq: 12, startedAt: '2026-08-30T00:00:00Z', endedAt: '2026-08-30T01:02:00Z',
-          outcome: 'completed', failure: '', projectId: 'project-1',
-          conversationId: 'conv-1', afterMessageId: 'removed-message', plateIndex: 0, plateName: 'Plate 1',
-          printer: 'Test Printer 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-          gcodeHash: hash, statistics,
-        }],
-      }),
-    );
+    connect(host, emptyState({ gcodeMarkers: [
+      { ...marker, id: 'd-1', kind: 'send', conversationId: 'conv-1' },
+      { ...marker, id: 'd-2', kind: 'export', conversationId: 'conv-other', fileName: 'elsewhere.gcode.3mf', printerName: '' },
+    ] }));
 
-    expect(screen.getByLabelText('Physical print p-1')).toHaveTextContent('Test Printer 0.4');
-    expect(screen.getAllByTitle(hash)).toHaveLength(3);
+    expect(screen.getByRole('note')).toHaveTextContent('Plate 1 · a71f 8c04 → Garage X1C');
+    expect(screen.queryByText(/elsewhere\.gcode\.3mf/)).not.toBeInTheDocument();
+  });
+
+  it('opens the Print history at a marker’s G-code, and comes back to the marker', () => {
+    const marker = {
+      seq: 12, at: '2026-08-30T01:02:00Z', afterId: 'removed-message', hash: 'a71f8c04'.repeat(8),
+      plateIndex: 0, plateName: 'Plate 1', fileName: '', printerName: 'Garage X1C',
+    };
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ gcodeMarkers: [{ ...marker, id: 'd-1', kind: 'send', conversationId: 'conv-1' }] }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'history' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_print_history', hash: marker.hash });
+
+    // The history's Open in chat: the host shows the chat, then names the item.
+    expect(screen.getByRole('note')).not.toHaveClass('revealed');
+    host.deliver('reveal_item', { itemId: 'd-1' });
+    expect(screen.getByRole('note')).toHaveClass('revealed');
   });
 
   it('leads a filament note with its colour, drawn and never named', () => {
@@ -1274,24 +1285,6 @@ describe('App attachments', () => {
     const sent = host.lastOfType('user_message');
     expect(sent).toBeTruthy();
     expect((sent!.payload as { attachmentIds: string[] }).attachmentIds).toEqual(['a-1']);
-  });
-
-  it('discusses a failed print without sending a staged attachment', async () => {
-    render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ physicalPrints: [{
-      id: 'p-1', seq: 1, startedAt: '2026-10-01T13:09:00Z', endedAt: '2026-10-01T14:13:00Z',
-      outcome: 'failed', failure: 'Layer shift reported near layer 62.', projectId: 'project-1',
-      conversationId: 'conv-1', afterMessageId: '', plateIndex: 0, plateName: 'Plate 1',
-      printer: 'Bambu X1C', material: 'Gray PETG', manufacturingInputHash: 'a'.repeat(64),
-      outputHash: 'b'.repeat(64), gcodeHash: 'c'.repeat(64),
-      statistics: { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 },
-    }] }));
-    host.deliver('attachment_updated', { attachment: stagedText });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Discuss this failure' }));
-    const sent = host.lastOfType('user_message');
-    expect(sent?.payload).toMatchObject({ attachmentIds: [], text: 'Help me understand why this print failed: Layer shift reported near layer 62.' });
-    expect(screen.getByText('notes.txt')).toBeInTheDocument();
   });
 
   it('shows a rejected attachment error', () => {

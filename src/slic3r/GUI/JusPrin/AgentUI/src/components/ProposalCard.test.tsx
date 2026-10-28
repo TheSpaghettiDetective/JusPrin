@@ -43,7 +43,7 @@ function thread(messages: Message[], activities: ToolActivityInfo[], handlers: {
 } = {}) {
   return render(
     <MessageList messages={messages} attachments={[]} streamingMessageId={null} toolActivities={activities}
-      physicalPrints={[]} changes={[]} onRetry={noop} onToolCancel={noop}
+      gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop}
       onSaveProposal={handlers.onSaveProposal} onSend={handlers.onSend ?? noop} />,
   );
 }
@@ -75,14 +75,14 @@ describe('the proposal card', () => {
     const failed = { ...save, state: 'failed' as const, error: { code: 'stale_workspace', message: 'The workspace changed. Read and preview again.' } };
     rerender(
       <MessageList messages={[photo, called, spoke]} attachments={[]} streamingMessageId={null} toolActivities={[preview, failed]}
-        physicalPrints={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
+        gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('The workspace changed.');
     expect(screen.getByRole('button', { name: 'Save preset' })).toBeEnabled();
     rerender(
       <MessageList messages={[photo, called, spoke]} attachments={[]} streamingMessageId={null}
         toolActivities={[preview, { ...save, state: 'succeeded' }]}
-        physicalPrints={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
+        gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
     );
     expect(screen.queryByRole('group', { name: proposal.title })).toBeNull();
   });
@@ -112,7 +112,7 @@ describe('the proposal card', () => {
     });
     const { rerender } = render(
       <MessageList messages={[photo, called, spoke, saved]} attachments={[]} streamingMessageId={null} toolActivities={[preview]}
-        physicalPrints={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop}
+        gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop}
         onUndoReceipt={onUndoReceipt} />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
@@ -120,7 +120,7 @@ describe('the proposal card', () => {
     const undone = { ...saved, receipt: { ...saved.receipt!, undone: true } };
     rerender(
       <MessageList messages={[photo, called, spoke, undone]} attachments={[]} streamingMessageId={null} toolActivities={[preview]}
-        physicalPrints={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop}
+        gcodeMarkers={[]} changes={[]} onRetry={noop} onToolCancel={noop} onSend={noop}
         onUndoReceipt={onUndoReceipt} />,
     );
     const status = screen.getByRole('status');
@@ -140,7 +140,7 @@ describe('the proposal card', () => {
     });
     render(
       <MessageList messages={[photo, called, spoke, receipt]} attachments={[]} streamingMessageId={null}
-        toolActivities={[preview, save]} physicalPrints={[]}
+        toolActivities={[preview, save]} gcodeMarkers={[]}
         changes={[change(1, 'a-2'), change(2, 'm-5'), change(3, 'm-3')]} onRetry={noop} onToolCancel={noop} onSend={noop} />,
     );
     expect(screen.queryByText(/Preset 1/)).toBeNull();

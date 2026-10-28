@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <sstream>
 #include <utility>
 
@@ -92,6 +93,46 @@ json workspace_json(const AgentRequest& request)
             plan["invalidatedBy"] = full_plan["invalidatedBy"];
         result["plan"] = std::move(plan);
     }
+    // What left the project and what the printers reported, newest first,
+    // for when the person says how a print went. A print with no finish may
+    // still be running or may have stopped: nothing records which.
+    json history = json::array();
+    for (const AgentRequest::GcodeHistoryEntry& entry : request.gcode_history) {
+        const GcodeRecord& record = entry.record;
+        json exports = json::array(), sends = json::array(), prints = json::array();
+        for (const GcodeDestination& destination : record.destinations) {
+            if (destination.kind == GcodeDestination::Kind::Export)
+                exports.push_back(json{{"at", destination.at},
+                                       {"file", std::filesystem::u8path(destination.path).filename().u8string()}});
+            else
+                sends.push_back(json{{"at", destination.at}, {"printer", destination.printer_name},
+                                     {"startRequested", destination.start_requested}});
+        }
+        for (const GcodePrint& print : record.prints) {
+            json item{{"printer", print.printer_name}, {"startedAt", print.started_at}};
+            if (!print.finished_at.empty())
+                item["finishedAt"] = print.finished_at;
+            prints.push_back(std::move(item));
+        }
+        json item{{"gcode", record.hash.substr(0, 8)},
+                  {"firstLeftAt", record.created_at},
+                  {"plate", record.plate_name},
+                  {"printerPreset", record.printer},
+                  {"filamentPreset", record.material},
+                  {"processPreset", record.process},
+                  {"sameInputsAsNow", entry.same_inputs_as_now},
+                  {"exports", std::move(exports)},
+                  {"sends", std::move(sends)},
+                  {"prints", std::move(prints)}};
+        if (record.statistics.print_time_seconds > 0.0)
+            item["estimatedSeconds"] = record.statistics.print_time_seconds;
+        if (record.statistics.material_grams > 0.0)
+            item["estimatedGrams"] = record.statistics.material_grams;
+        drop_empty(item);
+        history.push_back(std::move(item));
+    }
+    if (!history.empty())
+        result["printHistory"] = std::move(history);
     return result;
 }
 

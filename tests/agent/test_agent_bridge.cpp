@@ -338,7 +338,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kAssistantCompleted, Protocol::kAssistantFailed,
                                               Protocol::kAssistantStopped, Protocol::kToolActivity,
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
-                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated,
+                                              Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kRevealItem,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,

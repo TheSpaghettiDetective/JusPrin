@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
-import { Envelope, PrinterInfo, ProjectInfo, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
+import { Envelope, HistoryEntry, PrinterInfo, ProjectInfo, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload } from './bridge/protocol';
 
 class MockHost {
   received: Envelope[] = [];
@@ -136,8 +136,8 @@ describe('Home', () => {
         ],
       }),
     );
-    const idle = screen.getByText('Garage bracket').closest('button')!;
-    const printing = screen.getByText('Vent grille').closest('button')!;
+    const idle = screen.getByText('Garage bracket').closest<HTMLElement>('.project-card')!;
+    const printing = screen.getByText('Vent grille').closest<HTMLElement>('.project-card')!;
     expect(idle.className).not.toContain('printing');
     expect(idle).not.toHaveAttribute('title');
     expect(printing.className).toContain('printing');
@@ -596,5 +596,216 @@ describe('Home gallery and rail', () => {
     // The added printer stays open once the push that named it has passed.
     host.deliver('state', state({ printers: [added, offline] }));
     expect(document.querySelectorAll('.printer-card')).toHaveLength(2);
+  });
+});
+
+// Boards history-01...05: one screen of every G-code that left a project, with
+// the project and the printer as filters over it.
+describe('Print history', () => {
+  const today = new Date();
+  const at = (hours: number, minutes = 0) =>
+    new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes).toISOString();
+
+  function bracket(): HistoryEntry {
+    return {
+      projectId: 'p1',
+      projectName: 'Garage bracket',
+      hash: '4f9cb2e1aaaa',
+      name: 'bracket-v3.gcode',
+      plateName: 'Plate 1',
+      createdAt: at(0, 2),
+      printTimeSeconds: 9240,
+      grams: 69,
+      layers: 181,
+      printer: 'Bambu X1C',
+      material: 'Gray PETG',
+      process: '0.20mm Strong',
+      conversationId: 'chat-1',
+      markerId: 'd-1',
+      kept: true,
+      printAgain: 'ready',
+      printerIds: ['x1'],
+      destinations: [
+        { id: 'd-1', kind: 'export', at: at(0, 2), path: 'C:\\Users\\kj\\Desktop\\Prints\\bracket-v3.gcode', check: 'matches' },
+        { id: 'd-2', kind: 'send', at: at(0, 4), printerName: 'Bambu X1C', printerId: 'x1', delivered: true, startRequested: true },
+        { id: 'd-3', kind: 'export', at: at(0, 6), path: 'E:\\bracket-v3.gcode', check: 'changed' },
+      ],
+      prints: [{ id: 'p-1', printerName: 'Bambu X1C', printerId: 'x1', startedAt: at(0, 5), live: { percent: 38, remainingSeconds: 5700 } }],
+    };
+  }
+
+  function vent(): HistoryEntry {
+    return {
+      projectId: 'p2',
+      projectName: 'Vent grille',
+      hash: 'c2d811afbbbb',
+      name: 'vent-grille.gcode',
+      plateName: 'Plate 1',
+      createdAt: at(0, 1),
+      kept: false,
+      printAgain: 'not_kept',
+      printerIds: [],
+      destinations: [{ id: 'd-1', kind: 'export', at: at(0, 1), path: 'C:\\Users\\kj\\Desktop\\Prints\\vent-grille.gcode', check: 'missing' }],
+      prints: [],
+    };
+  }
+
+  function openFromHome(): MockHost {
+    const host = start();
+    host.deliver('state', state({ projects: [project(), project({ id: 'p2', name: 'Vent grille' })] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Print history' }));
+    host.deliver('history', { entries: [bracket(), vent()] });
+    return host;
+  }
+
+  it('opens unfiltered from the gallery header and asks for its entries', () => {
+    const host = openFromHome();
+    expect(host.lastOfType('history_request')).toBeDefined();
+    expect(screen.getByText('Print history')).toBeInTheDocument();
+    expect(screen.getByText('2 G-codes · 1 print · all projects, all printers')).toBeInTheDocument();
+    expect(screen.getByText('TODAY')).toBeInTheDocument();
+    // Each entry names its project while no project filter is on.
+    expect(screen.getByRole('button', { name: 'Garage bracket' })).toBeInTheDocument();
+  });
+
+  it('draws an entry with its destinations and what the printer reported', () => {
+    openFromHome();
+    const entry = screen.getByRole('article', { name: 'bracket-v3.gcode' });
+    expect(within(entry).getByText('4f9c b2e1')).toBeInTheDocument();
+    expect(within(entry).getByText('2h 34m · 69 g · 181 layers')).toBeInTheDocument();
+    expect(within(entry).getByText(/Made with Bambu X1C · Gray PETG · 0.20mm Strong/)).toBeInTheDocument();
+    expect(within(entry).getByText('Desktop / Prints · matches, checked just now')).toBeInTheDocument();
+    expect(within(entry).getByText(/on the printer’s SD · started/)).toBeInTheDocument();
+    expect(within(entry).getByText('E: · changed outside JusPrin, checked just now').closest('li')).toHaveClass('greyed');
+    expect(within(entry).getByText('Printing')).toBeInTheDocument();
+    expect(within(entry).getByText(/38% · 1h 35m left/)).toBeInTheDocument();
+  });
+
+  // Decided 2026-10-27: there is no reliable way to know a print failed.
+  it('draws no failure state anywhere', () => {
+    const host = openFromHome();
+    const stopped = { ...bracket(), prints: [{ id: 'p-1', printerName: 'Bambu X1C', printerId: 'x1', startedAt: at(0, 5) }] };
+    host.deliver('history', { entries: [stopped] });
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    expect(screen.queryByText(/fail|cancel|didn.t go well|discuss/i)).toBeNull();
+  });
+
+  it('filters by a project, and widens again when the chip is removed', async () => {
+    openFromHome();
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Project: Vent grille' }));
+    expect(screen.queryByRole('article', { name: 'bracket-v3.gcode' })).toBeNull();
+    expect(screen.getByRole('article', { name: 'vent-grille.gcode' })).toBeInTheDocument();
+    expect(screen.getByText('1 G-code · 0 prints')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove filter Project: Vent grille' }));
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+  });
+
+  it('opens filtered to a printer from its card', () => {
+    const host = start();
+    host.deliver('state', state({ printers: [printer({ history: { gcodes: 1, exports: 1, sends: 1, prints: 1, printingNow: 1 } })] }));
+    fireEvent.click(screen.getByRole('button', { name: '1 print · 1 printing now' }));
+    host.deliver('history', { entries: [bracket(), vent()] });
+    expect(screen.getByText('Printer: X1 Carbon')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('opens filtered to a project from its card line', () => {
+    const host = start();
+    host.deliver('state', state({ projects: [project({ history: { gcodes: 2, exports: 1, sends: 1, prints: 2, printingNow: 1 } })] }));
+    fireEvent.click(screen.getByRole('button', { name: '2 prints · 1 printing now' }));
+    host.deliver('history', { entries: [bracket(), vent()] });
+    expect(screen.getByText('Project: Garage bracket')).toBeInTheDocument();
+    // The project is in the chip, so the entry does not repeat it.
+    expect(screen.queryByRole('button', { name: 'Garage bracket' })).toBeNull();
+  });
+
+  // Preferences is not this leaf's: the title bar's menu and Ctrl+, reach it
+  // from here, and the page's own Ctrl+, stays.
+  it('has no Preferences button, and Ctrl+, still opens Preferences', () => {
+    const host = openFromHome();
+    expect(screen.queryByRole('button', { name: 'Preferences' })).toBeNull();
+    fireEvent.keyDown(window, { key: ',', ctrlKey: true });
+    expect(host.lastOfType('open_preferences')).toBeDefined();
+  });
+
+  it('goes back to the gallery it was opened from', () => {
+    const host = openFromHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Projects')).toBeInTheDocument();
+    expect(host.lastOfType('history_back')).toBeUndefined();
+  });
+
+  it('opens where the project asks, and gives Back to the project', () => {
+    const host = start();
+    host.deliver('state', state());
+    host.deliver('screen', { screen: 'history', projectId: 'p1', focus: '4f9cb2e1aaaa', back: 'project' });
+    host.deliver('history', { entries: [bracket(), vent()] });
+    expect(screen.getByText('Project: Garage bracket')).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'bracket-v3.gcode' })).toHaveClass('focused');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(host.lastOfType('history_back')).toBeDefined();
+    // Home coming on screen again shows the gallery.
+    host.deliver('screen', { screen: 'home' });
+    expect(screen.getByText('Projects')).toBeInTheDocument();
+  });
+
+  it('asks again when the host state moves under it', () => {
+    const host = openFromHome();
+    const asked = host.received.filter((envelope) => envelope.type === 'history_request').length;
+    host.deliver('state', state());
+    expect(host.received.filter((envelope) => envelope.type === 'history_request')).toHaveLength(asked + 1);
+  });
+
+  it('exports a kept copy, writing a changed file’s new one beside it', () => {
+    const host = openFromHome();
+    const entry = screen.getByRole('article', { name: 'bracket-v3.gcode' });
+    fireEvent.click(within(entry).getByRole('button', { name: 'Export…' }));
+    expect(host.lastOfType('export_gcode')!.payload).toEqual({ projectId: 'p1', hash: '4f9cb2e1aaaa' });
+    fireEvent.click(within(entry).getByRole('button', { name: 'Export again' }));
+    expect(host.lastOfType('export_gcode')!.payload).toEqual({ projectId: 'p1', hash: '4f9cb2e1aaaa', beside: 'E:\\bracket-v3.gcode' });
+  });
+
+  it('says when the copy is gone instead of offering an export', () => {
+    openFromHome();
+    const entry = screen.getByRole('article', { name: 'vent-grille.gcode' });
+    expect(within(entry).getByText('File no longer kept · slice again to print it')).toBeInTheDocument();
+    expect(within(entry).queryByRole('button', { name: /Export/ })).toBeNull();
+  });
+
+  // Print again sends the kept file through OrcaSlicer's own dialog; the page
+  // only asks for it, by the record.
+  it('prints a kept G-code again', () => {
+    const host = openFromHome();
+    const entry = screen.getByRole('article', { name: 'bracket-v3.gcode' });
+    fireEvent.click(within(entry).getByRole('button', { name: 'Print again' }));
+    expect(host.lastOfType('print_again')!.payload).toEqual({ projectId: 'p1', hash: '4f9cb2e1aaaa' });
+  });
+
+  it('offers no Print again for a G-code that cannot be sent as it was kept', () => {
+    const host = openFromHome();
+    host.deliver('history', {
+      entries: [
+        { ...bracket(), printAgain: 'not_for_this_printer' },
+        { ...vent(), hash: 'c2d811afcccc', kept: true, printAgain: 'changed' },
+      ],
+    });
+    expect(screen.queryByRole('button', { name: 'Print again' })).toBeNull();
+    expect(screen.getByText('Not kept for this printer · slice again to print it')).toBeInTheDocument();
+    // A kept file that no longer holds what was kept is said, never sent.
+    expect(screen.getByRole('alert')).toHaveTextContent('Kept file changed on disk · slice again to print it');
+  });
+
+  it('opens the chat at the marker where the G-code went out', () => {
+    const host = openFromHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Open in chat' }));
+    expect(host.lastOfType('open_in_chat')!.payload).toEqual({ projectId: 'p1', conversationId: 'chat-1', markerId: 'd-1' });
+  });
+
+  it('searches by text', async () => {
+    openFromHome();
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search prints' }), 'vent');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByRole('article', { name: 'vent-grille.gcode' })).toBeInTheDocument();
   });
 });

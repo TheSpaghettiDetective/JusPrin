@@ -107,7 +107,9 @@ bool HomeHost::refresh_if_changed()
     snapshot.dark     = m_backend.dark();
     snapshot.projects = std::move(listed.projects);
     snapshot.projects_problem = std::move(listed.problem);
-    snapshot.printers = std::move(printers);
+    // Read again: a printer card's history line counts the projects' records,
+    // which the backend reads with the projects.
+    snapshot.printers = ordered_printers();
     send_state(std::move(snapshot));
     return true;
 }
@@ -117,6 +119,15 @@ void HomeHost::push_appearance(bool dark)
     if (!m_connected)
         return;
     send("appearance", json{{"appearance", dark ? "dark" : "light"}});
+}
+
+void HomeHost::show_screen(const json& screen)
+{
+    if (!m_connected) {
+        m_held_screen = screen.dump();
+        return;
+    }
+    send("screen", screen);
 }
 
 void HomeHost::ask_confirmation(const Confirmation& question)
@@ -161,6 +172,8 @@ void HomeHost::on_page_message(const std::string& text)
         m_connected = true;
         send("hello_ack", json{{"protocolVersion", kProtocolVersion}}, correlation);
         push_state();
+        if (!m_held_screen.empty())
+            send("screen", json::parse(std::exchange(m_held_screen, {})));
         if (!m_held_confirmation.empty())
             send("confirm", json::parse(std::exchange(m_held_confirmation, {})));
         return;
@@ -201,6 +214,22 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.launch_monitor(payload.value("id", std::string()));
     else if (type == "open_preferences")
         m_backend.open_preferences();
+    else if (type == "history_request")
+        send("history", json{{"entries", m_backend.print_history()}}, correlation);
+    else if (type == "history_back")
+        m_backend.leave_print_history();
+    else if (type == "open_in_chat")
+        m_backend.open_in_chat(payload.value("projectId", std::string()), payload.value("conversationId", std::string()),
+                               payload.value("markerId", std::string()));
+    else if (type == "print_again")
+        m_backend.print_again(payload.value("projectId", std::string()), payload.value("hash", std::string()));
+    else if (type == "export_gcode") {
+        m_backend.export_gcode(payload.value("projectId", std::string()), payload.value("hash", std::string()),
+                               payload.value("beside", std::string()));
+        // The export is a new row, and the file it was beside is checked
+        // again with the rest.
+        send("history", json{{"entries", m_backend.print_history()}}, correlation);
+    }
     else if (type == "add_printer") {
         m_backend.add_printer();
         push_state();

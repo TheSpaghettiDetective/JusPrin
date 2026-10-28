@@ -604,6 +604,26 @@
     "type": "function"
   },
   {
+    "description": "Open OrcaSlicer's own send dialog, the way the Print button does: Select Machine for a printer on Bambu's network, the upload dialog for a print host. Call it only when the person asks to print; getting a print ready never opens it. With plateId (default the active plate) it sends that plate's current slice, and is refused with needs_step naming slice_start when the plate has no valid slice. With gcode, a G-code from the workspace's printHistory (its 8 hex digits), it prints that G-code again from the copy the project kept, byte for byte, not a fresh slice; it is refused when the copy is gone or is not kept for the printer selected now (slice again instead). The dialog fills itself in and the call sets nothing in it. It opens after the call returns, and the call reports nothing about a send: the person presses Send there. Changes no project state.",
+    "name": "print_dialog_open",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "gcode": {
+          "pattern": "^[0-9a-f]{8,64}$",
+          "type": "string"
+        },
+        "plateId": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
     "description": "List the physical printers this application knows about: what each is doing, the nozzle and loaded materials it last reported, and when it last said anything (ISO 8601, UTC). A printer it has not heard from is listed as offline, which is a statement about what can be observed rather than a claim about the machine; fields it has not reported are absent rather than zero.",
     "name": "printer_list",
     "parameters": {

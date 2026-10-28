@@ -287,6 +287,11 @@ public:
     // line leads with -- the filament a change landed on. Returns the note's ID.
     std::string post_note(const std::string& text, const std::string& swatch = {});
 
+    // Shows a chat of the open project and scrolls it to one of its items,
+    // such as the marker where a G-code went out. False when the project has
+    // no such chat any more.
+    bool reveal_item(const std::string& conversation_id, const std::string& item_id);
+
     // A file the person opened or imported has finished loading. The report
     // joins the conversation as a note the model reads and the page does not
     // draw, and the Agent speaks first about it. When the Agent can't, the

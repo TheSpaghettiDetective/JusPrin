@@ -1,6 +1,6 @@
 // Not an assertion suite: the sibling of SetupCard.preview.test.tsx, for the
 // surfaces that carry a conversation. It renders the real MessageList,
-// Composer and ManufacturingHistoryCard at the dock's real width and writes a
+// Composer and GcodeMarker at the dock's real width and writes a
 // page a human (or a screenshot) can look at.
 //
 // It exists because the token guards in styles.test.ts prove the stylesheet
@@ -18,7 +18,7 @@ import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { applyAppearance, applyStaticTokens } from '../tokens';
 import { Message } from '../state/store';
-import { ChangeInfo, PhysicalPrintInfo, ToolActivityInfo } from '../bridge/protocol';
+import { ChangeInfo, GcodeMarkerInfo, ToolActivityInfo } from '../bridge/protocol';
 import { yesTurnActivities, yesTurnChanges, yesTurnMessages } from '../visual/yes-turn';
 
 const message = (id: string, role: Message['role'], text: string): Message =>
@@ -31,20 +31,14 @@ const turns: Message[] = [
   message('m4', 'assistant', "Only beneath the hook tip. They won't touch the wall-facing surface."),
 ];
 
-const hash = 'a71f8c04'.repeat(8);
-const statistics = { printTimeSeconds: 9360, filamentMm: 1842.5, materialGrams: 68, materialCost: 1.12, layerCount: 181 };
-
-const print: PhysicalPrintInfo = {
-  id: 'p-1', seq: 12, startedAt: '2026-08-30T13:09:00Z', endedAt: '2026-08-30T14:13:00Z',
-  outcome: 'failed', failure: 'Layer shift reported near layer 62.', projectId: 'project-1',
-  conversationId: 'conv-1', afterMessageId: 'm4', plateIndex: 0, plateName: 'Plate 1',
-  printer: 'Bambu X1C 0.4', material: 'Generic PLA', manufacturingInputHash: hash, outputHash: hash,
-  gcodeHash: hash, statistics,
+const marker: GcodeMarkerInfo = {
+  id: 'd-1', seq: 12, kind: 'send', at: '2026-08-30T13:06:00Z', conversationId: 'conv-1', afterId: 'm4',
+  hash: 'a71f8c04'.repeat(8), plateIndex: 0, plateName: 'Plate 1', fileName: '', printerName: 'Bambu X1C',
 };
 
 const noop = () => {};
 
-function thread(prints: PhysicalPrintInfo[], extra: {
+function thread(markers: GcodeMarkerInfo[], extra: {
   messages?: Message[]; activities?: ToolActivityInfo[]; changes?: ChangeInfo[]; streamingMessageId?: string;
 } = {}) {
   return renderToStaticMarkup(
@@ -53,7 +47,7 @@ function thread(prints: PhysicalPrintInfo[], extra: {
       attachments={[]}
       streamingMessageId={extra.streamingMessageId ?? null}
       toolActivities={extra.activities ?? []}
-      physicalPrints={prints}
+      gcodeMarkers={markers}
       changes={extra.changes ?? []}
       restorePoints={[{ changeSeq: 42, versionId: 'v-42' }]}
       onRevert={noop}
@@ -103,9 +97,9 @@ const buildCases = (): { name: string; note: string; body: string; tall?: boolea
     body: thread([]),
   },
   {
-    name: 'failed print',
-    note: 'the manufacturing record at resting altitude',
-    body: thread([print]),
+    name: 'g-code marker',
+    note: 'the one line where a G-code left the project',
+    body: thread([marker]),
   },
 ];
 

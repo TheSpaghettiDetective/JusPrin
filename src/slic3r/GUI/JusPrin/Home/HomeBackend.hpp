@@ -11,6 +11,8 @@
 
 #include "HomeSnapshot.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <string>
 #include <vector>
 
@@ -48,6 +50,20 @@ public:
     virtual void add_printer()                                  = 0;
     // JusPrin's Preferences window, over Home.
     virtual void open_preferences() {}
+
+    // The Print history screen. Its entries, every project's, with each
+    // exported file checked against what was written (PrintHistory.hpp).
+    virtual nlohmann::json print_history() { return nlohmann::json::array(); }
+    // Back from a Print history the project opened: to the project's screen.
+    virtual void leave_print_history() {}
+    // The project's chat at the marker where the G-code went out.
+    virtual void open_in_chat(const std::string& project_id, const std::string& conversation_id,
+                              const std::string& marker_id) {}
+    // The project's kept copy of a G-code, written where the person picks,
+    // or, with `beside`, next to that earlier export under a name no file has.
+    virtual void export_gcode(const std::string& project_id, const std::string& hash, const std::string& beside) {}
+    // OrcaSlicer's send dialog for the kept file of a recorded G-code.
+    virtual void print_again(const std::string& project_id, const std::string& hash) {}
 
     // The printer card's menu. Each returns an empty string when the action
     // ran or the person cancelled it, and otherwise a message for the person,

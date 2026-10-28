@@ -236,7 +236,7 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
     // The project chat's tools, in the registry's order, with only the last
     // carrying the breakpoint.
     const json& tools = body["tools"];
-    REQUIRE(tools.size() == 28);
+    REQUIRE(tools.size() == 29);
     for (std::size_t i = 0; i < tools.size(); ++i) {
         CAPTURE(tools[i]["name"]);
         const ToolDefinition* definition = ToolRegistry::instance().find(tools[i]["name"].get<std::string>());

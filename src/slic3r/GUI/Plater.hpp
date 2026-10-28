@@ -101,6 +101,10 @@ enum class ActionButtonType : int;
 wxDECLARE_EVENT(EVT_SLICING_UPDATE, Slic3r::SlicingStatusEvent);
 // Delivered after the current GUI event has finalized slicing availability.
 wxDECLARE_EVENT(EVT_SLICE_STATUS_CHANGED, wxCommandEvent);
+// Sent to the Plater, before the export returns, where an export of G-code or
+// a sliced 3MF reports it finished: the string is the path, the int the plate
+// index (PLATE_ALL_IDX for every plate).
+wxDECLARE_EVENT(EVT_OUTPUT_EXPORTED, wxCommandEvent);
 wxDECLARE_EVENT(EVT_PUBLISH,        wxCommandEvent);
 wxDECLARE_EVENT(EVT_OPEN_PLATESETTINGSDIALOG,        wxCommandEvent);
 

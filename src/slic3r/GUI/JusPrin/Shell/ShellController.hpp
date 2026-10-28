@@ -11,6 +11,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <boost/filesystem/path.hpp>
+#include <nlohmann/json.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -38,6 +39,7 @@ namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
 class ClassicViewReturn;
+class GcodeHistoryRecorder;
 class LeftPane;
 class ShellTheme;
 class StatusRow;
@@ -185,6 +187,21 @@ public:
     // preset by name; `shown` is what the header calls it.
     void open_filament_help(std::size_t slot, const std::string& preset, const std::string& shown);
 
+    // The Print history screen, a leaf of Home and of the project: opened
+    // from the project (its pane row, a chat marker's link), it is filtered
+    // to the open project and shows `focus_hash`'s entry; Back returns to the
+    // screen it was opened from. On the frame's next turn, since both ways in
+    // are a pane's or a web view's own handler.
+    void open_print_history(const std::string& focus_hash = {});
+    void leave_print_history();
+    // A project's chat at one of its items: opens the project when another
+    // is open, then the chat, scrolled to the item. On the frame's next turn.
+    void open_in_chat(const std::string& project_id, const std::string& conversation_id, const std::string& item_id);
+    GcodeHistoryRecorder* gcode_history() const { return m_gcode_history.get(); }
+    // Print again for a recorded G-code: OrcaSlicer's send dialog for its kept
+    // file, on the frame's next turn (the Print history page asks for it).
+    void print_again(const std::string& project_id, const std::string& hash);
+
 private:
     // OrcaSlicer's load_files(wxArrayString) hands a person's files here
     // first (Plater::set_external_file_open_handler): files from the OS,
@@ -202,6 +219,11 @@ private:
     // lone zip adds unless it came through open_files_as_new_project.
     bool m_zip_opens_project{false};
     void on_frame_destroy(wxWindowDestroyEvent& event);
+    // print_dialog_open: refuses, or opens the send dialog on the next turn.
+    Agent::ToolExecutionCoordinator::PrintDialogOutcome
+    open_print_dialog(const Agent::ToolExecutionCoordinator::PrintDialogRequest& request);
+    // Every saved project's G-code records, the open one's included.
+    std::vector<std::pair<std::string, std::vector<Agent::GcodeRecord>>> gcode_records_by_project() const;
     // Applies what the Notebook's current page implies for the shell: Home
     // refreshes its gallery and takes the Agent panel off the screen.
     void on_page_changed();
@@ -271,6 +293,12 @@ private:
     std::unique_ptr<wxTimer> m_welcome_wait;
     bool m_task_open{false};
     int  m_task_origin_tab{-1};
+    // Home tells its page which screen to show each time Home comes on
+    // screen: the gallery, unless a Print history was asked for on the way.
+    bool           m_home_shown{false};
+    nlohmann::json m_home_screen = nlohmann::json::object({{"screen", "home"}});
+    // The screen Back from a project-opened Print history returns to.
+    int            m_history_return_tab{-1};
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.
@@ -279,6 +307,8 @@ private:
     // after the workspace and before the pane, destroyed in reverse.
     std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
+    // Writes the G-code records; reads both of the above, so it goes first.
+    std::unique_ptr<GcodeHistoryRecorder> m_gcode_history;
     // The version pinned before a model turn's first edit; every later edit
     // of the turn links to it, and the turn's end clears it.
     std::string m_turn_before_version;

@@ -16,7 +16,7 @@ import {
   RestorePointInfo,
   ConversationInfo,
   Envelope,
-  PhysicalPrintInfo,
+  GcodeMarkerInfo,
   SavedKeyInfo,
   SetupKeysPayload,
   SetupStatusPayload,
@@ -62,7 +62,7 @@ export interface AgentUiState {
   streamingMessageId: string | null;
   conversationBusy: boolean;
   toolActivities: ToolActivityInfo[];
-  physicalPrints: PhysicalPrintInfo[];
+  gcodeMarkers: GcodeMarkerInfo[];
   changes: ChangeInfo[];
   work: WorkInfo[];
   restorePoints: RestorePointInfo[];
@@ -97,6 +97,10 @@ export interface AgentUiState {
   // The host's open question, until the person answers it; a newer one
   // replaces it.
   confirmation: ConfirmPayload | null;
+  // The chat item the host last asked to bring into view (the Print
+  // history's Open in chat), and a count that moves with each ask, so the
+  // same item asked twice is scrolled to twice.
+  reveal: { itemId: string; count: number } | null;
   // Set when a delta arrived out of order; the app answers by requesting a
   // full state resync from the host.
   needsResync: boolean;
@@ -118,7 +122,7 @@ export const initialState: AgentUiState = {
   streamingMessageId: null,
   conversationBusy: false,
   toolActivities: [],
-  physicalPrints: [],
+  gcodeMarkers: [],
   changes: [],
   work: [],
   restorePoints: [],
@@ -138,6 +142,7 @@ export const initialState: AgentUiState = {
   navigation: { focused: false },
   settingsCatalog: null,
   confirmation: null,
+  reveal: null,
   needsResync: false,
   diagnostics: [],
 };
@@ -210,7 +215,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         streamingMessageId: full.streamingMessageId,
         conversationBusy: full.conversationBusy ?? full.streamingMessageId !== null,
         toolActivities: full.toolActivities ?? [],
-        physicalPrints: full.physicalPrints ?? [],
+        gcodeMarkers: full.gcodeMarkers ?? [],
         changes: full.changes ?? [],
         work: full.work ?? [],
         restorePoints: full.restorePoints ?? [],
@@ -254,6 +259,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, setup: envelope.payload as SetupStatusPayload };
     case 'confirm':
       return { ...state, confirmation: envelope.payload as ConfirmPayload };
+    case 'reveal_item':
+      return { ...state, reveal: { itemId: payload.itemId as string, count: (state.reveal?.count ?? 0) + 1 } };
     case 'setup_keys':
       return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
     case 'account_status':

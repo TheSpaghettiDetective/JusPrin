@@ -315,8 +315,6 @@ body {
   display: flex;
   flex-direction: column;
   max-width: var(--project-card-max-width);
-  padding: 0;
-  text-align: left;
   font: var(--font-body);
   color: inherit;
   background: var(--surface-raised);
@@ -324,7 +322,51 @@ body {
   border-radius: var(--project-card-radius);
   box-shadow: var(--elevation-subtle);
   overflow: hidden;
+}
+
+/* The thumbnail and footer open the project; the history line under them is
+   a control of its own. */
+.project-card-open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
   cursor: pointer;
+}
+
+/* A card's way into the Print history: "2 prints · 1 printing now". */
+.project-history {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px 12px;
+  font: var(--font-body-small);
+  color: var(--action-primary);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.printer-history {
+  padding: 4px 0 0;
+}
+
+.project-history-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-history:hover .project-history-text {
+  text-decoration: underline;
 }
 
 /* Tinted, not filled: the tint has to differ from an ordinary card or it
@@ -729,6 +771,13 @@ body {
 .glyph-search { -webkit-mask-image: url('@resources/jusprin/ui/icons/search.svg'); mask-image: url('@resources/jusprin/ui/icons/search.svg'); }
 .glyph-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
 .glyph-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
+.glyph-chevron-left { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); }
+.glyph-history { -webkit-mask-image: url('@resources/jusprin/ui/icons/clock.svg'); mask-image: url('@resources/jusprin/ui/icons/clock.svg'); }
+.glyph-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
+.glyph-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
+.glyph-close { -webkit-mask-image: url('@resources/jusprin/ui/icons/x.svg'); mask-image: url('@resources/jusprin/ui/icons/x.svg'); }
+.glyph-download { -webkit-mask-image: url('@resources/jusprin/ui/icons/download.svg'); mask-image: url('@resources/jusprin/ui/icons/download.svg'); }
+.glyph-send { -webkit-mask-image: url('@resources/jusprin/ui/icons/send.svg'); mask-image: url('@resources/jusprin/ui/icons/send.svg'); }
 
 .glyph-large {
   width: var(--glyph-size-large);
@@ -968,4 +1017,346 @@ body {
   color: var(--action-disabled-text);
   background: var(--action-disabled);
   cursor: default;
+}
+
+/* -- Print history ---------------------------------------------------------
+   Boards history-01...04: a full screen in place of the gallery, its list a
+   centred column on the subtle ground, one card per G-code. */
+
+/* The gallery header's unfiltered way in, quiet beside New and Open…. */
+.history-header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  font: var(--font-body-small);
+  color: var(--action-primary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.history-header-link:hover {
+  text-decoration: underline;
+}
+
+.history-header-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-title {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.history-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  background: var(--surface-subtle);
+  scrollbar-width: thin;
+}
+
+.history-list {
+  flex: 0 1 var(--print-history-list-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px 24px;
+}
+
+.history-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.history-chips {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--button-secondary-small-height);
+  padding: 0 4px 0 8px;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+  background: var(--surface-selected);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-chip);
+  white-space: nowrap;
+}
+
+.history-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.history-chip-remove:hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+
+.history-add {
+  position: relative;
+  display: flex;
+}
+
+.history-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--button-secondary-small-height);
+  padding: 0 8px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.history-add-button:hover {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
+
+.printer-menu.history-add-menu {
+  left: 0;
+  right: auto;
+}
+
+.history-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-count {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.history-day {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-day-label {
+  margin: 0;
+  padding-top: 8px;
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+.history-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-large);
+}
+
+/* The entry a chat marker's link named. */
+.history-entry.focused {
+  border-color: var(--border-focus);
+}
+
+.history-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.history-entry-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.history-entry-name {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.history-sep {
+  font: var(--font-body-small);
+  color: var(--text-tertiary);
+}
+
+/* The hash is a secondary id: in the code face, quiet. */
+.history-hash {
+  font: var(--font-code);
+  color: var(--text-tertiary);
+}
+
+.history-stats {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.history-entry-time {
+  flex: 0 0 auto;
+  font: var(--font-label);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.history-made {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.history-link {
+  padding: 0;
+  font: var(--font-body-small);
+  color: var(--action-primary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.history-link:hover {
+  text-decoration: underline;
+}
+
+.history-rule {
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.history-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--button-secondary-small-height);
+}
+
+/* A file that changed or is gone is greyed, never struck through. */
+.history-row.greyed {
+  opacity: 0.6;
+}
+
+.history-row-icon {
+  flex: 0 0 var(--glyph-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-icon-matches,
+.history-icon-changed,
+.history-icon-missing,
+.history-icon-send {
+  display: flex;
+}
+
+.history-icon-matches {
+  color: var(--status-success);
+}
+
+.history-icon-changed {
+  color: var(--status-warning);
+}
+
+.history-icon-missing {
+  color: var(--text-tertiary);
+}
+
+.history-icon-send {
+  color: var(--text-secondary);
+}
+
+.history-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.history-row-label {
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.history-row-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.history-print-state {
+  color: var(--status-success);
+}
+
+.history-print-state.started {
+  color: var(--text-secondary);
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.history-note {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+.history-note-changed {
+  color: var(--status-warning);
+}
+
+/* Print again: the design system's compact primary button, 28 px. */
+.button-primary-small {
+  padding: var(--button-primary-small-padding);
+  height: var(--button-primary-small-height);
 }

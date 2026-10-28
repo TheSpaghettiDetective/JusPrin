@@ -44,6 +44,7 @@ const char* icon_asset(HeaderIcon icon)
     case HeaderIcon::Plates:  return "layers-3";
     case HeaderIcon::Export:  return "download";
     case HeaderIcon::Print:   return "send";
+    case HeaderIcon::History: return "clock";
     case HeaderIcon::None:
     case HeaderIcon::Caret:
     case HeaderIcon::PanelOpen:

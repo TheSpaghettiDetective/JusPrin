@@ -12,6 +12,7 @@
 
 #include <nlohmann/json_fwd.hpp>
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,24 @@ enum class ProjectStatusKind { Unknown, Draft, Sent, Printing, Completed };
 
 const char* to_string(ProjectStatusKind kind);
 
+// What a card or the project pane says about a print history: how much went
+// out, how much printed, and how it stands. The page phrases it.
+struct HistorySummary
+{
+    std::size_t gcodes{0};
+    std::size_t exports{0};
+    std::size_t sends{0};
+    std::size_t prints{0};
+    std::size_t printing_now{0};
+    // The newest finish, ISO 8601 in UTC; empty when nothing finished.
+    std::string last_finished_at;
+
+    bool empty() const { return gcodes == 0; }
+};
+
+// { gcodes, exports, sends, prints, printingNow, lastFinishedAt? }
+nlohmann::json summary_json(const HistorySummary& summary);
+
 struct ProjectEntry
 {
     std::string        id;
@@ -35,6 +54,8 @@ struct ProjectEntry
     std::string        updated_at;
     ProjectStatusKind  status_kind{ProjectStatusKind::Unknown};
     std::string        status_text;
+    // The card's print-history line; an empty one draws none.
+    HistorySummary     history;
 };
 
 // A spool the printer holds, as a connected printer reports its tray. Either
@@ -97,6 +118,9 @@ struct PrinterEntry
     // The Loaded row; empty when nothing is known to be loaded.
     std::vector<SpoolEntry> spools;
     bool                    can_launch_monitor{false};
+    // The card's print-history line: what was made for, sent to and printed
+    // on this printer, across projects. An empty one draws none.
+    HistorySummary          history;
 };
 
 // The project gallery: the saved projects, or why they could not be listed.

@@ -38,7 +38,7 @@ function thread(messages: Message[], activities: ToolActivityInfo[], extra: {
 } = {}) {
   return render(
     <MessageList messages={messages} attachments={[]} streamingMessageId={extra.streamingMessageId ?? null}
-      toolActivities={activities} physicalPrints={[]} changes={extra.changes ?? []}
+      toolActivities={activities} gcodeMarkers={[]} changes={extra.changes ?? []}
       printerBlocks={extra.printerBlocks} onRetry={noop} onToolCancel={noop} onSend={noop} />,
   );
 }

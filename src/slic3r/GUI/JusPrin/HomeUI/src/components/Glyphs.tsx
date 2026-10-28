@@ -36,3 +36,32 @@ export function SettingsGlyph() {
 export function PlusGlyph() {
   return <span className="glyph glyph-plus" aria-hidden="true" />;
 }
+
+export function ChevronLeftGlyph() {
+  return <span className="glyph glyph-chevron-left" aria-hidden="true" />;
+}
+
+// The way into the Print history, on cards and in the header.
+export function HistoryGlyph() {
+  return <span className="glyph glyph-history" aria-hidden="true" />;
+}
+
+export function CheckGlyph() {
+  return <span className="glyph glyph-check" aria-hidden="true" />;
+}
+
+export function AlertGlyph() {
+  return <span className="glyph glyph-alert" aria-hidden="true" />;
+}
+
+export function CloseGlyph() {
+  return <span className="glyph glyph-close" aria-hidden="true" />;
+}
+
+export function DownloadGlyph() {
+  return <span className="glyph glyph-download" aria-hidden="true" />;
+}
+
+export function SendGlyph() {
+  return <span className="glyph glyph-send" aria-hidden="true" />;
+}

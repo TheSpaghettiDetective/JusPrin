@@ -1,7 +1,7 @@
 // The Project tab of the Plates / Project pane: the saved project's identity,
-// what the 3MF says about the model, the physical-print history, and version
-// history. Everything shown is read from the owner that holds it (project
-// autosave, OrcaSlicer's project details, the physical-print ledger), and every
+// what the 3MF says about the model, the row into its print history, and
+// version history. Everything shown is read from the owner that holds it (project
+// autosave, OrcaSlicer's project details, the G-code records), and every
 // action calls the same function the header's overflow menu used to call.
 
 #include "LeftPane.hpp"
@@ -24,6 +24,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <stdexcept>
 
@@ -58,21 +59,25 @@ wxString local_time(const std::string& iso)
     return wxString::FromUTF8(iso);
 }
 
-wxString local_day(const std::string& iso)
+// When a print finished, as the pane's history row says it: "today",
+// "yesterday", a weekday within the week, else the date, in the viewer's time
+// zone. Text that does not parse is shown as it was written.
+wxString finished_day(const std::string& iso)
 {
     wxString text = wxString::FromUTF8(iso);
     if (!text.EndsWith("Z"))
         return text;
     text.RemoveLast();
     wxDateTime when;
-    return when.ParseISOCombined(text) ? when.FromTimezone(wxDateTime::UTC).Format("%d %b") : wxString::FromUTF8(iso);
-}
-
-wxString duration_text(std::int64_t seconds)
-{
-    if (seconds >= 60)
-        return wxString::Format(_L("%d h %02d"), int(seconds / 3600), int((seconds % 3600) / 60));
-    return wxString::Format(_L("%d s"), int(seconds));
+    if (!when.ParseISOCombined(text))
+        return wxString::FromUTF8(iso);
+    when = when.FromTimezone(wxDateTime::UTC);
+    const long days = std::lround(wxDateTime::Today().GetJDN() - when.GetDateOnly().GetJDN());
+    if (days == 0)
+        return _L("today");
+    if (days == 1)
+        return _L("yesterday");
+    return days > 1 && days < 7 ? when.Format("%a") : when.Format("%b %d");
 }
 
 // Splits `text` into lines no wider than `max_width` at the spaces, using the
@@ -285,6 +290,66 @@ int LeftPane::draw_outline_button(wxGraphicsContext& gc, int y, int width, const
     return y + button.height + FromDIP(pane.row_gap);
 }
 
+// The project's print history is a screen of its own; the pane keeps one row
+// that says how it stands and opens it (board plates-26e3, "Project · print
+// history row").
+int LeftPane::draw_print_history_row(wxGraphicsContext& gc, int y, int width)
+{
+    const ShellPalette&    p    = m_theme.palette(m_dark);
+    const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
+    const Home::HistorySummary summary =
+        m_sources.persistence == nullptr ? Home::HistorySummary{} :
+        Home::summarize(m_sources.persistence->document().gcode_records(),
+                        m_sources.live_prints ? m_sources.live_prints() : std::vector<Home::LivePrint>{});
+    wxString detail;
+    if (summary.empty()) {
+        detail = _L("Nothing printed or exported yet");
+    } else {
+        detail = summary.gcodes == 1 ? _L("1 G-code") : wxString::Format(_L("%d G-codes"), int(summary.gcodes));
+        if (summary.printing_now > 0)
+            detail += middle_dot() + _L("printing now");
+        else if (!summary.last_finished_at.empty())
+            detail += middle_dot() + wxString::Format(_L("last finished %s"), finished_day(summary.last_finished_at));
+        // A print host reports no prints, so only G-code that went nowhere
+        // but a file is known never to have printed.
+        else if (summary.sends == 0)
+            detail += middle_dot() + _L("never printed");
+    }
+    m_print_history_detail = detail;
+
+    const int pad_x   = FromDIP(pane.row_padding_x);
+    const int glyph   = FromDIP(pane.glyph_size);
+    const int gap     = FromDIP(m_theme.metrics().space_1);
+    const int inset   = FromDIP(m_theme.metrics().space_2);
+    const int label_h = FromDIP(m_theme.type_style(TextRole::Label).line_height);
+    const int meta_h  = FromDIP(m_theme.type_style(TextRole::Metadata).line_height);
+    const wxRect box(pad_x, y + gap, width - 2 * pad_x, 2 * inset + label_h + gap + meta_h);
+    gc.SetPen(wxPen(p.border_subtle, 1));
+    gc.SetBrush(wxBrush(p.surface_canvas));
+    gc.DrawRoundedRectangle(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, FromDIP(m_theme.metrics().radius_small));
+
+    int    line_y = box.y + inset;
+    double tw = 0, th = 0;
+    const wxString title = _L("Print history");
+    draw_header_icon(gc, HeaderIcon::History, box.x + inset, line_y + (label_h - glyph) / 2, glyph, p.action_primary);
+    gc.SetFont(m_theme.font(TextRole::Label), p.text_primary);
+    gc.GetTextExtent(title, &tw, &th);
+    gc.DrawText(title, box.x + inset + glyph + FromDIP(pane.plate_gap), line_y + (label_h - th) / 2);
+    draw_header_icon(gc, HeaderIcon::Right, box.GetRight() - inset - glyph, line_y + (label_h - glyph) / 2, glyph, p.text_secondary);
+    line_y += label_h + gap;
+    gc.SetFont(m_theme.font(TextRole::Metadata), p.text_secondary);
+    gc.GetTextExtent(detail, &tw, &th);
+    gc.DrawText(detail, box.x + inset, line_y + (meta_h - th) / 2);
+
+    if (m_sources.open_print_history) {
+        Hit hit{Hit::Kind::Action, box, 0, PaneTab::Project};
+        hit.label  = title;
+        hit.invoke = m_sources.open_print_history;
+        m_hits.push_back(std::move(hit));
+    }
+    return box.GetBottom() + 1 + FromDIP(pane.row_gap);
+}
+
 // -- Views ------------------------------------------------------------------
 //
 // Each view follows the layer structure of its Figma frame (26e1-26f): the
@@ -300,7 +365,6 @@ int LeftPane::draw_project(wxGraphicsContext& gc, int top, int width)
     switch (m_navigation.view()) {
     case ProjectView::Root: y = draw_project_root(gc, y, width); break;
     case ProjectView::Details: y = draw_project_details(gc, y, width); break;
-    case ProjectView::PrintHistory: y = draw_print_history(gc, y, width); break;
     case ProjectView::Versions: y = draw_versions(gc, y, width); break;
     }
     return y + FromDIP(pane.list_padding_y);
@@ -407,11 +471,7 @@ int LeftPane::draw_project_root(wxGraphicsContext& gc, int y, int width)
     y += FromDIP(pane.list_padding_y);
 
     // Project actions, in the order of the frame: prints, details, versions, export.
-    const std::size_t prints = m_sources.persistence != nullptr ? m_sources.persistence->document().physical_print_count() : 0;
-    const wxString print_history_label = prints == 0 ? _L("Print history") :
-                                         prints == 1 ? _L("Printed once") : wxString::Format(_L("Printed %d times"), int(prints));
-    y = draw_action_row(gc, y, width, print_history_label, {}, true,
-                        [this] { open_project_view(ProjectView::PrintHistory); });
+    y = draw_print_history_row(gc, y, width);
     y = draw_action_row(gc, y, width, _L("Details"), {}, true, [this] { open_project_view(ProjectView::Details); });
     y = draw_action_row(gc, y, width, _L("Version history"), {}, true, [this] { open_project_view(ProjectView::Versions); },
                         m_sources.autosave != nullptr);
@@ -520,118 +580,6 @@ int LeftPane::draw_project_details(wxGraphicsContext& gc, int y, int width)
     if (m_sources.edit_project_info) {
         y += FromDIP(pane.list_padding_y);
         y = draw_outline_button(gc, y, width, _L("Edit Project Info"), [this] { m_sources.edit_project_info(); });
-    }
-    return y;
-}
-
-int LeftPane::draw_print_history(wxGraphicsContext& gc, int y, int width)
-{
-    const ShellPalette&    p    = m_theme.palette(m_dark);
-    const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
-    y = draw_view_title(gc, y, width, _L("Print history"));
-    if (m_sources.persistence == nullptr)
-        return y;
-    const PrintHistoryView history = build_print_history(m_sources.persistence->document().physical_prints());
-    if (history.total == 0)
-        return draw_paragraph(gc, y, width, _L("Nothing has been printed from this project yet."), TextRole::Label, p.text_secondary);
-
-    y = draw_paragraph(gc, y, width,
-                       history.total == 1 ? _L("Printed once") : wxString::Format(_L("Printed %d times"), int(history.total)),
-                       TextRole::Label, p.text_secondary);
-    y += FromDIP(pane.list_padding_y);
-
-    if (history.detailed.empty())
-        return draw_paragraph(gc, y, width,
-                              _L("These prints were counted, but no details were kept. Prints sent from now on will be listed with date, plate, printer, time and result."),
-                              TextRole::Label, p.text_secondary);
-
-    const int inset = FromDIP(pane.row_padding_x);
-    const int vertical = FromDIP(m_theme.metrics().space_2);
-    const int gap = FromDIP(m_theme.metrics().space_1);
-    const auto line_height = [this](TextRole role) { return FromDIP(m_theme.type_style(role).line_height); };
-    const auto paragraph_height = [&](const wxString& text, TextRole role) {
-        gc.SetFont(m_theme.font(role), p.text_primary);
-        return int(wrap(gc, text, width - 2 * inset).size()) * line_height(role);
-    };
-    for (const PrintHistoryEntry& entry : history.detailed) {
-        const wxString day = entry.started_at.empty() ? _L("Date unavailable (stubbed)") : local_day(entry.started_at);
-        const wxString plate = entry.plate_name.empty() ? _L("Plate unavailable (stubbed)") : wxString::FromUTF8(entry.plate_name);
-        const wxString heading = day + middle_dot() + plate;
-        wxString outcome;
-        wxColour outcome_colour = p.text_primary;
-        switch (entry.outcome) {
-        case PrintOutcome::Completed: outcome = _L("Finished"); break;
-        case PrintOutcome::Failed: outcome = _L("Failed"); outcome_colour = p.status_danger; break;
-        case PrintOutcome::Cancelled: outcome = _L("Stopped"); break;
-        case PrintOutcome::Unrecorded:
-            outcome = entry.recorded_outcome.empty() ? _L("Result unavailable (stubbed)")
-                                                     : wxString::FromUTF8(entry.recorded_outcome);
-            break;
-        }
-        gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
-        double heading_width = 0, outcome_width = 0, unused = 0;
-        gc.GetTextExtent(heading, &heading_width, &unused);
-        gc.GetTextExtent(outcome, &outcome_width, &unused);
-        const bool stacked = heading_width + outcome_width + gap > width - 2 * inset;
-
-        const wxString printer = entry.printer.empty() ? _L("Printer unavailable (stubbed)") : wxString::FromUTF8(entry.printer);
-        const wxString elapsed = entry.duration_seconds ? duration_text(*entry.duration_seconds) : _L("Time unavailable (stubbed)");
-        const wxString facts = printer + middle_dot() + elapsed;
-        wxString estimate;
-        if (entry.estimated_seconds)
-            estimate += duration_text(static_cast<std::int64_t>(*entry.estimated_seconds));
-        if (entry.estimated_grams)
-            estimate += (estimate.empty() ? wxString() : middle_dot()) + wxString::Format("%.0f g", *entry.estimated_grams);
-        if (entry.estimated_cost)
-            estimate += (estimate.empty() ? wxString() : middle_dot()) + wxString::Format("$%.2f", *entry.estimated_cost);
-        const wxString estimate_line = estimate.empty() ? _L("Slice estimate unavailable (stubbed)") : _L("Slice estimate:") + " " + estimate;
-        const wxString material = wxString::FromUTF8(entry.material);
-        const wxString stopped = entry.stopped_percent ? wxString::Format(_L("Stopped at %d%%"), *entry.stopped_percent) : wxString();
-        const wxString failure = wxString::FromUTF8(entry.failure);
-
-        const int header_height = stacked ? paragraph_height(heading, TextRole::LabelBold) + line_height(TextRole::LabelBold)
-                                          : line_height(TextRole::LabelBold);
-        int row_height = 2 * vertical + header_height + gap + paragraph_height(facts, TextRole::Label) + gap +
-                         paragraph_height(estimate_line, TextRole::Metadata);
-        if (!material.empty()) row_height += gap + paragraph_height(material, TextRole::Metadata);
-        if (!stopped.empty()) row_height += gap + paragraph_height(stopped, TextRole::Metadata);
-        if (!failure.empty()) row_height += gap + paragraph_height(failure, TextRole::Metadata);
-        int content_y = y + vertical;
-        if (stacked) {
-            content_y = draw_paragraph(gc, content_y, width, heading, TextRole::LabelBold, p.text_primary);
-            content_y = draw_paragraph(gc, content_y, width, outcome, TextRole::LabelBold, outcome_colour);
-        } else {
-            gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
-            gc.DrawText(heading, inset, content_y);
-            gc.SetFont(m_theme.font(TextRole::LabelBold), outcome_colour);
-            gc.DrawText(outcome, width - inset - outcome_width, content_y);
-            content_y += header_height;
-        }
-        content_y += gap;
-        content_y = draw_paragraph(gc, content_y, width, facts, TextRole::Label, p.text_secondary) + gap;
-        content_y = draw_paragraph(gc, content_y, width, estimate_line, TextRole::Metadata, p.text_secondary);
-        if (!material.empty()) content_y = draw_paragraph(gc, content_y + gap, width, material, TextRole::Metadata, p.text_secondary);
-        if (!stopped.empty()) content_y = draw_paragraph(gc, content_y + gap, width, stopped, TextRole::Metadata, p.text_secondary);
-        if (!failure.empty()) draw_paragraph(gc, content_y + gap, width, failure, TextRole::Metadata, p.text_secondary);
-        y += row_height;
-        gc.SetPen(wxPen(p.border_subtle, 1));
-        gc.StrokeLine(inset, y + 0.5, width - inset, y + 0.5);
-        y += FromDIP(pane.row_gap);
-    }
-
-    if (history.count_only > 0) {
-        const wxString earlier = history.count_only == 1 ? wxString(_L("1 earlier print"))
-                                                        : wxString::Format(_L("%d earlier prints"), int(history.count_only));
-        gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
-        double label_width = 0, th = 0;
-        gc.GetTextExtent(earlier, &label_width, &th);
-        gc.DrawText(earlier, inset, y);
-        gc.SetFont(m_theme.font(TextRole::Metadata), p.text_secondary);
-        const wxString count_only = _L("count only");
-        double count_width = 0;
-        gc.GetTextExtent(count_only, &count_width, &th);
-        gc.DrawText(count_only, width - inset - count_width, y);
-        y += line_height(TextRole::LabelBold);
     }
     return y;
 }

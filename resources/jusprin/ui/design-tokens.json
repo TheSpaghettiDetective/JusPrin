@@ -474,6 +474,9 @@
     "homeHeader": {
       "height": 56
     },
+    "printHistory": {
+      "listWidth": 920
+    },
     "printerDialog": {
       "width": 500,
       "radius": 12,

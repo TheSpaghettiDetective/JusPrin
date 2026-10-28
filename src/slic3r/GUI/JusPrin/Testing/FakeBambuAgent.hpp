@@ -79,6 +79,8 @@ public:
     // <datadir>/jusprin/fake_printer.json, which a test writes to drive state.
     std::string control_file_path() const;
     std::string last_print_filename() const;
+    // The SHA-256 of the file the last print uploaded, as it was at upload.
+    std::string last_print_file_hash() const;
     FakeBambuStatusStep current_step() const;
 
     void set_cloud_agent(std::shared_ptr<ICloudServiceAgent> cloud) override;
@@ -144,6 +146,7 @@ private:
     std::string                         selected_machine;
     std::string                         connected_dev_id;
     std::string                         m_last_print_filename;
+    std::string                         m_last_print_file_hash;
     std::shared_ptr<ICloudServiceAgent> m_cloud_agent;
 
     FakeBambuStatusStep                m_current;

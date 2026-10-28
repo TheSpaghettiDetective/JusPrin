@@ -25,6 +25,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ImageThumbnail.hpp
     GUI/JusPrin/Agent/ManufacturingHistory.cpp
     GUI/JusPrin/Agent/ManufacturingHistory.hpp
+    GUI/JusPrin/Agent/PrintOutcomeTracker.cpp
+    GUI/JusPrin/Agent/PrintOutcomeTracker.hpp
     GUI/JusPrin/Agent/OpenAIHttpTransport.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp
     GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp
@@ -84,6 +86,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/HomeSnapshot.hpp
     GUI/JusPrin/Home/ProjectStatus.cpp
     GUI/JusPrin/Home/ProjectStatus.hpp
+    GUI/JusPrin/Home/PrintHistory.cpp
+    GUI/JusPrin/Home/PrintHistory.hpp
     GUI/JusPrin/Home/HomeBackend.hpp
     GUI/JusPrin/Home/HomeHost.cpp
     GUI/JusPrin/Home/HomeHost.hpp
@@ -170,6 +174,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/LeftPane.hpp
     GUI/JusPrin/Shell/LeftPaneModel.cpp
     GUI/JusPrin/Shell/LeftPaneModel.hpp
+    GUI/JusPrin/Shell/GcodeHistoryRecorder.cpp
+    GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp
     GUI/JusPrin/Shell/ProjectPaneModel.cpp
     GUI/JusPrin/Shell/ProjectPaneModel.hpp
     GUI/JusPrin/Shell/CheckPrintDialog.cpp

@@ -5,6 +5,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
 
 #include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
@@ -357,6 +358,12 @@ std::string FakeBambuAgent::last_print_filename() const
 {
     std::lock_guard<std::mutex> lock(state_mutex);
     return m_last_print_filename;
+}
+
+std::string FakeBambuAgent::last_print_file_hash() const
+{
+    std::lock_guard<std::mutex> lock(state_mutex);
+    return m_last_print_file_hash;
 }
 
 std::string FakeBambuAgent::connected_or_default() const
@@ -758,6 +765,10 @@ int FakeBambuAgent::start_local_print(PrintParams params, OnUpdateStatusFn updat
     {
         std::lock_guard<std::mutex> lock(state_mutex);
         m_last_print_filename = params.filename.empty() ? params.task_name : params.filename;
+        // What a printer would receive: the bytes of the file the job uploads.
+        m_last_print_file_hash = params.filename.empty() || !boost::filesystem::exists(params.filename)
+                                     ? std::string()
+                                     : Slic3r::GUI::JusPrin::Agent::sha256_file_hex(params.filename);
         BOOST_LOG_TRIVIAL(info) << "FakeBambuAgent: start_local_print file=" << m_last_print_filename
                                 << " dest=" << params.dst_file;
     }

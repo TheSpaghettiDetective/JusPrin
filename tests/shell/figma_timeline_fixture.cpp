@@ -52,23 +52,23 @@ FigmaTimelineFixture seed_figma_timeline_start(Agent::ProjectStateDocument& docu
         "Only beneath the hook tip. They won't touch the wall-facing surface.",
         "2026-10-01T13:03:00Z", support_question);
 
-    Agent::PhysicalPrintRecord failed_print;
-    failed_print.started_at = "2026-10-01T13:09:00Z";
-    failed_print.ended_at = "2026-10-01T14:13:00Z";
-    failed_print.outcome = "failed";
-    failed_print.failure = "Layer shift reported near layer 62.";
-    failed_print.project_id = document.project_id();
-    failed_print.conversation_id = fixture.conversation_id;
-    failed_print.after_message_id = support_answer;
-    failed_print.plate_name = "Plate 1";
-    failed_print.printer = "Bambu X1C";
-    failed_print.material = "Gray PETG";
-    failed_print.manufacturing_input_hash = Agent::sha256_hex("backpack-hook-first-input");
-    failed_print.output_hash = Agent::sha256_hex("backpack-hook-first-gcode");
-    failed_print.gcode_hash = failed_print.output_hash;
-    failed_print.stopped_percent = 41;
-    failed_print.statistics = {9360.0, 1842.5, 68.0, 1.12, 181};
-    add_print(document, failed_print, "2026-10-01T13:04:00Z");
+    // The G-code went to the printer after the answer: the chat draws its
+    // one-line marker there (canvas main-05).
+    Agent::GcodeRecord gcode;
+    gcode.hash                     = Agent::sha256_hex("backpack-hook-first-gcode");
+    gcode.plate_name               = "Plate 1";
+    gcode.printer                  = "Bambu Lab X1 Carbon 0.4 nozzle";
+    gcode.material                 = "Gray PETG";
+    gcode.manufacturing_input_hash = Agent::sha256_hex("backpack-hook-first-input");
+    gcode.statistics               = {9360.0, 1842.5, 68.0, 1.12, 181};
+    Agent::GcodeDestination send;
+    send.kind            = Agent::GcodeDestination::Kind::Send;
+    send.printer_name    = "Bambu X1C";
+    send.printer_id      = "fixture-x1c";
+    send.transport       = "bambu_print";
+    send.start_requested = true;
+    send.delivered_at    = "2026-10-01T13:06:00Z";
+    document.add_gcode_destination(gcode, send, "2026-10-01T13:06:00Z");
 
     const std::string failure_report = message(Agent::MessageRole::User,
         "It shifted off the plate about a third of the way up.", "2026-10-01T14:14:00Z");
@@ -100,18 +100,29 @@ FigmaTimelineFixture seed_figma_timeline_start(Agent::ProjectStateDocument& docu
     return fixture;
 }
 
-std::string add_print(Agent::ProjectStateDocument& document, Agent::PhysicalPrintRecord record,
-                      const std::string& timestamp)
+std::string add_print(Agent::ProjectStateDocument& document, const PrintFixture& print, const std::string& timestamp)
 {
-    Agent::SentRecord sent;
-    sent.project_id      = record.project_id;
-    sent.conversation_id = record.conversation_id;
-    sent.plate_index     = record.plate_index;
-    sent.plate_name      = record.plate_name;
-    sent.printer         = record.printer;
-    sent.material        = record.material;
-    record.sent_id       = document.add_sent(sent, timestamp);
-    return document.add_physical_print(std::move(record), timestamp);
+    static int gcodes = 0;
+    Agent::GcodeRecord gcode;
+    gcode.hash                      = Agent::sha256_hex("fixture-gcode-" + std::to_string(++gcodes));
+    gcode.plate_name                = print.plate_name;
+    gcode.printer                   = print.printer;
+    gcode.material                  = print.material;
+    gcode.statistics.material_grams = print.material_grams;
+    gcode.statistics.material_cost  = print.material_cost;
+    Agent::GcodeDestination send;
+    send.kind            = Agent::GcodeDestination::Kind::Send;
+    send.printer_name    = print.printer;
+    send.transport       = "bambu_print";
+    send.start_requested = true;
+    Agent::GcodePrint printed;
+    printed.destination_id = document.add_gcode_destination(gcode, send, timestamp);
+    printed.printer_name   = print.printer;
+    printed.started_at     = print.started_at;
+    const std::string id   = document.add_gcode_print(gcode.hash, printed, timestamp);
+    if (!print.finished_at.empty())
+        document.finish_gcode_print(gcode.hash, id, print.finished_at);
+    return id;
 }
 
 } // namespace JusPrinTest

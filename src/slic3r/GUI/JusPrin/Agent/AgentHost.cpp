@@ -138,13 +138,20 @@ json activity_json(const ToolActivity& activity)
     return result;
 }
 
-json statistics_json(const SliceStatistics& statistics)
+json gcode_marker_json(const GcodeRecord& record, const GcodeDestination& destination)
 {
-    return json{{"printTimeSeconds", statistics.print_time_seconds},
-                {"filamentMm", statistics.filament_mm},
-                {"materialGrams", statistics.material_grams},
-                {"materialCost", statistics.material_cost},
-                {"layerCount", statistics.layer_count}};
+    const bool exported = destination.kind == GcodeDestination::Kind::Export;
+    return json{{"id", destination.id},
+                {"seq", destination.seq},
+                {"kind", exported ? "export" : "send"},
+                {"at", destination.at},
+                {"conversationId", destination.conversation_id},
+                {"afterId", destination.after_id},
+                {"hash", record.hash},
+                {"plateIndex", record.plate_index},
+                {"plateName", record.plate_name},
+                {"fileName", exported ? std::filesystem::u8path(destination.path).filename().u8string() : std::string()},
+                {"printerName", exported ? std::string() : destination.printer_name}};
 }
 
 json change_json(const ChangeEntry& change)
@@ -189,29 +196,9 @@ json work_json(const WorkEntry& work, const int* current, const int* total, cons
     return result;
 }
 
-json physical_print_json(const PhysicalPrintRecord& record)
-{
-    json entry{{"id", record.id},
-                {"seq", record.seq},
-                {"startedAt", record.started_at},
-                {"endedAt", record.ended_at},
-                {"outcome", record.outcome},
-                {"failure", record.failure},
-                {"projectId", record.project_id},
-                {"conversationId", record.conversation_id},
-                {"afterMessageId", record.after_message_id},
-                {"plateIndex", record.plate_index},
-                {"plateName", record.plate_name},
-                {"printer", record.printer},
-                {"material", record.material},
-                {"manufacturingInputHash", record.manufacturing_input_hash},
-                {"outputHash", record.output_hash},
-                {"gcodeHash", record.gcode_hash},
-                {"statistics", statistics_json(record.statistics)}};
-    if (record.stopped_percent)
-        entry["stoppedPercent"] = *record.stopped_percent;
-    return entry;
-}
+// The most recent G-code records a request carries: enough to talk about the
+// last few prints without the whole history.
+constexpr std::size_t kGcodeHistoryInRequest = 10;
 
 // --- Attachments ---------------------------------------------------------
 
@@ -841,9 +828,11 @@ void AgentHost::send_state(const std::string& correlation_id)
         attachments.push_back(std::move(entry));
     }
 
-    json physical_prints = json::array();
-    for (const PhysicalPrintRecord& record : document.physical_prints())
-        physical_prints.push_back(physical_print_json(record));
+    // One line in the chat per time a G-code left the project.
+    json gcode_markers = json::array();
+    for (const GcodeRecord& record : document.gcode_records())
+        for (const GcodeDestination& destination : record.destinations)
+            gcode_markers.push_back(gcode_marker_json(record, destination));
     json changes = json::array();
     for (const ChangeEntry& change : document.changes())
         changes.push_back(change_json(change));
@@ -869,7 +858,7 @@ void AgentHost::send_state(const std::string& correlation_id)
                  {"toolActivities", std::move(tool_activities)},
                  {"draft", m_persistence.draft()},
                  {"attachments", std::move(attachments)},
-                 {"physicalPrints", std::move(physical_prints)},
+                 {"gcodeMarkers", std::move(gcode_markers)},
                  {"changes", std::move(changes)},
                  {"work", std::move(work)},
                  {"context", card_context(context_json(snapshot, m_workspace.configured_printer(),
@@ -2156,6 +2145,17 @@ void AgentHost::handle_create_conversation(const std::string& envelope_id, const
     send_state(envelope_id);
 }
 
+bool AgentHost::reveal_item(const std::string& conversation_id, const std::string& item_id)
+{
+    if (!m_persistence.document().set_viewed_conversation(conversation_id))
+        return false;
+    cancel_conversation_title();
+    m_persistence.flush();
+    send_state();
+    send_envelope(Protocol::kRevealItem, json{{"itemId", item_id}}.dump());
+    return true;
+}
+
 void AgentHost::handle_switch_conversation(const std::string& envelope_id, const std::string& payload_json)
 {
     const json        payload         = json::parse(payload_json, nullptr, false);
@@ -2767,6 +2767,12 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
         request.setup_title = document.setup_intent(conversation_id);
         request.plan        = document.plan();
         request.setup_unchecked_change = setup_unchecked(conversation_id, request.workspace);
+        const std::vector<GcodeRecord> records = document.gcode_records();
+        for (auto record = records.rbegin(); record != records.rend() && request.gcode_history.size() < kGcodeHistoryInRequest;
+             ++record) {
+            const std::optional<std::string> inputs = manufacturing_input_hash(request.workspace, record->plate_index);
+            request.gcode_history.push_back({*record, inputs && *inputs == record->manufacturing_input_hash});
+        }
     }
 
     const std::optional<ConversationMessage> user = find_stored_message(assistant.in_reply_to);

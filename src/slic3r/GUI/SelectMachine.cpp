@@ -2510,6 +2510,18 @@ void SelectMachineDialog::on_send_print()
             m_print_job->set_project_name(input_str_arr[0]);
         }
     }
+    if (m_required_data_new_print_config) {
+        // The required-data file is local: upload it as a new print of that file.
+        const PlateData& plate = *m_required_data_plate_data_list[m_print_plate_idx];
+        m_print_job->m_print_type             = "from_normal";
+        m_print_job->job_data.is_from_plater  = false;
+        m_print_job->job_data._3mf_path       = m_required_data_file_path;
+        m_print_job->job_data._3mf_config_path = *m_required_data_new_print_config;
+        m_print_job->job_data.plate_idx       = plate.plate_index;
+        m_print_job->plate_data.is_valid      = true;
+        if (auto* bed = plate.config.option<ConfigOptionEnum<BedType>>("curr_bed_type"))
+            m_print_job->plate_data.bed_type = bed->value;
+    }
 
     m_print_job->task_ams_mapping      = ams_mapping_array;
     m_print_job->task_ams_mapping2     = ams_mapping_array2;
@@ -3215,6 +3227,8 @@ void SelectMachineDialog::update_show_status(MachineObject* obj_)
         else
             m_printer_box->GetPrinterComboBox()->Enable();
     }
+    if (m_required_data_new_print_config) // a new print of a local file goes to any printer
+        m_printer_box->GetPrinterComboBox()->Enable();
 
     /*mode check*/
     if (get_status() == PrintDialogStatus::PrintStatusRefreshingMachineList || get_status() == PrintDialogStatus::PrintStatusSending) return;

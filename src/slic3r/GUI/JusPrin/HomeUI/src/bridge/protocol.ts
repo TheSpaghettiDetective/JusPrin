@@ -29,7 +29,12 @@ export type PageMessageType =
   | 'rename_printer'
   | 'remove_printer'
   | 'confirm_answer'
-  | 'open_preferences';
+  | 'open_preferences'
+  | 'history_request'
+  | 'history_back'
+  | 'open_in_chat'
+  | 'export_gcode'
+  | 'print_again';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -40,7 +45,9 @@ export type HostMessageType =
   | 'appearance'
   | 'printer_error'
   | 'bridge_error'
-  | 'confirm';
+  | 'confirm'
+  | 'screen'
+  | 'history';
 
 export type Appearance = 'light' | 'dark';
 
@@ -58,6 +65,20 @@ export interface ProjectStatus {
   text: string;
 }
 
+// What a card says about its print history, as counts the page words. A
+// G-code is one that left a project; a print is one a printer reported
+// starting. Nothing records a failure: a print that stopped early simply has
+// no finish.
+export interface HistorySummary {
+  gcodes: number;
+  exports: number;
+  sends: number;
+  prints: number;
+  printingNow: number;
+  // The newest finish, ISO 8601 in UTC.
+  lastFinishedAt?: string;
+}
+
 export interface ProjectInfo {
   id: string;
   name: string;
@@ -68,6 +89,8 @@ export interface ProjectInfo {
   // When the model was last saved, ISO 8601 in UTC; the card words it.
   updatedAt?: string;
   status: ProjectStatus;
+  // Absent when nothing ever left the project.
+  history?: HistorySummary;
 }
 
 export type PrinterState = 'idle' | 'printing' | 'offline';
@@ -123,6 +146,81 @@ export interface PrinterInfo {
   spools: SpoolInfo[];
   // A Bambu card's Launch monitor, or a print host's Open printer window.
   canLaunchMonitor: boolean;
+  // What was made for, sent to and printed on this printer, across projects;
+  // absent when nothing was.
+  history?: HistorySummary;
+}
+
+// Which screen the page shows, as the host asks when Home comes on screen:
+// the gallery, or a Print history the project opened, filtered to it, which
+// Back leaves for the project again.
+export type ScreenPayload =
+  | { screen: 'home' }
+  | { screen: 'history'; projectId?: string; focus?: string; back: 'project' };
+
+// Where a G-code went. An exported file is checked against what was written
+// each time the screen asks; a send is never verified like a file.
+export type HistoryDestination =
+  | { id: string; kind: 'export'; at: string; path: string; check: 'matches' | 'changed' | 'missing' }
+  | {
+      id: string;
+      kind: 'send';
+      at: string;
+      printerName: string;
+      // The printer card it went to, when Home has one.
+      printerId?: string;
+      // The transport reported the file on the printer.
+      delivered: boolean;
+      // The send also asked the printer to start.
+      startRequested: boolean;
+    };
+
+// A print, only as the printer reported it.
+export interface HistoryPrint {
+  id: string;
+  printerName: string;
+  printerId?: string;
+  startedAt: string;
+  finishedAt?: string;
+  // Present while the printer is running this print.
+  live?: { percent?: number; remainingSeconds?: number };
+}
+
+// One G-code that left a project: the screen's entry.
+export interface HistoryEntry {
+  projectId: string;
+  projectName: string;
+  // SHA-256 of the G-code; the page shows its first eight digits.
+  hash: string;
+  // The exported file's name, else the plate's.
+  name: string;
+  plateName: string;
+  createdAt: string;
+  printTimeSeconds?: number;
+  grams?: number;
+  layers?: number;
+  // The presets it was made with, as the person sees them.
+  printer?: string;
+  material?: string;
+  process?: string;
+  // The chat and marker where it first went out.
+  conversationId?: string;
+  markerId?: string;
+  // Whether the project still keeps an intact copy to export.
+  kept: boolean;
+  // Whether Print again can send the kept file to the printer selected now.
+  // 'not_for_this_printer': kept, but not as that printer takes it (a Bambu
+  // printer takes the package only a Bambu send keeps). 'changed': the kept
+  // file no longer holds what was kept, and is never sent.
+  printAgain: 'ready' | 'not_kept' | 'not_for_this_printer' | 'no_printer' | 'changed';
+  // Every printer card it belongs to: made for, sent to or printed on.
+  printerIds: string[];
+  destinations: HistoryDestination[];
+  prints: HistoryPrint[];
+}
+
+export interface HistoryPayload {
+  entries: HistoryEntry[];
 }
 
 // A printer action the host understood but could not carry out, such as a

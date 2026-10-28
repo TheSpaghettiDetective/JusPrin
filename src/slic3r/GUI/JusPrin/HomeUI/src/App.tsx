@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import type { PrinterInfo } from './bridge/protocol';
+import type { HistoryEntry, PrinterInfo } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard, PrinterChip } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { PrintHistory } from './components/PrintHistory';
+import type { PrintHistoryActions } from './components/PrintHistory';
 import type { PrinterActions } from './components/PrinterMenu';
-import { ChevronDownGlyph, ChevronRightGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { ChevronDownGlyph, ChevronRightGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { initialState, reduce } from './state/store';
+import type { Screen } from './state/store';
 import { applyAppearance } from './tokens';
 
 // What Open… and a drop open, as OrcaSlicer's own file dialog filters them.
@@ -22,6 +25,11 @@ type SortOrder = 'recent' | 'name';
 // Every other one is a chip until the person opens it.
 function startsCollapsed(printer: PrinterInfo): boolean {
   return printer.state !== 'printing' && printer.connectionAction !== 'reconnect';
+}
+
+// A new screen of the history starts from its own filters, not the last one's.
+function screenKey(screen: Screen): string {
+  return JSON.stringify(screen);
 }
 
 function readAsDataUrl(file: File): Promise<string> {
@@ -100,6 +108,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     return searchable && sort === 'name' ? [...matching].sort((a, b) => a.name.localeCompare(b.name)) : matching;
   }, [state.projects, searchable, query, sort]);
 
+  // The Print history asks for its entries each time it opens, and again
+  // whenever the host's state moves under it: a print started or finished.
+  const onHistory = state.screen.kind === 'history';
+  useEffect(() => {
+    if (onHistory) client.send('history_request', {});
+  }, [client, onHistory, state.stateCount]);
+
   // The shell's own Ctrl+, cannot see keys while this page has the focus.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -124,6 +139,26 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           </details>
         )}
       </div>
+    );
+  }
+
+  const openHistory = (filter: { projectId?: string; printerId?: string } = {}) =>
+    dispatch({ kind: 'show', screen: { kind: 'history', back: 'home', ...filter } });
+
+  if (state.screen.kind === 'history') {
+    const screen = state.screen;
+    const actions: PrintHistoryActions = {
+      // A leaf: back to the gallery, or to the project that opened it.
+      onBack: () => (screen.back === 'project' ? client.send('history_back', {}) : dispatch({ kind: 'show', screen: { kind: 'home' } })),
+      onOpenProject: (id) => client.send('open_project', { id }),
+      onOpenInChat: (entry: HistoryEntry) =>
+        client.send('open_in_chat', { projectId: entry.projectId, conversationId: entry.conversationId, markerId: entry.markerId }),
+      onPrintAgain: (entry: HistoryEntry) => client.send('print_again', { projectId: entry.projectId, hash: entry.hash }),
+      onExport: (entry: HistoryEntry, beside?: string) =>
+        client.send('export_gcode', { projectId: entry.projectId, hash: entry.hash, ...(beside ? { beside } : {}) }),
+    };
+    return (
+      <PrintHistory key={screenKey(screen)} screen={screen} entries={state.history} printers={state.printers} actions={actions} />
     );
   }
 
@@ -182,6 +217,10 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             </span>
             {!firstRun && (
               <div className="gallery-actions">
+                <button type="button" className="history-header-link" onClick={() => openHistory()}>
+                  <HistoryGlyph />
+                  Print history
+                </button>
                 {searchable && (
                   <>
                     <label className="gallery-search">
@@ -241,6 +280,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                     key={project.id}
                     project={project}
                     onOpen={(id) => client.send('open_project', { id })}
+                    onHistory={(projectId) => openHistory({ projectId })}
                   />
                 ))}
               </div>
@@ -265,6 +305,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                 otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
                 actions={printerActions}
                 onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
+                onHistory={(printerId) => openHistory({ printerId })}
                 highlighted={state.highlightPrinter === printer.name}
               />
             ),

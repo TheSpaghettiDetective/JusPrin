@@ -12,6 +12,8 @@ add_executable(agent_bridge_tests
     test_anthropic_codec.cpp
     test_provider_conformance.cpp
     test_project_state.cpp
+    test_print_outcome_tracker.cpp
+    test_print_history.cpp
     test_tool_coordinator.cpp
     test_tool_registry.cpp
     test_printer_conversation.cpp
@@ -33,6 +35,8 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/V1Import/V1Import.cpp
     ${CMAKE_SOURCE_DIR}/tests/jusprin_support/DeterministicMockAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ManufacturingHistory.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/PrintOutcomeTracker.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Home/PrintHistory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp

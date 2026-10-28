@@ -241,6 +241,18 @@
 //              then named printers: a second printer of one model, Home's
 //              list, rename, remove, and a nozzle change that keeps the
 //              printer's own settings
+//   --print-history [capture-dir]
+//              the G-code record end to end with the in-process fake Bambu
+//              printer: an export through the export_file path, two sends
+//              through OrcaSlicer's own Select Machine dialog, the first
+//              print started and finished through the fake's control file,
+//              the second failed (nothing written), and the record in the
+//              saved project document; then the Print history screen opened
+//              from the project pane and from Home, Back, Export… from the
+//              kept copy, a hand-edited export read as changed and Export
+//              again beside it, and Open in chat at the marker; then Print
+//              again, checked to upload the kept package the first send left,
+//              byte for byte, rather than an export of the plate
 
 // First: on Windows asio needs winsock2.h ahead of any windows.h.
 #include <boost/asio.hpp>
@@ -267,6 +279,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
+#include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
@@ -1155,7 +1168,8 @@ struct HarnessState
         LeftPaneEditor,
         LeftPaneSlicedCapture,
         UnavailableStorage,
-        StartupRequests
+        StartupRequests,
+        PrintHistory
     };
 
     std::atomic<int>  result{-1};
@@ -1291,6 +1305,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::StartupRequests) {
                 verify_startup_requests();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrintHistory) {
+                begin_print_history();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -1775,12 +1793,8 @@ private:
             return std::find(labels.begin(), labels.end(), label) != labels.end();
         };
         pane->snapshot();
-        check(has_label(_L("Details")) && has_label(_L("Print history")) && !has_label(_L("Printed once")),
+        check(has_label(_L("Details")) && has_label(_L("Print history")),
               "left_pane_root_offers_print_history_without_prints");
-        check(pane->press_action(_L("Print history")) && pane->navigation().view() == ProjectView::PrintHistory,
-              "left_pane_empty_print_history_opens");
-        check(pane->handle_escape() && pane->navigation().view() == ProjectView::Root,
-              "left_pane_empty_print_history_returns");
         pane->snapshot();
         check(has_label(_L("Version history")) && has_label(_L("Export project 3MF…")) && has_label(_L("Edit Project Info")),
               "left_pane_root_offers_version_history_export_and_edit");
@@ -1806,7 +1820,6 @@ private:
             pane->refresh_from_workspace();
             pane->snapshot();
             check(has_label(_L("Details")), "left_pane_details_appears_with_metadata");
-            check(!has_label(_L("Printed once")), "left_pane_details_do_not_invent_a_print_count");
             check(workspace->project_details().title == "Pane test model" && workspace->project_details().designer == "Ada",
                   "left_pane_reads_the_models_own_title_and_designer");
             check(workspace->project_details().attachments.size() == 1 &&
@@ -1832,55 +1845,30 @@ private:
             check(has_label(_L("Details")), "left_pane_details_remains_without_metadata");
         }
 
-        // A sparse legacy ledger entry exercises the count-only Figma state.
-        // The live print path now records timestamps; this fixture deliberately
-        // omits them to cover an older imported record.
-        JusPrinTest::add_print(persistence().document(), Agent::PhysicalPrintRecord{}, "");
-        persistence().notify_ledger_changed();
-        pane->snapshot();
-        check(has_label(_L("Printed once")), "left_pane_count_only_record_is_counted");
-        check(pane->press_action(_L("Printed once")) && pane->navigation().view() == ProjectView::PrintHistory,
-              "left_pane_count_only_history_opens");
-        save_pane("left-pane-count-only-history", pane->snapshot());
-        window_shot("count-only-history");
-        check(pane->handle_escape(), "left_pane_count_only_history_returns");
-
-        // A recorded physical print adds its row, and the pane reads the ledger
-        // through its own subscription (the status row keeps its own).
-        Agent::PhysicalPrintRecord record;
-        record.id         = "print-1";
-        record.outcome    = "completed";
-        record.started_at = "2026-09-12T10:00:00Z";
-        record.ended_at   = "2026-09-12T11:44:00Z";
-        record.plate_name = "Plate 1";
-        record.printer    = "A1 mini";
-        record.statistics.material_grams = 38.0;
-        record.statistics.material_cost = 0.95;
+        // The print history is a screen of its own; the pane keeps one row
+        // into it (board plates-26e3), however many prints there are. The
+        // row opening the screen is driven by --print-history.
+        JusPrinTest::add_print(persistence().document(), {}, "");
+        JusPrinTest::PrintFixture record;
+        record.started_at     = "2026-09-12T10:00:00Z";
+        record.finished_at    = "2026-09-12T11:44:00Z";
+        record.plate_name     = "Plate 1";
+        record.printer        = "A1 mini";
+        record.material_grams = 38.0;
+        record.material_cost  = 0.95;
         JusPrinTest::add_print(persistence().document(), record, persistence().timestamp());
-        persistence().notify_ledger_changed();
-        pane->snapshot();
-        check(has_label(_L("Printed 2 times")), "left_pane_root_shows_the_print_count");
-        check(pane->press_action(_L("Printed 2 times")) && pane->navigation().view() == ProjectView::PrintHistory,
-              "left_pane_print_history_opens");
-        save_pane("left-pane-print-history", pane->snapshot());
-        window_shot("print-history");
-        check(pane->handle_escape() && pane->navigation().view() == ProjectView::Root, "left_pane_escape_goes_up_one_level");
-        Agent::PhysicalPrintRecord stopped_record;
-        stopped_record.id = "print-2";
-        stopped_record.outcome = "cancelled";
-        stopped_record.started_at = "2026-09-12T13:00:00Z";
-        stopped_record.ended_at = "2026-09-12T13:12:00Z";
-        stopped_record.plate_name = "Plate 2";
-        stopped_record.printer = "A1 mini";
-        stopped_record.statistics.material_grams = 9.0;
-        stopped_record.statistics.material_cost = 0.23;
+        JusPrinTest::PrintFixture stopped_record;
+        stopped_record.started_at     = "2026-09-12T13:00:00Z";
+        stopped_record.plate_name     = "Plate 2";
+        stopped_record.printer        = "A1 mini";
+        stopped_record.material_grams = 9.0;
+        stopped_record.material_cost  = 0.23;
         JusPrinTest::add_print(persistence().document(), stopped_record, persistence().timestamp());
         persistence().notify_ledger_changed();
-        pane->snapshot();
-        check(pane->press_action(_L("Printed 3 times")), "figma_26e3_three_prints_open");
-        save_pane("figma-26e3-mixed-history", pane->snapshot());
-        window_shot("figma-26e3-mixed-history");
-        check(pane->handle_escape(), "figma_26e3_history_returns");
+        save_pane("figma-26e3-print-history-row", pane->snapshot());
+        window_shot("figma-26e3-print-history-row");
+        check(has_label(_L("Print history")) && pane->navigation().view() == ProjectView::Root,
+              "left_pane_print_history_is_one_row");
         {
             Model& model = m_plater->model();
             model.model_info = std::make_shared<ModelInfo>();
@@ -2136,16 +2124,14 @@ private:
                     menu->close();
         }
 
-        check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_count_only_new_project");
-        for (int index = 0; index < 3; ++index)
-            JusPrinTest::add_print(persistence().document(), Agent::PhysicalPrintRecord{}, "");
-        persistence().notify_ledger_changed();
+        // Board plates-26e4, "Project · never printed".
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_never_printed_new_project");
         pane->refresh_from_workspace();
         click_pane(pane, pane->tab_rect(PaneTab::Project));
         pane->snapshot();
-        check(pane->press_action(_L("Printed 3 times")), "figma_26e4_count_only_opens");
-        save_pane("figma-26e4-count-only-history", pane->snapshot());
-        window_shot("figma-26e4-count-only-history");
+        check(pane->print_history_detail() == _L("Nothing printed or exported yet"), "figma_26e4_never_printed");
+        save_pane("figma-26e4-never-printed", pane->snapshot());
+        window_shot("figma-26e4-never-printed");
     }
 
     // The whole window as the person sees it, from the screen. A popup menu is
@@ -5363,6 +5349,598 @@ private:
         });
     }
 
+    // --print-history: the G-code record end to end. A slice leaves the
+    // project through the export_file path and through OrcaSlicer's own
+    // Select Machine dialog to the in-process fake Bambu printer; the fake's
+    // control file starts and finishes the print. A second send's print that
+    // fails writes nothing.
+    void begin_print_history()
+    {
+        m_home_live_control = (fs::path(Slic3r::data_dir()) / "jusprin" / "fake_printer.json").string();
+        write_home_live_control(R"({"state":"idle"})");
+        connect_fixture_to_fake_printer([self = shared_from_this()] {
+            self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+            const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+            self->check(self->m_plater->load_files(std::vector<std::string>{cube},
+                                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+                                                   false).size() == 1,
+                        "print_history_model_loaded");
+            // The file's own coordinates leave the cube off this printer's
+            // bed; OrcaSlicer's arrange puts it on the plate.
+            self->m_plater->arrange();
+            self->print_history_wait([self] { return installed_shell()->status_row()->action_state().can_slice; },
+                                     "print_history_cube_on_the_plate", [self] {
+                                         installed_shell()->status_row()->request_slice();
+                                         self->print_history_wait(
+                                             [self] {
+                                                 PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
+                                                 return plate != nullptr && plate->is_slice_result_valid() &&
+                                                        !self->m_plater->is_background_process_slicing();
+                                             },
+                                             "print_history_slice_completes", [self] { self->print_history_export(); });
+                                     });
+        });
+    }
+
+    std::vector<Agent::GcodeRecord> print_history_records() { return persistence().document().gcode_records(); }
+
+    // wait_until with a deadline: a step that never comes fails the run
+    // rather than holding it.
+    void print_history_wait(std::function<bool()> condition, std::string name, std::function<void()> then)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+        wait_until([condition, deadline] { return condition() || std::chrono::steady_clock::now() > deadline; }, name,
+                   [self = shared_from_this(), condition, name, then] {
+                       self->check(condition(), name);
+                       if (condition())
+                           then();
+                       else
+                           self->finish();
+                   });
+    }
+
+    void print_history_export()
+    {
+        check(print_history_records().empty(), "print_history_slicing_writes_nothing");
+        Workspace::ExportRequest request;
+        request.kind  = "gcode";
+        request.plate = installed_shell()->workspace()->snapshot().plates.at(0).id;
+        request.path  = (fs::temp_directory_path() / fs::unique_path("jusprin-history-%%%%.gcode")).string();
+        m_print_history_export = request.path;
+        Workspace::ExportResult result;
+        check(installed_shell()->workspace()->export_file(request, result).succeeded(), "print_history_export_written");
+        const auto records = print_history_records();
+        check(records.size() == 1 && records[0].destinations.size() == 1 &&
+                  records[0].destinations[0].kind == Agent::GcodeDestination::Kind::Export &&
+                  records[0].destinations[0].path == request.path &&
+                  records[0].destinations[0].file_hash == Agent::sha256_file_hex(request.path),
+              "print_history_export_recorded_with_its_file_hash");
+        // The tool copies the plate's G-code as the slicer wrote it, so the
+        // file's hash is the record's own.
+        check(records.size() == 1 && records[0].hash == Agent::sha256_file_hex(request.path), "print_history_record_is_the_gcode_hash");
+        const std::string project_dir = persistence().jusprin_data_dir();
+        check(records.size() == 1 && !Agent::kept_gcode_copy(project_dir, records[0].hash).empty(),
+              "print_history_keeps_a_copy_in_the_project");
+        print_history_send([self = shared_from_this()] { self->print_history_first_print(); });
+    }
+
+    // Print, as the person does it, and the Send button of OrcaSlicer's own
+    // dialog. Returns once the dialog closed.
+    void print_history_send(std::function<void()> then)
+    {
+        const std::size_t sends_before = [this] {
+            std::size_t sends = 0;
+            for (const auto& record : print_history_records())
+                for (const auto& destination : record.destinations)
+                    sends += destination.kind == Agent::GcodeDestination::Kind::Send ? 1 : 0;
+            return sends;
+        }();
+        bool pressed = false;
+        const auto started = std::chrono::steady_clock::now();
+        wxEvtHandler handler;
+        wxTimer timer(&handler);
+        handler.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+            for (auto* window : wxTopLevelWindows) {
+                auto* dialog = dynamic_cast<wxDialog*>(window);
+                if (dialog == nullptr || !dialog->IsModal() || dialog->GetTitle() != "Send print job")
+                    continue;
+                if (std::chrono::steady_clock::now() - started > std::chrono::seconds(90)) {
+                    dialog->EndModal(wxID_CANCEL);
+                    timer.Stop();
+                    return;
+                }
+                if (pressed)
+                    return;
+                std::function<wxWindow*(wxWindow*)> find_send = [&](wxWindow* parent) -> wxWindow* {
+                    for (wxWindow* child : parent->GetChildren()) {
+                        if (child->IsShown() && child->IsEnabled() && child->GetLabel() == _L("Send"))
+                            return child;
+                        if (wxWindow* found = find_send(child))
+                            return found;
+                    }
+                    return nullptr;
+                };
+                if (wxWindow* send = find_send(dialog)) {
+                    pressed = true;
+                    wxCommandEvent click(wxEVT_BUTTON, send->GetId());
+                    click.SetEventObject(send);
+                    send->GetEventHandler()->ProcessEvent(click);
+                }
+            }
+        });
+        timer.Start(250);
+        installed_shell()->status_row()->request_action(PrintAction::Print);
+        timer.Stop();
+        check(pressed, "print_history_send_pressed");
+        print_history_wait(
+            [this, sends_before] {
+                std::size_t sends = 0;
+                for (const auto& record : print_history_records())
+                    for (const auto& destination : record.destinations)
+                        sends += destination.kind == Agent::GcodeDestination::Kind::Send ? 1 : 0;
+                return sends > sends_before;
+            },
+            "print_history_send_recorded", std::move(then));
+    }
+
+    void print_history_first_print()
+    {
+        const auto records = print_history_records();
+        check(records.size() == 1, "print_history_export_and_send_are_one_record");
+        if (records.size() != 1 || records[0].destinations.size() != 2) {
+            finish();
+            return;
+        }
+        const Agent::GcodeDestination& sent = records[0].destinations[1];
+        check(sent.transport == "bambu_print" && sent.start_requested && !sent.delivered_at.empty() && !sent.printer_name.empty(),
+              "print_history_send_names_the_printer");
+        std::cerr << "HARNESS NOTE print_history_sent_to " << sent.printer_name << '\n';
+        // A Bambu print keeps the package it uploaded, byte for byte.
+        const auto package = Agent::kept_gcode_package(persistence().jusprin_data_dir(), records[0].hash);
+        check(package.has_value() && !sent.package_hash.empty() && Agent::sha256_file_hex(package->package) == sent.package_hash,
+              "print_history_send_keeps_its_package");
+        const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
+        check(fake != nullptr && fake->last_print_file_hash() == sent.package_hash, "print_history_kept_package_is_what_was_uploaded");
+        check(records[0].prints.empty(), "print_history_no_print_before_the_printer_starts");
+        write_home_live_control(R"({"state":"printing","progress":0.2})");
+        print_history_wait([this] { return !print_history_records().at(0).prints.empty(); }, "print_history_printing_recorded",
+                   [self = shared_from_this()] {
+                       self->write_home_live_control(R"({"state":"finished"})");
+                       self->print_history_wait([self] { return !self->print_history_records().at(0).prints.at(0).finished_at.empty(); },
+                                        "print_history_finish_recorded", [self] { self->print_history_failed_print(); });
+                   });
+    }
+
+    void print_history_failed_print()
+    {
+        print_history_send([self = shared_from_this()] {
+            self->write_home_live_control(R"({"state":"printing","progress":0.1})");
+            self->print_history_wait([self] { return self->print_history_records().at(0).prints.size() == 2; },
+                             "print_history_second_print_recorded", [self] {
+                                 self->write_home_live_control(R"({"state":"failed"})");
+                                 const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(6);
+                                 self->print_history_wait([until] { return std::chrono::steady_clock::now() >= until; },
+                                                  "print_history_failed_window_elapsed", [self] {
+                                                      const auto records = self->print_history_records();
+                                                      self->check(records.size() == 1 && records[0].prints.size() == 2 &&
+                                                                      records[0].prints[1].finished_at.empty(),
+                                                                  "print_history_failed_print_writes_nothing");
+                                                      self->print_history_saved();
+                                                  });
+                             });
+        });
+    }
+
+    // What reaches the project's file on disk.
+    void print_history_saved()
+    {
+        check(installed_shell()->autosave()->save_now(), "print_history_project_saved");
+        std::ifstream file((fs::path(persistence().jusprin_data_dir()) / "current-state.json").string(), std::ios::binary);
+        const nlohmann::json saved = nlohmann::json::parse(file, nullptr, false);
+        const nlohmann::json& gcodes = saved.is_object() ? saved["state"]["gcodes"] : nlohmann::json();
+        check(gcodes.is_array() && gcodes.size() == 1 && gcodes[0]["destinations"].size() == 3 && gcodes[0]["prints"].size() == 2 &&
+                  !gcodes[0]["prints"][0].value("finishedAt", "").empty(),
+              "print_history_record_is_in_the_saved_document");
+        print_history_from_project();
+    }
+
+    // Asks a page for `expression`, a JSON value, once `ready` holds, through
+    // the page title: the one thing the harness reads back from either page.
+    // Each read has a tag of its own: the script runs later than this call
+    // returns, so a title an earlier read left could otherwise be taken for
+    // this one's answer.
+    void read_page(wxWebView* view, const std::string& name_of_read, const std::string& ready, const std::string& expression,
+                   const std::string& name, std::function<void(const nlohmann::json&)> then)
+    {
+        const std::string tag = name_of_read + "-" + std::to_string(++m_page_reads);
+        WebView::RunScript(view, wxString::FromUTF8("(function(){ document.title = ''; var tries = 0;"
+                                                    " var timer = setInterval(function(){ if (!(" + ready + ") && ++tries < 150) return;"
+                                                    " clearInterval(timer); document.title = '" + tag + ":' + JSON.stringify(" +
+                                                    expression + "); }, 100); })()"));
+        print_history_wait([view, tag] { return view->GetCurrentTitle().StartsWith(wxString::FromUTF8(tag + ":")); }, name,
+                           [view, tag, then] {
+                               then(nlohmann::json::parse(view->GetCurrentTitle().Mid(tag.size() + 1).ToUTF8().data(), nullptr, false));
+                           });
+    }
+
+    wxWebView* home_page() const { return installed_shell()->home_view()->webview(); }
+
+    // What the Print history screen shows.
+    static constexpr const char* kHistoryRead =
+        "{ title: (document.querySelector('.history-title') || {}).textContent || '',"
+        "  chips: Array.prototype.map.call(document.querySelectorAll('.history-chip'), function (c) { return c.textContent; }),"
+        "  count: (document.querySelector('.history-count') || {}).textContent || '',"
+        "  entries: Array.prototype.map.call(document.querySelectorAll('.history-entry'), function (e) {"
+        "    return { name: (e.querySelector('.history-entry-name') || {}).textContent || '',"
+        "             rows: Array.prototype.map.call(e.querySelectorAll('.history-row'), function (r) { return r.textContent; }),"
+        "             chat: !!Array.prototype.filter.call(e.querySelectorAll('.history-link'), function (b) {"
+        "               return b.textContent === 'Open in chat'; })[0],"
+        "             text: e.textContent }; }) }";
+
+    static bool any_row(const nlohmann::json& screen, const std::string& text)
+    {
+        for (const nlohmann::json& entry : screen.value("entries", nlohmann::json::array()))
+            for (const nlohmann::json& row : entry.value("rows", nlohmann::json::array()))
+                if (row.get<std::string>().find(text) != std::string::npos)
+                    return true;
+        return false;
+    }
+
+    void capture_history(const std::string& name)
+    {
+        if (!m_state->capture_dir.empty())
+            capture_web_view(home_page(), name);
+    }
+
+    // Board history-05: the project pane's row opens the screen filtered to
+    // the project, over Home; Back returns to the project.
+    void print_history_from_project()
+    {
+        LeftPane* pane = installed_shell()->left_pane();
+        pane->show_project();
+        pane->snapshot();
+        std::cerr << "HARNESS NOTE print_history_pane_row " << pane->print_history_detail().ToUTF8() << '\n';
+        check(pane->print_history_detail().StartsWith(_L("1 G-code")) && pane->print_history_detail().Contains(_L("last finished")),
+              "print_history_pane_row_says_how_it_stands");
+        check(pane->press_action(_L("Print history")), "print_history_pane_row_pressed");
+        print_history_wait([this] { return m_notebook->GetSelection() == MainFrame::tpHome; }, "print_history_opens_over_home",
+                           [self = shared_from_this()] {
+                               self->read_page(self->home_page(), "history", "document.querySelectorAll('.history-entry').length > 0",
+                                               kHistoryRead, "print_history_screen_drawn",
+                                               [self](const nlohmann::json& screen) { self->print_history_project_screen(screen); });
+                           });
+    }
+
+    void print_history_project_screen(const nlohmann::json& screen)
+    {
+        std::cerr << "HARNESS NOTE print_history_screen " << screen.dump() << '\n';
+        const nlohmann::json entries = screen.value("entries", nlohmann::json::array());
+        check(screen.value("title", "") == "Print history", "print_history_screen_title");
+        const nlohmann::json chips = screen.value("chips", nlohmann::json::array());
+        check(chips.size() == 1 && chips[0].get<std::string>().rfind("Project: ", 0) == 0, "print_history_filtered_to_the_project");
+        check(screen.value("count", "") == "1 G-code \xC2\xB7 2 prints", "print_history_counts_the_project");
+        check(entries.size() == 1, "print_history_one_entry_per_gcode");
+        check(any_row(screen, "matches, checked just now"), "print_history_export_matches");
+        check(any_row(screen, "Sent to "), "print_history_sends_listed");
+        check(any_row(screen, "Finished"), "print_history_finished_print_listed");
+        // The print the fake failed is neither printing nor finished.
+        check(any_row(screen, "Started"), "print_history_stopped_print_only_started");
+        std::string text = entries.size() == 1 ? entries[0].value("text", "") : std::string();
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+        check(text.find("fail") == std::string::npos && text.find("cancel") == std::string::npos, "print_history_draws_no_failure");
+        capture_history("print-history-from-project");
+        print_history_preferences_routes([self = shared_from_this()] {
+            WebView::RunScript(self->home_page(), "document.querySelector('[aria-label=Back]').click()");
+            self->print_history_wait([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor; },
+                                     "print_history_back_returns_to_the_project", [self] { self->print_history_from_home(); });
+        });
+    }
+
+    // The ways into Preferences while Print history is on screen, other than
+    // a button on it: the title bar's menu (the menu icon, on Windows and
+    // Linux) and Ctrl+, in the page. Each must open JusPrin's window, never
+    // OrcaSlicer's dialog; the timer closes whichever opened and notes it.
+    void print_history_preferences_routes(std::function<void()> then)
+    {
+        window_shot("print-history");
+        m_preferences_seen.clear();
+        m_preferences_closer = std::make_unique<wxTimer>();
+        m_preferences_closer->Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+            for (auto* window : wxTopLevelWindows) {
+                if (auto* jusprin = dynamic_cast<Slic3r::GUI::JusPrin::Preferences::PreferencesWindow*>(window);
+                    jusprin != nullptr && jusprin->IsModal()) {
+                    m_preferences_seen.push_back("jusprin");
+                    jusprin->EndModal(wxID_CANCEL);
+                } else if (auto* orca = dynamic_cast<Slic3r::GUI::PreferencesDialog*>(window); orca != nullptr && orca->IsModal()) {
+                    m_preferences_seen.push_back("orca");
+                    orca->EndModal(wxID_CANCEL);
+                }
+            }
+        });
+        m_preferences_closer->Start(250);
+
+        wxMenu*     menu = m_frame->topbar()->GetTopMenu();
+        wxMenuItem* item = nullptr;
+        for (wxMenuItem* candidate : menu->GetMenuItems())
+            if (candidate->GetItemLabelText() == _L("Preferences"))
+                item = candidate;
+        check(item != nullptr && item->IsEnabled(), "print_history_title_bar_menu_offers_preferences");
+        if (item != nullptr) {
+            // As choosing it does: OrcaSlicer binds this item's handler on
+            // the menu itself, which the title bar pops up. The window is
+            // modal, so this returns once the timer has closed it.
+            wxCommandEvent pick(wxEVT_MENU, item->GetId());
+            pick.SetEventObject(menu);
+            check(menu->ProcessEvent(pick), "print_history_title_bar_menu_item_handled");
+        }
+        check(m_preferences_seen == std::vector<std::string>{"jusprin"}, "print_history_title_bar_menu_opens_jusprins_preferences");
+
+        m_preferences_seen.clear();
+        WebView::RunScript(home_page(), "window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))");
+        print_history_wait([this] { return !m_preferences_seen.empty(); }, "print_history_ctrl_comma_opens_preferences",
+                           [self = shared_from_this(), then] {
+                               self->check(self->m_preferences_seen == std::vector<std::string>{"jusprin"},
+                                           "print_history_ctrl_comma_opens_jusprins_preferences");
+                               self->m_preferences_closer.reset();
+                               then();
+                           });
+    }
+
+    std::unique_ptr<wxTimer> m_preferences_closer;
+    std::vector<std::string> m_preferences_seen;
+
+    // Home: the project card's line, then the header's unfiltered way in.
+    void print_history_from_home()
+    {
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        read_page(home_page(), "cards", "!document.querySelector('.history-title') && document.querySelectorAll('.project-history-text').length > 0",
+                  "Array.prototype.map.call(document.querySelectorAll('.project-history-text'), function (t) { return t.textContent; })",
+                  "print_history_home_card_drawn", [self = shared_from_this()](const nlohmann::json& lines) {
+                      std::cerr << "HARNESS NOTE print_history_card_lines " << lines.dump() << '\n';
+                      self->check(lines.is_array() && lines.size() == 1 &&
+                                      lines[0].get<std::string>().rfind("2 prints \xC2\xB7 finished today", 0) == 0,
+                                  "print_history_card_line_counts_the_prints");
+                      self->capture_history("print-history-home-card");
+                      // The printer's card, opened from its chip, says the same for the printer.
+                      WebView::RunScript(self->home_page(), "var chip = document.querySelector('.printer-chip'); if (chip) chip.click();");
+                      self->read_page(self->home_page(), "printer", "document.querySelector('.printer-history')",
+                                      "document.querySelector('.printer-history').textContent", "print_history_printer_card_drawn",
+                                      [self](const nlohmann::json& line) {
+                          std::cerr << "HARNESS NOTE print_history_printer_card_line " << line.dump() << '\n';
+                          self->check(line.is_string() && line.get<std::string>().rfind("2 prints", 0) == 0,
+                                      "print_history_printer_card_counts_its_prints");
+                          self->capture_history("print-history-printer-card");
+                          WebView::RunScript(self->home_page(), "document.querySelector('.history-header-link').click()");
+                          self->read_page(self->home_page(), "history",
+                                          "document.querySelector('.history-title') && document.querySelectorAll('.history-entry').length > 0",
+                                          kHistoryRead, "print_history_unfiltered_drawn",
+                                          [self](const nlohmann::json& screen) { self->print_history_unfiltered(screen); });
+                      });
+                  });
+    }
+
+    // Export… writes the project's kept copy and records it.
+    void print_history_unfiltered(const nlohmann::json& screen)
+    {
+        const std::string count = screen.value("count", "");
+        check(screen.value("chips", nlohmann::json::array()).empty() && count.find("all projects, all printers") != std::string::npos,
+              "print_history_unfiltered_from_home");
+        capture_history("print-history-all");
+        m_print_history_copy = (fs::temp_directory_path() / fs::unique_path("jusprin-history-copy-%%%%.gcode")).string();
+        installed_shell()->home_view()->backend().set_export_chooser([path = m_print_history_copy](const std::string&) { return path; });
+        WebView::RunScript(home_page(), "Array.prototype.filter.call(document.querySelectorAll('.history-entry .history-actions button'),"
+                                        " function (b) { return b.textContent === 'Export\\u2026'; })[0].click()");
+        print_history_wait([this] { return print_history_records().at(0).destinations.size() == 4; }, "print_history_export_from_kept_copy",
+                           [self = shared_from_this()] {
+                               const auto record = self->print_history_records().at(0);
+                               self->check(record.destinations.back().path == self->m_print_history_copy &&
+                                               record.destinations.back().file_hash == record.hash,
+                                           "print_history_kept_copy_is_the_gcode");
+                               self->print_history_changed_file();
+                           });
+    }
+
+    // A file edited after it was exported reads "changed", and Export again
+    // writes a new one beside it.
+    void print_history_changed_file()
+    {
+        std::ofstream(m_print_history_export, std::ios::app | std::ios::binary) << "; edited by hand\n";
+        installed_shell()->home_view()->refresh();
+        read_page(home_page(), "history", "document.body.textContent.indexOf('changed outside JusPrin') >= 0", kHistoryRead,
+                  "print_history_changed_drawn", [self = shared_from_this()](const nlohmann::json& screen) {
+                      self->check(any_row(screen, "changed outside JusPrin"), "print_history_changed_file_found");
+                      self->capture_history("print-history-changed");
+                      WebView::RunScript(self->home_page(), "Array.prototype.filter.call(document.querySelectorAll('.history-link'),"
+                                                            " function (b) { return b.textContent === 'Export again'; })[0].click()");
+                      self->print_history_wait([self] { return self->print_history_records().at(0).destinations.size() == 5; },
+                                               "print_history_export_again_recorded", [self, screen] {
+                                                   const fs::path earlier(self->m_print_history_export);
+                                                   const fs::path beside = earlier.parent_path() /
+                                                                           (earlier.stem().string() + " (2)" + earlier.extension().string());
+                                                   self->check(fs::exists(beside) && self->print_history_records().at(0).destinations.back().path ==
+                                                                                         beside.string(),
+                                                               "print_history_export_again_writes_beside");
+                                                   self->print_history_open_in_chat(screen);
+                                               });
+                  });
+    }
+
+    // Open in chat goes to the project chat's marker for the G-code.
+    void print_history_open_in_chat(const nlohmann::json& screen)
+    {
+        const nlohmann::json entries = screen.value("entries", nlohmann::json::array());
+        if (entries.empty() || !entries[0].value("chat", false)) {
+            check(false, "print_history_entry_offers_open_in_chat");
+            finish();
+            return;
+        }
+        WebView::RunScript(home_page(), "Array.prototype.filter.call(document.querySelectorAll('.history-link'),"
+                                        " function (b) { return b.textContent === 'Open in chat'; })[0].click()");
+        print_history_wait([this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor; }, "print_history_open_in_chat_leaves_home",
+                           [self = shared_from_this()] {
+                               self->read_page(installed_shell()->agent_pane()->web_view().webview(), "marker",
+                                               "document.querySelector('.gcode-marker.revealed')",
+                                               "!!document.querySelector('.gcode-marker.revealed')", "print_history_marker_revealed",
+                                               [self](const nlohmann::json& revealed) {
+                                                   self->check(revealed == true, "print_history_open_in_chat_marks_the_marker");
+                                                   self->print_history_print_again();
+                                               });
+                           });
+    }
+
+    // Presses Send in Select Machine whenever it is up, until stopped: Print
+    // again opens it from a later turn than any call here.
+    static bool press_send_print_job()
+    {
+        for (auto* window : wxTopLevelWindows) {
+            auto* dialog = dynamic_cast<wxDialog*>(window);
+            if (dialog == nullptr || !dialog->IsModal() || dialog->GetTitle() != _L("Send print job"))
+                continue;
+            std::function<wxWindow*(wxWindow*)> find_send = [&](wxWindow* parent) -> wxWindow* {
+                for (wxWindow* child : parent->GetChildren()) {
+                    if (child->IsShown() && child->IsEnabled() && child->GetLabel() == _L("Send"))
+                        return child;
+                    if (wxWindow* found = find_send(child))
+                        return found;
+                }
+                return nullptr;
+            };
+            if (wxWindow* send = find_send(dialog)) {
+                wxCommandEvent click(wxEVT_BUTTON, send->GetId());
+                click.SetEventObject(send);
+                send->GetEventHandler()->ProcessEvent(click);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static std::size_t send_count(const std::vector<Agent::GcodeRecord>& records)
+    {
+        std::size_t sends = 0;
+        for (const auto& record : records)
+            for (const auto& destination : record.destinations)
+                sends += destination.kind == Agent::GcodeDestination::Kind::Send ? 1 : 0;
+        return sends;
+    }
+
+    // Print again from the screen: Select Machine sends the kept package,
+    // the very file the first send uploaded, and not an export of the plate.
+    void print_history_print_again()
+    {
+        const auto        before  = print_history_records();
+        const auto        package = Agent::kept_gcode_package(persistence().jusprin_data_dir(), before.at(0).hash);
+        const std::size_t sends   = send_count(before);
+        if (!package) {
+            check(false, "print_history_print_again_has_a_package");
+            finish();
+            return;
+        }
+        m_send_pressed  = false;
+        m_dialog_ticks  = 0;
+        m_send_presser = std::make_unique<wxTimer>();
+        m_send_presser->Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+            if (m_send_pressed)
+                return;
+            wxDialog* dialog = nullptr;
+            for (auto* window : wxTopLevelWindows)
+                if (auto* shown = dynamic_cast<wxDialog*>(window); shown != nullptr && shown->IsModal() &&
+                                                                     shown->GetTitle() == _L("Send print job"))
+                    dialog = shown;
+            if (dialog == nullptr)
+                return;
+            // Pictured for review once it has filled itself in, then sent.
+            if (++m_dialog_ticks == 8 && !m_state->capture_dir.empty()) {
+                dialog->Raise();
+                dialog->Update();
+                fs::create_directories(m_state->capture_dir);
+                blit_screen(dialog->GetScreenRect(), "print-again-select-machine");
+            }
+            if (m_dialog_ticks > 8)
+                m_send_pressed = press_send_print_job();
+        });
+        m_send_presser->Start(250);
+        m_frame->select_tab(size_t(MainFrame::tpHome));
+        read_page(home_page(), "gallery", "document.querySelector('.history-header-link')",
+                  "(function () { document.querySelector('.history-header-link').click(); return true; })()",
+                  "print_history_again_from_home", [self = shared_from_this(), package = *package, sends](const nlohmann::json&) {
+            self->read_page(self->home_page(), "again",
+                            "Array.prototype.filter.call(document.querySelectorAll('button'), function (b) { return b.textContent === 'Print again'; })[0]",
+                            "(function () { Array.prototype.filter.call(document.querySelectorAll('button'), function (b) {"
+                            " return b.textContent === 'Print again'; })[0].click(); return true; })()",
+                            "print_history_print_again_offered", [self, package, sends](const nlohmann::json&) {
+                self->print_history_wait([self, sends] { return send_count(self->print_history_records()) > sends; },
+                                         "print_history_print_again_recorded", [self, package] { self->print_history_printed_again(package); });
+            });
+        });
+    }
+
+    void print_history_printed_again(const Agent::KeptPackage& package)
+    {
+        m_send_presser.reset();
+        check(m_send_pressed, "print_history_print_again_send_pressed");
+        const auto records = print_history_records();
+        check(records.size() == 1, "print_history_print_again_is_the_same_gcode");
+        const Agent::GcodeDestination& again = records.at(0).destinations.back();
+        const std::string               kept  = Agent::kept_package_hash(records.at(0));
+        check(again.transport == "bambu_print" && again.start_requested && again.package_hash == kept,
+              "print_history_print_again_recorded_as_a_send");
+        const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
+        std::cerr << "HARNESS NOTE print_history_print_again_uploaded " << (fake ? fake->last_print_filename() : std::string()) << '\n';
+        // The upload is the kept file itself, not the plate's freshly written
+        // package, and its bytes are the first send's.
+        check(fake != nullptr && fs::exists(fs::path(fake->last_print_filename())) &&
+                  fs::equivalent(fs::path(fake->last_print_filename()), fs::path(package.package)),
+              "print_history_print_again_uploads_the_kept_package");
+        check(fake != nullptr && fake->last_print_file_hash() == kept, "print_history_print_again_sends_the_kept_bytes");
+        print_history_refused_states(package);
+    }
+
+    // The entry after the reprint, then the two ways Print again is withheld:
+    // a kept file that no longer hashes as kept, and a copy that is gone.
+    void print_history_refused_states(const Agent::KeptPackage& package)
+    {
+        installed_shell()->home_view()->refresh();
+        read_page(home_page(), "reprinted", "document.body.textContent.split('Sent to').length - 1 >= 3", kHistoryRead,
+                  "print_history_reprint_drawn", [self = shared_from_this(), package](const nlohmann::json&) {
+            self->capture_history("print-again-recorded");
+            // A byte added to the kept package: it is never sent, and the entry says why.
+            std::ofstream(package.package, std::ios::app | std::ios::binary) << ' ';
+            installed_shell()->home_view()->refresh();
+            self->read_page(self->home_page(), "changed", "document.body.textContent.indexOf('Kept file changed on disk') >= 0",
+                            "!Array.prototype.some.call(document.querySelectorAll('button'), function (b) { return b.textContent === 'Print again'; })",
+                            "print_history_changed_package_drawn", [self](const nlohmann::json& withheld) {
+                self->check(withheld == true, "print_history_changed_package_is_not_offered");
+                self->capture_history("print-again-kept-file-changed");
+                // The G-code's copy pruned: slice again.
+                const std::string copy = Agent::kept_gcode_copy(self->persistence().jusprin_data_dir(),
+                                                                self->print_history_records().at(0).hash);
+                fs::remove(fs::path(copy));
+                installed_shell()->home_view()->refresh();
+                self->read_page(self->home_page(), "gone", "document.body.textContent.indexOf('File no longer kept') >= 0",
+                                "!Array.prototype.some.call(document.querySelectorAll('button'), function (b) {"
+                                " return b.textContent === 'Print again' || b.textContent === 'Export\\u2026'; })",
+                                "print_history_pruned_copy_drawn", [self](const nlohmann::json& withheld) {
+                    self->check(withheld == true, "print_history_pruned_copy_is_not_offered");
+                    self->capture_history("print-again-not-kept");
+                    const fs::path earlier(self->m_print_history_export);
+                    for (const fs::path& file : {earlier, fs::path(self->m_print_history_copy),
+                                                 earlier.parent_path() / (earlier.stem().string() + " (2)" + earlier.extension().string())})
+                        fs::remove(file);
+                    self->finish();
+                });
+            });
+        });
+    }
+
+    std::unique_ptr<wxTimer> m_send_presser;
+    bool                     m_send_pressed{false};
+    int                      m_dialog_ticks{0};
+
+    std::string m_print_history_export;
+    std::string m_print_history_copy;
+    int         m_page_reads{0};
+
     std::shared_ptr<PrinterSetup::OrcaPrinterBackend> m_home_live_backend;
     std::string                                       m_home_live_control;
     // The page's last answer to read_home_page(): {cards:[...]}.
@@ -5722,7 +6300,7 @@ private:
         // both return on Prepare, and checks the header's layout there.
         check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
         check(shell->status_row() != nullptr && !shell->status_row()->IsShown(), "status_row_hidden_on_home");
-        check(shell->persistence()->document().physical_print_count() == 0 &&
+        check(shell->persistence()->document().gcode_record_count() == 0 &&
                   shell->status_row()->project_summary().Find('\n') == wxNOT_FOUND,
               "overflow_summary_is_the_project_name_alone");
         verify_type_roles_render_at_token_size();
@@ -8522,7 +9100,7 @@ private:
             "  if (!list || !window.__jusprinTest) return;"
             "  var found = [document.querySelectorAll('.message.user').length,"
             "    document.querySelectorAll('.message.assistant').length,"
-            "    document.querySelectorAll('.history-card').length,"
+            "    document.querySelectorAll('.gcode-marker').length,"
             "    document.querySelectorAll('.change-row').length,"
             "    document.querySelectorAll('.change-revert-button').length,"
             "    document.querySelectorAll('.settings-changes .settings-change-row').length,"
@@ -8539,7 +9117,7 @@ private:
     {
         const std::string probe = persistence().draft();
         std::cout << "HARNESS FIGMA TIMELINE PROBE " << probe << std::endl;
-        check(probe.find("figma-timeline=3,3,3,6,1,4,1,1;") == 0, "figma_timeline_has_messages_history_and_revert");
+        check(probe.find("figma-timeline=3,3,1,6,1,4,1,1;") == 0, "figma_timeline_has_messages_marker_and_revert");
         persistence().set_draft({});
         installed_shell()->agent_pane()->web_view().host().refresh_page_state();
         if (m_state->figma_timeline_manual) {
@@ -11324,19 +11902,19 @@ private:
     std::vector<Workspace::RegionRecord> m_slice_check_regions;
     DynamicPrintConfig                   m_slice_check_settings;
 
-    // The Project tab counts the prints the ledger holds, and follows it when
-    // a print is added.
+    // The Project tab's Print history row says how the records stand, and
+    // follows them when a print is added.
     void project_tab_print_count()
     {
-        Agent::PhysicalPrintRecord print;
-        print.outcome = "completed";
+        JusPrinTest::PrintFixture print;
+        print.finished_at = "2026-10-01T14:00:00Z";
         JusPrinTest::add_print(persistence().document(), print, "2026-10-01T13:04:00Z");
         persistence().notify_ledger_changed();
         LeftPane* pane = installed_shell()->left_pane();
         pane->show_project();
         pane->snapshot();
-        const auto labels = pane->action_labels();
-        check(std::find(labels.begin(), labels.end(), _L("Printed once")) != labels.end(),
+        std::cerr << "HARNESS NOTE project_tab_print_history " << pane->print_history_detail().ToUTF8() << '\n';
+        check(pane->print_history_detail().StartsWith(_L("1 G-code")) && pane->print_history_detail().Contains(_L("last finished")),
               "project_tab_print_count_follows_the_ledger");
         pane->show_plates();
         agent_import_and_clean_share();
@@ -12458,6 +13036,12 @@ int main(int argc, char** argv)
         // settings rather than the base conf's stealth mode.
         else if (argument == "--startup-requests")
             state->mode = HarnessState::Mode::StartupRequests;
+        else if (argument == "--print-history") {
+            state->mode = HarnessState::Mode::PrintHistory;
+            // Optionally a folder for the screen's pictures.
+            if (index + 1 < argc && argv[index + 1][0] != '-')
+                state->capture_dir = fs::absolute(argv[++index]);
+        }
         else if (argument == "--external-project-history")
             state->mode = HarnessState::Mode::ExternalProjectHistory;
         else if (argument == "--reopen-prompt") {

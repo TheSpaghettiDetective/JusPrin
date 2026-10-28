@@ -7,11 +7,21 @@ import type {
   Appearance,
   ConfirmPayload,
   Envelope,
+  HistoryEntry,
+  HistoryPayload,
   PrinterErrorPayload,
   PrinterInfo,
   ProjectInfo,
+  ScreenPayload,
   StatePayload,
 } from '../bridge/protocol';
+
+// Home's two screens. Print history is always a leaf: Back returns to the
+// gallery when the gallery opened it, and to the project when the project did.
+// Where it was opened from sets its first filter.
+export type Screen =
+  | { kind: 'home' }
+  | { kind: 'history'; back: 'home' | 'project'; projectId?: string; printerId?: string; focus?: string };
 
 export interface HomeState {
   connection: ConnectionState;
@@ -33,6 +43,13 @@ export interface HomeState {
   highlightPrinter?: string;
   // The host's open question, until the person answers it.
   confirmation?: ConfirmPayload;
+  screen: Screen;
+  // The Print history's entries, as the host last sent them; absent until
+  // the first arrives. The page asks again each time the screen opens and
+  // each time the host's state changes under it.
+  history?: HistoryEntry[];
+  // Counts the host's state pushes, so the open history can follow them.
+  stateCount: number;
 }
 
 export const initialState: HomeState = {
@@ -41,13 +58,16 @@ export const initialState: HomeState = {
   appearance: 'light',
   projects: [],
   printers: [],
+  screen: { kind: 'home' },
+  stateCount: 0,
 };
 
 export type HomeAction =
   | { kind: 'connection'; state: ConnectionState; detail?: string }
   | { kind: 'envelope'; envelope: Envelope }
   | { kind: 'printer_action' }
-  | { kind: 'confirmation_answered' };
+  | { kind: 'confirmation_answered' }
+  | { kind: 'show'; screen: Screen };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -58,6 +78,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   }
   if (action.kind === 'confirmation_answered') {
     return { ...state, confirmation: undefined };
+  }
+  if (action.kind === 'show') {
+    return { ...state, screen: action.screen };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -72,8 +95,21 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         printers: next.printers ?? [],
         error: undefined,
         highlightPrinter: next.highlightPrinter || undefined,
+        stateCount: state.stateCount + 1,
       };
     }
+    case 'screen': {
+      const asked = payload as ScreenPayload;
+      return {
+        ...state,
+        screen:
+          asked.screen === 'history'
+            ? { kind: 'history', back: asked.back, projectId: asked.projectId, focus: asked.focus }
+            : { kind: 'home' },
+      };
+    }
+    case 'history':
+      return { ...state, history: (payload as HistoryPayload).entries ?? [] };
     case 'projects':
       return { ...state, projects: (payload as { projects: ProjectInfo[] }).projects ?? [] };
     case 'printers':

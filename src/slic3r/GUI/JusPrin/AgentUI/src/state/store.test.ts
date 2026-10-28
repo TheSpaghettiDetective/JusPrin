@@ -59,7 +59,7 @@ const statePayload: StatePayload = {
   ],
   streamingMessageId: null,
   toolActivities: [toolActivity({ state: 'succeeded', progress: { current: 3, total: 3 } })],
-  physicalPrints: [],
+  gcodeMarkers: [],
   draft: 'unfinished thought',
   context,
 };

@@ -333,6 +333,7 @@ private:
     Slic3r::PlateDataPtrs               m_required_data_plate_data_list;
     std::string                         m_required_data_file_name;
     std::string                         m_required_data_file_path;
+    std::optional<std::string>          m_required_data_new_print_config; // set: the file is local, sent as a new print
 
     std::vector<POItem> ops_auto;
     std::vector<POItem> ops_no_auto;
@@ -500,6 +501,8 @@ public:
     bool check_sdcard_for_timelpase(MachineObject* obj);
     bool is_timeout();
     int  update_print_required_data(Slic3r::DynamicPrintConfig config, Slic3r::Model model, Slic3r::PlateDataPtrs plate_data_list, std::string file_name, std::string file_path);
+    // The required-data file is a local .gcode.3mf to upload as a new print, with its config 3MF for cloud printers (may be empty); nullopt prints by name from storage.
+    void set_required_data_new_print(std::optional<std::string> config_path) { m_required_data_new_print_config = std::move(config_path); }
     void set_print_type(PrintFromType type) {m_print_type = type;};
     bool Show(bool show);
     void show_init();

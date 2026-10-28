@@ -47,6 +47,10 @@ public:
     // projects are re-read on every refresh too. Returns whether it sent.
     bool refresh_if_changed();
     void push_appearance(bool dark);
+    // Which screen the page shows: {screen: "home"}, or {screen: "history",
+    // projectId?, focus?, back: "project"} for a Print history the project
+    // opened. Held until the page is connected.
+    void show_screen(const nlohmann::json& screen);
 
     // Asks the page a question it draws as the design system's Confirmation
     // dialog; held until the page is connected. The page's confirm_answer
@@ -82,6 +86,7 @@ private:
     std::string        m_added;
     std::string        m_sent_printers;
     std::string        m_held_confirmation; // a confirm payload asked before the handshake
+    std::string        m_held_screen;       // a screen payload asked before the handshake
     ConfirmationListener m_confirmation_listener;
     // Why the last state sent had no projects, when they could not be read.
     std::string        m_sent_projects_problem;

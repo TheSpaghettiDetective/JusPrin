@@ -75,6 +75,7 @@ enum class ToolHandler : std::uint8_t {
     CalibrationGenerate,
     PrinterList,
     SliceStart,
+    PrintDialogOpen,
     SliceReportRead,
     PrinterIdentify,
     PrinterAdd,

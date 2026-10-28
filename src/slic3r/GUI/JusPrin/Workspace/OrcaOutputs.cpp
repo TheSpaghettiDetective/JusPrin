@@ -407,6 +407,14 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
     boost::system::error_code error;
     result.files = {path.string()};
     result.bytes = fs::file_size(path, error);
+    if (request.kind == "gcode" || request.kind == "sliced_3mf") {
+        // The plate's G-code left the project, as it does through OrcaSlicer's
+        // own Export: the same event records it in the print history.
+        wxCommandEvent exported(EVT_OUTPUT_EXPORTED);
+        exported.SetString(from_path(path));
+        exported.SetInt(index);
+        m_plater.ProcessWindowEvent(exported);
+    }
     return CommandResult::success();
 }
 

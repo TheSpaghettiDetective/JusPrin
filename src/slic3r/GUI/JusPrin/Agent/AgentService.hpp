@@ -111,6 +111,15 @@ struct AgentRequest
     // The presets or the plate type in force differ from those the model was
     // last asked to check against the recorded purpose.
     bool                                  setup_unchecked_change{false};
+    // The G-code that most recently left the project, newest first, each with
+    // whether its plate's manufacturing inputs are still what they were then:
+    // what the model reads when the person says how a print went.
+    struct GcodeHistoryEntry
+    {
+        GcodeRecord record;
+        bool        same_inputs_as_now{false};
+    };
+    std::vector<GcodeHistoryEntry>        gcode_history;
     std::vector<AgentConversationContext> conversation;
     std::vector<AgentAttachmentContext>   attachments;
     std::vector<AgentSkillUse>            skills;

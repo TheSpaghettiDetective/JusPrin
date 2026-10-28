@@ -226,6 +226,16 @@ export function App({
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
   useEffect(() => { if (state.navigation.focused) setView('chat'); }, [state.navigation.focused]);
+  // The Print history's Open in chat: the host has already shown the chat;
+  // the marker it named is brought into view once the thread has drawn it.
+  useEffect(() => {
+    if (!state.reveal) return;
+    setView('chat');
+    const id = state.reveal.itemId;
+    const frame = requestAnimationFrame(() =>
+      document.querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'center' }));
+    return () => cancelAnimationFrame(frame);
+  }, [state.reveal]);
 
   // The All settings panel's table: asked for when the panel opens, and
   // again whenever the project moves on under it. A saved chat shows its
@@ -446,6 +456,11 @@ export function App({
     state.messages.some((message) => message.id === activity.correlationId) &&
     activity.state === 'running');
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
+  // A marker's history link opens the Print history at its G-code.
+  const markerActions = {
+    onHistory: (hash: string) => client.send('shell_action', { action: 'open_print_history', hash }),
+    revealedId: state.reveal?.itemId,
+  };
   const collapseAgentPane = () => client.send('shell_action', { action: 'collapse_agent_pane' });
   const returnToWorkspace = () => client.send('shell_action', { action: 'return_to_workspace' });
   // The host's question, answered once: Escape and Cancel say no.
@@ -482,7 +497,8 @@ export function App({
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
-          physicalPrints={historical ? state.physicalPrints.filter((record) => record.conversationId === viewedId) : state.physicalPrints}
+          gcodeMarkers={state.gcodeMarkers.filter((marker) => marker.conversationId === viewedId)}
+          markerActions={markerActions}
           changes={viewedChanges}
           work={viewedWork}
           onWorkCancel={sendWorkCancel}
@@ -495,7 +511,6 @@ export function App({
           onSend={sendMessage}
           replyDisabled={unavailable || streaming || historical || state.projectChatBlocked}
           readOnly={historical || state.projectChatBlocked}
-          onDiscussFailure={(text) => sendMessage(text, false)}
           onScrolledChange={setThreadScrolled}
         />
       );
@@ -569,7 +584,7 @@ export function App({
               renderActivity={(activity) => activity.actionId !== session?.credentialRequest?.actionId ? undefined : (
                 <PrinterCredentialForm request={session.credentialRequest} onConnect={connectPrinter} />
               )}
-              physicalPrints={[]}
+              gcodeMarkers={[]}
               changes={[]}
               printerBlocks={session?.blocks ?? []}
               onUndoAdd={(blockId) => client.send('printer_action', { action: 'undo_add', blockId })}

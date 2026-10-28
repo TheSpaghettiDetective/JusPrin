@@ -119,7 +119,6 @@ describe('styles.css stays on the design tokens', () => {
     ['.tool-card .tool-actions > button.primary', ['--button-primary-padding', '--font-body-small-bold']],
     ['.project-updates-actions button.primary', ['--button-primary-padding', '--font-body-small-bold']],
     ['.message-failure > button.primary', ['--button-primary-padding', '--font-body-small-bold']],
-    ['.history-action', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['.attachment-remove', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['button.prefs-button', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['.welcome-account-action', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],

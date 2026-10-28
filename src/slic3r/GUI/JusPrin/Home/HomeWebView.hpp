@@ -39,6 +39,8 @@ public:
     // changes while another screen is in front. `added` leads the column
     // with a successful Add and sends its receipt, for this one refresh.
     void refresh(const std::string& added = {});
+    // HomeHost::show_screen: the gallery or the Print history.
+    void show_screen(const nlohmann::json& screen) { m_host->show_screen(screen); }
     // While live, the printer cards follow the devices, profiles and trays
     // they describe without the person leaving Home: once a second -- the
     // Monitor's own refresh rate -- the rail is re-read and sent only when a

@@ -230,12 +230,11 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     activity.correlation_id = message.id;
     activity.state = ToolState::Succeeded;
     document.upsert_activity(activity, kT);
-    SentRecord sent;
-    sent.conversation_id = first;
-    PhysicalPrintRecord print;
-    print.conversation_id = first;
-    print.sent_id = document.add_sent(sent, kT);
-    document.add_physical_print(print, kT);
+    GcodeRecord gcode;
+    gcode.hash = sha256_hex("gcode");
+    GcodeDestination send;
+    send.kind = GcodeDestination::Kind::Send;
+    document.add_gcode_print(gcode.hash, GcodePrint{"", document.add_gcode_destination(gcode, send, kT)}, kT);
     const auto second = document.create_conversation("Keep this chat", kT);
     REQUIRE(document.set_active_conversation(first));
     const auto removed = document.delete_conversation(first, kT);
@@ -246,8 +245,9 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     CHECK(document.messages(first).empty());
     CHECK(document.attachments().empty());
     CHECK(document.activities().empty());
-    CHECK(document.sent().size() == 1);
-    CHECK(document.physical_prints().size() == 1);
+    REQUIRE(document.gcode_records().size() == 1);
+    CHECK(document.gcode_records()[0].conversation_id == first);
+    CHECK(document.gcode_records()[0].prints.size() == 1);
     CHECK_FALSE(document.delete_conversation(first, kT));
     REQUIRE(document.delete_conversation(second, kT));
     REQUIRE(document.conversations().size() == 1);
@@ -257,7 +257,7 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     ProjectStateDocument loaded;
     REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
     CHECK(loaded.messages(first).empty());
-    CHECK(loaded.physical_prints().size() == 1);
+    CHECK(loaded.gcode_records().size() == 1);
 }
 
 TEST_CASE("viewing history never changes authority and checkpoints bind a chat to a model", "[project-state][conversations]")
@@ -499,56 +499,150 @@ TEST_CASE("manufacturing hashes ignore presentation state and change with manufa
     CHECK_FALSE(manufacturing_input_hash(snapshot, 99).has_value());
 }
 
-TEST_CASE("a Sent event keeps what was sent, and when it reached the printer", "[project-state][history]")
+namespace {
+
+GcodeDestination export_to(const std::string& path)
+{
+    GcodeDestination destination;
+    destination.kind      = GcodeDestination::Kind::Export;
+    destination.path      = path;
+    destination.file_hash = sha256_hex("exported " + path);
+    return destination;
+}
+
+GcodeDestination send_to(const std::string& printer, bool start)
+{
+    GcodeDestination destination;
+    destination.kind            = GcodeDestination::Kind::Send;
+    destination.printer_name    = printer;
+    destination.printer_id      = "dev-" + printer;
+    destination.transport       = "bambu_print";
+    destination.start_requested = start;
+    destination.delivered_at    = "2026-10-20T10:02:00Z";
+    return destination;
+}
+
+} // namespace
+
+TEST_CASE("a G-code record keeps where it went, and is created by the first time it leaves", "[project-state][history]")
 {
     ProjectStateDocument document;
     document.initialize_identity("project-1", "lineage-1", kT);
+    auto said = user_message(document.allocate_message_id(), "print it", "client-1");
+    document.append_message(document.active_conversation_id(), said, kT);
 
-    SentRecord sent;
-    sent.project_id = document.project_id();
-    sent.conversation_id = document.active_conversation_id();
-    sent.plate_index = 1;
-    sent.plate_name = "Plate 2";
-    sent.printer = "Bambu Lab X1 Carbon 0.4 nozzle";
-    sent.material = "Bambu PLA Basic @BBL X1C";
-    sent.manufacturing_input_hash = sha256_hex("input");
-    sent.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
-    sent.sent_at = "ignored: the document stamps the time it is given";
-    const std::string id = document.add_sent(sent, kT);
-    CHECK(id == "s-1");
+    GcodeRecord facts;
+    facts.hash                     = sha256_hex("plate 2 gcode");
+    facts.plate_index              = 1;
+    facts.plate_name               = "Plate 2";
+    facts.printer                  = "Bambu Lab X1 Carbon 0.4 nozzle";
+    facts.material                 = "Bambu PETG HF @BBL X1C";
+    facts.process                  = "0.20mm Strength @BBL X1C";
+    facts.manufacturing_input_hash = sha256_hex("input");
+    facts.statistics               = {3600.0, 1234.5, 12.3, 0.42, 88};
+    CHECK(document.add_gcode_destination(facts, export_to("C:/prints/bracket-v3.gcode.3mf"), kT) == "d-1");
+
+    // The same bytes leaving again join the record; the facts it was made
+    // with stay as they were.
+    GcodeRecord later = facts;
+    later.plate_name  = "renamed since";
+    const std::uint64_t before = document.doc_revision();
+    CHECK(document.add_gcode_destination(later, send_to("Garage X1C", true), "2026-10-20T10:01:00Z") == "d-2");
+    CHECK(document.doc_revision() == before + 1);
+    CHECK(document.gcode_record_count() == 1);
 
     ProjectStateDocument reloaded;
     REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    REQUIRE(reloaded.sent().size() == 1);
-    const SentRecord stored = reloaded.sent()[0];
-    CHECK(stored.id == id);
-    CHECK(stored.sent_at == kT);
-    CHECK(stored.delivery_confirmed_at.empty());
-    CHECK(stored.conversation_id == sent.conversation_id);
-    CHECK(stored.plate_index == 1);
-    CHECK(stored.plate_name == "Plate 2");
-    CHECK(stored.printer == sent.printer);
-    CHECK(stored.material == sent.material);
-    CHECK(stored.manufacturing_input_hash == sent.manufacturing_input_hash);
-    CHECK(stored.statistics.layer_count == 88);
+    const std::optional<GcodeRecord> stored = reloaded.gcode_record(facts.hash);
+    REQUIRE(stored);
+    CHECK(stored->created_at == kT);
+    CHECK(stored->plate_index == 1);
+    CHECK(stored->plate_name == "Plate 2");
+    CHECK(stored->printer == facts.printer);
+    CHECK(stored->material == facts.material);
+    CHECK(stored->process == facts.process);
+    CHECK(stored->manufacturing_input_hash == facts.manufacturing_input_hash);
+    CHECK(stored->statistics.layer_count == 88);
+    // It left from this chat, after the person's message.
+    CHECK(stored->conversation_id == document.active_conversation_id());
+    CHECK(stored->after_id == said.id);
+    REQUIRE(stored->destinations.size() == 2);
+    const GcodeDestination& exported = stored->destinations[0];
+    CHECK(exported.kind == GcodeDestination::Kind::Export);
+    CHECK(exported.at == kT);
+    CHECK(exported.path == "C:/prints/bracket-v3.gcode.3mf");
+    CHECK(exported.file_hash == sha256_hex("exported C:/prints/bracket-v3.gcode.3mf"));
+    CHECK(exported.after_id == said.id);
+    const GcodeDestination& sent = stored->destinations[1];
+    CHECK(sent.kind == GcodeDestination::Kind::Send);
+    CHECK(sent.at == "2026-10-20T10:01:00Z");
+    CHECK(sent.printer_name == "Garage X1C");
+    CHECK(sent.printer_id == "dev-Garage X1C");
+    CHECK(sent.transport == "bambu_print");
+    CHECK(sent.start_requested);
+    CHECK(sent.delivered_at == "2026-10-20T10:02:00Z");
+    CHECK(gcode_display_name(*stored) == "bracket-v3.gcode.3mf");
 
-    // The transport's first report is when the job arrived; a repeat changes
-    // nothing.
+    // A different G-code is a record of its own.
+    GcodeRecord other = facts;
+    other.hash        = sha256_hex("plate 1 gcode");
+    document.add_gcode_destination(other, send_to("Garage X1C", false), kT);
+    CHECK(document.gcode_record_count() == 2);
+    CHECK(gcode_display_name(*document.gcode_record(other.hash)) == "Plate 2");
+}
+
+TEST_CASE("a print follows a send of its G-code and finishes once", "[project-state][history]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("project-1", "lineage-1", kT);
+    GcodeRecord facts;
+    facts.hash = sha256_hex("gcode");
+    const std::string exported = document.add_gcode_destination(facts, export_to("C:/out.gcode"), kT);
+    const std::string sent     = document.add_gcode_destination(facts, send_to("Garage X1C", true), kT);
+
+    // A print needs a recorded G-code and one of its sends; an export cannot
+    // be printed from.
+    CHECK_THROWS_AS(document.add_gcode_print(sha256_hex("unknown"), GcodePrint{"", sent}, kT), std::logic_error);
+    CHECK_THROWS_AS(document.add_gcode_print(facts.hash, GcodePrint{"", exported}, kT), std::logic_error);
+    CHECK_THROWS_AS(document.add_gcode_print(facts.hash, GcodePrint{"", "d-9"}, kT), std::logic_error);
+    CHECK(document.gcode_record(facts.hash)->prints.empty());
+
+    GcodePrint print;
+    print.destination_id = sent;
+    print.printer_name   = "Garage X1C";
+    print.printer_id     = "dev-Garage X1C";
+    print.job_id         = "job-7";
+    const std::string id = document.add_gcode_print(facts.hash, print, "2026-10-20T10:05:00Z");
+    CHECK(id == "p-1");
+
+    CHECK_THROWS_AS(document.finish_gcode_print(facts.hash, "p-9", kT), std::logic_error);
+    CHECK_THROWS_AS(document.finish_gcode_print(sha256_hex("unknown"), id, kT), std::logic_error);
     const std::uint64_t before = document.doc_revision();
-    document.confirm_delivery(id, "2026-10-20T10:02:00Z");
+    document.finish_gcode_print(facts.hash, id, "2026-10-20T12:40:00Z");
+    // A printer repeats its state; the first report is when it finished.
+    document.finish_gcode_print(facts.hash, id, "2026-10-20T12:41:00Z");
     CHECK(document.doc_revision() == before + 1);
-    document.confirm_delivery(id, "2026-10-20T10:09:00Z");
-    CHECK(document.doc_revision() == before + 1);
-    CHECK(document.sent()[0].delivery_confirmed_at == "2026-10-20T10:02:00Z");
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const GcodeRecord stored = *reloaded.gcode_record(facts.hash);
+    REQUIRE(stored.prints.size() == 1);
+    CHECK(stored.prints[0].id == id);
+    CHECK(stored.prints[0].destination_id == sent);
+    CHECK(stored.prints[0].printer_name == "Garage X1C");
+    CHECK(stored.prints[0].job_id == "job-7");
+    CHECK(stored.prints[0].started_at == "2026-10-20T10:05:00Z");
+    CHECK(stored.prints[0].finished_at == "2026-10-20T12:40:00Z");
 }
 
 // What the Print button notes and the document keeps once the printer takes
 // the job: the plate as the workspace had it.
-TEST_CASE("a Sent event is made from the plate as the workspace has it", "[project-state][history]")
+TEST_CASE("a G-code record is made from the plate as the workspace has it", "[project-state][history]")
 {
     Workspace::WorkspaceSnapshot snapshot = small_snapshot();
     snapshot.setup.printer_preset  = "Bambu Lab A1 0.4 nozzle";
     snapshot.setup.filament_preset = "Bambu PLA Basic @BBL A1";
+    snapshot.setup.process_preset  = "0.20mm Standard @BBL A1";
     Workspace::SliceEstimate estimate;
     estimate.print_time_seconds = 2520;
     estimate.has_time           = true;
@@ -557,83 +651,170 @@ TEST_CASE("a Sent event is made from the plate as the workspace has it", "[proje
     estimate.material_cost      = 0.0; // a filament with no price set
     snapshot.plates[0].estimate = estimate;
 
-    const std::optional<SentRecord> record = sent_record(snapshot, 0);
+    const std::optional<GcodeRecord> record = gcode_record(snapshot, 0);
     REQUIRE(record);
-    CHECK_FALSE(sent_record(snapshot, 1).has_value());
-
-    ProjectStateDocument document;
-    document.initialize_identity("project-1", "lineage-1", kT);
-    document.add_sent(*record, kT);
-    const SentRecord stored = document.sent().at(0);
-    CHECK(stored.plate_index == 0);
-    CHECK(stored.plate_name == "Plate 1");
-    CHECK(stored.printer == "Bambu Lab A1 0.4 nozzle");
-    CHECK(stored.material == "Bambu PLA Basic @BBL A1");
-    CHECK(stored.manufacturing_input_hash == *manufacturing_input_hash(snapshot, 0));
-    CHECK(stored.statistics.print_time_seconds == 2520.0);
-    CHECK(stored.statistics.material_grams == 18.5);
-    CHECK(stored.statistics.material_cost == 0.0);
-    CHECK(stored.sent_at == kT);
+    CHECK_FALSE(gcode_record(snapshot, 1).has_value());
+    CHECK(record->hash.empty()); // the G-code's bytes are the caller's to hash
+    CHECK(record->plate_index == 0);
+    CHECK(record->plate_name == "Plate 1");
+    CHECK(record->printer == "Bambu Lab A1 0.4 nozzle");
+    CHECK(record->material == "Bambu PLA Basic @BBL A1");
+    CHECK(record->process == "0.20mm Standard @BBL A1");
+    CHECK(record->manufacturing_input_hash == *manufacturing_input_hash(snapshot, 0));
+    CHECK(record->statistics.print_time_seconds == 2520.0);
+    CHECK(record->statistics.material_grams == 18.5);
+    CHECK(record->statistics.material_cost == 0.0);
 }
 
-TEST_CASE("only an event add_sent wrote can be confirmed or printed from", "[project-state][history]")
+TEST_CASE("a G-code record needs the hash of its bytes", "[project-state][history]")
 {
     ProjectStateDocument document;
     document.initialize_identity("project-1", "lineage-1", kT);
-    CHECK_THROWS_AS(document.confirm_delivery("s-9", kT), std::logic_error);
-    PhysicalPrintRecord unsent;
-    unsent.outcome = "completed";
-    CHECK_THROWS_AS(document.add_physical_print(unsent, kT), std::logic_error);
-    unsent.sent_id = "s-9";
-    CHECK_THROWS_AS(document.add_physical_print(unsent, kT), std::logic_error);
-    CHECK(document.physical_prints().empty());
+    CHECK_THROWS_AS(document.add_gcode_destination(GcodeRecord{}, export_to("C:/out.gcode"), kT), std::logic_error);
+    CHECK(document.gcode_record_count() == 0);
 }
 
-// Documents saved before Sent events existed have no list for them.
-TEST_CASE("a document without Sent events reads as none and takes one", "[project-state][history]")
+// Sent events and physical prints were written only by tests and the Phase 6
+// era before the G-code record replaced them; a document holding them loads
+// and drops them.
+TEST_CASE("a document with Sent events and physical prints loads without them", "[project-state][history]")
 {
     ProjectStateDocument document;
     document.initialize_identity("project-1", "lineage-1", kT);
     json older = json::parse(document.dump());
-    older.erase("sent");
-    older["counters"].erase("nextSent");
+    older.erase("gcodes");
+    older["counters"].erase("nextDestination");
+    older["counters"]["nextSent"] = 2;
+    older["sent"] = json::array({json{{"id", "s-1"}, {"seq", 1}, {"printer", "X1C"}}});
+    older["physicalPrints"] = json::array({json{{"id", "p-1"}, {"seq", 2}, {"sentId", "s-1"}, {"outcome", "failed"}}});
     ProjectStateDocument loaded;
     REQUIRE(loaded.load(older.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    CHECK(loaded.sent().empty());
-    CHECK_THROWS_AS(loaded.confirm_delivery("s-1", kT), std::logic_error);
-    CHECK(loaded.add_sent(SentRecord{}, kT) == "s-1");
-    CHECK(loaded.sent().size() == 1);
+    CHECK(loaded.has_identity());
+    CHECK(loaded.gcode_records().empty());
+    const json reloaded = json::parse(loaded.dump());
+    CHECK_FALSE(reloaded.contains("sent"));
+    CHECK_FALSE(reloaded.contains("physicalPrints"));
+    CHECK_FALSE(reloaded["counters"].contains("nextSent"));
+    // The new list starts when the first G-code leaves.
+    GcodeRecord facts;
+    facts.hash = sha256_hex("gcode");
+    CHECK(loaded.add_gcode_destination(facts, export_to("C:/out.gcode"), kT) == "d-1");
+    CHECK(loaded.gcode_record_count() == 1);
 }
 
-TEST_CASE("print records serialize with immutable provenance", "[project-state][history]")
+TEST_CASE("the project keeps the most recently written G-code copies", "[project-state][history]")
 {
+    const fs::path project = fs::temp_directory_path() / "jusprin-kept-gcode-test";
+    fs::remove_all(project);
+    const fs::path sources = project / "sources";
+    fs::create_directories(sources);
+    const auto source = [&](int n) {
+        const fs::path path = sources / ("plate" + std::to_string(n) + ".gcode");
+        std::ofstream(path, std::ios::binary) << "G1 X" << n << "\n";
+        return path;
+    };
+    const auto hash_of = [](int n) { return sha256_hex("gcode " + std::to_string(n)); };
+    const auto age = [&](int n, int seconds) {
+        fs::last_write_time(project / "gcode" / (hash_of(n) + ".gcode"),
+                            fs::file_time_type::clock::now() - std::chrono::seconds(seconds));
+    };
+
+    const std::string first = keep_gcode_copy(project.u8string(), hash_of(1), source(1).u8string(), 2);
+    CHECK(first == (project / "gcode" / (hash_of(1) + ".gcode")).u8string());
+    CHECK(read_text(first) == "G1 X1\n");
+    age(1, 300);
+    keep_gcode_copy(project.u8string(), hash_of(2), source(2).u8string(), 2);
+    age(2, 200);
+    // The first G-code leaves again: its copy is the newest now.
+    keep_gcode_copy(project.u8string(), hash_of(1), source(1).u8string(), 2);
+    keep_gcode_copy(project.u8string(), hash_of(3), source(3).u8string(), 2);
+    CHECK_FALSE(kept_gcode_copy(project.u8string(), hash_of(1)).empty());
+    CHECK(kept_gcode_copy(project.u8string(), hash_of(2)).empty());
+    CHECK_FALSE(kept_gcode_copy(project.u8string(), hash_of(3)).empty());
+
+    CHECK_THROWS_AS(keep_gcode_copy(project.u8string(), "../escape", source(1).u8string(), 2), std::logic_error);
+    CHECK_THROWS(keep_gcode_copy(project.u8string(), hash_of(4), (sources / "missing.gcode").u8string(), 2));
+    fs::remove_all(project);
+}
+
+// A Bambu printer takes a .gcode.3mf: a send to one keeps the package it
+// uploaded, byte for byte, beside the G-code's copy, and Print again sends it.
+TEST_CASE("a Bambu send's package is kept beside its G-code and goes with it", "[project-state][history]")
+{
+    const fs::path project = fs::path(unique_temp_dir("kept-package"));
+    const fs::path sources = project / "sources";
+    fs::create_directories(sources);
+    const auto write = [&](const std::string& name, const std::string& bytes) {
+        std::ofstream(sources / name, std::ios::binary) << bytes;
+        return (sources / name).u8string();
+    };
+    const auto hash_of = [](int n) { return sha256_hex("gcode " + std::to_string(n)); };
+    const std::string dir = project.u8string();
+
+    // Only beside a kept copy.
+    CHECK_THROWS_AS(keep_gcode_package(dir, hash_of(1), write("a.gcode.3mf", "PK first"), {}), std::logic_error);
+    CHECK_FALSE(kept_gcode_package(dir, hash_of(1)).has_value());
+
+    keep_gcode_copy(dir, hash_of(1), write("1.gcode", "G1 X1\n"), 2);
+    // A cloud send: the package and its config.
+    const std::string first = keep_gcode_package(dir, hash_of(1), write("a.gcode.3mf", "PK first"), write("a.config.3mf", "PK config"));
+    CHECK(first == sha256_hex("PK first"));
+    auto kept = kept_gcode_package(dir, hash_of(1));
+    REQUIRE(kept.has_value());
+    CHECK(read_text(kept->package) == "PK first");
+    CHECK(read_text(kept->config) == "PK config");
+
+    // A later LAN send of the same G-code: its package replaces the first, and
+    // the cloud send's config, which belonged to that package, goes.
+    CHECK(keep_gcode_package(dir, hash_of(1), write("b.gcode.3mf", "PK second"), {}) == sha256_hex("PK second"));
+    kept = kept_gcode_package(dir, hash_of(1));
+    REQUIRE(kept.has_value());
+    CHECK(read_text(kept->package) == "PK second");
+    CHECK(kept->config.empty());
+
+    // Pruning a G-code's copy takes its package with it.
+    fs::last_write_time(project / "gcode" / (hash_of(1) + ".gcode"), fs::file_time_type::clock::now() - std::chrono::seconds(300));
+    keep_gcode_copy(dir, hash_of(2), write("2.gcode", "G1 X2\n"), 1);
+    CHECK(kept_gcode_copy(dir, hash_of(1)).empty());
+    CHECK_FALSE(kept_gcode_package(dir, hash_of(1)).has_value());
+    CHECK_FALSE(fs::exists(project / "gcode" / (hash_of(1) + ".gcode.3mf")));
+    fs::remove_all(project);
+}
+
+TEST_CASE("the kept package must hash as the newest send that kept one said", "[project-state][history]")
+{
+    GcodeRecord record;
+    CHECK(kept_package_hash(record).empty());
+    GcodeDestination exported = export_to("C:/out.gcode");
+    GcodeDestination first;
+    first.kind         = GcodeDestination::Kind::Send;
+    first.package_hash = sha256_hex("PK first");
+    GcodeDestination host;
+    host.kind = GcodeDestination::Kind::Send;
+    GcodeDestination second = first;
+    second.package_hash     = sha256_hex("PK second");
+    record.destinations     = {exported, first, second, host};
+    CHECK(kept_package_hash(record) == sha256_hex("PK second"));
+
+    // It round-trips with the send that kept it.
     ProjectStateDocument document;
-    document.initialize_identity("project-1", "lineage-1", kT);
+    GcodeRecord          facts;
+    facts.hash = sha256_hex("gcode");
+    document.add_gcode_destination(facts, second, kT);
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    CHECK(loaded.gcode_record(facts.hash)->destinations.at(0).package_hash == sha256_hex("PK second"));
+}
 
-    PhysicalPrintRecord print;
-    print.sent_id = document.add_sent(SentRecord{}, kT);
-    print.project_id = document.project_id();
-    print.conversation_id = document.active_conversation_id();
-    print.plate_name = "Plate 1";
-    print.printer = "JusPrin One";
-    print.material = "PLA Matte";
-    print.outcome = "completed";
-    print.manufacturing_input_hash = sha256_hex("input");
-    print.output_hash = sha256_hex("gcode");
-    print.gcode_hash = print.output_hash;
-    print.stopped_percent = 41;
-    print.statistics = {3600.0, 1234.5, 12.3, 0.42, 88};
-    document.add_physical_print(print, kT);
-
-    ProjectStateDocument reloaded;
-    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
-    REQUIRE(reloaded.physical_prints().size() == 1);
-    CHECK(reloaded.physical_prints()[0].printer == "JusPrin One");
-    CHECK(reloaded.physical_prints()[0].sent_id == print.sent_id);
-    CHECK(reloaded.physical_prints()[0].manufacturing_input_hash == print.manufacturing_input_hash);
-    CHECK(reloaded.physical_prints()[0].gcode_hash == print.output_hash);
-    CHECK(reloaded.physical_prints()[0].stopped_percent == 41);
-    CHECK(reloaded.physical_prints()[0].statistics.layer_count == 88);
+TEST_CASE("a file's hash is the hash of its bytes", "[project-state][history]")
+{
+    const fs::path path = fs::temp_directory_path() / "jusprin-hash-test.gcode";
+    std::string bytes(200000, 'x');
+    bytes += "tail";
+    std::ofstream(path, std::ios::binary) << bytes;
+    CHECK(sha256_file_hex(path.u8string()) == sha256_hex(bytes));
+    fs::remove(path);
+    CHECK_THROWS(sha256_file_hex(path.u8string()));
 }
 
 // Documents written while the app kept builds and exported copies still load.

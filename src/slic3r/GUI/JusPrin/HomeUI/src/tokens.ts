@@ -15,6 +15,8 @@
 //   --confirmation-dialog-width  the design system's Confirmation dialog, for
 //                          a question the host asks over Home
 //   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
+// and the Print history screen's list width:
+//   --print-history-list-width
 // and the gallery header's search and sort, the design system's field and
 // select at the Main Page board's width:
 //   --field-<name>, --select-<name>  height, radius, horizontal padding
@@ -36,6 +38,7 @@ interface CardTokens {
     projectCard: Record<string, number>;
     projectGallery: Record<string, number>;
     homeHeader: Record<string, number>;
+    printHistory: Record<string, number>;
     field: Record<string, number | string>;
     select: Record<string, number | string>;
     printerCard: Record<string, number>;
@@ -93,6 +96,7 @@ export function staticVariableNames(): string[] {
     ASPECT,
     ...pixelVariableNames('project-gallery', component.projectGallery),
     ...pixelVariableNames('home-header', component.homeHeader),
+    ...pixelVariableNames('print-history', component.printHistory),
     ...pixelVariableNames('field', pixels(component.field)),
     ...pixelVariableNames('select', pixels(component.select)),
     ...pixelVariableNames('printer-card', component.printerCard),
@@ -119,6 +123,7 @@ export function applyStaticTokens(): void {
   );
   applyPixelTokens('project-gallery', component.projectGallery);
   applyPixelTokens('home-header', component.homeHeader);
+  applyPixelTokens('print-history', component.printHistory);
   applyPixelTokens('field', pixels(component.field));
   applyPixelTokens('select', pixels(component.select));
   applyPixelTokens('printer-card', component.printerCard);

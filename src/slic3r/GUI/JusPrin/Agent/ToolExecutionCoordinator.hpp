@@ -212,6 +212,26 @@ public:
     };
     void set_calibration_project(CalibrationProject hooks) { m_calibration = std::move(hooks); }
 
+    // print_dialog_open's way to OrcaSlicer's send dialog, which the host owns:
+    // for a plate's slice, or (`gcode`, a G-code hash or its leading digits)
+    // for a recorded G-code's kept file. The host refuses with a tool error
+    // code and message, or shows the dialog on its next turn and says which.
+    struct PrintDialogRequest
+    {
+        std::optional<Workspace::PlateId> plate;
+        std::string                       gcode;
+    };
+    struct PrintDialogOutcome
+    {
+        std::string error; // a ToolErrors code; empty when the dialog opens
+        std::string message;
+        std::string dialog; // "select_machine" or "print_host"
+    };
+    void set_print_dialog_opener(std::function<PrintDialogOutcome(const PrintDialogRequest&)> opener)
+    {
+        m_print_dialog_opener = std::move(opener);
+    }
+
     // The project chat's rule for saving a preset: the person saves it. A
     // settings preview with persistAs from the in-app Agent then carries a
     // proposal (ToolActivity::proposal_json) the page draws as a card with
@@ -304,6 +324,7 @@ private:
     std::function<void(const std::string&)>                          m_opened_from;
     std::function<void(const Workspace::LoadReport&)>                m_agent_project_opened;
     CalibrationProject                                               m_calibration;
+    std::function<PrintDialogOutcome(const PrintDialogRequest&)>     m_print_dialog_opener;
     std::function<void(const ToolActivity&)>                         m_proposal_saved;
     bool                             m_saves_need_approval{false};
     // The preview an approve_proposal is submitting the apply for.

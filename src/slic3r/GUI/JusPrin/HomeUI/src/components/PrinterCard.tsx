@@ -1,5 +1,6 @@
 import type { ConnectionState, PrinterInfo, SpoolInfo } from '../bridge/protocol';
-import { MonitorGlyph, PrinterGlyph } from './Glyphs';
+import { printerHistoryLine } from '../history';
+import { HistoryGlyph, MonitorGlyph, PrinterGlyph } from './Glyphs';
 import { PrinterActions, PrinterMenu } from './PrinterMenu';
 
 // Every card has one shape: the header, the job while one runs, three fact
@@ -66,12 +67,15 @@ export function PrinterCard({
   otherNames,
   actions,
   onLaunchMonitor,
+  onHistory,
   highlighted,
 }: {
   printer: PrinterInfo;
   otherNames: string[];
   actions: PrinterActions;
   onLaunchMonitor: (id: string) => void;
+  // The Print history filtered to this printer (board history-05).
+  onHistory: (id: string) => void;
   // The printer a receipt just named: the card's own CSS animation draws
   // attention to it once and ends on its own -- no timer either side manages.
   highlighted?: boolean;
@@ -143,6 +147,12 @@ export function PrinterCard({
           </div>
         )}
       </dl>
+      {printer.history && (
+        <button type="button" className="project-history printer-history" onClick={() => onHistory(printer.id)}>
+          <HistoryGlyph />
+          <span className="project-history-text">{printerHistoryLine(printer.history)}</span>
+        </button>
+      )}
       {printer.canLaunchMonitor ? (
         <button type="button" className="button-secondary launch-monitor" onClick={() => onLaunchMonitor(printer.id)}>
           <MonitorGlyph />

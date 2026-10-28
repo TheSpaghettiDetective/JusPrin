@@ -61,7 +61,7 @@ function state(overrides: Partial<StatePayload> = {}): StatePayload {
     conversation: [{ id: 'm-1', role: 'assistant', state: 'complete', text: 'What printer do you have?', seq: 1 }],
     streamingMessageId: null,
     toolActivities: [],
-    physicalPrints: [],
+    gcodeMarkers: [],
     draft: '',
     context,
     session: session(),
