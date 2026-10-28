@@ -1,0 +1,1 @@
+Is there document about how we can track the G code, and print history in a way so that it's easier for users to tell us: this print didn't go well, I want to ask questions based on the setup when it was sliced/printed
