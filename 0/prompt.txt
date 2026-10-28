@@ -1,0 +1,373 @@
+<task-notification>
+<task-id>bllm4tjhe</task-id>
+<tool-use-id>toolu_01Gtk4sTfHKCSxT7xLShyuB4</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bllm4tjhe.output</output-file>
+<status>completed</status>
+<summary>Background command "Configure and build the GUI library in the new build tree" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bv40viwqc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bv40viwqc.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the Agent page test suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bwbsy1y9h</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bwbsy1y9h.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent tests, jusprin tests and shell harness" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4apfwesp</task-id>
+<tool-use-id>toolu_01NmvvRPQqejQtx1VxBhPc5g</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\b4apfwesp.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the print-history harness end to end with the fake printer" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bscqgstu9</task-id>
+<tool-use-id>toolu_01LJnBPwvLXKQHMVBVXsgv6w</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bscqgstu9.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the print-history harness again" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsglkwav4</task-id>
+<tool-use-id>toolu_01XLGDJj2Gqz2qnmYZqon11G</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bsglkwav4.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the default shell harness" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8ypkglin</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\b8ypkglin.output</output-file>
+<status>failed</status>
+<summary>Background command "Rerun the default shell harness" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsdkfwcq0</task-id>
+<tool-use-id>toolu_01AF9awwWnwWuJ8jK7Sac5NQ</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bsdkfwcq0.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the left-pane harness mode" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bpek11f44</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bpek11f44.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the baseline default harness from the main build" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b78hhuri5</task-id>
+<tool-use-id>toolu_01TzApJemTGoXXgH7ePZVuy4</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\b78hhuri5.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the chat timeline capture harness mode" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bi7m0yysh</task-id>
+<tool-use-id>toolu_01Ro8HeuoL9BRechByRx8z1m</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bi7m0yysh.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the two unit test targets" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmvxny4tl</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bmvxny4tl.output</output-file>
+<status>failed</status>
+<summary>Background command "Run left-pane, timeline and default harness modes" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+Commit stage 2 on claude/gcode-print-history with the message you drafted.
+
+---
+
+<task-notification>
+<task-id>a607c8146c375a489</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\a607c8146c375a489.output</output-file>
+<status>completed</status>
+<summary>Agent "Research Orca send paths for files" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**Bottom line:** none of the send dialogs takes a file path. Bambu Print and Send both upload a `.gcode.3mf` with plate metadata, and Print rebuilds it from the current plate every time. Print hosts can upload any path, but the upload queue deletes the source file afterwards. For Bambu you need to keep the `.gcode.3mf`, not just the raw `.gcode`.
+
+### 1. Bambu "Print" (SelectMachineDialog → PrintJob)
+- **Entry points:** `on_action_print_plate` (`Plater.cpp:10260-10277`) and print-all (`:10361-10378`) call `set_print_type(FROM_NORMAL)`, `prepare(curr_plate_idx)` and `ShowModal`. Without the Bambu network they go to `send_gcode_legacy` instead.
+- **Where the file comes from:** `on_send_print` always calls `m_plater-&gt;send_gcode(m_print_plate_idx)` for FROM_NORMAL (`SelectMachine.cpp:2435-2469`).
+  - `send_gcode` exports a fresh 3MF to `plate-&gt;get_tmp_gcode_path()` with a `.3mf` extension, in the backup `Metadata` dir. It uses SkipModel|WithGcode and writes `p-&gt;m_print_job_data._3mf_path` (`Plater.cpp:16523-16550`; path from `PartPlate.cpp:3476-3485`).
+  - For cloud (non-LAN) printers it also calls `export_config_3mf` with WithSliceInfo (`SelectMachine.cpp:2457`, `Plater.cpp:16552-16571`).
+- **What goes inside:** the plate G-code comes from `plate_data-&gt;gcode_file = m_gcode_result-&gt;filename` (`PartPlate.cpp:6202`). `bbs_3mf.cpp` adds `plate_N.gcode`, its `.md5` and `slice_info.config` (`:6377-6413`, `:8390`).
+- **How PrintJob picks it up:** `PrintJob::prepare` pulls the paths from the Plater when `job_data.is_from_plater` is true (`PrintJob.cpp:52-60`, `Plater.cpp:10965-10972`). Then:
+  - `params.filename = job_data._3mf_path`, `config_filename = _3mf_config_path`, `plate_index = curr_plate_idx` (`PrintJob.cpp:255-259`).
+  - It requires `plate-&gt;is_valid_gcode_file()` unless `plate_data.is_valid` (`:156-175`).
+  - `job_data`, `plate_data` and `m_print_type` are public (`PrintJob.hpp:19-39, 53-54, 70`), so a caller can point a PrintJob at any 3MF.
+- **Does Bambu need a `.gcode.3mf`?** Yes. The printer is told a 3MF plus a 1-based plate index. A raw `.gcode` is never sent.
+- **Dialog UI** (thumbnail, filaments, AMS mapping) is read from the current plate for FROM_NORMAL (`SelectMachine.cpp:3788-3790`).
+- **FROM_SDCARD_VIEW** prints a file already on the printer:
+  - `MediaFilePanel.cpp:578-597` parses it with `load_gcode_3mf_from_stream`, then calls `update_print_required_data` (`SelectMachine.cpp:2718-2733`).
+  - `on_send_print` sets `set_dst_name(m_required_data_file_path)` and the project name from `m_required_data_file_name` (`:2490-2511`).
+  - PrintJob then calls `start_sdcard_print` with `dst_file` (`PrintJob.cpp:290-292, 539-542`). This is cloud only.
+
+### 2. Send to Printer (SendToPrinterDialog → SendJob)
+- This dialog already sends an existing file. When `using_exported_file()` is true it skips `send_gcode` and `export_config_3mf` (`SendToPrinter.cpp:868-871, 897`). It then uses `plater-&gt;get_3mf_filename()`, which is `m_3mf_path`, the first file passed to `load_files` (`Plater.cpp:5889`).
+  - FTP path: `SendJob.cpp:168-171`. BRTC/TUTK path: `SendToPrinter.cpp:929-934`.
+- Otherwise it behaves like Print: `send_gcode` → `job_data._3mf_path` (`SendJob.cpp:40, 171`).
+
+### 3. Print hosts (Moonraker / OctoPrint)
+- `send_gcode_legacy` returns early when `model.objects` is empty (`Plater.cpp:16322`), and so does `priv::export_gcode` (`:8264`).
+- **Raw `.gcode` hosts:** it schedules an upload on the background process (`:8285-8290`). `prepare_upload` copies `m_temp_output_path`, the current slice output, to a temp file (`BackgroundSlicingProcess.cpp:910-956`). You cannot pass a path in.
+- **`use_3mf` hosts:** it calls `send_gcode` and sets `source_path = _3mf_path`, with `plateindex` in `extended_info` (`Plater.cpp:16495-16518`).
+- **The upload queue deletes the source after uploading** (`PrintHost.cpp:239, 251, 343-352`). Uploading a kept file directly would delete it, so copy it to a temp file first.
+- **Existing code that uploads an arbitrary path:**
+  - `PrinterWebViewHandler.cpp:194-226` builds a `PrintHostUpload` with `source_path` and calls `print_host-&gt;upload` directly, bypassing the queue.
+  - `MoonrakerPrinterAgent::start_local_print` uploads `params.filename` or `dst_file` (`MoonrakerPrinterAgent.cpp:337-363`).
+  - `printhost_job_queue().enqueue(PrintHostJob)` (`PrintHost.cpp:379-388`) accepts any `source_path`. The fork's enqueue observer would see that job (`GcodeHistoryRecorder.cpp:128`).
+
+### 4. G-code viewer / imported files
+- **Raw `.gcode`:** `load_gcode` sets `m_only_gcode`, leaves `current_result-&gt;filename` unset (commented out at `Plater.cpp:13740`), and disables printing (`:13786`). It cannot be printed or sent.
+- **`.gcode.3mf`:** `load_files` extracts `Metadata/*.gcode` (`bbs_3mf.cpp:1978-1981`) and stores the path in `m_gcode_path_from_3mf` (`PartPlate.cpp:6272`).
+  - `load_gcode_files` then calls `load_gcode_from_file`, which sets `m_tmp_gcode_path`, `m_gcode_result-&gt;filename` and marks the slice valid (`PartPlate.cpp:3525-3531, 6345-6365`).
+  - With no objects, `m_exported_file = true` (`Plater.cpp:6944-6971`).
+- In that mode:
+  - **Print:** re-exports a 3MF from the extracted G-code and reuses the loaded thumbnails (`Plater.cpp:15801`).
+  - **Send:** sends the original file.
+  - **Print host:** blocked, because the model has no objects (`:16322`).
+- `is_slice_result_ready_for_print` (`PartPlate.hpp:459`) gates the button (`MainFrame.cpp:2266-2313`).
+
+### 5. The fork (`src/slic3r/GUI/JusPrin/`)
+- `StatusRow.cpp:575-586` fires `EVT_GLTOOLBAR_PRINT_PLATE` / `PRINT_ALL` into the Plater.
+- `GcodeHistoryRecorder.cpp:88-97` listens to every print/send event and hooks the upload queue (`:119-138`). It keeps only the raw G-code via `keep_gcode_copy` (`:177-198`; `ManufacturingHistory.hpp:110-121`).
+- `OrcaOutputs.cpp:363-369` already exports a `sliced_3mf` with `export_3mf(Silence|SplitModel|WithGcode|SkipModel, plate)`.
+- Nothing in the fork opens these dialogs with a given file.
+
+### Smallest realistic approach
+1. **Keep the `.gcode.3mf` for Bambu printers**, in addition to or instead of the raw `.gcode`:
+   - Copy `p-&gt;m_print_job_data._3mf_path` right after `send_gcode` succeeds. That temp path gets overwritten on the next send.
+   - Or export it the way `OrcaOutputs.cpp:366-369` does.
+   - For cloud printing, also keep `_3mf_config_path`, or build an equivalent with WithSliceInfo.
+   - A raw `.gcode` is not enough for Bambu. You would have to rebuild `plate_N.gcode`, the `.md5`, `slice_info` and thumbnails yourself.
+2. **Select Machine:** add a third `PrintFromType` (for example FROM_FILE) that reuses the SD-card plumbing:
+   - Parse the kept file with `load_gcode_3mf_from_stream` and pass the result to `update_print_required_data` to drive the dialog UI (`set_default_from_sdcard`).
+   - In `on_send_print`, skip `send_gcode` / `export_config_3mf`.
+   - Set `m_print_job-&gt;job_data.is_from_plater = false`, `_3mf_path`, `_3mf_config_path` and `plate_idx`, plus `plate_data.is_valid / plate_count / cur_plate_index / bed_type` (to get past the check at `PrintJob.cpp:157`).
+   - Keep `m_print_type = "from_normal"`.
+3. **Send to Printer:** the same override, with `_3mf_path` taken from it rather than from `using_exported_file()` and `get_3mf_filename()` (`SendJob.cpp:168`, `SendToPrinter.cpp:929`). The cheapest version reuses the existing `using_exported_file` branch.
+4. **Print hosts:**
+   - Copy the kept file to a temp path, because the queue deletes the source.
+   - Build `PrintHostJob(&amp;printer_config)` and show `PrintHostSendDialog` as `send_gcode_legacy` does (`Plater.cpp:16392-16489`).
+   - Set `upload_data.source_path`, plus `use_3mf` and `extended_info["plateindex"]` when sending a `.gcode.3mf`.
+   - Call `wxGetApp().printhost_job_queue().enqueue(...)`, skipping `p-&gt;export_gcode`.
+5. **Zero-code fallback:** `load_files(kept.gcode.3mf)` puts Orca into exported-file mode, after which Print and Send work as-is. But it replaces the open project and print-host upload stays blocked.</result>
+<usage><subagent_tokens>144807</subagent_tokens><tool_uses>56</tool_uses><duration_ms>192290</duration_ms></usage>
+</task-notification>
+
+---
+
+Task: implement "Print again" for Bambu printers in JusPrin's print history.
+
+Context
+- Repo: /Users/kenneth/Projects/JusPrin, branch jusprin-newui. Read
+  gcode-print-history-handoff.md (untracked, repo root) first, then
+  agent-docs/jusprin/fork-stewardship.md and the "Writing UI code" section of
+  agent-docs/jusprin/design-system.md.
+- Print history keeps a copy of every G-code that was sent or exported
+  (the "kept copy"). Print again must send that kept copy to the printer,
+  not a fresh slice of the current plate. "Which version am I printing" is
+  the question this answers, so the bytes sent must be the kept copy's.
+- Fixed rule from Kenneth (2026-10-26): a send always goes through
+  OrcaSlicer's own send dialog. JusPrin never builds its own send screen,
+  never sets options in the dialog, never presses Send. Print again opens
+  the dialog; the person presses Send there.
+- Decision taken: for Bambu printers, add a small additive mode to
+  OrcaSlicer's Select Machine dialog so it can send a given file instead of
+  rebuilding one from the plate. Print hosts (Moonraker, OctoPrint) are done
+  in fork code. The two rejected alternatives were opening the kept file in
+  OrcaSlicer's exported-file mode (closes the project) and shipping print
+  hosts only.
+
+What we believe but have not verified. Check each before you design, and
+report what you find, including anything that contradicts this prompt.
+1. The Select Machine dialog (src/slic3r/GUI/SelectMachine.cpp) always
+   rebuilds a .gcode.3mf from the current plate and cannot take a file.
+2. After a Bambu send the file is still on the printer's SD card, and the
+   dialog already has a mode that prints a file from the SD card by name
+   (the print-from-storage mode). If JusPrin can open the dialog in that
+   mode pointing at the kept file, the common case may need no upstream
+   change at all; the new code would then only cover a file the printer
+   no longer has, or a different printer. Find out whether this works, what
+   it needs (file name, job id, anything the printer reports), and what
+   happens when the file is gone from the SD.
+3. The earlier estimate was 40 to 70 additive lines. It assumed the dialog
+   can read plate, thumbnail and filament details from the kept file. The
+   storage mode may get those from the printer rather than the file. If the
+   new mode must parse the 3MF for them, measure the real size and say so
+   before writing it.
+4. Where the kept copy comes from: the send path produces a .gcode.3mf for
+   the PrintJob. Confirm exactly which file the job uploads and keep that
+   file, so Print again sends byte-identical content. The hash in the
+   history record is a hash of those bytes.
+5. Which events confirm a Bambu send and whether it started the print.
+   The handoff names EVT_PRINT_FINISHED and EVT_SEND_FINISHED; confirm.
+
+Constraints
+- Changes to OrcaSlicer-owned files must be additive and sit next to the
+  existing mode they extend. No rewriting of upstream functions. If you
+  find you need to delete or move an upstream line, stop and explain why
+  before doing it.
+- Policy (which file, which record, when Print again is offered) lives in
+  fork code under src/slic3r/GUI/JusPrin/. The dialog only gains the
+  mechanism of accepting a prepared file.
+- When the kept copy is gone (cap reached, file missing, hash mismatch),
+  Print again is not offered; the entry shows the "re-slice" state from
+  the history boards. A hash mismatch on a kept copy is an error to
+  surface, not to silently work around.
+- Every UI value comes from the token file. No literals.
+- No catch-and-log. Invalid states fail visibly.
+
+Verification, all of it, before you report done
+- Catch2: tests for the record and the kept-copy rules in tests/agent.
+- The fake Bambu printer (src/slic3r/GUI/JusPrin/Testing/README.md): send
+  a plate, confirm the kept copy and the record, then Print again and
+  confirm the fake receives the kept file, not a fresh export. Add a shell
+  harness mode for this if none fits; run with an isolated --datadir.
+- Build on the Mac with -j4 after checking uptime and pgrep -fl ninja.
+- Run the rebase simulation from fork-stewardship.md against upstream/main
+  and put the result, both endpoint commits, and an account of every
+  upstream line touched in the PR description.
+- If a live Bambu printer is available, test the SD-card path on it last.
+
+Report
+- Lead with what you found on the five beliefs above, especially where
+  they were wrong. Then what you built, how it was tested with output,
+  and what is left. Plain English for someone who did not see this
+  session. Do not commit; leave the work for review and say which files
+  changed.
+
+Above is the original design agent's response for your firest question. Please confirm this means your first option plus some precautions.
+
+I don't understand your second question. Ask it in plain English with enough context.
+
+---
+
+Correction on stage 3 before you write upstream code.
+
+Four of your five findings check out. The size estimate does not: a
+smaller seam exists, so re-measure before coding.
+
+1. Drop the planned Plater function. Plater already exposes
+   update_print_required_data(config, model, plate_data_list, file_name,
+   file_path) and the event EVT_PRINT_FROM_SDCARD_VIEW, which is how the
+   printer file browser opens the dialog in the storage mode with a parsed
+   file. Fork code can parse the kept .gcode.3mf with
+   load_gcode_3mf_from_stream, call that function, and post that event.
+   Zero upstream lines for opening the dialog.
+
+2. Stay inside PrintFromType::FROM_SDCARD_VIEW. Nine branches in
+   SelectMachine.cpp and three in SyncAmsInfoDialog.cpp key on that value;
+   a new enum value would touch all twelve. Add a flag on the dialog
+   ("send the required-data file as a new print") instead.
+
+3. What is actually missing, with the flag set: the job must upload the
+   local kept file as a normal print (m_print_type "from_normal", project
+   name from the file) instead of asking the printer to print by name, and
+   the printer list must stay enabled (the check near SelectMachine.cpp:3210).
+   PrintJob reads the upload path from Plater's private print job data
+   (PrintJob.cpp:55, :257), so the kept file's path needs an override in
+   either PrintJob or Plater. Pick the smaller one and say why.
+
+4. Measure the result. My estimate is 12 to 20 added lines across two
+   upstream files, not 45 to 50 across three. Report the real count, no
+   deleted or moved upstream lines, and the rebase simulation as before.
+
+Everything else in your findings stands, including that the storage mode
+cannot be the main path because the file name on the printer is reused
+per project.
+
+---
+
+<task-notification>
+<task-id>bj07u3pdk</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bj07u3pdk.output</output-file>
+<status>completed</status>
+<summary>Background command "Build harness and tests" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bh3mbh61a</task-id>
+<tool-use-id>toolu_013fZZZXP3NrxPmnrP6vUGqq</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\2a541f07-9278-4406-a6d9-13cdc0076c08\tasks\bh3mbh61a.output</output-file>
+<status>completed</status>
+<summary>Background command "Check the last build and rebuild after the header move" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+emove the Preferences gear from the Print history screen’s top bar, but only after checking it’s safe.
+1. Check first, and report what you find. Confirm that JusPrin’s Preferences window can be reached without the gear while the Print history screen is showing, on macOS, Windows and Linux:
+
+* Menu: the app’s menu entry must open JusPrin’s own Preferences window, not OrcaSlicer’s.
+* Keyboard: Ctrl+, (Cmd+, on macOS) must also open it.
+* Windows: check the menu in OrcaSlicer’s top bar (File and the menu icon) while Home or Print history is on screen.
+
+If any platform has no other way in, stop and tell me before changing anything.
+2. Code, in the worktree `C:\src\JusPrin\.claude\worktrees\gcode-print-history`, branch `claude/gcode-print-history`:
+
+* Remove the gear button from the top bar in src/slic3r/GUI/JusPrin/HomeUI/src/components/PrintHistory.tsx. Keep the back arrow and the title.
+* Remove `onPreferences` from `PrintHistoryActions`, and its wiring in HomeUI/src/App.tsx.
+* Leave the page’s Ctrl+, keyboard handler in place.
+* Update HomeUI/src/App.test.tsx: add a check that the history screen has no Preferences button. Make sure that check fails while the gear is still there.
+* Run the HomeUI type-check, vitest and `npm run build`.
+* Re-run `shell_integration_harness --print-history C:\b\gph-review\history` and send me the new screenshots.
+
+3. Design boards, on the canvas [JusPrin v2](https://claude.ai/artifact/ENCtdaz7gjynfbcy4JYbWJ):
+
+* Remove the Preferences gear from the top bar of project/history-01-all-prints.dc.html, `history-02-project-garage-bracket.dc.html` and `history-03-printer-bambu-x1c.dc.html`. Leave everything else on those boards as it is.
+* Before publishing: read the canvas (a plain read, no path), then read each board file you will change.
+* Publish only the changed board files. Don’t send `canvas.json`, because no board moves or changes size.
+* After publishing, stop the comment watch.
+
+4. Home’s gear stays for now. Tell me whether the same reasoning applies to Home’s header gear, so I can decide that separately.
+5. Finishing. Commit on `claude/gcode-print-history`. Don’t push and don’t open a PR. Report what you found in step 1 in plain English.
