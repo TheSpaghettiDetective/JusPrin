@@ -1,0 +1,7 @@
+> Bambu is the printer family JusPrin’s users mostly have,
+
+Where did you get this info? Is it documented anywhere in the fork?
+
+---
+
+Okay, now tell me what your recommendation is in plain English.
