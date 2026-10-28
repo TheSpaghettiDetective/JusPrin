@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M616QJK6F49ZFN79AAGEWZQJ",
+  "session_id": "f89b1094-3a0d-407a-8916-374b0ee126ce",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-28T12:12:05.6230309Z",
+  "branch": "claude/gcode-print-history",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "5805af9a02fe",
+  "checkpoint_transcript_start": 1192,
+  "transcript_lines_at_start": 1192,
+  "compact_transcript_start": 198,
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1821,
+    "cache_read_tokens": 298919,
+    "output_tokens": 518,
+    "api_call_count": 2
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-28T12:12:05.3334824Z",
+    "agent_lines": 0,
+    "agent_removed": 336,
+    "human_added": 1702,
+    "human_modified": 14781,
+    "human_removed": 0,
+    "total_committed": 16483,
+    "total_lines_changed": 17945,
+    "agent_percentage": 1.8723878517692951,
+    "metric_version": 2
+  }
+}
