@@ -8,6 +8,7 @@
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -638,6 +639,13 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     m_tools.set_proposal_saved([this](const ToolActivity& apply) { m_saved_proposals.push_back(apply.action_id); });
     m_tools.set_slice_ended([this](const std::string& action_id) { m_ended_slices.push_back(action_id); });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
+        // A failed call, the in-app Agent's or an MCP client's, leaves a line
+        // in the app log; the chat shows it only to the person who opens it.
+        if (activity.state == ToolState::Failed && activity.error)
+            BOOST_LOG_TRIVIAL(warning) << "JusPrin tool call failed: " << activity.tool << " ("
+                                       << (activity.source == ToolSource::Mcp ? "mcp" : "agent") << ", "
+                                       << activity.action_id << "): " << activity.error->code << ": "
+                                       << activity.error->message;
         // The last word of an action that replaced the project belongs to the
         // project it closed, not to the one now open.
         if (activity.session != m_workspace.snapshot().session.value())

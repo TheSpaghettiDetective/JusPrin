@@ -642,7 +642,9 @@ export interface ToolActivityInfo {
   state: ToolStateName;
   progress: { current: number; total: number };
   result?: Record<string, unknown>;
-  error?: { code: string; message: string };
+  // details: the code's own fields (suggestions, the allowed values…), as
+  // the host and the project record keep them; absent in older records.
+  error?: { code: string; message: string; details?: Record<string, unknown> };
   // A settings preview that saves a preset, from the project chat's Agent:
   // the card the person saves it from (ProposalCard).
   proposal?: Proposal;

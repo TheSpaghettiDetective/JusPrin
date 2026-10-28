@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChangeInfo, ToolActivityInfo } from '../bridge/protocol';
 import { Message } from '../state/store';
 import { MessageList, turnsOf } from './MessageList';
-import { actionLineText, elapsedWords, turnLineText } from './TurnActivity';
+import { actionDetailsText, actionLineText, elapsedWords, turnLineText } from './TurnActivity';
 
 const noop = () => {};
 
@@ -65,7 +65,9 @@ describe('the turn line', () => {
     expect(turnLineText([activity('t-1', 'm-4', { state: 'running' })], true, '6s')).toBe('List presets t-1… · 6s');
     expect(turnLineText([], true)).toBe('Working on it…');
     expect(actionLineText(activity('t-1', 'm-4', { state: 'failed', error: { code: 'x', message: 'No such preset.' } })))
-      .toBe('List presets t-1 · No such preset.');
+      .toBe('List presets t-1 · Failed');
+    expect(actionLineText(activity('t-1', 'm-4', { state: 'failed', error: { code: 'stale_workspace', message: 'Changed.' } })))
+      .toBe('List presets t-1 · Not run');
     expect(actionLineText(activity('t-1', 'm-4', { state: 'cancelled' }))).toBe('List presets t-1 · Cancelled');
   });
 
@@ -94,7 +96,7 @@ describe('the turn line', () => {
     expect(lines[3]).toHaveClass('edit');
     expect(lines[0]).not.toHaveClass('edit');
     expect(lines[16]).toHaveClass('state-failed');
-    expect(lines[16]).toHaveTextContent('List presets t-17 · It did not fit.');
+    expect(lines[16]).toHaveTextContent('List presets t-17 · Failed');
     fireEvent.click(screen.getByRole('button', { name: /Worked for/ }));
     expect(screen.queryByRole('list', { name: 'Actions' })).not.toBeInTheDocument();
   });
@@ -120,6 +122,83 @@ describe('the turn line', () => {
     // One block, after the turn's words.
     const block = document.querySelector('.change-rows')!;
     expect(block.previousElementSibling).toHaveClass('message-group');
+  });
+});
+
+// The 2026-10-28 walkthrough's failed call, as the project record kept it:
+// the turn line said "1 failed" and nothing could be opened to say what.
+const failedRead = activity('t-3', 'm-10', {
+  tool: 'settings_get', title: 'Read settings', state: 'failed',
+  arguments: { keys: ['textured_plate_temp'], scope: 'filament', target: { preset: 'Bambu PLA Basic @BBL A1M' } },
+  error: {
+    code: 'unknown_preset', message: 'No filament preset is named "Bambu PLA Basic @BBL A1M".',
+    details: {
+      code: 'unknown_preset', message: 'No filament preset is named "Bambu PLA Basic @BBL A1M".',
+      suggestions: ['Bambu PLA Basic @BBL A1M'],
+    },
+  },
+});
+const askAi = message('m-9', 'user', 'Explain this issue and my options.', { createdAt: '2026-10-28T12:55:17Z' });
+const answer = message('m-10', 'assistant', 'What the warning means…', { inReplyTo: 'm-9', createdAt: '2026-10-28T12:55:21Z' });
+
+function openAction(name: RegExp) {
+  fireEvent.click(screen.getByRole('button', { name: /Worked for/ }));
+  const line = screen.getByRole('button', { name });
+  fireEvent.click(line);
+  return line;
+}
+
+describe('an action’s details', () => {
+  it('opens a failed action into its error, its arguments and the tool it called', () => {
+    thread([askAi, answer], [failedRead]);
+    const line = openAction(/Read settings · Failed/);
+    expect(line).toHaveAttribute('aria-expanded', 'true');
+    expect(line.querySelector('.jp-icon-circle-alert')).not.toBeNull();
+    const details = screen.getByTestId('action-details-t-3');
+    expect(details).toHaveClass('failed');
+    expect(within(details).getByText('unknown_preset')).toHaveClass('turn-activity-code');
+    // The whole message, not a line cut off at the pane's edge.
+    expect(within(details).getByText('No filament preset is named "Bambu PLA Basic @BBL A1M".')).toHaveClass('turn-activity-error-message');
+    expect(details).toHaveTextContent('settings_get · jusprin-native · t-3');
+    expect(details).toHaveTextContent('"preset": "Bambu PLA Basic @BBL A1M"');
+    expect(details).toHaveTextContent('"suggestions"');
+    // The details' copies of the code and the message are not shown twice.
+    expect(details).not.toHaveTextContent('"code"');
+    expect(details).not.toHaveTextContent('"message"');
+    fireEvent.click(line);
+    expect(screen.queryByTestId('action-details-t-3')).not.toBeInTheDocument();
+  });
+
+  it('opens every action, a successful one into its result, cut at a readable length', () => {
+    const big = { items: Array.from({ length: 400 }, (_, index) => ({ name: `Preset ${index}` })) };
+    thread(yesTurn, [activity('t-1', 'm-4', { result: big })]);
+    openAction(/List presets t-1/);
+    const details = screen.getByTestId('action-details-t-1');
+    expect(details).not.toHaveClass('failed');
+    expect(details).toHaveTextContent('"name": "Preset 0"');
+    expect(details).not.toHaveTextContent('Preset 399');
+    expect(details).toHaveTextContent(/more characters/);
+  });
+
+  it('copies the details as plain text for a bug report', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    thread([askAi, answer], [failedRead]);
+    openAction(/Read settings · Failed/);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy details' })); });
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(actionDetailsText(failedRead)).toBe([
+      'Read settings · Failed',
+      'Tool: settings_get · jusprin-native · t-3',
+      'Error: unknown_preset',
+      'No filament preset is named "Bambu PLA Basic @BBL A1M".',
+      'Details:',
+      JSON.stringify({ suggestions: ['Bambu PLA Basic @BBL A1M'] }, null, 2),
+      'Arguments:',
+      JSON.stringify(failedRead.arguments, null, 2),
+    ].join('\n'));
+    expect(writeText).toHaveBeenCalledWith(actionDetailsText(failedRead));
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
   });
 });
 

@@ -2,7 +2,11 @@
 // system's Chat/System Line) rather than as a card per call. While the turn
 // runs the line names the action in flight and counts the seconds since the
 // person's message; once the turn ends it reads how long the turn took and
-// how many actions it ran, and opens into one line per action. Stopping a
+// how many actions it ran, and opens into one line per action. Each action
+// line opens in turn into what a developer needs to debug it: the tool, its
+// arguments, and its result or its error, with a button that copies them.
+// A failed action carries the alert glyph, the danger colour and the word
+// "Failed", so its state is never read from colour alone. Stopping a
 // turn is the composer's Stop; the line offers none. Work with measured
 // progress keeps its own card, with Cancel, under the line.
 
@@ -50,20 +54,121 @@ export function turnLineText(activities: ToolActivityInfo[], working: boolean, e
 }
 
 // One action's line in the opened log: its title, and how it ended when not
-// well. A stale call reads as the card reads it.
+// well. A stale call did not run at all.
 export function actionLineText(activity: ToolActivityInfo): string {
   switch (activity.state) {
     case 'failed':
-      return `${activity.title} · ${
-        isStale(activity)
-          ? 'The project changed before this could run.'
-          : activity.error?.message ?? 'The action failed.'
-      }`;
+      return `${activity.title} · ${isStale(activity) ? 'Not run' : 'Failed'}`;
     case 'cancelled':
       return `${activity.title} · Cancelled`;
     default:
       return activity.title;
   }
+}
+
+// A result is shown up to this many characters; a workspace read can run to
+// tens of kilobytes, and Copy details carries the same cut text.
+const RESULT_LIMIT = 4000;
+
+function pretty(value: unknown): string {
+  return JSON.stringify(value, null, 2) ?? '';
+}
+
+function hasFields(value: Record<string, unknown> | undefined): value is Record<string, unknown> {
+  return value !== undefined && Object.keys(value).length > 0;
+}
+
+// The error's own fields, less the code and message already shown above them
+// (the settings tools repeat both inside details).
+function errorDetails(activity: ToolActivityInfo): Record<string, unknown> | undefined {
+  const { error } = activity;
+  if (!error?.details) return undefined;
+  const rest = Object.fromEntries(Object.entries(error.details).filter(([key, value]) =>
+    !(key === 'code' && value === error.code) && !(key === 'message' && value === error.message)));
+  return hasFields(rest) ? rest : undefined;
+}
+
+function resultText(activity: ToolActivityInfo): string | undefined {
+  if (!hasFields(activity.result)) return undefined;
+  const text = pretty(activity.result);
+  return text.length > RESULT_LIMIT
+    ? `${text.slice(0, RESULT_LIMIT)}\n… ${text.length - RESULT_LIMIT} more characters`
+    : text;
+}
+
+function toolLine(activity: ToolActivityInfo): string {
+  return `${activity.tool} · ${activity.server} · ${activity.actionId}`;
+}
+
+// What Copy details puts on the clipboard: the opened details as plain text.
+export function actionDetailsText(activity: ToolActivityInfo): string {
+  const lines = [actionLineText(activity), `Tool: ${toolLine(activity)}`];
+  if (activity.error) {
+    lines.push(`Error: ${activity.error.code}`, activity.error.message);
+    const details = errorDetails(activity);
+    if (details) lines.push('Details:', pretty(details));
+  }
+  if (hasFields(activity.arguments)) lines.push('Arguments:', pretty(activity.arguments));
+  const result = resultText(activity);
+  if (result) lines.push('Result:', result);
+  return lines.join('\n');
+}
+
+function ActionDetails({ activity }: { activity: ToolActivityInfo }) {
+  const [copied, setCopied] = useState(false);
+  const { error } = activity;
+  const details = errorDetails(activity);
+  const result = resultText(activity);
+  const copy = () => {
+    navigator.clipboard?.writeText(actionDetailsText(activity)).then(() => setCopied(true), () => setCopied(false));
+  };
+  return (
+    <div className={`turn-activity-details${activity.state === 'failed' ? ' failed' : ''}`}
+      data-testid={`action-details-${activity.actionId}`}>
+      {error && (
+        <div className="turn-activity-details-section">
+          <span className="turn-activity-details-label">Error</span>
+          <span className="turn-activity-code">{error.code}</span>
+          <span className="turn-activity-error-message">{error.message}</span>
+          {details && <pre className="turn-activity-code">{pretty(details)}</pre>}
+        </div>
+      )}
+      <div className="turn-activity-details-section">
+        <span className="turn-activity-details-label">Tool</span>
+        <span className="turn-activity-code">{toolLine(activity)}</span>
+      </div>
+      {hasFields(activity.arguments) && (
+        <div className="turn-activity-details-section">
+          <span className="turn-activity-details-label">Arguments</span>
+          <pre className="turn-activity-code">{pretty(activity.arguments)}</pre>
+        </div>
+      )}
+      {result && (
+        <div className="turn-activity-details-section">
+          <span className="turn-activity-details-label">Result</span>
+          <pre className="turn-activity-code">{result}</pre>
+        </div>
+      )}
+      <button type="button" className="link" onClick={copy}>{copied ? 'Copied' : 'Copy details'}</button>
+    </div>
+  );
+}
+
+function ActionLine({ activity }: { activity: ToolActivityInfo }) {
+  const [open, setOpen] = useState(false);
+  const failed = activity.state === 'failed';
+  return (
+    <div role="listitem" data-testid={`action-${activity.actionId}`}
+      className={`turn-activity-action state-${activity.state}${activity.actionClass === 'mutation' ? ' edit' : ''}`}>
+      <button type="button" className="turn-activity-action-line" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {activity.state === 'running' && <span className="jp-icon jp-icon-rotate-cw turn-activity-spinner" aria-hidden="true" />}
+        {failed && <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />}
+        <span className="turn-activity-action-text">{actionLineText(activity)}</span>
+        <span className={`jp-icon jp-icon-chevron-${open ? 'down' : 'right'}`} aria-hidden="true" />
+      </button>
+      {open && <ActionDetails activity={activity} />}
+    </div>
+  );
 }
 
 export function TurnActivity({ activities, working, startedAt, endedAt, onCancel, readOnly = false }: Props) {
@@ -100,14 +205,7 @@ export function TurnActivity({ activities, working, startedAt, endedAt, onCancel
       </button>
       {open && (
         <div className="turn-activity-log" role="list" aria-label="Actions">
-          {activities.map((activity) => (
-            <div key={activity.actionId} role="listitem" data-testid={`action-${activity.actionId}`}
-              className={`turn-activity-action state-${activity.state}${activity.actionClass === 'mutation' ? ' edit' : ''}`}
-              title={`${activity.tool} · ${activity.server}`}>
-              {activity.state === 'running' && <span className="jp-icon jp-icon-rotate-cw turn-activity-spinner" aria-hidden="true" />}
-              <span className="turn-activity-action-text">{actionLineText(activity)}</span>
-            </div>
-          ))}
+          {activities.map((activity) => <ActionLine key={activity.actionId} activity={activity} />)}
         </div>
       )}
       {measured.map((activity) => (
