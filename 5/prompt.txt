@@ -1,0 +1,115 @@
+> Boards: I didn’t check the boards themselves. Any board that uses the Design System’s secondary button will now show it 2px taller, which is the intended fix, but I haven’t looked at which boards that is.
+> Compact buttons: the small Send and Stop buttons beside the message box are a separate mismatch. They are 26px in the Design System and 28px in the app. That was outside this task and is still open.
+
+Are these changes synchronized with the code?
+
+---
+
+Tell the main session to fix them and squash with the previous commits.
+
+---
+
+<cross-session-message from="local_d3169946-d09f-429c-afad-097f18d77b90" name="Canvas cleanup handoff review">
+Both button-height fixes are published. No repo change was needed, so nothing was squashed or pushed.
+
+1. Compact buttons. The repo already had them at 28: design-tokens.json gives primarySmall and secondarySmall height 28, and tests/brand/test_brand_tokens.cpp already pins both. The Design System now has two new tokens, component-buttonPrimarySmall-height and component-buttonSecondarySmall-height, both 28px, and .jp-btn-compact uses them as min-height. Measured in Chrome: Send 28, Stop 28; secondary 32 and primary 34 are unchanged. Published as Design System version 1793122801-e339.
+
+2. Canvas boards. I measured every Button/* element on all 134 boards with imports removed. 36 Button/Secondary buttons in 24 boards drew at 30px. I added min-height:var(--component-buttonSecondary-height) to every secondary button that has 6px padding and no height: 52 buttons in 27 files. The extra buttons were already 32 and don't change. The comp-plates-pane frame grew from 1624 to 1626 because its content moved down 2px.
+   - Compact Send and Stop on the boards were already 28.
+   - Pixel check: 110 boards are unchanged; 23 differ only by the button growing 2px and the content below it moving.
+   - Published as canvas version 1793122837-b539, with tokens.json, tokens.css and bundle.css copied in and the designSystems record bumped.
+
+3. Not changed, needs Kenneth's call:
+   - The printer candidate card ("This one") and network row ("Use this") draw secondary buttons at 34/36px, using 8px padding. The app doesn't build those cards yet, so there's no app height to match.
+   - 15 primary buttons draw at 36px instead of 34.
+</cross-session-message>
+
+---
+
+Tell me what happened to the primary button height. What were the discrepancies and how we solved them?
+
+---
+
+34px is right everywhere. tell the main session to do whatever it takes to bring boards consistnet to this. what is about the secondary buttons?
+
+---
+
+<cross-session-message from="local_d3169946-d09f-429c-afad-097f18d77b90" name="Canvas cleanup handoff review">
+Every primary button on the JusPrin v2 canvas now draws at 34px, and the canvas is published as version 1793126793-bb05 (nothing in the repo changed, nothing pushed).
+
+Cause: the 15 buttons at 36px labelled their text with the body-bold style (14px, 20px line height), so 8px padding + 20 + 8 = 36. The app's primary button uses bodySmallBold (13px, 18px line height; design-tokens.json component.button.primary.textRole), which the 34px boards already used. Fix: switched the label to body-small-bold in all 20 primary buttons that used body-bold, on 10 boards: agent-ui-02 (4), agent-ui-05 (2), agent-ui-07 (6), calibration-05, onboarding-12, -13, -14, -19, -20 (2), setup-card-05. Five of those already measured 34px only because of a fixed height:34px, but their 14px text didn't match the app; they now match too. Padding, colours and widths are unchanged.
+
+Measurement after the fix, every board rendered in Chrome (134 boards, none failed, imported components included): 150 primary buttons, 75 at 34px and 75 compact Send buttons at 28px. None differ.
+Secondary buttons, untouched: 72 at 32px, 6 compact Stop at 28px, and the 10 still at 34/36px are the printer candidate card "This one" and network row "Use this" (left for Kenneth).
+
+Pixel check: no other board imports the 10 changed boards, so the other 124 are byte-identical and render the same. On the 10 changed boards the only differences are the smaller button label, the button 2px shorter, and the content below it moving up 2px; I reviewed before/after/diff sheets. Frames were not resized (boards end up with at most a few px of extra space at the bottom).
+
+Read-back: published hashes of agent-ui-07 and setup-card-05 match my local copies. The canvas watch stays off.
+</cross-session-message>
+
+---
+
+yes tell the main session to fix  those two cards’ secondary buttons
+
+---
+
+<cross-session-message from="local_d3169946-d09f-429c-afad-097f18d77b90" name="Canvas cleanup handoff review">
+The printer candidate card "This one" and printer network row "Use this" secondary buttons now draw at 32px; canvas published as version 1793127590-bfbe (no repo change, nothing pushed).
+
+What changed: in comp-printer-candidate-card (1 button in its markup) and comp-printer-network-row (2 buttons: the current design and the older "matrix" design) the buttons had 8px vertical padding and no height. They now match the regular secondary button: padding 6px var(--space-12), min-height var(--component-buttonSecondary-height), body-small label (the app's bodySmall). The older network-row design's label was body (14px); it is now body-small too. Neither card needed a different text style. The focus ring and unavailable styling are unchanged. agent-ui-07 imports both compositions and follows them; no other board imports them.
+
+Measurement after the fix, all 134 boards rendered in Chrome, none failed: 88 secondary buttons, 82 at 32px and 6 compact at 28px (4 Stop beside the message box, 2 "New" on main-03-home and main-08-home-first-run, which are drawn as Button/SecondarySmall). None differ. Primary buttons are unchanged: 75 at 34px, 75 Send at 28px.
+
+Pixel check: the other 131 boards are byte-identical and import nothing that changed. On the 3 affected boards the only differences are the shorter buttons (the candidate cards with a "This one" button shrink with it and the content below moves up), plus the older network row's label at 13px. I reviewed before/after/diff sheets. Read-back hashes of both published files match my local copies.
+
+One thing Kenneth may want to know, not changed: 16 regular secondary buttons on other boards measure 32px but label their text with body (14px) instead of the app's bodySmall (13px). Say if he wants those switched too.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_d3169946-d09f-429c-afad-097f18d77b90" name="Canvas cleanup handoff review">
+Canvas published as version 1793131071-8dd4 with two changes Kenneth asked for directly (no repo change, nothing pushed).
+
+1. The 16 regular secondary buttons whose labels used body (14px) now use body-small (13px, the app's bodySmall): agent-ui-01 (5), agent-ui-02 (1), agent-ui-07 (2), calibration-05 (1), comp-composer (7 "Remove"). Heights stay 32px (min-height token). Measured all 134 boards: 82 secondary at 32px, 6 compact at 28px; primary 75 at 34px, 75 Send at 28px; none differ. Pixel check: on the 5 edited boards only the label text changed; the 43 boards that import comp-composer are pixel-identical; all other boards are byte-identical. Not changed: the compact Stop button in comp-composer still labels its text body (14px) with a fixed 28px height; the app's compact secondary also uses bodySmall.
+
+2. Main Page layout: print-timeline-panel-full (main-07) sat on top of print-timeline-panel-full · no revert (main-05). The three timeline panels are now side by side on the top row 80px apart (main-05 x5095, main-07 x5604, main-09 x6113, all y0) and chat-list-panel (main-06) moved to the end of the row (x6622). No frames overlap on any page. The index was built on Kenneth's page save 1793130630-86a3, so nothing from it was lost.
+</cross-session-message>
+
+---
+
+secondary buttons now use 13px, right? If so, any reason for us to use 14px?
+The 7 “Remove” buttons may now disagree with the Design System - What do you mean? the agent did something wrong.
+
+---
+
+can you find the justification for the written rule. The Design System README says the chat is read at body (14px),
+
+---
+
+Let's not make exceptions for these two cases. doesn't mean that all secondary buttons, including the ones in the chat card, shold have 13px, and the height should be 32px? If so, tell the main section to do a sweep to make sure that both code and canvas all adhere to this rule.
+
+---
+
+<cross-session-message from="local_d3169946-d09f-429c-afad-097f18d77b90" name="Canvas cleanup handoff review">
+The secondary-button sweep is done for the web code, docs, Design System and canvas: every secondary button is body-small (13px) at 32px (compact 28px), and every primary body-small-bold at 34px. The native code is NOT changed; see the end. Commit 74951a60fd on jusprin-newui, not pushed. Design System 1793133100-b072, canvas 1793133150-3281.
+
+CODE (built Agent and Home pages, each button injected into the built page so it uses the real stylesheet and tokens; before → after):
+- proposal Reject 34px/14px → 32/13; tool-card Reject 34/14 → 32/13; history action 34/14 → 32/13; attachment Remove 34/14 → 32/13; revert Cancel 38/14 → 32/13.
+- agent-row-action, prefs-button, welcome-account-action 30/13 → 32/13 (inset ring, no border, no height before).
+- dialog buttons, Stop, Home Import, Launch monitor, Home New were already right; they now also take the height token.
+- Primaries in the same rows were also off the 34px rule Kenneth set for primaries, so I fixed them too: tool-card Apply 36/14 bold → 34/13, "Revert to here" 38/14 regular → 34/13 bold (now the primary recipe; its row centres the pair), project-updates "Restore and resume" 36 → 34, failed-message Retry 36 → 34. The last two came from 4762d14d17 too.
+- Every secondary rule takes min-height from --button-secondary-height. Home's compact New got min-height from the small token, because the new min-height would otherwise beat its 28px height.
+- Tests: 13 new recipe checks in AgentUI styles.test.ts plus 1 in HomeUI; all 14 fail on the previous stylesheets. Agent 615 tests and Home 84 tests pass.
+- Docs: design-system.md now says the conversation's card text is Body but buttons are not: secondary Body Small at 32 DIP, primary Body Small Bold at 34 DIP everywhere, card buttons included (decided 2026-10-27).
+
+DESIGN SYSTEM: bundle.js dropped textStyle 'body' from ChatAttachment Remove and ChatToolActivity Reject, and 'body-bold' from ChatToolActivity Approve (it drew 36px). There were no other overrides on ButtonSecondary or ButtonPrimary. Measured with React rendering old vs new bundle: Remove 32/14 → 32/13, Reject 32/14 → 32/13, Approve 36/14 → 34/13. The README rule and the ButtonSecondary guide now say the same as the doc; lastChange set.
+
+CANVAS: the compact Stop in comp-composer now uses a body-small label. Measured all 134 boards, with the label's computed font size: 82 secondary at 32px and 6 compact secondary at 28px (4 Stop, 2 New), 75 primary at 34px and 75 Send at 28px, all 13px. None differ. Pixel check: of comp-composer and the 47 boards that import it, only comp-composer changed (the Stop label); the other 47 are identical. Copied tokens.json, tokens.css, bundle.css and bundle.js from the Design System into project/ds/jusprin/ and bumped the designSystems record to 1793133100-b072. Read-back hashes match.
+
+NOTE for Kenneth: someone changed the frame of agent-ui-01 (timeline-cards · manufacturing history state matrix) from 2774px to 772px tall in the page, which cuts off most of the board. I kept it as found.
+
+NOT CHANGED, native (needs a decision and an app build):
+- The print-issue bubble (IssueOverlay.cpp) draws "Ask AI" (secondary recipe) beside "Resolve with AI" (primary). Both are sized line + 2 × max(padding) = the canvas font's line + 16, in the 3D canvas's single ImGui font, not the token text roles. Bringing Ask AI to 13px/32 means adding a second ImGui font and giving the pair different heights.
+- The Agent page's fallback panel (AgentWebView.cpp: Retry, Return, Manual) uses the compact recipe (metadata text, 8×3 padding), not the secondary one.
+Tell me if Kenneth wants these changed.
+</cross-session-message>
