@@ -1,0 +1,32 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent pane; read `AGENTS.md` and `agent-docs/jusprin/README.md` first. The `project-setup-changed` skill (`src/slic3r/GUI/JusPrin/AgentUI/src/skills/`, described in `agent-docs/jusprin/mcp-tool-extension-guide.md` under the skills list) fires when the printer, filament, process or plate type differs from the setup the model last checked under a recorded purpose, but for a change the person made by hand it fires only on the next turn's first request, so nothing happens until they type. The setup card (design in `agent-docs/jusprin/design-system.md`, "Setup card") shows "Plan needs another look" as a line annotation when the app marks the plan `needs_reassessment`; a `setup_record` call with a headline clears it. On 2026-10-28 a UX walkthrough of the built app (jusprin-newui a684aee37d, Opus 5.5) rated this medium but it is the only flow-2 case with no entry point at all; critique with screenshots at https://claude.ai/artifact/XyVvteGiKhiJ6apUx8rcmR (frames 2C-01 to 2C-05). Kenneth's standing rules that bear on this: situational guidance comes from state channels, not the standing prompt; one piece of work that acts on a finding stays small; app-started turns exist today only for a slice the model started that ends after its turn. Kenneth wants to choose between fix options before code is written: first deliverable is an untracked options note in the worktree root, then stop. Temp docs untracked; do not commit unless asked. Reproduce: scratch copies of the built .app and of `~/Library/Application Support/JusPrin2` (`local_machines` set to `{}`), launch with `--datadir <scratch>`, open `~/Downloads/general_purpose_hook.STL`, tell the agent "garage wall hook for a 1.5 kg bike helmet", wait for the plan, then switch the filament to Generic ABS from the header chip and press Slice.
+
+Task:
+Problem: after the agent recorded a plan for a PLA hook, the person switched the filament to Generic ABS from the header chip. The setup card gained "⚠ Plan needs another look · Generic ABS @System" and "Previous estimates · not current · Recompute", Print turned back into Slice, and the chat did nothing. The person pressed Slice themselves; it finished with ABS, the card stayed flagged, and the chat stayed silent. Only after typing "Is it still fine to print like this?" did the agent answer, and the answer was excellent (warping, cracking and fumes on an open A1 mini, three option buttons). Two smaller things: the card's warning disappeared the moment the agent started working, before the person chose anything, and "@System" is a preset-library term. Frames 2C-02, 2C-03 and 2C-05 of the critique show the states.
+
+Task, in this order:
+1. Reproduce in the real app (recipe in the background notes) and trace the pieces: where the app sets `needs_reassessment`, what the card draws for it (`PinnedSetupCard` on the page), when the `project-setup-changed` skill is attached to a request, why a person-started slice does not start a turn, and what clears the annotation.
+2. Write an untracked options note (`setup-changed-entry-options.md` in the worktree root) with two to four options, each with what the person sees and when, where it lives (page or host), the token cost if it adds model turns, and a recommendation. Candidates: a "Check the plan" button on the card's warning line that starts a turn carrying the skill; an app-started turn after a hand change, the way a model-started slice gets one when it ends after the turn; keeping the warning on the card until a new headline is recorded rather than until the agent starts; and the wording of the line (drop "@System", name what changed in the person's words).
+3. Stop and wait for Kenneth to choose. Do not implement before he answers.
+
+Done, after his choice, means: a filament, printer or plate changed by hand after a plan leads to a visible invitation or an agent check without the person having to think of typing; the card's warning stays until the plan is actually re-recorded; a multi-turn test covers the sequence (change, manual slice, next turn), since a "since X" flag without a reset rule has bitten before; verified in the real app with screenshots.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_7320ec31-16af-43fc-bd96-863e8fa55bff
+
+---
+
+A + C + D
+
+---
+
+<task-notification>
+<task-id>bc12gxzs8</task-id>
+<tool-use-id>toolu_01E14cg7xrHFXrnj7WAexrQM</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-lucid-turing-457d01/ce10fab9-eed0-4397-9ad1-a4427e45225b/tasks/bc12gxzs8.output</output-file>
+<status>completed</status>
+<summary>Background command "P=57398; while kill -0 $P 2&gt;/dev/null; do if grep -q 'error:\|FAILED:' /Users/kenneth/Projects/JusPrin/.claude/worktrees/lucid-turing-457d01/build.log; then echo "BUILD ERROR SEEN"; break; fi; sleep 20; done; grep -n 'error:\|FAILED:' /Users/kenneth/Projects/JusPrin/.claude/worktrees/lucid-turing-457d01/build.log | head -20; tail -3 /Users/kenneth/Projects/JusPrin/.claude/worktrees/lucid-turing-457d01/build.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Commit it
