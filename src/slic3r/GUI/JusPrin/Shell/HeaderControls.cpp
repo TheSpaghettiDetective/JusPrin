@@ -149,21 +149,39 @@ wxColour status_colour(StatusTone tone, const ShellPalette& p)
     return p.text_secondary;
 }
 
+// The outline of an absence, as evenly spaced arcs. wx's dash styles are fixed
+// lengths (9 pt on, 6 off on macOS), longer than these rings are round, so
+// they drew one broken arc. Spacing the dashes evenly also keeps a short or
+// long dash from landing where the ring closes.
+void draw_dashed_ring(wxGraphicsContext& gc, const wxColour& colour, double x, double y, double size,
+                      double dash, double gap)
+{
+    const double radius = size / 2, cx = x + radius, cy = y + radius;
+    const int    dashes = std::max(3, int(std::lround(2 * M_PI * radius / (dash + gap))));
+    const double step   = 2 * M_PI / dashes, sweep = step * dash / (dash + gap);
+    wxGraphicsPath path = gc.CreatePath();
+    for (int i = 0; i < dashes; ++i) {
+        const double start = i * step - M_PI / 2;
+        path.MoveToPoint(cx + radius * std::cos(start), cy + radius * std::sin(start));
+        path.AddArc(cx, cy, radius, start, start + sweep, true);
+    }
+    gc.SetPen(gc.CreatePen(wxGraphicsPenInfo(colour).Cap(wxCAP_BUTT)));
+    gc.StrokePath(path);
+}
+
 // A filament colour, or the dashed ring of a colour nobody chose. Both are
 // drawn at the same size so rows stay aligned either way.
 void draw_dot(wxGraphicsContext& gc, const std::optional<wxColour>& dot, double x, double y, double size,
-              const ShellPalette& p)
+              double dash, double gap, const ShellPalette& p)
 {
     if (!dot) return;
-    if (dot->IsOk()) {
-        // A quiet ring keeps a white or near-background colour visible.
-        gc.SetPen(wxPen(p.border_subtle));
-        gc.SetBrush(wxBrush(*dot));
-    } else {
-        wxPen dashed(p.text_secondary, 1, wxPENSTYLE_SHORT_DASH);
-        gc.SetPen(dashed);
-        gc.SetBrush(*wxTRANSPARENT_BRUSH);
+    if (!dot->IsOk()) {
+        draw_dashed_ring(gc, p.text_secondary, x, y, size, dash, gap);
+        return;
     }
+    // A quiet ring keeps a white or near-background colour visible.
+    gc.SetPen(wxPen(p.border_subtle));
+    gc.SetBrush(wxBrush(*dot));
     gc.DrawEllipse(x, y, size, size);
 }
 
@@ -389,13 +407,14 @@ void HeaderButton::paint(wxPaintEvent&)
 // offscreen bitmap. Appearance is then verifiable from inside the running
 // application, without a screen capture -- which also makes the light and dark
 // pair reproducible rather than a photograph of one machine's screen.
-wxBitmap HeaderButton::snapshot()
+wxBitmap HeaderButton::snapshot(double scale)
 {
     const wxSize size = GetClientSize().x > 0 ? GetClientSize() : GetBestSize();
     // Opaque, like the paint buffer. draw() clears with the DC, which on
     // Windows leaves a 32-bit bitmap's alpha at zero, so the antialiased
     // corners would come back as near-transparent noise.
-    wxBitmap bitmap(size, 24);
+    wxBitmap bitmap;
+    bitmap.CreateWithDIPSize(size, scale, 24);
     wxMemoryDC dc(bitmap);
     std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
     if (gc) draw(dc, *gc, size);
@@ -435,27 +454,32 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
                              chip ? m.chip.radius :
                              m_style == HeaderStyle::Menu ? m.menu_row.radius :
                              m_style == HeaderStyle::Outline ? m.button.icon.radius : m.radius_small);
+    // Outlines take whole-pixel coordinates: wx itself moves a 1 px pen half a
+    // pixel onto the grid, and a second half-pixel move blurred them at 1x.
     if (chip) {
         // Each half draws the whole chip's rounded rectangle, extended past
         // the shared inner edge so only its own outer corners round. The top
         // and bottom borders then meet exactly across the seam.
         gc->SetPen(wxPen(p.border_subtle));
         gc->SetBrush(wxBrush(fill));
-        gc->DrawRoundedRectangle(m_style == HeaderStyle::ChipLeft ? 0.5 : 0.5 - r, 0.5, w - 1 + r, h - 1, r);
+        gc->DrawRoundedRectangle(m_style == HeaderStyle::ChipLeft ? 0 : -r, 0, w - 1 + r, h - 1, r);
         if (m_style == HeaderStyle::ChipRight) {
             gc->SetPen(wxPen(p.border_subtle));
-            gc->StrokeLine(0.5, 0.5, 0.5, h - 0.5);
+            gc->StrokeLine(0, 0, 0, h - 1);
         }
     } else {
-        gc->SetPen(primary || m_style == HeaderStyle::Quiet || m_style == HeaderStyle::Menu ? *wxTRANSPARENT_PEN : wxPen(p.border_subtle));
+        const bool outlined = !(primary || m_style == HeaderStyle::Quiet || m_style == HeaderStyle::Menu);
+        gc->SetPen(outlined ? wxPen(p.border_subtle) : *wxTRANSPARENT_PEN);
         gc->SetBrush(wxBrush(fill));
+        // A fill without a pen is not moved, so it keeps its half-pixel inset.
+        const double inset = outlined ? 0 : 0.5;
         // A split half extends past its shared inner edge, as the chip halves
         // do, so only its outer corners round and its top and bottom edges
         // stay one antialiased line across the seam. By one radius the
         // corner's curve would start on the seam column itself.
         const bool split = primary && (m_style == HeaderStyle::PrimaryRight || m_attached);
         const double extend = split ? 2*r : 0;
-        gc->DrawRoundedRectangle(m_style == HeaderStyle::PrimaryRight ? 0.5-extend : 0.5,0.5,w-1+extend,h-1,r);
+        gc->DrawRoundedRectangle(m_style == HeaderStyle::PrimaryRight ? inset-extend : inset,inset,w-1+extend,h-1,r);
     }
     if (m_style == HeaderStyle::PrimaryRight) {
         gc->SetPen(wxPen(p.action_primary_hover));
@@ -487,7 +511,7 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     }
     if (m_decoration.dot.has_value()) {
         const double dot = FromDIP(8);
-        draw_dot(*gc, m_decoration.dot, x, (h-dot)/2, dot, p);
+        draw_dot(*gc, m_decoration.dot, x, (h-dot)/2, dot, FromDIP(m.dashed_ring.dash), FromDIP(m.dashed_ring.gap), p);
         x += FromDIP(16);
     }
     if (const int run = slot_dots_width(); run > 0) {
@@ -562,18 +586,17 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
             gc->DrawText(m_decoration.status_word, right-tw, (h-th)/2);
             right -= tw + FromDIP(4);
         }
-        const double dot = FromDIP(6);
+        const double dot = FromDIP(m.status_dot.size);
         const wxColour tone = status_colour(m_decoration.status, p);
         if (m_decoration.status == StatusTone::Neutral) {
             // "Not connected" is an absence, not a state: a dashed ring says
             // so without borrowing a status colour.
-            gc->SetPen(wxPen(tone, 1, wxPENSTYLE_SHORT_DASH));
-            gc->SetBrush(*wxTRANSPARENT_BRUSH);
+            draw_dashed_ring(*gc, tone, right-dot, h/2-dot/2, dot, FromDIP(m.dashed_ring.dash), FromDIP(m.dashed_ring.gap));
         } else {
             gc->SetPen(*wxTRANSPARENT_PEN);
             gc->SetBrush(wxBrush(tone));
+            gc->DrawEllipse(right-dot, h/2-dot/2, dot, dot);
         }
-        gc->DrawEllipse(right-dot, h/2-dot/2, dot, dot);
         right -= FromDIP(14);
     }
 

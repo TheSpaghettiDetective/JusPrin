@@ -103,7 +103,7 @@ private:
             // The "+": the system picker, for a colour not saved yet.
             gc->SetPen(wxPen(m_hover ? m_palette.border_strong : m_palette.border_subtle, FromDIP(m_swatch.ring_width)));
             gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            gc->DrawRoundedRectangle(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, radius);
+            draw_ring(*gc, box, FromDIP(m_swatch.ring_width), radius);
             gc->SetPen(wxPen(m_palette.text_secondary, FromDIP(m_swatch.glyph_width)));
             const double cx = box.x + box.width / 2., cy = box.y + box.height / 2., arm = box.width / 4.;
             gc->StrokeLine(cx - arm, cy, cx + arm, cy);
@@ -112,10 +112,19 @@ private:
         }
         // The current colour is ringed; the others show a quiet edge so a
         // white or near-background colour stays visible.
-        gc->SetPen(wxPen(m_current || m_hover ? m_palette.border_strong : m_palette.border_subtle,
-                         FromDIP(m_current ? m_swatch.current_ring_width : m_swatch.ring_width)));
+        const int ring = FromDIP(m_current ? m_swatch.current_ring_width : m_swatch.ring_width);
+        gc->SetPen(wxPen(m_current || m_hover ? m_palette.border_strong : m_palette.border_subtle, ring));
         gc->SetBrush(wxBrush(m_colour));
-        gc->DrawRoundedRectangle(box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, radius);
+        draw_ring(*gc, box, ring, radius);
+    }
+
+    // A ring of the given width just inside the box, on whole pixels. wx moves
+    // an odd-width pen half a pixel onto the grid itself, so the rectangle is
+    // inset by half the width, rounded down, and narrowed by the whole width.
+    static void draw_ring(wxGraphicsContext& gc, const wxRect& box, int width, double radius)
+    {
+        const int inset = width / 2;
+        gc.DrawRoundedRectangle(box.x + inset, box.y + inset, box.width - width, box.height - width, radius);
     }
 
     SwatchMetrics         m_swatch;

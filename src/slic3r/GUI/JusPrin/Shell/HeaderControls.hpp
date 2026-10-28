@@ -123,8 +123,10 @@ public:
     bool AcceptsFocus() const override { return true; }
     // Draws the control into an offscreen bitmap using the same code the paint
     // event uses, so appearance can be verified from inside the running
-    // application in both modes without a screen capture.
-    wxBitmap snapshot();
+    // application in both modes without a screen capture. A scale above 1
+    // draws at a Retina screen's density, where detail smaller than a point
+    // shows.
+    wxBitmap snapshot(double scale = 1.0);
 
 private:
     void paint(wxPaintEvent&);

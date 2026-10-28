@@ -689,6 +689,16 @@ TEST_CASE("the status dot is one size", "[brand]")
     require_exact_table<int>(tokens.at("component").at("statusDot"), {{"size", 8}}, "component.statusDot");
 }
 
+// The canvas draws an absence -- a printer not connected, a colour nobody
+// chose -- as a 1px dashed outline on an 8px ring. wx's stock dash styles are
+// longer than that ring is round and drew it as one broken arc, so the native
+// ring takes its dashes from here.
+TEST_CASE("the dashed ring has short dashes", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("dashedRing"), {{"dash", 2}, {"gap", 1}}, "component.dashedRing");
+}
+
 // The header row of a collapsible group: a section of the Check print report
 // and a settings group share it, so the two lists line up row for row.
 TEST_CASE("the group header is one height", "[brand]")

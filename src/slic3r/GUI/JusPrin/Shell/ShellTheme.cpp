@@ -231,6 +231,8 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.checkbox.label_gap  = parse_int(checkbox, "component.checkbox", "labelGap");
     m.checkbox.text_role  = parse_text_role(checkbox, "component.checkbox");
     m.status_dot.size     = parse_int(component.at("statusDot"), "component.statusDot", "size");
+    m.dashed_ring.dash    = parse_int(component.at("dashedRing"), "component.dashedRing", "dash");
+    m.dashed_ring.gap     = parse_int(component.at("dashedRing"), "component.dashedRing", "gap");
     m.group_header.height = parse_int(component.at("groupHeader"), "component.groupHeader", "height");
 
     const nlohmann::json& form_row = component.at("formRow");

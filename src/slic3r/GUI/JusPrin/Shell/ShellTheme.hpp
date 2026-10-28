@@ -179,6 +179,9 @@ struct ToolPanelMetrics { int padding{0}; int row_gap{0}; int radius{0}; int min
                           std::optional<TextRole> title_text_role; };
 // The round severity or state marker: a printer's state, a report finding's severity.
 struct StatusDotMetrics  { int size{0}; };
+// The dashed outline of an absence: a printer that is not connected, a
+// filament colour nobody chose. Dash and gap run along the ring.
+struct DashedRingMetrics { int dash{0}; int gap{0}; };
 // The header row of a collapsible group in a list: a section of the Check
 // print report, a settings group.
 struct GroupHeaderMetrics { int height{0}; };
@@ -218,6 +221,7 @@ struct ShellMetrics
     SelectMetrics    select;
     CheckboxMetrics  checkbox;
     StatusDotMetrics status_dot;
+    DashedRingMetrics dashed_ring;
     GroupHeaderMetrics group_header;
     FormRowMetrics   form_row;
     ToolPanelMetrics tool_panel;

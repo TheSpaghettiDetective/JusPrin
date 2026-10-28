@@ -512,6 +512,10 @@
     "statusDot": {
       "size": 8
     },
+    "dashedRing": {
+      "dash": 2,
+      "gap": 1
+    },
     "groupHeader": {
       "height": 32
     },

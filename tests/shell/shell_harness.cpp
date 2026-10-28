@@ -388,6 +388,43 @@ bool snapshot_native_window(void* native_view, const char* path);
 bool snapshot_web_view(void* native_web_view, const char* path);
 #endif
 
+// How a drawn outline lands on the pixel grid. Each side is walked from the
+// image's edge inward, along the given column (top, bottom) or row (left,
+// right): the pixels before the line, then the pixels in exactly the line's
+// colour. A line on whole pixels shows the same count on every side and the
+// same gap on opposite sides. One between pixels blends into its neighbours:
+// no exact pixels at 1x, or a thicker top-left than bottom-right at 2x.
+struct OutlineSide { int gap{0}; int exact{0}; };
+struct OutlineProfile
+{
+    OutlineSide left, top, right, bottom;
+    bool on_whole_pixels() const
+    {
+        return left.exact > 0 && left.exact == top.exact && left.exact == right.exact && left.exact == bottom.exact &&
+               left.gap == right.gap && top.gap == bottom.gap;
+    }
+    std::string describe() const
+    {
+        auto side = [](const OutlineSide& s) { return std::to_string(s.gap) + "+" + std::to_string(s.exact); };
+        return "left=" + side(left) + " top=" + side(top) + " right=" + side(right) + " bottom=" + side(bottom);
+    }
+};
+OutlineProfile outline_profile(const wxImage& image, const wxColour& line, int column, int row)
+{
+    const int w = image.GetWidth(), h = image.GetHeight();
+    auto walk = [&](int x, int y, int dx, int dy) {
+        OutlineSide side;
+        auto exact = [&] {
+            return std::abs(image.GetRed(x, y) - line.Red()) + std::abs(image.GetGreen(x, y) - line.Green()) +
+                   std::abs(image.GetBlue(x, y) - line.Blue()) <= 30;
+        };
+        for (; x >= 0 && y >= 0 && x < w && y < h && !exact(); x += dx, y += dy) ++side.gap;
+        for (; x >= 0 && y >= 0 && x < w && y < h && exact(); x += dx, y += dy) ++side.exact;
+        return side;
+    };
+    return {walk(0, row, 1, 0), walk(column, 0, 0, 1), walk(w - 1, row, -1, 0), walk(column, h - 1, 0, -1)};
+}
+
 #ifdef _WIN32
 // WebView2 can snapshot its page while the desktop is disconnected. The
 // screen blit below remains for native controls, but task chats are web views.
@@ -6219,6 +6256,97 @@ private:
         std::cout << "HARNESS MEASURE chip_natural_width=" << natural
                   << " chip_capped_width=" << capped << std::endl;
 
+        // The two dashed rings -- a printer that is not connected, a filament
+        // whose colour nobody chose -- each alone on a menu row and drawn at a
+        // Retina screen's scale, so their dashes can be counted. wx's stock
+        // dash style drew both as one broken arc.
+        auto ring_dashes = [&](const std::string& name, HeaderRowDecoration decoration) {
+            auto* item = new HeaderButton(row, *brand_theme(), HeaderStyle::Menu, wxEmptyString, HeaderIcon::None);
+            item->Hide();
+            item->SetSize(row->FromDIP(wxSize(120, 32)));
+            item->set_decoration(std::move(decoration));
+            const wxImage image = item->snapshot(2.0).ConvertToImage();
+            item->Destroy();
+            const std::string file = (out / (name + ".png")).string();
+            if (image.SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG))
+                std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+
+            // The ring is the row's only ink: box it, then walk its circle.
+            const int w = image.GetWidth(), h = image.GetHeight();
+            const unsigned char* ground = image.GetData() + std::size_t(h / 2) * w * 3;
+            auto ink = [&](int x, int y) {
+                const unsigned char* px = image.GetData() + (std::size_t(y) * w + x) * 3;
+                return std::abs(px[0] - ground[0]) + std::abs(px[1] - ground[1]) + std::abs(px[2] - ground[2]) > 96;
+            };
+            int left = w, right = -1, top = h, bottom = -1;
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                    if (ink(x, y)) {
+                        left = std::min(left, x); right = std::max(right, x);
+                        top = std::min(top, y);   bottom = std::max(bottom, y);
+                    }
+            if (right < left) return 0;
+            const double cx = (left + right) / 2.0, cy = (top + bottom) / 2.0;
+            const double radius = (right - left - 1) / 2.0; // the middle of a 2 px stroke
+            // A broken ring boxes off-centre, so each sample looks across a
+            // band three pixels wide, and antialiased slivers under half a
+            // dash's length count as neither dash nor gap.
+            constexpr int samples = 720, least = 8;
+            std::vector<bool> on(samples);
+            for (int i = 0; i < samples; ++i) {
+                const double a = 2 * M_PI * i / samples;
+                for (const double r : {radius - 1, radius, radius + 1}) {
+                    const int x = int(std::lround(cx + r * std::cos(a))), y = int(std::lround(cy + r * std::sin(a)));
+                    if (x >= 0 && y >= 0 && x < w && y < h && ink(x, y)) on[i] = true;
+                }
+            }
+            const auto first_gap = std::find(on.begin(), on.end(), false);
+            if (first_gap == on.end()) return 1;
+            const int start = int(first_gap - on.begin());
+            int dashes = 0, run = 0, gap = 0;
+            for (int k = 1; k <= samples; ++k) {
+                if (on[(start + k) % samples]) { ++run; gap = 0; continue; }
+                if (++gap < least) continue;
+                if (run >= least) ++dashes;
+                run = 0;
+            }
+            return dashes + (run >= least ? 1 : 0);
+        };
+        HeaderRowDecoration not_connected;
+        not_connected.status = StatusTone::Neutral;
+        HeaderRowDecoration no_colour;
+        no_colour.dot = wxColour();
+        const int status_dashes = ring_dashes("ring-not-connected", not_connected);
+        const int colour_dashes = ring_dashes("ring-no-colour", no_colour);
+        std::cout << "HARNESS MEASURE ring_dashes not_connected=" << status_dashes
+                  << " no_colour=" << colour_dashes << std::endl;
+        // The canvas draws a 1px dashed outline: many short dashes, not an arc.
+        check(status_dashes >= 6, "not_connected_ring_reads_as_dashed");
+        check(colour_dashes >= 6, "no_colour_ring_reads_as_dashed");
+
+        // A 1 px outline on whole pixels, as the canvas's CSS border is: the
+        // chip at 1x, and an outlined header button at 1x and at a Retina 2x.
+        // wx already moves a 1 px pen half a pixel onto the grid, so a second
+        // half-pixel move blurred the chip's top and left edges over two pixels.
+        const wxColour edge = brand_theme()->palette(false).border_subtle;
+        const OutlineProfile chip_edges = outline_profile(light, edge, light.GetWidth() / 4, light.GetHeight() / 2);
+        std::cout << "HARNESS MEASURE chip_outline " << chip_edges.describe() << std::endl;
+        check(chip_edges.on_whole_pixels(), "chip_outline_sits_on_whole_pixels");
+        auto* outlined = new HeaderButton(row, *brand_theme(), HeaderStyle::Outline, wxEmptyString, HeaderIcon::None);
+        outlined->Hide();
+        outlined->SetSize(outlined->GetBestSize());
+        for (const double scale : {1.0, 2.0}) {
+            const wxImage image = outlined->snapshot(scale).ConvertToImage();
+            const std::string name = "outline-button-" + std::to_string(int(scale)) + "x";
+            const std::string file = (out / (name + ".png")).string();
+            if (image.SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG))
+                std::cout << "HARNESS ARTIFACT " << name << " " << file << std::endl;
+            const OutlineProfile edges = outline_profile(image, edge, image.GetWidth() / 2, image.GetHeight() / 2);
+            std::cout << "HARNESS MEASURE " << name << " " << edges.describe() << std::endl;
+            check(edges.on_whole_pixels(), "outline_button_sits_on_whole_pixels_at_" + std::to_string(int(scale)) + "x");
+        }
+        outlined->Destroy();
+
         // Leave the chip showing real state again.
         installed_shell()->status_row()->apply_appearance(was_dark);
         row->refresh();
@@ -6488,6 +6616,44 @@ private:
         check(menu != nullptr, "filament_menu_opens_for_the_keyboard");
         if (menu == nullptr || filaments.empty()) return;
         check(menu->selected_item() == nullptr, "mouse_opened_filament_menu_starts_unselected");
+#ifdef __APPLE__
+        // The colour cells' rings, drawn on screen at the display's own scale:
+        // the "+" cell's 1 px ring and the current colour's 2 px ring must sit
+        // on whole pixels and start exactly at the swatch's inset, as the
+        // canvas's CSS borders do. The view captured is the whole menu, so
+        // each cell is cut out of it.
+        if (const char* artifact_dir = std::getenv("JUSPRIN_ARTIFACT_DIR")) {
+            const std::string menu_file = (fs::path(artifact_dir) / "filament-menu.png").string();
+            wxImage shot;
+            check(snapshot_native_window(menu->GetHandle(), menu_file.c_str()) && shot.LoadFile(wxString::FromUTF8(menu_file)),
+                  "filament_menu_drawn");
+            const ShellPalette  palette = brand_theme()->palette(false);
+            const SwatchMetrics swatch  = brand_theme()->metrics().swatch;
+            struct Cell { wxString name; std::string label; wxColour ring; int inset; };
+            const Cell cells[] = {
+                {"Other colour", "colour-cell-other", palette.border_subtle, swatch.inset},
+                {wxColour(colour_before).GetAsString(wxC2S_HTML_SYNTAX), "colour-cell-current", palette.border_strong,
+                 swatch.current_inset}};
+            for (const Cell& c : cells) {
+                wxWindow* cell = wxWindow::FindWindowByName(c.name, menu);
+                check(cell != nullptr, c.label + "_is_in_the_menu");
+                if (cell == nullptr || !shot.IsOk()) continue;
+                const double scale = shot.GetWidth() / double(menu->GetSize().x);
+                const wxPoint at = menu->ScreenToClient(cell->GetScreenPosition());
+                const wxImage image = shot.GetSubImage(wxRect(int(std::lround(at.x * scale)), int(std::lround(at.y * scale)),
+                    int(std::lround(cell->GetSize().x * scale)), int(std::lround(cell->GetSize().y * scale))));
+                const std::string file = (fs::path(artifact_dir) / (c.label + ".png")).string();
+                if (image.SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG))
+                    std::cout << "HARNESS ARTIFACT " << c.label << " " << file << std::endl;
+                const OutlineProfile edges = outline_profile(image, c.ring, image.GetWidth() / 2, image.GetHeight() / 2);
+                const int inset = int(std::lround(cell->FromDIP(c.inset) * scale));
+                std::cout << "HARNESS MEASURE " << c.label << " " << edges.describe() << " inset=" << inset
+                          << " scale=" << scale << std::endl;
+                check(edges.on_whole_pixels() && edges.left.gap == inset && edges.top.gap == inset,
+                      c.label + "_ring_sits_on_whole_pixels_at_its_inset");
+            }
+        }
+#endif
         const auto key = [&](int code) {
             wxKeyEvent event(wxEVT_CHAR_HOOK);
             event.m_keyCode = code;
