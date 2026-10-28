@@ -1,0 +1,44 @@
+read @/Users/kenneth/Projects/JusPrin/gcode-print-history-handoff.md to understand the subject, then list the main use cases when users will want to use gcode and print history
+
+---
+
+if we focus on 1, 2, 3, 4, 6, and 9, check to see if current boards are serving these purposes wwell, and if not, how can they be improved
+
+---
+
+<!-- reply 2 -->
+> The hash as the entry’s only identity is hard on people. Keep it, since it is what ties exports, sends and failures together, but pair it with the exported file name or the plate name wherever one exists, and always make it a link.
+
+agreed.
+
+<!-- reply -->
+> On the unresolved strike-through for a modified export, I recommend no strike-through. Grey text, the hollow circle and the wording already say it, and strike-through reads as “deleted”.
+
+agreed
+
+
+2 things to consider:
+
+* think about discoverability. in each use case, don't assume users can easily go back to the original chat and find the card. where will users likely look when they are in each of these cases.
+* don't constrain yourself to existing design. we can change it, delete it, or create new boards.
+* keep it simple and stupid
+
+---
+
+does the handoff contain all info a coding agent will need to start design and impl?
+
+---
+
+<cross-session-message from="local_e0677f8d-071b-414c-a696-eea546d997ac" from-name="btw: what are they?">
+Kenneth decided the three open print-history questions in a forked session; please update gcode-print-history-handoff.md accordingly (keep it untracked).
+
+Decisions, in Kenneth's words "go with your recommendations":
+
+1. G-code hash = a hash of the G-code file bytes, computed at export or send time (before the file leaves). The existing manufacturing_input_hash is kept beside it as the link to the checkpoint. Display stays eight hex digits in two groups.
+
+2. G-code bytes for Print again: JusPrin keeps a copy of every sent or exported G-code in the project's aux directory next to the checkpoints, with a cap (last N G-codes per project, N to be chosen in code) and a "file no longer kept, re-slice" state for older entries.
+
+3. Record shape: one G-code record holding its lists of destinations (exports, sends) and prints. Export and send both create-or-append. The separate SentRecord / PhysicalPrintRecord events are replaced, not kept beside it; since nothing in the app ever wrote them, there is nothing to preserve beyond a migration note for 3MFs that carry them.
+
+Please move these from "Open questions" into "The design" and "What the app needs", and leave open questions 3–6 (re-check timing, badge clearing, didn't-go-well wording, the other session's "didn't go well" thread) as they are.
+</cross-session-message>
