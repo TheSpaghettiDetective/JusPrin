@@ -70,6 +70,10 @@ public:
     static std::vector<std::pair<std::string, FakeBambuStatusStep>>       build_named_presets();
     static std::string                                                    ssdp_announcement_json();
     static bool apply_control_json(const std::string& json_text, FakeBambuStatusStep& step, bool& offline);
+    // Whether the control file asks sends to fail ("send_fails": true): the
+    // next print or storage upload is refused as an upload failure, so
+    // OrcaSlicer's send dialog shows its error and reports no success.
+    static bool control_send_fails(const std::string& json_text);
 
     void        set_scenario(std::vector<FakeBambuStatusStep> steps);
     void        push_status(const FakeBambuStatusStep& step);
@@ -134,6 +138,8 @@ private:
     void        emit_json(const std::string& dev_id, const std::string& payload);
     int         handle_printer_command(const std::string& dev_id, const std::string& json_str);
     int         run_scenario(PrintParams params, OnUpdateStatusFn update_fn, WasCancelledFn cancel_fn);
+    // True when the control file asks this send to fail; logs and reports it.
+    bool        send_refused(const char* call, const OnUpdateStatusFn& update_fn);
     void        stop_scenario_thread();
     void        start_heartbeat();
     void        stop_heartbeat();
@@ -152,6 +158,7 @@ private:
     FakeBambuStatusStep                m_current;
     std::vector<FakeBambuStatusStep>   m_scenario;
     bool                               m_offline{false};
+    bool                               m_send_fails{false};
     bool                               m_announced{false};
     bool                               m_control_file_present{false};
     std::int64_t                       m_control_mtime{0};

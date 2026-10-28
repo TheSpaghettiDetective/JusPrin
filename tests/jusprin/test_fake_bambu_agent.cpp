@@ -236,3 +236,34 @@ TEST_CASE("FakeBambuAgent reloads control file from the data directory", "[FakeB
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
 }
+
+TEST_CASE("FakeBambuAgent refuses a send while the control file asks it to fail", "[FakeBambuAgent]")
+{
+    CHECK(Slic3r::FakeBambuAgent::control_send_fails(R"({"send_fails":true})"));
+    CHECK_FALSE(Slic3r::FakeBambuAgent::control_send_fails(R"({"send_fails":false})"));
+    CHECK_FALSE(Slic3r::FakeBambuAgent::control_send_fails(R"({"state":"idle"})"));
+    CHECK_FALSE(Slic3r::FakeBambuAgent::control_send_fails("not json"));
+
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / ("jusprin-fake-bambu-" + std::to_string(std::random_device{}()));
+    std::filesystem::create_directories(dir / "jusprin");
+    {
+        std::ofstream out((dir / "jusprin" / "fake_printer.json").string());
+        out << R"({"state":"idle","send_fails":true})";
+    }
+
+    Slic3r::FakeBambuAgent agent(dir.string());
+    std::vector<int> stages;
+    const auto       record = [&stages](int stage, int, std::string) { stages.push_back(stage); };
+    Slic3r::PrintParams params;
+    params.task_name = "plate_1";
+    CHECK(agent.start_local_print(params, record, nullptr) == BAMBU_NETWORK_ERR_PRINT_LP_UPLOAD_FTP_FAILED);
+    CHECK(agent.start_send_gcode_to_sdcard(params, record, nullptr, nullptr) == BAMBU_NETWORK_ERR_PRINT_SG_UPLOAD_FTP_FAILED);
+    REQUIRE(stages.size() == 2);
+    CHECK(stages[0] == Slic3r::PrintingStageERROR);
+    // Nothing was started.
+    CHECK(agent.current_step().gcode_state == "IDLE");
+
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}

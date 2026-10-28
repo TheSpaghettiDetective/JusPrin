@@ -78,6 +78,7 @@ fake rereads it about once a second.
 | `nozzle`, `bed` | °C |
 | `offline` | `true` stops `push_status`; after ~30 s the menu first row is Offline |
 | `spools` | loaded AMS spools; see below. Absent leaves whatever was last set |
+| `send_fails` | `true` makes the next print or storage upload fail as an upload failure (read at the moment of Send), so OrcaSlicer's send dialog shows its error and reports no success |
 
 No `spools` (or an empty array) reports no AMS at all, same as before this
 field existed. A non-empty array reports one AMS unit (id `"0"`) with one

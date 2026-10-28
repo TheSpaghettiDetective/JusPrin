@@ -137,6 +137,12 @@ std::string FakeBambuAgent::ssdp_announcement_json()
     return payload.dump();
 }
 
+bool FakeBambuAgent::control_send_fails(const std::string& json_text)
+{
+    json j = json::parse(json_text, nullptr, false);
+    return j.is_object() && j.contains("send_fails") && j["send_fails"].is_boolean() && j["send_fails"].get<bool>();
+}
+
 bool FakeBambuAgent::apply_control_json(const std::string& json_text, FakeBambuStatusStep& step, bool& offline)
 {
     json j = json::parse(json_text, nullptr, false);
@@ -434,6 +440,7 @@ bool FakeBambuAgent::reload_control_file()
         std::lock_guard<std::mutex> lock(state_mutex);
         m_current              = step;
         m_offline              = offline;
+        m_send_fails           = control_send_fails(ss.str());
         m_control_file_present = true;
         m_control_mtime        = mtime;
     }
@@ -750,11 +757,29 @@ int FakeBambuAgent::start_local_print_with_record(PrintParams      params,
     return start_local_print(std::move(params), std::move(update_fn), std::move(cancel_fn));
 }
 
+bool FakeBambuAgent::send_refused(const char* call, const OnUpdateStatusFn& update_fn)
+{
+    // Read the control file now, not on the next heartbeat, so a test that
+    // writes it right before Send gets the answer it asked for.
+    reload_control_file();
+    {
+        std::lock_guard<std::mutex> lock(state_mutex);
+        if (!m_send_fails)
+            return false;
+    }
+    BOOST_LOG_TRIVIAL(info) << "FakeBambuAgent: " << call << " refused (send_fails)";
+    if (update_fn)
+        update_fn(PrintingStageERROR, 0, "Upload failed");
+    return true;
+}
+
 int FakeBambuAgent::start_send_gcode_to_sdcard(PrintParams params, OnUpdateStatusFn update_fn, WasCancelledFn cancel_fn, OnWaitFn wait_fn)
 {
     (void) params;
     (void) cancel_fn;
     (void) wait_fn;
+    if (send_refused("start_send_gcode_to_sdcard", update_fn))
+        return BAMBU_NETWORK_ERR_PRINT_SG_UPLOAD_FTP_FAILED;
     if (update_fn)
         update_fn(PrintingStageFinished, 100, "Gcode sent to SD card");
     return BAMBU_NETWORK_SUCCESS;
@@ -772,6 +797,9 @@ int FakeBambuAgent::start_local_print(PrintParams params, OnUpdateStatusFn updat
         BOOST_LOG_TRIVIAL(info) << "FakeBambuAgent: start_local_print file=" << m_last_print_filename
                                 << " dest=" << params.dst_file;
     }
+
+    if (send_refused("start_local_print", update_fn))
+        return BAMBU_NETWORK_ERR_PRINT_LP_UPLOAD_FTP_FAILED;
 
     if (cancel_fn && cancel_fn()) {
         if (update_fn)
