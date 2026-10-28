@@ -1,0 +1,78 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent pane. The agent reads and writes print settings through tools whose errors follow `src/slic3r/GUI/JusPrin/Agent/ToolErrors.hpp`. A UX walkthrough found the agent answering a question about a bed-temperature warning without the person's numbers, because its `settings_get` call for the selected filament failed. Another session is adding a debuggable details view for failed tool calls; this task is only the host-side bug that made the call fail. Read `AGENTS.md` and `agent-docs/jusprin/README.md` first. Base the branch on `jusprin-newui`.
+
+Task:
+Bug: `settings_get` (and every other settings call that names `target.preset`) fails with `unknown_preset` when the named filament or printer preset is the one currently selected but not on the person's visible list. The error even suggests the same name it rejects. Cause: `scope_preset()` in `src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp:251` requires `preset->is_visible`. A 3MF can select a system preset that is not in the app config's `filaments` list. In the 2026-10-28 walkthrough, "Bambu PLA Basic @BBL A1M" was selected but the visible list only had "Bambu PLA Basic @BBL A1" and "Bambu PLA Matte @BBL A1M". Also check `unknown_preset()` in `Workspace/OrcaWorkspaceAdapter.cpp` (~line 3108), which builds the suggestions from `bundle.filament_presets`.
+
+Reproduction without a model: copy a built JusPrin .app and a data folder to scratch. Make the selected filament one that is missing from the app config's `filaments` list. Launch with `--datadir <scratch>`, read the URL from `<scratch>/jusprin/mcp.json`, and call `settings_get {"scope":"filament","keys":["textured_plate_temp"],"target":{"preset":"<selected name>"}}` through `tests/mcp/probe.py`'s `call()`. Before the fix it returns `unknown_preset`; a visible preset returns values. A ready scratch copy that reproduces it is under `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-frosty-ishizaka-2d0f4b/da15b7ba-ac2b-4511-9a26-ccb7d4eec622/scratchpad/repro`, with `drive.py` as the driver.
+
+Done means:
+- A preset that is selected, or in the project's filament list, is accepted by name even when hidden.
+- Hidden presets that are not in use are still rejected.
+- A workspace adapter harness or unit test covers it, shown failing first.
+- The MCP reproduction above passes.
+- Nothing is committed until Kenneth says so. Build with `-j4` after checking `pgrep -fl ninja`.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_d2a27b96-8b51-479a-9259-8c561316d3a3
+
+---
+
+<task-notification>
+<task-id>bax84c1np</task-id>
+<tool-use-id>toolu_01ExkooSsFLt2WK1NgRcf5yt</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/tasks/bax84c1np.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/scratchpad; cd $S &amp;&amp; sed -i '' "s#S + '/datadir/jusprin/mcp.json'#S + '/datadir/jusprin/mcp.json'#" drive.py &amp;&amp; python3 drive.py $S/before 'workspace_inspect {}' 2&gt;&amp;1 | grep -i -E "filament|printer|preset|error" | head -20" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxk97qpbl</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/tasks/bxk97qpbl.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 3557 2&gt;/dev/null; do /bin/sleep 20; done; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/scratchpad; tail -3 $S/build1.log; grep -c " error:" $S/build1.log" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcvwcdve8</task-id>
+<tool-use-id>toolu_01FqzauKoutkDDr325EgfdPF</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/tasks/bcvwcdve8.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/scratchpad; P=$(cat $S/harness-before.pid); while kill -0 $P 2&gt;/dev/null; do /bin/sleep 10; done; grep -c "HARNESS CHECK .* PASS" $S/harness-before.log; grep "HARNESS CHECK .* FAIL\|hidden" $S/harness-before.log; tail -3 $S/harness-before.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhpdjty1e</task-id>
+<tool-use-id>toolu_013UiTKXoBtBzik4C4GJa7iy</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/tasks/bhpdjty1e.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-angry-gagarin-449105/394370f2-402e-4289-afcd-2acddeaaff08/scratchpad; P=$(cat $S/build2.pid); while kill -0 $P 2&gt;/dev/null; do /bin/sleep 15; done; tail -2 $S/build2.log; grep -E "FAILED| error:" $S/build2.log | head; grep -c "OrcaSettings\|OrcaWorkspaceAdapter.cpp" $S/build2.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_7320ec31-16af-43fc-bd96-863e8fa55bff" from-name="Common Jusprin user flows">
+Your harness run against the unfixed build has had time to finish; please read its result now and carry on with the fix for settings_get rejecting the selected preset when it is hidden. Do not end a turn to wait on a background process: wait on its PID in the foreground or check its log, then continue. When done, report the branch, the test that fails before and passes after, and what was verified in the real app.
+</cross-session-message>
+
+---
+
+Tell me where why the bug happened to begin with. Was it a mistake of a previous coding agent or was it something deeper?
+
+---
+
+So you're aware that there are other similar bugs somewhere in the app and you didn't bother to check?
+
+---
+
+Yes, fix all here
+
+---
+
+Make sure you test your changes. Then squash all the commits into one on jusprin-newui, then push, then clean up
