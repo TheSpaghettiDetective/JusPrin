@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OrcaSettingDefinitions.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PresetLookup.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/ConfigManipulation.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -247,11 +248,12 @@ inline PresetCollection& scope_collection(SettingsScope scope)
 }
 
 // A filament or printer preset named by a settings call, by the name Orca
-// keys it by. Null when no preset a person could pick has that name.
+// keys it by. Null when no preset someone can name has that name.
 inline const Preset* scope_preset(SettingsScope scope, const std::string& name)
 {
-    const Preset* preset = scope_collection(scope).find_preset(name, false);
-    return preset != nullptr && preset->is_visible && !preset->is_default && preset->name == name ? preset : nullptr;
+    const Preset* preset = Printers::preset_by_name(*wxGetApp().preset_bundle,
+                                                    scope == SettingsScope::Filament ? Preset::TYPE_FILAMENT : Preset::TYPE_PRINTER, name);
+    return preset != nullptr && preset->name == name ? preset : nullptr;
 }
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

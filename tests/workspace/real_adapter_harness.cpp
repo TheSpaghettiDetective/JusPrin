@@ -598,6 +598,47 @@ private:
         const auto label = m_workspace->read_settings({"machine_start_gcode"}, {SettingsScope::Printer, {}, printer + " (label)"});
         check(label.error && label.error->code == "unknown_preset", "preset_settings_label_is_not_a_name");
 
+        // A 3MF can select a preset the person's list hides. One the project
+        // uses is still named by a call; one it does not use is not.
+        const auto unused = std::find_if(filaments.begin(), filaments.end(), [&](const Preset& preset) {
+            return preset.is_visible && preset.name != filaments.get_selected_preset_name() &&
+                   std::find(bundle.filament_presets.begin(), bundle.filament_presets.end(), preset.name) == bundle.filament_presets.end();
+        });
+        check(unused != filaments.end(), "preset_settings_hidden_fixture_has_an_unused_filament");
+        if (unused != filaments.end()) {
+            const std::string    project_filament = bundle.filament_presets.front();
+            const SettingsTarget unused_target{SettingsScope::Filament, {}, unused->name};
+            check(!m_workspace->read_settings({"nozzle_temperature"}, unused_target).error, "preset_settings_visible_unused_filament_read");
+
+            const std::string process = bundle.prints.get_selected_preset_name();
+            Preset* const hidden[] = {filaments.find_preset(project_filament, false), printers.find_preset(printer, false),
+                                      bundle.prints.find_preset(process, false), &*unused};
+            for (Preset* preset : hidden)
+                preset->is_visible = false;
+            PrinterSetupRequest same;
+            same.printer_preset   = printer;
+            same.process_preset   = process;
+            same.filament_presets = std::vector<std::string>{project_filament};
+            const auto same_preview = m_workspace->preview_printer_setup(same);
+            check(same_preview.valid && same_preview.issues.empty(), "printer_setup_hidden_presets_in_use_valid");
+            PrinterSetupRequest other;
+            other.filament_presets = std::vector<std::string>{unused->name};
+            const auto other_preview = m_workspace->preview_printer_setup(other);
+            check(!other_preview.valid && !other_preview.issues.empty() && other_preview.issues.front().code == "unknown_preset",
+                  "printer_setup_hidden_unused_filament_unknown");
+            const auto filament_read = m_workspace->read_settings({"nozzle_temperature"}, {SettingsScope::Filament, {}, project_filament});
+            check(!filament_read.error && filament_read.preset == project_filament && filament_read.items.size() == 1,
+                  "preset_settings_hidden_project_filament_read");
+            check(!m_workspace->read_settings({"nozzle_diameter"}, in_use).error, "preset_settings_hidden_selected_printer_read");
+            const auto unused_read = m_workspace->read_settings({"nozzle_temperature"}, unused_target);
+            check(unused_read.error && unused_read.error->code == "unknown_preset" &&
+                      std::find(unused_read.error->suggestions.begin(), unused_read.error->suggestions.end(), unused->name) ==
+                          unused_read.error->suggestions.end(),
+                  "preset_settings_hidden_unused_filament_unknown");
+            for (Preset* preset : hidden)
+                preset->is_visible = true;
+        }
+
         // Where the print host is and its credentials: listed, never read and
         // never patched. A dummy key put into the printer being edited does
         // not come back, and neither does any other connection key.

@@ -35,6 +35,7 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PresetLookup.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
@@ -1297,8 +1298,8 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     const PresetCollection& printers = bundle->printers;
     const Preset*           printer  = &printers.get_edited_preset();
     if (request.printer_preset) {
-        const Preset* found = printers.find_preset(*request.printer_preset, false);
-        if (found == nullptr || !found->is_visible || found->is_default) {
+        const Preset* found = Printers::preset_by_name(*bundle, Preset::TYPE_PRINTER, *request.printer_preset);
+        if (found == nullptr) {
             issue("unknown_preset", "No installed printer preset is named \"" + *request.printer_preset + "\". If presets_list does not "
                                    "list it, the printer is not installed: ask the person to add it with Add printer on Home.");
             return result;
@@ -1320,8 +1321,8 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
     const PresetCollection& prints = bundle->prints;
     const Preset*           print  = &prints.get_edited_preset();
     if (request.process_preset) {
-        const Preset* found = prints.find_preset(*request.process_preset, false);
-        if (found == nullptr || !found->is_visible || found->is_default)
+        const Preset* found = Printers::preset_by_name(*bundle, Preset::TYPE_PRINT, *request.process_preset);
+        if (found == nullptr)
             issue("unknown_preset", "No installed process preset is named \"" + *request.process_preset + "\".");
         else if (!compatible(prints, *found))
             issue("incompatible_preset", "\"" + found->name + "\" is not made for " + printer_name + ".");
@@ -1346,8 +1347,8 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             issue("invalid_arguments", "This project has " + std::to_string(filament_names.size()) + " filament slots.");
         for (std::size_t slot = 0; slot < request.filament_presets->size() && slot < filament_names.size(); ++slot) {
             const std::string& name  = (*request.filament_presets)[slot];
-            const Preset*      found = filaments.find_preset(name, false);
-            if (found == nullptr || !found->is_visible || found->is_default)
+            const Preset*      found = Printers::preset_by_name(*bundle, Preset::TYPE_FILAMENT, name);
+            if (found == nullptr)
                 issue("unknown_preset", "No installed filament preset is named \"" + name + "\".");
             else if (!compatible(filaments, *found))
                 issue("incompatible_preset", "\"" + name + "\" is not made for " + printer_name + ".");

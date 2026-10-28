@@ -80,6 +80,7 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Printers/NamedPrinters.hpp
     GUI/JusPrin/Printers/PrinterOrigin.cpp
     GUI/JusPrin/Printers/PrinterOrigin.hpp
+    GUI/JusPrin/Printers/PresetLookup.hpp
     GUI/JusPrin/Printers/PrinterNames.cpp
     GUI/JusPrin/Printers/PrinterNames.hpp
     GUI/JusPrin/Home/HomeSnapshot.cpp
