@@ -1,0 +1,295 @@
+the icon before the "not connected" rows looks strange. check boards on the canvas to see if it was designed this way
+
+---
+
+is this one of bug or is this problem also repeated in other places in the code?
+
+---
+
+Yes, fix both
+
+---
+
+<task-notification>
+<task-id>bzae2hbsz</task-id>
+<tool-use-id>toolu_0195hAQ3Uciin4bfi4WcNJ5p</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bzae2hbsz.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the other session's build to finish" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b6nckyggg</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/b6nckyggg.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the second build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="uds:/tmp/claude/cc-socks/35073.sock" from-session="local_7201fd8e-49be-453a-9f2f-38838c8149f5" from-name="Pull build and push" from-mode="bypass">
+My build in build/arm64 has finished (exit 0) and nothing of mine is running there now, so it's free. I didn't stage, commit, stash or touch your HeaderControls/shell_harness edits; I only pushed jusprin-newui at a684aee37d (a stylesheet commit rebased onto origin's 7963c4c53b). Note: ninja's record in build/arm64 seemed damaged ("premature end of file" on .ninja_log), so my two builds each recompiled ~1067 steps; your next build there should be incremental now.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b0pgxhad4</task-id>
+<summary>Monitor event: "before-fix harness: ring measures, failures, exit"</summary>
+<event>HARNESS ARTIFACT ring-not-connected /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/scratchpad/before/ring-not-connected.png
+HARNESS ARTIFACT ring-no-colour /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/scratchpad/before/ring-no-colour.png
+HARNESS MEASURE ring_dashes not_connected=1 no_colour=5
+HARNESS CHECK not_connected_ring_reads_as_dashed FAIL
+HARNESS CHECK no_colour_ring_reads_as_dashed FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0pgxhad4</task-id>
+<summary>Monitor event: "before-fix harness: ring measures, failures, exit"</summary>
+<event>HARNESS CHECK failed_autosave_edit_applied PASS
+HARNESS CHECK failed_autosave_is_visible PASS
+HARNESS CHECK failed_autosave_has_plain_status_text PASS
+HARNESS CHECK failed_autosave_blocks_project_release PASS
+HARNESS CHECK failed_autosave_retries_after_storage_recovers PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0pgxhad4</task-id>
+<summary>Monitor event: "before-fix harness: ring measures, failures, exit"</summary>
+<event>HARNESS RESULT FAIL failures=2</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0pgxhad4</task-id>
+<tool-use-id>toolu_01DrLLELc4ZfrMfqmHcHC1N2</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/b0pgxhad4.output</output-file>
+<status>completed</status>
+<summary>Monitor "before-fix harness: ring measures, failures, exit" stream ended</summary>
+<event>harness exited</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgaxg93ai</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bgaxg93ai.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for my build and report errors" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzafe5lzz</task-id>
+<summary>Monitor event: "after-fix harness: ring measures, failures, exit"</summary>
+<event>HARNESS MEASURE ring_dashes not_connected=8 no_colour=8
+HARNESS CHECK not_connected_ring_reads_as_dashed PASS
+HARNESS CHECK no_colour_ring_reads_as_dashed PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzafe5lzz</task-id>
+<summary>Monitor event: "after-fix harness: ring measures, failures, exit"</summary>
+<event>HARNESS RESULT PASS failures=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzafe5lzz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bzafe5lzz.output</output-file>
+<status>completed</status>
+<summary>Monitor "after-fix harness: ring measures, failures, exit" stream ended</summary>
+<event>harness exited</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<cross-session-message from="local_fc9af36e-2143-4359-8467-fe90499f3237" from-name="Not connected icon appearance">
+Kenneth approved a wider search for mistakes like the dashed-ring bug; please add it to your current fix.
+
+Background, from a side conversation Kenneth started in a fork of your session: both broken rings (HeaderControls.cpp:164 and :569) came in commit 67361926b0. My hypothesis (not verified): the author assumed wx drawing calls behave like CSS. They don't: wxPENSTYLE_SHORT_DASH is a fixed 9 pt on / 6 pt off on macOS. The harness bitmap snapshots also never drew an open menu showing those states, and its checks were "images differ" comparisons, which a broken ring passes.
+
+Kenneth's instruction is to follow this recommendation:
+
+1. Do it now, in the same files (the fork's hand-drawn controls under src/slic3r/GUI/JusPrin/Shell/: HeaderControls, StatusRow, the menus). Look for other wx drawing calls where wx may not do what the canvas board's CSS does:
+   - line caps and joins on very short strokes;
+   - 1-pixel lines landing between pixels (blurry or doubled);
+   - rounded rectangles whose radius is more than half their height (CSS clamps the radius; wx may not, depending on platform);
+   - text measured with one font and drawn with another.
+   For each one found, compare with its canvas board and report it to Kenneth. Fix only what is clearly broken, and reproduce it first, as the bug-fix policy requires.
+
+2. The follow-up, larger: list the visual states the header menus can show (printer offline, not connected or printing; filament with no colour; long names; dark mode) and use the shell harness's existing bitmap snapshots to draw each one once and compare it with its canvas board. Propose this to Kenneth as a follow-up; don't build it unasked.
+
+Don't widen beyond these two. A codebase-wide search for "wx differs from CSS" has no clear end.
+</cross-session-message>
+
+---
+
+Yes, fix it
+
+---
+
+Captured screenshots for what you have fixed.
+
+---
+
+<task-notification>
+<task-id>b7p0v3sg3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/b7p0v3sg3.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the harness with the new checks only" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf94hthgh</task-id>
+<summary>Monitor event: "outline before-fix harness: measures, failures, exit"</summary>
+<event>HARNESS MEASURE chip_outline left=36+1 top=19+1 right=0+1 bottom=8+1
+HARNESS CHECK chip_outline_sits_on_whole_pixels FAIL
+HARNESS ARTIFACT outline-button-1x /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/scratchpad/before2/outline-button-1x.png
+HARNESS MEASURE outline-button-1x left=32+0 top=32+0 right=32+0 bottom=32+0
+HARNESS CHECK outline_button_sits_on_whole_pixels_at_1x FAIL
+HARNESS ARTIFACT outline-button-2x /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/scratchpad/before2/outline-button-2x.png
+HARNESS MEASURE outline-button-2x left=1+2 top=1+2 right=0+1 bottom=0+1
+HARNESS CHECK outline_button_sits_on_whole_pixels_at_2x FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf94hthgh</task-id>
+<summary>Monitor event: "outline before-fix harness: measures, failures, exit"</summary>
+<event>HARNESS CHECK colour_cell_Other colour_is_in_the_menu PASS
+HARNESS CHECK colour-cell-other_drawn PASS
+HARNESS MEASURE colour-cell-other left=2+2 top=2+2 right=2+2 bottom=2+2 size=560x1466
+HARNESS CHECK colour-cell-other_ring_sits_on_whole_pixels PASS
+HARNESS CHECK colour_cell_#26A69A_is_in_the_menu PASS
+HARNESS CHECK colour-cell-current_drawn PASS
+HARNESS MEASURE colour-cell-current left=560+0 top=1466+0 right=560+0 bottom=1466+0 size=560x1466
+HARNESS CHECK colour-cell-current_ring_sits_on_whole_pixels FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf94hthgh</task-id>
+<summary>Monitor event: "outline before-fix harness: measures, failures, exit"</summary>
+<event>HARNESS RESULT FAIL failures=4</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf94hthgh</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bf94hthgh.output</output-file>
+<status>completed</status>
+<summary>Monitor "outline before-fix harness: measures, failures, exit" stream ended</summary>
+<event>harness exited</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bip1qj3n0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/bip1qj3n0.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the harness build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7ma601r3</task-id>
+<summary>Monitor event: "swatch-before harness: outline measures, failures, exit"</summary>
+<event>HARNESS MEASURE chip_outline left=0+1 top=0+1 right=0+1 bottom=0+1
+HARNESS CHECK chip_outline_sits_on_whole_pixels PASS
+HARNESS MEASURE outline-button-1x left=0+1 top=0+1 right=0+1 bottom=0+1
+HARNESS CHECK outline_button_sits_on_whole_pixels_at_1x PASS
+HARNESS MEASURE outline-button-2x left=0+2 top=0+2 right=0+2 bottom=0+2
+HARNESS CHECK outline_button_sits_on_whole_pixels_at_2x PASS</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7ma601r3</task-id>
+<summary>Monitor event: "swatch-before harness: outline measures, failures, exit"</summary>
+<event>HARNESS MEASURE colour-cell-other left=5+2 top=5+2 right=3+2 bottom=3+2 inset=4 scale=2
+HARNESS CHECK colour-cell-other_ring_sits_on_whole_pixels_at_its_inset FAIL
+HARNESS MEASURE colour-cell-current left=1+4 top=1+4 right=1+4 bottom=1+4 inset=2 scale=2
+HARNESS CHECK colour-cell-current_ring_sits_on_whole_pixels_at_its_inset FAIL</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7ma601r3</task-id>
+<summary>Monitor event: "swatch-before harness: outline measures, failures, exit"</summary>
+<event>HARNESS RESULT FAIL failures=2</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7ma601r3</task-id>
+<tool-use-id>toolu_019zQPdTtCj6GPSsWzyTMPNu</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/b7ma601r3.output</output-file>
+<status>completed</status>
+<summary>Monitor "swatch-before harness: outline measures, failures, exit" stream ended</summary>
+<event>harness exited</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b4936frso</task-id>
+<tool-use-id>toolu_01NjhiNf3o2nefXgsWANyoMP</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2ec864b1-5192-4af8-bc42-f6e96d234435/tasks/b4936frso.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the final build" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdoajnm44</task-id>
+<summary>Monitor event: "final harness: outline and ring measures, failures, exit"</summary>
+<event>HARNESS MEASURE ring_dashes not_connected=8 no_colour=8
+HARNESS MEASURE chip_outline left=0+1 top=0+1 right=0+1 bottom=0+1
+HARNESS MEASURE outline-button-1x left=0+1 top=0+1 right=0+1 bottom=0+1
+HARNESS MEASURE outline-button-2x left=0+2 top=0+2 right=0+2 bottom=0+2</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
