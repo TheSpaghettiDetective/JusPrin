@@ -1767,6 +1767,12 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
         if (wxGetApp().app_config != nullptr) {
             wxGetApp().app_config->set_bool("single_instance", true);
             wxGetApp().app_config->set(SETTING_PROJECT_LOAD_BEHAVIOUR, OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL);
+            // A project keeps the printer it was saved for, also when a
+            // different Bambu printer is connected: OrcaSlicer's stored "No"
+            // to its "sync the printer and switch the preset?" question, so
+            // it is never asked, on a file open or on reopening a saved
+            // project from Home.
+            wxGetApp().app_config->set_bool("sync_after_load_file_show_flag", false);
         }
     }
     if (tabpanel == nullptr || main_sizer == nullptr)

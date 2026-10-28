@@ -2361,8 +2361,6 @@ private:
         check(selected_filament() == opened_name, "unknown_preset_reopen_keeps_name");
         const Preset& reopened = m_app.preset_bundle->filaments.get_selected_preset();
         check(reopened.is_project_embedded && reopened.inherits().empty(), "unknown_preset_reopened_still_has_no_parent");
-        // Resuming at launch loads through the same call, but only into a
-        // fresh app's untouched draft, which this run cannot return to.
     }
 
     // The saved project holding `version`, or nothing.

@@ -129,7 +129,8 @@ replaced by a fresh document. The local store reads only its current index,
 manifest and current-document formats.
 Recent projects appear on Home and in the header menu. Selecting one
 opens its managed version even when its imported source file has been removed.
-The most recently authored local project resumes on startup.
+Nothing reopens on startup: the app starts on Home with a blank project behind
+it, and a saved project opens only when the person picks it.
 
 ## Chosen defaults and limits
 

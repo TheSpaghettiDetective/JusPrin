@@ -2493,9 +2493,28 @@ private:
         expected >> saved;
         const std::string project_id = saved.at("projectId").get<std::string>();
         const std::string version_id = saved.at("versionId").get<std::string>();
+        // Nothing reopens on its own: the restart starts on a blank project,
+        // and the saved one opens when the person picks it on Home. Allow the
+        // autosave ticks after the canvas is ready, when a resume used to run.
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        wait_until([this, until] {
+            GLCanvas3D* canvas = m_plater->get_view3D_canvas3D();
+            return canvas != nullptr && canvas->is_initialized() && std::chrono::steady_clock::now() >= until;
+        }, "restart_startup_settled", [self = shared_from_this(), project_id, version_id] {
+            self->check(self->persistence().document().project_id() != project_id &&
+                            self->m_plater->model().objects.empty() &&
+                            self->m_plater->get_project_filename(".3mf").empty(),
+                        "restart_starts_on_a_blank_project");
+            installed_shell()->home_view()->backend().open_project(project_id);
+            self->verify_autosave_reopened(project_id, version_id);
+        });
+    }
+
+    void verify_autosave_reopened(const std::string& project_id, const std::string& version_id)
+    {
         wait_until([this, project_id] {
             return persistence().document().project_id() == project_id && m_plater->model().objects.size() == 1;
-        }, "restart_project_resumed", [self = shared_from_this(), project_id, version_id] {
+        }, "restart_project_opened_from_home", [self = shared_from_this(), project_id, version_id] {
             self->check(installed_shell()->autosave()->current_version() == version_id,
                         "restart_head_preserved");
             self->check(unsaved_project_folders().empty(), "restart_blank_startup_project_leaves_no_folder");

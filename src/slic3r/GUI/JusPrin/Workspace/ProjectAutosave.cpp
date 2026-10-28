@@ -632,12 +632,6 @@ bool ProjectAutosave::persist_document(bool wait_for_commit)
 void ProjectAutosave::tick()
 {
     try {
-        if (!m_resume_attempted) {
-            GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
-            if (canvas == nullptr || !canvas->is_initialized())
-                return;
-            resume_latest();
-        }
         adopt_project();
         if (!settle(false) && m_worker.valid())
             return;
@@ -687,91 +681,6 @@ void ProjectAutosave::tick()
         }
     } catch (const std::exception& error) {
         fail(error.what());
-    }
-}
-
-bool ProjectAutosave::resume_latest()
-{
-    m_resume_attempted = true;
-    try {
-        if (!m_plater.model().objects.empty() || !m_plater.get_project_filename(".3mf").empty() ||
-            m_persistence.document().doc_revision() > 1)
-            return false;
-        std::filesystem::path latest;
-        std::filesystem::file_time_type latest_time{};
-        if (!std::filesystem::is_directory(m_root))
-            return false;
-        for (const auto& project : std::filesystem::directory_iterator(m_root)) {
-            if (!project.is_directory() || !std::filesystem::is_regular_file(project.path() / "HEAD"))
-                continue;
-            if (m_store && project.path().filename().string() == m_store->project_id())
-                continue;
-            try {
-                if (!authored_head(project.path()))
-                    continue;
-            } catch (const std::exception& error) {
-                BOOST_LOG_TRIVIAL(warning) << "Recent local project index is invalid: " << project.path().string()
-                                           << ": " << error.what();
-                continue;
-            }
-            auto modified = std::filesystem::last_write_time(project.path() / "HEAD");
-            if (std::filesystem::is_regular_file(project.path() / "current-state.json"))
-                modified = std::max(modified, std::filesystem::last_write_time(project.path() / "current-state.json"));
-            if (latest.empty() || modified > latest_time) {
-                latest = project.path();
-                latest_time = modified;
-            }
-        }
-        if (latest.empty())
-            return false;
-        // The untouched startup draft has no authored state. Release it
-        // before opening the durable project selected by the store.
-        settle(true);
-        m_store.reset();
-        auto opened = std::make_unique<ProjectVersionStore>(m_root, latest.filename().string());
-        const std::string head = opened->head_id();
-        if (head.empty())
-            throw std::runtime_error("recent managed project has no current version");
-        const auto materialized = opened->materialize(head);
-        const auto versions = opened->history();
-        const auto selected = std::find_if(versions.begin(), versions.end(), [&head](const auto& item) {
-            return item.id == head;
-        });
-        if (selected == versions.end())
-            throw std::runtime_error("recent managed project has no current manifest");
-        m_plater.reset();
-        m_plater.take_snapshot("Resume local project", UndoRedo::SnapshotType::ProjectSeparator);
-        auto strategy = LoadStrategy::Restore;
-        if (materialized.empty)
-            strategy = strategy | LoadStrategy::AllowEmpty;
-        const auto loaded = load_managed_checkpoint(m_plater, materialized, strategy);
-        if ((loaded.empty() && !materialized.empty) || (materialized.empty && !m_plater.model().objects.empty()))
-            throw std::runtime_error("recent managed project could not be restored");
-        m_plater.set_project_filename(wxString::FromUTF8(selected->source_path));
-        m_project_name = selected->project_name;
-        m_opened_from = selected->opened_from;
-        m_opened_digest = selected->opened_digest;
-        m_persistence.adopt_managed_state(materialized.semantic_state);
-        opened->seed_from_live(m_plater.model());
-        m_last_capture_input = observed_input();
-        m_seen_model_input = m_last_capture_input;
-        m_committed_semantic_revision = m_persistence.document().doc_revision();
-        m_seen_semantic_revision = m_committed_semantic_revision;
-        m_first_semantic_edit.reset();
-        m_revision = 0;
-        for (const auto& version : versions)
-            m_revision = std::max(m_revision, version.revision);
-        m_committed_head = head;
-        m_store = std::move(opened);
-        m_active_materialization = materialized;
-        m_active_materialization_project = m_store->project_id();
-        m_error.clear();
-        m_state = State::Saved;
-        m_next_probe = Clock::now() + kProbeInterval;
-        return true;
-    } catch (const std::exception& error) {
-        fail(error.what());
-        return false;
     }
 }
 
@@ -992,7 +901,6 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
             m_revision = std::max(m_revision, version.revision);
         m_error.clear();
         m_state = State::Saved;
-        m_resume_attempted = true;
         m_next_probe = Clock::now() + kProbeInterval;
         return true;
     } catch (const std::exception& error) {

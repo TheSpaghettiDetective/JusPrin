@@ -75,7 +75,6 @@ public:
     bool restore(const std::string& version_id);
     // Restores the version a chat was left on and makes the chat active.
     bool restore_chat(const std::string& version_id, const std::string& conversation_id);
-    bool resume_latest();
     // The saved projects, newest first, leaving out any that cannot be read;
     // nothing when the projects folder itself cannot be read.
     std::optional<std::vector<ManagedProject>> projects();
@@ -124,7 +123,6 @@ private:
     WorkerKind m_worker_kind{WorkerKind::None};
     std::optional<ProjectVersionStore::Materialization> m_active_materialization;
     std::string m_active_materialization_project;
-    bool m_resume_attempted{false};
     std::chrono::steady_clock::time_point m_next_probe;
     std::chrono::steady_clock::time_point m_last_edit;
     std::chrono::steady_clock::time_point m_last_semantic_edit;

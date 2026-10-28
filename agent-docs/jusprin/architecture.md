@@ -135,7 +135,7 @@ Decided 2026-10-24. A file reaches JusPrin in a handful of ways, and they mean o
 
 Rules that follow from the table:
 
-- A model file never silently lands in whatever project happened to be open behind Home. Before 2026-10-24 Home's Import button did exactly that, because it called OrcaSlicer's `add_model`, and from 2026-09-30 a project was always open behind Home (the most recent one resumes at startup).
+- A model file never silently lands in whatever project happened to be open behind Home. Before 2026-10-24 Home's Import button did exactly that, because it called OrcaSlicer's `add_model`, and from 2026-09-30 to 2026-10-28 the most recent project reopened behind Home at startup. Home now starts with a blank project behind it, but whatever is open there is still not where a file opened from Home goes.
 - A file opened from the OS lands in the running JusPrin. OrcaSlicer's default starts a second process for a .3mf; JusPrin runs as a single instance on every platform.
 - Several files opened or dropped together make one new project holding all of them.
 - Opening a .3mf as a project is the only thing a .3mf does on the Prepare canvas. Wanting only the geometry out of a .3mf is rare, and the agent or File › Import can do it on request. The one question JusPrin asks on a file open stays the "Previously opened file" question described in the [autosave document](autosave-version-history.md).
