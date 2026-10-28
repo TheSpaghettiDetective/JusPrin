@@ -1,13 +1,19 @@
-// Conversation transcript with stable scroll anchoring: the list follows new
-// content only while the reader is at the bottom; scrolling up to reread
-// pins the viewport until they return to the bottom. In the project chat a
-// turn is one thread item: the person's message, one line for the tool work
-// the Agent did in reply, then its words; the change log and the lines
-// where a G-code left the project render after the turn they follow, in the
-// order they happened. The printer panel keeps a card per call under the message
-// that called it.
+// Conversation transcript with stable scroll anchoring (decided 2026-10-28,
+// the canvas's "Chat scrolling" board): the list follows new content while
+// the reader is at the bottom, including when the thread itself gets shorter
+// under a growing composer; scrolling up to reread holds the view, and
+// answers and the app's own turns never move it. A message of the person's
+// always scrolls to the bottom and follows again. While the bottom is out of
+// view a round button over the thread's bottom edge jumps back to it.
+//
+// In the project chat a turn is one thread item: the person's message, one
+// line for the tool work the Agent did in reply, then its words; the change
+// log and the lines where a G-code left the project render after the turn
+// they follow, in the order they happened. The printer panel keeps a card per
+// call under the message that called it.
 
-import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
+import { useStickToBottom } from 'use-stick-to-bottom';
 import {
   AttachmentInfo,
   ChangeInfo,
@@ -183,23 +189,41 @@ export function MessageList({
   onScrolledChange,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
-  const listRef = useRef<HTMLDivElement>(null);
-  const [followBottom, setFollowBottom] = useState(true);
+  // use-stick-to-bottom tells the person's scrolling from content growing
+  // under them. It opens at the bottom at once and eases after the stream,
+  // or jumps when the system asks for reduced motion.
+  const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : undefined;
+  const stick = useStickToBottom({ initial: 'instant', resize: motion });
+  const { scrollRef, contentRef, scrollToBottom } = stick;
 
   const handleScroll = () => {
-    const list = listRef.current;
-    if (!list) return;
-    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
-    setFollowBottom(distanceFromBottom < 24);
-    onScrolledChange?.(list.scrollTop > 0);
+    const list = scrollRef.current;
+    if (list) onScrolledChange?.(list.scrollTop > 0);
   };
 
   useEffect(() => () => onScrolledChange?.(false), [onScrolledChange]);
 
+  // The library watches the content's height, not the thread's: a composer
+  // growing a line makes the thread shorter, and while following, the bottom
+  // stays in view.
+  useEffect(() => {
+    const list = scrollRef.current;
+    if (!list) return;
+    const observer = new ResizeObserver(() => {
+      if (stick.state.isAtBottom) scrollToBottom('instant');
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [scrollRef, scrollToBottom, stick.state]);
+
+  // The person's own message, typed, a reply chip or Ask AI, brings the
+  // thread to the bottom and follows again, wherever they had scrolled to.
+  const lastUserMessageId = [...messages].reverse().find((message) => message.role === 'user')?.id;
+  const seenUserMessageId = useRef(lastUserMessageId);
   useLayoutEffect(() => {
-    const list = listRef.current;
-    if (list && followBottom) list.scrollTop = list.scrollHeight;
-  }, [messages, toolActivities, gcodeMarkers, changes, printerBlocks, followBottom]);
+    if (lastUserMessageId !== seenUserMessageId.current && lastUserMessageId) scrollToBottom(motion ?? {});
+    seenUserMessageId.current = lastUserMessageId;
+  }, [lastUserMessageId, motion, scrollToBottom]);
   const printerPanel = printerBlocks !== undefined;
 
   const activitiesOf = (messageId: string) => toolActivities.filter((activity) => activity.correlationId === messageId);
@@ -401,46 +425,57 @@ export function MessageList({
     ));
 
   return (
-    <div className="message-list" role="log" aria-label="Agent conversation"
-      ref={listRef} onScroll={handleScroll}>
-      <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
-      {turns.map((turn) => {
-        const turnMessages = messagesOf(turn);
-        // A save the person approved is theirs, receipted by its note, not
-        // part of the Agent's work.
-        const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id)).filter((activity) => !activity.approves);
-        const proposals = printerPanel ? [] : proposalCards(turnActivities);
-        const proposalHost = [...turn.replies].reverse().find((reply) => reply.role === 'assistant' && reply.text);
-        const working = turnMessages.some((message) => message.id === streamingMessageId);
-        const last = turnMessages[turnMessages.length - 1];
-        // The project chat's turn: the person's words, the line for the
-        // Agent's work (whenever it worked, or is still working), its
-        // replies that have words. The group is one thread item, 8 apart.
-        // What follows it -- change runs, work and G-code markers -- are
-        // thread items of their own.
-        return (
-          <Fragment key={turn.anchor.id}>
-            <div className="message-group">
-              {bubble(turn.anchor)}
-              {printerPanel && activityCards(turn.anchor)}
-              {!printerPanel && turn.anchor.role !== 'assistant' && (turnActivities.length > 0 || working) && (
-                <TurnActivity activities={turnActivities} working={working} startedAt={turn.anchor.createdAt}
-                  endedAt={last.createdAt} onCancel={onToolCancel} readOnly={readOnly} />
-              )}
-              {turn.replies.map((reply) => (
-                <Fragment key={reply.id}>
-                  {bubble(reply, reply === proposalHost && proposals.length > 0 ? proposals : undefined)}
-                  {printerPanel && activityCards(reply)}
-                </Fragment>
-              ))}
-              {!proposalHost && proposals}
-            </div>
-            {turnMessages.map((message) => printerBlockViews(message.id))}
-            <TimelineBlocks blocks={timeline(markersAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
-          </Fragment>
-        );
-      })}
-      {endNotice}
+    <div className="message-thread">
+      <div className="message-list" role="log" aria-label="Agent conversation"
+        ref={scrollRef} onScroll={handleScroll}>
+        <div className="message-list-content" ref={contentRef}>
+          <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
+          {turns.map((turn) => {
+            const turnMessages = messagesOf(turn);
+            // A save the person approved is theirs, receipted by its note, not
+            // part of the Agent's work.
+            const turnActivities = turnMessages.flatMap((message) => activitiesOf(message.id)).filter((activity) => !activity.approves);
+            const proposals = printerPanel ? [] : proposalCards(turnActivities);
+            const proposalHost = [...turn.replies].reverse().find((reply) => reply.role === 'assistant' && reply.text);
+            const working = turnMessages.some((message) => message.id === streamingMessageId);
+            const last = turnMessages[turnMessages.length - 1];
+            // The project chat's turn: the person's words, the line for the
+            // Agent's work (whenever it worked, or is still working), its
+            // replies that have words. The group is one thread item, 8 apart.
+            // What follows it -- change runs, work and G-code markers -- are
+            // thread items of their own.
+            return (
+              <Fragment key={turn.anchor.id}>
+                <div className="message-group">
+                  {bubble(turn.anchor)}
+                  {printerPanel && activityCards(turn.anchor)}
+                  {!printerPanel && turn.anchor.role !== 'assistant' && (turnActivities.length > 0 || working) && (
+                    <TurnActivity activities={turnActivities} working={working} startedAt={turn.anchor.createdAt}
+                      endedAt={last.createdAt} onCancel={onToolCancel} readOnly={readOnly} />
+                  )}
+                  {turn.replies.map((reply) => (
+                    <Fragment key={reply.id}>
+                      {bubble(reply, reply === proposalHost && proposals.length > 0 ? proposals : undefined)}
+                      {printerPanel && activityCards(reply)}
+                    </Fragment>
+                  ))}
+                  {!proposalHost && proposals}
+                </div>
+                {turnMessages.map((message) => printerBlockViews(message.id))}
+                <TimelineBlocks blocks={timeline(markersAfter(turn.anchor.id), changesAfter(turn.anchor.id), workAfter(turn.anchor.id))} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />
+              </Fragment>
+            );
+          })}
+          {endNotice}
+        </div>
+      </div>
+      {/* Chat/Jump to latest: only while the bottom is out of view. */}
+      {!stick.isAtBottom && (
+        <button type="button" className="jump-to-latest" aria-label="Jump to latest" title="Jump to latest"
+          onClick={() => scrollToBottom(motion ?? {})}>
+          <span className="jp-icon jp-icon-arrow-down" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

@@ -340,17 +340,55 @@ body {
    lines up with the setup card inset the same amount above it. */
 /* The thread (Figma "Timeline"): message groups, change runs and history
    entries are its items, 12 apart; 4 at the top under the pinned setup band,
-   16 at the sides and bottom. */
+   16 at the sides and bottom. The scroll box holds one column, whose height
+   is what the thread follows. */
+.message-thread {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .message-list {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  background: var(--surface-canvas);
+}
+
+.message-list-content {
   padding: 4px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--surface-canvas);
 }
+
+/* Chat/Jump to latest (the canvas's "Chat scrolling" board): a 32 DIP button
+   floating 8 over the thread's bottom edge, centred above the composer. The
+   one icon button with the full radius, round as in every chat app people
+   know; full is 14, which leaves short flat sides, as the board draws it. */
+.jump-to-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-subtle), var(--elevation-subtle);
+  cursor: pointer;
+}
+
+.jump-to-latest:hover { background: var(--surface-subtle); }
+.jump-to-latest:active { background: var(--surface-selected); }
 
 /* Chat navigation: the header and configuration footer stay outside the
    scrolling content so both remain reachable in a short or narrow dock. */
@@ -3714,6 +3752,7 @@ p.agent-row-note {
 .jp-icon-box { -webkit-mask-image: url('@resources/jusprin/ui/icons/box.svg'); mask-image: url('@resources/jusprin/ui/icons/box.svg'); }
 .jp-icon-folder { -webkit-mask-image: url('@resources/jusprin/ui/icons/folder.svg'); mask-image: url('@resources/jusprin/ui/icons/folder.svg'); }
 .jp-icon-arrow-up-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/arrow-up-right.svg'); mask-image: url('@resources/jusprin/ui/icons/arrow-up-right.svg'); }
+.jp-icon-arrow-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/arrow-down.svg'); mask-image: url('@resources/jusprin/ui/icons/arrow-down.svg'); }
 
 .app--preferences {
   background: var(--surface-raised);
