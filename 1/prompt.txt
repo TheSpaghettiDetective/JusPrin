@@ -33,3 +33,21 @@ The ClassicView changes are mine and in progress. Build the menu work on top of 
 <status>completed</status>
 <summary>Background command "Run four harness modes in parallel" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Capture the new overflow menu in light and dark and compare it with the main-10-prepare-header-project-menu board.
+
+---
+
+<task-notification>
+<task-id>bcelfs20g</task-id>
+<tool-use-id>toolu_01WAfMrvdgJLmjWAtTAqmb8i</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\78a54d34-2914-4799-bc78-ceca9b8b30f8\tasks\bcelfs20g.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the left-pane capture in light then dark" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Fix the HeaderMenu hairlines so they use border-subtle and the board's 12 DIP inset, then recapture both themes.
