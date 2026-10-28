@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M5ZWQPX49NBFKNGHTQ9PBV9R",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CMakeLists.txt",
+    "src/dev-utils/platform/msw/OrcaSlicer.rc.in",
+    "src/slic3r/GUI/JusPrin/Packaging/identity.cmake",
+    "src/slic3r/GUI/JusPrin/Packaging/packaging.cmake",
+    "src/slic3r/GUI/JusPrin/Packaging/windows_package.ps1"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 125540,
+    "cache_read_tokens": 1685676,
+    "output_tokens": 5402,
+    "api_call_count": 11
+  }
+}
