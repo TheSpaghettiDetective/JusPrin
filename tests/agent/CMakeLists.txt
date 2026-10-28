@@ -61,7 +61,8 @@ target_include_directories(agent_bridge_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/deps_src
 )
-target_link_libraries(agent_bridge_tests PRIVATE Catch2WithMain nlohmann_json OpenSSL::Crypto Boost::system Threads::Threads)
+# AgentHost logs failed tool calls through Boost.Log.
+target_link_libraries(agent_bridge_tests PRIVATE Catch2WithMain nlohmann_json OpenSSL::Crypto Boost::system boost_libs Threads::Threads)
 target_link_libraries(agent_bridge_tests PRIVATE jusprin_mcp_bridge_core)
 
 orcaslicer_discover_tests(agent_bridge_tests)

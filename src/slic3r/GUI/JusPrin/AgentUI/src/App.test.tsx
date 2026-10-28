@@ -673,9 +673,12 @@ describe('App', () => {
       }),
     );
 
-    // The stale call reads its explanation in the turn's opened action log.
+    // The stale call reads "Not run" in the turn's opened action log, and
+    // opens into the host's explanation.
     fireEvent.click(screen.getByRole('button', { name: /1 action · 1 failed/ }));
-    expect(screen.getByText(/The project changed before this could run/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /· Not run/ }));
+    expect(screen.getByText('Nothing ran: the project changed after this call was made.')).toBeInTheDocument();
+    expect(screen.getByText(code)).toBeInTheDocument();
   });
 
   it('reconstructs tool cards from host state after a reload', () => {

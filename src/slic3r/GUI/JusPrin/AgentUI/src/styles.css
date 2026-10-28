@@ -737,22 +737,79 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
 }
 .turn-activity-action {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
   min-width: 0;
-  padding: 4px 0;
   color: var(--text-secondary);
   font: var(--font-metadata);
 }
 .turn-activity-action.edit { color: var(--text-primary); }
 .turn-activity-action.state-failed { color: var(--status-danger); }
+/* Each action is its own disclosure, drawn like the turn line above it:
+   the words, then the chevron right after them. */
+.turn-activity-action-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .turn-activity-action-text {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The opened action: a quiet box under its line. A failed one takes the
+   danger stroke, and its error comes first, wrapped in full. */
+.turn-activity-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: var(--radius-small);
+  background: var(--surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-secondary);
+}
+.turn-activity-details.failed { box-shadow: inset 0 0 0 1px var(--status-danger); }
+.turn-activity-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: stretch;
+  min-width: 0;
+}
+.turn-activity-details-label {
+  font: var(--font-metadata-bold);
+  color: var(--text-primary);
+}
+.turn-activity-code {
+  margin: 0;
+  font: var(--font-code);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.turn-activity-details.failed .turn-activity-details-section:first-child .turn-activity-details-label,
+.turn-activity-error-message {
+  color: var(--status-danger);
+}
+.turn-activity-error-message {
+  font: var(--font-body-small);
+  overflow-wrap: anywhere;
+}
+
 
 /* A host note is a statement of fact about the project, not a turn in the
    conversation, so it takes no bubble, no border, and no author side: the
