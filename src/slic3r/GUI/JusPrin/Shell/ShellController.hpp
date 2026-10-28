@@ -31,6 +31,7 @@ class Notebook;
 namespace Slic3r::GUI {
 class MainFrame;
 class Plater;
+struct SimpleEvent;
 }
 
 namespace Slic3r::GUI::JusPrin {
@@ -207,6 +208,9 @@ private:
     void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
     void on_frame_char_hook(wxKeyEvent& event);
+    // Takes Tab on the Prepare canvas, which OrcaSlicer would answer by
+    // switching to Preview, and does nothing with it.
+    void on_prepare_canvas_tab(SimpleEvent& event);
     // Gives the docked panel the agent the stored settings describe now.
     void reload_agent_config();
     void show_task_panel();

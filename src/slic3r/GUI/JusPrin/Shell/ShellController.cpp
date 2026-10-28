@@ -18,6 +18,8 @@
 #include "slic3r/GUI/JusPrin/V1Import/WelcomeBackWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
@@ -35,6 +37,7 @@
 
 #include <wx/dcbuffer.h>
 #include <wx/dnd.h>
+#include <wx/glcanvas.h>
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
@@ -552,6 +555,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             // A tool's own open settles this in the conversation instead.
             if (!m_autosave || m_workspace->tool_load_active())
                 return false;
+            // A model file from File > Recent files opens as it does from the
+            // OS: in a new project, without the question below.
+            if (!boost::algorithm::iends_with(path.string(), ".3mf"))
+                return take_opened_files({path});
             const auto found = m_autosave->projects_for_source(source);
             if (!found) {
                 // Whether the file was opened before cannot be told, and a
@@ -731,6 +738,22 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_left_pane->set_add_model([this] { m_plater->add_model(); });
         m_status_row->set_left_pane_toggle([this] { toggle_left_pane(); });
         m_status_row->set_left_pane_collapsed(m_left_pane_collapsed);
+        // The overflow menu's project rows are the Project tab's. Its two
+        // views open in the pane, which shows only on Prepare; the export is
+        // the tab's own and needs no pane on screen.
+        m_status_row->set_project_rows([this](ProjectMenuRow row) {
+            if (row == ProjectMenuRow::Export) {
+                m_left_pane->export_project();
+                return;
+            }
+            m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+            if (is_left_pane_collapsed())
+                toggle_left_pane();
+            if (row == ProjectMenuRow::VersionHistory)
+                m_left_pane->open_project_view(ProjectView::Versions);
+            else
+                m_left_pane->show_project();
+        });
         m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
             [this] {
                 // OrcaSlicer's project-information editor lives on its Project page.
@@ -770,6 +793,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // Add-model remains available through File > Import and drag-drop.
         if (GLCanvas3D* prepare_canvas = plater->get_view3D_canvas3D()) {
             m_prepare_canvas_presentation.attach(*prepare_canvas);
+            // Tab on the canvas is OrcaSlicer's switch to Preview, which would
+            // change the page under the JusPrin header. Bound after Plater's
+            // own handler, so this one runs first; not skipping it stops the
+            // switch. Tab on the Preview canvas still goes back to Prepare.
+            prepare_canvas->get_wxglcanvas()->Bind(EVT_GLCANVAS_TAB, &ShellController::on_prepare_canvas_tab, this);
             // Print issues: read from OrcaSlicer by the monitor and shown by
             // the overlay on this canvas. OrcaSlicer's own notices are one of
             // the legacy overlays the attach above hides; the notification
@@ -1008,7 +1036,24 @@ bool ShellController::take_opened_files(const std::vector<boost::filesystem::pat
     wxArrayString again;
     for (const auto& file : files)
         again.Add(from_path(file));
-    add_dropped_files(again);
+    if (add_dropped_files(again)) {
+        // OrcaSlicer's File > Recent files lists each model a project was
+        // started from, whatever its recent_models preference says, and
+        // opening one there opens it as this did. A file dropped on Home is
+        // a temporary copy, not the person's file, so it is left out.
+        const std::filesystem::path dropped = Home::dropped_files_folder().lexically_normal();
+        for (const auto& file : files) {
+#ifdef _WIN32
+            const std::filesystem::path path = std::filesystem::path(file.wstring()).lexically_normal();
+#else
+            const std::filesystem::path path = std::filesystem::path(file.string()).lexically_normal();
+#endif
+            const bool from_home_drop =
+                std::mismatch(dropped.begin(), dropped.end(), path.begin(), path.end()).first == dropped.end();
+            if (!has_extension(file, ".zip") && !from_home_drop)
+                m_frame->add_to_recent_projects(from_path(file));
+        }
+    }
     m_frame->select_tab(size_t(MainFrame::tp3DEditor));
     return true;
 }
@@ -1395,6 +1440,10 @@ void ShellController::request_preferences(const std::string& section)
     });
 }
 
+void ShellController::on_prepare_canvas_tab(SimpleEvent&)
+{
+}
+
 void ShellController::on_frame_char_hook(wxKeyEvent& event)
 {
     // Ctrl+, on Windows and Linux; the macOS app menu already gives Cmd+, to
@@ -1444,6 +1493,8 @@ void ShellController::uninstall()
     m_tabpanel->Unbind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
     m_prepare_canvas_presentation.detach();
+    if (GLCanvas3D* prepare_canvas = m_plater->get_view3D_canvas3D())
+        prepare_canvas->get_wxglcanvas()->Unbind(EVT_GLCANVAS_TAB, &ShellController::on_prepare_canvas_tab, this);
     m_plater->get_collapse_toolbar().set_enabled(m_saved_collapse_toolbar_enabled);
     m_plater->set_sidebar_available(true);
     m_plater->set_auto_preview_after_slice(m_saved_auto_preview_after_slice);
@@ -1609,6 +1660,8 @@ void ShellController::open_filament_help(std::size_t slot, const std::string& pr
         show_error(m_frame, wxString::Format(_L("The filament preset \"%s\" was not found."), from_u8(preset)));
         return;
     }
+    // Tab no longer reaches Preview from the shell, but OrcaSlicer's Ctrl+R
+    // (slice and show the preview) still does.
     m_printer_panel->open_filament(slot, preset, shown,
         m_tabpanel->GetSelection() == MainFrame::tpPreview ? _L("Back to Preview") : _L("Back to Prepare"));
     show_task_panel();

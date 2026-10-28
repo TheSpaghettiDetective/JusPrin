@@ -9,7 +9,6 @@
 #include <wx/graphics.h>
 #include <wx/image.h>
 #include <wx/sizer.h>
-#include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/weakref.h>
 #include <algorithm>
@@ -450,11 +449,13 @@ void HeaderButton::draw(wxDC& dc, wxGraphicsContext& context, const wxSize& clie
     } else {
         gc->SetPen(primary || m_style == HeaderStyle::Quiet || m_style == HeaderStyle::Menu ? *wxTRANSPARENT_PEN : wxPen(p.border_subtle));
         gc->SetBrush(wxBrush(fill));
-        gc->DrawRoundedRectangle(0.5,0.5,w-1,h-1,r);
-    }
-    if (primary && (m_style == HeaderStyle::PrimaryRight || m_attached)) {
-        gc->SetPen(*wxTRANSPARENT_PEN);
-        gc->DrawRectangle(m_style == HeaderStyle::PrimaryLeft ? w-r-1 : 0,0,r+1,h);
+        // A split half extends past its shared inner edge, as the chip halves
+        // do, so only its outer corners round and its top and bottom edges
+        // stay one antialiased line across the seam. By one radius the
+        // corner's curve would start on the seam column itself.
+        const bool split = primary && (m_style == HeaderStyle::PrimaryRight || m_attached);
+        const double extend = split ? 2*r : 0;
+        gc->DrawRoundedRectangle(m_style == HeaderStyle::PrimaryRight ? 0.5-extend : 0.5,0.5,w-1+extend,h-1,r);
     }
     if (m_style == HeaderStyle::PrimaryRight) {
         gc->SetPen(wxPen(p.action_primary_hover));
@@ -691,10 +692,13 @@ void HeaderMenu::build(std::vector<HeaderMenuItem> items)
     for (auto& item : items) {
         if (placed_rows == m_header_after_rows) place_header();
         if (item.separator) {
-            auto* line = new wxStaticLine(this);
-            line->SetForegroundColour(palette.border_subtle);
+            // A filled strip, not wxStaticLine: Windows draws that in its own
+            // grey and ignores the colour. Inset like the row labels.
+            auto* line = new wxWindow(this,wxID_ANY,wxDefaultPosition,wxSize(-1,FromDIP(popover.border_width)));
+            line->SetName(separator_name());
+            line->SetBackgroundColour(palette.border_subtle);
             sizer->AddSpacer(FromDIP(m_theme.metrics().space_1));
-            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT,row_inset);
+            sizer->Add(line,0,wxEXPAND | wxLEFT | wxRIGHT,row_inset + FromDIP(m_theme.metrics().space_3));
             sizer->AddSpacer(FromDIP(m_theme.metrics().space_1));
             after_row = false;
         }

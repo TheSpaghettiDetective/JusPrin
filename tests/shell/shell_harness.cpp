@@ -322,6 +322,7 @@
 #include "slic3r/GUI/ParamsDialog.hpp"
 #include "slic3r/GUI/ParamsPanel.hpp"
 #include "slic3r/GUI/Tab.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/GUI_Preview.hpp"
@@ -1721,6 +1722,13 @@ private:
               "left_pane_tab_switch_keeps_plate_and_selection");
         save_pane("left-pane-project", pane->snapshot());
         window_shot("project");
+        if (!m_state->capture_dir.empty()) {
+            // The header's overflow menu over the same project, for the Prepare header board.
+            installed_shell()->status_row()->show_overflow_menu();
+            menu_shot("prepare-header-project-menu");
+            if (HeaderMenu* menu = visible_header_menu())
+                menu->close();
+        }
         check(!pane->handle_escape(), "left_pane_escape_at_project_root_is_not_taken");
         check(pane->navigation().tab() == PaneTab::Project, "left_pane_escape_does_not_leave_project");
         // A project without 3MF metadata still offers the Details view.
@@ -2530,6 +2538,17 @@ private:
             self->check(installed_shell()->status_row()->project_summary().BeforeFirst('\n').EndsWith(
                             wxGetTranslation("Couldn't save")),
                         "unavailable_storage_has_plain_status_text");
+            // The overflow menu says so too, directly under the name row.
+            installed_shell()->status_row()->show_overflow_menu();
+            HeaderMenu* menu = self->visible_header_menu();
+            const wxString retry = _L("Changes couldn't be saved. JusPrin will retry.");
+            const auto rows = header_menu_rows(menu);
+            auto* retry_row = menu ? wxWindow::FindWindowByName(retry, menu) : nullptr;
+            self->check(rows.size() > 2 && rows[0] == overflow_project_name() && rows[1] == retry &&
+                            rows[2] == _L("Version history") && retry_row != nullptr && !retry_row->IsEnabled(),
+                        "unavailable_storage_menu_says_it_will_retry_under_the_name");
+            if (menu != nullptr)
+                menu->close();
             installed_shell()->agent_pane()->web_view().host().refresh_page_state();
             self->check(ids(autosave->history()) == ids(saved), "unavailable_storage_version_list_survives_retries");
             folder.reset();
@@ -6259,7 +6278,7 @@ private:
     {
         wxWindow* line = nullptr;
         for (auto* child : menu->GetChildren())
-            if (dynamic_cast<wxStaticLine*>(child)) { line = child; break; }
+            if (child->GetName() == HeaderMenu::separator_name()) { line = child; break; }
         check(line != nullptr, "menu_substep_has_a_separator_to_hover");
         if (line == nullptr) return;
         auto move_to = [menu](const wxPoint& at) {
@@ -6848,23 +6867,87 @@ private:
             });
     }
 
+    // The labels of a header menu's rows, top to bottom.
+    static std::vector<wxString> header_menu_rows(HeaderMenu* menu)
+    {
+        std::vector<wxString> rows;
+        if (menu != nullptr)
+            for (wxWindow* child : menu->GetChildren())
+                if (auto* row = dynamic_cast<HeaderButton*>(child))
+                    rows.push_back(row->GetLabel());
+        return rows;
+    }
+
+    // The overflow menu's name row reads the project's name, as autosave keeps it.
+    static wxString overflow_project_name()
+    {
+        const wxString name = wxString::FromUTF8(installed_shell()->autosave()->project_name());
+        return name.empty() ? _L("Untitled") : name;
+    }
+
+    // Tab on the Prepare canvas, as OrcaSlicer's key handler raises it.
+    void press_tab_on_prepare_canvas()
+    {
+        SimpleEvent tab(EVT_GLCANVAS_TAB);
+        m_plater->get_view3D_canvas3D()->get_wxglcanvas()->GetEventHandler()->ProcessEvent(tab);
+    }
+
     void verify_header_overflow()
     {
-        installed_shell()->status_row()->show_overflow_menu();
+        ShellController* shell = installed_shell();
+        LeftPane*        pane  = shell->left_pane();
+        const wxString   name  = overflow_project_name();
+        shell->status_row()->show_overflow_menu();
         HeaderMenu* menu = visible_header_menu();
-        check(menu != nullptr && wxWindow::FindWindowByName(_L("Recent projects…"), menu) != nullptr &&
-                  wxWindow::FindWindowByName(_L("Version history…"), menu) == nullptr &&
-                  wxWindow::FindWindowByName(_L("Export project 3MF…"), menu) == nullptr &&
-                  wxWindow::FindWindowByName(_L("Project details"), menu) == nullptr,
-              "header_overflow_keeps_recent_projects_and_hands_project_entries_to_the_pane");
-        if (menu != nullptr)
-            menu->close();
-        // Edit Project Info, on the Project tab, is how OrcaSlicer's own editor opens.
-        LeftPane* pane = installed_shell()->left_pane();
-        pane->show_project();
-        pane->snapshot();
-        check(pane->press_action(_L("Edit Project Info")), "left_pane_edit_project_info_pressed");
-        verify_project_details_open();
+        const std::vector<wxString> expected{name, _L("Version history"), _L("Export project 3MF…"), _L("Preferences…"),
+                                             _L("Switch to classic view…")};
+        check(header_menu_rows(menu) == expected, "header_overflow_has_the_project_group_then_the_app_group");
+        check(menu != nullptr && wxWindow::FindWindowByName(_L("Recent projects…"), menu) == nullptr &&
+                  wxWindow::FindWindowByName(_L("Back to Prepare"), menu) == nullptr,
+              "header_overflow_drops_recent_projects_and_back_to_prepare");
+        auto* name_row = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(name, menu)) : nullptr;
+        // The tooltip's summary joins the same two parts with a dash.
+        check(name_row != nullptr && name_row->IsEnabled() && name_row->decoration().bold &&
+                  name_row->decoration().trailing == HeaderIcon::Right && !name_row->decoration().detail.empty() &&
+                  shell->status_row()->project_summary() ==
+                      name + wxString::FromUTF8(" \xE2\x80\x94 ") + name_row->decoration().detail,
+              "header_overflow_name_row_shows_name_and_save_state");
+        auto* preferences = menu ? dynamic_cast<HeaderButton*>(wxWindow::FindWindowByName(_L("Preferences…"), menu)) : nullptr;
+#ifdef __APPLE__
+        const wxString shortcut = wxString::FromUTF8("\xE2\x8C\x98,");
+#else
+        const wxString shortcut = "Ctrl+,";
+#endif
+        check(preferences != nullptr && preferences->decoration().detail == shortcut, "header_overflow_preferences_shows_shortcut");
+
+        // Tab on the canvas leaves Prepare where it is under the header.
+        press_tab_on_prepare_canvas();
+        check(m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->is_view3D_shown(),
+              "prepare_canvas_tab_stays_on_prepare");
+
+        // The name row opens the Project tab, showing the pane first.
+        shell->set_left_pane_collapsed(true);
+        pane->show_plates();
+        choose_header_item(name, [self = shared_from_this(), shell, pane] {
+            self->wait_until([shell, pane] {
+                    return !shell->is_left_pane_collapsed() && pane->IsShown() &&
+                           pane->navigation().tab() == PaneTab::Project && pane->navigation().view() == ProjectView::Root;
+                }, "header_overflow_name_row_opens_project_tab", [self, shell, pane] {
+                    shell->status_row()->show_overflow_menu();
+                    self->choose_header_item(_L("Version history"), [self, pane] {
+                        self->wait_until([pane] {
+                                return pane->navigation().tab() == PaneTab::Project &&
+                                       pane->navigation().view() == ProjectView::Versions;
+                            }, "header_overflow_version_history_opens_versions", [self, pane] {
+                                // Edit Project Info, on the Project tab, is how OrcaSlicer's own editor opens.
+                                pane->show_project();
+                                pane->snapshot();
+                                self->check(pane->press_action(_L("Edit Project Info")), "left_pane_edit_project_info_pressed");
+                                self->verify_project_details_open();
+                            });
+                    });
+                });
+        });
     }
 
     void verify_project_details_open()
@@ -10064,6 +10147,12 @@ private:
             return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         };
         const auto on_prepare = [this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor; };
+        // OrcaSlicer's File > Recent files, as it persists the list.
+        const auto recent = [] { return wxGetApp().app_config->get_recent_projects(); };
+        const auto is_cube = [&cube](const std::string& path) {
+            return fs::exists(into_path(wxString::FromUTF8(path))) &&
+                   fs::equivalent(into_path(wxString::FromUTF8(path)), fs::path(cube));
+        };
 
         check(wxGetApp().app_config->get_bool("single_instance"), "file_opening_single_instance");
         check(wxGetApp().app_config->get(SETTING_PROJECT_LOAD_BEHAVIOUR) == OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL,
@@ -10081,11 +10170,16 @@ private:
         check(id() != first && objects() == 1 && on_prepare() && m_plater->get_project_name() == "20mmbox-LF",
               "file_opening_os_open_makes_new_project");
         const std::string from_os = id();
+        const auto after_os_open = recent();
+        check(!after_os_open.empty() && is_cube(after_os_open.front()) &&
+                  std::count_if(after_os_open.begin(), after_os_open.end(), is_cube) == 1,
+              "file_opening_os_open_lists_the_model_in_recent_files");
 
         // Dropped on the Prepare canvas, through the drop target installed on it.
         auto* target = dynamic_cast<wxFileDropTarget*>(m_plater->GetDropTarget());
         check(target != nullptr && target->OnDropFiles(0, 0, cube_files) && id() == from_os && objects() == 2,
               "file_opening_canvas_drop_adds");
+        check(recent() == after_os_open, "file_opening_canvas_drop_leaves_recent_files_alone");
 
         // Home's Open…: Cancel leaves Home as it is; a chosen file opens.
         m_frame->select_tab(size_t(MainFrame::tpHome));
@@ -10104,6 +10198,11 @@ private:
         home.open_dropped_files({Home::DroppedFile{"dropped cube.stl", read(cube)}});
         check(id() != before_drop && objects() == 1 && on_prepare() && m_plater->get_project_name() == "dropped cube",
               "file_opening_home_drop_makes_new_project");
+        // What Home keeps of a dropped file is a temporary copy.
+        const auto after_home_drop = recent();
+        check(std::none_of(after_home_drop.begin(), after_home_drop.end(),
+                           [](const std::string& path) { return path.find("JusPrin-dropped") != std::string::npos; }),
+              "file_opening_home_drop_stays_out_of_recent_files");
 
         // A .3mf opened before, opened again from the OS on a full plate:
         // the reopen question, not a silent cancel.
@@ -10155,6 +10254,16 @@ private:
         m_frame->select_tab(size_t(MainFrame::tpHome));
         home.open_dropped_files({Home::DroppedFile{"opened.3mf", read(source.string())}});
         check(prompts == after_first_drop + 1, "file_opening_home_3mf_drop_again_asks_reopen");
+
+        // The model file chosen from File > Recent files: OrcaSlicer's
+        // open_recent_project hands it to load_project, and it opens as it
+        // does from the OS, in a new project without the reopen question.
+        const std::string before_recent = id();
+        const int         prompts_before_recent = prompts;
+        m_plater->load_project(wxString::FromUTF8(cube));
+        check(id() != before_recent && prompts == prompts_before_recent && objects() == 1 && on_prepare() &&
+                  m_plater->get_project_name() == "20mmbox-LF",
+              "file_opening_recent_model_opens_like_the_os");
         shell->set_reimport_confirmation({});
 
         // + Add model sits under the plate list, directly above + Add plate,
@@ -11622,6 +11731,12 @@ private:
                     self->check(self->m_plater->is_sidebar_available(), "sidebar_available_restored");
                     self->check(!self->m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(),
                                 "prepare_legacy_overlays_restored");
+                    // Classic view gets OrcaSlicer's Tab back: Prepare to Preview.
+                    // The page changes at once; the Plater shows its Preview panel later.
+                    self->press_tab_on_prepare_canvas();
+                    self->check(self->m_notebook->GetSelection() == MainFrame::tpPreview,
+                                "classic_prepare_canvas_tab_switches_to_preview");
+                    self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
                     self->m_frame->Layout();
                     self->check(self->m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
                                 "stock_canvas_usable_after_restore");
@@ -11738,6 +11853,9 @@ private:
         check(!m_plater->is_sidebar_available(), when + "_sidebar_unavailable");
         check(m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(), when + "_prepare_legacy_overlays_hidden");
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        press_tab_on_prepare_canvas();
+        check(m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->is_view3D_shown(),
+              when + "_prepare_canvas_tab_stays_on_prepare");
         m_frame->Layout();
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, when + "_canvas_usable");
 #ifdef __APPLE__

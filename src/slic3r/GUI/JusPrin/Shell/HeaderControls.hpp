@@ -240,6 +240,9 @@ public:
     // alone would leave the anchor painting its open state.
     void close();
 
+    // The window name of a hairline between groups of rows.
+    static wxString separator_name() { return "Menu separator"; }
+
 protected:
     void OnDismiss() override;
 

@@ -36,8 +36,11 @@ namespace Slic3r::GUI::JusPrin {
 class HeaderButton;
 class PrinterFilamentChip;
 
+// The overflow menu's rows for this project, each a place in the Project tab.
+enum class ProjectMenuRow { Project, VersionHistory, Export };
+
 // Home navigation, a centered setup selector, and right-aligned print actions.
-// Project identity and physical-print count live in the overflow menu. It
+// Project identity and save state lead the overflow menu. It
 // renders authoritative Orca state and drives the same event paths as the
 // stock controls; it owns no project state of its own.
 class StatusRow : public wxPanel
@@ -65,7 +68,6 @@ public:
     void toggle_agent_pane();
     void show_action_menu();
     void show_overflow_menu();
-    void show_recent_projects(std::size_t offset = 0);
 
     // Chip entry points, shared by the controls and the native harness, so a
     // filament change can be driven without a pointer.
@@ -91,8 +93,15 @@ public:
     void set_left_pane_toggle(std::function<void()> toggle);
     void set_left_pane_available(bool available);
     void set_left_pane_collapsed(bool collapsed);
+    // What the overflow menu's project rows open. Supplied by ShellController,
+    // which owns the Plates and Project pane; until then the rows are disabled.
+    void set_project_rows(std::function<void(ProjectMenuRow)> open) { m_project_rows = std::move(open); }
 
 private:
+    wxString project_name() const;
+    // The save-state word the name row shows, or empty for an unchanged
+    // project that autosave does not manage.
+    wxString save_state() const;
     void refresh_chip();
     void layout_header();
     std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> print_target_identity() const;
@@ -118,6 +127,7 @@ private:
     std::function<void(const wxString&, const wxString&)> m_note_sink;
     std::function<void()>                                 m_agent_pane_toggle;
     std::function<void()>                                 m_left_pane_toggle_callback;
+    std::function<void(ProjectMenuRow)>                   m_project_rows;
 
     ProjectStateSubscription         m_project_state_subscription;
     bool                     m_dark{false};

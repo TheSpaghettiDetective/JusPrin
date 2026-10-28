@@ -61,12 +61,6 @@ wxString preferences_shortcut()
 // is not a spacing step either, so it is written once here.
 constexpr int kHeaderHeightDip = 56;
 
-void show_project_error(wxWindow* parent, const wxString& title, const wxString& message, const std::string& detail)
-{
-    BOOST_LOG_TRIVIAL(error) << std::string(title.ToUTF8()) << ": " << detail;
-    wxMessageBox(message, title, wxOK | wxICON_ERROR, parent);
-}
-
 } // namespace
 
 StatusRow::StatusRow(wxWindow*                  parent,
@@ -363,21 +357,29 @@ void StatusRow::layout_header()
     m_chip->SetSize(left+(available-width)/2,(height-chip.y)/2,width,chip.y);
 }
 
+wxString StatusRow::project_name() const
+{
+    const wxString name = m_autosave != nullptr ? wxString::FromUTF8(m_autosave->project_name())
+                                                : m_plater.get_project_name();
+    return name.empty() ? _L("Untitled") : name;
+}
+
+wxString StatusRow::save_state() const
+{
+    if (m_autosave == nullptr)
+        return m_plater.is_project_dirty() ? _L("Unsaved changes") : wxString();
+    switch (m_autosave->state()) {
+    case Workspace::ProjectAutosave::State::Saving: return _L("Saving…");
+    case Workspace::ProjectAutosave::State::Saved: return _L("Saved");
+    case Workspace::ProjectAutosave::State::Failed: return _L("Couldn't save");
+    }
+    throw std::logic_error("Unknown autosave state");
+}
+
 wxString StatusRow::project_summary() const
 {
-    wxString name = m_autosave != nullptr ? wxString::FromUTF8(m_autosave->project_name())
-                                          : m_plater.get_project_name();
-    if (name.empty()) name = _L("Untitled");
-    if (m_autosave != nullptr) {
-        switch (m_autosave->state()) {
-        case Workspace::ProjectAutosave::State::Saving: name += em_dash() + _L("Saving…"); break;
-        case Workspace::ProjectAutosave::State::Saved: name += em_dash() + _L("Saved"); break;
-        case Workspace::ProjectAutosave::State::Failed: name += em_dash() + _L("Couldn't save"); break;
-        }
-    } else if (m_plater.is_project_dirty()) {
-        name += em_dash() + _L("Unsaved changes");
-    }
-    return name;
+    const wxString state = save_state();
+    return state.empty() ? project_name() : project_name() + em_dash() + state;
 }
 
 void StatusRow::request_home()
@@ -487,12 +489,21 @@ void StatusRow::on_filament_visit(const FilamentMenu::Visit& visit)
 
 void StatusRow::show_overflow_menu()
 {
+    // Two groups, this project and then the app, with the way out last. The
+    // project rows are the Project tab's own, which the pane carries out.
+    const bool project_rows = static_cast<bool>(m_project_rows);
+    const auto open_project = [this](ProjectMenuRow row) { return [this, row] { m_project_rows(row); }; };
+    HeaderMenuItem project;
+    project.label               = project_name();
+    project.enabled             = project_rows;
+    project.invoke              = open_project(ProjectMenuRow::Project);
+    project.decoration.bold     = true;
+    project.decoration.trailing = HeaderIcon::Right;
+    project.decoration.detail   = save_state();
     std::vector<HeaderMenuItem> menu{
-        {project_summary().BeforeFirst('\n'),HeaderIcon::None,{},false,false,{}},
-        // Version history, export, details and the print count live in the
-        // Project tab of the Plates / Project pane.
-        {_L("Recent projects…"),HeaderIcon::None,{},m_autosave != nullptr,true,[this] { show_recent_projects(); }},
-        {_L("Back to Prepare"),HeaderIcon::Back,{},true,false,[this] { request_prepare(); }},
+        std::move(project),
+        {_L("Version history"),HeaderIcon::None,{},project_rows,false,open_project(ProjectMenuRow::VersionHistory)},
+        {_L("Export project 3MF…"),HeaderIcon::None,{},project_rows,false,open_project(ProjectMenuRow::Export)},
         // OrcaSlicer's open_preferences(), which the shell answers with
         // JusPrin's own window.
         {_L("Preferences…"),HeaderIcon::None,preferences_shortcut(),true,true,[] { wxGetApp().open_preferences(); }},
@@ -509,48 +520,6 @@ void StatusRow::show_overflow_menu()
     if (m_autosave != nullptr && !m_autosave->warning().empty())
         menu.insert(menu.begin() + 1, {_L("Some older project data couldn't be removed."),HeaderIcon::None,{},false,false,{}});
     (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_overflow_button);
-}
-
-void StatusRow::show_recent_projects(std::size_t offset)
-{
-    if (m_autosave == nullptr)
-        return;
-    try {
-        if (!m_autosave->save_now())
-            throw std::runtime_error(m_autosave->error());
-        const auto listed = m_autosave->projects();
-        if (!listed) {
-            show_project_error(this, _L("Couldn't load projects"), _L("Projects couldn't be loaded. Try again."),
-                               "the projects folder could not be read");
-            return;
-        }
-        const auto& projects = *listed;
-        std::vector<HeaderMenuItem> menu{
-            {_L("Projects"),HeaderIcon::None,{},false,false,{}},
-            {_L("Back"),HeaderIcon::Back,{},true,false,[this] { show_overflow_menu(); }}
-        };
-        const std::size_t end = std::min(projects.size(), offset + 8);
-        for (std::size_t index = offset; index < end; ++index) {
-            const auto& project = projects[index];
-            wxString label = project.name.empty() || project.name == wxString(_L("Untitled")) ?
-                _L("Untitled project") : wxString::FromUTF8(project.name);
-            label += "  " + wxString::FromUTF8(project.updated_at);
-            if (project.id == m_persistence.document().project_id())
-                label += _L(" (current)");
-            menu.push_back({label,HeaderIcon::None,{},true,false,[this, id = project.id] {
-                if (!m_autosave->open_managed_project(id))
-                    show_project_error(this, _L("Couldn't open project"),
-                                       _L("The project couldn't be opened. Try again."), m_autosave->error());
-                refresh();
-            }});
-        }
-        if (end < projects.size())
-            menu.push_back({_L("Older projects…"),HeaderIcon::None,{},true,false,[this, end] { show_recent_projects(end); }});
-        (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_overflow_button);
-    } catch (const std::exception& error) {
-        show_project_error(this, _L("Couldn't load projects"),
-                           _L("Projects couldn't be loaded. Try again."), error.what());
-    }
 }
 
 void StatusRow::request_action(PrintAction action)

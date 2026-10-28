@@ -15,6 +15,7 @@
 #include <wx/arrstr.h>
 #include <wx/weakref.h>
 
+#include <filesystem>
 #include <functional>
 #include <map>
 
@@ -24,6 +25,10 @@ class MainFrame;
 namespace Slic3r::GUI::JusPrin::Workspace { class ProjectAutosave; }
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
+
+// Where a file dropped on Home is kept: a temporary copy, since the page
+// gives the file's bytes and not its path.
+std::filesystem::path dropped_files_folder();
 
 class OrcaHomeBackend final : public IHomeBackend
 {

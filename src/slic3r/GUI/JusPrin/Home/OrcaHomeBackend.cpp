@@ -444,6 +444,11 @@ void OrcaHomeBackend::open_file()
         open_as_new_project(files);
 }
 
+std::filesystem::path dropped_files_folder()
+{
+    return std::filesystem::temp_directory_path() / "JusPrin-dropped";
+}
+
 void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
 {
     // The page gives a dropped file's bytes but not its path. Each is kept
@@ -456,7 +461,7 @@ void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
             const std::filesystem::path name = std::filesystem::u8path(file.name).filename();
             if (name.empty() || name == "." || name == "..")
                 continue;
-            const std::filesystem::path root     = std::filesystem::temp_directory_path() / "JusPrin-dropped";
+            const std::filesystem::path root     = dropped_files_folder();
             const std::filesystem::path incoming = root / boost::filesystem::unique_path().string() / name;
             std::filesystem::create_directories(incoming.parent_path());
             std::ofstream(incoming, std::ios::binary).write(file.bytes.data(), std::streamsize(file.bytes.size()));
