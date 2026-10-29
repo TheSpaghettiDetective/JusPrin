@@ -3,11 +3,13 @@
   "checkpoint_id": "01M64W271CMHNQZ9F9P22TERMH",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
+    "tests/agent/project_chat_tools.hpp",
     "tests/agent/test_agent_bridge.cpp",
     "tests/agent/test_agent_setup.cpp",
     "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_cloud_account.cpp",
     "tests/agent/test_mcp_bridge.cpp",
     "tests/agent/test_mcp_discovery.cpp",
     "tests/agent/test_mcp_runtime.cpp",
@@ -34,6 +36,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {

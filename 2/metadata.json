@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M64W271CMHNQZ9F9P22TERMH",
+  "session_id": "d94f0f8e-ee7f-48f1-be8f-2607a68372bd",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-29T22:21:46.576378Z",
+  "branch": "claude/assertion-fixes",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "tests/agent/project_chat_tools.hpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_agent_setup.cpp",
+    "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_cloud_account.cpp",
+    "tests/agent/test_mcp_bridge.cpp",
+    "tests/agent/test_mcp_discovery.cpp",
+    "tests/agent/test_mcp_runtime.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_primary_print_action.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_project_state.cpp",
+    "tests/agent/test_provider_agent.cpp",
+    "tests/agent/test_provider_live.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/agent/test_v1_import.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "2d3cfa23ba09",
+  "checkpoint_transcript_start": 2227,
+  "transcript_lines_at_start": 2227,
+  "compact_transcript_start": 259,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-29T22:21:46.337439Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 555,
+    "human_modified": 416,
+    "human_removed": 0,
+    "total_committed": 555,
+    "total_lines_changed": 971,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
