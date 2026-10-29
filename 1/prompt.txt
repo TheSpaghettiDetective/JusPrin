@@ -1,0 +1,25 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an in-app AI agent and a local MCP server (`src/slic3r/GUI/JusPrin/Mcp/`), plus a stdio bridge binary (`jusprin-mcp`, `Mcp/Bridge/`) that external clients like Claude Code launch; the bridge finds the running app through a discovery file and forwards calls over loopback HTTP. Because these tests hang, two sessions so far have excluded them ("~MCP bridge*" or "~[mcp]") to get full-suite counts, which hides whatever is wrong. Project test rule (agent-docs/jusprin/engineering-method.md): record pre-existing failures by exact name and failure mode, rerun in isolation, and treat repeatable failures as regressions until disproved. Shared-Mac build rules: check `uptime` and `pgrep -fl ninja`, one build per build dir, `-- -j4`, Release config, configure with `/Applications/CMake.app/Contents/bin/cmake` first on PATH (see the `jusprin-worktree-build` memory), absolute build-dir paths, kill your own ninja before ending a turn.
+
+Task:
+The 7 "MCP bridge ..." cases in `tests/agent/test_mcp_bridge.cpp` (target `agent_bridge_tests`) fail on this Mac, then hang forever in the test `Harness` destructor. Found 2026-10-28/29 on local `jusprin-newui` 953eddb355, with and without the Bash sandbox, with no other test process running.
+
+Already established with temporary instrumentation (all reverted):
+- The app side starts fine: `McpRuntime` writes a valid discovery file (`url` `http://127.0.0.1:<port>/mcp`), and `Mcp::read_discovery` reads it back OK.
+- The bridge's liveness probe (`route()` in `src/slic3r/GUI/JusPrin/Mcp/Bridge/Bridge.cpp`, a `server/discover` sent through `HttpExchange`) fails with "The local MCP request timed out." The bridge then answers `workspace_unavailable` ("Open JusPrin and a project…"). `route()`'s failure callback discards that reason.
+- Raising the test's probe timeout from 200 ms to 2000 ms does not help, so the request never completes; it is not slow. `McpServer` answers `server/discover` on its own io thread, so it does not wait on the test's polling.
+- Plain loopback HTTP between processes works on this Mac (python http.server + curl: 3 ms). The `test_mcp_runtime.cpp` cases, which talk to the same server through the test client, pass. Active network extension: IPVanish WireGuard; the LuLu and Cisco socket filters are installed but not enabled.
+
+Next: find where the bridge's request stops (does `async_connect` complete; does `McpServer` accept it and read the request; does it reply), for example with `nettop`/`lsof` or logging in `HttpExchange.cpp` and `McpServer.cpp`. Compare against how `tests/agent/mcp_test_client.hpp` connects, since that works. Also find why a failed case hangs in `~Harness` instead of failing. Check `git log` for when these tests last passed. Fix the cause (bridge, server or harness). Done: the 7 cases pass several times in random order, the full binary finishes, and one commit states cause, fix and test counts. Reproduce before fixing (project rule).
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_b36c90ea-ddca-4ce3-ad0d-3fe4b39cfef5
+
+---
+
+<task-notification>
+<task-id>btsylfuqw</task-id>
+<tool-use-id>toolu_01G6U12t1JQwU579JQYJWGXN</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-dreamy-ramanujan-fcaede/6377af0c-4e76-4aae-8267-e12810a2040a/tasks/btsylfuqw.output</output-file>
+<status>completed</status>
+<summary>Background command "B=/Users/kenneth/Projects/JusPrin/.claude/worktrees/dreamy-ramanujan-fcaede/build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-dreamy-ramanujan-fcaede/6377af0c-4e76-4aae-8267-e12810a2040a/scratchpad; for i in 1 2; do start=$(date +%s); timeout 900 $B --order rand --warn NoAssertions &gt; $S/full$i.log 2&gt;&amp;1; echo "run $i exit $? in $(( $(date +%s)-start ))s"; grep -E "seeded" $S/full$i.log; tail -3 $S/full$i.log; done" completed (exit code 0)</summary>
+</task-notification>
