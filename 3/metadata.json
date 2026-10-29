@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64W2VSDJKCN9AMN7C3FH474",
   "session_id": "d94f0f8e-ee7f-48f1-be8f-2607a68372bd",
   "strategy": "manual-commit",
-  "created_at": "2026-10-29T22:22:07.734837Z",
+  "created_at": "2026-10-29T22:22:32.077716Z",
   "branch": "claude/assertion-fixes",
   "checkpoints_count": 4,
   "files_touched": [
@@ -19,17 +19,17 @@
   "transcript_lines_at_start": 2227,
   "compact_transcript_start": 259,
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 6,
+    "cache_creation_tokens": 3457,
+    "cache_read_tokens": 975116,
+    "output_tokens": 1180,
+    "api_call_count": 3
   },
   "session_metrics": {
     "turn_count": 4
   },
   "initial_attribution": {
-    "calculated_at": "2026-10-29T22:22:06.55217Z",
+    "calculated_at": "2026-10-29T22:22:31.815329Z",
     "agent_lines": 0,
     "agent_removed": 0,
     "human_added": 202,
