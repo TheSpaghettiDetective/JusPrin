@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M63VVM005NGDZVRJF70D3GN1",
+  "session_id": "6083c73e-2ec8-46d3-890b-e75708e800b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-29T12:58:48.103761Z",
+  "branch": "claude/dreamy-ramanujan-fcaede",
+  "checkpoints_count": 8,
+  "save_step_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Mcp/Bridge/CMakeLists.txt"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "c7407079aaeb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1680,
+    "cache_creation_tokens": 331168,
+    "cache_read_tokens": 8898797,
+    "output_tokens": 48965,
+    "api_call_count": 60,
+    "subagent_tokens": {
+      "input_tokens": 10,
+      "cache_creation_tokens": 93305,
+      "cache_read_tokens": 317378,
+      "output_tokens": 2237,
+      "api_call_count": 5
+    }
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-29T12:58:47.951986Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 4,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 4,
+    "total_lines_changed": 5,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

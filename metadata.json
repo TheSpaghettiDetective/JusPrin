@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M63VVM005NGDZVRJF70D3GN1",
+  "strategy": "manual-commit",
+  "branch": "claude/dreamy-ramanujan-fcaede",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Mcp/Bridge/CMakeLists.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1680,
+    "cache_creation_tokens": 331168,
+    "cache_read_tokens": 8898797,
+    "output_tokens": 48965,
+    "api_call_count": 60,
+    "subagent_tokens": {
+      "input_tokens": 10,
+      "cache_creation_tokens": 93305,
+      "cache_read_tokens": 317378,
+      "output_tokens": 2237,
+      "api_call_count": 5
+    }
+  }
+}
