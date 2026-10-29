@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M64ZGTTVBEV1MH664ZEBQAVX",
+  "session_id": "6083c73e-2ec8-46d3-890b-e75708e800b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-29T23:22:09.712912Z",
+  "branch": "claude/chat-history-cache",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "06928800dc31",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 5212,
+    "cache_creation_tokens": 939826,
+    "cache_read_tokens": 34377271,
+    "output_tokens": 189336,
+    "api_call_count": 191
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
