@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64W2VSDJKCN9AMN7C3FH474",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 3,
+  "checkpoints_count": 7,
   "files_touched": [
     "tests/shell/check_print_scenario.inc",
     "tests/shell/print_issue_readers_scenario.inc",
@@ -31,6 +31,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
