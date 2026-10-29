@@ -1233,6 +1233,7 @@ private:
         }
         m_plater = plater;
 
+        verify_projects_folder_before_first_save();
         verify_selection_tail_redo();
         // The canvas initializes GL while loading the first model. Selection
         // is built from its volumes, so without usable GL (on Windows: no Mesa
@@ -1415,6 +1416,29 @@ private:
         selection.setup_cache();
         selection.translate(Vec3d(3.0, 0.0, 0.0), TransformationType::World);
         m_plater->canvas3D()->do_move("JusPrin integration move");
+    }
+
+    // The projects folder is made by the first saved version. Until then a new
+    // data folder has none, which is no projects rather than a folder that
+    // could not be read. A file where the folder belongs still cannot be read.
+    void verify_projects_folder_before_first_save()
+    {
+        auto* shell = Slic3r::GUI::JusPrin::installed_shell();
+        auto* autosave = shell ? shell->autosave() : nullptr;
+        check(autosave != nullptr, "first_run_autosave_available");
+        if (autosave == nullptr)
+            return;
+        const auto root = std::filesystem::path(data_dir()) / "jusprin" / "projects";
+        check(!std::filesystem::exists(root), "first_run_has_no_projects_folder");
+        const auto projects = autosave->projects();
+        check(projects && projects->empty(), "first_run_lists_no_projects");
+        const auto matches = autosave->projects_for_source(std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl");
+        check(matches && matches->empty(), "first_run_source_matches_no_projects");
+
+        std::filesystem::create_directories(root.parent_path());
+        std::ofstream(root, std::ios::binary) << "not a folder";
+        check(!autosave->projects(), "projects_file_instead_of_folder_is_unreadable");
+        std::filesystem::remove(root);
     }
 
     void verify_selection_tail_redo()
