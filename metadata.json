@@ -3,8 +3,23 @@
   "checkpoint_id": "01M64W2H8K5PTP95XACQACQGG2",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/jusprin/test_fake_bambu_agent.cpp",
+    "tests/jusprin/test_home_host.cpp",
+    "tests/jusprin/test_home_snapshot.cpp",
+    "tests/jusprin/test_host_lanes.cpp",
+    "tests/jusprin/test_host_locale.cpp",
+    "tests/jusprin/test_installed_models.cpp",
+    "tests/jusprin/test_notice_kinds.cpp",
+    "tests/jusprin/test_preferences_settings.cpp",
+    "tests/jusprin/test_print_issues.cpp",
+    "tests/jusprin/test_setup_options.cpp",
+    "tests/jusprin/test_shell_theme.cpp",
+    "tests/jusprin/test_slice_result_warnings.cpp",
+    "tests/jusprin/test_update_check.cpp",
+    "tests/jusprin/test_viewport_tool_strip.cpp"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -12,6 +27,13 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
