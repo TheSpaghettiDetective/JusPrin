@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6339K0DZZVSBAMAJ2MSQBHP",
   "strategy": "manual-commit",
   "branch": "claude/cache-invariant-test-51dab5",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
     "tests/agent/test_agent_bridge.cpp"
   ],
@@ -21,14 +21,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 298,
-    "cache_creation_tokens": 415945,
-    "cache_read_tokens": 32038095,
-    "output_tokens": 132837,
-    "api_call_count": 150,
+    "input_tokens": 410,
+    "cache_creation_tokens": 635491,
+    "cache_read_tokens": 42099170,
+    "output_tokens": 185675,
+    "api_call_count": 206,
     "subagent_tokens": {
       "input_tokens": 520,
       "cache_creation_tokens": 604850,
