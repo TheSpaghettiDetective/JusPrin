@@ -153,7 +153,9 @@ std::optional<std::vector<std::filesystem::path>> project_folders(const std::fil
 {
     std::vector<std::filesystem::path> folders;
     std::error_code error;
-    if (!std::filesystem::is_directory(root, error) && !error)
+    // exists() clears the error for a path that is not there; is_directory()
+    // reports it as an error.
+    if (!std::filesystem::exists(root, error) && !error)
         return folders;
     std::filesystem::directory_iterator it(root, error);
     for (const std::filesystem::directory_iterator end; !error && it != end; it.increment(error))
