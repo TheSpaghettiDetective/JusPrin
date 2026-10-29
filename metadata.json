@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64YKY71RBPG03MCF2ZHJ4HK",
   "strategy": "manual-commit",
   "branch": "claude/cache-live-check",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 370,
-    "cache_creation_tokens": 460870,
-    "cache_read_tokens": 37328478,
-    "output_tokens": 117373,
-    "api_call_count": 185
+    "input_tokens": 928,
+    "cache_creation_tokens": 1155324,
+    "cache_read_tokens": 103686311,
+    "output_tokens": 297167,
+    "api_call_count": 464
   }
 }
