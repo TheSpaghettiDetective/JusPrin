@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64VZGYWBRQQFXVFBNHW5SWR",
   "strategy": "manual-commit",
   "branch": "claude/cache-request-log-trim",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "tests/agent/test_agent_bridge.cpp",
     "tests/jusprin_support/RequestLog.hpp",
@@ -33,14 +33,21 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 1732,
-    "cache_creation_tokens": 1728957,
-    "cache_read_tokens": 95340664,
-    "output_tokens": 431745,
-    "api_call_count": 416,
+    "input_tokens": 1824,
+    "cache_creation_tokens": 1854930,
+    "cache_read_tokens": 102413967,
+    "output_tokens": 462942,
+    "api_call_count": 462,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,
