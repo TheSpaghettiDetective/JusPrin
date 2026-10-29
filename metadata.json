@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64W78PHYTWCQ4DZ3B00ZY09",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/project_prompt/README.md",
     "tests/project_prompt/requests.json",
@@ -26,13 +26,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 16,
+    "cache_creation_tokens": 8992,
+    "cache_read_tokens": 2650497,
+    "output_tokens": 6381,
+    "api_call_count": 8
   }
 }
