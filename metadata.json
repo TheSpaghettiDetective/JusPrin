@@ -3,8 +3,23 @@
   "checkpoint_id": "01M64W271CMHNQZ9F9P22TERMH",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_agent_setup.cpp",
+    "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_mcp_bridge.cpp",
+    "tests/agent/test_mcp_discovery.cpp",
+    "tests/agent/test_mcp_runtime.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_primary_print_action.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_project_state.cpp",
+    "tests/agent/test_provider_agent.cpp",
+    "tests/agent/test_provider_live.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/agent/test_v1_import.cpp"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -12,6 +27,13 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
