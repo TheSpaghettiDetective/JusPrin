@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M64JZYVM151VH3CKWQWRK0AT",
+  "strategy": "manual-commit",
+  "branch": "claude/cache-harness-m4-d222dd",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 52327,
+    "cache_read_tokens": 7149577,
+    "output_tokens": 23523,
+    "api_call_count": 29
+  }
+}
