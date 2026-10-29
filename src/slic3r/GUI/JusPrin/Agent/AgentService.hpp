@@ -98,6 +98,9 @@ struct AgentRequest
     enum class Purpose { Reply, ConversationTitle };
     Purpose                              purpose{Purpose::Reply};
     std::string                           request_id;
+    // The same on every request of one chat and different for every other
+    // chat: what a provider routes its prompt cache by. Empty for a title.
+    std::string                           chat_key;
     std::string                           user_text;
     std::string                           issue_context; // see AgentConversationContext
     int                                   attempt{1};

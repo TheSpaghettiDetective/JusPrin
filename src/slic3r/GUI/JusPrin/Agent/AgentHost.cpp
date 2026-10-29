@@ -2762,6 +2762,7 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     // a cached response for a different native operation.
     request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
                          std::to_string(assistant.attempt);
+    request.chat_key   = document.project_id() + "/" + conversation_id;
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();

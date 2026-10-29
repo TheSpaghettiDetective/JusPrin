@@ -516,6 +516,27 @@ TEST_CASE("every gateway request names its turn and its kind, with the token as 
     }
 }
 
+TEST_CASE("every gateway reply names its chat with 32 hex digits from the project and chat ids", "[agent][account]")
+{
+    const auto chat_header = [](const std::string& chat_key) {
+        std::vector<AgentHttpRequest>             requests;
+        std::vector<IAgentHttpTransport::EventFn> callbacks;
+        AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
+        AgentRequest                              request;
+        request.request_id = "turn";
+        request.chat_key   = chat_key;
+        request.user_text  = "hello";
+        REQUIRE(agent->start(request));
+        REQUIRE(requests.size() == 1);
+        return requests[0].header("X-JusPrin-Chat");
+    };
+    // SHA-256 of the chat key, cut to the 32 lowercase hex digits the gateway accepts.
+    CHECK(chat_header("p-1a2b/c-1") == "b60594c00cde61a698a870d314554e00");
+    CHECK(chat_header("p-1a2b/c-2") == "64891e5e480ad01d66c439d2c3d52ce4");
+    // Titles carry no chat key, and so no chat.
+    CHECK(chat_header("").empty());
+}
+
 TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][account]")
 {
     const auto failure = [](unsigned status) {
