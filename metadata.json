@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6339K0DZZVSBAMAJ2MSQBHP",
+  "strategy": "manual-commit",
+  "branch": "claude/cache-invariant-test-51dab5",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 224,
+    "cache_creation_tokens": 297516,
+    "cache_read_tokens": 26973603,
+    "output_tokens": 106355,
+    "api_call_count": 113,
+    "subagent_tokens": {
+      "input_tokens": 520,
+      "cache_creation_tokens": 604850,
+      "cache_read_tokens": 33243319,
+      "output_tokens": 105228,
+      "api_call_count": 259
+    }
+  }
+}
