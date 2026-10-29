@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M64W43G007QF97JJ0TSYQ0RN",
+  "session_id": "4ad17a7d-f822-412f-884f-b596a3aee489",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-29T22:22:40.862188Z",
+  "branch": "claude/assertion-fixes",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "44480fbf06e9",
+  "checkpoint_transcript_start": 664,
+  "transcript_lines_at_start": 664,
+  "compact_transcript_start": 85,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
