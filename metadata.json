@@ -3,7 +3,7 @@
   "checkpoint_id": "01M64W2H8K5PTP95XACQACQGG2",
   "strategy": "manual-commit",
   "branch": "claude/assertion-fixes",
-  "checkpoints_count": 2,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/jusprin/test_fake_bambu_agent.cpp",
     "tests/jusprin/test_home_host.cpp",
@@ -34,6 +34,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
