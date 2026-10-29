@@ -109,6 +109,8 @@ struct TurnTranscript
 {
     std::string                           request_id;
     unsigned                              request_sequence{0};
+    std::string                           chat_key; // see AgentRequest
+
     std::string                           instructions;
     std::vector<OfferedTool>              tools;
     // The earlier conversation, as the host replays it.

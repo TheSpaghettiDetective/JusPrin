@@ -1,4 +1,5 @@
 #include "ProviderAgent.hpp"
+#include "ManufacturingHistory.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "ToolRegistry.hpp"
 #include "ToolResults.hpp"
@@ -216,6 +217,7 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
 {
     m_transcript = TurnTranscript{};
     m_transcript.request_id   = request.request_id;
+    m_transcript.chat_key     = request.chat_key;
     m_transcript.instructions = request.session.instructions;
     m_transcript.opening      = request.conversation;
     if (request.purpose == AgentRequest::Purpose::ConversationTitle)
@@ -332,6 +334,10 @@ bool ProviderAgent::post()
     if (m_config.profile.account_sign_in) {
         request.headers.push_back({"X-JusPrin-Turn", m_transcript.request_id});
         request.headers.push_back({"X-JusPrin-Request", m_kind == RequestKind::ConversationTitle ? "title" : "reply"});
+        // The gateway keeps each chat whole, named by this. A copied project
+        // gets a new project id, so its chats get new names too.
+        if (!m_transcript.chat_key.empty())
+            request.headers.push_back({"X-JusPrin-Chat", sha256_hex(m_transcript.chat_key).substr(0, 32)});
     }
     request.body = built.body.dump();
     const std::uint64_t generation = ++m_http_generation;

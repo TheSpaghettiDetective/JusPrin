@@ -47,7 +47,8 @@ struct ProviderProfile
     // (X-JusPrin-Turn) and says whether it is a title (X-JusPrin-Request),
     // because the gateway charges the account once per turn and never for a
     // title; a refusal means the sign-in has ended, and 402 means the
-    // account's allowance is used up.
+    // account's allowance is used up. A reply also names its chat
+    // (X-JusPrin-Chat), so the gateway can keep the chat whole.
     bool           account_sign_in{false};
 };
 
