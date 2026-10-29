@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M62J8E72AKA973FAP5K3PH0C",
+  "strategy": "manual-commit",
+  "branch": "claude/projects-folder-first-run",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 176,
+    "cache_creation_tokens": 154324,
+    "cache_read_tokens": 11754043,
+    "output_tokens": 37284,
+    "api_call_count": 79
+  }
+}

@@ -1,0 +1,15 @@
+<task-notification>
+<task-id>bxdwa2013</task-id>
+<summary>Monitor event: "compile or link errors in the pmf build"</summary>
+<event>[Monitor expired after 30m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was unexpected.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>breh21hvq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\df7f33dc-108a-4761-86d4-cbe23eed925e\tasks\breh21hvq.output</output-file>
+<status>completed</status>
+<summary>Background command "Build web bundles, app, harness and tests" completed (exit code 0)</summary>
+</task-notification>
