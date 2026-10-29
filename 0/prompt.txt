@@ -1,0 +1,58 @@
+Background (from the session that started this one):
+JusPrin (OrcaSlicer fork, C++17, wxWidgets) has an in-app Agent that sends the whole chat to a model provider (Anthropic Messages or OpenAI Responses) on every call. Kenneth (the owner) is running a measured programme to make the history byte-stable so provider prompt caches hit. The working plan is the untracked `chat-history-cache-plan.md` in the main checkout `/Users/kenneth/Projects/JusPrin` (read it; `chat-history-measurement.md` next to it has the numbers; never commit either). Your worktree is cut from the integration branch `claude/chat-history-cache` at `0807d77282`, which now carries: the file-load reminder deleted from the history; the 16 KiB result cut and 64 KiB trim deleted; `object_import` offered on every turn; a per-chat `prompt_cache_key` on OpenAI; and a shell-harness flag `--request-log DIR` (header-only `tests/jusprin_support/RequestLog.hpp`) that writes every request body byte-exact with its response usage, plus `tests/project_prompt/prefix_check.py`. The prompt-test tooling is in `tests/project_prompt/` (`run_prompt_tests.py`, `script.json`, `requests.json`, README) and the recorder lives in `tests/shell/project_prompt_scenario.inc`, driven by the shell harness `tests/shell/shell_harness.cpp` with `--project-prompt-requests tests/project_prompt/script.json tests/project_prompt/requests.json` (see README line ~156). The three-chat Anthropic "journey" mode (`--plan-journey`) that produced the Opus baseline exists only as an uncommitted diff to `tests/shell/shell_harness.cpp` in the worktree `/Users/kenneth/Projects/JusPrin/.claude/worktrees/opus-cost-batch` (read it with `git -C that-dir diff -- tests/shell/shell_harness.cpp`); the same worktree's diffs to `src/` are a prototype that must NOT be ported. Its `opus-batch/` folder has the batch scripts (`start.sh`, `cost.py`, `show.py`) and the Opus baseline logs in `out-baseline/`. Spend rule: Kenneth approves paid model calls per batch. Approved for you (decision D6): exactly one OpenAI run of the three-chat journeys on `gpt-5.4-mini`. Nothing else live: not the prompt-case set, not Anthropic, not a second run. Commit on your branch only, no push, no merge, never stage submodules, no attribution lines, temp notes untracked in the worktree root. Shared Mac build rules: check `uptime` and `pgrep -fl ninja` first, pass `-- -j4`, one build per build directory, never restart a running build to change targets, run long builds with nohup in their own process group and watch the log, and never end your turn to "wait for the build": block in the tool call. Build recipe for a fresh worktree: `/Applications/CMake.app/Contents/bin/cmake -B <abs>/build/arm64 -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_PREFIX_PATH="/Users/kenneth/Projects/JusPrin/deps/build/arm64/OrcaSlicer_dep/usr/local;/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local" -DSLIC3R_GUI=ON -DSLIC3R_STATIC=ON -DSLIC3R_PCH=ON -DBUILD_TESTS=ON -DCMAKE_AR=/opt/homebrew/opt/llvm/bin/llvm-ar -DCMAKE_RANLIB=/opt/homebrew/opt/llvm/bin/llvm-ranlib`; the harness needs the web bundles too (`--target jusprin_web jusprin_catalogs`, node at `/Users/kenneth/.nvm/versions/node/v24.13.0/bin`) and `shell_integration_harness`; always pass the build dir as an absolute path. Run the harness with an isolated `--datadir`; never drive another JusPrin instance. A sibling session works on `src/slic3r/GUI/JusPrin/Agent/` at the same time; stay in `tests/`.
+
+Task:
+Four pieces, in this order, each its own commit.
+
+1. Fix the scripted `direct` scenario, which already fails on the integration branch. A scripted (no model) run of `--project-prompt-requests` on the `direct` conversation of `script.json` reports `direct-change_ends_with_print-issues FAIL` and `direct-change_sent_once_0 FAIL` (the checks are around line 650 of `tests/shell/project_prompt_scenario.inc`; the point is at line ~795 of `script.json`, which expects the `direct-change` request to carry the print-issues skill). Find out with evidence (`git log`, bisect between `jusprin-newui` commits and this branch if needed) whether the skill stopped firing because of a deliberate change (then the script's expectation is stale and the script changes) or by accident (then the code is wrong; report it, do not fix Agent sources yourself, since another session owns them). State which in the commit message.
+
+2. Re-record `tests/project_prompt/requests.json` on this branch. The recorded body of `file-note-not-instructions` still opens with the deleted reminder, so the injection eval would test the old request. Before and after, diff the recording with the known run-to-run noise normalised (timestamps, `view_render` PNG bytes, temp paths) and list every other body that changed and why; the expected changes are the reminder gone, `object_import` present in every tool list, and any effect of step 1. Keep `baseline.json` untouched. Also run the recorder once with `--request-log` and once without and confirm `requests.json` is byte-identical either way.
+
+3. Port the three-chat journey mode from the `opus-cost-batch` worktree's uncommitted harness diff onto this branch so it runs with an OpenAI agent as well as an Anthropic one, and wrap its transport and agent with `RequestLog` the way `install_harness_agent` does, so `--request-log` works in that mode. Commit the harness change; do not port anything from that worktree's `src/` diff. No live call yet in this step: prove the mode with the scripted provider or a fake.
+
+4. Run the approved baseline: one run of the three-chat journeys on OpenAI `gpt-5.4-mini` with `--request-log`, using the same chats the Opus baseline used (`opus-batch/out-baseline/` shows them). Store the logs and the request-log directory under an untracked folder in the worktree root (`m4-openai-baseline/`). Report per chat and in total: requests, input tokens, cached input tokens, output tokens, the cost from OpenAI's published gpt-5.4-mini prices (name the price you used and where you read it), and `prefix_check.py`'s verdict on every consecutive pair (how many are clean appends, and for the others the first differing JSON path). Keep the API key out of every file and every message.
+
+Done means: four commits on your branch; the agent suite still passes; an untracked `harness-m4-report.md` in the worktree root with the step 1 finding and evidence, the step 2 diff summary, how the journey mode was verified, the M4 numbers, and anything you could not verify.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_34d95bfb-fc90-47e6-94ab-adc3d3711d01
+
+---
+
+<task-notification>
+<task-id>bbv003s9z</task-id>
+<tool-use-id>toolu_01LGMzLxDdtRciDWwawiUioN</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-cache-harness-m4-d222dd/7ea32865-0dcf-4ffc-9976-f8c18385219f/tasks/bbv003s9z.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-cache-harness-m4-d222dd/7ea32865-0dcf-4ffc-9976-f8c18385219f/scratchpad; cd $S &amp;&amp; python3 - &lt;&lt;'EOF'
+p='compare_recordings.py'
+s=open(p).read()
+s=s.replace('''PNG = re.compile(''','''PROJECT = re.compile(r"p-[0-9a-f]{16}-[0-9a-f]{16}")
+PNG = re.compile(''')
+s=s.replace('''    return PNG.sub("&lt;PNG&gt;", TMP.sub("&lt;TMP&gt;", TS.sub("&lt;TS&gt;", text)))''','''    return PROJECT.sub("&lt;PROJECT&gt;", PNG.sub("&lt;PNG&gt;", TMP.sub("&lt;TMP&gt;", TS.sub("&lt;TS&gt;", text))))''')
+s=s.replace('''        text = norm_text(value)
+        if text[:1] in "{[":''','''        text = norm_text(value)
+        for tag in ("&lt;workspace&gt;\\n", "&lt;print_issue&gt;\\n"):
+            if text.startswith(tag) and text.rstrip().endswith(tag.replace("&lt;", "&lt;/").strip()):
+                inner = text[len(tag):text.rstrip().rindex("&lt;/")]
+                try:
+                    return {tag.strip(): norm(json.loads(inner))}
+                except ValueError:
+                    pass
+        if text[:1] in "{[":''')
+s=s.replace('''    print(f"\\nunchanged cases: {same}")''','''    print(f"\\nunchanged cases: {same}")
+    if "--keys" in sys.argv:
+        from collections import Counter
+        keys = Counter()
+        where = {}
+        for name in sorted(set(oc) &amp; set(nc)):
+            for path, a, b in diffs(norm(oc[name]), norm(nc[name])):
+                key = re.sub(r"\\[\\d+\\]", "[]", path)
+                keys[key] += 1
+                where.setdefault(key, set()).add(name)
+        for key, count in keys.most_common():
+            print(f"{count:6d} {len(where[key]):3d} cases  {key}")''')
+open(p,'w').write(s)
+EOF
+P=$(cat $S/rec3/pid); while kill -0 $P 2&gt;/dev/null; do sleep 5; done; tail -1 $S/rec3/harness.log; grep "HARNESS RESULT" $S/rec3/harness.log
+python3 -I compare_recordings.py rec1/requests.json rec2/requests.json | tail -2; python3 -I compare_recordings.py rec1/requests.json rec3/requests.json | tail -2" completed (exit code 0)</summary>
+</task-notification>
