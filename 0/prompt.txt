@@ -1,0 +1,83 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent chat. Checkout: `/Users/kenneth/Projects/JusPrin`, branch `jusprin-newui`, tip `b5860ea59b` ("Send every Agent chat from an append-only record, so provider caches hit"), already pushed. That commit changed what the model reads in every chat: the conversation history is now kept as an append-only record and resent byte-identically each turn (so provider prompt caches hit), skills stay where they first fired instead of moving to the end, and app notes go in the operator role. Unit tests (485 Catch2 cases), the scripted prompt suite, request-byte prefix checks and a live cache measurement all passed. What has NOT run is the live prompt regression suite, which sends each test case to a real model and compares with the stored baseline. Kenneth (the owner) has now approved exactly this batch: one full run of the project prompt suite at its default three runs per case. No other live-model calls are approved; a `403 Key limit exceeded` means stop. Kenneth reads reports cold and dislikes project jargon: plain English, name things by what they do, give costs in tokens and dollars.
+
+Task:
+Run the live project prompt regression suite once on the current `jusprin-newui` checkout and report whether the merged code changed model behaviour.
+
+How:
+1. Read `tests/project_prompt/README.md`, in particular the sections on running the suite (`run_prompt_tests.py`), the baseline (`baseline.json`, DeepSeek V4 Flash with the OpenAI judge), `--results FILE`, and the rule that a run is judged against the baseline case by case with no fixed thresholds. The live key lives in `~/.config/jusprin/prompt-test.env` (read how the README says to use it; never print or copy the key anywhere). Check first whether the runner needs a built app or only the recorded `requests.json` and `script.json` in `tests/project_prompt/`; if it needs a build, say so and stop rather than starting one without checking `uptime` and `pgrep -fl ninja` first (shared machine; one build at a time, `-- -j4`).
+2. Run the full suite once with its default three runs per case, with the same model, host and judge as the baseline so the comparison is valid. Save the run with `--results` to an untracked file in the checkout root, e.g. `live-prompt-run-2026-10-29.json`. Do not commit anything, do not edit `baseline.json`, do not add anything to `.gitignore` or `.git/info/exclude`. Run the suite in the background with nohup and its own log file, then wait on it inside the tool (poll the saved PID with `kill -0`); never end a turn to "wait".
+3. Compare with the baseline case by case. Read every failing and unobserved run's transcript. For each case that moved, say what the model did differently and whether it plausibly comes from the history being sent in a different order (the merged change) or looks like ordinary run-to-run noise. Only for a case that looks like a genuine regression, re-run that one case against the previous prompt the same day; otherwise do not spend more.
+4. Report usage totals from the responses (requests, input tokens, cached input tokens, output tokens, judge calls) and an estimated dollar cost.
+
+Done looks like: an untracked plain-English report `live-prompt-run-2026-10-29.md` in the checkout root with the comparison table, the per-case reading of every miss, the usage totals, and a one-paragraph verdict ("nothing looks like a regression" or which cases do and why). Do not promote the run to the new baseline; Kenneth decides that after reading the report. The printer prompt suite (`tests/printer_prompt`) is not part of this approved batch; say in the report whether it should also be run and roughly what it would cost. Leave no processes running and delete any harness data dirs you created (only your own).
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_34d95bfb-fc90-47e6-94ab-adc3d3711d01
+
+---
+
+test result in plain eng under 100 words
+
+---
+
+also check how you can run live prompt testing using claude subscription
+
+---
+
+Run full suite
+
+---
+
+<cross-session-message from="local_fc6316cd-2ef9-4ccd-9f4a-f97565ad1e33" from-name="Live prompt suite on the merged chat-record code">
+Kenneth approved rewriting the print-this-no-purpose prompt test around outcomes, and asked me (a fork of your session) to pass it to you; do not restore setup_record's required purpose.
+
+Kenneth's position: a required field is the wrong way to make the agent ask. Always asking before helping is too restrictive, and a tool parameter should not be used to force a conversation. So drop the earlier suggestion of putting "ask them first" back in setup_record's description too. When to ask belongs in the prompt, which already says "Ask when the answer is theirs". The 0 of 3 is a behaviour change the test has not caught up with, not an established regression; correct that wording in live-prompt-run-2026-10-29.md.
+
+Changes in tests/project_prompt:
+
+1. Rewrite print-this-no-purpose (plain 20 mm cube, "I want to print this"):
+- Pass: asks what it is for; or setup_record with a plan and no purpose, followed by a next step that tells the person what it chose or asks how to go on.
+- Fail: setup_record with an invented purpose; a settings, preset or other change nobody asked for; a plan followed by nothing useful to the person.
+
+2. Let the case see the step after a plan-only setup_record. Today a change ends the run. Answer that one call with a real recorded result, and stop right after the model's next step. Keep the suite's rule against stand-in results for changes (the 2026-10-10 failure): it needs a new recording in script.json and requests.json, not an invented answer. Update the README's step rules and test_steps.py.
+
+3. Add a contrasting case where the purpose changes the setup, for example a wall hook where a coat and a 5 kg backpack could need different settings, on "I want to print this". Pass only if the agent asks what it will hold before settling on a setup. This shows whether the prompt's sentence works without the field's help. It needs a fixture model and a recording; the model must not be named so that it gives the purpose away.
+
+Open point: I told Kenneth the plan-then-tell row was my recommendation for the plain cube, and noted he might prefer the card to stay empty. He replied "if it sounds good, make your recommended changes", so go with pass, but mention this in your report so he can overrule it.
+
+Live runs: Kenneth has not approved any specific new batch. Use the subscription backend for these cases and confirm with him before anything paid. Do not record a baseline; adding cases and rewriting one means a baseline update that is his to confirm.
+</cross-session-message>
+
+---
+
+Yes, commit
+
+---
+
+check the commits another 2 agents did, and tell me if the live prompt suite task is all done
+
+---
+
+Ask the questions that you need answered from me in the way that humans can understand.
+
+---
+
+Yes, if it asks after
+
+---
+
+Yes, count it
+
+---
+
+<task-notification>
+<task-id>bicttcgro</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/88323da0-ebe9-45ce-82c2-39e5316e7234/tasks/bicttcgro.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the full suite run to finish and show its end" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Yes, record it
