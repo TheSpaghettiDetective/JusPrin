@@ -1,0 +1,1 @@
+Do we have enough data to know how much more each chat will cost on average when cache is disabled?
