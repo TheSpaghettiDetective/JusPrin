@@ -25,3 +25,29 @@ also check how you can run live prompt testing using claude subscription
 ---
 
 Run full suite
+
+---
+
+<cross-session-message from="local_fc6316cd-2ef9-4ccd-9f4a-f97565ad1e33" from-name="Live prompt suite on the merged chat-record code">
+Kenneth approved rewriting the print-this-no-purpose prompt test around outcomes, and asked me (a fork of your session) to pass it to you; do not restore setup_record's required purpose.
+
+Kenneth's position: a required field is the wrong way to make the agent ask. Always asking before helping is too restrictive, and a tool parameter should not be used to force a conversation. So drop the earlier suggestion of putting "ask them first" back in setup_record's description too. When to ask belongs in the prompt, which already says "Ask when the answer is theirs". The 0 of 3 is a behaviour change the test has not caught up with, not an established regression; correct that wording in live-prompt-run-2026-10-29.md.
+
+Changes in tests/project_prompt:
+
+1. Rewrite print-this-no-purpose (plain 20 mm cube, "I want to print this"):
+- Pass: asks what it is for; or setup_record with a plan and no purpose, followed by a next step that tells the person what it chose or asks how to go on.
+- Fail: setup_record with an invented purpose; a settings, preset or other change nobody asked for; a plan followed by nothing useful to the person.
+
+2. Let the case see the step after a plan-only setup_record. Today a change ends the run. Answer that one call with a real recorded result, and stop right after the model's next step. Keep the suite's rule against stand-in results for changes (the 2026-10-10 failure): it needs a new recording in script.json and requests.json, not an invented answer. Update the README's step rules and test_steps.py.
+
+3. Add a contrasting case where the purpose changes the setup, for example a wall hook where a coat and a 5 kg backpack could need different settings, on "I want to print this". Pass only if the agent asks what it will hold before settling on a setup. This shows whether the prompt's sentence works without the field's help. It needs a fixture model and a recording; the model must not be named so that it gives the purpose away.
+
+Open point: I told Kenneth the plan-then-tell row was my recommendation for the plain cube, and noted he might prefer the card to stay empty. He replied "if it sounds good, make your recommended changes", so go with pass, but mention this in your report so he can overrule it.
+
+Live runs: Kenneth has not approved any specific new batch. Use the subscription backend for these cases and confirm with him before anything paid. Do not record a baseline; adding cases and rewriting one means a baseline update that is his to confirm.
+</cross-session-message>
+
+---
+
+Yes, commit
