@@ -4,6 +4,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ModelCatalog.hpp"
@@ -151,13 +152,14 @@ TEST_CASE("signing in sends the browser to the authorize page with PKCE and a lo
     REQUIRE(f.machine.authorizations.size() == 1);
     const CloudAuthorization& sent = f.machine.authorizations.front();
     CHECK(sent.client_id == "JusPrin2");
+    const std::string port = std::to_string(kCloudCallbackPort);
     CHECK(sent.port == kCloudCallbackPort);
-    CHECK(sent.redirect_uri == "http://127.0.0.1:41172/callback");
+    CHECK(sent.redirect_uri == "http://127.0.0.1:" + port + "/callback");
     CHECK(sent.token_url == "https://jusprin.test/o/token/");
     CHECK(sent.code_verifier == "the-verifier");
     CHECK(sent.state == "the-state");
     CHECK_THAT(sent.authorize_url, ContainsSubstring("https://jusprin.test/o/authorize/?response_type=code&client_id=JusPrin2"));
-    CHECK_THAT(sent.authorize_url, ContainsSubstring("redirect_uri=http%3A%2F%2F127.0.0.1%3A41172%2Fcallback"));
+    CHECK_THAT(sent.authorize_url, ContainsSubstring("redirect_uri=http%3A%2F%2F127.0.0.1%3A" + port + "%2Fcallback"));
     CHECK_THAT(sent.authorize_url, ContainsSubstring("scope=read%20write"));
     CHECK_THAT(sent.authorize_url, ContainsSubstring("code_challenge=the-challenge&code_challenge_method=S256"));
     // The verifier never travels in the browser.
@@ -408,12 +410,17 @@ TEST_CASE("an account model's format decides its family and endpoint", "[agent][
     CHECK(row.id == "jusprin");
     CHECK(row.model == "slicer-1");
 
+    // With no endpoint given, the row's own, its last segment swapped (the
+    // gateway's domain is the row's to decide).
+    const std::string gateway = row.endpoint.substr(0, row.endpoint.rfind('/'));
     const std::optional<ProviderProfile> anthropic = account_profile(row, {}, kFormatAnthropic);
     REQUIRE(anthropic.has_value());
     CHECK(anthropic->family == ProviderFamily::Anthropic);
-    CHECK(anthropic->endpoint == "https://app.obico.io/ent/jusprin/v2/messages");
+    CHECK(anthropic->endpoint == gateway + "/messages");
     CHECK(anthropic->auth == AuthStyle::Bearer);
-    CHECK(anthropic->max_tokens == 64000);
+    // The Messages API requires max_tokens; the row carries it.
+    CHECK(anthropic->max_tokens == row.max_tokens);
+    CHECK(anthropic->max_tokens > 0u);
 
     const std::optional<ProviderProfile> responses = account_profile(row, "http://localhost:3334/ent/jusprin/v2/responses", kFormatResponses);
     REQUIRE(responses.has_value());
@@ -427,7 +434,7 @@ TEST_CASE("an account model's format decides its family and endpoint", "[agent][
 TEST_CASE("the account's model list is read as the gateway writes it", "[agent][account][models]")
 {
     const ProviderProfile& row = account_provider();
-    CHECK(model_list_url(row, {}) == "https://app.obico.io/ent/jusprin/v2/models");
+    CHECK(model_list_url(row, {}) == row.endpoint.substr(0, row.endpoint.rfind('/')) + "/models");
     const json response = json::parse(R"({"data": [
         {"id": "slicer-1", "label": "Slicer 1", "format": "anthropic", "efforts": ["fast", "thorough"], "default_effort": "fast"},
         {"id": "slicer-x", "label": "Slicer X", "format": "responses"}]})");
@@ -503,6 +510,7 @@ TEST_CASE("every gateway request names its turn and its kind, with the token as 
             std::vector<IAgentHttpTransport::EventFn> callbacks;
             AgentServicePtr                           agent = account_agent(format, requests, callbacks);
             AgentRequest                              request;
+            JusPrinTest::kept_nowhere(request);
             request.request_id   = "project-chat-reply-attempt-1";
             request.user_text    = "hello";
             REQUIRE(agent->start(request));
@@ -523,6 +531,7 @@ TEST_CASE("every gateway reply names its chat with 32 hex digits from the projec
         std::vector<IAgentHttpTransport::EventFn> callbacks;
         AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
         AgentRequest                              request;
+        JusPrinTest::kept_nowhere(request);
         request.request_id = "turn";
         request.chat_key   = chat_key;
         request.user_text  = "hello";
@@ -544,6 +553,7 @@ TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][
         std::vector<IAgentHttpTransport::EventFn> callbacks;
         AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
         AgentRequest                              request;
+        JusPrinTest::kept_nowhere(request);
         request.request_id   = "turn";
         request.user_text    = "hello";
         REQUIRE(agent->start(request));

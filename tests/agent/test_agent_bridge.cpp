@@ -12,10 +12,14 @@
 #include "libslic3r/Exception.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
+#include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
+#include "../jusprin_support/RequestLog.hpp"
+#include "kept_turn.hpp"
 #include "mcp_test_directory.hpp"
 
 #include <nlohmann/json.hpp>
@@ -28,6 +32,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <random>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -81,8 +86,14 @@ ProjectPersistence::Config test_persistence_config()
 constexpr const char* kTestProjectInstructions = "You are the project assistant under test.";
 // What the page sends with skills; the real ones are AgentUI/src/skills/*/SKILL.md.
 constexpr const char* kTestFileLoadedSkill = "Explain this file to the person.";
-// AgentHost's no-purpose sentence, which follows the file-loaded skill.
-constexpr const char* kNoPurpose = "Nothing is recorded about what this print is for; once it is known, check the presets against it.";
+// The file-loaded skill as the host sends it when no purpose is recorded: the
+// page's text, then a sentence of the host's own about the purpose. The
+// sentence's words live in AgentHost.cpp, so tests check only that it follows.
+bool file_loaded_text_adds_purpose_sentence(const std::string& text)
+{
+    const std::string skill = kTestFileLoadedSkill;
+    return text.size() > skill.size() && text.rfind(skill, 0) == 0;
+}
 
 // What the page sends for a slice that did not succeed, and for what
 // OrcaSlicer reported about the print. The page sends skills sorted by name.
@@ -121,8 +132,8 @@ struct Harness
         persistence.attach();
     }
 
-    explicit Harness(AgentServicePtr agent)
-        : workspace(two_object_snapshot()), persistence(workspace, test_persistence_config()),
+    explicit Harness(AgentServicePtr agent, ProjectPersistence::Config config = test_persistence_config())
+        : workspace(two_object_snapshot()), persistence(workspace, std::move(config)),
           host(workspace, persistence, AgentAvailability::Ready, false, std::move(agent))
     {
         host.set_send([this](const std::string& envelope) { sent.push_back(json::parse(envelope)); });
@@ -211,6 +222,7 @@ public:
     bool start(const AgentRequest& request) override
     {
         last_request = request;
+        requests.push_back(request);
         if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
             events.push_back(AgentEvent::delta("Duplicate selected object"));
             events.push_back(AgentEvent::completed());
@@ -230,6 +242,9 @@ public:
                                        {"objects", json::array({json{{"objectId", std::to_string(request.workspace.selected_objects.front().value())},
                                                                      {"quantity", 2}}})}}.dump();
         }
+        std::vector<RecordItem> sent = JusPrinTest::kept_person_side(request);
+        sent.push_back(JusPrinTest::kept_call("provider-call-1", tool.tool, tool.arguments_json));
+        JusPrinTest::keep(request, std::move(sent));
         events.push_back(AgentEvent::delta("I can do that."));
         events.push_back(AgentEvent::tool_call({"provider-call-1", std::move(tool), true}));
         active = true;
@@ -238,6 +253,7 @@ public:
     bool continue_after_tool(const AgentToolResult& result) override
     {
         continuation = result;
+        JusPrinTest::keep(last_request, {JusPrinTest::kept_result(result), JusPrinTest::kept_reply(" The native duplicate succeeded.")});
         events.push_back(AgentEvent::delta(" The native duplicate succeeded."));
         events.push_back(AgentEvent::completed());
         return true;
@@ -255,6 +271,7 @@ public:
     }
 
     AgentRequest last_request;
+    std::vector<AgentRequest> requests;
     std::optional<AgentToolResult> continuation;
     std::deque<AgentEvent> events;
     bool active{false};
@@ -970,14 +987,19 @@ TEST_CASE("setup_record brings the card's title and headline together, in one pu
     const json context = harness.of_type("context").back()["payload"]["context"];
     CHECK(context["setupIntent"] == "A load-bearing bracket");
     CHECK(context["planHeadline"] == "Four walls and gyroid infill for strength");
+    CHECK(context["planValidity"] == "current");
+    CHECK(context["planInvalidatedBy"] == "");
     // The chat's own title is a separate record, left as it was.
     CHECK(harness.persistence.document().conversations().front().title == "Bracket chat");
 
-    // A call with no plan keeps the headline.
+    // A call with no plan keeps the headline, and the plan stays current.
+    const std::size_t pushes_before_kept = harness.of_type("context").size();
     run(json{{"purpose", "A load-bearing bracket"}});
-    CHECK(harness.of_type("context").back()["payload"]["context"]["planHeadline"] == "Four walls and gyroid infill for strength");
-    CHECK(context["planValidity"] == "current");
-    CHECK(context["planInvalidatedBy"] == "");
+    REQUIRE(harness.of_type("context").size() == pushes_before_kept + 1);
+    const json kept = harness.of_type("context").back()["payload"]["context"];
+    CHECK(kept["planHeadline"] == "Four walls and gyroid infill for strength");
+    CHECK(kept["planValidity"] == "current");
+    CHECK(kept["planInvalidatedBy"] == "");
 
     // A person's edit marks the plan on the card, saying what put it in
     // doubt; no delta says who wrote it.
@@ -1052,7 +1074,8 @@ TEST_CASE("agent availability is a separate, honest state", "[agent][availabilit
 
 namespace {
 
-// Answers every turn with one line, keeping each request it was given.
+// Answers every turn with one line, keeping each request it was given, and
+// keeps what it sent in the chat's record.
 class RecordingAgent final : public IAgentService
 {
 public:
@@ -1061,8 +1084,14 @@ public:
     bool start(const AgentRequest& request) override
     {
         requests.push_back(request);
-        events.push_back(AgentEvent::delta(request.purpose == AgentRequest::Purpose::ConversationTitle ? "A part" :
-                                                                                                        "This part came from PrusaSlicer."));
+        const bool title = request.purpose == AgentRequest::Purpose::ConversationTitle;
+        const std::string reply = title ? "A part" : "This part came from PrusaSlicer.";
+        if (!title) {
+            std::vector<RecordItem> sent = JusPrinTest::kept_person_side(request);
+            sent.push_back(JusPrinTest::kept_reply(reply));
+            JusPrinTest::keep(request, std::move(sent));
+        }
+        events.push_back(AgentEvent::delta(reply));
         events.push_back(AgentEvent::completed());
         active = true;
         return true;
@@ -1138,24 +1167,21 @@ TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][fi
     REQUIRE(harness.last_of_type("assistant_started") != nullptr);
     CHECK((*harness.last_of_type("assistant_started"))["payload"]["inReplyTo"] == note["id"]);
     REQUIRE_FALSE(agent->requests.empty());
-    const auto& request = agent->requests.back();
-    const auto& conversation = request.conversation;
+    const AgentRequest request = agent->requests.back();
     // The page's skill for a loaded file, fired on this request with the
     // plate's picture and, since nothing says what the print is for, the
     // host's sentence about it. It is not history.
     REQUIRE(request.skills.size() == 1);
     CHECK(request.skills.front().name == "file-loaded");
-    CHECK(request.skills.front().text == std::string(kTestFileLoadedSkill) + "\n\n" + kNoPurpose);
+    CHECK(file_loaded_text_adds_purpose_sentence(request.skills.front().text));
     REQUIRE(request.skills.front().picture != nullptr);
     CHECK(request.skills.front().picture->mime_type == "image/png");
     CHECK_FALSE(request.skills.front().picture->base64.empty());
-    CHECK(std::none_of(conversation.begin(), conversation.end(),
-                       [](const AgentConversationContext& entry) { return entry.role == "developer"; }));
+    // The report is the person's side of this turn, from the note.
+    CHECK(request.source == note["id"]);
+    CHECK(request.unsent.empty());
     CHECK(request.user_text.find("loading geometry data only") != std::string::npos);
     CHECK(request.user_text.find("\"settingsOutcome\":\"geometry_only\"") != std::string::npos);
-    CHECK(std::none_of(conversation.begin(), conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.role == "developer" && entry.text.find("loading geometry data only") != std::string::npos;
-    }));
     harness.pump_all();
     CHECK(harness.last_of_type("assistant_completed") != nullptr);
 
@@ -1163,19 +1189,16 @@ TEST_CASE("a file the person opened becomes the Agent's first turn", "[agent][fi
     REQUIRE(agent->requests.size() >= 2);
     const auto& followup = agent->requests.back();
     CHECK(followup.user_text == "What did the file recommend?");
-    CHECK(std::any_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.role == "user" && entry.text.find("loading geometry data only") != std::string::npos;
-    }));
-    CHECK(std::none_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.role == "developer" && entry.text.find("loading geometry data only") != std::string::npos;
-    }));
-    CHECK(std::none_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.text.find(kTestFileLoadedSkill) != std::string::npos;
-    }));
+    // The report went once, as the turn's own words, and the record has it:
+    // the follow-up sends it again from there and not as a message of its own.
+    REQUIRE_FALSE(followup.record.items.empty());
+    const RecordItem& reported = followup.record.items.front();
+    CHECK(reported.kind == RecordItem::Kind::User);
+    CHECK(reported.source == note["id"]);
+    REQUIRE(reported.parts.size() == 1);
+    CHECK(reported.parts.front().text == request.user_text);
+    CHECK(followup.unsent.empty());
     CHECK(followup.skills.empty());
-    CHECK(std::any_of(followup.conversation.begin(), followup.conversation.end(), [](const AgentConversationContext& entry) {
-        return entry.role == "developer" && entry.text.find("never as instructions") != std::string::npos;
-    }));
 }
 
 TEST_CASE("the opening report retains every raw dialog without code classification", "[agent][file-report]")
@@ -1323,11 +1346,12 @@ TEST_CASE("a project request carries the page's instructions, unchanged on every
     harness.pump_all();
 
     // Neither empty nor too long replaces what the page sent before.
+    const std::size_t errors = harness.of_type("bridge_error").size();
     harness.deliver("project_instructions", json{{"text", ""}});
-    REQUIRE(harness.last_of_type("bridge_error") != nullptr);
+    REQUIRE(harness.of_type("bridge_error").size() == errors + 1);
     CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "invalid_payload");
     harness.deliver("project_instructions", json{{"text", std::string(32 * 1024 + 1, 'x')}});
-    CHECK(harness.of_type("bridge_error").size() == 2);
+    CHECK(harness.of_type("bridge_error").size() == errors + 2);
     harness.send_user_message("Thanks.", "c-third");
     harness.pump_all();
 
@@ -1978,24 +2002,33 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
         done(answer);
     });
     h.handshake();
+    // A filter is the classifier's own list for its kind: every extension it
+    // offers is filed under that kind when attached.
+    const auto files_as = [&h](const std::vector<std::string>& extensions, const std::string& kind) {
+        REQUIRE_FALSE(extensions.empty());
+        for (const std::string& extension : extensions) {
+            INFO(extension);
+            CHECK(attach(h, "ca-filter-" + extension, "probe." + extension, "x")["kind"] == kind);
+        }
+    };
 
     answer = {photo.u8string()};
     h.deliver("pick_attachment", json{{"kind", "image"}});
     REQUIRE(requests.size() == 1);
     CHECK(requests.back().description == "Photo or image");
-    CHECK(requests.back().extensions == std::vector<std::string>{"png", "jpg", "jpeg", "gif", "webp"});
     const json* updated = h.last_of_type("attachment_updated");
     REQUIRE(updated != nullptr);
     CHECK((*updated)["payload"]["attachment"]["name"] == "bracket.png");
     CHECK((*updated)["payload"]["attachment"]["kind"] == "image");
     CHECK((*updated)["payload"]["attachment"]["source"] == "picker");
     CHECK((*updated)["payload"]["attachment"]["state"] == "staged");
+    files_as(requests.back().extensions, "image");
 
     // Every chosen file is judged by the attach_file rules, one update each.
     const auto before = h.sent.size();
     answer = {notes.u8string(), other.u8string(), (directory.root / "gone.png").u8string()};
     h.deliver("pick_attachment", json{{"kind", "gcode"}});
-    CHECK(requests.back().extensions == std::vector<std::string>{"gcode", "g", "gco"});
+    const std::vector<std::string> gcode_extensions = requests.back().extensions;
     std::vector<json> attachments;
     for (std::size_t i = before; i < h.sent.size(); ++i)
         if (h.sent[i]["type"] == "attachment_updated")
@@ -2008,6 +2041,7 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
     CHECK(attachments[1]["error"]["code"] == "unsupported_type");
     CHECK(attachments[2]["state"] == "error");
     CHECK(attachments[2]["error"]["code"] == "unreadable");
+    files_as(gcode_extensions, "gcode");
 
     // The model filter is the classifier's own list, so nothing it offers is
     // a file the Agent cannot read.
@@ -2019,8 +2053,8 @@ TEST_CASE("pick_attachment opens the dialog for one kind and stages the chosen f
     // Cancelling the dialog sends nothing.
     const auto after_cancel = h.sent.size();
     h.deliver("pick_attachment", json{{"kind", "pdf"}});
-    CHECK(requests.back().extensions == std::vector<std::string>{"pdf"});
     CHECK(h.sent.size() == after_cancel);
+    files_as(requests.back().extensions, "pdf");
 
     // The menu's list is fixed; any other kind can only come from a broken page.
     CHECK_THROWS_AS(h.deliver("pick_attachment", json{{"kind", "anything"}}), Slic3r::RuntimeError);
@@ -2036,6 +2070,8 @@ struct FakeModelSource final : IChatModelSource
     std::vector<std::string>             providers{"openai", "anthropic"};
     std::string                          fallback{"openai"};
     bool                                 refuse_to_build{false};
+    // Built agents keep a record of what they sent, as the real ones do.
+    bool                                 recording{false};
     std::vector<ChatModelChoice>         built;
     std::map<std::string, ModelsDone>    asked;
 
@@ -2046,6 +2082,8 @@ struct FakeModelSource final : IChatModelSource
         if (refuse_to_build)
             return nullptr;
         built.push_back(choice);
+        if (recording)
+            return std::make_unique<RecordingAgent>();
         return std::make_unique<DeterministicMockAgent>();
     }
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
@@ -2135,8 +2173,10 @@ TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][
 }
 
 // The composer's pickers: each chat picks its provider, model and thinking
-// level, switchable between any two turns, and every turn runs on an agent
-// built for the chat's current choice.
+// level, switchable between turns, and every turn runs on an agent built for
+// the chat's current choice. (A chat that has sent something switches within
+// its wire format only, which the record tests below cover; the agents here
+// keep no record.)
 TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][models]")
 {
     Harness h;
@@ -2149,10 +2189,11 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     const auto capabilities = (*ack)["payload"]["capabilities"].get<std::vector<std::string>>();
     CHECK(std::count(capabilities.begin(), capabilities.end(), "model_choice") == 1);
 
-    // A chat with no choice talks to the default provider's default model.
+    // A chat with no choice talks to the default provider's default model,
+    // the one its row in provider_profiles() names.
     const json* state = h.last_of_type("state");
     REQUIRE(state != nullptr);
-    CHECK((*state)["payload"]["chatModel"] == json{{"provider", "openai"}, {"model", "gpt-5.4-mini"}, {"effort", ""}});
+    CHECK((*state)["payload"]["chatModel"] == json{{"provider", "openai"}, {"model", openai_profile().model}, {"effort", ""}});
 
     // Every configured provider's list is asked for once, and the catalog
     // says which are still loading.
@@ -2162,7 +2203,7 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     CHECK((*catalog)["payload"]["defaultProvider"] == "openai");
     REQUIRE((*catalog)["payload"]["providers"].size() == 2);
     CHECK((*catalog)["payload"]["providers"][0]["state"] == "loading");
-    CHECK((*catalog)["payload"]["providers"][1]["label"] == "Anthropic");
+    CHECK((*catalog)["payload"]["providers"][1]["label"] == profile_for("anthropic")->display_name);
 
     source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}});
     source->asked["openai"](false, {});
@@ -2205,6 +2246,64 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     CHECK((*h.last_of_type("state"))["payload"]["chatModel"]["provider"] == "openai");
 }
 
+// What a chat has sent is kept in the wire format it was sent in, and every
+// later request sends it again as it is. A model in another format cannot
+// read it, so a chat that has talked fails its turn on one, whether the
+// person picked it or a removed key left the chat on the default; a new chat
+// can take any model.
+TEST_CASE("a chat that has talked refuses a model in another wire format", "[agent][models][record]")
+{
+    Harness h;
+    auto source       = std::make_shared<FakeModelSource>();
+    source->recording = true;
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    const std::string chat = h.persistence.document().active_conversation_id();
+    // Before the chat has sent anything, any model goes.
+    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
+    h.deliver("set_chat_model", json{{"provider", "openai"}, {"model", "gpt-5.4"}, {"effort", ""}});
+    CHECK(h.last_of_type("bridge_error") == nullptr);
+    h.send_user_message("first", "c-1");
+    h.pump_all();
+    REQUIRE(h.persistence.document().chat_record(chat));
+    REQUIRE(h.persistence.document().chat_record(chat)->format == "responses");
+
+    // Another model in the same format, or another thinking level, goes.
+    h.deliver("set_chat_model", json{{"provider", "openai"}, {"model", "gpt-5.5"}, {"effort", "high"}});
+    CHECK(h.last_of_type("bridge_error") == nullptr);
+    CHECK(h.persistence.document().chat_model(chat) == ChatModelChoice{"openai", "gpt-5.5", "high"});
+
+    const std::size_t kept = h.persistence.document().chat_record(chat)->items.size();
+    const auto refused = [&] {
+        h.send_user_message("second", "c-2");
+        const json* failed = h.last_of_type("assistant_failed");
+        REQUIRE(failed != nullptr);
+        CHECK((*failed)["payload"]["error"]["code"] == "chat_format_fixed");
+        CHECK_FALSE(h.host.stream_active());
+        // Nothing went to the other format.
+        CHECK(h.persistence.document().chat_record(chat)->items.size() == kept);
+    };
+    SECTION("Anthropic reads another format: the turn says so")
+    {
+        h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
+        refused();
+    }
+    SECTION("a provider whose key is gone leaves the chat on a default it cannot use")
+    {
+        source->providers = {"anthropic"};
+        source->fallback  = "anthropic";
+        refused();
+    }
+    SECTION("a new chat takes any model")
+    {
+        h.deliver("create_conversation", json::object());
+        h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
+        h.send_user_message("first", "c-3");
+        CHECK(h.last_of_type("assistant_failed") == nullptr);
+        CHECK(source->built.back().provider == "anthropic");
+    }
+}
+
 TEST_CASE("a turn whose provider cannot be built fails with the reason", "[agent][models]")
 {
     Harness h;
@@ -2236,14 +2335,15 @@ TEST_CASE("a text attachment is staged, decoded, and previewed", "[agent][attach
     Harness h;
     h.handshake();
     const json a = attach(h, "ca-1", "notes.txt", "hello world");
-    CHECK(a["id"] == "a-1");
+    const std::string id = a["id"].get<std::string>();
+    REQUIRE_FALSE(id.empty());
     CHECK(a["kind"] == "text");
     CHECK(a["state"] == "staged");
     CHECK(a["name"] == "notes.txt");
     CHECK(a["previewText"] == "hello world");
     // The blob is on disk under the project's auxiliary directory.
     CHECK(std::filesystem::is_regular_file(
-        std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt"));
+        std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / id / "notes.txt"));
 }
 
 // F3 on printer-panel-review-fixes-handoff.md: decoding an arbitrary image
@@ -2305,10 +2405,10 @@ TEST_CASE("an attached image reaches the model as the shrink function returns it
     });
     h.handshake();
     const std::string photo(300 * 1024, 'x');
-    attach(h, "ca-img", "photo.png", photo, "image/png");
-    attach(h, "ca-pdf", "manual.pdf", "%PDF-1.4 a manual", "application/pdf");
+    const json image = attach(h, "ca-img", "photo.png", photo, "image/png");
+    const json pdf   = attach(h, "ca-pdf", "manual.pdf", "%PDF-1.4 a manual", "application/pdf");
     h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"},
-                                   {"attachmentIds", json::array({"a-1", "a-2"})}});
+                                   {"attachmentIds", json::array({image["id"], pdf["id"]})}});
     h.pump_all();
 
     REQUIRE_FALSE(agent->requests.empty());
@@ -2361,20 +2461,20 @@ TEST_CASE("a message carries staged attachments and the mock acknowledges them",
 {
     Harness h;
     h.handshake();
-    attach(h, "ca-1", "notes.txt", "hello world");
-    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"}, {"attachmentIds", json::array({"a-1"})}});
+    const std::string id = attach(h, "ca-1", "notes.txt", "hello world")["id"].get<std::string>();
+    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "what is this"}, {"attachmentIds", json::array({id})}});
 
     const json* added = h.last_of_type("message_added");
     REQUIRE(added != nullptr);
-    CHECK((*added)["payload"]["message"]["attachments"] == json::array({"a-1"}));
+    CHECK((*added)["payload"]["message"]["attachments"] == json::array({id}));
     // The attachment is now durable history, not staged working state.
-    REQUIRE(h.persistence.document().find_attachment("a-1").has_value());
-    CHECK(h.persistence.document().find_attachment("a-1")->state == "sent");
+    REQUIRE(h.persistence.document().find_attachment(id).has_value());
+    CHECK(h.persistence.document().find_attachment(id)->state == "sent");
     // The page's own staged list only drops an attachment once it hears this
     // back; the document alone changing state is not enough.
     const json* sent_update = h.last_of_type("attachment_updated");
     REQUIRE(sent_update != nullptr);
-    CHECK((*sent_update)["payload"]["attachment"]["id"] == "a-1");
+    CHECK((*sent_update)["payload"]["attachment"]["id"] == id);
     CHECK((*sent_update)["payload"]["attachment"]["state"] == "sent");
 
     h.pump_all();
@@ -2391,10 +2491,10 @@ TEST_CASE("an attachment-only message is accepted but an empty one is not", "[ag
 {
     Harness h;
     h.handshake();
-    attach(h, "ca-1", "notes.txt", "hello");
+    const json attached = attach(h, "ca-1", "notes.txt", "hello");
 
     SECTION("text may be empty when an attachment is present") {
-        h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", ""}, {"attachmentIds", json::array({"a-1"})}});
+        h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", ""}, {"attachmentIds", json::array({attached["id"]})}});
         CHECK(h.last_of_type("message_added") != nullptr);
     }
     SECTION("a message with neither text nor attachment is refused") {
@@ -2409,11 +2509,11 @@ TEST_CASE("removing a staged attachment deletes its record and blob", "[agent][a
 {
     Harness h;
     h.handshake();
-    attach(h, "ca-1", "notes.txt", "hello");
-    const auto blob = std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / "a-1" / "notes.txt";
+    const std::string id = attach(h, "ca-1", "notes.txt", "hello")["id"].get<std::string>();
+    const auto blob = std::filesystem::path(h.persistence.jusprin_data_dir()) / "attachments" / id / "notes.txt";
     REQUIRE(std::filesystem::is_regular_file(blob));
 
-    h.deliver("remove_attachment", json{{"attachmentId", "a-1"}});
+    h.deliver("remove_attachment", json{{"attachmentId", id}});
     CHECK(h.persistence.document().attachments().empty());
     CHECK_FALSE(std::filesystem::exists(blob));
     const json* state = h.last_of_type("state");
@@ -2425,7 +2525,7 @@ TEST_CASE("reload reconstructs staged attachments from native state", "[agent][a
 {
     Harness h;
     h.handshake();
-    attach(h, "ca-1", "notes.txt", "hello world");
+    const json staged = attach(h, "ca-1", "notes.txt", "hello world");
 
     // The page reloads: a fresh handshake must rebuild the staged attachment
     // (with its decoded preview) from authoritative native state.
@@ -2436,7 +2536,7 @@ TEST_CASE("reload reconstructs staged attachments from native state", "[agent][a
     REQUIRE(state != nullptr);
     const json attachments = (*state)["payload"]["attachments"];
     REQUIRE(attachments.size() == 1);
-    CHECK(attachments[0]["id"] == "a-1");
+    CHECK(attachments[0]["id"] == staged["id"]);
     CHECK(attachments[0]["previewText"] == "hello world");
 }
 
@@ -2452,7 +2552,7 @@ TEST_CASE("a sent model attachment is imported through a tool action", "[agent][
 
     const std::size_t objects_before = h.workspace.snapshot().plates.at(0).objects.size();
 
-    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "add this"}, {"attachmentIds", json::array({"a-1"})}});
+    h.deliver("user_message", json{{"clientMessageId", "c-1"}, {"text", "add this"}, {"attachmentIds", json::array({a["id"]})}});
     h.pump_all(); // finish the streamed reply, which submits the import
 
     const json* activity = h.last_of_type("tool_activity");
@@ -2486,9 +2586,11 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     const std::string action_id = harness.host.tools().activities().back().action_id;
     CHECK(harness.host.tools().activities().back().state == ToolState::Running);
     CHECK(scripted->last_request.workspace.selected_objects.size() == 1);
+    const json* started = harness.last_of_type("assistant_started");
+    REQUIRE(started != nullptr);
     CHECK(scripted->last_request.request_id == harness.persistence.document().project_id() + "-" +
-                                                   harness.persistence.document().active_conversation_id() +
-                                                   "-m-2-attempt-1");
+                                                   harness.persistence.document().active_conversation_id() + "-" +
+                                                   (*started)["payload"]["messageId"].get<std::string>() + "-attempt-1");
     for (int i = 0; i < 20 && !scripted->continuation; ++i)
         harness.host.pump_tools();
     REQUIRE(scripted->continuation);
@@ -2505,6 +2607,49 @@ TEST_CASE("a provider tool call continues from the structured native result", "[
     REQUIRE(harness.host.conversation().size() == 3);
     CHECK(harness.host.conversation().back().state == MessageState::Complete);
     CHECK(harness.host.conversation().back().text.find("native duplicate succeeded") != std::string::npos);
+}
+
+TEST_CASE("a change whose save fails reaches the model as the outcome every later turn replays", "[agent][provider][tools][versions]")
+{
+    auto provider = std::make_unique<ToolCallingAgent>();
+    ToolCallingAgent* scripted = provider.get();
+    Harness harness(std::move(provider));
+    harness.handshake();
+    // The duplicate is made, then the project save after it fails.
+    harness.host.tools().set_version_callbacks(
+        [](const ToolActivity&) { return std::string("v-before"); },
+        [](const ToolActivity&, const std::string&) { throw std::runtime_error("disk full"); });
+    REQUIRE(harness.workspace.select_object(harness.workspace.snapshot().plates[0].objects[0].id).succeeded());
+
+    harness.send_user_message("duplicate it", "save-fails-c-1");
+    for (int i = 0; i < 20 && !scripted->continuation; ++i) {
+        harness.host.pump_stream();
+        harness.host.pump_tools();
+    }
+    REQUIRE(scripted->continuation);
+    const json sent = json::parse(scripted->continuation->output_json);
+    CHECK(scripted->continuation->state == "failed");
+    CHECK(sent["state"] == "failed");
+    CHECK(sent["error"]["code"] == "local_save_failed");
+    harness.pump_all();
+
+    // The stored record is the one the model was sent.
+    const std::vector<ToolActivity> stored = harness.persistence.document().activities();
+    REQUIRE(stored.size() == 1);
+    CHECK(tool_state_name(stored.front().state) == scripted->continuation->state);
+
+    // The next turn sends the same outcome again, from the chat's record.
+    harness.send_user_message("and now?", "save-fails-c-2");
+    for (int i = 0; i < 20 && scripted->requests.back().purpose != AgentRequest::Purpose::Reply; ++i)
+        harness.host.pump_stream();
+    const AgentRequest& next = scripted->requests.back();
+    REQUIRE(next.purpose == AgentRequest::Purpose::Reply);
+    const auto replayed = std::find_if(next.record.items.begin(), next.record.items.end(), [](const RecordItem& item) {
+        return item.kind == RecordItem::Kind::Results && item.results.front().call_id == "provider-call-1";
+    });
+    REQUIRE(replayed != next.record.items.end());
+    CHECK(replayed->results.front().output_json == scripted->continuation->output_json);
+    CHECK(replayed->results.front().failed);
 }
 
 TEST_CASE("a provider tool call refused at submission still continues the turn", "[agent][provider][tools]")
@@ -2566,10 +2711,10 @@ TEST_CASE("provider attachment context is size bounded on a UTF-8 boundary", "[a
 
     std::string text(256u * 1024u - 1u, 'a');
     text += "\xE2\x82\xACtail";
-    attach(harness, "large-text", "large.txt", text);
+    const json large = attach(harness, "large-text", "large.txt", text);
     harness.deliver("user_message", json{{"clientMessageId", "bounded-c-1"},
                                           {"text", "use the attachment"},
-                                          {"attachmentIds", json::array({"a-1"})}});
+                                          {"attachmentIds", json::array({large["id"]})}});
 
     REQUIRE(scripted->last_request.attachments.size() == 1);
     const auto& supplied = scripted->last_request.attachments.front();
@@ -2793,7 +2938,6 @@ TEST_CASE("cancelling a check returns the dock to its offer", "[agent][setup]")
     CHECK(harness.host.availability() == AgentAvailability::Unavailable);
 
     // A check can start again afterwards.
-    CHECK(harness.host.availability() == AgentAvailability::Unavailable);
     harness.deliver("setup_check_key", check_key_payload("sk-again"));
     REQUIRE(setup->started.size() == 2);
 }
@@ -2975,12 +3119,30 @@ TEST_CASE("a key is not removed while a reply or a key check is running", "[agen
     auto setup = std::make_shared<ScriptedSetup>();
     setup->stored = {{"openai", kOpenAiKey}};
     Harness harness(setup);
-    harness.handshake();
 
-    harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", "sk-proj-TESTONLY-new-key-000000"}});
-    harness.deliver("setup_remove_key", json{{"provider", "openai"}});
-    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
-    CHECK(setup->stored.count("openai") == 1);
+    SECTION("a key check")
+    {
+        harness.handshake();
+        harness.deliver("setup_check_key", json{{"provider", "openai"}, {"apiKey", "sk-proj-TESTONLY-new-key-000000"}});
+        harness.deliver("setup_remove_key", json{{"provider", "openai"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
+        CHECK(setup->stored.count("openai") == 1);
+    }
+    SECTION("a reply")
+    {
+        auto source = std::make_shared<StoredKeysModelSource>(setup);
+        harness.host.set_chat_model_source(source);
+        harness.host.set_agent(source->make_agent(ChatModelChoice{"openai", openai_profile().model, ""}), AgentAvailability::Ready);
+        harness.handshake();
+        harness.send_user_message("hello", "c-streaming");
+        REQUIRE(harness.host.stream_active());
+        harness.deliver("setup_remove_key", json{{"provider", "openai"}});
+        CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "busy");
+        CHECK(setup->stored.count("openai") == 1);
+        // The reply that was streaming finishes on the agent it started on.
+        harness.pump_all();
+        CHECK(harness.last_of_type("assistant_completed") != nullptr);
+    }
 }
 
 TEST_CASE("a key the provider refuses shows as rejected until it is replaced", "[agent][setup][saved_keys]")
@@ -3032,14 +3194,45 @@ TEST_CASE("a failed replacement leaves the saved key in place", "[agent][setup][
     CHECK(saved_keys_of(harness)[0]["hint"] == "sk-proj-…wxyz");
 }
 
+namespace {
+
+// The deterministic mock, also counting the title requests it is given and
+// the times the host cancels it, so a test can tell an interrupted title
+// from one that simply finished first.
+class TitleCountingAgent final : public DeterministicMockAgent
+{
+public:
+    bool start(const AgentRequest& request) override
+    {
+        if (request.purpose == AgentRequest::Purpose::ConversationTitle)
+            ++titles;
+        return DeterministicMockAgent::start(request);
+    }
+    void cancel() override
+    {
+        ++cancels;
+        DeterministicMockAgent::cancel();
+    }
+
+    int titles{0};
+    int cancels{0};
+};
+
+} // namespace
+
 TEST_CASE("chat titles are metadata and user renames win over generation", "[agent][bridge][conversations]")
 {
-    Harness harness;
+    auto agent_owner = std::make_unique<TitleCountingAgent>();
+    TitleCountingAgent* agent = agent_owner.get();
+    Harness harness{AgentServicePtr(std::move(agent_owner))};
     harness.handshake();
     const auto id = harness.persistence.document().active_conversation_id();
     harness.send_user_message("Help print a backpack frame", "title-user");
     harness.pump_all();
     REQUIRE(harness.host.conversation().size() == 2);
+    // The reply's end asked for a title, which is still in progress.
+    REQUIRE(agent->titles == 1);
+    const int cancels = agent->cancels;
     SECTION("a completed title is persisted and sent without a transcript message") {
         for (int i = 0; i < 5; ++i) harness.host.pump_stream();
         CHECK(harness.persistence.document().conversations().front().title == "Print setup discussion");
@@ -3053,19 +3246,25 @@ TEST_CASE("chat titles are metadata and user renames win over generation", "[age
     }
     SECTION("rename interrupts a title in progress and survives later exchanges") {
         harness.deliver("rename_conversation", json{{"conversationId", id}, {"title", "My backpack"}});
+        CHECK(agent->cancels == cancels + 1);
         for (int i = 0; i < 5; ++i) harness.host.pump_stream();
         harness.send_user_message("What material?", "title-followup");
         harness.pump_all();
         for (int i = 0; i < 5; ++i) harness.host.pump_stream();
         CHECK(harness.persistence.document().conversations().front().title == "My backpack");
         CHECK(harness.host.conversation().size() == 4);
+        // A chat the person named is not titled again.
+        CHECK(agent->titles == 1);
     }
     SECTION("a new user turn interrupts metadata generation") {
         harness.send_user_message("What material?", "title-followup");
+        CHECK(agent->cancels == cancels + 1);
         CHECK(harness.host.stream_active());
         harness.pump_all();
         for (int i = 0; i < 5; ++i) harness.host.pump_stream();
         CHECK(harness.host.conversation().size() == 4);
+        // The interrupted title is asked for again after the new reply.
+        CHECK(agent->titles == 2);
         CHECK(harness.persistence.document().conversations().front().title == "Print setup discussion");
     }
 }
@@ -3152,9 +3351,10 @@ TEST_CASE("a chat title is made from the user's words, not the reply", "[agent][
     REQUIRE(recording->requests.size() == 2);
     const AgentRequest& title = recording->requests.back();
     CHECK(title.purpose == AgentRequest::Purpose::ConversationTitle);
-    REQUIRE(title.conversation.size() == 1);
-    CHECK(title.conversation.front().role == "user");
-    CHECK(title.conversation.front().text == text);
+    // The person's words, and nothing of the chat's record.
+    CHECK(title.user_text == text);
+    CHECK(title.record.items.empty());
+    CHECK(title.unsent.empty());
 }
 
 TEST_CASE("mcp_catalog lists stdio discovery entries without a live URL payload", "[agent][mcp_setup]")
@@ -3176,12 +3376,20 @@ TEST_CASE("mcp_catalog lists stdio discovery entries without a live URL payload"
     const json* catalog = harness.last_of_type("mcp_catalog");
     REQUIRE(catalog != nullptr);
     CHECK((*catalog)["payload"]["helperPresent"] == true);
-    REQUIRE((*catalog)["payload"]["tools"].size() == 6);
-    CHECK((*catalog)["payload"]["tools"][0]["cli"] == true);
-    CHECK((*catalog)["payload"]["tools"][4]["id"] == "cursor");
-    const auto text = (*catalog)["payload"]["tools"][4]["text"].get<std::string>();
-    CHECK(text.find("--discovery") != std::string::npos);
-    CHECK(text.find("\"url\"") == std::string::npos);
+    // Every client McpConnections.hpp lists, in its order, each launching the
+    // helper over stdio with the discovery file and none given a live URL.
+    const json& tools = (*catalog)["payload"]["tools"];
+    const auto entries = Mcp::connection_entries(helper.u8string(), (directory.root / "discovery.json").u8string(), false);
+    REQUIRE(tools.size() == entries.size());
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        INFO(entries[i].id);
+        CHECK(tools[i]["id"] == entries[i].id);
+        CHECK(tools[i]["cli"] == entries[i].cli);
+        const auto text = tools[i]["text"].get<std::string>();
+        CHECK(text.find("--discovery") != std::string::npos);
+        CHECK(text.find("\"url\"") == std::string::npos);
+        CHECK_FALSE(tools[i].contains("url"));
+    }
 }
 
 TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup]")
@@ -3443,35 +3651,16 @@ TEST_CASE("an earlier issue message keeps its context beside its words", "[agent
     REQUIRE(reply != nullptr);
     CHECK(reply->user_text == "ok, fix it");
     CHECK(reply->issue_context.empty());
-    REQUIRE_FALSE(reply->conversation.empty());
-    CHECK(reply->conversation.front().role == "user");
-    CHECK(reply->conversation.front().text == "Explain this issue and my options.");
-    CHECK(reply->conversation.front().issue_context == issue_context());
-}
-
-TEST_CASE("an earlier issue message's context counts toward the history budget", "[agent][print-issues]")
-{
-    auto agent = std::make_unique<RecordingAgent>();
-    RecordingAgent* recorded = agent.get();
-    Harness harness(std::move(agent));
-    harness.handshake();
-    // Context alone over the 64 KiB history budget: the old message is the
-    // oldest words, so it is the one trimmed.
-    const std::string large = json{{"kind", "print_issue"}, {"detail", std::string(70 * 1024, 'x')}}.dump();
-    REQUIRE(harness.host.submit_issue_message("issue-1", "Explain this issue and my options.", large) ==
-            AgentHost::SubmitResult::Started);
-    harness.pump_all();
-    harness.send_user_message("ok, fix it", "c-2");
-    harness.pump_all();
-
-    const AgentRequest* reply = nullptr;
-    for (const AgentRequest& request : recorded->requests)
-        if (request.purpose == AgentRequest::Purpose::Reply)
-            reply = &request;
-    REQUIRE(reply != nullptr);
-    CHECK(reply->user_text == "ok, fix it");
-    for (const AgentConversationContext& entry : reply->conversation)
-        CHECK(entry.issue_context.empty());
+    // The chip's message went with its context, and goes again as it went.
+    const AgentRequest& chip = recorded->requests.front();
+    CHECK(chip.user_text == "Explain this issue and my options.");
+    CHECK(chip.issue_context == issue_context());
+    REQUIRE_FALSE(reply->record.items.empty());
+    const RecordItem& asked = reply->record.items.front();
+    CHECK(asked.source == chip.source);
+    REQUIRE(asked.parts.size() == 2);
+    CHECK(asked.parts[0].text == "Explain this issue and my options.");
+    CHECK(asked.parts[1].text == "<print_issue>\n" + issue_context() + "\n</print_issue>");
 }
 
 TEST_CASE("a turn carries the chat's intent and plan when the project has them", "[agent][workspace]")
@@ -3748,7 +3937,7 @@ TEST_CASE("the file-loaded skill pictures only a plate with something on it, and
         REQUIRE_FALSE(agent->requests.empty());
         REQUIRE(agent->requests.back().skills.size() == 1);
         CHECK(agent->requests.back().skills.front().picture == nullptr);
-        CHECK(agent->requests.back().skills.front().text == std::string(kTestFileLoadedSkill) + "\n\n" + kNoPurpose);
+        CHECK(file_loaded_text_adds_purpose_sentence(agent->requests.back().skills.front().text));
     }
     SECTION("a setup title recorded for the conversation leaves the sentence out")
     {
@@ -3768,7 +3957,8 @@ TEST_CASE("the file-loaded skill pictures only a plate with something on it, and
 
 namespace {
 
-// Calls one tool on its first turn and records what the host hands back.
+// Calls one tool on its first turn and records what the host hands back,
+// keeping what it sent in the chat's record.
 class OneCallAgent final : public IAgentService
 {
 public:
@@ -3780,13 +3970,20 @@ public:
     {
         requests.push_back(request);
         active = true;
+        turn   = request;
+        std::vector<RecordItem> sent = JusPrinTest::kept_person_side(request);
         if (request.purpose == AgentRequest::Purpose::Reply && call && !called) {
             called = true;
-            events.push_back(AgentEvent::tool_call({"call-load", call(request), true}));
+            ToolRequest tool = call(request);
+            sent.push_back(JusPrinTest::kept_call("call-load", tool.tool, tool.arguments_json));
+            events.push_back(AgentEvent::tool_call({"call-load", std::move(tool), true}));
         } else {
+            sent.push_back(JusPrinTest::kept_reply("Done."));
             events.push_back(AgentEvent::delta("Done."));
             events.push_back(AgentEvent::completed());
         }
+        if (request.purpose == AgentRequest::Purpose::Reply)
+            JusPrinTest::keep(request, std::move(sent));
         return true;
     }
     bool continue_after_tool(const AgentToolResult& result) override
@@ -3795,9 +3992,12 @@ public:
         // Optionally one more call before the reply.
         if (then_call && !then_called) {
             then_called = true;
+            JusPrinTest::keep(turn, {JusPrinTest::kept_result(result),
+                                     JusPrinTest::kept_call("call-then", then_call->tool, then_call->arguments_json)});
             events.push_back(AgentEvent::tool_call({"call-then", *then_call, true}));
             return true;
         }
+        JusPrinTest::keep(turn, {JusPrinTest::kept_result(result), JusPrinTest::kept_reply("It is in.")});
         events.push_back(AgentEvent::delta("It is in."));
         events.push_back(AgentEvent::completed());
         return true;
@@ -3817,25 +4017,35 @@ public:
     std::vector<AgentRequest>    requests;
     std::vector<AgentToolResult> results;
     std::deque<AgentEvent>       events;
+    AgentRequest                 turn;
     bool                         active{false};
     bool                         called{false};
     std::optional<ToolRequest>   then_call;
     bool                         then_called{false};
 };
 
-std::string write_model_file(const std::string& name)
+// A model file in a folder of its own, removed with it even when a REQUIRE
+// fails: two runs at once (two worktrees on one machine) never share it.
+struct ModelFile
 {
-    const std::filesystem::path path = std::filesystem::temp_directory_path() / name;
-    std::ofstream(path, std::ios::binary) << "solid part\nendsolid part\n";
-    return path.u8string();
-}
+    JusPrinTest::McpDirectory directory;
+    std::string               path;
+
+    explicit ModelFile(const std::string& name) : path((directory.root / name).u8string())
+    {
+        std::ofstream(directory.root / name, std::ios::binary) << "solid part\nendsolid part\n";
+    }
+};
 
 } // namespace
 
 TEST_CASE("a model a tool call brings in fires the skill on the result that carries its report, and nowhere else",
           "[agent][skills][tools]")
 {
-    const std::string model = write_model_file("jusprin-skill-import.stl");
+    const ModelFile model_file("jusprin-skill-import.stl");
+    const std::string model = model_file.path;
+    // The id of the model the person attached, once attached.
+    std::string attachment_id;
     struct Source
     {
         const char* tool;
@@ -3849,8 +4059,8 @@ TEST_CASE("a model a tool call brings in fires the skill on the result that carr
          },
          false},
         {"object_import",
-         [](const AgentRequest& request) {
-             return json{{"sessionId", std::to_string(request.workspace.session.value())}, {"attachmentId", "a-1"}};
+         [&attachment_id](const AgentRequest& request) {
+             return json{{"sessionId", std::to_string(request.workspace.session.value())}, {"attachmentId", attachment_id}};
          },
          true},
     };
@@ -3865,9 +4075,11 @@ TEST_CASE("a model a tool call brings in fires the skill on the result that carr
             Harness harness{AgentServicePtr(std::move(agent_owner))};
             harness.handshake();
             if (source.attached) {
-                REQUIRE(attach(harness, "ca-part", "part.stl", "solid s\nendsolid s\n")["kind"] == "model");
+                const json attached = attach(harness, "ca-part", "part.stl", "solid s\nendsolid s\n");
+                REQUIRE(attached["kind"] == "model");
+                attachment_id = attached["id"].get<std::string>();
                 harness.deliver("user_message", json{{"clientMessageId", "c-import"}, {"text", "Add the part file too."},
-                                                     {"attachmentIds", json::array({"a-1"})}});
+                                                     {"attachmentIds", json::array({attachment_id})}});
             } else
                 harness.send_user_message("Add the part file too.", "c-import");
             // The person asked; the request carries no skill yet.
@@ -3883,10 +4095,9 @@ TEST_CASE("a model a tool call brings in fires the skill on the result that carr
             CHECK(json::parse(result.output_json)["result"].contains("report"));
             REQUIRE(result.skills.size() == 1);
             CHECK(result.skills.front().name == "file-loaded");
-            CHECK(result.skills.front().text == std::string(kTestFileLoadedSkill) + "\n\n" + kNoPurpose);
+            CHECK(file_loaded_text_adds_purpose_sentence(result.skills.front().text));
             CHECK(result.skills.front().picture != nullptr);
-            // The skill is the request's, not the conversation's: nothing
-            // stored holds it, and the next turn has none.
+            // The page never shows the skill, and the next turn fires none.
             for (const json& envelope : harness.sent)
                 CHECK(envelope.dump().find(kTestFileLoadedSkill) == std::string::npos);
             harness.send_user_message("Thanks.", "c-after");
@@ -3898,11 +4109,8 @@ TEST_CASE("a model a tool call brings in fires the skill on the result that carr
             const AgentRequest& later = *reply;
             CHECK(later.user_text == "Thanks.");
             CHECK(later.skills.empty());
-            for (const AgentConversationContext& entry : later.conversation)
-                CHECK(entry.text.find(kTestFileLoadedSkill) == std::string::npos);
         }
     }
-    std::filesystem::remove(model);
 }
 
 // Opening a project replaces the conversation's document with the opened
@@ -3910,7 +4118,8 @@ TEST_CASE("a model a tool call brings in fires the skill on the result that carr
 // chat then hears the load report, as it does when the person opens a file.
 TEST_CASE("a project the Agent opens is spoken about in the opened project's chat", "[agent][skills][tools]")
 {
-    const std::string model = write_model_file("jusprin-skill-opened.stl");
+    const ModelFile model_file("jusprin-skill-opened.stl");
+    const std::string model = model_file.path;
     auto agent_owner = std::make_unique<OneCallAgent>();
     OneCallAgent* agent = agent_owner.get();
     agent->call = [&model](const AgentRequest&) { return ToolRequest{"project_open", json{{"path", model}}.dump()}; };
@@ -3942,11 +4151,11 @@ TEST_CASE("a project the Agent opens is spoken about in the opened project's cha
     CHECK(reply->user_text.find("JusPrin file-load report") == 0);
     CHECK(reply->user_text.find("jusprin-skill-opened.stl") != std::string::npos);
     // Nothing of the chat that asked comes with it.
-    CHECK(reply->conversation.empty());
+    CHECK(reply->record.items.empty());
+    CHECK(reply->unsent.empty());
     REQUIRE(reply->skills.size() == 1);
-    CHECK(reply->skills.front().text == std::string(kTestFileLoadedSkill) + "\n\n" + kNoPurpose);
+    CHECK(file_loaded_text_adds_purpose_sentence(reply->skills.front().text));
     CHECK(reply->skills.front().picture != nullptr);
-    std::filesystem::remove(model);
 }
 
 // The calibration skill as the page sends it, fired by the handover.
@@ -4023,12 +4232,14 @@ TEST_CASE("a test made from the person's own project opens its calibration proje
                                     [](const AgentRequest& request) { return request.purpose == AgentRequest::Purpose::Reply; });
     REQUIRE(found != agent->requests.rend());
     const AgentRequest& reply = *found;
-    CHECK(reply.user_text.rfind("JusPrin app note, not the person's words: This is a calibration project, opened from " +
-                                    started_from + " to calibrate Fixture PLA on Fixture printer.", 0) == 0);
-    CHECK(reply.user_text.find("hairs between the posts") != std::string::npos);
+    CHECK(reply.user_text.empty());
+    CHECK(reply.source == note.id);
+    CHECK(reply.note.rfind("This is a calibration project, opened from " + started_from +
+                               " to calibrate Fixture PLA on Fixture printer.", 0) == 0);
+    CHECK(reply.note.find("hairs between the posts") != std::string::npos);
     REQUIRE(reply.skills.size() == 1);
     CHECK(reply.skills.front().trigger == "calibration_started");
-    CHECK(reply.conversation.empty());
+    CHECK(reply.unsent.empty());
 }
 
 // The popup path (boards 3 and 4): the app opens the calibration project and
@@ -4102,9 +4313,11 @@ TEST_CASE("a calibration project from a Home card hands over the printer and its
     REQUIRE(chat != chats.end());
     CHECK(chat->title == "Calibration · Workshop X1C");
     harness.pump_all();
-    REQUIRE_FALSE(agent->requests.empty());
-    const AgentRequest& reply = agent->requests.back();
-    CHECK(reply.user_text.find("which filament is not known yet. The printer reports these spools loaded: PLA #FFFFFF, PETG #808080.") !=
+    const auto found = std::find_if(agent->requests.rbegin(), agent->requests.rend(),
+                                    [](const AgentRequest& request) { return request.purpose == AgentRequest::Purpose::Reply; });
+    REQUIRE(found != agent->requests.rend());
+    const AgentRequest& reply = *found;
+    CHECK(reply.note.find("which filament is not known yet. The printer reports these spools loaded: PLA #FFFFFF, PETG #808080.") !=
           std::string::npos);
     REQUIRE(reply.skills.size() == 1);
     CHECK(reply.skills.front().trigger == "calibration_started");
@@ -4144,7 +4357,8 @@ TEST_CASE("a calibration test an MCP client makes after other calls reports what
 
 TEST_CASE("a project an MCP client opens is not spoken about", "[agent][skills][tools][mcp]")
 {
-    const std::string model = write_model_file("jusprin-skill-mcp-opened.stl");
+    const ModelFile model_file("jusprin-skill-mcp-opened.stl");
+    const std::string model = model_file.path;
     auto agent_owner = std::make_unique<RecordingAgent>();
     RecordingAgent* agent = agent_owner.get();
     Harness harness{AgentServicePtr(std::move(agent_owner))};
@@ -4158,33 +4372,41 @@ TEST_CASE("a project an MCP client opens is not spoken about", "[agent][skills][
     CHECK(harness.workspace.opens == 1);
     CHECK(file_report_notes(harness) == 0);
     CHECK(agent->requests.empty());
-    std::filesystem::remove(model);
 }
 
 TEST_CASE("the Agent continuing an earlier project is not spoken about", "[agent][skills][tools]")
 {
-    const std::string model = write_model_file("jusprin-skill-earlier.stl");
+    const ModelFile model_file("jusprin-skill-earlier.stl");
+    const std::string model = model_file.path;
     auto agent_owner = std::make_unique<OneCallAgent>();
     OneCallAgent* agent = agent_owner.get();
     agent->call = [&model](const AgentRequest&) {
         return ToolRequest{"project_open", json{{"path", model}, {"openedBefore", "existing"}}.dump()};
     };
+    std::vector<std::string> continued;
     Harness harness{AgentServicePtr(std::move(agent_owner))};
     harness.host.tools().set_earlier_projects(
         [](const std::string&) {
             return std::optional<ToolExecutionCoordinator::EarlierProject>(
                 ToolExecutionCoordinator::EarlierProject{"p-earlier", "Earlier", false, false});
         },
-        [](const std::string&) { return true; }, {});
+        [&continued](const std::string& id) {
+            continued.push_back(id);
+            return true;
+        },
+        {});
     harness.handshake();
     harness.send_user_message("Continue the part I opened before.", "c-earlier");
     harness.pump_all();
     pump_tools_to_completion(harness);
     harness.host.pump_tools();
     harness.pump_all();
+    // The call took the continue path: the earlier project was reopened,
+    // and OrcaSlicer opened no file.
+    CHECK(continued == std::vector<std::string>{"p-earlier"});
+    CHECK(harness.workspace.opens == 0);
     // OrcaSlicer loaded nothing, so there is nothing to report.
     CHECK(file_report_notes(harness) == 0);
-    std::filesystem::remove(model);
 }
 
 TEST_CASE("skill_read reads only the skills the page described, and is offered only with some", "[agent][skills][tools]")
@@ -4353,8 +4575,6 @@ TEST_CASE("a slice_start OrcaSlicer refuses fires the slice-failed skill on its 
     CHECK(later.user_text == "Is it ready to print?");
     CHECK(later.skills.empty());
     REQUIRE(later.workspace.plates.at(0).slice_failure);
-    for (const AgentConversationContext& entry : later.conversation)
-        CHECK(entry.text.find(kTestSliceSkill) == std::string::npos);
 }
 
 TEST_CASE("a slice the person started that did not succeed fires the skill on the next request, once a failure",
@@ -4453,7 +4673,7 @@ struct ModelSlice
     {
         std::vector<const AgentRequest*> turns;
         for (const AgentRequest& request : agent->requests)
-            if (request.purpose == AgentRequest::Purpose::Reply && request.user_text.rfind("JusPrin app note", 0) == 0)
+            if (request.purpose == AgentRequest::Purpose::Reply && !request.note.empty())
                 turns.push_back(&request);
         return turns;
     }
@@ -4475,8 +4695,7 @@ TEST_CASE("a slice the model started that ends after its turn starts one app tur
         chat.tick();
         REQUIRE(chat.notes() == std::vector<std::string>{"The slice of " + chat.plate_name() + " finished."});
         REQUIRE(chat.app_turns().size() == 1);
-        CHECK(chat.app_turns().front()->user_text ==
-              "JusPrin app note, not the person's words: The slice of " + chat.plate_name() + " finished.");
+        CHECK(chat.app_turns().front()->note == "The slice of " + chat.plate_name() + " finished.");
         CHECK(chat.app_turns().front()->skills.empty());
     }
 
@@ -4638,11 +4857,12 @@ TEST_CASE("a call that brings no model fires no skill", "[agent][skills][tools]"
     {
         auto agent_owner = std::make_unique<OneCallAgent>();
         OneCallAgent* agent = agent_owner.get();
-        agent->call = [](const AgentRequest& request) {
+        // A folder of this run's own, so nothing another run left can be there.
+        const JusPrinTest::McpDirectory empty;
+        const std::string missing = (empty.root / "no-such-part.stl").u8string();
+        agent->call = [missing](const AgentRequest& request) {
             return ToolRequest{"object_import_file",
-                               json{{"sessionId", std::to_string(request.workspace.session.value())},
-                                    {"path", (std::filesystem::temp_directory_path() / "jusprin-no-such-part.stl").u8string()}}
-                                   .dump()};
+                               json{{"sessionId", std::to_string(request.workspace.session.value())}, {"path", missing}}.dump()};
         };
         Harness harness{AgentServicePtr(std::move(agent_owner))};
         harness.handshake();
@@ -4711,9 +4931,7 @@ TEST_CASE("a print-issue chip's message carries the print-issues skill, and the 
     const AgentRequest& later = last_reply(agent->requests);
     CHECK(later.user_text == "ok, go ahead");
     CHECK(later.skills.empty());
-    for (const AgentConversationContext& entry : later.conversation)
-        CHECK(entry.text.find(kTestPrintIssuesSkill) == std::string::npos);
-    // Never stored, never shown.
+    // Never shown.
     for (const json& envelope : harness.sent)
         CHECK(envelope.dump().find(kTestPrintIssuesSkill) == std::string::npos);
 }
@@ -5335,9 +5553,9 @@ TEST_CASE("a preset the Agent proposes is saved by the person's Save preset, wit
     CHECK(harness.workspace.settings_for_testing().selected_filament == "Fixture PLA · MK4 calibrated");
     harness.pump_all();
     REQUIRE(agent->requests.size() > requests);
-    CHECK(last_reply(*agent).user_text ==
-          "JusPrin app note, not the person's words: The person pressed Save preset on your proposal. Saved Fixture PLA · "
-          "MK4 calibrated: Filament preset · nozzle temperature 225 °C.");
+    CHECK(last_reply(*agent).note ==
+          "The person pressed Save preset on your proposal. Saved Fixture PLA · MK4 calibrated: Filament preset · nozzle "
+          "temperature 225 °C.");
     // The receipt survives a reload of the chat.
     const auto stored = harness.host.conversation();
     const auto receipt = std::find_if(stored.begin(), stored.end(), [&note](const ConversationMessage& message) {
@@ -5359,9 +5577,15 @@ TEST_CASE("a preset the Agent proposes is saved by the person's Save preset, wit
     CHECK(undone["receipt"]["undone"] == true);
     harness.pump_all();
     REQUIRE(agent->requests.size() > before_undo);
-    CHECK(last_reply(*agent).user_text ==
-          "JusPrin app note, not the person's words: The person pressed Undo on the receipt: Fixture PLA · MK4 calibrated is "
-          "deleted, and this test uses Fixture PLA again.");
+    // The receipt's note, rewritten after the model read it, starts a turn
+    // and goes again as it reads now. It names the deleted copy and, after
+    // it, the filament used again; its wording is the host's.
+    const std::string undo_note = undone["text"].get<std::string>();
+    const std::size_t copy_named = undo_note.find("Fixture PLA · MK4 calibrated");
+    REQUIRE(copy_named != std::string::npos);
+    CHECK(undo_note.rfind("Fixture PLA") > copy_named);
+    CHECK(last_reply(*agent).source == note["id"]);
+    CHECK(last_reply(*agent).note == undo_note);
     // A second press has nothing left to undo.
     harness.deliver("undo_receipt", json{{"messageId", note["id"]}});
     REQUIRE(harness.last_of_type("bridge_error") != nullptr);
@@ -5426,4 +5650,647 @@ TEST_CASE("undo on a preset saved in place puts its earlier values back", "[agen
     CHECK(fixture.filaments.at(copy).saved.at("nozzle_temperature") == "225");
     CHECK(fixture.selected_filament == copy);
     CHECK((*harness.last_of_type("message_added"))["payload"]["message"]["receipt"]["undone"] == true);
+}
+
+// The history guard. A provider bills the part of a request it has seen
+// before (its prompt cache) at a fraction of the full price, and it finds
+// that part only when the new request opens with it unchanged. So the first
+// request of every turn must open with the whole of the last request the turn
+// before sent: tools, system prompt, every message and item, in the same
+// bytes. Each chat sends its record of what it sent and appends to it, and
+// these cases fail when anything rewrites, drops or reorders an earlier part:
+// the only difference allowed is the cache breakpoint that moves to the
+// newest user message. Run them alone by their tag:
+//   build/arm64/tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests "[history-prefix]"
+namespace {
+
+using nlohmann::ordered_json;
+
+// One scripted response: words, then a call if it makes one. A refused
+// request gets the HTTP status instead; a stream that fails is accepted and
+// breaks off after its first words.
+struct ScriptedReply
+{
+    std::string text;
+    std::string call_id{};
+    std::string tool{};
+    json        input = json::object();
+    unsigned    refused{0};
+    bool        fails{false};
+};
+
+std::string sse(const json& event) { return "data: " + event.dump() + "\n\n"; }
+
+// A Messages API stream: signed thinking, the words, then the call.
+std::string anthropic_stream(const ScriptedReply& reply, const std::string& id)
+{
+    std::string out = sse(json{{"type", "message_start"},
+                               {"message", json{{"id", "msg_" + id}, {"usage", json{{"input_tokens", 100}, {"output_tokens", 1}}}}}});
+    const auto block = [&out](int index, const json& start, const json& delta) {
+        out += sse(json{{"type", "content_block_start"}, {"index", index}, {"content_block", start}});
+        out += sse(json{{"type", "content_block_delta"}, {"index", index}, {"delta", delta}});
+        out += sse(json{{"type", "content_block_stop"}, {"index", index}});
+    };
+    block(0, json{{"type", "thinking"}, {"thinking", "Thinking " + id + "."}, {"signature", ""}},
+          json{{"type", "signature_delta"}, {"signature", "signature-" + id}});
+    block(1, json{{"type", "text"}, {"text", ""}}, json{{"type", "text_delta"}, {"text", reply.text}});
+    if (reply.fails)
+        return out + sse(json{{"type", "error"}, {"error", json{{"type", "overloaded_error"}, {"message", "Overloaded"}}}});
+    if (!reply.call_id.empty())
+        block(2, json{{"type", "tool_use"}, {"id", reply.call_id}, {"name", reply.tool}, {"input", json::object()}},
+              json{{"type", "input_json_delta"}, {"partial_json", reply.input.dump()}});
+    out += sse(json{{"type", "message_delta"}, {"delta", json{{"stop_reason", reply.call_id.empty() ? "end_turn" : "tool_use"}}},
+                    {"usage", json{{"output_tokens", 10}}}});
+    return out + sse(json{{"type", "message_stop"}});
+}
+
+// A Responses API stream: an encrypted reasoning item, the message, then the
+// call, each with the item id and status the service gives it.
+std::string responses_stream(const ScriptedReply& reply, const std::string& id)
+{
+    json output = json::array(
+        {json{{"type", "reasoning"}, {"id", "rs_" + id}, {"summary", json::array()}, {"encrypted_content", "reasoning-" + id}},
+         json{{"type", "message"}, {"id", "msg_" + id}, {"status", "completed"}, {"role", "assistant"},
+              {"content", json::array({json{{"type", "output_text"}, {"text", reply.text}, {"annotations", json::array()}}})}}});
+    if (!reply.call_id.empty())
+        output.push_back(json{{"type", "function_call"}, {"id", "fc_" + id}, {"status", "completed"}, {"call_id", reply.call_id},
+                              {"name", reply.tool}, {"arguments", reply.input.dump()}});
+    if (reply.fails)
+        return sse(json{{"type", "response.output_text.delta"}, {"delta", reply.text}}) +
+               sse(json{{"type", "response.failed"}, {"response", json::object()}});
+    return sse(json{{"type", "response.output_text.delta"}, {"delta", reply.text}}) +
+           sse(json{{"type", "response.completed"},
+                    {"response", json{{"output", output}, {"usage", json{{"input_tokens", 100}, {"output_tokens", 10}, {"total_tokens", 110}}}}}});
+}
+
+// What the guard needs to know of one wire format.
+struct WireFormat
+{
+    std::string provider; // its ProviderProfile id
+    std::function<std::string(const ScriptedReply&, const std::string& id)> stream;
+    // The top-level fields that hold the prompt, in the order the provider
+    // reads them. Every other top-level field (model, thinking or reasoning
+    // settings, stream) must be the same on both requests.
+    std::vector<std::string> prompt_fields;
+    // Takes out of one part of the prompt what may differ from request to
+    // request without changing what the provider caches.
+    std::function<void(ordered_json& part)> forget_per_request;
+};
+
+WireFormat anthropic_wire()
+{
+    // Its three cache breakpoints: one on the last tool and one on the system
+    // prompt, which stay where they are and are compared, and one on the
+    // newest user content, which moves to the newest one on every request. A
+    // breakpoint marks where to cache and is not part of the cached content
+    // (moving one is the documented pattern for a growing chat:
+    // platform.claude.com/docs/en/build-with-claude/prompt-caching), so the
+    // moving one is left out of the messages.
+    return {"anthropic", anthropic_stream, {"tools", "system", "messages"}, [](ordered_json& message) {
+                if (message.contains("content") && message["content"].is_array())
+                    for (ordered_json& block : message["content"])
+                        block.erase("cache_control");
+            }};
+}
+
+WireFormat responses_wire()
+{
+    // Nothing in its prompt differs by request. The Idempotency-Key header
+    // does, but a header is not part of the prompt.
+    return {"openai", responses_stream, {"tools", "instructions", "input"}, [](ordered_json&) {}};
+}
+
+// A provider service that answers each reply request at once with the next
+// scripted response and keeps the body exactly as it was posted. A title
+// request, the only kind sent without tools, is answered with a title and
+// takes nothing from the script.
+class RecordingProvider final : public IAgentHttpTransport
+{
+public:
+    explicit RecordingProvider(WireFormat wire) : m_wire(std::move(wire)) {}
+
+    bool post(AgentHttpRequest request, EventFn event) override
+    {
+        ScriptedReply reply{"A title"};
+        if (json::parse(request.body).contains("tools")) {
+            REQUIRE_FALSE(script.empty());
+            reply = script.front();
+            script.pop_front();
+            replies.push_back(request.body);
+        }
+        if (reply.refused != 0) {
+            // The service's error body, then the transport's error.
+            event(AgentHttpEvent{AgentHttpEvent::Kind::Data, json{{"error", json{{"message", "refused"}}}}.dump(), {}, 0});
+            event(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, "HTTP " + std::to_string(reply.refused), reply.refused});
+            return true;
+        }
+        event(AgentHttpEvent{AgentHttpEvent::Kind::Data, m_wire.stream(reply, std::to_string(++m_responses)), {}, 0});
+        event(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, 200});
+        return true;
+    }
+    void cancel() override {}
+
+    std::deque<ScriptedReply> script;
+    std::vector<std::string>  replies;
+
+private:
+    WireFormat m_wire;
+    int        m_responses{0};
+};
+
+// A request's prompt as a list of parts (each tool, each system block, each
+// message or input item), each the bytes the service received for it, and
+// the rest of the body.
+struct Prompt
+{
+    std::vector<std::string> labels;
+    std::vector<std::string> parts;
+    std::string              rest;
+};
+
+Prompt prompt_of(const WireFormat& wire, const std::string& body)
+{
+    ordered_json parsed = ordered_json::parse(body);
+    // Written again, the parsed body is the body itself, so each part below
+    // is exactly the bytes the service received for it.
+    REQUIRE(parsed.dump() == body);
+    Prompt prompt;
+    for (const std::string& field : wire.prompt_fields) {
+        if (!parsed.contains(field))
+            continue;
+        ordered_json value = parsed[field];
+        parsed.erase(field);
+        if (!value.is_array())
+            value = ordered_json::array({value});
+        for (std::size_t i = 0; i < value.size(); ++i) {
+            wire.forget_per_request(value[i]);
+            prompt.labels.push_back(field + "[" + std::to_string(i) + "]");
+            prompt.parts.push_back(value[i].dump());
+        }
+    }
+    prompt.rest = parsed.dump();
+    return prompt;
+}
+
+// `later` must open with every part of `earlier`, in order, and add to it.
+// The first part that differs is reported whole.
+void check_opens_with(const Prompt& earlier, const Prompt& later)
+{
+    CHECK(later.rest == earlier.rest);
+    for (std::size_t i = 0; i < earlier.parts.size(); ++i) {
+        const bool same = i < later.parts.size() && later.labels[i] == earlier.labels[i] && later.parts[i] == earlier.parts[i];
+        if (!same) {
+            FAIL_CHECK("first difference at " << earlier.labels[i] << "\n  the turn before sent:  " << earlier.parts[i]
+                                              << "\n  this turn opened with: "
+                                              << (i < later.parts.size() ? later.labels[i] + " " + later.parts[i] : "nothing"));
+            return;
+        }
+    }
+    CHECK(later.parts.size() > earlier.parts.size());
+}
+
+// One chat on the real host and loop, against a provider that records what
+// it is sent. Each turn says how it starts and what the model answers.
+struct PrefixChat
+{
+    RecordingProvider*       provider{nullptr};
+    std::unique_ptr<Harness> harness;
+    WireFormat               wire;
+    std::vector<std::size_t> turn_starts;
+
+    explicit PrefixChat(WireFormat format, ProjectPersistence::Config config = test_persistence_config())
+        : wire(std::move(format))
+    {
+        auto owner = std::make_unique<RecordingProvider>(wire);
+        provider   = owner.get();
+        harness    = std::make_unique<Harness>(make_provider_agent(*profile_for(wire.provider), "key", "", "", std::move(owner)),
+                                            std::move(config));
+        harness->handshake();
+    }
+
+    std::string plate() const { return std::to_string(harness->workspace.snapshot().plates.at(0).id.value()); }
+
+    // `start` begins the turn; the model answers it with `replies`, one per
+    // request, and the turn runs to its end.
+    void turn(const std::vector<ScriptedReply>& replies, const std::function<void()>& start)
+    {
+        turn_starts.push_back(provider->replies.size());
+        provider->script.assign(replies.begin(), replies.end());
+        start();
+        for (int i = 0; i < 10; ++i) {
+            harness->pump_all();
+            pump_tools_to_completion(*harness);
+        }
+        REQUIRE(provider->script.empty());
+        REQUIRE(provider->replies.size() == turn_starts.back() + replies.size());
+    }
+
+    void person_turn(const std::string& text, const std::vector<ScriptedReply>& replies)
+    {
+        turn(replies, [&] { harness->send_user_message(text, "c-prefix-" + std::to_string(turn_starts.size())); });
+    }
+
+    // The app starts a turn of its own on its next timer tick.
+    void app_turn(const std::function<void()>& event, const std::vector<ScriptedReply>& replies)
+    {
+        turn(replies, [&] {
+            event();
+            harness->host.pump_tools();
+        });
+    }
+
+    ScriptedReply slice_call() const { return {"I will slice it.", "call_slice", "slice_start", json{{"plateId", plate()}}}; }
+
+    // The project is opened again: its document read back from what was
+    // saved, picture bytes from their blobs on disk.
+    void reopen()
+    {
+        ProjectStateDocument& document = harness->persistence.document();
+        const std::string saved = document.dump();
+        REQUIRE(document.load(saved) == ProjectStateDocument::LoadResult::Loaded);
+    }
+
+    void check_every_turn_opens_with_the_last() const
+    {
+        REQUIRE(turn_starts.size() >= 3);
+        for (std::size_t n = 1; n < turn_starts.size(); ++n) {
+            INFO("turn " << n + 1 << "'s first request against turn " << n << "'s last");
+            check_opens_with(prompt_of(wire, provider->replies[turn_starts[n] - 1]),
+                             prompt_of(wire, provider->replies[turn_starts[n]]));
+        }
+    }
+};
+
+// The person asks and the model slices (a call and its result); the slice
+// finishes and the app starts a turn of its own; the person writes again.
+void a_call_then_an_app_turn(const WireFormat& wire)
+{
+    PrefixChat chat(wire);
+    chat.person_turn("Slice it.", {chat.slice_call(), {"It is slicing."}});
+    REQUIRE(chat.harness->workspace.snapshot().slicing.running);
+    chat.app_turn([&] { chat.harness->workspace.finish_slice_for_testing(true); }, {{"The slice is ready."}});
+    chat.person_turn("Thanks.", {{"You are welcome."}});
+    chat.check_every_turn_opens_with_the_last();
+}
+
+// The same with the moments that fire skills: a file opens (the file-loaded
+// skill), the person asks for a slice, the slice fails (the slice-failed
+// skill), and the person writes again.
+void turns_that_fire_skills(const WireFormat& wire)
+{
+    PrefixChat chat(wire);
+    chat.app_turn([&] { chat.harness->host.on_file_loaded(prusa_open()); }, {{"This is a bracket."}});
+    chat.person_turn("Slice it.", {chat.slice_call(), {"It is slicing."}});
+    REQUIRE(chat.harness->workspace.snapshot().slicing.running);
+    chat.app_turn(
+        [&] {
+            Workspace::SliceFailure failure;
+            failure.severity = "blocker";
+            failure.message  = "Slicing failed: the object has no layers.";
+            chat.harness->workspace.fail_slice_for_testing(failure);
+        },
+        {{"The slice failed: the object has no layers."}});
+    chat.person_turn("Thanks.", {{"You are welcome."}});
+    chat.check_every_turn_opens_with_the_last();
+}
+
+} // namespace
+
+TEST_CASE("every turn's first request opens with the whole of the turn before's last", "[agent][cache][history-prefix]")
+{
+    SECTION("Anthropic Messages") { a_call_then_an_app_turn(anthropic_wire()); }
+    SECTION("OpenAI Responses") { a_call_then_an_app_turn(responses_wire()); }
+}
+
+TEST_CASE("turns that fire skills open with the whole of the turn before's last", "[agent][cache][history-prefix]")
+{
+    SECTION("Anthropic Messages") { turns_that_fire_skills(anthropic_wire()); }
+    SECTION("OpenAI Responses") { turns_that_fire_skills(responses_wire()); }
+}
+
+// A chat keeps what it sent in the project's document, so a reopened project
+// goes on from the same bytes: pictures from their blobs, thinking and
+// reasoning as the provider wrote them.
+TEST_CASE("a reopened project's chat opens with the whole of the request before it closed", "[agent][cache][record]")
+{
+    for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
+        DYNAMIC_SECTION(wire.provider)
+        {
+            PrefixChat chat(wire);
+            chat.app_turn([&] { chat.harness->host.on_file_loaded(prusa_open()); }, {{"This is a bracket."}});
+            chat.person_turn("Slice it.", {chat.slice_call(), {"It is slicing."}});
+            chat.reopen();
+            chat.person_turn("Thanks.", {{"You are welcome."}});
+            const std::size_t last = chat.turn_starts.back();
+            // The file-loaded skill sent the plate's picture, kept as a blob.
+            const std::string before = chat.provider->replies[last - 1];
+            CHECK(before.find("image/png") != std::string::npos);
+            check_opens_with(prompt_of(wire, before), prompt_of(wire, chat.provider->replies[last]));
+            CHECK(chat.harness->persistence.document().dump().find("\"data\":") == std::string::npos);
+        }
+    }
+}
+
+namespace {
+
+// A prompt's messages split into their content blocks, each labelled by its
+// message and place in it.
+Prompt by_block(const Prompt& prompt)
+{
+    Prompt blocks{{}, {}, prompt.rest};
+    for (std::size_t i = 0; i < prompt.parts.size(); ++i) {
+        const ordered_json part = ordered_json::parse(prompt.parts[i]);
+        if (!part.contains("content") || !part["content"].is_array()) {
+            blocks.labels.push_back(prompt.labels[i]);
+            blocks.parts.push_back(prompt.parts[i]);
+            continue;
+        }
+        for (std::size_t b = 0; b < part["content"].size(); ++b) {
+            blocks.labels.push_back(prompt.labels[i] + part.value("role", "") + "[" + std::to_string(b) + "]");
+            blocks.parts.push_back(part["content"][b].dump());
+        }
+    }
+    return blocks;
+}
+
+std::size_t occurrences(const std::string& body, const std::string& words)
+{
+    std::size_t count = 0;
+    for (std::size_t at = body.find(words); at != std::string::npos; at = body.find(words, at + words.size()))
+        ++count;
+    return count;
+}
+
+std::string reply_id_of_last(const Harness& harness, const std::string& type)
+{
+    const json* event = harness.last_of_type(type);
+    REQUIRE(event != nullptr);
+    return (*event)["payload"]["messageId"].get<std::string>();
+}
+
+} // namespace
+
+// What a request carried joins the chat's record once the provider takes it.
+// A refused request leaves nothing behind, whether the service was down or
+// would never take it (a picture too large): the person's message goes again
+// with the next turn, once.
+TEST_CASE("a request the provider refuses leaves nothing in the chat's record", "[agent][record]")
+{
+    const unsigned status = GENERATE(503u, 400u, 413u);
+    for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
+        DYNAMIC_SECTION(wire.provider << " " << status)
+        {
+            PrefixChat chat(wire);
+            ProjectStateDocument& document = chat.harness->persistence.document();
+            chat.person_turn("Hello.", {{"Hello."}});
+            const std::size_t kept = document.chat_record(document.active_conversation_id())->items.size();
+            chat.turn({{"", {}, {}, json::object(), status}}, [&] { chat.harness->send_user_message("Slice it.", "c-refused"); });
+            CHECK(chat.harness->host.conversation().back().state == MessageState::Failed);
+            CHECK(document.chat_record(document.active_conversation_id())->items.size() == kept);
+
+            chat.person_turn("Try again.", {{"Done."}});
+            const std::string& next = chat.provider->replies.back();
+            CHECK(occurrences(next, "Slice it.") == 1);
+            check_opens_with(prompt_of(wire, chat.provider->replies[0]), prompt_of(wire, next));
+        }
+    }
+}
+
+// A turn whose first request the provider took keeps that request's person
+// side when a later request is refused, and nothing after it: the next turn
+// never carries a call without its result.
+TEST_CASE("a turn refused after its first request keeps only what the provider took", "[agent][record][history-prefix]")
+{
+    for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
+        DYNAMIC_SECTION(wire.provider)
+        {
+            PrefixChat chat(wire);
+            chat.person_turn("Hello.", {{"Hello."}});
+            chat.turn({chat.slice_call(), {"", {}, {}, json::object(), 400}},
+                      [&] { chat.harness->send_user_message("Slice it.", "c-sliced"); });
+            CHECK(chat.harness->host.conversation().back().state == MessageState::Failed);
+            chat.person_turn("Thanks.", {{"You are welcome."}});
+            const std::string& next = chat.provider->replies.back();
+            CHECK(next.find("call_slice") == std::string::npos);
+            CHECK(occurrences(next, "Slice it.") == 1);
+            // The record ends on the person's side, and Anthropic takes
+            // consecutive user messages as one: the next turn's words join
+            // that message. Its cache is by content block, so the check is.
+            check_opens_with(by_block(prompt_of(wire, chat.provider->replies[1])), by_block(prompt_of(wire, next)));
+        }
+    }
+}
+
+// A turn stopped before the provider answered leaves the record as it was:
+// the next turn opens with the last request the provider took, and the
+// stopped turn's message goes again with it.
+TEST_CASE("a stopped turn leaves the next turn opening with the last request the provider took", "[agent][record][history-prefix]")
+{
+    for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
+        DYNAMIC_SECTION(wire.provider)
+        {
+            PrefixChat chat(wire);
+            chat.person_turn("Hello.", {{"Hello."}});
+            chat.provider->script = {{"Never read."}};
+            chat.harness->send_user_message("Slice it.", "c-stopped");
+            chat.harness->deliver("stop_generation", json{{"messageId", reply_id_of_last(*chat.harness, "assistant_started")}});
+            chat.harness->pump_all();
+            REQUIRE(chat.harness->host.conversation().back().state == MessageState::Stopped);
+            chat.person_turn("Thanks.", {{"You are welcome."}});
+            const std::string& next = chat.provider->replies.back();
+            CHECK(occurrences(next, "Slice it.") == 1);
+            CHECK(next.find("Never read.") == std::string::npos);
+            check_opens_with(prompt_of(wire, chat.provider->replies[0]), prompt_of(wire, next));
+        }
+    }
+}
+
+// A stream the provider took and then broke off: the record holds the turn's
+// request, so its retry is that request again, byte for byte, without the
+// broken words.
+TEST_CASE("a retry after the provider took the turn's request sends that request again", "[agent][record]")
+{
+    for (const WireFormat& wire : {anthropic_wire(), responses_wire()}) {
+        DYNAMIC_SECTION(wire.provider)
+        {
+            PrefixChat chat(wire);
+            chat.person_turn("Hello.", {{"Hello."}});
+            chat.turn({{"Half an ans", {}, {}, json::object(), 0, true}},
+                      [&] { chat.harness->send_user_message("Slice it.", "c-broken"); });
+            const std::string failed = reply_id_of_last(*chat.harness, "assistant_failed");
+            chat.turn({{"Done."}}, [&] { chat.harness->deliver("retry_message", json{{"messageId", failed}}); });
+            const Prompt broken  = prompt_of(wire, chat.provider->replies[1]);
+            const Prompt retried = prompt_of(wire, chat.provider->replies[2]);
+            CHECK(retried.rest == broken.rest);
+            CHECK(retried.parts == broken.parts);
+            CHECK(chat.provider->replies[2].find("Half an ans") == std::string::npos);
+        }
+    }
+}
+
+// The record goes on past a reply; nothing can be added after an earlier one.
+TEST_CASE("only the chat's last reply can be retried", "[agent][record]")
+{
+    PrefixChat chat(responses_wire());
+    chat.turn({{"", {}, {}, json::object(), 503}}, [&] { chat.harness->send_user_message("Hello.", "c-down"); });
+    const std::string failed = reply_id_of_last(*chat.harness, "assistant_failed");
+    chat.person_turn("Hello again.", {{"Hello."}});
+    chat.harness->deliver("retry_message", json{{"messageId", failed}});
+    chat.harness->pump_all();
+    REQUIRE(chat.harness->last_of_type("bridge_error") != nullptr);
+    CHECK((*chat.harness->last_of_type("bridge_error"))["payload"]["code"] == "invalid_retry");
+    CHECK(chat.provider->replies.size() == 2);
+}
+
+// The pictures a chat sent live in its own folder in a managed project. The
+// version store prunes attachments/ to what the document's attachment index
+// names after every version, and never reads a chat's record, so the chat's
+// pictures stay out of it; they go with the chat. A picture gone from disk is
+// an error, never an empty picture sent for ever.
+TEST_CASE("a managed project's chat keeps its pictures through the version store's prune", "[agent][record][managed]")
+{
+    namespace fs = std::filesystem;
+    ProjectPersistence::Config config = test_persistence_config();
+    config.managed_root = (fs::temp_directory_path() / ("jusprin-record-" + std::to_string(std::random_device{}()))).string();
+    PrefixChat chat(anthropic_wire(), config);
+    chat.app_turn([&] { chat.harness->host.on_file_loaded(prusa_open()); }, {{"This is a bracket."}});
+    ProjectStateDocument& document = chat.harness->persistence.document();
+    const std::string     id       = document.active_conversation_id();
+    const fs::path        root     = fs::path(chat.harness->persistence.attachments_dir()).parent_path();
+    REQUIRE(fs::is_directory(root / chat_record_dir(id)));
+    // What ProjectVersionStore::prune does to attachments/ after a version.
+    std::set<std::string> indexed;
+    for (const AttachmentRecord& attachment : document.attachments())
+        indexed.insert(attachment.relative_path());
+    if (fs::exists(root / "attachments"))
+        for (const auto& entry : fs::recursive_directory_iterator(root / "attachments"))
+            if (entry.is_regular_file() && !indexed.count(fs::relative(entry.path(), root).generic_u8string()))
+                fs::remove(entry.path());
+
+    SECTION("the next turn sends its picture again")
+    {
+        chat.reopen();
+        chat.person_turn("Slice it.", {{"I will."}});
+        CHECK(chat.provider->replies[1].find("image/png") != std::string::npos);
+        check_opens_with(prompt_of(chat.wire, chat.provider->replies[0]), prompt_of(chat.wire, chat.provider->replies[1]));
+    }
+    SECTION("a picture gone from disk is an error")
+    {
+        for (const auto& entry : fs::directory_iterator(root / chat_record_dir(id)))
+            fs::remove(entry.path());
+        CHECK_THROWS_WITH(chat.harness->send_user_message("Slice it.", "c-gone"),
+                          Catch::Matchers::ContainsSubstring("a picture a chat's record keeps is missing"));
+    }
+    SECTION("the pictures go with the chat")
+    {
+        chat.harness->deliver("create_conversation", json::object());
+        chat.harness->deliver("delete_conversation", json{{"conversationId", id}});
+        CHECK_FALSE(fs::exists(root / chat_record_dir(id)));
+    }
+    fs::remove_all(config.managed_root);
+}
+
+// OpenAI picks the machine that caches a request by the request's opening,
+// which every JusPrin chat shares; prompt_cache_key keeps one chat's requests
+// together and apart from every other chat's.
+TEST_CASE("every request of a chat carries one prompt_cache_key, and another chat another", "[agent][cache][openai]")
+{
+    PrefixChat chat(responses_wire());
+    const ProjectStateDocument& document = chat.harness->persistence.document();
+    const std::string first = document.active_conversation_id();
+    chat.person_turn("Slice it.", {chat.slice_call(), {"It is slicing."}});
+    chat.app_turn([&] { chat.harness->workspace.finish_slice_for_testing(true); }, {{"The slice is ready."}});
+    chat.harness->deliver("create_conversation", json::object());
+    const std::string second = document.active_conversation_id();
+    REQUIRE(second != first);
+    chat.person_turn("Hello again.", {{"Hello."}});
+
+    std::vector<std::string> keys;
+    for (const std::string& body : chat.provider->replies)
+        keys.push_back(json::parse(body).value("prompt_cache_key", ""));
+    REQUIRE(keys.size() == 4);
+    CHECK(keys[0] == document.project_id() + "/" + first);
+    CHECK(keys[1] == keys[0]);
+    CHECK(keys[2] == keys[0]);
+    CHECK(keys[3] == document.project_id() + "/" + second);
+}
+
+// On Anthropic the tools open every request, so a tool list that changes
+// between requests of a chat voids its whole prompt cache. object_import is
+// offered on every turn, and a call that has nothing to import fails.
+TEST_CASE("the tool list is the same on every request of a chat, whatever a message attaches", "[agent][cache][import]")
+{
+    PrefixChat chat(anthropic_wire());
+    Harness& h = *chat.harness;
+    const std::string session = std::to_string(h.workspace.snapshot().session.value());
+    chat.person_turn("Hello.", {{"Hello."}});
+
+    const json model = attach(h, "ca-model", "widget.stl", "solid s\nendsolid s\n");
+    const std::size_t objects = h.workspace.snapshot().plates.at(0).objects.size();
+    chat.turn({{"Adding it.", "call_import", "object_import", json{{"sessionId", session}, {"attachmentId", model["id"]}}},
+               {"It is added."}},
+              [&] {
+                  h.deliver("user_message", json{{"clientMessageId", "c-attach"}, {"text", "Add this."},
+                                                 {"attachmentIds", json::array({model["id"]})}});
+              });
+    REQUIRE(h.workspace.snapshot().plates.at(0).objects.size() == objects + 1);
+
+    chat.person_turn("Add the other one.", {{"Adding it.", "call_none", "object_import",
+                                             json{{"sessionId", session}, {"attachmentId", "a-9"}}},
+                                            {"Please attach it."}});
+    CHECK(h.workspace.snapshot().plates.at(0).objects.size() == objects + 1);
+    const json last = json::parse(chat.provider->replies.back());
+    const json results = last["messages"][last["messages"].size() - 1]["content"];
+    REQUIRE(results.size() == 1);
+    CHECK(results[0]["tool_use_id"] == "call_none");
+    CHECK(results[0]["is_error"] == true);
+    const json output = json::parse(results[0]["content"][0]["text"].get<std::string>());
+    CHECK(output["error"]["code"] == "invalid_arguments");
+    CHECK(output["error"]["message"].get<std::string>().find("ask them to attach it") != std::string::npos);
+
+    REQUIRE(chat.provider->replies.size() == 5);
+    const json tools = json::parse(chat.provider->replies.front())["tools"];
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool["name"] == "object_import"; }));
+    for (const std::string& body : chat.provider->replies)
+        CHECK(json::parse(body)["tools"] == tools);
+}
+
+TEST_CASE("the request log writes each body as the transport received it, with the response's usage", "[agent][request-log]")
+{
+    struct KeepingTransport final : IAgentHttpTransport
+    {
+        std::vector<std::string> bodies;
+        bool post(AgentHttpRequest request, EventFn event) override
+        {
+            bodies.push_back(request.body);
+            // Anthropic's two usage lines, the first split across chunks, then
+            // the Responses one; the null usage of response.created is skipped.
+            event({AgentHttpEvent::Kind::Data, "event: message_start\ndata: {\"message\":{\"usage\":{\"input_"});
+            event({AgentHttpEvent::Kind::Data, "tokens\":100}}}\n\ndata: {\"usage\":{\"output_tokens\":10}}\n\n"});
+            event({AgentHttpEvent::Kind::Data, "data: {\"response\":{\"usage\":null}}\ndata: {\"response\":{\"usage\":{\"total_tokens\":110}}}\n"});
+            event({AgentHttpEvent::Kind::Complete});
+            return true;
+        }
+        void cancel() override {}
+    };
+    const JusPrinTest::McpDirectory directory;
+    const std::filesystem::path     logged = directory.root / "requests";
+    RequestLog                      log(logged, [] { return RequestLog::Chat{"p-1", "c-2"}; });
+    auto                            owner = std::make_unique<KeepingTransport>();
+    KeepingTransport*               inner = owner.get();
+    const auto                      transport = log.transport(std::move(owner));
+    const auto file = [&](const std::string& name) {
+        std::ifstream in(logged / name, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    const std::vector<std::string> bodies{"{\"input\":[\"a\"],\"model\":\"m\"}", std::string("{\"input\":[\"\xc3\xa9\0\"]}\n", 18)};
+    for (const std::string& body : bodies)
+        CHECK(transport->post(AgentHttpRequest{"https://example.test", {}, body}, [](AgentHttpEvent) {}));
+    REQUIRE(inner->bodies == bodies);
+    CHECK(file("0001-request.json") == inner->bodies[0]);
+    CHECK(file("0002-request.json") == inner->bodies[1]);
+    CHECK(file("0002-usage.txt") == "p-1 c-2\n{\"input_tokens\":100}\n{\"output_tokens\":10}\n{\"total_tokens\":110}\n");
+    CHECK(std::distance(std::filesystem::directory_iterator(logged), std::filesystem::directory_iterator()) == 4);
+    // A run's numbering never continues an earlier run's.
+    CHECK_THROWS_AS(RequestLog(logged, {}), std::runtime_error);
 }

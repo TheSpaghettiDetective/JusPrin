@@ -309,7 +309,6 @@ Agent::AgentSessionProfile PrinterPanel::filament_profile() const
     profile.tool_names                 = PrinterConversation::settings_tools();
     profile.instructions               = m_filament_instructions;
     profile.include_workspace          = false;
-    profile.notes_in_context           = true;
     return profile;
 }
 

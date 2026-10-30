@@ -62,8 +62,10 @@ A run ends by printing each case beside the baseline (baseline.json, or
 baseline-claude-cli.json for the claude-cli backend), marking only large
 moves; --results saves the run in the baseline's form, --compare compares a
 saved run without sending anything, and --record-baseline makes a run the
-baseline. Exit code 1 when a case is marked worse than the baseline, 0
-otherwise; with --must-pass N, 1 when a case passes fewer than N runs. Needs
+baseline. Exit code 1 when a case is marked worse than the baseline, 2 when
+there is no baseline or the run's setup differs from it, so nothing was
+judged, 0 otherwise; with --must-pass N, 1 when a case passes fewer than N
+runs. Needs
 python3 and node, and the page's npm install
 (src/slic3r/GUI/JusPrin/AgentUI/node_modules) for esbuild.
 """
@@ -140,12 +142,15 @@ class CallCheck:
 
     @staticmethod
     def path():
-        if os.environ.get("JUSPRIN_TOOL_CALL_CHECK"):
-            return pathlib.Path(os.environ["JUSPRIN_TOOL_CALL_CHECK"])
         root = HERE.parents[1]
-        found = [path for pattern in ("build/*/tests/agent/*/", "build/*/tests/agent/", "build/tests/agent/*/",
-                                      "build/tests/agent/")
-                 for name in ("tool_call_check", "tool_call_check.exe") for path in root.glob(pattern + name)]
+        if os.environ.get("JUSPRIN_TOOL_CALL_CHECK"):
+            found = [pathlib.Path(os.environ["JUSPRIN_TOOL_CALL_CHECK"])]
+            if not found[0].is_file():
+                raise RuntimeError(f"JUSPRIN_TOOL_CALL_CHECK names {found[0]}, which does not exist")
+        else:
+            found = [path for pattern in ("build/*/tests/agent/*/", "build/*/tests/agent/", "build/tests/agent/*/",
+                                          "build/tests/agent/")
+                     for name in ("tool_call_check", "tool_call_check.exe") for path in root.glob(pattern + name)]
         if not found:
             raise RuntimeError("tool_call_check is not built: run `cmake --build <build dir> --target tool_call_check` "
                                "or set JUSPRIN_TOOL_CALL_CHECK")
@@ -472,7 +477,8 @@ class AfterSlice(Readiness):
     starts a new turn with the outcome when it ends after this turn. A reply
     that does not claim readiness is what that invites. The recorded reads were
     taken one after another while the run went on: workspace_inspect shows
-    it still slicing, and slice_report, read later, has the finished slice.
+    it still slicing, and slice_report returns valid: false or the finished
+    slice, depending on whether the run had ended when it was recorded.
     A model that polls workspace_inspect gets that same in-flight answer
     each time, so it ends unobserved at MAX_READS. The same sentences as after-apply.
     Passes on slice_report, or a reply that does not claim the print is
@@ -631,7 +637,8 @@ class AnswerFromContext(Case):
     def check(self, step):
         if step.tool:
             return FAIL, "CALLED: " + str(step)
-        named = "x1" in step.reply.lower() and "pla" in step.reply.lower()
+        # Whole words: "pla" alone is also in "plate", which the workspace names.
+        named = re.search(r"\bx1", step.reply, re.I) is not None and re.search(r"\bpla\b", step.reply, re.I) is not None
         return (PASS if named else FAIL), ("" if named else "DID NOT NAME BOTH: ") + str(step)
 
 
@@ -991,8 +998,8 @@ assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + s
 
 def body_for(name, instructions, model, providers, input=None):
     body = {key: value for key, value in REQUESTS[name]["body"].items() if key != "stream"}
-    # A point whose message had a model attached kept its own tool list,
-    # project_tools.json with object_import added.
+    # requests.json bodies recorded before every request offered object_import
+    # kept their own tool list where the message had a model attached.
     body.update({"model": model, "instructions": instructions, "tools": REQUESTS[name]["body"].get("tools", TOOLS)})
     if input is not None:
         body["input"] = input
@@ -1178,9 +1185,6 @@ def run_steps(name, respond, deliver=lambda step, results: None):
     """One run of a case: respond(input) is the model's output for the
     request so far, deliver(step, results) hands it its reads' results."""
     input = list(REQUESTS[name]["body"]["input"])
-    # The recorded request's last items that the app sends on it alone (a
-    # skill and its picture): a continuation of the turn leaves them out.
-    once = REQUESTS[name].get("once", 0)
     path = []  # the reads answered, one entry per response, for the report
     refusals = 0
     try:
@@ -1209,12 +1213,9 @@ def run_steps(name, respond, deliver=lambda step, results: None):
             path.append(" + ".join(call["name"] + (" (refused)" if refused and index == refused[0] else "")
                                    for index, call in enumerate(step.calls)))
             deliver(step, results)
-            # As the app continues a turn: the history without what was sent
-            # once, the model's output, then a result for every call, in the
-            # order the calls were written.
-            if once:
-                del input[-once:]
-                once = 0
+            # As the app continues a turn: the whole request so far, a skill
+            # and its picture included (fe70eea593), the model's output, then
+            # a result for every call, in the order the calls were written.
             input += step.output + [{"type": "function_call_output", "call_id": call.get("call_id"), "output": result}
                                     for call, result in zip(step.calls, results)]
     except Exception as error:  # a failed request is a failed run, reported as such
@@ -1267,7 +1268,7 @@ def main():
         if args.record_baseline:
             record_baseline(baseline_path, run)
             sys.exit(0)
-        sys.exit(0 if finish(run, baseline_path, args.must_pass) else 1)
+        sys.exit(exit_code(finish(run, baseline_path, args.must_pass)))
     global CLAUDE_JUDGE
     if args.judge == "claude-cli":
         CLAUDE_JUDGE = (args.claude_judge_model, args.claude_effort)
@@ -1343,19 +1344,28 @@ def main():
     if args.record_baseline:
         record_baseline(baseline_path, run)
         sys.exit(0)
-    sys.exit(0 if finish(run, baseline_path, must_pass) and ok else 1)
+    judged = finish(run, baseline_path, must_pass)
+    sys.exit(exit_code(judged if ok else False))
 
 
 def finish(run, baseline_path, must_pass):
-    """Prints the run beside the baseline. False when a case is marked worse,
-    or, with no baseline to compare with and no --must-pass, always true."""
+    """Prints the run beside the baseline. False when a case is marked worse;
+    None when there is no baseline, or the run cannot be compared with it, so
+    nothing was judged. With --must-pass the pass counts decide, as before
+    baselines, and this is true."""
     if not baseline_path.exists():
         print(f"no baseline at {baseline_path.name}: nothing to compare with")
-        return True
+        return True if must_pass is not None else None
     lines, worse = compare(run, json.loads(baseline_path.read_text(encoding="utf-8")))
     print("\n" + "\n".join(lines))
-    # With --must-pass the pass counts decide, as before baselines.
-    return must_pass is not None or not worse
+    if must_pass is not None:
+        return True
+    return None if worse is None else not worse
+
+
+def exit_code(judged):
+    """0 for a run judged no worse, 1 for a worse one, 2 for one not judged."""
+    return 2 if judged is None else 0 if judged else 1
 
 
 def report(name, results, tally, must_pass, args):

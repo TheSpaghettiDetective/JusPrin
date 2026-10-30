@@ -250,6 +250,20 @@
         }, {}, {}});
         steps.push_back({"cp_a_slice", [self] { self->slice_now(); }, self->slice_ended(), [self] {
             self->stop_answering_modals();
+            // The "clean" checks below need a slice with nothing to report.
+            // That this cube slices without a warning, crossing paths or a
+            // path outside is the fixture's doing, so it is checked first:
+            // a new OrcaSlicer warning then reads as a fixture change, not
+            // as a Check print layout bug.
+            {
+                const Workspace::WorkspaceSnapshot workspace = installed_shell()->workspace()->snapshot();
+                const Workspace::SliceReport report =
+                    workspace.active_plate ? installed_shell()->workspace()->slice_report(*workspace.active_plate) : Workspace::SliceReport{};
+                for (const Workspace::SliceFinding& finding : report.findings)
+                    std::cerr << "HARNESS CHECKPRINT fixture_finding code=" << finding.code << " message='" << finding.message << "'\n";
+                self->check(report.valid && report.findings.empty() && report.conflict.empty() && !report.toolpath_outside,
+                            "cp_a_fixture_slices_without_a_shown_warning");
+            }
             // Prepare's view zoomed in, as a person leaves it; the window
             // must open on the whole slice anyway and give this view back.
             self->m_plater->get_camera().set_zoom(self->m_plater->get_camera().get_zoom() * 6);

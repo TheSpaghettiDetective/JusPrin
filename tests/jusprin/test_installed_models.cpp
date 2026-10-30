@@ -25,13 +25,15 @@ TEST_CASE("a new printer starts on the nozzle the wizard selected, else 0.4, els
 {
     const VendorMap after{{"Custom",
                            {{"Generic Klipper Printer", {"0.2", "0.4", "0.6"}},
-                            {"Generic Marlin Printer", {"0.6", "0.8"}}}}};
+                            {"Generic Marlin Printer", {"0.25", "0.6"}}}}};
     const auto installed = newly_installed_models({}, after, "Generic Klipper Printer", "0.6");
     REQUIRE(installed.size() == 2);
     CHECK(installed[0].model == "Generic Klipper Printer");
     CHECK(installed[0].variant == "0.6");
+    // The Marlin also has a 0.6, but the wizard selected it for the Klipper:
+    // the Marlin has no 0.4, so it starts on its first.
     CHECK(installed[1].model == "Generic Marlin Printer");
-    CHECK(installed[1].variant == "0.6");
+    CHECK(installed[1].variant == "0.25");
 }
 
 TEST_CASE("a model listed with no variants is not enabled", "[installed-models]")

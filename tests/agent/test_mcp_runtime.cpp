@@ -3,6 +3,7 @@
 #include "mcp_test_directory.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentHost.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
@@ -65,8 +66,9 @@ TEST_CASE("MCP network discovery and quick reads do not require initialization",
     Client rest(h.runtime.server(), request("tools/list", {{"cursor", "jusprin-v1:25"}}));
     REQUIRE(h.finish(rest));
     const auto remaining = rest.messages()[0]["result"]["tools"];
-    REQUIRE(remaining.size() == 4);
-    CHECK(remaining.back()["name"] == "workspace_inspect");
+    const auto catalog   = Agent::ToolRegistry::instance().exposed(Agent::ToolExposure::Mcp);
+    REQUIRE(remaining.size() == catalog.size() - 25);
+    CHECK(remaining.back()["name"] == catalog.back().get().name);
     Client inspect(h.runtime.server(), request("tools/call", {{"name", "workspace_inspect"}}));
     REQUIRE(h.finish(inspect));
     CHECK_FALSE(inspect.streaming());

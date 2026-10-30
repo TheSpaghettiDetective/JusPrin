@@ -104,11 +104,11 @@ struct Wire
     }
 };
 
-std::string page_message(const std::string& type, const json& payload = json::object())
+std::string page_message(const std::string& type, const json& payload = json::object(), const std::string& id = "w-1")
 {
     return json{{"protocol", "jusprin-home-bridge"},
                 {"version", 1},
-                {"id", "w-1"},
+                {"id", id},
                 {"type", type},
                 {"payload", payload}}
         .dump();
@@ -449,11 +449,12 @@ TEST_CASE("a refused printer action reaches the page with its reason", "[home]")
     host.on_page_message(hello());
     const size_t states_after_hello = wire.of_type("state").size();
 
-    host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Office A1"}}));
+    // An id of its own, so the error is seen to answer this message, not the hello.
+    host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Office A1"}}, "w-2"));
 
     const auto errors = wire.of_type("printer_error");
     REQUIRE(errors.size() == 1);
-    CHECK(errors.front().at("correlationId") == "w-1");
+    CHECK(errors.front().at("correlationId") == "w-2");
     CHECK(errors.front().at("payload").at("id") == "named:Garage X1C");
     CHECK(errors.front().at("payload").at("message") == backend.refusal);
     CHECK(wire.of_type("state").size() == states_after_hello + 1);

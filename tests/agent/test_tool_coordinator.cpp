@@ -12,6 +12,8 @@
 #include "../jusprin_support/FakeProductState.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
 
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -23,6 +25,16 @@ using namespace Slic3r::GUI::JusPrin::Agent;
 using nlohmann::json;
 
 namespace {
+
+// A temp path no other test process uses, so two runs at once (ctest -j, or
+// two worktrees sharing $TMPDIR) never write or delete each other's files.
+// Eight random hex digits: an export's card title quotes the path and is cut
+// at kToolLabelLimit, so a whole uuid would push the rest of a title out.
+std::filesystem::path unique_temp_path(const std::string& label, const std::string& extension = {})
+{
+    const std::string random = boost::uuids::to_string(boost::uuids::random_generator()()).substr(0, 8);
+    return std::filesystem::temp_directory_path() / ("jusprin-" + label + "-" + random + extension);
+}
 
 Workspace::WorkspaceSnapshot one_plate_snapshot()
 {
@@ -130,6 +142,42 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
     refused.pump_to_completion(refused_id);
     CHECK(refused.coordinator.find(refused_id)->state == ToolState::Failed);
     CHECK(refused.object_count() == 1);
+}
+
+TEST_CASE("a change whose save fails is announced once, as failed, and never changes after", "[tools][versions]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    h.coordinator.set_version_callbacks(
+        [](const ToolActivity&) { return std::string("v-before"); },
+        [](const ToolActivity&, const std::string&) { throw std::runtime_error("disk full"); });
+    h.coordinator.set_document_boundary_callback([](const ToolActivity&) { throw std::runtime_error("disk full"); });
+
+    // A model edit saved by the version callbacks, or a document-only
+    // action saved by the document boundary.
+    const bool document_only = GENERATE(false, true);
+    CAPTURE(document_only);
+    const ToolRequest request = document_only ? ToolRequest{"setup_record", json{{"purpose", "A bracket"}}.dump()} :
+                                                h.duplicate_cube_request();
+    const std::string id = h.coordinator.submit(request, "m-1").action_id;
+    h.pump_to_completion(id);
+    std::vector<ToolActivity> terminal;
+    for (const ToolActivity& event : h.events)
+        if (event.action_id == id && tool_state_terminal(event.state))
+            terminal.push_back(event);
+    REQUIRE(terminal.size() == 1);
+    CHECK(terminal.front().state == ToolState::Failed);
+    REQUIRE(terminal.front().error);
+    CHECK(terminal.front().error->code == "local_save_failed");
+    // The record keeps the outcome its subscribers were told.
+    const ToolActivity& stored = *h.coordinator.find(id);
+    CHECK(stored.state == terminal.front().state);
+    CHECK(stored.error->code == terminal.front().error->code);
+    CHECK(stored.result_json == terminal.front().result_json);
+    // The change itself was made; only the save failed.
+    if (!document_only)
+        CHECK(h.object_count() == 2);
 }
 
 TEST_CASE("Settings tools share terminal activities across adapters and return atomic results", "[tools][settings][mcp]")
@@ -326,8 +374,7 @@ TEST_CASE("object_import resolves an attachment ID and adds an object", "[tools]
     Harness harness;
 
     // A stand-in for the stored blob the host would have written.
-    const std::filesystem::path model =
-        std::filesystem::temp_directory_path() / "jusprin-coordinator-import.stl";
+    const std::filesystem::path model = unique_temp_path("coordinator-import", ".stl");
     std::ofstream(model, std::ios::binary) << "solid cube\nendsolid cube\n";
     harness.coordinator.set_attachment_path_resolver(
         [&](const std::string& id) { return id == "a-1" ? model.string() : std::string(); });
@@ -350,7 +397,7 @@ TEST_CASE("object_import resolves an attachment ID and adds an object", "[tools]
     std::filesystem::remove(model);
 }
 
-TEST_CASE("object_import fails when the attachment can no longer be resolved", "[tools][import]")
+TEST_CASE("object_import fails when no model file in the chat has the attachment ID", "[tools][import]")
 {
     Harness harness;
     harness.coordinator.set_attachment_path_resolver([](const std::string&) { return std::string(); });
@@ -366,7 +413,12 @@ TEST_CASE("object_import fails when the attachment can no longer be resolved", "
     harness.pump_to_completion(submitted.action_id);
 
     CHECK(harness.coordinator.find(submitted.action_id)->state == ToolState::Failed);
-    CHECK(harness.coordinator.find(submitted.action_id)->error->code == "not_found");
+    // The fix is in the call or with the person, as when the tool was not
+    // offered without an attachment ("unknown_tool"): nothing to read again.
+    CHECK(harness.coordinator.find(submitted.action_id)->error->code == "invalid_arguments");
+    CHECK(harness.coordinator.find(submitted.action_id)->error->message ==
+          "No model file attached in this chat has the id \"a-404\". Nothing was imported. Use an attachment id from the "
+          "person's message; if they attached no model file, ask them to attach it.");
     CHECK(harness.object_count() == before);
 }
 
@@ -1294,7 +1346,9 @@ TEST_CASE("object analysis reports geometry, and a measure fails once its handle
     REQUIRE(measured.state == ToolState::Succeeded);
     CHECK(json::parse(measured.result_json)["measurement"]["distanceMm"] == 20);
 
-    // Any change to the project expires the handles.
+    // Any change to the project expires the handles. The fake decides that
+    // (FakeWorkspace, like OrcaWorkspaceAdapter); what this checks is that the
+    // coordinator reports it as feature_expired, not that the adapter expires.
     h.workspace.record_step_for_testing("Move");
     CHECK(run(measure).error->code == "feature_expired");
 
@@ -2224,8 +2278,7 @@ TEST_CASE("pictures, attachments, slice detail, cancels and exports", "[tools][o
     CHECK(run("activity_cancel", json{{"handle", "nothing"}}).second.error->code == "not_found");
 
     // An export never overwrites a file unless the call says to.
-    const auto folder = std::filesystem::temp_directory_path() / "jusprin-export-test";
-    std::filesystem::remove_all(folder);
+    const auto folder = unique_temp_path("export-test");
     std::filesystem::create_directories(folder);
     const std::string target = (folder / "plate.gcode").u8string();
     h.workspace.set_plate_sliced(plate, true);
@@ -2358,7 +2411,7 @@ TEST_CASE("a wrong plate id gets not_found from every tool that takes one", "[to
 {
     Harness h;
     const std::string session = std::to_string(h.workspace.snapshot().session.value());
-    const std::string export_path = (std::filesystem::temp_directory_path() / "jusprin-no-plate.stl").u8string();
+    const std::string export_path = unique_temp_path("no-plate", ".stl").u8string();
     const auto run = [&h](const char* tool, const json& arguments) {
         const std::string id = h.coordinator.submit({tool, arguments.dump()}, "m-1").action_id;
         h.pump_to_completion(id);
@@ -2410,8 +2463,12 @@ TEST_CASE("a failure code is one ToolErrors lists", "[tools][errors]")
     // An unlisted code is a defect in the code that chose it, not a refusal.
     code = "made_up";
     CHECK_THROWS_AS(h.coordinator.submit({"workspace_inspect", "{}"}, "m-2"), std::logic_error);
-    for (const std::string_view listed : ToolErrors::kCodes)
-        CHECK(ToolErrors::registered(listed));
+    // Every listed code reaches the caller as it was chosen.
+    for (const std::string_view listed : ToolErrors::kCodes) {
+        code = std::string(listed);
+        INFO(code);
+        CHECK(h.coordinator.submit({"workspace_inspect", "{}"}, "m-" + code).error->code == code);
+    }
     CHECK_FALSE(ToolErrors::registered("unavailable_operation"));
 }
 

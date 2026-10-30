@@ -593,6 +593,7 @@
  "conversations": [
   {
    "name": "prepare",
+   "plateType": "Cool Plate",
    "steps": [
     {
      "say": "prepare this for PETG, strong",
@@ -717,13 +718,13 @@
   },
   {
    "name": "advice",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "what infill should I use for this?",
      "replies": [
       {
-       "record": "advice-infill",
-       "skill": "print-issues"
+       "record": "advice-infill"
       }
      ]
     }
@@ -731,13 +732,13 @@
   },
   {
    "name": "german",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "Welche Füllung sollte ich dafür verwenden?",
      "replies": [
       {
-       "record": "reply-in-german",
-       "skill": "print-issues"
+       "record": "reply-in-german"
       }
      ]
     }
@@ -745,13 +746,13 @@
   },
   {
    "name": "troubleshoot",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "why isn't my first layer sticking?",
      "replies": [
       {
-       "record": "troubleshoot-first-layer",
-       "skill": "print-issues"
+       "record": "troubleshoot-first-layer"
       }
      ]
     }
@@ -759,13 +760,13 @@
   },
   {
    "name": "set-up-for",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "which printer and filament is this set up for?",
      "replies": [
       {
-       "record": "answer-from-context",
-       "skill": "print-issues"
+       "record": "answer-from-context"
       }
      ]
     }
@@ -773,13 +774,13 @@
   },
   {
    "name": "loaded",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "what filament is loaded?",
      "replies": [
       {
-       "record": "loaded-vs-configured",
-       "skill": "print-issues"
+       "record": "loaded-vs-configured"
       }
      ]
     }
@@ -787,13 +788,13 @@
   },
   {
    "name": "direct",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "set layer height to 0.28",
      "replies": [
       {
        "record": "direct-change",
-       "skill": "print-issues",
        "call": "settings_get",
        "arguments": {
         "scope": "process",
@@ -831,6 +832,7 @@
   },
   {
    "name": "direct-failed",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "set layer height to 0.28",
@@ -877,6 +879,7 @@
   },
   {
    "name": "issue-fix",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "issue": "Help fix this issue.",
@@ -894,6 +897,7 @@
   },
   {
    "name": "issue-explain",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "issue": "Explain this issue and my options.",
@@ -912,6 +916,7 @@
   {
    "name": "slice-warning",
    "fixture": "overhang",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "anything wrong with the slice?",
@@ -935,6 +940,7 @@
   {
    "name": "slice-warnings-ready",
    "fixture": "overhang",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "say": "is this good to print?",
@@ -949,6 +955,7 @@
   },
   {
    "name": "file-note",
+   "plateType": "Textured PEI Plate",
    "steps": [
     {
      "open": "Bracket",
@@ -987,6 +994,7 @@
   {
    "name": "unnamed-model",
    "fixture": "single",
+   "plateType": "Cool Plate",
    "steps": [
     {
      "drop": "scan_0417.drc",
@@ -1030,6 +1038,7 @@
   {
    "name": "tool-open",
    "fixture": "single",
+   "plateType": "Cool Plate",
    "steps": [
     {
      "copy": {

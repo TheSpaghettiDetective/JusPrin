@@ -12,6 +12,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -32,22 +33,6 @@ struct AgentAttachmentContext
     bool        importable{false};
 };
 
-struct AgentConversationContext
-{
-    std::string role; // user|assistant|developer; empty for a tool exchange
-    std::string text;
-    // A user message sent from a print-issue button: the app's JSON about the
-    // issue, sent beside the person's words, never inside them.
-    std::string issue_context;
-    // A tool the model called in an earlier turn and what it got back, kept
-    // as one entry so the call is never sent without its output. Set when
-    // call_id is; role and text are then empty.
-    std::string call_id;
-    std::string tool;
-    std::string arguments_json;
-    std::string output_json;
-};
-
 // A project skill as its page wrote it (AgentUI/src/skills/<name>/SKILL.md).
 // A skill with a trigger is added by the app when that event happens; one
 // with a description is listed for the model to read with skill_read when
@@ -62,8 +47,7 @@ struct AgentSkill
 
 // A skill the app fired for one request because its event happened: the text
 // goes in as the request's last item, after the picture that goes with it.
-// Built when the request is and never stored in the conversation, so no later
-// request carries it, not even the next one of the same turn.
+// The chat's record keeps both as sent.
 struct AgentSkillUse
 {
     std::string                      name;
@@ -87,10 +71,6 @@ struct AgentSessionProfile
     std::string              instructions;
     std::vector<std::string> tool_names;               // empty: every in-app tool
     bool                     include_workspace{true};  // the open project's state
-    // The thread's notes reach the model as the app's own statements. Off
-    // where the workspace is sent: there a note restates project state the
-    // snapshot already carries, and a stale one would contradict it.
-    bool                     notes_in_context{false};
 };
 
 struct AgentRequest
@@ -101,8 +81,26 @@ struct AgentRequest
     // The same on every request of one chat and different for every other
     // chat: what a provider routes its prompt cache by. Empty for a title.
     std::string                           chat_key;
+    // What the chat has sent before, picture text loaded, and where the
+    // items this turn sends go to be kept: the record of the chat the turn
+    // belongs to, and the blob each picture or PDF is written to before the
+    // request that first sends it (nullopt when it could not be written).
+    // Required for a reply; a title keeps nothing.
+    ChatRecord                            record;
+    std::function<void(const std::string& format, std::vector<RecordItem> items)> on_recorded;
+    std::function<std::optional<std::string>(const std::string& base64)>         keep_blob;
+    // The chat message this turn answers, when the model has not been sent it
+    // yet: its id, and its words or report, or the app's note that started
+    // the turn, which the model reads in the operator's voice.
+    std::string                           source;
     std::string                           user_text;
-    std::string                           issue_context; // see AgentConversationContext
+    std::string                           note;
+    // A user message sent from a print-issue button: the app's JSON about the
+    // issue, sent beside the person's words, never inside them.
+    std::string                           issue_context;
+    // The record holds the message this turn answers (a retry): the turn
+    // adds no workspace of its own.
+    bool                                  turn_recorded{false};
     int                                   attempt{1};
     AgentSessionProfile                   session;
     Workspace::WorkspaceSnapshot          workspace;
@@ -123,7 +121,10 @@ struct AgentRequest
         bool        same_inputs_as_now{false};
     };
     std::vector<GcodeHistoryEntry>        gcode_history;
-    std::vector<AgentConversationContext> conversation;
+    // Messages before this turn's the model has not been sent, as they go:
+    // the person's side (words with any print issue, file-load reports) and
+    // the app's notes in the operator's voice.
+    std::vector<RecordItem>               unsent;
     std::vector<AgentAttachmentContext>   attachments;
     std::vector<AgentSkillUse>            skills;
     // The skills the model may read on its own, without their text: the

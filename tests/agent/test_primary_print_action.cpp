@@ -6,11 +6,12 @@ using namespace Slic3r::GUI::JusPrin;
 
 TEST_CASE("Header offers only the next valid manufacturing action", "[header]")
 {
-    for (int bits = 0; bits < 128; ++bits) {
+    for (int bits = 0; bits < 256; ++bits) {
         PrintActionState state;
         state.slicing = bits & 1;
         state.sliced = bits & 2;
-        state.can_slice = state.can_slice_all = bits & 4;
+        state.can_slice = bits & 4;
+        state.can_slice_all = bits & 128;
         state.can_print = bits & 8;
         state.can_print_all = bits & 16;
         state.can_export = bits & 32;
@@ -29,6 +30,7 @@ TEST_CASE("Header offers only the next valid manufacturing action", "[header]")
             CHECK(offers(PrintAction::Cancel));
         } else if (!state.sliced) {
             CHECK(actions.primary.action == PrintAction::Slice);
+            CHECK(actions.primary.enabled == state.can_slice);
             CHECK_FALSE(offers(PrintAction::Print));
             CHECK(offers(PrintAction::SliceAll) == (state.plate_count > 1 && state.can_slice_all));
             // A single plate has nothing to put in the menu, so the header hides its chevron half.
@@ -36,6 +38,7 @@ TEST_CASE("Header offers only the next valid manufacturing action", "[header]")
         } else {
             CHECK_FALSE(actions.menu.empty());
             CHECK(actions.primary.action == PrintAction::Print);
+            CHECK(actions.primary.enabled == state.can_print);
             CHECK_FALSE(offers(PrintAction::Slice));
             CHECK_FALSE(offers(PrintAction::SliceAll));
             CHECK(offers(PrintAction::CheckPrint));

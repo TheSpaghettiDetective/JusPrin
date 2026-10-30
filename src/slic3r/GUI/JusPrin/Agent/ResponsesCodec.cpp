@@ -43,67 +43,45 @@ json tools_json(const std::vector<OfferedTool>& tools)
     return items;
 }
 
-json user_message(const std::vector<TurnContentPart>& parts)
+json input_part(const RecordPart& part)
 {
-    json content = json::array();
-    for (const TurnContentPart& part : parts) {
-        switch (part.kind) {
-        case TurnContentPart::Kind::Text: content.push_back(text_part(part.text)); break;
-        case TurnContentPart::Kind::Image:
-            content.push_back(json{{"type", "input_image"}, {"image_url", data_url(part.mime, part.base64)}});
-            break;
-        case TurnContentPart::Kind::Pdf:
-            content.push_back(json{{"type", "input_file"}, {"filename", part.filename}, {"file_data", data_url(part.mime, part.base64)}});
-            break;
-        }
-    }
-    return json{{"role", "user"}, {"content", std::move(content)}};
+    if (part.kind == RecordPart::Kind::Image)
+        return json{{"type", "input_image"}, {"image_url", data_url(part.mime, part.base64)}};
+    if (part.kind == RecordPart::Kind::Pdf)
+        return json{{"type", "input_file"}, {"filename", part.filename}, {"file_data", data_url(part.mime, part.base64)}};
+    return text_part(part.text);
 }
 
-json input_items(const TurnTranscript& transcript, RequestKind kind)
+json input_items(const TurnTranscript& transcript)
 {
     json input = json::array();
-    for (const auto& message : transcript.opening) {
-        if (message.call_id.empty()) {
-            if (message.issue_context.empty())
-                input.push_back(json{{"role", message.role}, {"content", message.text}});
-            else
-                input.push_back(json{{"role", message.role},
-                                     {"content", json::array({text_part(message.text),
-                                                              text_part(tagged_block("print_issue", message.issue_context))})}});
-            continue;
+    for (const RecordItem& item : transcript.items) {
+        switch (item.kind) {
+        case RecordItem::Kind::User: {
+            json content = json::array();
+            for (const RecordPart& part : item.parts)
+                content.push_back(input_part(part));
+            input.push_back(json{{"role", "user"}, {"content", std::move(content)}});
+            break;
         }
-        // A call from an earlier turn, replayed for this stateless request.
-        // Its call_id pairs it with its output. The item id the service gave
-        // the call is not sent: with store:false it names nothing kept.
-        input.push_back(json{{"type", "function_call"}, {"call_id", message.call_id}, {"name", message.tool},
-                             {"arguments", message.arguments_json}});
-        input.push_back(json{{"type", "function_call_output"}, {"call_id", message.call_id}, {"output", message.output_json}});
-    }
-    if (kind == RequestKind::Reply && !transcript.user_content.empty())
-        input.push_back(user_message(transcript.user_content));
-    for (const TurnStep& step : transcript.steps) {
-        // The response's own items, reasoning included, exactly as sent.
-        input.insert(input.end(), step.assistant_turn.begin(), step.assistant_turn.end());
-        for (const TurnStepResult& result : step.results)
-            input.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
-        // A function result is text only; the pictures follow the results as
-        // image inputs.
-        for (const TurnStepResult& result : step.results)
-            if (result.image)
-                input.push_back(json{{"role", "user"},
-                                     {"content", json::array({json{{"type", "input_text"}, {"text", "The image returned by call " + result.call_id + "."}},
-                                                              json{{"type", "input_image"},
-                                                                   {"image_url", data_url(result.image->mime_type, result.image->base64)}}})}});
-    }
-    // A fired skill as the request's last items: its picture, as an image
-    // input of its own, then its text in the app's voice.
-    for (const AgentSkillUse& skill : newest_once(transcript)) {
-        if (skill.picture)
-            input.push_back(json{{"role", "user"},
-                                 {"content", json::array({json{{"type", "input_image"},
-                                                               {"image_url", data_url(skill.picture->mime_type, skill.picture->base64)}}})}});
-        input.push_back(json{{"role", "developer"}, {"content", skill.text}});
+        // An app note or a fired skill, in the app's voice.
+        case RecordItem::Kind::Operator: input.push_back(json{{"role", "developer"}, {"content", item.text}}); break;
+        case RecordItem::Kind::Assistant:
+            // The response's own items, reasoning included, exactly as sent.
+            input.insert(input.end(), item.output.begin(), item.output.end());
+            break;
+        case RecordItem::Kind::Results:
+            for (const RecordResult& result : item.results)
+                input.push_back(json{{"type", "function_call_output"}, {"call_id", result.call_id}, {"output", result.output_json}});
+            // A function result is text only; the pictures follow the results
+            // as image inputs.
+            for (const RecordResult& result : item.results)
+                if (result.image)
+                    input.push_back(json{{"role", "user"},
+                                         {"content", json::array({text_part("The image returned by call " + result.call_id + "."),
+                                                                  input_part(*result.image)})}});
+            break;
+        }
     }
     return input;
 }
@@ -114,7 +92,7 @@ ProviderRequest ResponsesCodec::build(const TurnTranscript& transcript, const Pr
 {
     ProviderRequest request;
     request.headers.push_back({"Idempotency-Key", transcript.request_id + "-request-" + std::to_string(transcript.request_sequence)});
-    json input = input_items(transcript, kind);
+    json input = input_items(transcript);
     if (kind == RequestKind::ConversationTitle) {
         request.body = json{{"model", profile.model}, {"store", false}, {"stream", true},
                             {"instructions", kConversationTitleInstructions}, {"input", std::move(input)}};
@@ -133,6 +111,12 @@ ProviderRequest ResponsesCodec::build(const TurnTranscript& transcript, const Pr
     // OpenAI and OpenRouter read the same field.
     if (!profile.effort.empty())
         request.body["reasoning"] = json{{"effort", profile.effort}};
+    // Every chat opens with the same instructions and tools, which is what
+    // the provider picks a cache machine by; the key keeps each chat on its
+    // own. JusPrin's gateway refuses a field it does not list, and does not
+    // list this one yet.
+    if (!transcript.chat_key.empty() && !profile.account_sign_in)
+        request.body["prompt_cache_key"] = transcript.chat_key;
     return request;
 }
 

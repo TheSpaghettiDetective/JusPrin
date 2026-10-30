@@ -5,11 +5,14 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
+#include "project_chat_tools.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -43,6 +46,27 @@ public:
     bool accept_posts{true};
 };
 
+json picture(const RecordPart& part)
+{
+    return json{{"kind", static_cast<int>(part.kind)}, {"text", part.text}, {"mime", part.mime},
+                {"filename", part.filename}, {"base64", part.base64}};
+}
+
+// One item of the transcript as the tests read it.
+json picture(const RecordItem& item)
+{
+    static const char* const kKinds[] = {"user", "operator", "assistant", "results"};
+    json parts = json::array();
+    for (const RecordPart& part : item.parts)
+        parts.push_back(picture(part));
+    json results = json::array();
+    for (const RecordResult& result : item.results)
+        results.push_back(json{{"call_id", result.call_id}, {"output", json::parse(result.output_json)},
+                               {"image", result.image ? result.image->base64 : ""}, {"failed", result.failed}});
+    return json{{"kind", kKinds[static_cast<int>(item.kind)]}, {"source", item.source}, {"parts", std::move(parts)},
+                {"text", item.text}, {"output", item.output}, {"results", std::move(results)}};
+}
+
 // Builds a JSON picture of the transcript; parses the test's scripted events:
 // {"text": ...}, {"turn": <opaque>, "calls": [...], "usage": {...}},
 // {"incomplete": true}, {"failed": {"code": ..., "retryable": ...}}.
@@ -54,44 +78,15 @@ public:
         json tools = json::array();
         for (const OfferedTool& tool : transcript.tools)
             tools.push_back(json{{"name", tool.definition->name}, {"description", tool.description}});
-        json opening = json::array();
-        for (const AgentConversationContext& message : transcript.opening)
-            opening.push_back(message.call_id.empty() ? json{{"role", message.role}, {"text", message.text}} :
-                                                        json{{"call_id", message.call_id}, {"tool", message.tool}});
-        json user = json::array();
-        for (const TurnContentPart& part : transcript.user_content)
-            user.push_back(json{{"kind", static_cast<int>(part.kind)}, {"text", part.text}, {"mime", part.mime},
-                                {"filename", part.filename}, {"base64", part.base64}});
-        json steps = json::array();
-        for (const TurnStep& step : transcript.steps) {
-            json results = json::array();
-            for (const TurnStepResult& result : step.results)
-                results.push_back(json{{"call_id", result.call_id}, {"output", json::parse(result.output_json)},
-                                       {"image", result.image ? result.image->base64 : ""}, {"failed", result.failed}});
-            steps.push_back(json{{"assistant_turn", step.assistant_turn}, {"results", std::move(results)}});
-        }
-        const auto skills = [](const std::vector<AgentSkillUse>& list) {
-            json out = json::array();
-            for (const AgentSkillUse& skill : list)
-                out.push_back(json{{"name", skill.name}, {"text", skill.text}, {"picture", skill.picture != nullptr}});
-            return out;
-        };
-        // The skills fired for this request; the record of every request's
-        // stays in the transcript for a codec that keeps them in place.
-        json once = skills(newest_once(transcript));
-        json fired = json::array({skills(transcript.opening_once)});
-        for (const TurnStep& step : transcript.steps)
-            fired.push_back(skills(step.once));
+        json items = json::array();
+        for (const RecordItem& item : transcript.items)
+            items.push_back(picture(item));
         ProviderRequest request;
         request.body = json{{"kind", kind == RequestKind::ConversationTitle ? "title" : "reply"},
                             {"model", profile.model},
                             {"instructions", transcript.instructions},
                             {"tools", std::move(tools)},
-                            {"opening", std::move(opening)},
-                            {"user", std::move(user)},
-                            {"steps", std::move(steps)},
-                            {"once", std::move(once)},
-                            {"fired", std::move(fired)},
+                            {"items", std::move(items)},
                             {"request_id", transcript.request_id},
                             {"sequence", transcript.request_sequence}};
         request.headers.push_back({"X-Scripted-Sequence", std::to_string(transcript.request_sequence)});
@@ -167,7 +162,16 @@ struct Harness
 
     json body(std::size_t index) const { return json::parse(fake->requests.at(index).body); }
     json last_body() const { return json::parse(fake->requests.back().body); }
-    json last_results() const { return last_body()["steps"].back()["results"]; }
+    // The items of a request of the given kind, in order.
+    static json of_kind(const json& body, const std::string& kind)
+    {
+        json found = json::array();
+        for (const json& item : body["items"])
+            if (item["kind"] == kind)
+                found.push_back(item);
+        return found;
+    }
+    json last_results() const { return of_kind(last_body(), "results").back()["results"]; }
 
     std::optional<AgentEvent> poll_until(AgentEventKind kind)
     {
@@ -188,6 +192,7 @@ struct Harness
 AgentRequest request_fixture()
 {
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id           = "assistant-7-attempt-1";
     request.session.instructions = "You are the project assistant.";
     request.user_text            = "Duplicate the selected cube.";
@@ -201,7 +206,10 @@ AgentRequest request_fixture()
     plate.active = true;
     plate.objects.push_back(object);
     request.workspace.plates.push_back(plate);
-    request.conversation.push_back({"assistant", "Earlier answer"});
+    // What the chat sent before: one reply, and the message this turn answers.
+    request.record.format = "responses";
+    request.record.items.push_back(RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, json::array({"Earlier answer"})});
+    request.source = "m-2";
     return request;
 }
 
@@ -216,6 +224,15 @@ AgentSkillUse file_loaded_skill(const std::string& text = "A file was loaded.", 
 AgentSkillUse setup_skill()
 {
     return AgentSkillUse{"project-setup-changed", "Check the setup.", nullptr, "setup_changed", {"file_loaded"}};
+}
+
+std::vector<std::string> operator_texts(const json& body)
+{
+    std::vector<std::string> texts;
+    for (const json& item : body["items"])
+        if (item["kind"] == "operator")
+            texts.push_back(item["text"]);
+    return texts;
 }
 
 const json kLayoutArguments{{"sessionId", "41"}, {"objects", json::array({json{{"objectId", "72"}, {"quantity", 2}}})}};
@@ -249,31 +266,34 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
     CHECK(body["instructions"] == "You are the project assistant.");
     CHECK(body["request_id"] == "assistant-7-attempt-1");
     CHECK(body["sequence"] == 1);
-    CHECK(body["opening"] == json::array({json{{"role", "assistant"}, {"text", "Earlier answer"}}}));
-    CHECK(body["steps"].empty());
-    CHECK(body["once"].empty());
-    // Every in-app tool the registry offers with an importable attachment,
-    // in the registry's order, with the registry's descriptions.
+    // The record first, then this turn's message, nothing else.
+    REQUIRE(body["items"].size() == 2);
+    CHECK(body["items"][0]["kind"] == "assistant");
+    CHECK(body["items"][0]["output"] == json::array({"Earlier answer"}));
+    CHECK(body["items"][1]["kind"] == "user");
+    CHECK(body["items"][1]["source"] == "m-2");
+    // Every in-app tool the registry offers, in the registry's order, with
+    // the registry's descriptions.
     std::vector<std::string> names;
     for (const json& tool : body["tools"]) {
         names.push_back(tool["name"].get<std::string>());
         CHECK(tool["description"] == ToolRegistry::instance().find(tool["name"].get<std::string>())->description);
     }
-    CHECK(names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "print_dialog_open", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(names == JusPrinTest::project_chat_tool_names());
     // The person's words, the workspace in its tag, the attachment listing,
     // then the image and the PDF as parts of their own; the model file has
     // no part, it is listed only.
-    const json& user = body["user"];
+    const json& user = body["items"][1]["parts"];
     REQUIRE(user.size() == 5);
-    CHECK(user[0]["kind"] == static_cast<int>(TurnContentPart::Kind::Text));
+    CHECK(user[0]["kind"] == static_cast<int>(RecordPart::Kind::Text));
     CHECK(user[0]["text"] == "Duplicate the selected cube.");
     CHECK(user[1]["text"].get<std::string>().rfind("<workspace>\n{", 0) == 0);
     CHECK(user[2]["text"].get<std::string>().find("Attachment att-1: notes.txt [text]\n<attachment id=\"att-1\">\ndo not scale\n</attachment>") != std::string::npos);
     CHECK(user[2]["text"].get<std::string>().find("Attachment stl-1: part.stl [model]") != std::string::npos);
-    CHECK(user[3]["kind"] == static_cast<int>(TurnContentPart::Kind::Image));
+    CHECK(user[3]["kind"] == static_cast<int>(RecordPart::Kind::Image));
     CHECK(user[3]["mime"] == "image/png");
     CHECK(user[3]["base64"] == "iVBORw==");
-    CHECK(user[4]["kind"] == static_cast<int>(TurnContentPart::Kind::Pdf));
+    CHECK(user[4]["kind"] == static_cast<int>(RecordPart::Kind::Pdf));
     CHECK(user[4]["mime"] == "application/octet-stream");
     CHECK(user[4]["filename"] == "spec.pdf");
 
@@ -286,9 +306,10 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         const json title = h.last_body();
         CHECK(title["kind"] == "title");
         CHECK(title["tools"].empty());
-        CHECK(title["user"].empty());
-        CHECK(title["once"].empty());
-        CHECK(title["opening"].size() == 1);
+        // The person's words alone: no record, workspace or skill.
+        REQUIRE(title["items"].size() == 1);
+        CHECK(title["items"][0]["parts"] == json::array({json{{"kind", 0}, {"text", "Duplicate the selected cube."}, {"mime", ""},
+                                                              {"filename", ""}, {"base64", ""}}}));
     }
 
     SECTION("a turn the app started with nothing to say has no user message")
@@ -298,8 +319,11 @@ TEST_CASE("the loop hands the codec the turn's transcript and sends what it buil
         request.attachments.clear();
         request.session.include_workspace = false;
         REQUIRE(h.agent->start(request));
-        CHECK(h.last_body()["user"].empty());
-        CHECK(h.last_body()["tools"].size() == 29);
+        CHECK(h.last_body()["items"].size() == 1);
+        // The same tools as with the model attached: object_import included.
+        const json tools = h.last_body()["tools"];
+        CHECK(tools == body["tools"]);
+        CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool["name"] == "object_import"; }));
     }
 
     SECTION("the request sequence counts every request of the turn")
@@ -328,7 +352,7 @@ TEST_CASE("text deltas and the completion become typed events, across split fram
     CHECK(delta->text == "Done");
     REQUIRE(h.poll_until(AgentEventKind::Completed));
     CHECK_FALSE(h.agent->busy());
-    CHECK(h.last_body()["steps"].empty()); // the turn ended; no request carried its reply
+    CHECK(h.last_body()["items"].size() == 2); // the turn ended; no request carried its reply
 }
 
 // What the model reads when the person says how a print went: the G-code that
@@ -366,7 +390,7 @@ TEST_CASE("the workspace carries the recent print history", "[agent][loop]")
     request.gcode_history   = {{record, true}};
     REQUIRE(h.agent->start(request));
 
-    const std::string block = h.body(0)["user"][1]["text"].get<std::string>();
+    const std::string block = h.body(0)["items"][1]["parts"][1]["text"].get<std::string>();
     const json workspace    = json::parse(block.substr(block.find('\n') + 1, block.rfind('\n') - block.find('\n') - 1));
     REQUIRE(workspace["printHistory"].size() == 1);
     const json& entry = workspace["printHistory"][0];
@@ -382,13 +406,14 @@ TEST_CASE("the workspace carries the recent print history", "[agent][loop]")
           json::array({json{{"at", "2026-10-27T13:06:00Z"}, {"printer", "Garage X1C"}, {"startRequested", true}}}));
     REQUIRE(entry["prints"].size() == 2);
     CHECK(entry["prints"][0]["finishedAt"] == "2026-10-27T15:41:00Z");
-    CHECK_FALSE(entry["prints"][1].contains("finishedAt"));
-    CHECK(block.find("fail") == std::string::npos);
+    // A print with no finish says only where and when it started: nothing
+    // records whether it is still running or stopped, so no outcome is sent.
+    CHECK(entry["prints"][1] == json{{"printer", "Garage X1C"}, {"startedAt", "2026-10-28T09:00:00Z"}});
 
     // A project nothing left has no history to send.
     h.agent->cancel();
     REQUIRE(h.agent->start(request_fixture()));
-    CHECK(h.last_body()["user"][1]["text"].get<std::string>().find("printHistory") == std::string::npos);
+    CHECK(h.last_body()["items"][1]["parts"][1]["text"].get<std::string>().find("printHistory") == std::string::npos);
 }
 
 TEST_CASE("a final SSE frame without a trailing delimiter is consumed", "[agent][loop]")
@@ -444,13 +469,13 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     REQUIRE(h.agent->continue_after_tool({"call-intent", "succeeded", R"({"state":"succeeded"})"}));
     REQUIRE(h.fake->requests.size() == 2);
     const json body = h.last_body();
-    // The opening and the user message are the first request's, exactly.
-    CHECK(body["opening"] == h.body(0)["opening"]);
-    CHECK(body["user"] == h.body(0)["user"]);
+    // The first request's items, exactly, then the turn and its results.
+    CHECK(json(body["items"].begin(), body["items"].begin() + 2) == h.body(0)["items"]);
     CHECK(body["instructions"] == h.body(0)["instructions"]);
-    REQUIRE(body["steps"].size() == 1);
-    CHECK(body["steps"][0]["assistant_turn"] == turn);
-    CHECK(body["steps"][0]["results"] ==
+    REQUIRE(body["items"].size() == 4);
+    CHECK(body["items"][2]["kind"] == "assistant");
+    CHECK(body["items"][2]["output"] == turn);
+    CHECK(body["items"][3]["results"] ==
           json::array({json{{"call_id", "call-read"}, {"output", json{{"state", "succeeded"}, {"result", json{{"summary", json::object()}}}}}, {"image", ""}, {"failed", false}},
                        json{{"call_id", "call-intent"}, {"output", json{{"state", "succeeded"}}}, {"image", ""}, {"failed", false}}}));
 
@@ -460,10 +485,10 @@ TEST_CASE("every call of a response runs in order and their results go back toge
     REQUIRE(h.agent->continue_after_tool({"call-3", "succeeded", R"({"items":[{"key":"wall_loops","value":"2"}]})"}));
     REQUIRE(h.fake->requests.size() == 3);
     const json third = h.last_body();
-    REQUIRE(third["steps"].size() == 2);
-    CHECK(third["steps"][0] == body["steps"][0]);
-    CHECK(third["steps"][1]["assistant_turn"] == "step-2");
-    CHECK(third["steps"][1]["results"][0]["call_id"] == "call-3");
+    REQUIRE(third["items"].size() == 6);
+    CHECK(json(third["items"].begin(), third["items"].begin() + 4) == body["items"]);
+    CHECK(third["items"][4]["output"] == "step-2");
+    CHECK(third["items"][5]["results"][0]["call_id"] == "call-3");
 
     h.fake->data(frame(json{{"turn", json::array()}}));
     h.fake->complete();
@@ -651,10 +676,12 @@ TEST_CASE("a call to a tool that is not offered is refused back to the model", "
     CHECK(output["error"]["code"] == "unknown_tool");
     CHECK(output["error"]["message"].get<std::string>().find("support_enable") != std::string::npos);
     CHECK(refused == std::vector<std::string>{"support_enable {} unknown_tool"});
+    // The loop answered the refused call itself: no result from the app is
+    // waited for.
+    CHECK_FALSE(h.agent->continue_after_tool({"call-x", "succeeded", R"({"state":"succeeded"})"}));
 
     // A tool the turn did not offer is one the model cannot call, even one
     // the registry knows: skill_read with nothing listed.
-    REQUIRE(h.agent->continue_after_tool({"", "", ""}) == false);
     h.fake->data(frame(json{{"turn", "t"}, {"calls", json::array({call("call-skill", "skill_read", json{{"name", "x"}})})}}));
     CHECK_FALSE(h.poll_until(AgentEventKind::ToolCall));
     REQUIRE(h.fake->requests.size() == 3);
@@ -695,24 +722,32 @@ TEST_CASE("a call's image stays with its result, and usage reaches the listener"
     CHECK(reported.size() == 1);
 }
 
-TEST_CASE("a skill fired for a turn's first request rides on that request and no other", "[agent][loop][skills]")
+TEST_CASE("a skill fired for a turn's first request follows its message and stays where it was sent", "[agent][loop][skills]")
 {
     Harness h;
     AgentRequest request = request_fixture();
     request.skills.push_back(file_loaded_skill());
     REQUIRE(h.agent->start(request));
-    CHECK(h.last_body()["once"] == json::array({json{{"name", "file-loaded"}, {"text", "A file was loaded."}, {"picture", true}}}));
+    // Its picture on the person's side, then its text in the app's voice.
+    const json first = h.last_body()["items"];
+    REQUIRE(first.size() == 4);
+    CHECK(first[2]["kind"] == "user");
+    CHECK(first[2]["parts"][0]["kind"] == static_cast<int>(RecordPart::Kind::Image));
+    CHECK(first[2]["parts"][0]["base64"] == "iVBORw0KGgo=");
+    CHECK(first[3]["kind"] == "operator");
+    CHECK(first[3]["text"] == "A file was loaded.");
 
-    // The response calls a tool; the request that carries its result is the
-    // turn's history without the skill.
+    // The request that carries a result repeats the first and adds to it.
     h.fake->data(frame(json{{"turn", "t"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
     REQUIRE(h.poll_until(AgentEventKind::ToolCall));
     REQUIRE(h.agent->continue_after_tool({"call-1", "succeeded", R"({"state":"succeeded"})"}));
-    CHECK(h.last_body()["once"].empty());
-    CHECK(h.last_body()["steps"].size() == 1);
+    const json later = h.last_body()["items"];
+    REQUIRE(later.size() == 6);
+    CHECK(json(later.begin(), later.begin() + 4) == first);
+    CHECK(Harness::of_kind(h.last_body(), "operator").size() == 1);
 }
 
-TEST_CASE("a skill a tool result fires follows every result of its response, on that request only", "[agent][loop][skills]")
+TEST_CASE("a skill a tool result fires follows every result of its response, once", "[agent][loop][skills]")
 {
     Harness h;
     REQUIRE(h.agent->start(request_fixture()));
@@ -733,21 +768,23 @@ TEST_CASE("a skill a tool result fires follows every result of its response, on 
     REQUIRE(h.poll_until(AgentEventKind::ToolCall));
     REQUIRE(h.agent->continue_after_tool({"call-read", "succeeded", R"({"state":"succeeded"})"}));
 
-    const json body = h.last_body();
-    REQUIRE(body["steps"].size() == 1);
-    REQUIRE(body["steps"][0]["results"].size() == 3);
-    CHECK(body["steps"][0]["results"][2]["call_id"] == "call-read");
-    CHECK(body["once"] == json::array({json{{"name", "file-loaded"}, {"text", "The second import."}, {"picture", true}}}));
+    // The results, then the one skill: its picture, then its text.
+    const json body = h.last_body()["items"];
+    REQUIRE(body.size() == 6);
+    REQUIRE(body[3]["results"].size() == 3);
+    CHECK(body[3]["results"][2]["call_id"] == "call-read");
+    CHECK(body[4]["parts"][0]["base64"] == "iVBORw0KGgo=");
+    CHECK(body[5]["kind"] == "operator");
+    CHECK(body[5]["text"] == "The second import.");
 
-    // The next request of the same turn has the results and no skill.
+    // The next request of the same turn repeats it and fires nothing new.
     h.fake->data(frame(json{{"turn", "t2"}, {"calls", json::array({call("call-4", "workspace_inspect")})}}));
     REQUIRE(h.poll_until(AgentEventKind::ToolCall));
     REQUIRE(h.agent->continue_after_tool({"call-4", "succeeded", R"({"state":"succeeded"})"}));
-    const json later = h.last_body();
-    CHECK(later["once"].empty());
-    REQUIRE(later["steps"].size() == 2);
-    CHECK(later["steps"][0]["results"][0]["call_id"] == "call-import");
-    CHECK(later["steps"][1]["results"][0]["call_id"] == "call-4");
+    const json later = h.last_body()["items"];
+    REQUIRE(later.size() == 8);
+    CHECK(json(later.begin(), later.begin() + 6) == body);
+    CHECK(later[7]["results"][0]["call_id"] == "call-4");
 }
 
 TEST_CASE("a skill that yields to another on the same request is left out of it", "[agent][loop][skills]")
@@ -758,11 +795,11 @@ TEST_CASE("a skill that yields to another on the same request is left out of it"
         AgentRequest request = request_fixture();
         request.skills = {setup_skill()};
         REQUIRE(h.agent->start(request));
-        CHECK(h.last_body()["once"] == json::array({json{{"name", "project-setup-changed"}, {"text", "Check the setup."}, {"picture", false}}}));
+        CHECK(operator_texts(h.last_body()) == std::vector<std::string>{"Check the setup."});
         h.agent->cancel();
         request.skills = {file_loaded_skill(), setup_skill()};
         REQUIRE(h.agent->start(request));
-        CHECK(h.last_body()["once"] == json::array({json{{"name", "file-loaded"}, {"text", "A file was loaded."}, {"picture", true}}}));
+        CHECK(operator_texts(h.last_body()) == std::vector<std::string>{"A file was loaded."});
     }
     SECTION("the results of one response")
     {
@@ -778,7 +815,7 @@ TEST_CASE("a skill that yields to another on the same request is left out of it"
         AgentToolResult imported{"call-import", "succeeded", R"({"state":"succeeded"})"};
         imported.skills.push_back(file_loaded_skill());
         REQUIRE(h.agent->continue_after_tool(imported));
-        CHECK(h.last_body()["once"] == json::array({json{{"name", "file-loaded"}, {"text", "A file was loaded."}, {"picture", true}}}));
+        CHECK(operator_texts(h.last_body()) == std::vector<std::string>{"A file was loaded."});
     }
 }
 
@@ -833,11 +870,11 @@ TEST_CASE("the loop is not ready without a key, a model, an endpoint, a codec or
     CHECK_FALSE(agent.busy());
 }
 
-TEST_CASE("every request's skills stay recorded where they were sent, and only the newest are this request's", "[agent][loop][skills]")
+TEST_CASE("every request's skills stay where they were sent, and a result that failed is marked so", "[agent][loop][skills]")
 {
     Harness h;
     AgentRequest request = request_fixture();
-    request.skills.push_back(file_loaded_skill("The turn's own."));
+    request.skills.push_back(file_loaded_skill("The turn's own.", false));
     REQUIRE(h.agent->start(request));
     h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
     REQUIRE(h.poll_until(AgentEventKind::ToolCall));
@@ -848,16 +885,137 @@ TEST_CASE("every request's skills stay recorded where they were sent, and only t
     REQUIRE(h.poll_until(AgentEventKind::ToolCall));
     REQUIRE(h.agent->continue_after_tool({"call-2", "failed", R"({"state":"failed"})"}));
 
-    const json body = h.last_body();
-    // This request fired nothing new, but the record of the first two stays.
-    CHECK(body["once"].empty());
-    REQUIRE(body["fired"].size() == 3);
-    CHECK(body["fired"][0][0]["text"] == "The turn's own.");
-    CHECK(body["fired"][1][0]["text"] == "Check the setup.");
-    CHECK(body["fired"][2].empty());
-    // A result that did not succeed is marked so.
-    CHECK(body["steps"][0]["results"][0]["failed"] == false);
-    CHECK(body["steps"][1]["results"][0]["failed"] == true);
+    // This request fired nothing new; the first two skills stay where they went.
+    const json body = h.last_body()["items"];
+    std::vector<std::string> kinds;
+    for (const json& item : body)
+        kinds.push_back(item["kind"]);
+    CHECK(kinds == std::vector<std::string>{"assistant", "user", "operator", "assistant", "results", "operator", "assistant", "results"});
+    CHECK(body[2]["text"] == "The turn's own.");
+    CHECK(body[5]["text"] == "Check the setup.");
+    CHECK(body[4]["results"][0]["failed"] == false);
+    CHECK(body[7]["results"][0]["failed"] == true);
+}
+
+// What the loop hands the chat's record, and when: what a request carried,
+// once the provider has taken it and a later request can follow on from it
+// whatever happens next.
+TEST_CASE("the record gets every item sent, never a call without its result nor a skill nothing followed", "[agent][loop][record]")
+{
+    Harness                  h;
+    std::vector<std::string> recorded;
+    std::vector<std::string> sources;
+    std::vector<std::string> formats;
+    AgentRequest             request = request_fixture();
+    request.on_recorded = [&](const std::string& format, std::vector<RecordItem> items) {
+        formats.push_back(format);
+        for (const RecordItem& item : items) {
+            recorded.push_back(picture(item)["kind"].get<std::string>() + (item.text.empty() ? "" : " " + item.text));
+            sources.push_back(item.source);
+        }
+    };
+    request.skills.push_back(file_loaded_skill("Skill one.", false));
+
+    SECTION("a turn that ends")
+    {
+        REQUIRE(h.agent->start(request));
+        // Nothing until the provider takes the request.
+        CHECK(recorded.empty());
+        h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
+        REQUIRE(h.poll_until(AgentEventKind::ToolCall));
+        // The person's message is kept once taken; the skill waits for an
+        // answer, and a call without its result is not kept.
+        CHECK(recorded == std::vector<std::string>{"user"});
+        AgentToolResult result{"call-1", "succeeded", R"({"state":"succeeded"})"};
+        result.skills.push_back(setup_skill());
+        REQUIRE(h.agent->continue_after_tool(result));
+        CHECK(recorded.size() == 1);
+        h.fake->data(frame(json{{"turn", "t2"}}));
+        REQUIRE(h.poll_until(AgentEventKind::Completed));
+        CHECK(recorded ==
+              std::vector<std::string>{"user", "operator Skill one.", "assistant", "results", "operator Check the setup.", "assistant"});
+        CHECK(formats == std::vector<std::string>{"responses", "responses", "responses"});
+    }
+    SECTION("a turn whose stream the provider took and then broke off")
+    {
+        REQUIRE(h.agent->start(request));
+        h.fake->data(frame(json{{"failed", json{{"code", "service_unavailable"}, {"retryable", true}}}}));
+        REQUIRE(h.poll_until(AgentEventKind::Failed));
+        // A retry follows on from the message; the skill is fired again then.
+        CHECK(recorded == std::vector<std::string>{"user"});
+    }
+    SECTION("a turn whose request the provider refuses keeps nothing")
+    {
+        const unsigned status = GENERATE(503u, 400u, 413u);
+        REQUIRE(h.agent->start(request));
+        h.fake->error(status);
+        REQUIRE(h.poll_until(AgentEventKind::Failed));
+        CHECK(recorded.empty());
+    }
+    SECTION("a turn refused after its first request keeps only that request's person side")
+    {
+        REQUIRE(h.agent->start(request));
+        h.fake->data(frame(json{{"turn", "t1"}, {"calls", json::array({call("call-1", "workspace_inspect")})}}));
+        REQUIRE(h.poll_until(AgentEventKind::ToolCall));
+        REQUIRE(h.agent->continue_after_tool(AgentToolResult{"call-1", "succeeded", R"({"state":"succeeded"})"}));
+        h.fake->error(400);
+        REQUIRE(h.poll_until(AgentEventKind::Failed));
+        CHECK(recorded == std::vector<std::string>{"user"});
+    }
+    SECTION("a turn the app started on its note keeps the turn's workspace with the note, once answered")
+    {
+        request.user_text.clear();
+        request.source = "n-7";
+        request.note   = "The slice finished.";
+        REQUIRE(h.agent->start(request));
+        CHECK(recorded.empty());
+        h.fake->data(frame(json{{"turn", "t1"}}));
+        REQUIRE(h.poll_until(AgentEventKind::Completed));
+        CHECK(recorded == std::vector<std::string>{"user", "operator The slice finished.", "operator Skill one.", "assistant"});
+        CHECK(sources == std::vector<std::string>{"", "n-7", "", ""});
+    }
+    SECTION("a turn the app started on its note whose request fails keeps nothing")
+    {
+        request.user_text.clear();
+        request.source = "n-7";
+        request.note   = "The slice finished.";
+        REQUIRE(h.agent->start(request));
+        h.fake->data(frame(json{{"failed", json{{"code", "service_unavailable"}, {"retryable", true}}}}));
+        REQUIRE(h.poll_until(AgentEventKind::Failed));
+        CHECK(recorded.empty());
+    }
+    SECTION("a request whose picture could not be kept is never sent")
+    {
+        request.skills    = {file_loaded_skill("Skill one.")};
+        request.keep_blob = [](const std::string&) -> std::optional<std::string> { return std::nullopt; };
+        CHECK_FALSE(h.agent->start(request));
+        CHECK(h.fake->requests.empty());
+        CHECK_FALSE(h.agent->busy());
+    }
+    SECTION("a reply request with nowhere to keep what it sends is a logic error")
+    {
+        request.on_recorded = nullptr;
+        CHECK_THROWS_AS(h.agent->start(request), std::logic_error);
+        CHECK(h.fake->requests.empty());
+    }
+}
+
+TEST_CASE("a title request completes without a record to keep", "[agent][loop][record]")
+{
+    // The host sends a title request with no record sink: the title belongs
+    // to no chat, so nothing of it is kept. Found live 2026-10-29: the
+    // completion settled the model's reply into the record and called the
+    // absent sink, which threw and ended the app's main loop.
+    Harness      h;
+    AgentRequest request = request_fixture();
+    request.purpose     = AgentRequest::Purpose::ConversationTitle;
+    request.on_recorded = nullptr;
+    request.record      = {};
+    REQUIRE(h.agent->start(request));
+    h.fake->data(frame(json{{"text", "Cube duplication"}}));
+    h.fake->data(frame(json{{"turn", "title-turn"}}));
+    REQUIRE(h.poll_until(AgentEventKind::Completed));
+    CHECK_FALSE(h.agent->busy());
 }
 
 TEST_CASE("calls answered without running are marked failed", "[agent][loop][tools]")
@@ -880,10 +1038,9 @@ TEST_CASE("a paused response is sent again with its turn appended, a bounded num
     CHECK(h.poll_until(AgentEventKind::TextDelta));
     CHECK_FALSE(h.agent->poll());
     REQUIRE(h.fake->requests.size() == 2);
-    const json body = h.last_body();
-    REQUIRE(body["steps"].size() == 1);
-    CHECK(body["steps"][0]["assistant_turn"] == "paused-1");
-    CHECK(body["steps"][0]["results"].empty());
+    const json body = h.last_body()["items"];
+    REQUIRE(body.size() == 3);
+    CHECK(body[2]["output"] == "paused-1");
     CHECK(h.agent->busy());
 
     // The resumed response ends the turn as any other.

@@ -6,7 +6,11 @@ add_library(jusprin_mcp_bridge_core STATIC
 target_include_directories(jusprin_mcp_bridge_core PUBLIC
     ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/deps_src ${CMAKE_BINARY_DIR}/src/libslic3r
 )
-target_link_libraries(jusprin_mcp_bridge_core PUBLIC nlohmann_json Boost::system Threads::Threads)
+# boost_headeronly carries the project's Asio configuration (on macOS,
+# BOOST_ASIO_DISABLE_KQUEUE). Every file linked with the bridge must see the
+# same one: agent_bridge_tests mixed a kqueue bridge with select-reactor tests,
+# and the bridge's requests then never completed.
+target_link_libraries(jusprin_mcp_bridge_core PUBLIC nlohmann_json Boost::system boost_headeronly Threads::Threads)
 if(WIN32)
     target_link_libraries(jusprin_mcp_bridge_core PUBLIC ws2_32)
 endif()

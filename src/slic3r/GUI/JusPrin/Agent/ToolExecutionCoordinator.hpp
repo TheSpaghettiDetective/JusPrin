@@ -319,6 +319,9 @@ private:
     std::function<std::string(const ToolActivity&)> m_version_before;
     std::function<void(const ToolActivity&, const std::string&)> m_version_after;
     std::function<void(const ToolActivity&)> m_document_boundary;
+    // The action whose project save, after it ran, is not done yet: its
+    // outcome is held back from subscribers until it is (see pump()).
+    std::string                      m_saving_after;
     std::function<EarlierLookup(const std::string&)> m_find_earlier;
     std::function<bool(const std::string&)>                          m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;

@@ -57,10 +57,10 @@
 
     // The project each conversation starts from, with its current plate sliced.
     // `plate_type` (a curr_bed_type value, such as "Cool Plate") is the plate
-    // the person selected in the sidebar before the slice. Without one the
-    // plate is whatever was selected last: the prepare conversation's printer
-    // setup leaves the Textured PEI Plate selected for the conversations
-    // after it.
+    // the person selected in the sidebar before the slice. A new project
+    // keeps the plate selected last (the prepare conversation's printer setup
+    // selects the Textured PEI Plate), so every conversation names its own,
+    // and a run of some conversations gets the plates a full run does.
     bool prompt_fixture(const std::string& kind, const std::string& name, const std::string& plate_type)
     {
         using namespace std::chrono_literals;
@@ -100,10 +100,15 @@
         } else {
             load_multi_plate_fixture();
         }
+        check(!plate_type.empty(), name + "_names_its_plate");
         if (!plate_type.empty()) {
+            // Selected only when it differs: selecting the plate already
+            // selected still marks every plate on it unsliced.
             ConfigOptionEnum<BedType> plate;
-            check(plate.deserialize(plate_type) && SetupCommands::select_bed_type(*m_plater, int(plate.value)),
-                  name + "_plate_selected");
+            const bool known = plate.deserialize(plate_type);
+            check(known, name + "_plate_type_known");
+            if (known && wxGetApp().preset_bundle->project_config.opt_enum<BedType>("curr_bed_type") != plate.value)
+                check(SetupCommands::select_bed_type(*m_plater, int(plate.value)), name + "_plate_selected");
         }
         const auto slice = [this](std::chrono::seconds limit) {
             wait_for([this] { return !m_plater->is_background_process_update_scheduled(); }, 10s);
@@ -196,6 +201,23 @@
     {
         return item.value("role", "") == "user" && item.contains("content") && item["content"].is_array() &&
                item["content"].size() == 1 && item["content"][0].value("type", "") == "input_image";
+    }
+    // The skills and the number of pictures among a request's last
+    // `appended` items. A chat's requests repeat its record and append to it
+    // (ba08e2c18f), and on the Responses API a fired skill stays in that
+    // record: nothing hides it after its own request (fe70eea593). So a
+    // skill "sent once" is one appended once, on the request that fired it,
+    // and replayed unchanged as history after that.
+    static std::pair<std::vector<std::string>, std::size_t> prompt_appended_skills(const nlohmann::json& input,
+                                                                                   std::size_t appended)
+    {
+        std::pair<std::vector<std::string>, std::size_t> found;
+        for (std::size_t i = input.size() - appended; i < input.size(); ++i) {
+            if (const std::string skill = prompt_skill_of(input[i]); !skill.empty())
+                found.first.push_back(skill);
+            found.second += prompt_is_picture(input[i]) ? 1 : 0;
+        }
+        return found;
     }
 
     // "{{file/<name>}}" is the path of a model a step copied under that name;
@@ -295,6 +317,9 @@
     std::string m_prompt_object;      // for "{{object}}"
     std::string m_prompt_plate;       // for "{{plate}}"
     std::string m_prompt_attachment;  // for "{{attachment}}"
+    // Each chat's last request input this pass, by prompt_cache_key: what
+    // the chat's next request repeats and appends to.
+    std::map<std::string, nlohmann::json> m_prompt_chat_input;
 
     // The person attaches a copied model to the chat, as the composer's file
     // picker does; its id, once the app has stored it, or empty.
@@ -335,14 +360,12 @@
     // the app answers a name asked for under the wrong scope. The workspace block every result
     // carries is kept once, beside them, and left out of each result that
     // repeats it exactly.
-    nlohmann::json prompt_answers(const std::string& name, HeldModelRequest request, const nlohmann::json& script_reads,
-                                  std::size_t& once)
+    nlohmann::json prompt_answers(const std::string& name, HeldModelRequest request, const nlohmann::json& script_reads)
     {
         using nlohmann::json;
         json answers = json::array();
         int  calls   = 0;
         const json kept = request.body.at("input");
-        once = 0;
         // One read in the turn; the result as the app gave it, or nothing.
         const auto call = [&](const std::string& tool, const json& arguments) -> std::optional<std::string> {
             const std::string call_id = "call_" + name + "_answer_" + std::to_string(++calls);
@@ -354,18 +377,14 @@
                 return std::nullopt;
             request = std::move(*next);
             if (calls == 1) {
-                // What the app sent this request only: the items of the kept
-                // request the next one does not repeat. The runner leaves
-                // them out when it answers a read, as the app does.
+                // The next request repeats the kept one whole, its skill and
+                // picture included, and appends neither again (see
+                // prompt_appended_skills).
                 const json& input = request.body.at("input");
-                std::size_t same = 0;
-                while (same < kept.size() && same < input.size() && kept[same] == input[same])
-                    ++same;
-                once = kept.size() - same;
-                bool repeated = false;
-                for (const json& item : input)
-                    repeated = repeated || !prompt_skill_of(item).empty() || prompt_is_picture(item);
-                check(!repeated, name + "_skill_and_picture_not_on_the_next_request");
+                const bool repeats = input.size() >= kept.size() && std::equal(kept.begin(), kept.end(), input.begin());
+                check(repeats, name + "_repeats_all_on_the_next_request");
+                const auto [skills, pictures] = prompt_appended_skills(input, repeats ? input.size() - kept.size() : input.size());
+                check(skills.empty() && pictures == 0, name + "_skill_and_picture_not_appended_on_the_next_request");
             }
             // The call's own result: a picture the call returned comes after
             // it, as a message of its own, and is not kept.
@@ -601,6 +620,11 @@
                 continue;
             }
             const json& input = request.body.at("input");
+            // What this request appends to the chat's last one.
+            json&             last     = m_prompt_chat_input[request.body.value("prompt_cache_key", "")];
+            const bool        appends  = last.is_null() || (input.size() >= last.size() && std::equal(last.begin(), last.end(), input.begin()));
+            const std::size_t appended = appends ? input.size() - (last.is_null() ? 0 : last.size()) : input.size();
+            last                       = input;
             if (!input.empty() && input.back().value("type", "") == "function_call_output") {
                 const json output = json::parse(input.back().at("output").get<std::string>());
                 const std::string state = output.value("state", "");
@@ -620,45 +644,34 @@
             if (reply.contains("record") && point++ == target) {
                 // The suite sends its own copies; they must be what the app sends.
                 const std::string case_name = reply["record"];
-                // A message with a model attached adds object_import to the
-                // tools, after the others in the registry's order; such a
-                // point keeps its own list.
-                json with_import = json::array();
-                for (const json& tool : request.body.at("tools"))
-                    if (tool.value("name", "") != "object_import")
-                        with_import.push_back(tool);
-                const bool imports = with_import.size() + 1 == request.body.at("tools").size();
-                check((imports ? with_import : request.body.at("tools")) == tools, case_name + "_tools_match_project_tools_json");
+                // Every request of the project chat offers the same tools,
+                // whatever its message attaches.
+                check(request.body.at("tools") == tools, case_name + "_tools_match_project_tools_json");
                 check(request.body.at("instructions") == instructions, case_name + "_instructions_are_the_page_prompt");
                 json kept = request.body;
-                if (!imports)
-                    kept.erase("tools");
+                kept.erase("tools");
                 kept.erase("instructions");
+                // Names this run's project and chat, which the suite's own
+                // requests are not.
+                kept.erase("prompt_cache_key");
                 const std::size_t items = input.size();
                 // A point marked "skill" is the request where the model first
-                // reads about that skill's event: it ends with that skill,
-                // after the plate's picture for the file-loaded skill. No
-                // other point holds a skill or a picture, and an import's
-                // point holds the file-loaded skill alone.
+                // reads about that skill's event: it appends that skill, and
+                // the plate's picture for the file-loaded skill. No other
+                // point appends a skill or a picture, though it may replay
+                // one an earlier request appended (prompt_appended_skills),
+                // and an import's point appends the file-loaded skill alone.
                 const std::string wanted   = reply.value("skill", "");
                 const bool        pictured = wanted == kPromptFileLoadedSkill;
-                const std::size_t tail     = wanted.empty() ? 0 : pictured ? 2 : 1;
-                const bool has_skill = !wanted.empty() && items >= tail && prompt_skill_of(input[items - 1]) == wanted &&
-                                       (!pictured || prompt_is_picture(input[items - 2]));
-                bool elsewhere = false;
-                for (std::size_t i = 0; i + (has_skill ? tail : 0) < items; ++i)
-                    elsewhere = elsewhere || !prompt_skill_of(input[i]).empty() || prompt_is_picture(input[i]);
-                for (const std::string& skill : prompt_skill_names())
-                    check(!prompt_skill_text(skill).empty(), case_name + "_skill_text_read_" + skill);
-                check(has_skill == !wanted.empty() && !elsewhere,
-                      case_name + (wanted.empty() ? "_carries_no_skill" : "_ends_with_" + wanted));
-                std::size_t once = 0;
-                const json recorded_reads = prompt_answers(case_name, std::move(request), reads, once);
+                check(appends, case_name + "_appends_to_the_chats_last_request");
+                const auto [skills, pictures] = prompt_appended_skills(input, appended);
+                check(skills == (wanted.empty() ? std::vector<std::string>{} : std::vector<std::string>{wanted}) &&
+                          pictures == (pictured ? 1u : 0u),
+                      case_name + (wanted.empty() ? "_appends_no_skill" : "_appends_" + wanted));
+                const json recorded_reads = prompt_answers(case_name, std::move(request), reads);
                 const json& answers = recorded_reads["reads"];
-                check(once == tail, case_name + "_sent_once_" + std::to_string(once));
-                recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]}};
-                if (once > 0)
-                    recorded[case_name]["once"] = once;
+                recorded[case_name] = {{"body", kept}, {"answers", answers}, {"sharedWorkspace", recorded_reads["shared"]},
+                                       {"appended", appended}};
                 std::cerr << "HARNESS PROMPT recorded " << case_name << " input_items=" << items
                           << " bytes=" << kept.dump().size() << " answers=" << answers.size()
                           << " answer_bytes=" << answers.dump().size() << '\n';
@@ -705,6 +718,8 @@
         instructions.erase(std::remove(instructions.begin(), instructions.end(), '\r'), instructions.end());
         check(script.is_object() && script.contains("conversations"), "prompt_script_read");
         check(tools.is_array() && !instructions.empty(), "prompt_tools_and_instructions_read");
+        for (const std::string& skill : prompt_skill_names())
+            check(!prompt_skill_text(skill).empty(), "prompt_skill_text_read_" + skill);
         json recorded = json::object();
         const json reads = script.is_object() ? script.value("answers", json::array()) : json::array();
         bool ok = script.is_object() && tools.is_array();
@@ -720,6 +735,7 @@
                     std::cerr << "HARNESS PROMPT conversation " << name << " point " << target << '\n';
                     if (!(ok = prompt_fixture(conversation.value("fixture", "plates"), name, conversation.value("plateType", ""))))
                         break;
+                    m_prompt_chat_input.clear();
                     int point = 0, result = 1;
                     for (const json& step : conversation.at("steps"))
                         if (result == 1)

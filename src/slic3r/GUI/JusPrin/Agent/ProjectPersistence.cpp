@@ -318,11 +318,14 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
         // carries an identity that already has a managed head on this host.
         if (fs::exists(fs::path(m_config.managed_root) / m_document.project_id() / "HEAD"))
             m_document.fork_identity("p-" + m_config.uuid(), m_config.clock());
-        const fs::path old_attachments = fs::path(m_attached_aux_dir) / kJusPrinDirName / "attachments";
-        const fs::path local_attachments = fs::path(jusprin_data_dir()) / "attachments";
-        if (fs::is_directory(old_attachments)) {
-            for (const auto& entry : fs::recursive_directory_iterator(old_attachments)) {
-                const fs::path target = local_attachments / fs::relative(entry.path(), old_attachments);
+        // The attachments, and the pictures the chats' records sent.
+        for (const char* folder : {"attachments", kChatRecordsDir}) {
+            const fs::path old_folder = fs::path(m_attached_aux_dir) / kJusPrinDirName / folder;
+            const fs::path local_folder = fs::path(jusprin_data_dir()) / folder;
+            if (!fs::is_directory(old_folder))
+                continue;
+            for (const auto& entry : fs::recursive_directory_iterator(old_folder)) {
+                const fs::path target = local_folder / fs::relative(entry.path(), old_folder);
                 if (entry.is_directory())
                     fs::create_directories(target);
                 else if (entry.is_regular_file()) {
@@ -546,7 +549,8 @@ void ProjectPersistence::remove_attachment_dir(const std::string& relative_dir)
     // Published semantic versions can still reference an attachment after a
     // staged message is removed from the live document. Reachability cleanup
     // belongs to the version store, not this mutable conversation surface.
-    if (!m_config.managed_root.empty())
+    // A chat's record folder is not versioned and goes with the chat.
+    if (!m_config.managed_root.empty() && relative_dir.rfind(kChatRecordsDir, 0) != 0)
         return;
     std::error_code ec;
     fs::remove_all(fs::path(jusprin_data_dir()) / fs::path(relative_dir), ec);

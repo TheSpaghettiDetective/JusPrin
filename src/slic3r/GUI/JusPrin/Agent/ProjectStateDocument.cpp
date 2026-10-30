@@ -487,6 +487,26 @@ PlanRecord read_plan(const json& stored)
 
 } // namespace
 
+// A chat's record as state.json keeps it: every field, a picture's blob path
+// but never its bytes.
+NLOHMANN_JSON_SERIALIZE_ENUM(RecordPart::Kind, {{RecordPart::Kind::Text, "text"}, {RecordPart::Kind::Image, "image"}, {RecordPart::Kind::Pdf, "pdf"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(RecordItem::Kind, {{RecordItem::Kind::User, "user"}, {RecordItem::Kind::Operator, "operator"},
+                                                {RecordItem::Kind::Assistant, "assistant"}, {RecordItem::Kind::Results, "results"}})
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RecordPart, kind, text, mime, filename, blob)
+void to_json(json& entry, const RecordResult& result)
+{
+    entry = json{{"callId", result.call_id}, {"output", result.output_json}, {"failed", result.failed}, {"image", nullptr}};
+    if (result.image)
+        entry["image"] = *result.image;
+}
+void from_json(const json& entry, RecordResult& result)
+{
+    result = RecordResult{entry.at("callId").get<std::string>(), entry.at("output").get<std::string>(), entry.at("failed").get<bool>(), std::nullopt};
+    if (!entry.at("image").is_null())
+        result.image = entry.at("image").get<RecordPart>();
+}
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RecordItem, kind, source, parts, text, output, results, clears)
+
 ProjectStateDocument::ProjectStateDocument() : m_doc(fresh_document()) {}
 
 ProjectStateDocument::LoadResult ProjectStateDocument::load(const std::string& json_text)
@@ -760,6 +780,31 @@ bool ProjectStateDocument::set_chat_model(const std::string& conversation_id, co
     return true;
 }
 
+std::optional<ChatRecord> ProjectStateDocument::chat_record(const std::string& conversation_id) const
+{
+    const json* conversation = conversation_json(conversation_id);
+    if (!conversation || !conversation->contains("record"))
+        return std::nullopt;
+    const json& stored = conversation->at("record");
+    return ChatRecord{stored.at("format").get<std::string>(), stored.at("items").get<std::vector<RecordItem>>()};
+}
+
+void ProjectStateDocument::append_chat_record(const std::string& conversation_id, const std::string& format,
+                                              const std::vector<RecordItem>& items)
+{
+    json* conversation = conversation_json(conversation_id);
+    if (!conversation || format.empty())
+        throw std::logic_error("a record in no format, or for a chat the document does not hold");
+    json& stored = (*conversation)["record"];
+    if (stored.is_null())
+        stored = json{{"format", format}, {"items", json::array()}};
+    if (stored.at("format") != format)
+        throw std::logic_error("a chat recorded in " + stored.at("format").get<std::string>() + " cannot take items in " + format);
+    for (const RecordItem& item : items)
+        stored["items"].push_back(item);
+    touch();
+}
+
 std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversation(const std::string& conversation_id,
                                                                                 const std::string& timestamp)
 {
@@ -785,7 +830,7 @@ std::optional<std::vector<std::string>> ProjectStateDocument::delete_conversatio
         for (const json& message : chat["messages"])
             for (const auto& id : message.value("attachments", json::array()))
                 attachment_ids.erase(id.get<std::string>());
-    std::vector<std::string> removed_dirs;
+    std::vector<std::string> removed_dirs{chat_record_dir(conversation_id)};
     auto& attachments = m_doc["attachments"];
     attachments.erase(std::remove_if(attachments.begin(), attachments.end(), [&](const json& entry) {
         const std::string id = entry.value("id", "");

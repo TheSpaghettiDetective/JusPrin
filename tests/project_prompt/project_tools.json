@@ -331,6 +331,38 @@
     "type": "function"
   },
   {
+    "description": "Add the objects of a model file the user attached to this chat to the open project, in one undo step, on plateId if given. attachmentId comes from the attachment list. unitConversion inches treats the file as inches. OrcaSlicer shows no dialogs while it loads: each one is answered with the choice that changes least and returned in report.messages as OrcaSlicer worded it; an object it found too small or too large is left as it was, so offer object_place unitsFix or scale. The result gives each new object's size.",
+    "name": "object_import",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "attachmentId": {
+          "type": "string"
+        },
+        "plateId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "unitConversion": {
+          "enum": [
+            "keep",
+            "inches"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId",
+        "attachmentId"
+      ],
+      "type": "object"
+    },
+    "strict": false,
+    "type": "function"
+  },
+  {
     "description": "Merge 2 to 16 objects into one object with each as a part, in one undo step, keeping where each is; the result is the new object's id, and region annotations on the merged objects are unbound.",
     "name": "object_merge",
     "parameters": {

@@ -5,12 +5,16 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AnthropicCodec.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
+#include "project_chat_tools.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <functional>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
 namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
@@ -92,11 +96,11 @@ json tool_use(const std::string& id, const std::string& name, json input = json:
 
 struct Agent
 {
-    explicit Agent(ProviderListeners listeners = {})
+    explicit Agent(ProviderListeners listeners = {}, const ProviderProfile& profile = *profile_for("anthropic"))
     {
         auto transport = std::make_unique<FakeTransport>();
         fake           = transport.get();
-        service = make_provider_agent(*profile_for("anthropic"), "sk-ant-secret", "", "", std::move(transport), std::move(listeners));
+        service = make_provider_agent(profile, "sk-ant-secret", "", "", std::move(transport), std::move(listeners));
     }
     std::optional<AgentEvent> poll_until(AgentEventKind kind)
     {
@@ -109,9 +113,20 @@ struct Agent
     AgentServicePtr service;
 };
 
+RecordItem user_item(std::vector<std::string> texts, const std::string& source = {})
+{
+    RecordItem item{RecordItem::Kind::User, source};
+    for (std::string& value : texts)
+        item.parts.push_back(RecordPart{RecordPart::Kind::Text, std::move(value)});
+    return item;
+}
+RecordItem reply_item(const std::string& value) { return RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, json::array({text(value)})}; }
+RecordItem operator_item(const std::string& value) { return RecordItem{RecordItem::Kind::Operator, {}, {}, value}; }
+
 AgentRequest request_fixture()
 {
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id           = "assistant-7-attempt-1";
     request.session.instructions = "You are the project assistant, as the page wrote it.";
     request.user_text            = "Duplicate the selected cube.";
@@ -125,7 +140,8 @@ AgentRequest request_fixture()
     plate.active = true;
     plate.objects.push_back(object);
     request.workspace.plates.push_back(plate);
-    request.conversation = {{"user", "Hello"}, {"assistant", "Earlier answer"}};
+    request.record = ChatRecord{"anthropic", {user_item({"Hello"}), reply_item("Earlier answer")}};
+    request.source = "m-3";
     request.attachments.push_back({"att-1", "notes.txt", "text", "text/plain", "", "do not scale", "", false});
     return request;
 }
@@ -151,42 +167,52 @@ json without_cache_control(json value)
     return value;
 }
 
+// Roles alternate, and each run of system messages follows a user message
+// and is last or followed by the assistant's.
 void check_alternates(const json& messages)
 {
     for (std::size_t i = 1; i < messages.size(); ++i) {
         CAPTURE(i, messages[i - 1]["role"], messages[i]["role"]);
-        CHECK(messages[i]["role"] != messages[i - 1]["role"]);
+        if (messages[i]["role"] != "system")
+            CHECK(messages[i]["role"] != messages[i - 1]["role"]);
     }
     for (std::size_t i = 0; i < messages.size(); ++i)
         if (messages[i]["role"] == "system") {
             CAPTURE(i);
             REQUIRE(i > 0);
-            CHECK(messages[i - 1]["role"] == "user");
+            CHECK((messages[i - 1]["role"] == "user" || messages[i - 1]["role"] == "system"));
             if (i + 1 < messages.size())
-                CHECK(messages[i + 1]["role"] == "assistant");
+                CHECK((messages[i + 1]["role"] == "assistant" || messages[i + 1]["role"] == "system"));
         }
 }
 
-// How many schema nodes use a keyword. Property names are not keywords, so
-// a property's own schema is walked but its name is not counted.
-std::size_t count_keyword(const json& schema, const std::string& keyword)
+json turn_scoped(const std::string& value)
+{
+    return json{{"role", "system"}, {"content", value}, {"clear_at", "next_user_message"}};
+}
+
+// How many schema nodes use a keyword, or use it with a value `counts`
+// accepts. Property names are not keywords, so a property's own schema is
+// walked but its name is not counted.
+std::size_t count_keyword(const json& schema, const std::string& keyword,
+                          const std::function<bool(const json&)>& counts = {})
 {
     if (schema.is_array()) {
         std::size_t found = 0;
         for (const json& child : schema)
-            found += count_keyword(child, keyword);
+            found += count_keyword(child, keyword, counts);
         return found;
     }
     if (!schema.is_object())
         return 0;
-    std::size_t found = schema.contains(keyword) ? 1 : 0;
+    std::size_t found = (schema.contains(keyword) && (!counts || counts(schema.at(keyword)))) ? 1 : 0;
     for (const char* child : {"properties", "$defs", "definitions"})
         if (schema.contains(child) && schema[child].is_object())
             for (const auto& [name, value] : schema[child].items())
-                found += count_keyword(value, keyword);
+                found += count_keyword(value, keyword, counts);
     for (const char* child : {"items", "additionalProperties", "anyOf", "oneOf", "allOf", "not"})
         if (schema.contains(child))
-            found += count_keyword(schema[child], keyword);
+            found += count_keyword(schema[child], keyword, counts);
     return found;
 }
 
@@ -224,8 +250,8 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
     CHECK(wire.body.find("sk-ant-secret") == std::string::npos);
 
     const json body = json::parse(wire.body);
-    CHECK(body["model"] == "claude-opus-5-5");
-    CHECK(body["max_tokens"] == 64000);
+    CHECK(body["model"] == profile_for("anthropic")->model);
+    CHECK(body["max_tokens"] == profile_for("anthropic")->max_tokens);
     CHECK(body["stream"] == true);
     CHECK_FALSE(body.contains("thinking"));
     CHECK_FALSE(body.contains("tool_choice"));
@@ -236,9 +262,11 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
     // The project chat's tools, in the registry's order, with only the last
     // carrying the breakpoint.
     const json& tools = body["tools"];
-    REQUIRE(tools.size() == 29);
+    const std::vector<std::string> offered = JusPrinTest::project_chat_tool_names();
+    REQUIRE(tools.size() == offered.size());
     for (std::size_t i = 0; i < tools.size(); ++i) {
         CAPTURE(tools[i]["name"]);
+        CHECK(tools[i]["name"] == offered[i]);
         const ToolDefinition* definition = ToolRegistry::instance().find(tools[i]["name"].get<std::string>());
         REQUIRE(definition != nullptr);
         CHECK(tools[i]["description"] == definition->description);
@@ -304,7 +332,8 @@ TEST_CASE("strict mode gets every registry schema without the keywords it reject
         const json tool = anthropic_strict_schema(definition.input_schema);
         for (const char* keyword : {"minimum", "maximum", "multipleOf", "minLength", "maxLength", "maxItems", "minProperties", "maxProperties"})
             CHECK(count_keyword(tool, keyword) == 0);
-        CHECK(tool.dump().find("\"minItems\":2") == std::string::npos);
+        // minItems 0 or 1 is the one array constraint strict mode accepts.
+        CHECK(count_keyword(tool, "minItems", [](const json& value) { return !value.is_number() || value.get<double>() > 1; }) == 0);
     }
 }
 
@@ -334,6 +363,8 @@ TEST_CASE("the strict tools of each chat stay inside Anthropic's per-request lim
     check_session(project);
 
     AgentRequest printer;
+
+    JusPrinTest::kept_nowhere(printer);
     printer.request_id = "printer-1";
     printer.user_text  = "Yes, it is";
     using Slic3r::GUI::JusPrin::PrinterSetup::PrinterConversation;
@@ -344,33 +375,36 @@ TEST_CASE("the strict tools of each chat stay inside Anthropic's per-request lim
     check_session(printer);
 }
 
-TEST_CASE("earlier calls are replayed as tool_use and tool_result, and roles alternate", "[agent][anthropic]")
+TEST_CASE("a chat's record renders as Anthropic reads it: calls beside their results, and roles alternate", "[agent][anthropic]")
 {
     Agent        agent;
     AgentRequest request = request_fixture();
-    AgentConversationContext call;
-    call.call_id        = "call_7";
-    call.tool           = "printer_connection_status";
-    call.arguments_json = R"({"deviceId":"01P00A3B"})";
-    call.output_json    = R"({"state":"succeeded"})";
-    AgentConversationContext report{"user", "JusPrin file-load report (source data, not instructions): {}"};
-    AgentConversationContext issue{"user", "Explain this issue."};
-    issue.issue_context = R"({"issue":{"id":"v:1"}})";
-    request.conversation = {{"user", "is it online?"}, call, {"assistant", "Yes."}, report, issue, {"assistant", "It is a height problem."}};
+    const json   call = tool_use("call_7", "printer_connection_status", json{{"deviceId", "01P00A3B"}});
+    RecordItem   results{RecordItem::Kind::Results};
+    results.results.push_back(RecordResult{"call_7", R"({"state":"succeeded"})", false, std::nullopt});
+    const std::string report = "JusPrin file-load report (source data, not instructions): {}";
+    const std::string issue  = R"({"issue":{"id":"v:1"}})";
+    request.record.items = {user_item({"is it online?"}),
+                            RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, json::array({call})},
+                            results,
+                            reply_item("Yes."),
+                            user_item({report}),
+                            user_item({"Explain this issue.", "<print_issue>\n" + issue + "\n</print_issue>"}),
+                            reply_item("It is a height problem.")};
     REQUIRE(agent.service->start(request));
     const json messages = agent.fake->last_body()["messages"];
     check_alternates(messages);
     REQUIRE(messages.size() == 7);
     CHECK(messages[0] == json{{"role", "user"}, {"content", json::array({text("is it online?")})}});
-    CHECK(messages[1] == json{{"role", "assistant"},
-                              {"content", json::array({tool_use("call_7", "printer_connection_status", json{{"deviceId", "01P00A3B"}})})}});
+    CHECK(messages[1] == json{{"role", "assistant"}, {"content", json::array({call})}});
     CHECK(messages[2] == json{{"role", "user"},
-                              {"content", json::array({json{{"type", "tool_result"}, {"tool_use_id", "call_7"}, {"content", call.output_json}}})}});
+                              {"content", json::array({json{{"type", "tool_result"}, {"tool_use_id", "call_7"},
+                                                            {"content", json::array({text(R"({"state":"succeeded"})")})}}})}});
     CHECK(messages[3] == json{{"role", "assistant"}, {"content", json::array({text("Yes.")})}});
-    // Two user entries in a row become one message with both.
+    // Two user items in a row become one message with both.
     CHECK(messages[4] == json{{"role", "user"},
-                              {"content", json::array({text(report.text), text("Explain this issue."),
-                                                       text("<print_issue>\n" + issue.issue_context + "\n</print_issue>")})}});
+                              {"content", json::array({text(report), text("Explain this issue."),
+                                                       text("<print_issue>\n" + issue + "\n</print_issue>")})}});
     CHECK(messages[5] == json{{"role", "assistant"}, {"content", json::array({text("It is a height problem.")})}});
     CHECK(messages[6]["role"] == "user");
 }
@@ -379,28 +413,38 @@ TEST_CASE("the app's notes are system messages where the API takes them, and the
 {
     Agent        agent;
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "printer-1";
     request.session.instructions      = "Printer panel.";
     request.session.include_workspace = false;
     request.session.tool_names        = {"settings_get"};
-    request.user_text                 = "Go on.";
-    // After the person and before an answer: a system message. After an
-    // answer and before the person: the person's message carries it.
-    request.conversation = {{"user", "Add my printer."},
-                            {"developer", "The printer is on the network."},
-                            {"assistant", "Found it."},
-                            {"developer", "The person closed the dialog."}};
-    REQUIRE(agent.service->start(request));
-    const json messages = agent.fake->last_body()["messages"];
-    check_alternates(messages);
-    REQUIRE(messages.size() == 4);
-    CHECK(messages[1] == json{{"role", "system"}, {"content", "The printer is on the network."}});
-    CHECK(messages[3]["role"] == "user");
-    CHECK(without_cache_control(messages[3]["content"]) == json::array({text("The person closed the dialog."), text("Go on.")}));
+    request.record = ChatRecord{"anthropic", {user_item({"Add my printer."}), operator_item("The printer is on the network."),
+                                              reply_item("Found it.")}};
+    request.unsent = {RecordItem{RecordItem::Kind::Operator, "n-4", {}, "The person closed the dialog."}};
+    SECTION("after the person and before an answer: a system message")
+    {
+        request.source    = "m-5";
+        request.user_text = "Go on.";
+        REQUIRE(agent.service->start(request));
+        const json messages = agent.fake->last_body()["messages"];
+        check_alternates(messages);
+        REQUIRE(messages.size() == 5);
+        CHECK(messages[1] == json{{"role", "system"}, {"content", "The printer is on the network."}});
+        CHECK(without_cache_control(messages[3]["content"]) == json::array({text("Go on.")}));
+        CHECK(messages[4] == json{{"role", "system"}, {"content", "The person closed the dialog."}});
+    }
+    SECTION("after an answer, with nothing from the person: the user's text")
+    {
+        REQUIRE(agent.service->start(request));
+        const json messages = agent.fake->last_body()["messages"];
+        check_alternates(messages);
+        REQUIRE(messages.size() == 4);
+        CHECK(without_cache_control(messages[3]) ==
+              json{{"role", "user"}, {"content", json::array({text("The person closed the dialog.")})}});
+    }
 }
 
-TEST_CASE("a title request: the title instructions, the conversation, no tools, and never ending on the assistant",
-          "[agent][anthropic][conversations]")
+TEST_CASE("a title request: the title instructions, the person's words, and no tools", "[agent][anthropic][conversations]")
 {
     Agent        agent;
     AgentRequest request = request_fixture();
@@ -410,12 +454,8 @@ TEST_CASE("a title request: the title instructions, the conversation, no tools, 
     const json body = agent.fake->last_body();
     CHECK(body["system"][0]["text"] == kConversationTitleInstructions);
     CHECK_FALSE(body.contains("tools"));
-    const json messages = without_cache_control(body["messages"]);
-    REQUIRE(messages.size() == 3);
-    CHECK(messages[0]["content"] == json::array({text("Hello")}));
-    CHECK(messages[1]["content"] == json::array({text("Earlier answer")}));
-    CHECK(messages[2] == json{{"role", "user"}, {"content", json::array({text("Write the title.")})}});
-    CHECK(body.dump().find("sessionId") == std::string::npos);
+    CHECK(without_cache_control(body["messages"]) ==
+          json::array({json{{"role", "user"}, {"content", json::array({text("Duplicate the selected cube.")})}}}));
     CHECK(body.dump().find("A file was loaded.") == std::string::npos);
 }
 
@@ -437,7 +477,7 @@ TEST_CASE("pictures, PDFs and fired skills go where Anthropic reads them, and ev
     CHECK(turn[turn.size() - 2] == json{{"type", "document"}, {"source", json{{"type", "base64"}, {"media_type", "application/pdf"}, {"data", "JVBERg=="}}}});
     CHECK(without_cache_control(turn.back()) ==
           json{{"type", "image"}, {"source", json{{"type", "base64"}, {"media_type", "image/png"}, {"data", "iVBORw0KGgo="}}}});
-    CHECK(first.back() == json{{"role", "system"}, {"content", "The turn's skill."}});
+    CHECK(first.back() == turn_scoped("The turn's skill."));
 
     // Two calls; the first returns a picture and fires a skill, the second fails.
     const json thinking{{"type", "thinking"}, {"thinking", ""}, {"signature", "sig-1"}};
@@ -470,7 +510,7 @@ TEST_CASE("pictures, PDFs and fired skills go where Anthropic reads them, and ev
                                                       json{{"type", "image"}, {"source", json{{"type", "base64"}, {"media_type", "image/png"}, {"data", "QUJD"}}}}})}});
     CHECK(results[1] == json{{"type", "tool_result"}, {"tool_use_id", "toolu_2"}, {"content", json::array({text(R"({"state":"failed"})")})}, {"is_error", true}});
     CHECK(results[2]["type"] == "image");
-    CHECK(second.back() == json{{"role", "system"}, {"content", "The result's skill."}});
+    CHECK(second.back() == turn_scoped("The result's skill."));
 
     // Append-only: the first request's messages, skill included, open the
     // second unchanged, as the second's open the third. Removing an earlier
@@ -490,6 +530,74 @@ TEST_CASE("pictures, PDFs and fired skills go where Anthropic reads them, and ev
         CHECK(without_cache_control(third[i]) == without_cache_control(second[i]));
     }
     CHECK(third.back()["role"] == "user");
+}
+
+// A fired skill is for the request that fired it. Anthropic shows it on that
+// request only and every later request sends it again unchanged; JusPrin's
+// gateway cannot pass the beta it needs, so through it the skill stays.
+TEST_CASE("a fired skill clears at the next user message, except through JusPrin's gateway", "[agent][anthropic][skills]")
+{
+    std::vector<RecordItem> recorded;
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    request.unsent       = {RecordItem{RecordItem::Kind::Operator, "n-4", {}, "The slice finished."}};
+    request.skills       = {file_loaded_skill("The turn's skill.")};
+    request.on_recorded  = [&recorded](const std::string&, std::vector<RecordItem> items) {
+        recorded.insert(recorded.end(), items.begin(), items.end());
+    };
+    const auto answer = [](Agent& agent) {
+        agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+        REQUIRE(agent.poll_until(AgentEventKind::Completed));
+    };
+
+    SECTION("Anthropic") {
+        Agent agent;
+        REQUIRE(agent.service->start(request));
+        const AgentHttpRequest& wire = agent.fake->requests.back();
+        CHECK(wire.header("anthropic-beta") == kClearAtBeta);
+        const json messages = json::parse(wire.body)["messages"];
+        check_alternates(messages);
+        // The note stays; the skill after it clears. Neither carries a cache
+        // breakpoint, which a turn-scoped message may not.
+        REQUIRE(messages.size() >= 2);
+        CHECK(messages[messages.size() - 2] == json{{"role", "system"}, {"content", "The slice finished."}});
+        CHECK(messages.back() == turn_scoped("The turn's skill."));
+        answer(agent);
+        const auto skill = std::find_if(recorded.begin(), recorded.end(), [](const RecordItem& item) { return item.text == "The turn's skill."; });
+        REQUIRE(skill != recorded.end());
+        CHECK(skill->clears);
+
+        // The next turn sends it again as it was, before the reply it led to.
+        AgentRequest next = request_fixture();
+        next.attachments.clear();
+        next.record.items.insert(next.record.items.end(), recorded.begin(), recorded.end());
+        next.source    = "m-9";
+        next.user_text = "Thanks.";
+        REQUIRE(agent.service->start(next));
+        const json later = agent.fake->last_body()["messages"];
+        check_alternates(later);
+        for (std::size_t i = 0; i < messages.size(); ++i) {
+            CAPTURE(i);
+            CHECK(without_cache_control(later[i]) == without_cache_control(messages[i]));
+        }
+        CHECK(later[messages.size()]["role"] == "assistant");
+    }
+    SECTION("JusPrin's gateway in the Anthropic format") {
+        const std::optional<ProviderProfile> gateway = account_profile(account_provider(), "", kFormatAnthropic);
+        REQUIRE(gateway);
+        Agent agent({}, *gateway);
+        REQUIRE(agent.service->start(request));
+        const AgentHttpRequest& wire = agent.fake->requests.back();
+        CHECK(wire.header("anthropic-beta").empty());
+        const json messages = json::parse(wire.body)["messages"];
+        check_alternates(messages);
+        CHECK(wire.body.find("clear_at") == std::string::npos);
+        // The note and the skill both stay, so they are one system message.
+        CHECK(messages.back() == json{{"role", "system"}, {"content", "The slice finished.\n\nThe turn's skill."}});
+        answer(agent);
+        // The record keeps the skill's lifetime all the same.
+        CHECK(std::any_of(recorded.begin(), recorded.end(), [](const RecordItem& item) { return item.clears; }));
+    }
 }
 
 TEST_CASE("the stream becomes typed events: text, calls with split arguments, and usage with the cache", "[agent][anthropic][stream]")

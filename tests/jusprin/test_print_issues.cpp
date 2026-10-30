@@ -536,7 +536,8 @@ TEST_CASE("the workspace reads a slice's warnings only while the list vouches fo
     for (const auto& [name, change] : std::vector<std::pair<const char*, std::function<void(PrintIssueSnapshot&)>>>{
              {"an edit not yet checked", [](PrintIssueSnapshot& s) { s.checked = false; }},
              {"a slice running", [](PrintIssueSnapshot& s) { s.slicing = true; }},
-             {"no current slice", [](PrintIssueSnapshot& s) { s.sliced = false; }}}) {
+             {"no current slice", [](PrintIssueSnapshot& s) { s.sliced = false; }},
+             {"no active plate", [](PrintIssueSnapshot& s) { s.plate = 0; }}}) {
         DYNAMIC_SECTION(name)
         {
             PrintIssueSnapshot changed = snapshot;
@@ -560,7 +561,12 @@ TEST_CASE("only current warnings of the plate are the slice's, ignored ones incl
     step.message     = "Object can't be printed for empty layer between 1.2 and 1.4.";
     step.object      = 7;
     step.object_name = "Slab";
-    const auto findings = slice_warnings_of(sliced_plate({blocker, stale, validation, step}));
+    PrintIssueSnapshot snapshot = sliced_plate({blocker, stale, validation, step});
+    // A warning another plate's slice left in the list.
+    PrintIssue other_plate = issue_with("slice_step:object:5:8:0:m4", IssueSeverity::Warning);
+    other_plate.plate      = snapshot.plate + 1;
+    snapshot.issues.insert(snapshot.issues.begin(), other_plate);
+    const auto findings = slice_warnings_of(snapshot);
     REQUIRE(findings.has_value());
     REQUIRE(findings->size() == 2);
     CHECK((*findings)[0].setting == "outer_wall_jerk");
@@ -589,25 +595,31 @@ TEST_CASE("only current warnings of the plate are the slice's, ignored ones incl
     CHECK(Workspace::has_new_slice_warning(*findings, {validation.id}));
 }
 
-TEST_CASE("the summary counts every warning the chip lists, the ones slice_report leaves out included", "[print-issues][warnings]")
+TEST_CASE("a slice-result warning the chip lists reaches the workspace as the chip shows it", "[print-issues][warnings]")
 {
-    PrintIssue bed = issue_with("slice_result:1000C001", IssueSeverity::Warning);
-    bed.source  = IssueSource::SliceResult;
-    bed.code    = "1000C001";
-    bed.message = "The current heatbed temperature is relatively high.";
-    PrintIssue timelapse = issue_with("slice_result:10018003", IssueSeverity::Warning);
-    timelapse.source  = IssueSource::SliceResult;
-    timelapse.code    = "10018003";
-    timelapse.message = "Enabling traditional timelapse photography may cause surface imperfections.";
-    PrintIssue copy = timelapse;
-    copy.id   = "slice_result:1000C003";
-    copy.code = "1000C003";
-    // The chip lists the bed-temperature warning, and the timelapse warning
-    // twice, since OrcaSlicer records it again for older firmware.
-    const auto findings = slice_warnings_of(sliced_plate({bed, timelapse, copy}));
+    // Which of the slice result's warnings the chip lists is decided before
+    // they reach the snapshot (PrintIssueMonitor, by SliceResultWarnings:
+    // the nozzle-hardness one is listed, the bed-temperature and timelapse
+    // ones are not). What the chip lists, the workspace is told unchanged, so
+    // the chip's count and the summary's agree.
+    PrintIssue nozzle = issue_with("slice_result:1000C002", IssueSeverity::Warning);
+    nozzle.source  = IssueSource::SliceResult;
+    nozzle.code    = "1000C002";
+    nozzle.message = "The nozzle hardness required by the filament is higher than the default nozzle hardness of the printer.";
+    const PrintIssueSnapshot snapshot = sliced_plate({nozzle});
+    const auto               findings = slice_warnings_of(snapshot);
     REQUIRE(findings.has_value());
-    REQUIRE(findings->size() == 3);
-    CHECK((*findings)[0].code == "1000C001");
-    CHECK((*findings)[1].code == "10018003");
-    CHECK((*findings)[2].code == "1000C003");
+    REQUIRE(findings->size() == snapshot.issues.size());
+    CHECK((*findings)[0].id == nozzle.id);
+    CHECK((*findings)[0].code == "1000C002");
+    CHECK((*findings)[0].message == nozzle.message);
+    CHECK_FALSE((*findings)[0].critical);
+
+    namespace Workspace = Slic3r::GUI::JusPrin::Workspace;
+    const auto summary = Workspace::summarize_slice_warnings(*findings, Workspace::ProjectSessionId(4), 1);
+    REQUIRE(summary.has_value());
+    CHECK(summary->count == snapshot.issues.size());
+    CHECK(summary->severity == "warning");
+    CHECK(summary->code == "1000C002");
+    CHECK(summary->message == nozzle.message);
 }

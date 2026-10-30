@@ -69,70 +69,21 @@ struct OfferedTool
     std::string           description;
 };
 
-// One part of this turn's user message.
-struct TurnContentPart
-{
-    enum class Kind { Text, Image, Pdf };
-    Kind        kind{Kind::Text};
-    std::string text;     // Text
-    std::string mime;     // Image, Pdf
-    std::string base64;   // Image, Pdf
-    std::string filename; // Pdf
-};
-
-// A call's result, as the model is told it.
-struct TurnStepResult
-{
-    std::string                      call_id;
-    std::string                      output_json;
-    std::shared_ptr<const ToolImage> image;
-    // The call did not succeed: it failed, was cancelled, refused or not run.
-    bool                             failed{false};
-};
-
-// One response of the turn: what the model sent, and the results of the
-// calls it made. `assistant_turn` is the provider's own record of the
-// response (the Responses API's output items), kept verbatim because the
-// provider wants it back exactly as sent; the loop never looks inside it.
-struct TurnStep
-{
-    nlohmann::json              assistant_turn;
-    std::vector<TurnStepResult> results;
-    // Skills the results fired, sent after them on the request that carried
-    // them (see TurnTranscript::opening_once).
-    std::vector<AgentSkillUse>  once;
-};
-
-// Everything the model is told in one request of a turn, in provider-neutral
-// terms. The loop owns it and hands it to the codec for every request.
+// Everything the model is told in one request, in provider-neutral terms:
+// the chat's record followed by what this turn has added so far. The loop
+// owns it and hands it to the codec for every request; a codec renders each
+// item the same way every time, so a later request repeats an earlier one's
+// bytes.
 struct TurnTranscript
 {
-    std::string                           request_id;
-    unsigned                              request_sequence{0};
-    std::string                           chat_key; // see AgentRequest
+    std::string              request_id;
+    unsigned                 request_sequence{0};
+    std::string              chat_key; // see AgentRequest
 
-    std::string                           instructions;
-    std::vector<OfferedTool>              tools;
-    // The earlier conversation, as the host replays it.
-    std::vector<AgentConversationContext> opening;
-    // This turn's user message; empty when the turn has none to send.
-    std::vector<TurnContentPart>          user_content;
-    std::vector<TurnStep>                 steps;
-    // Skills fired for the turn's first request, sent after its user
-    // message. Every request records the skills it was the first to carry,
-    // here or in its last step, and the codec decides what a later request
-    // makes of them: the Responses codec sends each set on its own request
-    // only, and the Anthropic codec keeps it in place, because removing an
-    // earlier message is an edit that invalidates the thinking after it.
-    std::vector<AgentSkillUse>            opening_once;
+    std::string              instructions;
+    std::vector<OfferedTool> tools;
+    std::vector<RecordItem>  items;
 };
-
-// The skills fired for the request being built: those its last step's
-// results fired, or the turn's own before any response.
-inline const std::vector<AgentSkillUse>& newest_once(const TurnTranscript& transcript)
-{
-    return transcript.steps.empty() ? transcript.opening_once : transcript.steps.back().once;
-}
 
 // A call the model made, as the codec read it off the wire.
 struct ProviderToolCall

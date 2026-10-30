@@ -3,6 +3,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 
 #include <cstdlib>
@@ -160,6 +161,7 @@ TEST_CASE("JUSPRIN_AGENT_ENDPOINT redirects the Agent, and JUSPRIN_OPENAI_ENDPOI
     AgentRuntime runtime = resolve_agent_runtime(configured("openrouter"), "http://127.0.0.1:3/v1/responses",
                                                  [&url]() -> std::unique_ptr<IAgentHttpTransport> { return std::make_unique<Capture>(url); });
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id = "r";
     request.user_text  = "hi";
     REQUIRE(runtime.service->start(request));

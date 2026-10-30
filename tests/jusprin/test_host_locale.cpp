@@ -14,6 +14,9 @@
 
 #include "slic3r/GUI/JusPrin/Workspace/HostLocale.hpp"
 
+#include <clocale>
+#include <string>
+
 using Slic3r::GUI::JusPrin::Workspace::host_currency_code;
 
 TEST_CASE("the host currency is an ISO 4217 code or nothing at all", "[jusprin][locale]")
@@ -44,7 +47,17 @@ TEST_CASE("the host currency does not change between calls", "[jusprin][locale]"
     // snapshot() caches the first answer in a function-local static and reuses
     // it for the life of the process, so a query that is not idempotent would
     // make the displayed currency depend on which call happened to run first.
-    // The POSIX branch is the one at risk: it moves LC_MONETARY to read the
-    // environment and must restore it, or the second call reads back "C".
     CHECK(host_currency_code() == host_currency_code());
+}
+
+TEST_CASE("reading the host currency leaves the process's LC_MONETARY as it was", "[jusprin][locale]")
+{
+    // The POSIX branch moves LC_MONETARY to the environment's setting to read
+    // it. Left there, every later money format in the process would change;
+    // the other branches never touch it.
+    const char*       before = std::setlocale(LC_MONETARY, nullptr);
+    const std::string saved  = before != nullptr ? before : "";
+    (void) host_currency_code();
+    const char* after = std::setlocale(LC_MONETARY, nullptr);
+    CHECK(std::string(after != nullptr ? after : "") == saved);
 }

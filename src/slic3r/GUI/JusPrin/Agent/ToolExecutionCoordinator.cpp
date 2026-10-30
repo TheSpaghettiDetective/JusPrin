@@ -1097,24 +1097,40 @@ void ToolExecutionCoordinator::pump()
             }
             // A tool that replaces the project clears the other activities
             // while it runs, which may move this one: read it before.
-            const ActionClass action_class = activity.action_class;
+            const bool document_boundary = !versioned && m_document_boundary && activity.action_class != ActionClass::ReadOnly &&
+                                           definition != nullptr && definition->handler != ToolHandler::ProjectOpen &&
+                                           definition->handler != ToolHandler::CalibrationGenerate &&
+                                           definition->handler != ToolHandler::SliceStart;
+            // The save after a change is part of its outcome. Subscribers,
+            // the model's tool result among them, are told that outcome once,
+            // after the save, so a failed save is what they hear and the
+            // record keeps what they heard.
+            struct Saved { std::string& id; ~Saved() { id.clear(); } } saved{m_saving_after};
+            if (versioned || document_boundary)
+                m_saving_after = activity.action_id;
             execute(activity);
+            bool save_failed = false;
             if (versioned) {
                 try {
                     m_version_after(activity, before);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save after Agent action: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
+                    save_failed = true;
                 }
-            } else if (m_document_boundary && action_class != ActionClass::ReadOnly && definition != nullptr &&
-                       definition->handler != ToolHandler::ProjectOpen && definition->handler != ToolHandler::CalibrationGenerate &&
-                       definition->handler != ToolHandler::SliceStart) {
+            } else if (document_boundary) {
                 try {
                     m_document_boundary(activity);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save Agent document: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
+                    save_failed = true;
                 }
+            }
+            if (save_failed)
+                fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
+            if (!m_saving_after.empty()) {
+                m_saving_after.clear();
+                if (tool_state_terminal(activity.state))
+                    notify(activity);
             }
         }
         // One activity per tick keeps event ordering deterministic.
@@ -1387,9 +1403,15 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const Workspace::ProjectSessionId session(std::stoull(arguments["sessionId"].get<std::string>()));
         Workspace::ImportRequest request;
         if (definition->handler == ToolHandler::ObjectImport) {
-            request.path = m_attachment_path_resolver ? m_attachment_path_resolver(arguments["attachmentId"].get<std::string>()) : std::string();
+            const std::string attachment = arguments["attachmentId"].get<std::string>();
+            request.path = m_attachment_path_resolver ? m_attachment_path_resolver(attachment) : std::string();
+            // The tool is offered whether or not anything is attached, so the
+            // tool list stays the same for the whole chat.
             if (request.path.empty()) {
-                fail(activity, "not_found", "The attached model is no longer available. Ask the person to attach it again.");
+                fail(activity, "invalid_arguments",
+                     "No model file attached in this chat has the id \"" + attachment +
+                         "\". Nothing was imported. Use an attachment id from the person's message; if they attached "
+                         "no model file, ask them to attach it.");
                 return;
             }
         } else {
@@ -2395,6 +2417,10 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
                             {"currentSessionId", std::to_string(snapshot.session.value())}, {"currentRevision", snapshot.revision}}
                            .dump();
     }
+    // Terminal records never change once announced; only a change whose save
+    // is still to come has not been announced yet.
+    if (tool_state_terminal(activity.state) && activity.action_id != m_saving_after)
+        throw std::logic_error("Tool call " + activity.action_id + " already ended; its outcome cannot change");
     activity.state = ToolState::Failed;
     activity.error = ToolError{std::move(code), std::move(message), std::move(details_json)};
     notify(activity);
@@ -2402,6 +2428,9 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
 
 void ToolExecutionCoordinator::notify(const ToolActivity& activity)
 {
+    // pump() announces this outcome once the save after it is done.
+    if (!m_saving_after.empty() && activity.action_id == m_saving_after && tool_state_terminal(activity.state))
+        return;
     std::shared_ptr<ObserverState> state = m_observers;
     std::vector<std::uint64_t> ids;
     ids.reserve(state->observers.size());

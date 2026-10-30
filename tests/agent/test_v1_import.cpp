@@ -5,6 +5,8 @@
 
 #include "slic3r/GUI/JusPrin/V1Import/V1Import.hpp"
 
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -41,8 +43,9 @@ struct Folders
 
     Folders()
     {
-        root = fs::temp_directory_path() / ("jusprin-v1-import-" + std::to_string(std::rand()));
-        fs::remove_all(root);
+        // A folder of its own: test cases run as separate processes, at once
+        // under ctest -j, and each deletes its folder when done.
+        root = fs::temp_directory_path() / ("jusprin-v1-import-" + boost::uuids::to_string(boost::uuids::random_generator()()));
         v1 = root / "JusPrin";
         v2 = root / "JusPrin2";
         fs::create_directories(v2);

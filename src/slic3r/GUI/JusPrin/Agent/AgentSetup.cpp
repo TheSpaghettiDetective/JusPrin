@@ -15,6 +15,9 @@ AgentRequest probe_request()
     AgentRequest request;
     request.request_id = "setup-key-check";
     request.user_text  = "Reply with the single word: ready.";
+    // The check is no chat's: it keeps nothing of what it sends.
+    request.on_recorded = [](const std::string&, std::vector<RecordItem>) {};
+    request.keep_blob   = [](const std::string&) -> std::optional<std::string> { return std::nullopt; };
     return request;
 }
 

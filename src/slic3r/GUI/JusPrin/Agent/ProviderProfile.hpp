@@ -109,6 +109,26 @@ inline const ProviderProfile& account_provider()
 inline constexpr const char* kFormatAnthropic = "anthropic";
 inline constexpr const char* kFormatResponses = "responses";
 
+// The wire format a family speaks, named as the gateway names it. A chat's
+// record is kept in one.
+inline const char* wire_format(ProviderFamily family)
+{
+    return family == ProviderFamily::Anthropic ? kFormatAnthropic : kFormatResponses;
+}
+
+// Whether a fired skill is shown on the request that fired it only. The
+// Messages API can clear it from the turns after (a turn-scoped system
+// message, behind a beta header); JusPrin's gateway sends only the headers
+// it is configured with, so through it skills stay in place, as they do on
+// Responses, which has no such message.
+inline bool clears_skills(const ProviderProfile& profile)
+{
+    return profile.family == ProviderFamily::Anthropic && !profile.account_sign_in;
+}
+
+// The beta that turn-scoped system messages need.
+inline constexpr const char* kClearAtBeta = "mid-conversation-system-clear-at-2026-08-21";
+
 // An account provider's row as one model is served: the family the format
 // names, posted to that format's endpoint next to `endpoint` (the last path
 // segment is replaced, so an override or a self-hosted server moves both).

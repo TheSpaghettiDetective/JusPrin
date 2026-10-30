@@ -137,7 +137,7 @@ json workspace_json(const AgentRequest& request)
     return result;
 }
 
-bool available_in_app(const ToolDefinition& definition, bool allow_import, bool skills_listed,
+bool available_in_app(const ToolDefinition& definition, bool skills_listed,
                       const std::vector<std::string>& session_tools)
 {
     // A session with a subject of its own offers exactly the tools it names,
@@ -147,18 +147,15 @@ bool available_in_app(const ToolDefinition& definition, bool allow_import, bool 
                (has_exposure(definition.exposure, ToolExposure::InApp) || has_exposure(definition.exposure, ToolExposure::Printer));
     return has_exposure(definition.exposure, ToolExposure::InApp) &&
            (definition.availability == ToolAvailability::Always ||
-            (definition.availability == ToolAvailability::ImportableAttachment && allow_import) ||
             (definition.availability == ToolAvailability::SkillIndex && skills_listed));
 }
 
 // The tools this turn offers, in the registry's order.
 std::vector<OfferedTool> offered_tools(const AgentRequest& request)
 {
-    const bool allow_import = std::any_of(request.attachments.begin(), request.attachments.end(),
-                                          [](const AgentAttachmentContext& attachment) { return attachment.importable; });
     std::vector<OfferedTool> tools;
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
-        if (!available_in_app(definition, allow_import, !request.skill_index.empty(), request.session.tool_names))
+        if (!available_in_app(definition, !request.skill_index.empty(), request.session.tool_names))
             continue;
         // skill_read carries the list it reads from, as one line per skill.
         std::string description = definition.description;
@@ -185,6 +182,15 @@ std::vector<AgentSkillUse> skills_to_send(const std::vector<AgentSkillUse>& skil
             sent.push_back(skill);
     }
     return sent;
+}
+
+RecordPart image_part(const ToolImage& image)
+{
+    RecordPart part;
+    part.kind   = RecordPart::Kind::Image;
+    part.mime   = image.mime_type;
+    part.base64 = image.base64;
+    return part;
 }
 
 AgentHttpHeader auth_header(const ProviderProfile& profile, const std::string& api_key)
@@ -219,31 +225,46 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     m_transcript.request_id   = request.request_id;
     m_transcript.chat_key     = request.chat_key;
     m_transcript.instructions = request.session.instructions;
-    m_transcript.opening      = request.conversation;
-    if (request.purpose == AgentRequest::Purpose::ConversationTitle)
-        return;
-    m_transcript.tools = offered_tools(request);
-    m_transcript.opening_once = skills_to_send(request.skills);
-    // A turn the app started, after one of its own notes: nothing was said,
-    // and an empty user message would read as the person saying nothing.
-    if (request.user_text.empty() && request.issue_context.empty() && request.attachments.empty() &&
-        !request.session.include_workspace)
-        return;
-
-    // One part per kind of content: the person's words exactly as typed, then
-    // the app's data, each in its own tag, then the attachments.
-    std::vector<TurnContentPart>& content = m_transcript.user_content;
-    const auto text = [&content](std::string value) {
-        TurnContentPart part;
+    m_on_recorded             = request.on_recorded;
+    m_keep_blob               = request.keep_blob;
+    m_unkept                  = false;
+    std::vector<RecordItem>& items = m_transcript.items;
+    const auto text = [](std::string value) {
+        RecordPart part;
         part.text = std::move(value);
-        content.push_back(std::move(part));
+        return part;
     };
+    if (request.purpose == AgentRequest::Purpose::ConversationTitle) {
+        items.push_back(RecordItem{RecordItem::Kind::User, {}, {text(request.user_text)}});
+        m_recorded = m_settled = items.size();
+        return;
+    }
+    if (!m_on_recorded || !m_keep_blob)
+        throw std::logic_error("a reply request with nowhere to keep what it sends");
+    items      = request.record.items;
+    m_recorded = items.size();
+    m_transcript.tools = offered_tools(request);
+
+    // What the model has not been sent yet, the person's side first: a
+    // message that never reached it, then this turn's own.
+    for (const RecordItem& item : request.unsent)
+        if (item.kind == RecordItem::Kind::User)
+            items.push_back(item);
+    // Kept from here once the provider accepts the request: the person's side.
+    m_settled = items.size();
+    // One part per kind of content: the person's words exactly as typed, then
+    // the app's data, each in its own tag, then the attachments. A turn the
+    // app started on its note has only the data, kept with the note once the
+    // model has answered both; a retry whose turn the record already holds
+    // adds nothing.
+    const bool app_turn = !request.note.empty();
+    RecordItem turn{RecordItem::Kind::User, app_turn ? std::string() : request.source, {}};
     if (!request.user_text.empty())
-        text(request.user_text);
+        turn.parts.push_back(text(request.user_text));
     if (!request.issue_context.empty())
-        text(tagged_block("print_issue", request.issue_context));
-    if (request.session.include_workspace)
-        text(tagged_block("workspace", workspace_json(request).dump()));
+        turn.parts.push_back(text(tagged_block("print_issue", request.issue_context)));
+    if (!request.turn_recorded && request.session.include_workspace)
+        turn.parts.push_back(text(tagged_block("workspace", workspace_json(request).dump())));
     std::ostringstream attachments;
     for (const auto& attachment : request.attachments) {
         if (attachments.tellp() > 0)
@@ -255,23 +276,64 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
             attachments << "\n<attachment id=\"" << attachment.id << "\">\n" << attachment.text << "\n</attachment>";
     }
     if (attachments.tellp() > 0)
-        text(attachments.str());
+        turn.parts.push_back(text(attachments.str()));
     for (const auto& attachment : request.attachments) {
-        if (attachment.bytes.empty())
+        if (attachment.bytes.empty() || (attachment.kind != "image" && attachment.kind != "pdf"))
             continue;
-        TurnContentPart part;
+        RecordPart part;
+        part.kind   = attachment.kind == "image" ? RecordPart::Kind::Image : RecordPart::Kind::Pdf;
         part.mime   = attachment.mime.empty() ? "application/octet-stream" : attachment.mime;
         part.base64 = base64_encode(attachment.bytes);
-        if (attachment.kind == "image") {
-            part.kind = TurnContentPart::Kind::Image;
-        } else if (attachment.kind == "pdf") {
-            part.kind     = TurnContentPart::Kind::Pdf;
+        if (part.kind == RecordPart::Kind::Pdf)
             part.filename = attachment.name;
-        } else {
-            continue;
-        }
-        content.push_back(std::move(part));
+        turn.parts.push_back(kept(std::move(part)));
     }
+    if (!turn.parts.empty())
+        items.push_back(std::move(turn));
+    // What the app adds from here is kept once the model has answered it:
+    // its notes, the turn's own last, in the operator's voice.
+    if (!app_turn)
+        m_settled = items.size();
+    std::vector<RecordItem> notes;
+    for (const RecordItem& item : request.unsent)
+        if (item.kind == RecordItem::Kind::Operator)
+            notes.push_back(item);
+    if (app_turn)
+        notes.push_back(RecordItem{RecordItem::Kind::Operator, request.source, {}, request.note});
+    push_skills(skills_to_send(request.skills), std::move(notes));
+}
+
+void ProviderAgent::push_skills(const std::vector<AgentSkillUse>& skills, std::vector<RecordItem> notes)
+{
+    // Each fired skill's picture on the person's side, then the app's voice:
+    // its notes, then every skill's text, for this request only where the
+    // provider can clear it.
+    for (const AgentSkillUse& skill : skills)
+        if (skill.picture)
+            m_transcript.items.push_back(RecordItem{RecordItem::Kind::User, {}, {kept(image_part(*skill.picture))}});
+    for (RecordItem& note : notes)
+        m_transcript.items.push_back(std::move(note));
+    for (const AgentSkillUse& skill : skills)
+        m_transcript.items.push_back(RecordItem{RecordItem::Kind::Operator, {}, {}, skill.text, {}, {}, true});
+}
+
+RecordPart ProviderAgent::kept(RecordPart part)
+{
+    if (const std::optional<std::string> blob = m_keep_blob(part.base64))
+        part.blob = *blob;
+    else
+        m_unkept = true;
+    return part;
+}
+
+void ProviderAgent::record()
+{
+    // A title request belongs to no chat: nothing it sends or gets is kept.
+    if (m_kind == RequestKind::ConversationTitle || m_settled <= m_recorded)
+        return;
+    m_on_recorded(wire_format(m_config.profile.family),
+                  std::vector<RecordItem>(m_transcript.items.begin() + m_recorded, m_transcript.items.begin() + m_settled));
+    m_recorded = m_settled;
 }
 
 bool ProviderAgent::start(const AgentRequest& request)
@@ -282,6 +344,7 @@ bool ProviderAgent::start(const AgentRequest& request)
     m_pending_tool.clear();
     m_queued_calls.clear();
     m_step_skills.clear();
+    m_results = RecordItem{RecordItem::Kind::Results};
     m_failed_call.clear();
     m_waiting_for_tool = false;
     m_rejected_calls   = 0;
@@ -295,8 +358,8 @@ bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
 {
     if (!m_busy || !m_waiting_for_tool || result.call_id != m_pending_call_id)
         return false;
-    m_transcript.steps.back().results.push_back(
-        TurnStepResult{result.call_id, result.output_json, result.image, result.state != "succeeded"});
+    m_results.results.push_back(RecordResult{result.call_id, result.output_json, result.state != "succeeded",
+                                             result.image ? std::optional<RecordPart>(kept(image_part(*result.image))) : std::nullopt});
     for (const AgentSkillUse& skill : result.skills) {
         const auto same = std::find_if(m_step_skills.begin(), m_step_skills.end(),
                                        [&skill](const AgentSkillUse& pending) { return pending.name == skill.name; });
@@ -315,11 +378,17 @@ bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
 
 void ProviderAgent::answer_call(const std::string& call_id, const json& output)
 {
-    m_transcript.steps.back().results.push_back(TurnStepResult{call_id, output.dump(), nullptr, true});
+    m_results.results.push_back(RecordResult{call_id, output.dump(), true, std::nullopt});
 }
 
 bool ProviderAgent::post()
 {
+    // A picture the record could not keep: the chat could never send this
+    // request again, so it is not sent now.
+    if (m_unkept) {
+        m_busy = false;
+        return false;
+    }
     m_sse_buffer.clear();
     m_terminal_seen = false;
     m_busy = true;
@@ -381,6 +450,9 @@ void ProviderAgent::parse_sse_frame(const std::string& frame)
 
 void ProviderAgent::handle(StreamEvent event)
 {
+    // The provider has accepted the request: what it carried is now part of
+    // the chat. A request it refused leaves no trace.
+    record();
     switch (event.kind) {
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
@@ -400,9 +472,11 @@ void ProviderAgent::finish_response(StreamEvent event)
         m_config.usage_listener(*event.usage);
     m_queued_calls.clear();
     m_step_skills.clear();
+    m_results = RecordItem{RecordItem::Kind::Results};
     m_failed_call.clear();
-    m_transcript.steps.push_back(TurnStep{std::move(event.assistant_turn), {}, {}});
+    m_transcript.items.push_back(RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, std::move(event.assistant_turn)});
     if (event.resend) {
+        m_settled = m_transcript.items.size();
         // The provider paused its own turn and resumes it from this one.
         constexpr unsigned kPausedTurnLimit = 4;
         if (++m_paused_turns > kPausedTurnLimit) {
@@ -478,12 +552,17 @@ bool ProviderAgent::next_call()
         m_events.push_back(AgentEvent::tool_call(std::move(call)));
         return true;
     }
-    if (m_transcript.steps.back().results.empty()) {
+    if (m_results.results.empty()) {
+        m_settled = m_transcript.items.size();
+        record();
         m_busy = false;
         m_events.push_back(AgentEvent::completed());
         return true;
     }
-    m_transcript.steps.back().once = skills_to_send(m_step_skills);
+    // The results go back together, and with them the skills they fired.
+    m_transcript.items.push_back(std::exchange(m_results, RecordItem{RecordItem::Kind::Results}));
+    m_settled = m_transcript.items.size();
+    push_skills(skills_to_send(m_step_skills));
     m_step_skills.clear();
     return post();
 }

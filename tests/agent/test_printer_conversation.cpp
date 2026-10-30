@@ -13,6 +13,7 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
+#include "kept_turn.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -350,7 +351,6 @@ TEST_CASE("every session offers every printer tool and the settings tools, and n
         const Agent::AgentSessionProfile profile = conversation.profile();
         CHECK(profile.tool_names == printer_tools);
         CHECK_FALSE(profile.include_workspace);
-        CHECK(profile.notes_in_context);
     }
 }
 
@@ -666,9 +666,11 @@ TEST_CASE("a session changes the settings of its own printer, and of nothing els
     garage.name           = "Garage";
     backend.saved         = {lab_printer(), garage};
     PrinterConversation conversation(backend, panel);
-    CHECK(conversation.profile().tool_names ==
-          std::vector<std::string>{"printer_add", "printer_change", "printer_connect", "printer_connection_status", "printer_identify",
-                                   "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search"});
+    // The printer tools, then the settings tools.
+    std::vector<std::string> offered = PrinterConversation::session_tools();
+    for (const std::string& name : PrinterConversation::settings_tools())
+        offered.push_back(name);
+    CHECK(conversation.profile().tool_names == offered);
 
     conversation.start(ConversationMode::Add);
     CHECK(preflight_refusal(conversation, "settings_get", json{{"scope", "printer"}, {"target", {{"preset", "Lab Printer"}}}, {"keys", {"z_hop"}}}) ==
@@ -736,13 +738,15 @@ TEST_CASE("a session about a saved printer finds and adds none, and changes only
     SavedPrinter   garage = lab_printer();
     garage.name           = "Garage";
     backend.saved         = {lab_printer(), garage};
-    CHECK(PrinterConversation::session_tools().size() == 5);
     for (const char* removed : {"printer_manual_setup", "printer_manual_connection", "printer_setup_finish"})
         CHECK(Agent::ToolRegistry::instance().find(removed) == nullptr);
     for (const ConversationMode mode : {ConversationMode::Change, ConversationMode::Connect}) {
         PrinterConversation conversation(backend, panel);
         conversation.start(mode, "Lab Printer");
         // Every tool is still offered: the refusal says where adding happens.
+        const std::vector<std::string> offered = conversation.profile().tool_names;
+        for (const std::string& tool : PrinterConversation::session_tools())
+            CHECK(std::find(offered.begin(), offered.end(), tool) != offered.end());
         CHECK(preflight_refusal(conversation, "printer_identify", json{{"catalogIds", {"Prusa/Prusa MK3S"}}}) ==
               "not_in_this_conversation");
         CHECK(preflight_refusal(conversation, "printer_add", json{{"catalogId", "Prusa/Prusa MK3S"}}) == "not_in_this_conversation");
@@ -1618,7 +1622,9 @@ TEST_CASE("a printer conversation writes nothing into the project", "[printer-co
 namespace {
 
 // Answers each turn with text, or with the one tool call it was given, and
-// records every request and tool result the host hands it.
+// records every request and tool result the host hands it. It keeps what it
+// sent in the chat's record the way a provider agent does: the person's side
+// once sent, then each reply and result, so a later request carries them.
 class ScriptedAgent final : public Agent::IAgentService
 {
 public:
@@ -1633,21 +1639,30 @@ public:
     {
         requests.push_back(request);
         m_active = true;
+        m_turn   = request;
         if (request.purpose == Agent::AgentRequest::Purpose::ConversationTitle) {
             m_events.push_back(Agent::AgentEvent::delta("Printer"));
             m_events.push_back(Agent::AgentEvent::completed());
-        } else if (call) {
-            m_events.push_back(Agent::AgentEvent::tool_call({"call-" + std::to_string(requests.size()), *call, true}));
+            return true;
+        }
+        std::vector<Agent::RecordItem> sent = JusPrinTest::kept_person_side(request);
+        if (call) {
+            const std::string call_id = "call-" + std::to_string(requests.size());
+            sent.push_back(JusPrinTest::kept_call(call_id, call->tool, call->arguments_json));
+            m_events.push_back(Agent::AgentEvent::tool_call({call_id, *call, true}));
             call.reset();
         } else {
+            sent.push_back(JusPrinTest::kept_reply(reply));
             m_events.push_back(Agent::AgentEvent::delta(reply));
             m_events.push_back(Agent::AgentEvent::completed());
         }
+        JusPrinTest::keep(request, std::move(sent));
         return true;
     }
     bool continue_after_tool(const Agent::AgentToolResult& result) override
     {
         results.push_back(result);
+        JusPrinTest::keep(m_turn, {JusPrinTest::kept_result(result), JusPrinTest::kept_reply("Done.")});
         m_events.push_back(Agent::AgentEvent::delta("Done."));
         m_events.push_back(Agent::AgentEvent::completed());
         return true;
@@ -1670,8 +1685,58 @@ public:
 
 private:
     std::deque<Agent::AgentEvent> m_events;
+    Agent::AgentRequest           m_turn;
     bool                          m_active{false};
 };
+
+// The words of a record's items as the model read them: the person's text,
+// the app's notes and the model's replies, without tool calls or results.
+std::vector<std::string> record_words(const Agent::ChatRecord& record)
+{
+    std::vector<std::string> words;
+    for (const Agent::RecordItem& item : record.items) {
+        for (const Agent::RecordPart& part : item.parts)
+            words.push_back(part.text);
+        if (!item.text.empty())
+            words.push_back(item.text);
+        if (item.output.is_object() && item.output.value("type", "") == "message")
+            words.push_back(item.output.at("content").get<std::string>());
+    }
+    return words;
+}
+
+// Every string a request hands the model, whatever its channel.
+std::string everything_sent(const Agent::AgentRequest& request)
+{
+    std::string sent = request.user_text;
+    for (const std::string& words : record_words({{}, request.unsent}))
+        sent += "\n" + words;
+    for (const Agent::RecordItem& item : request.record.items) {
+        for (const std::string& words : record_words({{}, {item}}))
+            sent += "\n" + words;
+        sent += "\n" + item.output.dump();
+        for (const Agent::RecordResult& result : item.results)
+            sent += "\n" + result.output_json;
+    }
+    return sent;
+}
+
+// Where the record's first item of a kind is that `match` accepts, or its size.
+template<class Match> std::size_t find_item(const Agent::ChatRecord& record, Match match)
+{
+    std::size_t i = 0;
+    while (i < record.items.size() && !match(record.items[i]))
+        ++i;
+    return i;
+}
+
+bool says(const Agent::RecordItem& item, const std::string& words)
+{
+    const std::vector<std::string> all = record_words({{}, {item}});
+    return std::find(all.begin(), all.end(), words) != all.end();
+}
+
+bool is_results(const Agent::RecordItem& item) { return item.kind == Agent::RecordItem::Kind::Results; }
 
 // What PrinterPanel does, without wx: the conversation's host is the
 // AgentHost, through the same seams.
@@ -1836,11 +1901,11 @@ TEST_CASE("printer_add and printer_change run on the person's yes", "[printer-co
     adding.pump();
     const Agent::AgentRequest& next = adding.agent->requests.back();
     CHECK(next.user_text == "thanks");
-    CHECK(next.conversation.size() >= 4);
-    for (const Agent::AgentConversationContext& message : next.conversation) {
-        INFO(message.text);
-        CHECK(message.text.find("added") == std::string::npos);
-        CHECK(message.text.find("Prusa MK3S") == std::string::npos);
+    CHECK(next.record.items.size() >= 4);
+    for (const std::string& words : record_words(next.record)) {
+        INFO(words);
+        CHECK(words.find("added") == std::string::npos);
+        CHECK(words.find("Prusa MK3S") == std::string::npos);
     }
 }
 
@@ -1917,8 +1982,7 @@ TEST_CASE("the credential reaches the printer and nothing else", "[printer-conve
     for (const std::string& envelope : harness.sent)
         CHECK_THAT(envelope, !ContainsSubstring(secret));
     for (const Agent::AgentRequest& request : harness.agent->requests)
-        for (const Agent::AgentConversationContext& entry : request.conversation)
-            CHECK_THAT(entry.text, !ContainsSubstring(secret));
+        CHECK_THAT(everything_sent(request), !ContainsSubstring(secret));
     for (const Agent::AgentToolResult& result : harness.agent->results)
         CHECK_THAT(result.output_json, !ContainsSubstring(secret));
     CHECK_THAT(harness.persistence.document().dump(), !ContainsSubstring(secret));
@@ -1945,13 +2009,13 @@ TEST_CASE("a message sent while connecting is answered first, and the outcome's 
     REQUIRE(harness.agent->requests.size() == before + 2);
     CHECK(harness.agent->requests[before].user_text == "how long does this take?");
     CHECK(harness.agent->requests[before + 1].user_text.empty());
-    const auto& context = harness.agent->requests[before + 1].conversation;
-    CHECK(std::any_of(context.begin(), context.end(), [](const Agent::AgentConversationContext& entry) {
-        return entry.text == "Connection to Lab Printer verified.";
+    const auto& unsent = harness.agent->requests[before + 1].unsent;
+    CHECK(std::any_of(unsent.begin(), unsent.end(), [](const Agent::RecordItem& item) {
+        return item.kind == Agent::RecordItem::Kind::Operator && item.text == "Connection to Lab Printer verified.";
     }));
 }
 
-TEST_CASE("a printer session's notes reach the model as the app's words; a project's do not", "[printer-conversation][host]")
+TEST_CASE("notes reach the model as the app's words, in a printer session and a project's", "[printer-conversation][host]")
 {
     SECTION("printer session") {
         PrinterHost harness(ConversationMode::Add);
@@ -1963,11 +2027,11 @@ TEST_CASE("a printer session's notes reach the model as the app's words; a proje
         const Agent::AgentRequest& request = harness.agent->requests.front();
         // A turn the app started carries no words of the person's.
         CHECK(request.user_text.empty());
-        const auto note = std::find_if(request.conversation.begin(), request.conversation.end(), [](const auto& entry) {
-            return entry.text == "The person said Bambu Lab A1 mini is not their printer.";
+        const auto note = std::find_if(request.unsent.begin(), request.unsent.end(), [](const auto& item) {
+            return item.text == "The person said Bambu Lab A1 mini is not their printer.";
         });
-        REQUIRE(note != request.conversation.end());
-        CHECK(note->role == "developer");
+        REQUIRE(note != request.unsent.end());
+        CHECK(note->kind == Agent::RecordItem::Kind::Operator);
     }
     SECTION("project session") {
         PrinterHost harness(ConversationMode::Add, /*printer_session=*/false);
@@ -1976,12 +2040,14 @@ TEST_CASE("a printer session's notes reach the model as the app's words; a proje
         harness.pump();
 
         REQUIRE_FALSE(harness.agent->requests.empty());
-        for (const auto& entry : harness.agent->requests.front().conversation)
-            CHECK(entry.text != "Printer changed to Bambu Lab A1 mini.");
+        const auto& unsent = harness.agent->requests.front().unsent;
+        CHECK(std::any_of(unsent.begin(), unsent.end(), [](const Agent::RecordItem& item) {
+            return item.kind == Agent::RecordItem::Kind::Operator && item.text == "Printer changed to Bambu Lab A1 mini.";
+        }));
     }
 }
 
-TEST_CASE("a session replays its earlier tool calls to the model, printer or project", "[printer-conversation][host]")
+TEST_CASE("a session sends its earlier tool calls again as sent, printer or project", "[printer-conversation][host]")
 {
     SECTION("printer session") {
         PrinterHost harness(ConversationMode::Connect);
@@ -1997,25 +2063,24 @@ TEST_CASE("a session replays its earlier tool calls to the model, printer or pro
         harness.pump();
         const Agent::AgentRequest& request = harness.agent->requests.back();
         REQUIRE(request.user_text == "connect it");
-        const auto& history = request.conversation;
-        const auto  call    = std::find_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); });
-        REQUIRE(call != history.end());
-        CHECK(call->call_id == live.call_id);
-        CHECK(call->tool == "printer_connection_status");
-        CHECK(json::parse(call->arguments_json) == json::object());
+        const Agent::ChatRecord& record = request.record;
+        const std::size_t results = find_item(record, is_results);
+        REQUIRE(results < record.items.size());
+        REQUIRE(record.items[results].results.size() == 1);
+        CHECK(record.items[results].results.front().call_id == live.call_id);
         // The very words the model read when the call ran, so the next turn
         // has the printer's id from it.
-        CHECK(call->output_json == live.output_json);
-        CHECK(call->role.empty());
-        CHECK(call->text.empty());
-        // It sits after the question that led to it and before the reply that read its result.
-        const auto asked   = std::find_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "is it online?"; });
-        const auto replied = std::find_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; });
-        REQUIRE(asked != history.end());
-        REQUIRE(replied != history.end());
-        CHECK(asked < call);
-        CHECK(call < replied);
-        CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); }) == 1);
+        CHECK(record.items[results].results.front().output_json == live.output_json);
+        // After the question and the call that led to it, before the reply
+        // that read it.
+        const std::size_t asked   = find_item(record, [](const auto& item) { return says(item, "is it online?"); });
+        const std::size_t replied = find_item(record, [](const auto& item) { return says(item, "Done."); });
+        REQUIRE(results > 0);
+        CHECK(asked < results - 1);
+        CHECK(record.items[results - 1].output.at("call_id") == live.call_id);
+        CHECK(results < replied);
+        CHECK(replied < record.items.size());
+        CHECK(std::count_if(record.items.begin(), record.items.end(), is_results) == 1);
     }
     SECTION("project session") {
         PrinterHost harness(ConversationMode::Add, /*printer_session=*/false);
@@ -2029,22 +2094,17 @@ TEST_CASE("a session replays its earlier tool calls to the model, printer or pro
         harness.pump();
         const Agent::AgentRequest& request = harness.agent->requests.back();
         REQUIRE(request.user_text == "and now?");
-        const auto call = std::find_if(request.conversation.begin(), request.conversation.end(),
-                                       [](const auto& entry) { return !entry.call_id.empty(); });
-        REQUIRE(call != request.conversation.end());
-        CHECK(call->tool == "printer_list");
-        // The project's tools answer with the workspace beside the result; on
-        // replay the workspace is left out, since the turn carries the current one.
-        const json replayed = json::parse(call->output_json);
-        const json live     = json::parse(harness.agent->results.front().output_json);
-        CHECK(replayed.at("result") == live.at("result"));
-        CHECK(live.contains("workspace"));
-        CHECK_FALSE(replayed.contains("workspace"));
-        CHECK_FALSE(replayed.contains("actionId"));
+        const std::size_t results = find_item(request.record, is_results);
+        REQUIRE(results < request.record.items.size());
+        // The project's tools answer with the workspace beside the result,
+        // and it stays: an earlier request is never changed.
+        const std::string& sent = request.record.items[results].results.front().output_json;
+        CHECK(sent == harness.agent->results.front().output_json);
+        CHECK(json::parse(sent).contains("workspace"));
     }
 }
 
-TEST_CASE("a large earlier result is replayed as its state and a note, not its bytes", "[printer-conversation][host]")
+TEST_CASE("a large earlier result is sent again whole", "[printer-conversation][host]")
 {
     PrinterHost harness(ConversationMode::Connect);
     harness.backend.connection_info = bambu_on_network();
@@ -2058,224 +2118,42 @@ TEST_CASE("a large earlier result is replayed as its state and a note, not its b
 
     harness.say("connect it");
     harness.pump();
-    const auto& history = harness.agent->requests.back().conversation;
-    const auto  call    = std::find_if(history.begin(), history.end(), [](const auto& entry) { return !entry.call_id.empty(); });
-    REQUIRE(call != history.end());
-    const json output = json::parse(call->output_json);
-    CHECK(output.at("state") == "succeeded");
-    CHECK_THAT(output.at("omitted").get<std::string>(), Catch::Matchers::ContainsSubstring("call the tool again"));
-    CHECK(call->output_json.size() < 512);
+    const Agent::ChatRecord& record = harness.agent->requests.back().record;
+    const std::size_t results = find_item(record, is_results);
+    REQUIRE(results < record.items.size());
+    CHECK(record.items[results].results.front().output_json == harness.agent->results.front().output_json);
 }
 
-namespace {
-
-using History = std::vector<Agent::AgentConversationContext>;
-
-constexpr std::size_t kHistoryBytes = 64 * 1024;
-
-// One turn in which the person says `text` and the model checks the printer
-// once, getting back a result of a little over `result_bytes`.
-void checked_turn(PrinterHost& harness, const std::string& text, std::size_t result_bytes)
+TEST_CASE("a long chat is sent again whole, every word and every result", "[printer-conversation][host][history]")
 {
-    harness.backend.connection_info         = bambu_on_network();
-    harness.backend.connection_info.message = std::string(result_bytes, 'x');
-    harness.agent->call                     = Agent::ToolRequest{"printer_connection_status", "{}"};
-    harness.say(text);
-    harness.pump();
-}
-
-// The history the next turn sends, after a message with no tool call.
-const History& next_history(PrinterHost& harness)
-{
+    // Twelve turns that each bring back a result of 8 KiB: about 100 KiB of
+    // history, all of it sent on the next turn.
+    PrinterHost harness(ConversationMode::Connect);
+    for (int turn = 1; turn <= 12; ++turn) {
+        harness.backend.connection_info         = bambu_on_network();
+        harness.backend.connection_info.message = std::string(8 * 1024, 'x');
+        harness.agent->call                     = Agent::ToolRequest{"printer_connection_status", "{}"};
+        harness.say("check " + std::to_string(turn));
+        harness.pump();
+    }
+    REQUIRE(harness.agent->results.size() == 12);
     harness.say("and now?");
     harness.pump();
-    return harness.agent->requests.back().conversation;
-}
+    const auto& items = harness.agent->requests.back().record.items;
 
-// The host's measure of an entry: the entry serialized.
-std::size_t history_bytes(const History& history)
-{
-    std::size_t total = 0;
-    for (const auto& entry : history)
-        total += json{{"role", entry.role}, {"text", entry.text}, {"call_id", entry.call_id}, {"tool", entry.tool},
-                      {"arguments", entry.arguments_json}, {"output", entry.output_json}}
-                     .dump()
-                     .size();
-    return total;
-}
-
-bool omitted(const Agent::AgentConversationContext& entry) { return json::parse(entry.output_json).contains("omitted"); }
-
-std::vector<std::size_t> calls_in(const History& history)
-{
-    std::vector<std::size_t> calls;
-    for (std::size_t i = 0; i < history.size(); ++i)
-        if (!history[i].call_id.empty())
-            calls.push_back(i);
-    return calls;
-}
-
-bool said(const History& history, const std::string& text)
-{
-    return std::any_of(history.begin(), history.end(), [&](const auto& entry) { return entry.text == text; });
-}
-
-// Whatever was trimmed, every call carries its output and nothing else.
-void check_calls_whole(const History& history)
-{
-    for (const auto& entry : history) {
-        if (entry.call_id.empty()) {
-            CHECK(entry.output_json.empty());
-            continue;
-        }
-        CHECK(entry.role.empty());
-        CHECK(entry.text.empty());
-        CHECK(entry.tool == "printer_connection_status");
-        CHECK_FALSE(entry.arguments_json.empty());
-        REQUIRE_FALSE(entry.output_json.empty());
-        CHECK(json::parse(entry.output_json).contains("state"));
-    }
-}
-
-} // namespace
-
-TEST_CASE("a long chat sheds old tool results first and keeps every word", "[printer-conversation][host][history]")
-{
-    PrinterHost harness(ConversationMode::Connect);
-    for (int turn = 1; turn <= 12; ++turn)
-        checked_turn(harness, "check " + std::to_string(turn), 8 * 1024);
-    const History& history = next_history(harness);
-
-    check_calls_whole(history);
-    CHECK(history_bytes(history) <= kHistoryBytes);
-    // Every turn's words and its call survive. The old 20-entry cut kept
-    // only the last six or so of these twelve turns.
-    for (int turn = 1; turn <= 12; ++turn)
-        CHECK(said(history, "check " + std::to_string(turn)));
-    CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; }) == 12);
-    const std::vector<std::size_t> calls = calls_in(history);
-    REQUIRE(calls.size() == 12);
-    // The oldest results are the omission note, the newest are whole, and
-    // the notes run from the start with no whole result before one.
-    CHECK(omitted(history[calls.front()]));
-    CHECK_FALSE(omitted(history[calls[10]]));
-    CHECK_FALSE(omitted(history[calls[11]]));
-    const auto first_whole = std::find_if(calls.begin(), calls.end(), [&](std::size_t i) { return !omitted(history[i]); });
-    CHECK(std::all_of(first_whole, calls.end(), [&](std::size_t i) { return !omitted(history[i]); }));
-    // Only as many as needed: a whole result is still there beyond the last two.
-    CHECK(first_whole < calls.end() - 2);
-    const json note = json::parse(history[calls.front()].output_json);
-    CHECK(note.at("state") == "succeeded");
-    CHECK_THAT(note.at("omitted").get<std::string>(), ContainsSubstring("call the tool again"));
-    // Each call still sits between the words that led to it and the reply.
+    std::vector<std::size_t> results;
+    for (std::size_t i = 0; i < items.size(); ++i)
+        if (is_results(items[i]))
+            results.push_back(i);
+    REQUIRE(results.size() == 12);
     for (int turn = 1; turn <= 12; ++turn) {
-        const std::size_t call = calls[turn - 1];
-        CHECK(history[call - 1].text == "check " + std::to_string(turn));
-        CHECK(history[call + 1].text == "Done.");
-    }
-}
-
-TEST_CASE("when notes are not enough, whole calls go before any words", "[printer-conversation][host][history]")
-{
-    // Four turns whose words and results are each 12 KiB: about 100 KiB in
-    // all, and the two recent results alone keep it over the budget once
-    // the older two are notes.
-    PrinterHost harness(ConversationMode::Connect);
-    std::vector<std::string> words;
-    for (char turn = 'a'; turn <= 'd'; ++turn) {
-        words.push_back(std::string(12 * 1024, turn));
-        checked_turn(harness, words.back(), 12 * 1024);
-    }
-    const History& history = next_history(harness);
-
-    check_calls_whole(history);
-    CHECK(history_bytes(history) <= kHistoryBytes);
-    for (const std::string& text : words)
-        CHECK(said(history, text));
-    CHECK(std::count_if(history.begin(), history.end(), [](const auto& entry) { return entry.text == "Done."; }) == 4);
-    // The three oldest calls are gone, notes included; the newest is whole.
-    const std::vector<std::size_t> calls = calls_in(history);
-    REQUIRE(calls.size() == 1);
-    CHECK_FALSE(omitted(history[calls.front()]));
-    CHECK(history[calls.front() - 1].text == words.back());
-}
-
-TEST_CASE("when the words alone are over the budget, the oldest go and the newest stays",
-          "[printer-conversation][host][history]")
-{
-    PrinterHost harness(ConversationMode::Connect);
-    SECTION("the oldest words go once no call is left") {
-        std::vector<std::string> words;
-        for (char turn = 'a'; turn <= 'e'; ++turn) {
-            words.push_back(std::string(20 * 1024, turn));
-            checked_turn(harness, words.back(), 1024);
-        }
-        const History& history = next_history(harness);
-
-        check_calls_whole(history);
-        CHECK(calls_in(history).empty());
-        CHECK(history_bytes(history) <= kHistoryBytes);
-        CHECK_FALSE(said(history, words[0]));
-        CHECK_FALSE(said(history, words[1]));
-        CHECK(said(history, words[2]));
-        CHECK(said(history, words[3]));
-        CHECK(said(history, words[4]));
-        CHECK(history.back().text == "Done.");
-    }
-    SECTION("the newest message is sent even when it alone is over the budget") {
-        checked_turn(harness, "check", 1024);
-        harness.agent->reply = std::string(70 * 1024, 'z');
-        harness.say("write it all out");
-        harness.pump();
-        harness.agent->reply = "Understood.";
-        const History& history = next_history(harness);
-
-        REQUIRE(history.size() == 1);
-        CHECK(history.front().text == std::string(70 * 1024, 'z'));
-        CHECK(history_bytes(history) > kHistoryBytes);
-    }
-}
-
-TEST_CASE("history at the budget is sent whole; one byte over starts the trimming", "[printer-conversation][host][history]")
-{
-    // The same chat three times, its last message padded to land the history
-    // under, exactly at and one byte over the budget.
-    const auto chat = [](PrinterHost& harness, std::size_t padding) {
-        for (int turn = 1; turn <= 6; ++turn)
-            checked_turn(harness, "check " + std::to_string(turn), 8 * 1024);
-        harness.say(std::string(padding, 'p'));
-        harness.pump();
-        return next_history(harness);
-    };
-    std::size_t under = 0;
-    {
-        PrinterHost harness(ConversationMode::Connect);
-        const History history = chat(harness, 1);
-        under                 = history_bytes(history);
-        REQUIRE(under < kHistoryBytes);
-        for (std::size_t call : calls_in(history))
-            CHECK_FALSE(omitted(history[call]));
-    }
-    const std::size_t at_budget = 1 + kHistoryBytes - under;
-    {
-        PrinterHost harness(ConversationMode::Connect);
-        const History history = chat(harness, at_budget);
-        CHECK(history_bytes(history) == kHistoryBytes);
-        CHECK(calls_in(history).size() == 6);
-        for (std::size_t call : calls_in(history))
-            CHECK_FALSE(omitted(history[call]));
-    }
-    {
-        PrinterHost harness(ConversationMode::Connect);
-        const History history = chat(harness, at_budget + 1);
-        check_calls_whole(history);
-        CHECK(history_bytes(history) <= kHistoryBytes);
-        const std::vector<std::size_t> calls = calls_in(history);
-        REQUIRE(calls.size() == 6);
-        // Only the oldest result had to go.
-        CHECK(omitted(history[calls[0]]));
-        for (std::size_t i = 1; i < calls.size(); ++i)
-            CHECK_FALSE(omitted(history[calls[i]]));
+        const std::size_t at = results[turn - 1];
+        REQUIRE(at >= 2);
+        REQUIRE(at + 1 < items.size());
+        CHECK(says(items[at - 2], "check " + std::to_string(turn)));
+        CHECK(items[at - 1].kind == Agent::RecordItem::Kind::Assistant);
+        CHECK(items[at].results.front().output_json == harness.agent->results[turn - 1].output_json);
+        CHECK(says(items[at + 1], "Done."));
     }
 }
 
@@ -2383,8 +2261,8 @@ public:
 };
 
 // The body the app would post to OpenAI for this session's first turn.
-json request_body(const Agent::AgentSessionProfile& profile, const std::string& user_text,
-                  std::vector<Agent::AgentConversationContext> history = {})
+json request_body(const Agent::AgentSessionProfile& profile, const std::string& user_text, Agent::ChatRecord record = {},
+                  std::vector<Agent::RecordItem> unsent = {})
 {
     auto                transport = std::make_unique<CapturingTransport>();
     CapturingTransport* capture   = transport.get();
@@ -2393,7 +2271,10 @@ json request_body(const Agent::AgentSessionProfile& profile, const std::string& 
     request.request_id   = "printer-1";
     request.user_text    = user_text;
     request.session      = profile;
-    request.conversation = std::move(history);
+    request.record       = std::move(record);
+    request.unsent       = std::move(unsent);
+    request.on_recorded  = [](const std::string&, std::vector<Agent::RecordItem>) {};
+    request.keep_blob    = [](const std::string&) -> std::optional<std::string> { return "chats/c/blob"; };
     REQUIRE(agent.start(request));
     REQUIRE(capture->requests.size() == 1);
     return json::parse(capture->requests.front().body);
@@ -2401,6 +2282,10 @@ json request_body(const Agent::AgentSessionProfile& profile, const std::string& 
 
 } // namespace
 
+// Reads resources/profiles as shipped, on purpose: the names, plates and
+// filaments below are what those files say today. A profile sync from
+// OrcaSlicer that changes one fails here without a JusPrin change; check the
+// catalogue reader still reads it right, then take the new value from the file.
 TEST_CASE("the shipped profiles give the panel the printers people name", "[printer-conversation][catalog]")
 {
     CatalogBackend backend;
@@ -2447,16 +2332,14 @@ TEST_CASE("the model is offered every printer tool, the settings tools, and no p
     const std::vector<std::string> settings = PrinterConversation::settings_tools();
     for (const json& tool : body.at("tools")) {
         names.push_back(tool.at("name"));
-        // A settings change is a change like any in the app, and can join a
-        // plan; the printer's own tools are decided in the conversation.
-        if (std::find(settings.begin(), settings.end(), tool.at("name")) == settings.end())
-            // No tool takes a credential from the model.
+        // No tool takes a credential from the model.
         for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
             CHECK_FALSE(tool.at("parameters").at("properties").contains(secret));
     }
-    std::sort(names.begin(), names.end());
     std::vector<std::string> offered = PrinterConversation::session_tools();
     offered.insert(offered.end(), settings.begin(), settings.end());
+    std::sort(names.begin(), names.end());
+    std::sort(offered.begin(), offered.end());
     CHECK(names == offered);
     CHECK(body.at("instructions") == "You add printers.");
     const json& user = body.at("input").back();
@@ -2471,16 +2354,16 @@ TEST_CASE("a turn the app started ends on its note, with no empty message from t
     PrinterConversation conversation(backend, panel);
     conversation.start(ConversationMode::Add);
 
-    const json body = request_body(conversation.profile(), "",
-                                   {{"assistant", "What printer do you have?"},
-                                    {"user", "the small bambu one"},
-                                    {"developer", "The person said Bambu Lab A1 mini is not their printer."}});
+    Agent::ChatRecord record{"responses"};
+    record.items.push_back({Agent::RecordItem::Kind::Assistant, "m-1", {}, "What printer do you have?"});
+    record.items.push_back({Agent::RecordItem::Kind::User, "m-2", {{Agent::RecordPart::Kind::Text, "the small bambu one"}}});
+    const json body = request_body(conversation.profile(), "", std::move(record),
+                                   {{Agent::RecordItem::Kind::Operator, "m-3", {}, "The person said Bambu Lab A1 mini is not their printer."}});
     const json& input = body.at("input");
     REQUIRE_FALSE(input.empty());
     CHECK(input.back() == json{{"role", "developer"}, {"content", "The person said Bambu Lab A1 mini is not their printer."}});
-    CHECK(std::none_of(input.begin(), input.end(), [](const json& item) {
-        return item.value("role", "") == "user" && item.value("content", json()).is_array();
-    }));
+    // The person's one message, from the record; the turn adds none.
+    CHECK(std::count_if(input.begin(), input.end(), [](const json& item) { return item.value("role", "") == "user"; }) == 1);
 }
 
 // Not a check: writes what the evaluation replays against the model the app

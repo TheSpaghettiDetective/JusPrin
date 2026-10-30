@@ -27,9 +27,11 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
+#include "project_chat_tools.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -281,6 +283,8 @@ TEST_CASE("OpenRouter honours the instructions with the project tools offered, s
     AgentServicePtr               agent = live_agent(sent, usage);
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-instructions";
     request.session.instructions      = "You are a connectivity check. Whatever the user writes, reply with exactly the word "
                                         "PINEAPPLE and nothing else. Do not call any tool.";
@@ -297,7 +301,8 @@ TEST_CASE("OpenRouter honours the instructions with the project tools offered, s
     const json body = json::parse(sent.front().body);
     CHECK(body["parallel_tool_calls"] == true);
     CHECK(std::any_of(body["tools"].begin(), body["tools"].end(), [](const json& tool) { return tool["strict"] == true; }));
-    CHECK(body["tools"].size() == 28);
+    // Every tool the project chat offers went with it.
+    CHECK(body["tools"].size() == JusPrinTest::project_chat_tool_names().size());
     // Honoured: the instructions, not the person, decided the words.
     CHECK(turn.text.find("PINEAPPLE") != std::string::npos);
     CHECK(usage.size() == 1);
@@ -312,6 +317,8 @@ TEST_CASE("OpenRouter makes a tool call and continues from its result and the im
     AgentServicePtr               agent = live_agent(sent, usage);
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-tool-call";
     request.session.instructions      = "You are a connectivity check. First call the workspace_inspect tool once, with sections "
                                         "[\"summary\"]. When its result arrives, reply with one short sentence saying you received it "
@@ -429,6 +436,8 @@ TEST_CASE("Anthropic honours the instructions with the project tools offered, st
     AgentServicePtr               agent = live_anthropic_agent(sent, usage);
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-anthropic-instructions";
     request.session.instructions      = "You are a connectivity check. Whatever the user writes, reply with exactly the word "
                                         "PINEAPPLE and nothing else. Do not call any tool.";
@@ -439,11 +448,12 @@ TEST_CASE("Anthropic honours the instructions with the project tools offered, st
     report(usage);
 
     INFO("reply: " << turn.text << (turn.error ? " error: " + turn.error->code + " " + turn.error->message : ""));
-    // Accepted at all: 28 tools on projected schemas, the closed ones strict.
+    // Accepted at all: the project chat's tools on projected schemas, the
+    // closed ones strict.
     REQUIRE_FALSE(turn.error);
     REQUIRE(turn.completed);
     const json body = json::parse(sent.front().body);
-    CHECK(body["tools"].size() == 28);
+    CHECK(body["tools"].size() == JusPrinTest::project_chat_tool_names().size());
     CHECK(std::any_of(body["tools"].begin(), body["tools"].end(), [](const json& tool) { return tool["strict"] == true; }));
     for (const char* keyword : {"\"minimum\":", "\"maximum\":", "\"minLength\":", "\"maxLength\":", "\"maxItems\":"})
         CHECK(body["tools"].dump().find(keyword) == std::string::npos);
@@ -460,6 +470,8 @@ TEST_CASE("Anthropic makes a tool call and sees the image inside its tool_result
     AgentServicePtr               agent = live_anthropic_agent(sent, usage);
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-anthropic-tool-call";
     request.session.instructions      = "You are a connectivity check. First call the workspace_inspect tool once, with sections "
                                         "[\"summary\"]. Its result comes with an image. When the result arrives, reply with one word: "
@@ -525,6 +537,8 @@ TEST_CASE("Anthropic accepts a turn that replays its thinking with a fired skill
     AgentServicePtr               agent = live_anthropic_agent(sent, usage, /*enforce_history_check=*/true);
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-anthropic-history";
     request.session.instructions      = "You are a connectivity check. First call the workspace_inspect tool once, with sections "
                                         "[\"summary\"]. When its result arrives, reply with the single word: checked.";
@@ -616,6 +630,7 @@ Turn one_word(const ProviderProfile& profile, const std::string& key, const std:
     AgentServicePtr agent = make_provider_agent(profile, key, model, agent_endpoint_override(),
                                                 std::make_unique<RecordingTransport>(sent, pricing));
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "live-model-choice";
     request.session.instructions      = "You are a connectivity check. Reply with exactly the word READY and nothing else. "
                                         "Do not call any tool.";

@@ -84,7 +84,8 @@ TEST_CASE("MCP bridge offline legacy catalog is projected for each negotiated ve
     CHECK_FALSE(listed.contains("resultType"));
     // No negotiated version advertises an output schema any more; the bridge's
     // own March stripping stays for catalogs forwarded from an older live app.
-    CHECK_FALSE(listed["tools"][0].contains("outputSchema"));
+    for (const auto& tool : listed["tools"])
+        CHECK_FALSE(tool.contains("outputSchema"));
     h.send(rpc(2, "tools/call", {{"name", "workspace_inspect"}}));
     const auto result = h.wait(2)["result"];
     CHECK(result["isError"] == true);
@@ -142,7 +143,9 @@ TEST_CASE("MCP bridge March batches collect responses and do not answer notifica
     const auto batch = h.messages().back();
     REQUIRE(batch.is_array()); REQUIRE(batch.size() == 2);
     CHECK(batch[0]["id"] == 1); CHECK(batch[1]["id"] == 2);
-    CHECK_FALSE(batch[1]["result"]["tools"][0].contains("outputSchema"));
+    REQUIRE_FALSE(batch[1]["result"]["tools"].empty());
+    for (const auto& tool : batch[1]["result"]["tools"])
+        CHECK_FALSE(tool.contains("outputSchema"));
 }
 
 TEST_CASE("MCP bridge rejects malformed input and limits before recursive parsing", "[mcp][bridge]")
