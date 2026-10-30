@@ -178,6 +178,7 @@
     "file-note-not-instructions": "every run failed without a response",
     "model-opened-unnamed": "every run failed without a response",
     "model-imported-by-tool": "every run failed without a response",
-    "model-opened-by-tool": "every run failed without a response"
+    "model-opened-by-tool": "every run failed without a response",
+    "print-hook-no-purpose": "added 2026-10-30; no run of it has been confirmed as a baseline yet"
   }
 }

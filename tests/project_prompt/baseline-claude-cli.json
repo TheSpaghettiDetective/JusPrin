@@ -4,14 +4,14 @@
   "effort": "medium",
   "hosts": null,
   "judge": "claude-opus-5-5 (claude-cli)",
-  "date": "2026-10-25",
-  "commit": "9d05d60eaf",
+  "date": "2026-10-30",
+  "commit": "1adb93c64f",
   "uncommitted": false,
-  "note": "Recorded from the run of 2026-10-25 on macOS (CLI 2.1.283), confirmed by Kenneth that day. The recording was made on Windows before 9d05d60eaf's fitsSelectedBed fix, so the file-load points say every object does not fit the bed.",
+  "note": "Recorded from the run of 2026-10-30 on macOS (CLI 2.1.283), confirmed by Kenneth that day. That commit was then squashed together with this file into the commit that carries it, so the hash is the measured tree, not a commit on the branch.",
   "sha256": {
     "prompt": "2d9e439b5e0f6847175824d83c26d4892a47ff98b2be0f6a8cbc9c8c04d4c86a",
-    "tools": "71860d0aae97be16fdf6585605134b611cee572f6062d16097bf136e17dda4cd",
-    "recording": "98f07de9b18a2a6c1887c128b12c5b02aab24e2bc53ba4cfba847d4614ce9f6c"
+    "tools": "304484b8560466141e554b1fcf884df1eaff824afe4144044b7b97f1273f7725",
+    "recording": "717e0a8e31a062a5d45b74b9aa0252d7452888f0561c87f67f3974bfb939c5f5"
   },
   "cases": {
     "advice-infill": {
@@ -141,6 +141,13 @@
       "errors": 0
     },
     "print-this-no-purpose": {
+      "runs": 3,
+      "pass": 3,
+      "fail": 0,
+      "unobserved": 0,
+      "errors": 0
+    },
+    "print-hook-no-purpose": {
       "runs": 3,
       "pass": 3,
       "fail": 0,

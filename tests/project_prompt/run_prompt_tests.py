@@ -9,7 +9,11 @@ several calls, and every one is judged: a change among them is the outcome
 and ends the run, whatever came before it. A response of reads the case does
 not decide on is answered, each read with the result the app gave for it at
 the same point (recorded beside the request), and the model asked again, at
-most MAX_READS times; nothing else is ever answered.
+most MAX_READS times. The one change ever answered is a setup_record with a
+plan and no purpose, or a slice_start, in a case that says so (Case.later), with
+the result the app gave for such a call; nothing else is ever answered. A slice
+ends after its turn, so such a case may also see the turn the app starts then,
+as the app recorded it.
 
 What the app sends, reproduced here:
   - instructions: rendered from projectInstructions.ts by
@@ -55,7 +59,7 @@ Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts tests/printer_prompt names (MODEL, PROVIDERS), and on nothing else.
 The judge stays on OpenAI (OPENAI_API_KEY) whichever model answers.
 
-Without --runs, the cases run share RUN_BUDGET runs: 3 each for 26 cases,
+Without --runs, the cases run share RUN_BUDGET runs: 3 each for 27 cases,
 never more than MAX_RUNS for one case.
 
 A run ends by printing each case beside the baseline (baseline.json, or
@@ -118,7 +122,7 @@ for _request in REQUESTS.values():
             _output.update(_request["sharedWorkspace"])
         _answer["output"] = json.dumps(_output, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 MAX_READS = 3  # responses of reads answered in one run
-RUN_BUDGET = 78
+RUN_BUDGET = 81
 MAX_RUNS = 20
 # ToolRegistry's ActionClass::ReadOnly tools. Every other tool changes the
 # project, its plan or its printer setup, or slices: "a change" below.
@@ -174,7 +178,7 @@ class CallCheck:
 CHECK_CALL = CallCheck()
 assert READS <= {tool["name"] for tool in TOOLS}
 
-PASS, FAIL, UNOBSERVED, CONTINUE = "pass", "fail", "unobserved", "continue"
+PASS, FAIL, UNOBSERVED, CONTINUE, ANSWER_CHANGE, NEXT_TURN = "pass", "fail", "unobserved", "continue", "answer change", "next turn"
 USAGE = {"requests": 0, "input_tokens": 0, "cached_tokens": 0, "output_tokens": 0, "judge_requests": 0,
          "judge_input_tokens": 0, "judge_output_tokens": 0}
 USAGE_LOCK = threading.Lock()
@@ -352,11 +356,21 @@ class Step:
 # response's reads, the runner answers them all from the recording and asks
 # again. UNOBSERVED is a step the case can say nothing about, or a read with
 # no recorded answer, or the model still reading after MAX_READS answers.
+# ANSWER_CHANGE: the step is a change the case decides on by what comes after it
+# (a setup_record with a plan and no purpose, a slice_start). NEXT_TURN: the
+# reply ended the turn undecided while a slice ran, and the case decides on the
+# turn the slice's end starts. Case.later says what the run can follow: for each
+# run of those so far (self.done), the point recorded right after it, in a
+# conversation with the same start. The change's result and the reads after it
+# come from that point.
+SLICE_END = "the slice's end"
 
 
 class Case:
-    def __init__(self, request, log):
-        self.request, self.log = request, log
+    later = {}
+
+    def __init__(self, request, log, done=()):
+        self.request, self.log, self.done = request, log, done
 
     def judged(self, step, question):
         yes, why = judge(self.log + ["assistant: " + step.reply], question)
@@ -731,33 +745,104 @@ class PrintThisNoPurpose(Case):
     """"I want to print this" with no history: one box, selected, on the
     project's only plate (the "single" fixture), Bambu PLA Basic on the
     Smooth Cool Plate, already sliced, and nothing said about what it is
-    for. When to act (line 22 at
-    36d33312ed): "Ask when the answer is theirs, since it is their print and
-    printer: what the object is for, a risk to the printer, which project to
-    continue." The expected step is one question, not a tool call that
-    changes or slices anything. Passes on a reply the judge reads as asking
-    exactly one question, about what the object is for or something else
-    only the person can answer; fails on any change (slice_start,
-    setup_record with a purpose it made up or a plan, a setup or setting
-    change) or a reply that does not ask so."""
+    for. A 20 mm cube prints the same whatever it is for, so the prompt's
+    "Ask when the answer is theirs" does not require a question here: the
+    case judges what the person ends up with (Kenneth, 2026-10-30). Passes on
+    a reply asking what the object is for, or something else only the person
+    can answer; or on setup_record with a plan and no purpose followed by a
+    next step that tells the person what was chosen or asks how to go on.
+    Fails on a purpose the person never stated, on any other change, or on a
+    plan followed by nothing useful to the person."""
 
     name = "print-this-no-purpose"
+    later = {("setup_record",): "print-this-after-plan"}
 
     def check(self, step):
+        if self.done:
+            if step.tool:
+                return (FAIL if step.changes() else CONTINUE), str(step)
+            yes, why = self.judged(step, "Taking together every assistant message after the person's message, does the "
+                                         "assistant tell the person what it chose for this print, or ask how they want "
+                                         "to go on?")
+            return (PASS, str(step)) if yes else (FAIL, "NOTHING USEFUL AFTER THE PLAN: " + why)
+        if step.tool == "setup_record":
+            if step.arguments.get("purpose"):
+                return FAIL, "A PURPOSE THE PERSON NEVER STATED: " + str(step)
+            if sum(call["name"] not in READS for call in step.calls) > 1:
+                return FAIL, "CHANGED: " + str(step)
+            return ANSWER_CHANGE, str(step)
         if step.tool:
             return (FAIL if step.changes() else CONTINUE), str(step)
-        yes, why = self.judged(step, "Does the assistant's last message ask the person exactly one question, and is that "
-                                     "question about what the object is for, or about something else only the person "
-                                     "can answer (such as a risk to their printer, or what is physically on it)?")
-        return (PASS, str(step)) if yes else (FAIL, "NOT ONE QUESTION FOR THE PERSON: " + why)
+        yes, why = self.judged(step, "Does the assistant's last message ask what the object is for, or ask something "
+                                     "else only the person can answer (such as a risk to their printer, or what is "
+                                     "physically on it)?")
+        return (PASS, str(step)) if yes else (FAIL, "NO QUESTION FOR THE PERSON: " + why)
 
 
-# The file-loaded skill's cap on the first message about an opened file:
-# "about 80 words, with at most two bullets", ending with "exactly one
-# question". The card above the message holds the presets, the plate and the
-# estimates, so a message that restates them runs long. "About" allows a
-# fifth over; a string test, since a count needs no judge.
-OPENING_WORDS = 96
+class PrintHookNoPurpose(Case):
+    """The contrast to print-this-no-purpose: a wall hook, imported under a
+    name that says nothing about it and already identified in the chat, then
+    "I want to print this". A hook for a coat and one for a 5 kg backpack can
+    need different settings, so the prompt's "Ask when the answer is theirs,
+    since it is their print and printer: what the object is for" applies, with
+    nothing in setup_record's arguments to prompt it. A slice or a plan before
+    the question is fine if the question follows (Kenneth, 2026-10-30): both
+    are easy to redo. So either is answered, and a slice's run goes on to the
+    turn its end starts. Passes on a reply, at any of those points, asking what
+    the hook will hold or what it is for, or inviting the person to say if it
+    will hold something heavy (Kenneth, 2026-10-30: "tell me if it's heavy, I'll
+    make it stronger" counts); fails on a purpose the person never stated, on
+    any other change, or on never asking. An order of them with no recording,
+    such as a slice and then a plan in its turn, is unobserved. Its history
+    holds the plate's picture, so the pinned hosts refuse it."""
+
+    name = "print-hook-no-purpose"
+    ASKS = ("ask what the hook will hold or carry, how much weight it must take, or what it is for, or invite the "
+            "person to say so if it matters, as in \"tell me if it will hold something heavy\"? An offer to change "
+            "things that does not mention what the hook will hold, its weight or its use does not count.")
+    later = {("slice_start",): "print-hook-after-slice",
+             ("slice_start", SLICE_END): "print-hook-slice-done",
+             ("slice_start", SLICE_END, "setup_record"): "print-hook-done-plan",
+             ("setup_record",): "print-hook-after-plan",
+             ("setup_record", "slice_start"): "print-hook-plan-slice",
+             ("setup_record", "slice_start", SLICE_END): "print-hook-plan-slice-done"}
+
+    def check(self, step):
+        if step.tool in ("slice_start", "setup_record"):
+            if step.arguments.get("purpose"):
+                return FAIL, "A PURPOSE THE PERSON NEVER STATED: " + str(step)
+            if sum(call["name"] not in READS for call in step.calls) > 1:
+                return FAIL, "CHANGED: " + str(step)
+            if self.done + (step.tool,) not in self.later:
+                return UNOBSERVED, "no recording follows this: " + str(step)
+            if step.tool == "slice_start":
+                recorded = next(json.loads(item["arguments"]) for item in REQUESTS["print-hook-after-slice"]["body"]["input"]
+                                if item.get("name") == "slice_start")
+                if step.arguments.get("plateId") not in (None, recorded["plateId"]):
+                    return UNOBSERVED, "a slice of a plate the recording did not slice: " + str(step)
+            return ANSWER_CHANGE, str(step)
+        if step.tool:
+            return (FAIL if step.changes() else CONTINUE), str(step)
+        if not self.done:
+            yes, why = self.judged(step, "Does the assistant's last message " + self.ASKS)
+            return (PASS, str(step)) if yes else (FAIL, "DID NOT ASK WHAT IT WILL HOLD: " + why)
+        yes, why = self.judged(step, "Taking together every assistant message after the person's message, does the "
+                                     "assistant " + self.ASKS)
+        if yes:
+            return PASS, str(step)
+        slicing = "slice_start" in self.done and SLICE_END not in self.done
+        return (NEXT_TURN, str(step)) if slicing else (FAIL, "NEVER ASKED WHAT IT WILL HOLD: " + why)
+
+
+# The checks on the first message about an opened file: at most two bullets
+# and exactly one question, as the file-loaded skill says, and a loose word
+# limit that catches only a message that rambles (Kenneth, 2026-10-30). The
+# skill asks for about 80 words, but reasonable replies run to about 115 when
+# they have something to warn about. String tests, since a count needs no judge.
+OPENING_WORDS = 150
+# The judge reads the words of the chat, not the plate's picture the model saw.
+OPENING_PICTURE = ("The assistant could also see a picture of the object, which you cannot, so accept what it says the "
+                   "object is or looks like. Check its other facts against the report. ")
 OPENING_BULLET = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+", re.MULTILINE)
 
 
@@ -799,17 +884,17 @@ class ModelOpenedUnnamed(OpeningMessage):
     (skills/file-loaded/SKILL.md): "change nothing the person
     has not asked for", and "Look at the attached picture ... make an
     educated guess at what the object is, what it is likely for". Passes on a
-    reply the judge reads as saying what the object is or looks like, or
-    asking what it is for; fails on a change, a reply that does neither, or
-    one over the skill's cap: "about 80 words, with at most two bullets",
-    "exactly one question" (opening_shape)."""
+    reply the judge reads as telling the person something true and useful
+    about the object, or asking what it is for, and making clear what they can
+    do next; fails on a change, a reply that does not, or one that breaks
+    opening_shape."""
 
     name = "model-opened-unnamed"
 
     def check(self, step):
-        return self.opening(step, "Does the assistant's last message say what the opened object is or what it looks "
-                                  "like (for example an animal, a figure or a kind of part), or ask the person what "
-                                  "it is for?", "NEITHER DESCRIBED NOR ASKED: ")
+        return self.opening(step, OPENING_PICTURE + "Does this message tell the person something true and useful about "
+                                  "the object they just imported, or ask what it's for, and make clear what they can "
+                                  "do next?", "NEITHER DESCRIBED NOR ASKED: ")
 
 
 class ModelImportedByTool(Case):
@@ -837,16 +922,17 @@ class ModelOpenedByTool(OpeningMessage):
     one-box project; the model called project_open, which ended that turn,
     and the opened project's chat starts with the load report, the plate's
     picture and the file-loaded skill. The same sentences as
-    model-opened-unnamed. Passes on a reply the judge reads as saying what
-    was opened and what the object is or looks like, or asking what it is
-    for; fails on a change, a reply that does not, or one over the skill's
-    cap, as model-opened-unnamed."""
+    model-opened-unnamed. Passes on a reply the judge reads as saying the file
+    was opened, saying what the object is or asking what it is for, and making
+    clear what the person can do next; fails on a change, a reply that does
+    not, or one that breaks opening_shape."""
 
     name = "model-opened-by-tool"
 
     def check(self, step):
-        return self.opening(step, "Does the assistant's last message tell the person the file was opened, and say what "
-                                  "the object is or looks like or ask what it is for?", "DID NOT REPORT THE OPENED MODEL: ")
+        return self.opening(step, OPENING_PICTURE + "Does this message tell the person the file they asked for was "
+                                  "opened, say what the object is or ask what it's for, and make clear what they can "
+                                  "do next?", "DID NOT REPORT THE OPENED MODEL: ")
 
 
 class SliceRefused(Case):
@@ -988,9 +1074,11 @@ CASES = {case.name: case for case in (
     AdviceInfill, PreparePetgStrong, AfterIntent, AfterPreview, AfterApply, AfterSlice, IssueFix,
     IssueExplain,
     TroubleshootFirstLayer, DirectChange, DirectChangeApplied, DirectChangeFailed, AnswerFromContext, LoadedVsConfigured,
-    FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, ModelOpenedUnnamed, ModelImportedByTool,
+    FirstPerson, SliceWarningsReady, ReplyInGerman, FileNoteNotInstructions, PrintThisNoPurpose, PrintHookNoPurpose, ModelOpenedUnnamed,
+    ModelImportedByTool,
     ModelOpenedByTool, SliceRefusedByTool, SliceRefusedThenReady, CalibrationSymptom, CalibrationResult)}
-assert set(CASES) == set(REQUESTS), "requests.json and the cases disagree: " + str(set(CASES) ^ set(REQUESTS))
+_POINTS = set(CASES) | {point for case in CASES.values() for point in case.later.values()}
+assert _POINTS == set(REQUESTS), "requests.json and the cases disagree: " + str(_POINTS ^ set(REQUESTS))
 
 
 # --- Runner ------------------------------------------------------------------
@@ -1081,6 +1169,36 @@ def recorded_answer(name, step):
     return None
 
 
+def with_plan(point, output, plan):
+    """A result recorded at point, after a scripted plan, with the plan the
+    model wrote in its place, as the app would have returned it. Everything
+    else in the result is the app's. A point after another change holds no
+    plan, so its results stand as they are."""
+    def fill(value):
+        if isinstance(value, dict):
+            if "headline" in value:
+                value["headline"] = plan.get("headline", "")
+                for field in ("decisions", "unverified", "risks"):
+                    if field in value:
+                        value[field] = plan.get(field, [])
+                if "decisions" in value:  # the field the app fills in when a call leaves it out
+                    value["decisions"] = [{"confidence": "", **decision} for decision in value["decisions"]]
+            for item in value.values():
+                fill(item)
+        elif isinstance(value, list):
+            for item in value:
+                fill(item)
+    scripted = next((json.loads(item["arguments"])["headline"] for item in REQUESTS[point]["body"]["input"]
+                     if item.get("name") == "setup_record"), None)
+    if scripted is None:
+        return output
+    result = json.loads(output)
+    fill(result)
+    # The app also quotes the headline in text, such as an activity's title.
+    return dump(result).replace(json.dumps(scripted, ensure_ascii=False)[1:-1],
+                                json.dumps(plan.get("headline", ""), ensure_ascii=False)[1:-1])
+
+
 def not_run(step):
     """The result the app gives a call after one in the same response did not
     succeed (ProviderAgent::next_call), byte for byte."""
@@ -1121,7 +1239,8 @@ def judge_response(case, step):
     the case decides on none of them."""
     if not step.tool or step.changes():
         verdict, detail = case.check(step)
-        # A change is never answered, whatever a case says of it.
+        # A change is never answered, whatever a case says of it, but for
+        # ANSWER_CHANGE, which is the case's own to ask for.
         return (UNOBSERVED, "a change, never answered: " + detail) if verdict == CONTINUE else (verdict, detail)
     for read in step.each_read():
         verdict, detail = case.check(read)
@@ -1130,12 +1249,17 @@ def judge_response(case, step):
     return CONTINUE, str(step)
 
 
-def answers_for(name, step, refused=None):
+def answers_for(name, step, refused=None, done=(), plan=None, answering=None):
     """The results the app would give the calls of one response, in order,
     or None when one the app would run has no recorded answer. As the app
     does, a refused call (refused: its index and result) gets the refusal,
     and a call after one that did not succeed is answered without being
-    run."""
+    run. Reads come from the point after what the run has done (done), with
+    the model's plan if it wrote one (plan: its arguments). answering is the
+    index among the calls of the change the case asked to have answered: it
+    and every read after it are answered from the point after that change."""
+    later = CASES[name].later
+    point = later.get(done, name)
     results, failed = [], None
     for index, read in enumerate(step.each_read()):
         if failed:
@@ -1145,13 +1269,32 @@ def answers_for(name, step, refused=None):
             results.append(refused[1])
             failed = read
             continue
-        answer = recorded_answer(name, read)
+        if index == answering:
+            point = later[done + (read.tool,)]
+            plan = read.arguments if read.tool == "setup_record" else plan
+            answer = last_output(point)
+        else:
+            answer = recorded_answer(point, read)
         if answer is None:
             return None, read
-        results.append(answer)
+        results.append(answer if plan is None else with_plan(point, answer, plan))
         if json.loads(answer).get("state") != "succeeded":
             failed = read
     return results, None
+
+
+def last_output(point):
+    """The last call's result in a recorded request, byte for byte."""
+    return next(item["output"] for item in reversed(REQUESTS[point]["body"]["input"])
+                if item.get("type") == "function_call_output")
+
+
+def opening_items(point):
+    """What a recorded request appends after the last assistant message: how
+    the app opens a turn it starts itself."""
+    items = REQUESTS[point]["body"]["input"]
+    last = max(index for index, item in enumerate(items) if item.get("role") == "assistant")
+    return items[last + 1:]
 
 
 def run_once(name, instructions, key, model, endpoint, providers):
@@ -1166,29 +1309,42 @@ def run_once_claude(name, instructions, model, effort, keep=None):
     """run_once on the Claude Code CLI: the recorded request goes in once, as
     claude_cli.py describes, and each answered read reaches the model as its
     calls' tool results."""
+    def start(items):
+        return claude_cli.Run(instructions, REQUESTS[name]["body"].get("tools", TOOLS), items, model, effort, keep)
+
     try:
-        run = claude_cli.Run(instructions, REQUESTS[name]["body"].get("tools", TOOLS), REQUESTS[name]["body"]["input"],
-                             model, effort, keep)
+        runs = [start(REQUESTS[name]["body"]["input"])]
     except Exception as error:  # as a failed request: a failed run, reported as such
         return FAIL, f"ERROR {error}", []
 
     def respond(_input):
-        output, usage = run.next_response()
+        output, usage = runs[-1].next_response()
         count(usage)
         return output
 
-    with run:
-        return run_steps(name, respond, lambda step, results: run.answer(step.calls, results))
+    # The CLI's run ends with the model's reply, so a new turn is a new run
+    # from the whole chat so far.
+    def new_turn(input):
+        runs[-1].close()
+        runs.append(start(input))
+
+    try:
+        return run_steps(name, respond, lambda step, results: runs[-1].answer(step.calls, results), new_turn)
+    finally:
+        runs[-1].close()
 
 
-def run_steps(name, respond, deliver=lambda step, results: None):
+def run_steps(name, respond, deliver=lambda step, results: None, new_turn=lambda input: None):
     """One run of a case: respond(input) is the model's output for the
-    request so far, deliver(step, results) hands it its reads' results."""
+    request so far, deliver(step, results) hands it its reads' results, and
+    new_turn(input) says the app has started a turn on input."""
     input = list(REQUESTS[name]["body"]["input"])
     path = []  # the reads answered, one entry per response, for the report
     refusals = 0
+    done = ()  # the changes answered and turns started so far (Case.later)
+    plan = None  # the arguments of the plan answered, once it is
     try:
-        for _ in range(MAX_READS + 1):
+        for _ in range(MAX_READS + 4):
             log = [line for line in map(readable, input) if line]
             step = Step(respond(input))
             # A call the app refuses is never judged, read or change: the
@@ -1197,11 +1353,20 @@ def run_steps(name, respond, deliver=lambda step, results: None):
             refused = first_refused(name, step)
             view = step if refused is None else step.before(refused[0])
             verdict, detail = (CONTINUE, str(step)) if refused and not view.calls else \
-                judge_response(CASES[name](REQUESTS[name], log), view)
-            if verdict != CONTINUE:
+                judge_response(CASES[name](REQUESTS[name], log, done), view)
+            if verdict == NEXT_TURN:
+                path.append(SLICE_END)
+                done += (SLICE_END,)
+                input += step.output + opening_items(CASES[name].later[done])
+                new_turn(input)
+                continue
+            if verdict not in (CONTINUE, ANSWER_CHANGE):
                 break
-            results, missing = answers_for(name, step, refused)
-            if results is None or len(path) == MAX_READS:
+            answering = view.index if verdict == ANSWER_CHANGE else None
+            results, missing = answers_for(name, step, refused, done, plan, answering)
+            # MAX_READS counts responses of reads, so the path entries an
+            # answered change and a new turn leave do not count against it.
+            if results is None or (verdict == CONTINUE and len(path) == MAX_READS + len(done)):
                 verdict = UNOBSERVED
                 detail = (f"no recorded answer for {missing}" if results is None else f"still reading after answers: {step}")
                 break
@@ -1213,6 +1378,9 @@ def run_steps(name, respond, deliver=lambda step, results: None):
             path.append(" + ".join(call["name"] + (" (refused)" if refused and index == refused[0] else "")
                                    for index, call in enumerate(step.calls)))
             deliver(step, results)
+            if answering is not None:
+                done += (view.tool,)
+                plan = view.arguments if view.tool == "setup_record" else plan
             # As the app continues a turn: the whole request so far, a skill
             # and its picture included (fe70eea593), the model's output, then
             # a result for every call, in the order the calls were written.

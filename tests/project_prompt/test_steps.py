@@ -315,6 +315,268 @@ class Steps(unittest.TestCase):
         self.assertTrue(detail.startswith("after settings_get (refused), settings_get (refused): malformed_tool_call"), detail)
         self.assertEqual(len(bodies), 3)
 
+    # --- A plan with no purpose is answered, in the case that says so -------
+
+    PLAN = {"headline": "Plain PLA, flat on the bed", "decisions": [
+        {"topic": "Supports", "statement": "None needed.", "alternative": "Supports, for nothing."}],
+        "unverified": ["The spool is PLA."], "risks": ["The plate may differ."]}
+
+    def plan_run(self, *outputs, said=True):
+        """print-this-no-purpose with a judge that says `said` and keeps its
+        questions in self.asked."""
+        self.asked = []
+        def judged(log, question):
+            self.asked.append((log, question))
+            return said, "the judge's reason"
+        runner.judge = judged
+        return self.run_case("print-this-no-purpose", *outputs)
+
+    def test_a_plan_is_answered_and_the_next_step_decides(self):
+        verdict, detail, bodies = self.plan_run([call("setup_record", self.PLAN)], [reply("I chose standard settings. Go ahead?")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(len(bodies), 2)
+        answer = json.loads(bodies[1]["input"][-1]["output"])
+        self.assertEqual(answer["state"], "succeeded")
+        self.assertEqual(answer["result"]["plan"]["headline"], self.PLAN["headline"])
+        self.assertEqual(answer["result"]["plan"]["unverified"], self.PLAN["unverified"])
+        self.assertNotIn("Standard 0.2 mm layers", bodies[1]["input"][-1]["output"])  # the scripted plan is gone
+        # But for the plan, it is the result the app gave.
+        recorded = json.loads(runner.last_output("print-this-after-plan"))
+        self.assertEqual(answer["result"]["setupInForce"], recorded["result"]["setupInForce"])
+        self.assertEqual(answer["result"]["sessionId"], recorded["result"]["sessionId"])
+        self.assertEqual(len(self.asked), 1)
+        self.assertIn("tool call: setup_record", "\n".join(self.asked[0][0]))
+
+    def test_a_plan_followed_by_nothing_useful_fails(self):
+        verdict, detail, _ = self.plan_run([call("setup_record", self.PLAN)], [reply("Done.")], said=False)
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("after setup_record: NOTHING USEFUL AFTER THE PLAN"), detail)
+
+    def test_a_purpose_nobody_stated_fails_unanswered(self):
+        verdict, detail, bodies = self.plan_run([call("setup_record", dict(self.PLAN, purpose="Calibration cube"))])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("A PURPOSE THE PERSON NEVER STATED"), detail)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_change_with_the_plan_fails_unanswered(self):
+        verdict, detail, bodies = self.plan_run([call("setup_record", self.PLAN),
+                                                 call("setup_record", {"purpose": "Calibration cube"}, "call-second")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_change_after_the_plan_fails(self):
+        verdict, detail, bodies = self.plan_run([call("setup_record", self.PLAN)],
+                                                [call("setup_record", {"purpose": "Calibration cube"}, "call-second")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("after setup_record: setup_record"), detail)
+        self.assertEqual(len(bodies), 2)
+        self.assertEqual(self.asked, [])
+
+    def test_a_read_after_the_plan_sees_the_plan(self):
+        """Answered from the point after the plan, with the model's plan."""
+        verdict, detail, bodies = self.plan_run([call("setup_record", self.PLAN)], [call("workspace_inspect", {"sections": ["plan"]})],
+                                                [reply("I chose standard settings.")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(json.loads(bodies[2]["input"][-1]["output"])["result"]["plan"]["headline"], self.PLAN["headline"])
+        self.assertNotIn("Standard 0.2 mm layers", bodies[2]["input"][-1]["output"])
+
+    def test_a_read_before_the_plan_is_the_points_own(self):
+        before = next(answer["output"] for answer in runner.REQUESTS["print-this-no-purpose"]["answers"]
+                      if answer["tool"] == "workspace_inspect")
+        verdict, detail, bodies = self.plan_run([call("workspace_inspect", {"sections": ["plan"]})],
+                                                [call("setup_record", self.PLAN)], [reply("I chose standard settings.")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        answered = next(item["output"] for item in bodies[-1]["input"] if item.get("call_id") == "call-workspace_inspect"
+                        and item["type"] == "function_call_output")
+        self.assertEqual(answered, before)
+        self.assertEqual(json.loads(before)["result"]["plan"]["headline"], "")
+
+    def test_a_plan_after_the_last_read_is_still_answered(self):
+        """The limit is on responses of reads; the plan is not one."""
+        reads = [[call("workspace_inspect", {"sections": ["plan"]})] for _ in range(runner.MAX_READS)]
+        verdict, detail, bodies = self.plan_run(*reads, [call("setup_record", self.PLAN)], [reply("I chose standard settings.")])
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(len(bodies), runner.MAX_READS + 2)
+
+    def test_reading_on_after_the_plan_is_unobserved(self):
+        reads = [[call("workspace_inspect", {"sections": ["plan"]})] for _ in range(runner.MAX_READS)]
+        verdict, detail, bodies = self.plan_run(*reads, [call("setup_record", self.PLAN)],
+                                                [call("workspace_inspect", {"sections": ["plan"]})])
+        self.assertEqual(verdict, runner.UNOBSERVED)
+        self.assertIn("still reading", detail)
+
+    def test_the_two_points_are_one_project(self):
+        """The plan's result must fit the request it answers: both recordings
+        start the same, so their sessions and objects are the same."""
+        before = runner.REQUESTS["print-this-no-purpose"]["body"]["input"]
+        after = runner.REQUESTS["print-this-after-plan"]["body"]["input"]
+        self.assertEqual(before, after[:len(before)])
+        self.assertEqual([item.get("name", "") for item in after[len(before):]], ["setup_record", ""])
+
+    def test_a_plan_is_not_answered_in_any_other_case(self):
+        verdict, detail, bodies = self.run_case("advice-infill", [call("setup_record", self.PLAN)])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertEqual(len(bodies), 1)
+
+    def hook_run(self, *outputs, said=lambda question: False):
+        """print-hook-no-purpose with a judge that answers said(question)."""
+        runner.judge = lambda log, question: (said(question), "the judge's reason")
+        return self.run_case("print-hook-no-purpose", *outputs)
+
+    SLICE = {"plateId": "90"}
+
+    def test_a_hook_slice_is_answered_and_a_question_after_it_passes(self):
+        verdict, _, bodies = self.hook_run([call("slice_start", self.SLICE)], [reply("Slicing. What will it hold?")],
+                                           said=lambda question: True)
+        self.assertEqual(verdict, runner.PASS)
+        self.assertEqual(json.loads(bodies[1]["input"][-1]["output"]), json.loads(runner.last_output("print-hook-after-slice")))
+
+    def test_the_slices_end_starts_a_turn_and_a_question_there_passes(self):
+        answers = iter([False, True])
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE)], [reply("Slicing it now.")],
+                                                [reply("Sliced. What will it hold?")], said=lambda question: next(answers))
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(len(bodies), 3)
+        items = bodies[2]["input"]
+        self.assertEqual(items[-1], {"content": "The slice of Plate 1 finished.", "role": "developer"})
+        self.assertIn('\\"sliced\\":true', json.dumps(items[-2]))
+        self.assertEqual(items[-3]["content"][0]["text"], "Slicing it now.")
+        self.assertIn("after slice_start, the slice's end: ", detail)
+
+    def test_a_hook_never_asked_about_fails(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE)], [reply("Slicing it now.")], [reply("It sliced.")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("after slice_start, the slice's end: NEVER ASKED"), detail)
+        self.assertEqual(len(bodies), 3)
+
+    def test_a_reply_with_no_slice_has_no_next_turn(self):
+        verdict, detail, bodies = self.hook_run([reply("Nice hook. Ready when you are.")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("DID NOT ASK"), detail)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_change_after_the_slice_fails(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE)], [call("settings_apply_patch", {"scope": "process", "changes": {"wall_loops": 4}, "expectedSessionId": "4", "expectedRevision": 19})])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertEqual(len(bodies), 2)
+
+    def test_a_plan_on_the_hook_is_answered_and_a_question_after_it_passes(self):
+        verdict, detail, bodies = self.hook_run([call("setup_record", self.PLAN)], [reply("That's the plan. What will it hold?")],
+                                                said=lambda question: True)
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(json.loads(bodies[1]["input"][-1]["output"])["result"]["plan"]["headline"], self.PLAN["headline"])
+
+    def test_a_plan_on_the_hook_with_no_question_fails_with_no_next_turn(self):
+        verdict, detail, bodies = self.hook_run([call("setup_record", self.PLAN)], [reply("That's the plan.")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("after setup_record: NEVER ASKED"), detail)
+        self.assertEqual(len(bodies), 2)
+
+    def test_a_plan_on_the_hook_naming_a_purpose_fails(self):
+        verdict, detail, bodies = self.hook_run([call("setup_record", dict(self.PLAN, purpose="A coat hook"))])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertTrue(detail.startswith("A PURPOSE"), detail)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_plan_after_the_slices_end_is_answered_and_a_question_after_it_passes(self):
+        answers = iter([False, True])
+        verdict, detail, bodies = self.hook_run(
+            [call("slice_start", self.SLICE)], [reply("Slicing it now.")], [call("setup_record", self.PLAN)],
+            [reply("What will it hold?")], said=lambda question: next(answers))
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(json.loads(bodies[3]["input"][-1]["output"])["result"]["plan"]["headline"], self.PLAN["headline"])
+        self.assertIn("after slice_start, the slice's end, setup_record: ", detail)
+
+    def test_a_plan_after_the_slices_end_with_no_question_fails(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE)], [reply("Slicing it now.")],
+                                                [call("setup_record", self.PLAN)], [reply("Ready when you are.")])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertIn("NEVER ASKED", detail)
+
+    def test_a_plan_then_a_slice_follows_on_to_the_slices_end(self):
+        answers = iter([False, True])
+        verdict, detail, bodies = self.hook_run(
+            [call("setup_record", self.PLAN)], [call("slice_start", self.SLICE)], [reply("Slicing it now.")],
+            [reply("What will it hold?")], said=lambda question: next(answers))
+        self.assertEqual(verdict, runner.PASS, detail)
+        self.assertEqual(bodies[3]["input"][-1], {"content": "The slice of Plate 1 finished.", "role": "developer"})
+        self.assertIn("after setup_record, slice_start, the slice's end: ", detail)
+
+    def test_an_order_with_no_recording_is_unobserved(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE)], [call("setup_record", self.PLAN)])
+        self.assertEqual(verdict, runner.UNOBSERVED)
+        self.assertIn("no recording follows", detail)
+
+    def test_reads_after_a_plan_on_the_hook_see_the_models_plan(self):
+        inspect = {"sections": ["summary", "project", "objects", "plan", "slicing", "printer", "activities"]}
+        verdict, detail, bodies = self.hook_run([call("setup_record", self.PLAN)], [call("workspace_inspect", inspect, "read")],
+                                                [reply("What will it hold?")], said=lambda question: True)
+        self.assertEqual(verdict, runner.PASS, detail)
+        output = next(item["output"] for item in bodies[-1]["input"] if item.get("type") == "function_call_output" and item["call_id"] == "read")
+        self.assertIn(self.PLAN["headline"], output)
+        self.assertNotIn("standard 0.2 mm layers", output)
+
+    def test_a_change_with_the_slice_fails_unanswered(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", self.SLICE), call("setup_record", self.PLAN)])
+        self.assertEqual(verdict, runner.FAIL)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_slice_of_another_plate_is_not_answered(self):
+        verdict, detail, bodies = self.hook_run([call("slice_start", {"plateId": "7"})])
+        self.assertEqual(verdict, runner.UNOBSERVED)
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_slice_of_every_plate_is_answered(self):
+        verdict, _, bodies = self.hook_run([call("slice_start", {})], [reply("What will it hold?")], said=lambda question: True)
+        self.assertEqual(verdict, runner.PASS)
+        self.assertEqual(len(bodies), 2)
+
+    def test_reads_after_the_slice_see_it_running_and_after_its_end_see_it_done(self):
+        inspect = {"sections": ["summary", "project", "objects", "plan", "slicing", "printer", "activities"]}
+        answers = iter([False, True])
+        verdict, detail, bodies = self.hook_run(
+            [call("slice_start", self.SLICE)], [call("workspace_inspect", inspect, "during")], [reply("Slicing it now.")],
+            [call("workspace_inspect", inspect, "after")], [reply("What will it hold?")], said=lambda question: next(answers))
+        self.assertEqual(verdict, runner.PASS, detail)
+        result = lambda body, id: json.loads(next(item["output"] for item in body["input"] if item.get("type") == "function_call_output" and item["call_id"] == id))
+        self.assertTrue(result(bodies[-1], "during")["result"]["slicing"]["running"])
+        self.assertFalse(result(bodies[-1], "after")["result"]["slicing"]["running"])
+
+    def test_the_hook_points_are_one_project(self):
+        """The slice's result must fit the request it answers, and the next
+        turn must follow it: the recordings start the same, but for the
+        temporary folder, the picture's bytes and the time, which differ from
+        process to process."""
+        same = lambda point: json.loads(re.sub(r"jusprin-shell-[0-9a-f-]+|data:image/png;base64,[^\"]+|\d{4}-\d\d-\d\dT[\d:]+Z", "x",
+                                               json.dumps(runner.REQUESTS[point]["body"]["input"])))
+        before, after, done, planned, first = map(same, ("print-hook-no-purpose", "print-hook-after-slice", "print-hook-slice-done",
+                                                         "print-hook-done-plan", "print-hook-after-plan"))
+        self.assertEqual(before, after[:len(before)])
+        self.assertEqual([item.get("name", "") for item in after[len(before):]], ["slice_start", ""])
+        self.assertEqual(after, done[:len(after)])
+        self.assertEqual(done, planned[:len(done)])
+        self.assertEqual([item.get("name", "") for item in planned[len(done):]], ["setup_record", ""])
+        self.assertEqual(before, first[:len(before)])
+        self.assertEqual([item.get("name", "") for item in first[len(before):]], ["setup_record", ""])
+        sliced, ended = same("print-hook-plan-slice"), same("print-hook-plan-slice-done")
+        self.assertEqual(first, sliced[:len(first)])
+        self.assertEqual([item.get("name", "") for item in sliced[len(first):]], ["slice_start", ""])
+        self.assertEqual(sliced, ended[:len(sliced)])
+
+    def test_a_new_turn_reaches_the_cli_as_a_session_ending_on_the_app_opening(self):
+        """claude_cli.split takes the app's opening as the new message."""
+        answers = iter([False, True])
+        runner.judge = lambda log, question: (next(answers), "the judge's reason")
+        started = []
+        scripted = iter([[call("slice_start", self.SLICE)], [reply("Slicing it now.")], [reply("What will it hold?")]])
+        verdict, _, _ = runner.run_steps("print-hook-no-purpose", lambda input: next(scripted), new_turn=lambda input: started.append(list(input)))
+        self.assertEqual(verdict, runner.PASS)
+        self.assertEqual(len(started), 1)
+        history, last, deferred = runner.claude_cli.split(started[0])
+        self.assertIsNone(deferred)
+        self.assertEqual(history[-1]["content"][0]["text"], "Slicing it now.")
+        self.assertEqual([item["role"] for item in last], ["user", "developer"])
+
     def test_the_refusals_are_the_apps_own(self):
         """The runner's refusal words are the app's, byte for byte, around the
         registry's own message."""
@@ -469,7 +731,7 @@ class OpeningCap(unittest.TestCase):
         self.assertEqual(runner.opening_shape("This looks like a wall hook."), "0 questions")
 
     def test_a_long_message_breaks_it(self):
-        self.assertEqual(runner.opening_shape("word " * 120 + "What is it for?"), "124 words")
+        self.assertEqual(runner.opening_shape("word " * 200 + "What is it for?"), "204 words")
 
     def test_three_bullets_break_it(self):
         bullets = "It is a hook.\n- One part\n- PLA\n- Plate 1\nWhat is it for?"

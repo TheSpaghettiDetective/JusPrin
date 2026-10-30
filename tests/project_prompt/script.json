@@ -992,6 +992,172 @@
    ]
   },
   {
+   "name": "print-this-plan",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "say": "I want to print this",
+     "replies": [
+      {
+       "call": "setup_record",
+       "arguments": {
+        "headline": "Standard 0.2 mm layers in PLA, flat on the bed, no supports",
+        "decisions": [
+         {
+          "topic": "Supports",
+          "statement": "No supports: the cube sits flat with nothing hanging in the air.",
+          "alternative": "Supports, which would only add waste."
+         }
+        ],
+        "unverified": [
+         "Bambu PLA Basic is the spool loaded in the printer."
+        ],
+        "risks": [
+         "A different plate on the printer may not hold the first layer."
+        ]
+       }
+      },
+      {
+       "record": "print-this-after-plan"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "print-hook",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "drop": "part_4.stl",
+     "model": "tests/data/test_stl/wall_hook.stl",
+     "replies": [
+      {
+       "text": "The part opened and sits on the bed, one solid piece with no errors in the model. It looks like a wall hook. What would you like to do with it?"
+      }
+     ]
+    },
+    {
+     "say": "I want to print this",
+     "replies": [
+      {
+       "record": "print-hook-no-purpose"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "print-hook-slice",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "drop": "part_4.stl",
+     "model": "tests/data/test_stl/wall_hook.stl",
+     "replies": [
+      {
+       "text": "The part opened and sits on the bed, one solid piece with no errors in the model. It looks like a wall hook. What would you like to do with it?"
+      }
+     ]
+    },
+    {
+     "say": "I want to print this",
+     "replies": [
+      {
+       "call": "slice_start",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}"
+       }
+      },
+      {
+       "record": "print-hook-after-slice",
+       "text": "Slicing it now."
+      },
+      {
+       "record": "print-hook-slice-done",
+       "call": "setup_record",
+       "arguments": {
+        "headline": "Flat on the bed in PLA, standard 0.2 mm layers, no supports",
+        "decisions": [
+         {
+          "topic": "Orientation",
+          "statement": "Lying flat as it loaded, so the curve is drawn within each layer.",
+          "alternative": "Standing it up, which would need supports and split more easily."
+         }
+        ],
+        "unverified": [
+         "Bambu PLA Basic is the spool loaded in the printer."
+        ],
+        "risks": [
+         "A different plate on the printer may not hold the first layer."
+        ]
+       }
+      },
+      {
+       "record": "print-hook-done-plan"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "print-hook-plan",
+   "fixture": "single",
+   "plateType": "Cool Plate",
+   "steps": [
+    {
+     "drop": "part_4.stl",
+     "model": "tests/data/test_stl/wall_hook.stl",
+     "replies": [
+      {
+       "text": "The part opened and sits on the bed, one solid piece with no errors in the model. It looks like a wall hook. What would you like to do with it?"
+      }
+     ]
+    },
+    {
+     "say": "I want to print this",
+     "replies": [
+      {
+       "call": "setup_record",
+       "arguments": {
+        "headline": "Flat on the bed in PLA, standard 0.2 mm layers, no supports",
+        "decisions": [
+         {
+          "topic": "Orientation",
+          "statement": "Lying flat as it loaded, so the curve is drawn within each layer.",
+          "alternative": "Standing it up, which would need supports and split more easily."
+         }
+        ],
+        "unverified": [
+         "Bambu PLA Basic is the spool loaded in the printer."
+        ],
+        "risks": [
+         "A different plate on the printer may not hold the first layer."
+        ]
+       }
+      },
+      {
+       "record": "print-hook-after-plan",
+       "call": "slice_start",
+       "arguments": {
+        "plateId": "{{workspace/activePlateId}}"
+       }
+      },
+      {
+       "record": "print-hook-plan-slice",
+       "text": "Slicing it now."
+      },
+      {
+       "record": "print-hook-plan-slice-done"
+      }
+     ]
+    }
+   ]
+  },
+  {
    "name": "unnamed-model",
    "fixture": "single",
    "plateType": "Cool Plate",
