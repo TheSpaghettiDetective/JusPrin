@@ -1,0 +1,22 @@
+> Test got stricter after the baseline
+
+explain
+
+---
+
+* It told the model to keep this first message to about 80 words, at most two bullets and exactly one question (in the file-loaded instructions).
+* It added a check for that to the test, `opening_shape`. It runs before the judge and fails any reply over 96 words, more than two bullets, or without exactly one question.
+
+check the commit for its ratiionale
+
+---
+
+Is it fair to say the root problem is that the intention of keeping the first message concise is the right one, but having such a prescriptive rules is unreasonable. Am I getting anything wrong here? Also, if you don't want me to ask you so many questions, keep yourself clear.
+
+---
+
+Okay, I agree with what you said. However, do you think that we should take a look at what the runs actually return to see if their responses were reasonable, and if so, if the criteria it will give to the judge will actually let them pass.
+
+---
+
+Go ahead.
