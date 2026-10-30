@@ -21,3 +21,7 @@ test result in plain eng under 100 words
 ---
 
 also check how you can run live prompt testing using claude subscription
+
+---
+
+Run full suite
