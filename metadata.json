@@ -3,7 +3,7 @@
   "checkpoint_id": "01M66EBAWJAZ8ZV7E2Q9B9CHP6",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/data/test_stl/wall_hook.stl",
     "tests/project_prompt/README.md",
@@ -21,13 +21,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 178,
-    "cache_creation_tokens": 528361,
-    "cache_read_tokens": 17657018,
-    "output_tokens": 77195,
-    "api_call_count": 89
+    "input_tokens": 358,
+    "cache_creation_tokens": 1191655,
+    "cache_read_tokens": 35571187,
+    "output_tokens": 195858,
+    "api_call_count": 179
   }
 }

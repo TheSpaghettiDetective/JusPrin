@@ -1,0 +1,27 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an AI agent chat. Checkout: `/Users/kenneth/Projects/JusPrin`, branch `jusprin-newui`, tip `b5860ea59b` ("Send every Agent chat from an append-only record, so provider caches hit"), already pushed. That commit changed what the model reads in every chat: the conversation history is now kept as an append-only record and resent byte-identically each turn (so provider prompt caches hit), skills stay where they first fired instead of moving to the end, and app notes go in the operator role. Unit tests (485 Catch2 cases), the scripted prompt suite, request-byte prefix checks and a live cache measurement all passed. What has NOT run is the live prompt regression suite, which sends each test case to a real model and compares with the stored baseline. Kenneth (the owner) has now approved exactly this batch: one full run of the project prompt suite at its default three runs per case. No other live-model calls are approved; a `403 Key limit exceeded` means stop. Kenneth reads reports cold and dislikes project jargon: plain English, name things by what they do, give costs in tokens and dollars.
+
+Task:
+Run the live project prompt regression suite once on the current `jusprin-newui` checkout and report whether the merged code changed model behaviour.
+
+How:
+1. Read `tests/project_prompt/README.md`, in particular the sections on running the suite (`run_prompt_tests.py`), the baseline (`baseline.json`, DeepSeek V4 Flash with the OpenAI judge), `--results FILE`, and the rule that a run is judged against the baseline case by case with no fixed thresholds. The live key lives in `~/.config/jusprin/prompt-test.env` (read how the README says to use it; never print or copy the key anywhere). Check first whether the runner needs a built app or only the recorded `requests.json` and `script.json` in `tests/project_prompt/`; if it needs a build, say so and stop rather than starting one without checking `uptime` and `pgrep -fl ninja` first (shared machine; one build at a time, `-- -j4`).
+2. Run the full suite once with its default three runs per case, with the same model, host and judge as the baseline so the comparison is valid. Save the run with `--results` to an untracked file in the checkout root, e.g. `live-prompt-run-2026-10-29.json`. Do not commit anything, do not edit `baseline.json`, do not add anything to `.gitignore` or `.git/info/exclude`. Run the suite in the background with nohup and its own log file, then wait on it inside the tool (poll the saved PID with `kill -0`); never end a turn to "wait".
+3. Compare with the baseline case by case. Read every failing and unobserved run's transcript. For each case that moved, say what the model did differently and whether it plausibly comes from the history being sent in a different order (the merged change) or looks like ordinary run-to-run noise. Only for a case that looks like a genuine regression, re-run that one case against the previous prompt the same day; otherwise do not spend more.
+4. Report usage totals from the responses (requests, input tokens, cached input tokens, output tokens, judge calls) and an estimated dollar cost.
+
+Done looks like: an untracked plain-English report `live-prompt-run-2026-10-29.md` in the checkout root with the comparison table, the per-case reading of every miss, the usage totals, and a one-paragraph verdict ("nothing looks like a regression" or which cases do and why). Do not promote the run to the new baseline; Kenneth decides that after reading the report. The printer prompt suite (`tests/printer_prompt`) is not part of this approved batch; say in the report whether it should also be run and roughly what it would cost. Leave no processes running and delete any harness data dirs you created (only your own).
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_34d95bfb-fc90-47e6-94ab-adc3d3711d01
+
+---
+
+test result in plain eng under 100 words
+
+---
+
+also check how you can run live prompt testing using claude subscription
+
+---
+
+Run full suite
