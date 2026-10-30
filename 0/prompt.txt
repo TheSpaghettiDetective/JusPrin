@@ -86,3 +86,11 @@ are you done?
 <status>completed</status>
 <summary>Background command "Re-record the requests from the real app with the new page" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Tell me what you did in the last turn. I had no idea. You didn't seem to do anything.
+
+---
+
+did you do what I told you to: go find out the source of this problem. you have the session log so it should be doable.
