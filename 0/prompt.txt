@@ -1,0 +1,47 @@
+I want you to brainstorm with me about the pricing for hosting the AI models for JusPrin. check @agent-docs to you get the context. 
+
+I'm thinking about offering two tiers of models on my end. Eventually I will probably use finetuned small models for the cost sake. But for the new turn, I will use, I will forward the request directly to existing commercial models. The basic tier will be forwarded to the cheaper models that can still get the basic job done. I have not thought too much about what that will be, but it'll be probably comparable to deepseek v4 flash. The premium tier will be forwarded to the workhorse models from anthropic in OpenAI, such as Opus 5.5 and sol 5.6.
+
+If we're using a premium tier, let's assume that a straightforward, not complicated case, a chat that the user will use for the their 3D models will cost anywhere between $0.2 to $0.5. The complicated case will go up proportionally from there. 
+
+I would imagine that most subscribers will run will have at least a handful chats a week, probably a lot more. 
+
+We know that our customers are hobbyists and they are quite price sensitive. For most of them, a subscription lower than ten dollars per month will be an easy decision for them, but if it's higher than that, they may hesitate. 
+
+Given all this info, what options can you think of so that we can have an attractive pricing model so that we don't hurt the conversion rate. In the meantime, we don't cap the usage too so much that the user get frustrated and hence churn or and we don't want to lose money ourselves either. 
+
+Oh, one more actual factor we want to consider is that I want to incentivize the user to give us detailed feedback on the on the quality of the responses so that I can use these data for fine-tuning later on. I'm happy to subsidize the model cost if the users are willing to give us quality feedback. You can incorporate this into consideration for the options. 
+
+Let's treat this as a brainstorming session that we don't have a answer or opinion up front. We want to ask each other questions so that we can approach the global optimal instead of get stuck in the local optimal.
+
+---
+
+<cross-session-message from="local_9c3e637b-c0a1-4d4c-999e-708172751b89" from-name="JusPrin pricing model brainstorm">
+Pricing research results from the forked side session, plus Kenneth's instruction: do not jump to conclusions yet; at this step draw patterns, ask questions, and above all ask what additional information would let us make the optimal decision.
+
+Kenneth asked the fork whether other AI-agent SaaS businesses had already solved the pricing problem we are brainstorming. Six web searches (2026 sources, mostly vendor blogs and third-party trackers, so hold exact figures loosely). What they show:
+
+1. Hybrid pricing (flat subscription + metered usage unit) is the norm for AI agent products: Orb's 2026 study of 80 AI agent companies reports 95% hybrid; a May 2026 B2B survey found 37% hybrid and 29% on a credit/token unit. Credits are a packaging of usage inside a plan, not a separate model. (withorb.com/blog/2026-state-of-ai-agent-pricing-models-trends-and-whats-working; getmonetizely.com 2026 guide)
+2. The main cautionary tale is Cursor, June 2025: Pro went from 500 counted "fast requests" to a $20 dollar-value token pool. People ran out after a handful of expensive-model prompts, got surprise overage charges because spend limits were off by default, and felt misled about staying on the old plan. CEO apology and refunds in July 2025. The unit the person cannot predict (dollars of tokens) felt like a trap; a countable unit (requests/chats) did not; overage must be opt-in; and changing the unit after launch is far more painful than picking it at launch. GitHub Copilot went the opposite way (premium requests -> 1,500 cent-denominated credits), so the industry has not settled which unit wins. (wearefounders.uk Cursor timeline; fintechweekly.com; vantage.sh/blog/cursor-pricing-explained; aiplanfinder.com/changelog)
+3. The big consumer products avoid monthly caps: Claude Pro uses a rolling 5-hour window, ChatGPT Plus a 3-hour window, Perplexity Pro a daily allowance. Rolling windows cap burst cost without the "I used up my month" feeling. (aiplanfinder.com/ai-usage-limits-comparison)
+4. A real sub-$10 consumer band exists: Google AI Plus $4.99, ChatGPT Go $8, consumer guides putting the entry tier at ~$9. These are positioned as "more than free, below the $20 tier", not as "the lesser model". (aizolo.com cheapest-ai-subscription; freemius.com AI app pricing)
+5. No major AI product was found paying people credits or discounts for rating responses. OpenAI's community has several such requests and OpenAI replied it has no program; a Z.ai plugin issue asks for the same. Live programs (JumpTask etc.) pay cash for rating work as a separate business. A feedback-for-credits scheme would be novel: no playbook, and no evidence per-rating rewards yield useful data rather than click spam. (community.openai.com threads 1408785 and 1390155; github.com/zai-org/zcode-plugins/issues/68)
+6. Gaps: nothing found on hobbyist 3D-printing software subscription pricing beyond Simplify3D's old $149 one-off and Shapr3D forum threads asking for a $12-15 hobby tier; nothing on the specific pattern of silently falling back to a cheaper model when a budget is exhausted.
+
+Kenneth's reframing for the main session: treat these as patterns to reason from, not answers. Rather than converging on a plan, the next step is (a) name the patterns and the questions they raise for JusPrin specifically, and (b) list the additional information that would most change the decision, so it can be gathered before deciding. Candidates the fork raised, to extend rather than adopt: JusPrin v1 price, conversion rate and chats-per-user distribution (p50/p90); whether this period's goal is margin per user or fine-tuning-data acquisition; how much worse the cheap model actually is on the real task (DeepSeek could not take images on the pinned hosts); whether the $0.20-0.50 per chat is first-turn dominated (cached follow-ups cheap) or tool-round dominated; whether the person or the server picks the model; target gross margin and payment-processing cost at a ~$6-8 price point; what hobbyists' usage rhythm looks like (weekend bursts vs steady), which decides rolling windows vs monthly budgets.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_5bbbd4c1-4d03-4558-81c2-326ff0f2c785" from-name="JusPrin pricing model brainstorm">
+Kenneth asks you to create a task chip, running on Opus 5.5, to collect data from JusPrin v1 that can inform the pricing and feedback decision. Relayed from a forked side session; Kenneth's words: "tell the main session to create a task chip using opus 5.5 to collect the data that may help us from v1".
+
+Scope for the task, so the brief is complete (v1 = the JusPrin v1 chat gateway and its records on the Obico/tsd server; use the ai-agent GCP service account per Kenneth's global rules; read-only, no production writes):
+
+1. First establish what v1 actually logged: per-request records (user, timestamp, tokens, model, subscription status) and whether the desktop app sent any behavioural events back (settings applied, sliced, print started, G-code exported, ratings, comments). Report this before anything else, since it decides which items below are answerable.
+2. Usage behaviour per paying user: chats per user per month as a distribution (p50, p90, p99, not the mean); fraction of subscribers with zero chats in a month; turns per chat distribution; time between chats by hour and weekday (weekend bursts vs steady); first-week vs later-month usage.
+3. Conversion and churn: v1 price points over time, trial-to-paid conversion by cohort, churn by cohort, churn timing relative to the person's last activity (went quiet vs left right after activity), and any before/after around a price change.
+4. Own-key vs JusPrin Cloud users, and how heavy each group is.
+5. Feedback and behavioural signal, to test the claim that behaviour carries training signal and explicit feedback is rare: fraction of chats with any rating or comment and a sample of comment quality; where events exist, how often proposed settings were applied and followed by a slice or print; the "redo" pattern (same user, same project or object, new chat within one to two days); and a sample of follow-up messages that correct the agent unprompted ("no, the overhang is on the other side") to see how often and how specifically people correct it.
+6. Deliverable: a plain-English report with the tables, each number labelled with the query it came from, and an explicit list of what v1 cannot answer. Use v1 for counts and timing only, never for dollar cost; v2 chats cost differently because of tools, renders and replayed history.
+</cross-session-message>
