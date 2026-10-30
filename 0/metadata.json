@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M66AKNJGJGX862R2N8R3V17E",
+  "session_id": "6083c73e-2ec8-46d3-890b-e75708e800b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-30T11:55:08.632583Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "d9d9e59676ab",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 7366,
+    "cache_creation_tokens": 1531581,
+    "cache_read_tokens": 53190041,
+    "output_tokens": 253858,
+    "api_call_count": 278
+  },
+  "session_metrics": {
+    "turn_count": 13
+  }
+}
