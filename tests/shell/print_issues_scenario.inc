@@ -264,6 +264,15 @@
         return count;
     }
 
+    // The issues the pill counts: neither ignored nor stale.
+    std::size_t counted_issue_count()
+    {
+        std::size_t count = 0;
+        for (const Issue& issue : issues().issues)
+            count += !issue.ignored && !issue.stale ? 1 : 0;
+        return count;
+    }
+
     std::vector<Agent::ConversationMessage> chat_messages()
     {
         const auto& document = persistence().document();
@@ -906,22 +915,36 @@
         }, [self] {
             const Issue* warning = self->issues().find(self->m_warning_id);
             self->check(warning != nullptr && warning->ignored, "a_slice_keeps_the_warning_ignored");
-            self->check(self->issues().issues.size() == 2 && self->ignored_count() == 1, "the_slice_reports_a_finding_of_its_own");
+            // The two boxes overlap, so the slice finds their paths in
+            // conflict. Other slice warnings may come and go with OrcaSlicer;
+            // the checks below count whatever is not ignored.
+            const Issue* conflict = nullptr;
+            for (const Issue& issue : self->issues().issues)
+                if (issue.code == "gcode_path_conflict")
+                    conflict = &issue;
+            self->check(conflict != nullptr && !conflict->ignored && self->ignored_count() == 1, "the_slice_reports_a_finding_of_its_own");
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.pill_text == "1 print issue" && frame.pill_opens_list, "the_pill_counts_only_what_is_not_ignored");
+            const std::size_t counted = self->counted_issue_count();
+            const std::string label   = std::to_string(counted) + (counted == 1 ? " print issue" : " print issues");
+            std::cerr << "HARNESS IGNORE pill='" << frame.pill_text << "' counted=" << counted << " listed=" << self->issues().issues.size() << '\n';
+            self->check(counted == self->issues().issues.size() - 1 && frame.pill_text.rfind(label, 0) == 0 && frame.pill_opens_list,
+                        "the_pill_counts_only_what_is_not_ignored");
             self->click_overlay(frame.pill);
         }});
         steps.push_back({"ignored_is_last_in_the_list", {}, {}, [self] {
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.list_open && frame.rows.size() == 2 && frame.rows.back().first == self->m_warning_id &&
-                            frame.rows.front().second.y < frame.rows.back().second.y,
+            self->check(frame.list_open && frame.rows.size() >= 2 && frame.rows.size() == self->issues().issues.size() &&
+                            frame.rows.back().first == self->m_warning_id && frame.rows.front().second.y < frame.rows.back().second.y,
                         "an_ignored_warning_is_listed_below_the_ones_that_count");
             self->capture_issues("09f-ignored-in-list");
             self->click_overlay(frame.rows.front().second);
         }});
         steps.push_back({"ignored_is_off_the_pager", {}, {}, [self] {
+            // The pager walks every issue that is not ignored.
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
-            self->check(frame.bubble && frame.issue_id != self->m_warning_id && frame.pager_size == 1 && frame.next.empty(),
+            const std::size_t walked = self->issues().issues.size() - self->ignored_count();
+            self->check(frame.bubble && frame.issue_id != self->m_warning_id && frame.pager_size == int(walked) &&
+                            (walked > 1 || frame.next.empty()),
                         "the_pager_does_not_walk_onto_an_ignored_warning");
         }});
         // An ignore lasts while OrcaSlicer keeps reporting the warning.
@@ -1465,6 +1488,9 @@
                       << " validation_blocker=" << (blocker != nullptr) << '\n';
             self->check(!self->issues().sliced, "the_flake_does_not_produce_a_slice");
             self->check(failure != nullptr || blocker != nullptr, "the_reason_the_flake_cannot_print_is_in_the_issue_list");
+            // The next step is about a slice failure going stale; a fixture
+            // that OrcaSlicer refuses at validation instead would skip it.
+            self->check(failure != nullptr, "the_flake_fails_in_the_slice_not_at_validation");
             if (failure != nullptr) {
                 self->m_failure_issue = failure->id;
                 self->issue_overlay().select(failure->id);

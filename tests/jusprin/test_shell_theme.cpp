@@ -25,6 +25,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace Slic3r::GUI::JusPrin;
 namespace fs = std::filesystem;
@@ -50,22 +51,51 @@ std::string packaged_tokens_with(const std::string& from, const std::string& to)
     return tokens.replace(at, from.size(), to);
 }
 
+// The packaged token text with one token's value replaced. `path` names the
+// token and the objects around it, each found after the one before, so the
+// edit lands on that token whatever the file's layout or its other values.
+std::string packaged_tokens_with_value(const std::vector<std::string>& path, const std::string& value)
+{
+    std::ifstream packaged(packaged_token_path);
+    REQUIRE(packaged.is_open());
+    std::string tokens((std::istreambuf_iterator<char>(packaged)), std::istreambuf_iterator<char>());
+    std::size_t at = 0;
+    for (const std::string& key : path) {
+        const std::string quoted = "\"" + key + "\":";
+        at = tokens.find(quoted, at);
+        INFO("token key " << key);
+        REQUIRE(at != std::string::npos);
+        at += quoted.size();
+    }
+    const std::size_t end = tokens.find_first_of(",}\n", at);
+    REQUIRE(end != std::string::npos);
+    return tokens.replace(at, end - at, " " + value);
+}
+
 // A resources directory holding one token file with the given content, so a
-// parse failure can be provoked without touching the packaged file.
+// parse failure can be provoked without touching the packaged file. The
+// process's resources directory is put back when it goes, so no later case
+// reads a deleted folder.
 class ScratchResources
 {
 public:
     explicit ScratchResources(const std::string& tokens)
         : m_dir(fs::temp_directory_path() / ("jusprin-shell-theme-" + std::to_string(std::random_device{}())))
+        , m_previous(Slic3r::resources_dir())
     {
         fs::create_directories(m_dir / "jusprin" / "ui");
         std::ofstream(m_dir / "jusprin" / "ui" / "design-tokens.json") << tokens;
         Slic3r::set_resources_dir(m_dir.string());
     }
-    ~ScratchResources() { fs::remove_all(m_dir); }
+    ~ScratchResources()
+    {
+        Slic3r::set_resources_dir(m_previous);
+        fs::remove_all(m_dir);
+    }
 
 private:
-    fs::path m_dir;
+    fs::path    m_dir;
+    std::string m_previous;
 };
 
 } // namespace
@@ -82,6 +112,7 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.radius_full == 14);
     CHECK(m.space_half == 2);
     CHECK(m.space_1 == 4);
+    CHECK(m.space_3 == 12);
     CHECK(m.space_12 == 48);
     CHECK(m.status_dot.size == 8);
     CHECK(m.group_header.height == 32);
@@ -207,7 +238,7 @@ TEST_CASE("a token file without the component section is refused", "[shell][them
 
 TEST_CASE("a token file with a fractional DIP value is refused", "[shell][theme]")
 {
-    const ScratchResources resources(packaged_tokens_with("\"chip\": {\n      \"height\": 28,", "\"chip\": {\n      \"height\": 28.5,"));
+    const ScratchResources resources(packaged_tokens_with_value({"component", "chip", "height"}, "28.5"));
     CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("component.chip.height"));
 }
 
@@ -223,14 +254,11 @@ TEST_CASE("the viewport tool strip takes every size from the token file", "[shel
     CHECK(geometry.padding == m.space_1);
     CHECK(geometry.gap == m.space_1);
     CHECK(geometry.inset == m.space_3);
-    CHECK(geometry.button == 26);
-    CHECK(geometry.padding == 4);
-    CHECK(geometry.inset == 12);
 }
 
 TEST_CASE("a token file with an elevation opacity above 1 is refused", "[shell][theme]")
 {
-    const ScratchResources resources(packaged_tokens_with("\"light\": 0.12,", "\"light\": 12,"));
+    const ScratchResources resources(packaged_tokens_with_value({"elevation", "medium", "opacity", "light"}, "12"));
     CHECK_THROWS_WITH(ShellTheme::load_from_resources(), Catch::Matchers::ContainsSubstring("elevation.medium.opacity.light"));
 }
 

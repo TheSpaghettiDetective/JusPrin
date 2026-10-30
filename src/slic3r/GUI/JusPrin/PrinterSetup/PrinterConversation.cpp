@@ -296,7 +296,6 @@ Agent::AgentSessionProfile PrinterConversation::profile() const
     // This conversation is about a machine, not about the open project, and
     // what the app does on its own reaches the model as notes.
     profile.include_workspace          = false;
-    profile.notes_in_context           = true;
     return profile;
 }
 

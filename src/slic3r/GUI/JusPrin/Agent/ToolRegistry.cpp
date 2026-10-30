@@ -1152,7 +1152,7 @@ std::vector<ToolDefinition> make_definitions()
                         {"unitConversion", {{"type", "string"}, {"enum", json::array({"keep", "inches"})}}}},
                        {"sessionId", "attachmentId"}),
          import_result,
-         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::ImportableAttachment, ToolHandler::ObjectImport},
+         ActionClass::Mutation, ToolExposure::InApp, ToolAvailability::Always, ToolHandler::ObjectImport},
         {"object_import_file", "Import a model file",
          // MCP only: an external client names a file by path, shown on the card.
          "Add the objects of a model file (.stl, .obj, .step, .amf, .drc, or a .3mf's geometry) at an absolute path to the open project, in one undo step, on plateId if given. unitConversion inches treats the file as inches. OrcaSlicer shows no dialogs while it loads: each one is answered with the choice that changes least and returned in report.messages as OrcaSlicer worded it; an object it found too small or too large is left as it was, so offer object_place unitsFix or scale. The result gives each new object's size.",

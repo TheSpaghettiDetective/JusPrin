@@ -4,10 +4,13 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ResponsesCodec.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
+#include "project_chat_tools.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -55,9 +58,18 @@ std::string sse(const json& event) { return "event: message\ndata: " + event.dum
 constexpr const char* kPageProjectInstructions =
     "You are the project assistant, as the page wrote it. \n\nSecond paragraph.";
 
+// A reply as the record keeps it: the response's own output items.
+json reply_output(const std::string& text)
+{
+    return json{{"type", "message"}, {"role", "assistant"}, {"content", json::array({json{{"type", "output_text"}, {"text", text}}})}};
+}
+
+RecordItem reply_item(const std::string& text) { return RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, json::array({reply_output(text)})}; }
+
 AgentRequest request_fixture()
 {
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id = "assistant-7-attempt-1";
     request.session.instructions = kPageProjectInstructions;
     request.user_text = "Duplicate the selected cube.";
@@ -75,7 +87,8 @@ AgentRequest request_fixture()
     plate.objects.push_back(object);
     request.workspace.plates.push_back(plate);
     request.workspace.selected_objects.push_back(object.id);
-    request.conversation.push_back({"assistant", "Earlier answer"});
+    request.record = ChatRecord{"responses", {reply_item("Earlier answer")}};
+    request.source = "m-2";
     request.attachments.push_back({"att-1", "notes.txt", "text", "text/plain", "", "do not scale", "", false});
     return request;
 }
@@ -128,7 +141,10 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["parallel_tool_calls"] == true);
     // Exactly what the page sent, with no words of the app's own.
     CHECK(body["instructions"] == kPageProjectInstructions);
-    REQUIRE(body["tools"].size() == 29);
+    // The project chat's tools with no skills listed; which ones they are is
+    // test_tool_registry.cpp's.
+    const std::vector<std::string> offered = JusPrinTest::project_chat_tool_names();
+    REQUIRE(body["tools"].size() == offered.size());
     std::vector<std::string> emitted_names;
     for (const json& tool : body["tools"]) {
         const std::string name = tool["name"];
@@ -140,7 +156,7 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
         CHECK(tool["description"] == definition->description);
         CHECK(tool["parameters"] == definition->input_schema);
     }
-    CHECK(emitted_names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "print_dialog_open", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    CHECK(emitted_names == offered);
     // The person's words exactly as typed, then the app's snapshot in its own
     // tag, then the attachments: one part each.
     const json& content = body["input"].back()["content"];
@@ -183,8 +199,8 @@ TEST_CASE("an OpenRouter agent posts the same Responses body to OpenRouter, with
     REQUIRE(openai.start(request_fixture()));
     json body        = json::parse(wire.body);
     json openai_body = json::parse(openai_fake->requests.front().body);
-    CHECK(body["model"] == "openai/gpt-5.4-mini");
-    CHECK(openai_body["model"] == "gpt-5.4-mini");
+    CHECK(body["model"] == openrouter->model);
+    CHECK(openai_body["model"] == openai_profile().model);
     body.erase("model");
     openai_body.erase("model");
     CHECK(body == openai_body);
@@ -381,7 +397,7 @@ TEST_CASE("each plate's type is in the snapshot, under printer_setup's name", "[
     CHECK(block() == first);
 }
 
-TEST_CASE("print-issue context is its own block, this turn and in history", "[agent][openai][print-issues]")
+TEST_CASE("print-issue context is its own block, this turn and in the record", "[agent][openai][print-issues]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -389,9 +405,10 @@ TEST_CASE("print-issue context is its own block, this turn and in history", "[ag
     AgentRequest request = request_fixture();
     request.attachments.clear();
     const std::string issue = R"({"issue":{"id":"validation:warning::7:9"},"kind":"print_issue"})";
-    AgentConversationContext earlier{"user", "Explain this issue and my options."};
-    earlier.issue_context = issue;
-    request.conversation  = {earlier, {"assistant", "It is a layer height problem."}};
+    RecordItem earlier{RecordItem::Kind::User};
+    earlier.parts = {RecordPart{RecordPart::Kind::Text, "Explain this issue and my options."},
+                     RecordPart{RecordPart::Kind::Text, "<print_issue>\n" + issue + "\n</print_issue>"}};
+    request.record.items = {earlier, reply_item("It is a layer height problem.")};
     request.user_text     = "Help fix this issue.\n\n> Layer height cannot exceed nozzle diameter.";
     request.issue_context = issue;
     REQUIRE(agent.start(request));
@@ -400,13 +417,20 @@ TEST_CASE("print-issue context is its own block, this turn and in history", "[ag
     REQUIRE(input.size() == 3);
     CHECK(input[0]["content"] == json::array({json{{"type", "input_text"}, {"text", "Explain this issue and my options."}},
                                               json{{"type", "input_text"}, {"text", "<print_issue>\n" + issue + "\n</print_issue>"}}}));
-    CHECK(input[1]["content"] == "It is a layer height problem.");
+    CHECK(input[1] == reply_output("It is a layer height problem."));
     const json& content = input[2]["content"];
     REQUIRE(content.size() == 3);
     CHECK(content[0] == json{{"type", "input_text"}, {"text", request.user_text}});
     CHECK(tagged_json(content[1], "print_issue") == json::parse(issue));
     CHECK_FALSE(tagged_json(content[2], "workspace").is_discarded());
-    CHECK(fake->requests.front().body.find("print-issue context") == std::string::npos);
+    // The issue rides in those two blocks only: not in the instructions, the
+    // workspace or the person's words as well.
+    const std::string& wire = fake->requests.front().body;
+    std::size_t        copies = 0;
+    for (std::size_t at = wire.find("validation:warning::7:9"); at != std::string::npos;
+         at = wire.find("validation:warning::7:9", at + 1))
+        ++copies;
+    CHECK(copies == 2);
 }
 
 TEST_CASE("the adapter has no prompt of its own to fall back on", "[agent][openai][instructions]")
@@ -422,29 +446,32 @@ TEST_CASE("the adapter has no prompt of its own to fall back on", "[agent][opena
     CHECK(json::parse(fake->requests.front().body)["instructions"] == "");
 }
 
-TEST_CASE("OpenAI request replays an earlier turn's call beside its output, with no item id", "[agent][openai]")
+TEST_CASE("an earlier turn's call is sent as recorded, beside its output", "[agent][openai]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
 
     AgentRequest request = request_fixture();
-    AgentConversationContext call;
-    call.call_id        = "call_7";
-    call.tool           = "printer_connection_status";
-    call.arguments_json = "{}";
-    call.output_json    = R"({"candidates":[{"deviceId":"01P00A3B"}],"state":"succeeded"})";
-    request.conversation = {{"user", "is it online?"}, call, {"assistant", "Yes, Workshop is."}};
+    // The response's items as the service sent them, its item id included:
+    // the record repeats what was sent, never a shorter retelling.
+    const json call{{"type", "function_call"}, {"id", "fc_7"}, {"status", "completed"}, {"call_id", "call_7"},
+                    {"name", "printer_connection_status"}, {"arguments", "{}"}};
+    const std::string output = R"({"candidates":[{"deviceId":"01P00A3B"}],"state":"succeeded"})";
+    RecordItem results{RecordItem::Kind::Results};
+    results.results.push_back(RecordResult{"call_7", output, false, std::nullopt});
+    request.record.items = {RecordItem{RecordItem::Kind::User, {}, {RecordPart{RecordPart::Kind::Text, "is it online?"}}},
+                            RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, json::array({call})}, results,
+                            reply_item("Yes, Workshop is.")};
     REQUIRE(agent.start(request));
     REQUIRE(fake->requests.size() == 1);
 
     const json input = json::parse(fake->requests.front().body).at("input");
     REQUIRE(input.size() == 5);
-    CHECK(input[0] == json{{"role", "user"}, {"content", "is it online?"}});
-    // Exactly these fields: the service's item id would name nothing it kept.
-    CHECK(input[1] == json{{"type", "function_call"}, {"call_id", "call_7"}, {"name", "printer_connection_status"}, {"arguments", "{}"}});
-    CHECK(input[2] == json{{"type", "function_call_output"}, {"call_id", "call_7"}, {"output", call.output_json}});
-    CHECK(input[3] == json{{"role", "assistant"}, {"content", "Yes, Workshop is."}});
+    CHECK(input[0] == json{{"role", "user"}, {"content", json::array({json{{"type", "input_text"}, {"text", "is it online?"}}})}});
+    CHECK(input[1] == call);
+    CHECK(input[2] == json{{"type", "function_call_output"}, {"call_id", "call_7"}, {"output", output}});
+    CHECK(input[3] == reply_output("Yes, Workshop is."));
     CHECK(input[4].at("role") == "user");
 }
 
@@ -457,6 +484,7 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"secret-key", "gpt-5.4-mini", "https://api.openai.com/v1/responses"}, std::move(transport));
     AgentRequest request;
+    JusPrinTest::kept_nowhere(request);
     request.request_id                = "printer-1";
     request.user_text                 = "Yes, it is";
     using Slic3r::GUI::JusPrin::PrinterSetup::PrinterConversation;
@@ -496,8 +524,8 @@ std::vector<AgentSkill> page_skill_index()
 
 // tests/project_prompt/run_prompt_tests.py sends the model the project chat's
 // tools from this file: the project session's (no tools of its own, the
-// workspace included) with nothing attached, so no import tool, and the
-// page's skills listed in skill_read.
+// workspace included) with nothing attached, which offers the same tools as
+// a message with a model attached, and the page's skills listed in skill_read.
 // JUSPRIN_UPDATE_PROJECT_TOOLS=1 rewrites it from the registry.
 TEST_CASE("the project prompt tests send the project chat's tools as the app does", "[agent][openai][project]")
 {
@@ -523,17 +551,19 @@ TEST_CASE("the project prompt tests send the project chat's tools as the app doe
 }
 
 // The tool results in tests/project_prompt/requests.json, recorded from the
-// app, are what the registry says its tools return: those in each request,
-// and the answers the suite gives a model's read. A result the app replays
-// only as its omission note has nothing left to check.
-TEST_CASE("the project prompt tests' recorded tool results match the registry's output schemas", "[agent][openai][project]")
+// app when that file was last recorded, still pass today's output schemas:
+// those in each request, and the answers the suite gives a model's read. It
+// checks the recording, not what the app returns now: an intended schema
+// change fails here until requests.json is recorded again, and a change to
+// what a tool returns that keeps its schema is not seen.
+TEST_CASE("the project prompt tests' recorded tool results still pass today's output schemas", "[agent][openai][project]")
 {
     std::ifstream file(std::string(JUSPRIN_SOURCE_DIR) + "/tests/project_prompt/requests.json");
     REQUIRE(file.good());
     const json recording = json::parse(file);
     const json& requests = recording.at("cases");
-    int checked = 0;
-    const auto check_result = [&checked, &recording](const std::string& name, const std::string& tool, const std::string& output_json) {
+    int checked = 0, outputs = 0;
+    const auto check_result = [&checked, &outputs, &recording](const std::string& name, const std::string& tool, const std::string& output_json) {
         json output = json::parse(output_json);
         // Setting items are kept once, in settingItems; a result holds indexes.
         for (const char* field : {"items", "unknownKeys"})
@@ -541,6 +571,7 @@ TEST_CASE("the project prompt tests' recorded tool results match the registry's 
                 output["result"].contains(field) && !output["result"][field].empty() && output["result"][field][0].is_number())
                 for (json& item : output["result"][field])
                     item = recording.at("settingItems").at(item.get<std::size_t>());
+        ++outputs;
         if (output.value("state", "") != "succeeded" || !output.contains("result"))
             return;
         const ToolDefinition* definition = ToolRegistry::instance().find(tool);
@@ -560,7 +591,11 @@ TEST_CASE("the project prompt tests' recorded tool results match the registry's 
         for (const json& answer : request.at("answers"))
             check_result(name + " answer", answer.at("tool").get<std::string>(), answer.at("output").get<std::string>());
     }
-    CHECK(checked > 1000);
+    // The recording still reads as the loop expects: it found results, and
+    // some of them succeeded (a failed call has no result to check).
+    INFO(outputs << " tool outputs, " << checked << " results checked");
+    CHECK(outputs > 0);
+    CHECK(checked > 0);
 }
 
 TEST_CASE("OpenAI SSE deltas and completion become typed agent events", "[agent][openai]")
@@ -590,13 +625,15 @@ TEST_CASE("automatic chat titles use the configured model without tools or works
     OpenAIResponsesAgent agent({"secret-key", "configured-model"}, std::move(transport));
     auto request = request_fixture();
     request.purpose = AgentRequest::Purpose::ConversationTitle;
-    request.conversation = {{"user", "Help me print a backpack frame"}, {"assistant", "Use five walls."}};
+    request.user_text = "Help me print a backpack frame";
     REQUIRE(agent.start(request));
     const auto body = json::parse(fake->requests.back().body);
     CHECK(body["model"] == "configured-model");
     CHECK(body["store"] == false);
     CHECK_FALSE(body.contains("tools"));
-    CHECK(body["input"].size() == 2);
+    CHECK(body["input"] == json::array({json{{"role", "user"},
+                                             {"content", json::array({json{{"type", "input_text"},
+                                                                           {"text", "Help me print a backpack frame"}}})}}}));
     CHECK(body.dump().find("sessionId") == std::string::npos);
     CHECK(body.dump().find("notes.txt") == std::string::npos);
     CHECK(body["instructions"].get<std::string>().find(kPageProjectInstructions) == std::string::npos);
@@ -607,21 +644,22 @@ TEST_CASE("automatic chat titles use the configured model without tools or works
     CHECK_FALSE(agent.busy());
 }
 
-TEST_CASE("OpenAI exposes attachment import only when its registered availability is satisfied",
+TEST_CASE("OpenAI offers attachment import whatever the message carries, and passes its call on",
           "[agent][openai][tools]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
     OpenAIResponsesAgent agent({"key"}, std::move(transport));
+    REQUIRE(agent.start(request_fixture()));
+    const json without_model = json::parse(fake->requests.front().body)["tools"];
+    agent.cancel();
     AgentRequest request = request_fixture();
     request.attachments.push_back({"model-1", "part.stl", "model", "model/stl", "", "", "", true});
     REQUIRE(agent.start(request));
 
-    const json tools = json::parse(fake->requests.front().body)["tools"];
-    std::vector<std::string> names;
-    for (const json& tool : tools)
-        names.push_back(tool["name"].get<std::string>());
-    CHECK(names == std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "print_dialog_open", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "setup_record", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
+    const json tools = json::parse(fake->requests.back().body)["tools"];
+    CHECK(tools == without_model);
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool["name"] == "object_import"; }));
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
@@ -900,7 +938,7 @@ bool mentions(const json& input, const std::string& text) { return input.dump().
 
 } // namespace
 
-TEST_CASE("a skill fired for a turn's first request ends that request and no other", "[agent][openai][skills]")
+TEST_CASE("a skill fired for a turn's first request ends that request and stays where it was sent", "[agent][openai][skills]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -916,21 +954,20 @@ TEST_CASE("a skill fired for a turn's first request ends that request and no oth
     CHECK(first[first.size() - 2] == kPictureItem);
     CHECK(first.back() == json{{"role", "developer"}, {"content", "A file was loaded."}});
 
-    // The response calls a tool; the request that carries its result is the
-    // turn's history without the skill or the picture.
+    // The response calls a tool; the request that carries its result opens
+    // with the first, skill and picture included, and adds to it.
     const json call{{"type", "function_call"}, {"call_id", "call-1"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({call})}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
     REQUIRE(agent.continue_after_tool({"call-1", "succeeded", R"({"state":"succeeded"})"}));
     const json next = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(next.size() == first.size() + 2);
+    CHECK(json(next.begin(), next.begin() + first.size()) == first);
+    CHECK(next[first.size()] == call);
     CHECK(next.back()["type"] == "function_call_output");
-    CHECK_FALSE(mentions(next, "A file was loaded."));
-    CHECK_FALSE(mentions(next, "input_image"));
-    CHECK(next[first.size() - 2] == call);  // the history picks up where the message ended
 }
 
-TEST_CASE("a skill a tool result fires follows every result of its response, on that request only",
-          "[agent][openai][skills]")
+TEST_CASE("a skill a tool result fires follows every result of its response, once", "[agent][openai][skills]")
 {
     auto transport = std::make_unique<FakeTransport>();
     FakeTransport* fake = transport.get();
@@ -962,16 +999,15 @@ TEST_CASE("a skill a tool result fires follows every result of its response, on 
     CHECK(input.back() == json{{"role", "developer"}, {"content", "The second import."}});
     CHECK_FALSE(mentions(input, "The first import."));
 
-    // The next request of the same turn has the results and no skill.
+    // The next request of the same turn repeats it and fires nothing new.
     const json reply_call{{"type", "function_call"}, {"call_id", "call-4"}, {"name", "workspace_inspect"}, {"arguments", "{}"}};
     fake->data(sse(json{{"type", "response.completed"}, {"response", json{{"output", json::array({reply_call})}}}}));
     REQUIRE(poll_until(agent, AgentEventKind::ToolCall));
     REQUIRE(agent.continue_after_tool({"call-4", "succeeded", R"({"state":"succeeded"})"}));
     const json later = json::parse(fake->requests.back().body)["input"];
+    REQUIRE(later.size() == input.size() + 2);
+    CHECK(json(later.begin(), later.begin() + input.size()) == input);
     CHECK(later.back()["call_id"] == "call-4");
-    CHECK_FALSE(mentions(later, "The second import."));
-    CHECK_FALSE(mentions(later, "input_image"));
-    CHECK(mentions(later, "call-import"));
 }
 
 TEST_CASE("a skill without a picture is its text alone, and a title request carries none", "[agent][openai][skills]")
@@ -998,3 +1034,20 @@ TEST_CASE("a skill without a picture is its text alone, and a title request carr
     CHECK_FALSE(mentions(title_input, "input_image"));
 }
 
+TEST_CASE("a request carries its chat's prompt_cache_key, except through JusPrin's gateway and for a title",
+          "[agent][openai][cache]")
+{
+    TurnTranscript transcript;
+    transcript.instructions = "Instructions.";
+    transcript.chat_key     = "p-1a2b/c-3";
+    const ResponsesCodec codec;
+    CHECK(codec.build(transcript, openai_profile(), RequestKind::Reply).body["prompt_cache_key"] == "p-1a2b/c-3");
+    CHECK(codec.build(transcript, *profile_for("openrouter"), RequestKind::Reply).body["prompt_cache_key"] == "p-1a2b/c-3");
+    // The gateway answers 400 to a field it does not list.
+    const std::optional<ProviderProfile> gateway = account_profile(account_provider(), "", kFormatResponses);
+    REQUIRE(gateway);
+    CHECK_FALSE(codec.build(transcript, *gateway, RequestKind::Reply).body.contains("prompt_cache_key"));
+    CHECK_FALSE(codec.build(transcript, openai_profile(), RequestKind::ConversationTitle).body.contains("prompt_cache_key"));
+    transcript.chat_key.clear();
+    CHECK_FALSE(codec.build(transcript, openai_profile(), RequestKind::Reply).body.contains("prompt_cache_key"));
+}

@@ -71,7 +71,7 @@ TEST_CASE("tool registry applies declared adapter exposure", "[tools][registry][
           std::vector<std::string>{"activity_cancel", "calibration_generate", "export_file", "object_analyze", "object_divide", "object_divide_preview", "object_import_file", "object_merge", "object_place", "object_repair", "plate_layout", "presets_list", "print_dialog_open", "printer_list", "printer_setup", "printer_setup_preview", "project_attachment_read", "project_delete_items", "project_open", "region_annotate", "settings_apply_patch", "settings_get", "settings_preview_patch", "settings_search", "slice_inspect", "slice_report", "slice_start", "view_render", "workspace_inspect"});
 
     REQUIRE(ToolRegistry::instance().find("object_import") != nullptr);
-    CHECK(ToolRegistry::instance().find("object_import")->availability == ToolAvailability::ImportableAttachment);
+    CHECK(ToolRegistry::instance().find("object_import")->availability == ToolAvailability::Always);
 }
 
 TEST_CASE("tool registry is the argument validation boundary", "[tools][registry][validation]")

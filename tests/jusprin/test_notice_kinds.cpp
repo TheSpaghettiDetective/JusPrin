@@ -20,6 +20,10 @@ TEST_CASE("every notification kind has a name and a route", "[print-issues][noti
         CAPTURE(kind);
         CHECK_FALSE(name.empty());
         CHECK(names.insert(name).second);
+        // Calls the route for every kind; it cannot fail, since NotShown is
+        // both the last route and the fallback. That every kind is routed
+        // exactly once is enforced when NoticeKinds.cpp compiles (-Wswitch
+        // as an error, and duplicate cases).
         CHECK(int(notice_route(NotificationType(kind))) <= int(NoticeRoute::NotShown));
     }
 }

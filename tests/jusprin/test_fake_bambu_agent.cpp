@@ -17,7 +17,10 @@
 
 using nlohmann::json;
 
-TEST_CASE("FakeBambuAgent SSDP announcement uses the A1 mini type code", "[FakeBambuAgent]")
+// The type code itself (the A1 mini's "N1") is checked through
+// start_discovery below; this checks the announcement carries the fake's own
+// id and type, as a free LAN device.
+TEST_CASE("FakeBambuAgent SSDP announcement is a free LAN device with the fake's id and type", "[FakeBambuAgent]")
 {
     const json j = json::parse(Slic3r::FakeBambuAgent::ssdp_announcement_json());
     CHECK(j["dev_id"] == Slic3r::JUSPRIN_FAKE_BAMBU_DEV_ID);

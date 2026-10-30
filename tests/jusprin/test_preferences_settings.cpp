@@ -4,6 +4,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesSettings.hpp"
 
 #include "libslic3r/AppConfig.hpp"
@@ -17,18 +18,24 @@ using nlohmann::json;
 
 namespace {
 
+// A fresh data directory, made the process's before anything reads it.
+boost::filesystem::path scratch_data_dir()
+{
+    const boost::filesystem::path dir = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path("jusprin-prefs-%%%%%%");
+    boost::filesystem::create_directories(dir);
+    Slic3r::set_data_dir(dir.string());
+    return dir;
+}
+
 // AppConfig::save() writes into the data directory, from the main thread.
+// The directory is set before the AppConfig member is built (members are
+// built in order) and put back afterwards, so no case sees another's folder.
 struct ConfigFixture
 {
-    ConfigFixture()
-    {
-        Slic3r::save_main_thread_id();
-        dir = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path("jusprin-prefs-%%%%%%");
-        boost::filesystem::create_directories(dir);
-        Slic3r::set_data_dir(dir.string());
-    }
+    ConfigFixture() { Slic3r::save_main_thread_id(); }
     ~ConfigFixture()
     {
+        Slic3r::set_data_dir(previous_data_dir);
         boost::system::error_code ignored;
         boost::filesystem::remove_all(dir, ignored);
     }
@@ -40,7 +47,8 @@ struct ConfigFixture
         return snapshot(config, facts);
     }
 
-    boost::filesystem::path dir;
+    std::string             previous_data_dir{Slic3r::data_dir()};
+    boost::filesystem::path dir{scratch_data_dir()};
     Slic3r::AppConfig       config;
     Facts                   facts;
 };
@@ -185,9 +193,12 @@ TEST_CASE_METHOD(ConfigFixture, "New chats start with a provider that has a key,
     facts.configured_providers = {"openai", "anthropic"};
     const json choices = snapshot(config, facts)["agent"]["newChatChoices"];
     REQUIRE(choices.size() == 2);
+    // Each choice carries its provider's built-in model, read from the
+    // provider table so a routine default bump does not touch this test.
+    CHECK(choices[0]["provider"] == "openai");
+    CHECK(choices[0]["model"] == Slic3r::GUI::JusPrin::Agent::profile_for("openai")->model);
     CHECK(choices[1]["provider"] == "anthropic");
-    CHECK(choices[1]["model"] == "claude-opus-5-5");
-    CHECK(choices[0]["model"] == "gpt-5.4-mini");
+    CHECK(choices[1]["model"] == Slic3r::GUI::JusPrin::Agent::profile_for("anthropic")->model);
 
     // Setup's key: the provider a chat with no choice of its own talks to.
     CHECK(set("newChatProvider", "anthropic")["agent"]["newChatProvider"] == "anthropic");

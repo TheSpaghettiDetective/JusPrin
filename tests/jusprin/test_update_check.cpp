@@ -72,9 +72,10 @@ TEST_CASE("Release notes are optional and kept short", "[Updates]")
     long_notes["body"] = std::string(kNotesLimit + 100, 'x');
     CHECK(newer(json::array({long_notes}), "2.0.0")->notes.size() == kNotesLimit);
 
-    // "é" is two bytes; the cut must not split it.
+    // "é" is two bytes (C3 A9); the cut must not split it. Written as
+    // escapes so the bytes do not depend on the source file's encoding.
     json accented = release("v2.1.0");
-    accented["body"] = std::string(kNotesLimit - 1, 'x') + "Ã©";
+    accented["body"] = std::string(kNotesLimit - 1, 'x') + "\xC3\xA9";
     const std::string notes = newer(json::array({accented}), "2.0.0")->notes;
     CHECK(notes.size() == kNotesLimit - 1);
     CHECK_NOTHROW(json(notes).dump());
@@ -144,10 +145,10 @@ TEST_CASE("What a check found is remembered until JusPrin catches up", "[Updates
 
     save_success(config, 1000, Release{"2.1.0", "https://example.test/v2.1.0", "2026-11-02T10:00:00Z", "## Fixes"});
     UpdateRecord record = load_record(config, "2.0.0");
-    CHECK(record.available->notes == "## Fixes");
     CHECK(record.last_success == 1000);
     CHECK_FALSE(record.last_failed);
     REQUIRE(record.available);
+    CHECK(record.available->notes == "## Fixes");
     CHECK(record.available->url == "https://example.test/v2.1.0");
 
     SECTION("a failed check keeps the release it found earlier")

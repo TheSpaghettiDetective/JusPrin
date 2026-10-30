@@ -1,11 +1,13 @@
 #pragma once
 
 // The provider-neutral turn loop behind IAgentService. It owns the
-// transcript of the turn, runs the model's tool calls one at a time in the
-// order written, answers the rest unrun after a failure, refuses calls to
-// tools not offered or with arguments off the contract, and sends fired
-// skills on one request only. Everything on the wire goes through the
-// IProviderCodec it is built with, and nothing here reads provider JSON.
+// transcript of the turn: the chat's record, then what the turn adds, which
+// it hands back to the record once a later request can follow on from it.
+// It runs the model's tool calls one at a time in the order written, answers
+// the rest unrun after a failure, refuses calls to tools not offered or with
+// arguments off the contract, and sends fired skills after what fired them.
+// Everything on the wire goes through the IProviderCodec it is built with,
+// and nothing here reads provider JSON.
 //
 // Network callbacks only append protected input; all parsing and AgentEvent
 // delivery happens from poll() on the GUI thread.
@@ -57,6 +59,11 @@ private:
     };
 
     void begin_transcript(const AgentRequest& request);
+    void push_skills(const std::vector<AgentSkillUse>& skills, std::vector<RecordItem> notes = {});
+    // The part with its blob written, ahead of the request that first sends it.
+    RecordPart kept(RecordPart part);
+    // Hands the chat's record what the provider accepted and is settled.
+    void record();
     bool post();
     void accept_http(std::uint64_t generation, AgentHttpEvent event);
     void parse_available();
@@ -75,8 +82,22 @@ private:
     std::deque<QueuedHttpEvent>           m_http_events;
     std::deque<AgentEvent>                m_events;
     std::string                           m_sse_buffer;
-    // What the model has been told this turn; every request is built from it.
+    // What the model has been told; every request is built from it.
     TurnTranscript                        m_transcript;
+    // Where the turn's items go to be kept, and how far they have gone: the
+    // items before m_recorded are in the chat's record. Those before
+    // m_settled join it once the provider accepts a request carrying them: a
+    // request may fail after them and the next one still follows on (never a
+    // call without its result, never an operator message with nothing after
+    // it).
+    std::function<void(const std::string&, std::vector<RecordItem>)> m_on_recorded;
+    std::function<std::optional<std::string>(const std::string&)>    m_keep_blob;
+    // A picture of this turn could not be written to its blob.
+    bool                                  m_unkept{false};
+    std::size_t                           m_recorded{0};
+    std::size_t                           m_settled{0};
+    // The results of the response's calls so far.
+    RecordItem                            m_results{RecordItem::Kind::Results};
     RequestKind                           m_kind{RequestKind::Reply};
     std::string                           m_pending_call_id;
     std::string                           m_pending_tool;

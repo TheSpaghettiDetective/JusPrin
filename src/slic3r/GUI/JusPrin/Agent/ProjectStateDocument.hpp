@@ -19,6 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <functional>
 #include <optional>
 #include <string>
@@ -47,6 +48,72 @@ struct ChatModelChoice
     }
     bool operator!=(const ChatModelChoice& other) const { return !(*this == other); }
 };
+
+// One part of an item on the person's side of a chat's record: text, or a
+// picture or PDF whose bytes live in a blob beside the document, never in it.
+struct RecordPart
+{
+    enum class Kind { Text, Image, Pdf };
+    Kind        kind{Kind::Text};
+    std::string text;     // Text
+    std::string mime;     // Image, Pdf
+    std::string filename; // Pdf
+    // Image, Pdf: the blob's path relative to the JusPrin data dir, written
+    // before the request that first sends it. The blob holds the base64 text
+    // as sent.
+    std::string blob;
+    // Image, Pdf: the base64 text as sent, in memory only.
+    std::string base64;
+};
+
+// A call's result, as the model was told it.
+struct RecordResult
+{
+    std::string               call_id;
+    std::string               output_json;
+    bool                      failed{false}; // failed, cancelled, refused or not run
+    std::optional<RecordPart> image;
+};
+
+// One item of a chat's record: something the model was sent, kept as sent so
+// every later request repeats it unchanged. Who speaks decides the kind:
+// the person's side (their words and the app's data that travels with them:
+// workspace block, file report, pictures), the operator (app notes and fired
+// skills), the model (its output, thinking included, verbatim), and tool
+// results, which stay in their own channel.
+struct RecordItem
+{
+    enum class Kind { User, Operator, Assistant, Results };
+    Kind                      kind{Kind::User};
+    // The chat message the item came from, when it came from one.
+    std::string               source;
+    std::vector<RecordPart>   parts;   // User
+    std::string               text;    // Operator
+    nlohmann::json            output;  // Assistant: the provider's own output
+    std::vector<RecordResult> results; // Results
+    // Operator: a fired skill, which the model reads on the request that
+    // sent it only where the provider can clear it (Anthropic's clear_at).
+    bool                      clears{false};
+};
+
+// Everything one chat has sent to the model, in order, in one wire format
+// ("anthropic" or "responses"). Items are only ever appended.
+struct ChatRecord
+{
+    std::string             format;
+    std::vector<RecordItem> items;
+
+    bool holds(const std::string& message_id) const
+    {
+        return std::any_of(items.begin(), items.end(), [&message_id](const RecordItem& item) { return item.source == message_id; });
+    }
+};
+
+// Where chats' records keep the pictures and PDFs they sent, relative to the
+// JusPrin data dir. Not under attachments/, which the version store prunes
+// to the document's attachment index; a chat's folder goes with the chat.
+inline constexpr const char* kChatRecordsDir = "chats";
+inline std::string chat_record_dir(const std::string& conversation_id) { return std::string(kChatRecordsDir) + "/" + conversation_id; }
 
 struct ConversationInfo
 {
@@ -218,6 +285,13 @@ public:
     // project resumes it. Absent until the person picks one.
     std::optional<ChatModelChoice> chat_model(const std::string& conversation_id) const;
     bool                           set_chat_model(const std::string& conversation_id, const ChatModelChoice& choice);
+    // What the chat has sent to the model. Absent for a chat that has sent
+    // nothing yet. Picture bytes are not loaded.
+    std::optional<ChatRecord> chat_record(const std::string& conversation_id) const;
+    // Appends items as sent, in `format`. A format other than the record's
+    // is a logic error.
+    void append_chat_record(const std::string& conversation_id, const std::string& format,
+                            const std::vector<RecordItem>& items);
     // Erases chat content and returns orphaned attachment directories.
     // G-code records retain their historical conversation IDs. Deleting the active chat makes a replacement that
     // starts as create_conversation's does, from the deleted chat's intent.

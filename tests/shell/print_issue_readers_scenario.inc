@@ -82,6 +82,21 @@
         return nullptr;
     }
 
+    // "Blocks printing" is OrcaSlicer's own answer: the monitor holds a
+    // blocker exactly when OrcaSlicer refuses to slice, or refuses to print
+    // the slice it has. For steps whose condition OrcaSlicer may or may not
+    // raise, so the step checks something either way.
+    bool blockers_match_orca()
+    {
+        PartPlate* plate   = m_plater->get_partplate_list().get_curr_plate();
+        const bool refuses = !installed_shell()->status_row()->action_state().can_slice ||
+                             (plate->is_slice_result_valid() && !plate->is_slice_result_ready_for_print());
+        const bool blocks  = std::any_of(issues().issues.begin(), issues().issues.end(),
+                                         [](const Issue& issue) { return issue.severity == PrintIssues::IssueSeverity::Blocker; });
+        std::cerr << "HARNESS BLOCKERS orca_refuses=" << refuses << " monitor_blocks=" << blocks << '\n';
+        return refuses == blocks;
+    }
+
     // OrcaSlicer's notice text carries "Error:\n" or "Warning:\n" ahead of the
     // sentence; the monitor carries the sentence. True when the rest is equal.
     bool same_words(const NativeNotice* notice, const Issue* issue, const std::string& name)
@@ -213,11 +228,10 @@
             self->dump_readers("a1 sliced");
             const Issue* outside = self->issue_coded("toolpath_outside_plate");
             std::cerr << "HARNESS RESULT a1 toolpath_outside_reported=" << (outside != nullptr) << '\n';
-            if (outside != nullptr) {
-                PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
-                self->check(outside->severity == IssueSeverity::Blocker, "a1_toolpath_outside_is_a_blocker");
-                self->check(!plate->is_slice_result_ready_for_print(), "a1_orca_itself_refuses_to_print_what_the_monitor_calls_a_blocker");
-            }
+            // OrcaSlicer trims a brim at the plate's edge, so this slice has
+            // no path outside and prints (orca-integration-guide.md); a4 puts
+            // a skirt there instead. Either way the monitor must agree.
+            self->check(self->blockers_match_orca(), "a1_the_monitor_blocks_exactly_when_orca_refuses");
         }});
         }
 
@@ -238,12 +252,17 @@
             const Issue* outside = self->issue_coded("toolpath_outside_plate");
             std::cerr << "HARNESS RESULT a4 toolpath_outside_reported=" << (outside != nullptr) << " orca_ready_for_print="
                       << plate->is_slice_result_ready_for_print() << " can_print=" << installed_shell()->status_row()->action_state().can_print << '\n';
+            self->check(outside != nullptr, "a4_toolpath_outside_reported");
+            self->check(outside != nullptr && outside->severity == IssueSeverity::Blocker && !plate->is_slice_result_ready_for_print(),
+                        "a4_toolpath_outside_is_a_blocker_orca_refuses_to_print");
             self->m_readers_sliced = plate->is_slice_result_valid();
         }});
         steps.push_back({"a4_orcas_own_words", [self] {
+            // Cleared first, so an unsliced step compares nothing rather than
+            // an earlier step's notices.
+            self->m_native.clear();
             if (!self->m_readers_sliced)
                 return;
-            self->m_native.clear();
             self->m_frame->CallAfter([self] {
                 for (wxWindow* window : wxTopLevelWindows)
                     if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
@@ -262,7 +281,8 @@
                 if (notice.type == int(NotificationType::SlicingError))
                     native = &notice;
             }
-            self->same_words(native, self->issue_coded("toolpath_outside_plate"), "a4_toolpath_outside");
+            self->check(self->same_words(native, self->issue_coded("toolpath_outside_plate"), "a4_toolpath_outside"),
+                        "a4_toolpath_outside_in_orcas_words");
         }});
         }
 
@@ -314,7 +334,14 @@
             std::cerr << "HARNESS A6 printable_height=" << top << '\n';
         }, {}, [self] {
             self->dump_readers("a6 before slice");
-            std::cerr << "HARNESS RESULT a6 orca_lets_it_slice=" << installed_shell()->status_row()->action_state().can_slice << '\n';
+            const bool can_slice = installed_shell()->status_row()->action_state().can_slice;
+            std::cerr << "HARNESS RESULT a6 orca_lets_it_slice=" << can_slice << '\n';
+            // OrcaSlicer's placement check counts a body over the height
+            // limit as outside the plate and will not slice it.
+            const Issue* outside = self->issue_coded("partly_outside_plate");
+            self->check(outside != nullptr && outside->severity == IssueSeverity::Blocker && !can_slice,
+                        "a6_taller_than_the_printer_is_a_blocker_orca_will_not_slice");
+            self->check(outside != nullptr && outside->object == self->issue_object(1)->id().id, "a6_the_blocker_names_the_tall_object");
         }});
         }
 
@@ -335,6 +362,7 @@
             self->dump_readers("a2 sliced");
             const Issue* surface = self->issue_coded("filament_unprintable_on_plate");
             std::cerr << "HARNESS RESULT a2 plate_surface_reported=" << (surface != nullptr) << '\n';
+            self->check(surface != nullptr, "a2_plate_surface_reported");
             if (surface != nullptr) {
                 self->check(surface->severity == IssueSeverity::Blocker, "a2_plate_surface_is_a_blocker");
                 self->check(!self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_ready_for_print(),
@@ -371,8 +399,9 @@
             const Issue* failure = self->issue_from(IssueSource::SliceFailure, IssueSeverity::Blocker);
             std::cerr << "HARNESS RESULT a3 failure=" << (failure != nullptr) << " object=" << (failure ? failure->object : 0)
                       << " expected_object=" << (self->m_plater->model().objects.size() > 1 ? self->issue_object(1)->id().id : 0) << '\n';
-            if (failure != nullptr && failure->object != 0)
-                self->check(failure->object == self->issue_object(1)->id().id, "a3_the_failure_names_the_object_orca_named");
+            self->check(failure != nullptr, "a3_slice_failure_reported");
+            self->check(failure != nullptr && self->m_plater->model().objects.size() > 1 && failure->object == self->issue_object(1)->id().id,
+                        "a3_the_failure_names_the_object_orca_named");
         }});
         }
 
@@ -390,22 +419,26 @@
             self->dump_readers("b1");
             const Issue* issue = self->issue_coded("BBLNozzleFilamentIncompatible");
             std::cerr << "HARNESS RESULT b1 silk_selectable=" << self->m_silk_chosen << " reported=" << (issue != nullptr) << '\n';
+            self->check(self->m_silk_chosen, "b1_pla_silk_selected");
+            self->check(issue != nullptr, "b1_nozzle_and_filament_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Warning, "b1_nozzle_and_filament_is_a_warning");
                 self->check(installed_shell()->status_row()->action_state().can_slice, "b1_orca_still_slices");
-                self->same_words(self->native_notice(NotificationType::BBLNozzleFilamentIncompatible), issue, "b1_nozzle_filament");
+                self->check(self->same_words(self->native_notice(NotificationType::BBLNozzleFilamentIncompatible), issue, "b1_nozzle_filament"),
+                            "b1_nozzle_filament_in_orcas_words");
             }
         }});
         }
 
         if (wanted("B1")) {
         steps.push_back({"b2_pla_with_petg_one_nozzle", [self] {
-            self->enable_filaments({"Bambu PETG Basic @BBL X1C", "Bambu PLA Basic @BBL X1C"});
+            // The X1 Carbon's 0.6 nozzle takes PETG Basic from the preset
+            // named for the 0.8 nozzle; "@BBL X1C" alone is 0.4 only.
+            self->enable_filaments({"Bambu PETG Basic @BBL X1C 0.8 nozzle", "Bambu PLA Basic @BBL X1C"});
             self->two_cubes("b2");
             if (SetupCommands::filament_slots().size() < 2)
                 SetupCommands::add_filament_slot(*self->m_plater);
-            self->choose_filament(0, "PLA Basic");
-            self->choose_filament(1, "PETG Basic");
+            self->check(self->choose_filament(0, "PLA Basic") && self->choose_filament(1, "PETG Basic"), "b2_pla_and_petg_selected");
             self->give_filament(1, 2);
         }, {}, [self] {
             self->dump_readers("b2");
@@ -416,10 +449,13 @@
             const Issue* issue = self->issue_coded("BBLMixUsePLAAndPETG");
             std::cerr << "HARNESS RESULT b2 after_reload reported=" << (issue != nullptr)
                       << " orca_notice=" << (self->native_notice(NotificationType::BBLMixUsePLAAndPETG) != nullptr) << '\n';
+            self->check(issue != nullptr, "b2_pla_with_petg_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Warning && issue->object == 0, "b2_pla_with_petg_is_a_plate_wide_warning");
-                self->check(installed_shell()->status_row()->action_state().can_slice, "b2_orca_still_slices");
-                self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "b2_pla_petg");
+                // As in b3, slicing is refused by a separate validation blocker
+                // (the two filaments' nozzle temperatures), not by this warning.
+                self->check(self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "b2_pla_petg"),
+                            "b2_pla_petg_in_orcas_words");
             }
         }});
         }
@@ -454,11 +490,13 @@
             const Issue* issue = self->issue_coded("BBLMixUsePLAAndPETG");
             std::cerr << "HARNESS RESULT b3 after_reload reported=" << (issue != nullptr)
                       << " orca_notice=" << (self->native_notice(NotificationType::BBLMixUsePLAAndPETG) != nullptr) << '\n';
+            self->check(issue != nullptr, "b3_pla_with_petg_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Warning && issue->object == 0, "b3_pla_with_petg_is_a_plate_wide_warning");
                 // Slicing is refused here by a separate validation blocker (the two
                 // filaments' nozzle temperatures), not by this warning.
-                self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "b3_pla_petg");
+                self->check(self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "b3_pla_petg"),
+                            "b3_pla_petg_in_orcas_words");
             }
         }});
         }
@@ -494,22 +532,30 @@
             self->prepare_canvas().reload_scene(true);
             self->issue_monitor().refresh_now();
             self->dump_readers("c1 after a scene reload and a forced recompute");
+            bool orca_check_passes = true;
             {
                 const DynamicPrintConfig config = wxGetApp().preset_bundle->full_config();
                 PartPlate* plate = self->m_plater->get_partplate_list().get_curr_plate();
+                orca_check_passes = plate->check_mixture_of_pla_and_petg(config);
                 std::cerr << "HARNESS C1DIAG filament_types=";
                 for (const std::string& type : config.option<ConfigOptionStrings>("filament_type")->values) std::cerr << type << ',';
                 std::cerr << " used_filaments=";
                 for (const int filament : plate->get_extruders(true)) std::cerr << filament << ',';
                 std::cerr << " tool_change_time=" << config.opt_float("machine_tool_change_time")
-                          << " orca_check_passes=" << plate->check_mixture_of_pla_and_petg(config) << '\n';
+                          << " orca_check_passes=" << orca_check_passes << '\n';
             }
             const Issue* issue = self->issue_coded("BBLMixUsePLAAndPETG");
             std::cerr << "HARNESS RESULT c1 reported=" << (issue != nullptr) << '\n';
+            // OrcaSlicer skips this warning on a printer with a tool change
+            // time, which the H2D has (orca-integration-guide.md), so the
+            // monitor is checked against OrcaSlicer's own answer, not for a
+            // warning.
+            self->check((issue != nullptr) == !orca_check_passes, "c1_reported_exactly_when_orcas_own_check_fails");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Warning && issue->object == 0, "c1_pla_with_petg_is_a_plate_wide_warning");
                 self->check(installed_shell()->status_row()->action_state().can_slice, "c1_orca_still_slices");
-                self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "c1_pla_petg");
+                self->check(self->same_words(self->native_notice(NotificationType::BBLMixUsePLAAndPETG), issue, "c1_pla_petg"),
+                            "c1_pla_petg_in_orcas_words");
             }
         }});
 
@@ -517,9 +563,11 @@
             self->dump_readers("c2");
             const Issue* issue = self->issue_coded("PlaterWarning");
             std::cerr << "HARNESS RESULT c2 pva_selectable=" << self->m_pva_chosen << " reported=" << (issue != nullptr) << '\n';
+            self->check(self->m_pva_chosen, "c2_pva_selected");
+            self->check(issue != nullptr, "c2_mixture_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Warning, "c2_mixture_is_a_warning");
-                self->same_words(self->native_notice(NotificationType::PlaterWarning), issue, "c2_mixture");
+                self->check(self->same_words(self->native_notice(NotificationType::PlaterWarning), issue, "c2_mixture"), "c2_mixture_in_orcas_words");
             }
         }});
 
@@ -531,10 +579,13 @@
             self->dump_readers("c3");
             const Issue* issue = self->issue_coded("BBLFilamentPrintableError");
             std::cerr << "HARNESS RESULT c3 tpu_selectable=" << self->m_tpu_chosen << " reported=" << (issue != nullptr) << '\n';
+            self->check(self->m_tpu_chosen, "c3_tpu_selected");
+            self->check(issue != nullptr, "c3_filament_not_printable_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Blocker, "c3_filament_not_printable_is_a_blocker");
                 self->check(!installed_shell()->status_row()->action_state().can_slice, "c3_orca_itself_refuses_to_slice");
-                self->same_words(self->native_notice(NotificationType::BBLFilamentPrintableError), issue, "c3_filament_not_printable");
+                self->check(self->same_words(self->native_notice(NotificationType::BBLFilamentPrintableError), issue, "c3_filament_not_printable"),
+                            "c3_filament_not_printable_in_orcas_words");
             }
             std::cerr << "HARNESS RESULT c3 two_tpu_reader=" << (self->issue_coded("SlicingError") != nullptr) << '\n';
         }});
@@ -546,6 +597,10 @@
             self->dump_readers("c3b");
             std::cerr << "HARNESS RESULT c3b two_tpu_filaments_used reported=" << (self->issue_coded("SlicingError") != nullptr)
                       << " can_slice=" << installed_shell()->status_row()->action_state().can_slice << '\n';
+            // OrcaSlicer does not limit how many TPU filaments a plate uses
+            // (check_tpu_printable_status returns true), and c3's blocker
+            // must have gone with the TPU off the left nozzle.
+            self->check(self->blockers_match_orca(), "c3b_the_monitor_blocks_exactly_when_orca_refuses");
         }});
 
         steps.push_back({"c4_out_of_a_nozzles_reach", [self] {
@@ -559,10 +614,12 @@
             self->dump_readers("c4");
             const Issue* issue = self->issue_coded("right_nozzle_unprintable");
             std::cerr << "HARNESS RESULT c4 reported=" << (issue != nullptr) << '\n';
+            self->check(issue != nullptr, "c4_out_of_reach_reported");
             if (issue != nullptr) {
                 self->check(issue->severity == IssueSeverity::Blocker, "c4_out_of_reach_is_a_blocker");
                 self->check(!installed_shell()->status_row()->action_state().can_slice, "c4_orca_itself_refuses_to_slice");
-                self->same_words(self->native_notice(NotificationType::RightExtruderUnprintableError), issue, "c4_right_nozzle");
+                self->check(self->same_words(self->native_notice(NotificationType::RightExtruderUnprintableError), issue, "c4_right_nozzle"),
+                            "c4_right_nozzle_in_orcas_words");
                 std::cerr << "HARNESS RESULT c4 target_object=" << issue->object << " cube=" << self->issue_object(1)->id().id << '\n';
                 self->check(issue->object == self->issue_object(1)->id().id, "c4_out_of_reach_names_the_object_orca_named");
             }
@@ -587,7 +644,7 @@
             const bool   monitored = flushing != nullptr;
             self->check(notice != nullptr && flushing != nullptr && flushing->severity == IssueSeverity::Warning && flushing->object == 0,
                         "c5_flushing_volume_zero_is_a_plate_wide_warning");
-            self->same_words(notice, flushing, "c5_flushing");
+            self->check(self->same_words(notice, flushing, "c5_flushing"), "c5_flushing_in_orcas_words");
             std::cerr << "HARNESS RESULT c5 orca_holds_flushing_notice=" << (notice != nullptr) << " monitor_reports_it=" << monitored
                       << " can_slice=" << installed_shell()->status_row()->action_state().can_slice << '\n';
         }});
@@ -619,15 +676,17 @@
             const Issue* area = self->issue_coded("nozzle_printable_area");
             std::cerr << "HARNESS RESULT d1 nozzle_area_reported=" << (area != nullptr)
                       << " prime_tower_reported=" << (self->issue_coded("PlaterWarning") != nullptr) << '\n';
-            if (area != nullptr) {
-                self->check(area->severity == IssueSeverity::Blocker, "d1_nozzle_area_is_a_blocker");
-                self->check(!plate->is_slice_result_ready_for_print(), "d1_orca_itself_refuses_to_print");
-            }
+            // OrcaSlicer trims a brim at a nozzle's reach as it does at the
+            // plate's edge (orca-integration-guide.md), so this slice prints
+            // and d2 finds no words to compare. Either way the monitor must
+            // agree with OrcaSlicer.
+            self->check(self->blockers_match_orca(), "d1_the_monitor_blocks_exactly_when_orca_refuses");
             self->m_readers_sliced = plate->is_slice_result_valid();
         }});
         // Check print loads the slice into OrcaSlicer's preview, which is where
         // OrcaSlicer itself words these: its notices are then in the manager.
         steps.push_back({"d2_orcas_own_words_after_slicing", [self] {
+            self->m_native.clear();
             if (!self->m_readers_sliced)
                 return;
             self->m_frame->CallAfter([self] {
@@ -670,14 +729,16 @@
             self->dump_readers("d4 sliced");
             const Issue* tower = self->issue_coded("PlaterWarning");
             std::cerr << "HARNESS RESULT d4 prime_tower_reported=" << (tower != nullptr) << '\n';
+            self->check(tower != nullptr, "d4_prime_tower_reported");
             if (tower != nullptr)
-                self->same_words(self->native_notice(NotificationType::PlaterWarning), tower, "d4_prime_tower");
+                self->check(self->same_words(self->native_notice(NotificationType::PlaterWarning), tower, "d4_prime_tower"),
+                            "d4_prime_tower_in_orcas_words");
             self->m_readers_sliced = self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid();
         }});
         steps.push_back({"d4b_orcas_own_words_for_that_slice", [self] {
+            self->m_native.clear();
             if (!self->m_readers_sliced)
                 return;
-            self->m_native.clear();
             self->m_frame->CallAfter([self] {
                 for (wxWindow* window : wxTopLevelWindows)
                     if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
@@ -696,8 +757,13 @@
                 if (notice.type == int(NotificationType::BBLSliceLimitError)) area = &notice;
                 if (notice.type == int(NotificationType::SlicingError)) outside = &notice;
             }
+            self->check(area != nullptr && self->issue_coded("nozzle_printable_area") != nullptr, "d4b_nozzle_area_reported_by_both");
+            // The words are printed, not checked: the monitor lists each
+            // filament once ("Filaments 1 are placed in the left nozzle"),
+            // where OrcaSlicer repeats one per object ("Filaments 1, 1 are").
             self->same_words(area, self->issue_coded("nozzle_printable_area"), "d4b_nozzle_area");
-            self->same_words(outside, self->issue_coded("toolpath_outside_plate"), "d4b_toolpath_outside");
+            self->check(self->same_words(outside, self->issue_coded("toolpath_outside_plate"), "d4b_toolpath_outside"),
+                        "d4b_toolpath_outside_in_orcas_words");
         }});
 
         steps.push_back({"d5_taller_than_the_left_nozzle_reaches", [self] {
@@ -728,9 +794,15 @@
             const Issue* height = self->issue_coded("nozzle_printable_height");
             std::cerr << "HARNESS RESULT d6 nozzle_height_reported=" << (height != nullptr)
                       << " toolpath_above_reported=" << (self->issue_coded("toolpath_above_print_height") != nullptr) << '\n';
+            // OrcaSlicer's placement check already refuses a body taller than
+            // the left nozzle's reach (left_nozzle_unprintable), so the slice
+            // does not run and d7 finds no words to compare. Either way the
+            // monitor must agree with OrcaSlicer.
+            self->check(self->blockers_match_orca(), "d6_the_monitor_blocks_exactly_when_orca_refuses");
             self->m_readers_sliced = self->m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid();
         }});
         steps.push_back({"d7_orcas_own_words_for_the_column", [self] {
+            self->m_native.clear();
             if (!self->m_readers_sliced)
                 return;
             self->m_frame->CallAfter([self] {
@@ -829,6 +901,11 @@
             canvas.set_legacy_overlays_hidden(true);
         }, {}, [self] {
             std::cerr << "HARNESS RESULT e2 control_drawn=" << self->m_drawn_control << " after_suppression_drawn=" << self->m_drawn_suppressed << '\n';
+            // The fork skips only the drawing loop, so the end of
+            // render_notifications still deletes the closed warning and the
+            // same words come back as they do without suppression.
+            self->check(self->m_drawn_control > 0 && self->m_drawn_suppressed == self->m_drawn_control,
+                        "e2_a_warning_closed_while_suppressed_comes_back_like_the_control");
         }});
         }
 
@@ -910,6 +987,8 @@
         steps.push_back({"f4_an_arrange_is_an_entry_too", [self] {
             self->two_cubes("f4");
             self->m_work_before = self->persistence().document().work().size();
+            // The wait below gives the arrange two seconds from here, not from f3's slice.
+            self->m_slice_started = std::chrono::steady_clock::now();
             self->m_plater->arrange();
         }, [self] {
             return self->m_plater->get_ui_job_worker().is_idle() && self->issues().checked &&

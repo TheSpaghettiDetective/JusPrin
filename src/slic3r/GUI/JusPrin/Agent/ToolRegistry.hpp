@@ -40,8 +40,10 @@ constexpr bool has_exposure(ToolExposure exposures, ToolExposure exposure)
 // deliberately not live project state: the registry and the advertised MCP
 // catalog stay immutable for the process lifetime.
 // SkillIndex: offered when the page sent at least one skill the model may
-// read on its own (one with a description).
-enum class ToolAvailability : std::uint8_t { Always, ImportableAttachment, SkillIndex };
+// read on its own (one with a description). Nothing is offered by the
+// request's attachments: on Anthropic the tools open the request, so a list
+// that changes between requests of a chat voids its whole prompt cache.
+enum class ToolAvailability : std::uint8_t { Always, SkillIndex };
 
 // Stable executor association. The registry locates behavior without storing
 // workspace state or embedding Orca access in metadata lambdas.

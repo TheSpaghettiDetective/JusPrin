@@ -155,8 +155,11 @@ TEST_CASE("a host reading counts while it is fresh", "[host-lanes]")
     CHECK(readings.status("printer", t0 + 1s).link == HostLink::Checking);
 
     readings.finish("printer", HostReading{true, std::vector<HostLane>{pla}}, t0 + 2s);
-    CHECK_FALSE(readings.begin("printer", t0 + 5s));
-    HostStatus status = readings.status("printer", t0 + 5s);
+    // Times are read off the named intervals, so tuning them keeps this
+    // sequence in order.
+    const auto before_due = t0 + kHostPollInterval - 1s;
+    CHECK_FALSE(readings.begin("printer", before_due));
+    HostStatus status = readings.status("printer", before_due);
     CHECK(status.link == HostLink::Reachable);
     REQUIRE(status.loaded);
     REQUIRE(status.loaded->size() == 1);
@@ -164,8 +167,9 @@ TEST_CASE("a host reading counts while it is fresh", "[host-lanes]")
 
     // Due again after the interval; a failed read does not undo a fresh answer.
     REQUIRE(readings.begin("printer", t0 + kHostPollInterval));
-    readings.finish("printer", HostReading{}, t0 + 12s);
-    CHECK(readings.status("printer", t0 + 12s).link == HostLink::Reachable);
+    const auto failed_at = t0 + kHostPollInterval + 2s;
+    readings.finish("printer", HostReading{}, failed_at);
+    CHECK(readings.status("printer", failed_at).link == HostLink::Reachable);
 
     // Once the answer is stale and the latest attempt failed, it is unreachable.
     CHECK(readings.status("printer", t0 + 2s + kHostReadingFresh).link == HostLink::Unreachable);

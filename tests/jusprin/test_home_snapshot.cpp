@@ -44,7 +44,7 @@ PrinterEntry a_printer()
 
 } // namespace
 
-TEST_CASE("the payload carries the three fields the page reads", "[home]")
+TEST_CASE("the payload carries the fields the page reads, empty when there is nothing to show", "[home]")
 {
     Snapshot snapshot;
     snapshot.dark = true;
@@ -266,7 +266,10 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
     CHECK(printers.at(1).at("canRemove") == false);
 }
 
-TEST_CASE("Home connection actions do not depend on translated status text", "[home]")
+// The payload sends the backend's action as set; it never reads one off the
+// status text. Which action a printer gets is OrcaHomeBackend's, which this
+// test does not reach.
+TEST_CASE("the payload's connection action is the backend's field, never read off the status text", "[home]")
 {
     Snapshot snapshot;
     snapshot.printers = {a_printer()};

@@ -31,6 +31,18 @@
 //              project chat's real adapter, tools and host, with the model's
 //              outputs scripted and nothing sent over the network, and writes
 //              the request bodies the script marks, for that suite to send
+//   --plan-journey <model-file> <exchange-directory>
+//              loads the model into a clean project with a live provider
+//              Agent (JUSPRIN_JOURNEY_PROVIDER openai or anthropic, its
+//              OPENAI_API_KEY or ANTHROPIC_API_KEY, JUSPRIN_JOURNEY_MODEL) and
+//              plays one chat through files: after each turn settles it writes
+//              turn-N.json and waits for next-N.txt, the next message or END
+//   --request-log <directory>
+//              with --live-agent, --manual-live-agent, --plan-journey or
+//              --project-prompt-requests: writes every request the project
+//              chat's Agent posts to the directory, byte for byte, with the
+//              response's usage beside it (tests/jusprin_support/RequestLog.hpp;
+//              tests/project_prompt/prefix_check.py compares them)
 //   --printer-menu
 //              checks the saved-printer rows and selection in the header menu
 //   --printer-menu-capture <output-directory>
@@ -281,9 +293,11 @@
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
+#include "../jusprin_support/RequestLog.hpp"
 #include "print_issues_agent.hpp"
 #include <glad/gl.h>
 #include "slic3r/GUI/Camera.hpp"
@@ -890,7 +904,7 @@ public:
     // Board 4: the calibration project the popup opened. Its handover names
     // no test, so the Agent asks which; the person's chip makes it, and the
     // test is recorded with setup_record in the same turn.
-    static constexpr const char* kHandoverNote = "JusPrin app note, not the person's words: This is a calibration project";
+    static constexpr const char* kHandoverNote = "This is a calibration project";
     static constexpr const char* kQuestion =
         "Which test first? For a spool you are dialling in from scratch, go in this order, because each one reads best "
         "once the one before is settled: temperature, then flow, then pressure advance.\n"
@@ -970,18 +984,18 @@ public:
                                            {"persistAs", kSavedPreset}};
             m_events.push_back(Agent::AgentEvent::tool_call({"call-r1", Agent::ToolRequest{"settings_preview_patch", arguments.dump()}, true}));
             return true;
-        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person pressed Save preset", 0) == 0) {
+        } else if (request.note.rfind("The person pressed Save preset", 0) == 0) {
             // The result goes into the test's headline first.
             m_recording_result = true;
             const nlohmann::json arguments{{"purpose", kTestProject},
                                            {"headline", "Temperature tower, 230 → 190 °C in 5 °C blocks; result 215 °C saved"}};
             m_events.push_back(Agent::AgentEvent::tool_call({"call-v1", Agent::ToolRequest{"setup_record", arguments.dump()}, true}));
             return true;
-        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person opened from Home", 0) == 0) {
-            m_events.push_back(Agent::AgentEvent::delta(reopened_reply(request.user_text)));
-        } else if (request.user_text.rfind("JusPrin app note, not the person's words: The person pressed Undo", 0) == 0) {
+        } else if (request.note.rfind("The person opened from Home", 0) == 0) {
+            m_events.push_back(Agent::AgentEvent::delta(reopened_reply(request.note)));
+        } else if (request.note.rfind("The person pressed Undo", 0) == 0) {
             m_events.push_back(Agent::AgentEvent::delta(kUndoneReply));
-        } else if (request.user_text.rfind(kHandoverNote, 0) == 0) {
+        } else if (request.note.rfind(kHandoverNote, 0) == 0) {
             // The skill is in force on this turn without being read.
             const bool fired = std::any_of(request.skills.begin(), request.skills.end(),
                                            [](const Agent::AgentSkillUse& skill) { return skill.trigger == "calibration_started"; });
@@ -1132,6 +1146,7 @@ struct HarnessState
         Stock,
         Manual,
         ManualLiveAgent,
+        PlanJourney,
         ManualUnconfigured,
         SliceAllCold,
         LiveAgent,
@@ -1190,8 +1205,13 @@ struct HarnessState
     fs::path file_corpus_manifest;
     fs::path file_corpus_output;
     fs::path file_corpus_config;
+    // --plan-journey: the model to load and the directory turns pass through.
+    fs::path journey_model;
+    fs::path journey_dir;
     fs::path prompt_script;
     fs::path prompt_requests;
+    // --request-log: where the project chat's requests are written, or empty.
+    fs::path request_log;
     // --printer-connect-capture: the connect flow only, pictured.
     bool connect_capture{false};
     // --printer-live-no-plugin: connecting a Bambu Lab printer without the
@@ -1448,6 +1468,10 @@ public:
             if (m_state->mode == HarnessState::Mode::Mcp) {
                 verify_canvas_interaction();
                 prepare_mcp_slice([self = shared_from_this()] { self->begin_mcp(); });
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PlanJourney) {
+                begin_plan_journey();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::LiveAgent) {
@@ -8965,7 +8989,9 @@ private:
     {
         const std::string page = persistence().draft();
         std::cout << "HARNESS SETUP " << page << std::endl;
-        check(page.find("changed") != std::string::npos, "setup_page_counts_the_agents_and_the_hand_edit");
+        // The wait above counted the four changed rows; this only sees the
+        // page's "N changed" summaries.
+        check(page.find("changed") != std::string::npos, "setup_page_shows_a_changed_summary");
         check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
         run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
@@ -9304,12 +9330,21 @@ private:
             "document.querySelector('.change-revert-button').click()");
         wait_until([this] { return persistence().draft() == "revert-popover=open"; },
                    "timeline_revert_popover_opened", [self = shared_from_this()] {
-            self->check(self->persistence().draft() == "revert-popover=open", "timeline_revert_explains_restore_before_action");
-            WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
-                "document.querySelector('.change-revert-popover button').click()");
             self->persistence().set_draft({});
-            self->wait_until([self] { return self->persistence().draft() == "revert-popover=closed"; },
-                "timeline_revert_cancelled", [self] { self->begin_timeline_spacing(); }, [] { probe_revert_popover(); });
+            self->wait_until([self] { return self->persistence().draft().rfind("revert-explains=", 0) == 0; },
+                "timeline_revert_popover_read", [self] {
+                self->check(self->persistence().draft() == "revert-explains=true", "timeline_revert_popover_explains_before_its_buttons");
+                const std::size_t changes_before = self->persistence().document().changes().size();
+                WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+                    "document.querySelector('.change-revert-popover button').click()");
+                self->persistence().set_draft({});
+                self->wait_until([self] { return self->persistence().draft() == "revert-popover=closed"; },
+                    "timeline_revert_cancelled", [self, changes_before] {
+                    // A revert adds a "restore" change; Cancel adds nothing.
+                    self->check(self->persistence().document().changes().size() == changes_before, "timeline_revert_cancel_keeps_timeline");
+                    self->begin_timeline_spacing();
+                }, [] { probe_revert_popover(); });
+            }, [] { probe_revert_explanation(); });
         }, [] { probe_revert_popover(); });
     }
 
@@ -9320,22 +9355,39 @@ private:
             "(document.querySelector('.change-revert-popover') ? 'open' : 'closed'));");
     }
 
+    // Whether the open popover says what a revert does, in a paragraph that
+    // comes before its buttons.
+    static void probe_revert_explanation()
+    {
+        WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
+            "(function(){"
+            "  var popover = document.querySelector('.change-revert-popover');"
+            "  if (!popover || !window.__jusprinTest) return;"
+            "  var text = popover.querySelector('p'), buttons = popover.querySelector('.change-revert-buttons');"
+            "  var before = !!(text && buttons && text.textContent.trim().length > 0 &&"
+            "    (text.compareDocumentPosition(buttons) & Node.DOCUMENT_POSITION_FOLLOWING));"
+            "  window.__jusprinTest.setDraft('revert-explains=' + before);"
+            "})()");
+    }
+
     void begin_timeline_spacing()
     {
-        check(persistence().draft() == "revert-popover=closed", "timeline_revert_cancel_keeps_timeline");
         persistence().set_draft({});
         wait_until([this] { return persistence().draft().rfind("spacing=", 0) == 0; }, "timeline_spacing_measured",
                    [self = shared_from_this()] { self->check_timeline_spacing(); }, [] { probe_spacing(); });
     }
 
-    // The thread's spacing as laid out, against the corrected Figma frame:
-    // items 12 apart; padding 4 top, 16 sides and bottom; 8 inside a turn;
-    // and 12 from the turn to the change run after it.
+    // The thread's spacing as laid out, read from .message-list-content,
+    // the column inside the scrolling .message-list that holds the items
+    // and their padding since f091e4caab: items 12 apart; padding 4 top, 16
+    // sides and bottom; 8 inside a turn; and 12 from the turn to the change
+    // run after it. The values came from the Figma frame, retired on
+    // 2026-10-20; the Claude design artifacts are the design source now.
     static void probe_spacing()
     {
         WebView::RunScript(installed_shell()->agent_pane()->web_view().webview(),
             "(function(){"
-            "  var list = document.querySelector('.message-list');"
+            "  var list = document.querySelector('.message-list-content');"
             "  if (!list || !window.__jusprinTest) return;"
             "  var group = Array.prototype.filter.call(document.querySelectorAll('.message-group'), function (g) {"
             "    var n = g.nextElementSibling; return n && n.className === 'change-rows'; })[0];"
@@ -9352,7 +9404,7 @@ private:
     {
         const std::string spacing = persistence().draft();
         std::cout << "HARNESS TIMELINE SPACING " << spacing << std::endl;
-        check(spacing == "spacing=12px,4px,16px,16px,16px,8px,12", "timeline_spacing_matches_figma");
+        check(spacing == "spacing=12px,4px,16px,16px,16px,8px,12", "timeline_spacing_is_12_gap_4_16_padding_8_in_a_turn_12_after");
         persistence().set_draft({});
         // The thread follows new content, but a late reflow can leave the last
         // row just below the fold; the picture must show the newest rows.
@@ -10073,6 +10125,157 @@ private:
             });
     }
 
+    // --plan-journey: load one model into a clean project, let the live
+    // Agent speak, and exchange turns through files.
+    // After each turn settles the run writes turn-N.json (the messages, every
+    // tool call with its result, the chat's plan and setup title) and waits
+    // for next-N.txt: the next message to send, or END.
+    void begin_plan_journey()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.webview() != nullptr, "journey_webview_created");
+        wait_until([&web_view] { return web_view.host().handshake_complete(); }, "journey_bridge_handshake",
+                   [self = shared_from_this()] { self->plan_journey_load(); });
+    }
+
+    void plan_journey_load()
+    {
+        AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
+        check(web_view.host().availability() == Agent::AgentAvailability::Ready, "journey_service_ready");
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "journey_starts_clean");
+        fs::create_directories(m_state->journey_dir);
+        m_plater->add_model(false, m_state->journey_model.string());
+        wxTheApp->ProcessPendingEvents();
+        check(m_plater->model().objects.size() == 1, "journey_model_loaded");
+        m_journey_messages_before   = 0;
+        m_journey_activities_before = 0;
+        plan_journey_wait_settled(1);
+    }
+
+    void plan_journey_wait_settled(std::size_t min_new_messages)
+    {
+        m_journey_signature   = 0;
+        m_journey_quiet_since = std::chrono::steady_clock::now();
+        wait_until(
+            [this, min_new_messages] {
+                Agent::AgentHost& host = installed_shell()->agent_pane()->web_view().host();
+                const auto  conversation = host.conversation();
+                const auto& activities   = host.tools().activities();
+                bool        busy         = false;
+                std::size_t signature    = conversation.size() * 1000003u + activities.size() * 7919u;
+                for (const auto& message : conversation) {
+                    busy = busy || message.state == Agent::MessageState::Streaming;
+                    signature += message.text.size();
+                }
+                for (const auto& activity : activities)
+                    busy = busy || !Agent::tool_state_terminal(activity.state);
+                if (activities.size() > m_journey_activities_before + 20) {
+                    std::cerr << "HARNESS JOURNEY tool-call cap reached\n";
+                    return true;
+                }
+                const auto now = std::chrono::steady_clock::now();
+                if (busy || signature != m_journey_signature) {
+                    m_journey_signature   = signature;
+                    m_journey_quiet_since = now;
+                    return false;
+                }
+                const auto quiet = now - m_journey_quiet_since;
+                if (conversation.size() < m_journey_messages_before + min_new_messages)
+                    return m_journey_turn == 0 && quiet > std::chrono::seconds(45);
+                return quiet > std::chrono::seconds(10);
+            },
+            "journey_turn_" + std::to_string(m_journey_turn) + "_settled", [self = shared_from_this()] {
+                // What the setup card shows at the end of the turn, read
+                // from the page through the draft.
+                self->await_setup_text("card", "[data-testid=\"current-setup\"]", "true",
+                                       [self] { self->plan_journey_write_turn(); });
+            });
+    }
+
+    void plan_journey_write_turn()
+    {
+        using nlohmann::json;
+        Agent::AgentHost& host         = installed_shell()->agent_pane()->web_view().host();
+        const auto        conversation = host.conversation();
+        const auto&       activities   = host.tools().activities();
+        const auto parsed = [](const std::string& text) {
+            json value = json::parse(text, nullptr, false);
+            return value.is_discarded() ? json(text) : value;
+        };
+        json messages = json::array();
+        for (const auto& message : conversation) {
+            static const char* roles[]  = {"user", "assistant", "note"};
+            static const char* states[] = {"complete", "streaming", "failed", "stopped"};
+            json row{{"role", roles[static_cast<int>(message.role)]},
+                     {"state", states[static_cast<int>(message.state)]},
+                     {"text", message.text}};
+            if (message.error)
+                row["error"] = {{"code", message.error->code}, {"message", message.error->message}};
+            messages.push_back(std::move(row));
+        }
+        json calls = json::array();
+        for (const auto& activity : activities) {
+            json row{{"tool", activity.tool},
+                     {"state", Agent::tool_state_name(activity.state)},
+                     {"arguments", parsed(activity.arguments_json)},
+                     {"result", activity.result_json.substr(0, 4000)}};
+            if (activity.error)
+                row["error"] = {{"code", activity.error->code}, {"message", activity.error->message}};
+            calls.push_back(std::move(row));
+        }
+        const auto& document = persistence().document();
+        const Agent::PlanRecord plan = document.plan();
+        json changes = json::array();
+        for (const auto& change : document.changes())
+            changes.push_back({{"seq", change.seq}, {"kind", change.kind}, {"actor", change.actor}, {"label", change.label},
+                               {"from", change.from}, {"to", change.to}});
+        const auto snapshot = installed_shell()->workspace()->snapshot();
+        std::string card = persistence().draft();
+        if (card.rfind("card=", 0) == 0)
+            card.erase(0, 5);
+        persistence().set_draft({});
+        const json out{{"turn", m_journey_turn},
+                       {"card", card},
+                       {"newMessagesFrom", m_journey_messages_before},
+                       {"newCallsFrom", m_journey_activities_before},
+                       {"plan", {{"headline", plan.headline}, {"validity", plan.validity},
+                                 {"invalidatedBy", plan.invalidated_by}, {"seq", plan.seq}}},
+                       {"setupIntent", document.setup_intent(document.active_conversation_id())},
+                       {"setup", {{"printerPreset", snapshot.setup.printer_preset},
+                                  {"filamentPreset", snapshot.setup.filament_preset},
+                                  {"processPreset", snapshot.setup.process_preset}}},
+                       {"messages", std::move(messages)},
+                       {"calls", std::move(calls)},
+                       {"changes", std::move(changes)}};
+        const fs::path path = m_state->journey_dir / ("turn-" + std::to_string(m_journey_turn) + ".json");
+        std::ofstream  output(path.string());
+        output << out.dump(2, ' ', false, json::error_handler_t::replace) << '\n';
+        output.close();
+        std::cerr << "HARNESS JOURNEY TURN " << m_journey_turn << " WRITTEN " << path.string() << '\n';
+        ++m_journey_turn;
+        const fs::path next = m_state->journey_dir / ("next-" + std::to_string(m_journey_turn) + ".txt");
+        wait_until([next] { return fs::exists(next); }, "journey_next_" + std::to_string(m_journey_turn),
+                   [self = shared_from_this(), next] { self->plan_journey_send(next); });
+    }
+
+    void plan_journey_send(const fs::path& next)
+    {
+        std::ifstream input(next.string());
+        std::string   text((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+        while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+            text.pop_back();
+        if (text == "END") {
+            finish();
+            return;
+        }
+        AgentWebView& web_view      = installed_shell()->agent_pane()->web_view();
+        m_journey_messages_before   = web_view.host().conversation().size();
+        m_journey_activities_before = web_view.host().tools().activities().size();
+        const std::string script    = "window.__jusprinTest && window.__jusprinTest.send(" + nlohmann::json(text).dump() + ")";
+        WebView::RunScript(web_view.webview(), wxString::FromUTF8(script));
+        plan_journey_wait_settled(2);
+    }
+
     void live_agent_context_and_attachment()
     {
         AgentWebView& web_view = installed_shell()->agent_pane()->web_view();
@@ -10652,9 +10855,13 @@ private:
         const std::string saved_bytes((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
         m_saved_project_original_bytes = saved_bytes;
         m_saved_project_bytes = saved_bytes.size();
-        check(saved_bytes.find("JusPrin/state.json") == std::string::npos, "exported_archive_excludes_managed_state");
-        // JusPrin keeps no project copies of its own inside the project.
-        check(saved_bytes.find(".snapshot") == std::string::npos, "saved_archive_has_no_project_copies");
+        // The chat document: JusPrin/state.json in a project without a local
+        // store, current-state.json in the store (ProjectVersionStore).
+        check(saved_bytes.find("JusPrin/state.json") == std::string::npos && saved_bytes.find("current-state.json") == std::string::npos,
+              "exported_archive_excludes_managed_state");
+        // JusPrin keeps no project copies of its own inside the project: the
+        // store keeps each version's copy as versions/<id>/metadata.3mf.
+        check(saved_bytes.find("metadata.3mf") == std::string::npos, "saved_archive_has_no_project_copies");
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "phase4_new_project");
         wait_until(
@@ -11822,6 +12029,13 @@ private:
             large.SaveFile(wxString::FromUTF8((pictures / "cover.png").string()), wxBITMAP_TYPE_PNG);
             std::ofstream((pictures / "notes.txt").string()) << "Print the bracket in PETG.";
         }
+        // A readable file in JusPrin's own folder, so refusing it is the rule
+        // at work and not a missing file: with a local store the chat
+        // document lives outside the project folder.
+        const fs::path own_folder  = fs::path(workspace->auxiliary_data_dir()) / "JusPrin";
+        const bool     own_existed = fs::exists(own_folder);
+        fs::create_directories(own_folder);
+        std::ofstream((own_folder / "harness-probe.json").string()) << "{}";
         Workspace::AttachmentContent cover, notes, escape;
         check(workspace->read_attachment("Model Pictures/cover.png", cover).succeeded() && cover.kind == "image" &&
                   cover.width == 1280 && cover.height == 640 && cover.truncated,
@@ -11830,9 +12044,12 @@ private:
                   notes.data == "Print the bracket in PETG.",
               "outputs_attachment_text");
         check(!workspace->read_attachment("../Metadata/model_settings.config", escape).succeeded() &&
-                  !workspace->read_attachment("JusPrin/state.json", escape).succeeded(),
+                  !workspace->read_attachment("JusPrin/harness-probe.json", escape).succeeded(),
               "outputs_attachment_stays_in_the_folder");
         fs::remove_all(pictures);
+        fs::remove(own_folder / "harness-probe.json");
+        if (!own_existed)
+            fs::remove_all(own_folder);
 
         Workspace::SliceInspectRequest inspect;
         inspect.plate = plate;
@@ -11978,7 +12195,8 @@ private:
         std::ifstream clean(clean_path, std::ios::binary);
         const std::string clean_bytes((std::istreambuf_iterator<char>(clean)), std::istreambuf_iterator<char>());
         check(clean_bytes.find("3D/3dmodel.model") != std::string::npos, "clean_copy_is_a_project_archive");
-        check(clean_bytes.find("JusPrin/state.json") == std::string::npos, "clean_copy_has_no_conversation_state");
+        check(clean_bytes.find("JusPrin/state.json") == std::string::npos && clean_bytes.find("current-state.json") == std::string::npos,
+              "clean_copy_has_no_conversation_state");
 
         check(m_plater->rename_object(0, "Unsaved failure fixture"), "failed_autosave_edit_applied");
         const std::string project_id = persistence().document().project_id();
@@ -12829,6 +13047,11 @@ private:
     std::string                   m_saved_project_id;
     std::string                   m_saved_project_file;
     std::string                   m_live_action_id;
+    int                                   m_journey_turn{0};
+    std::size_t                           m_journey_messages_before{0};
+    std::size_t                           m_journey_activities_before{0};
+    std::size_t                           m_journey_signature{0};
+    std::chrono::steady_clock::time_point m_journey_quiet_since{};
     std::unique_ptr<JusPrinTest::NativeMcpClient> m_mcp_client;
     std::size_t                   m_saved_project_bytes{0};
     std::string                   m_saved_project_original_bytes;
@@ -12857,12 +13080,25 @@ private:
 
 // The app ships no stand-in Agent, so each mode's Agent is installed here
 // through the host's own set_agent, the call setup uses when a key verifies.
-void install_harness_agent(HarnessState::Mode mode)
+void install_harness_agent(const HarnessState& state)
 {
     ShellController* shell = installed_shell();
     if (shell == nullptr)
         return; // stock mode: the shell is disabled, so there is no Agent panel
     Agent::AgentHost& host = shell->agent_pane()->web_view().host();
+    // --request-log: the provider modes' transport, logging. The printer
+    // panel's own Agent and an agent the host rebuilds for another chosen
+    // model come from the app configuration and are not logged.
+    std::optional<Agent::RequestLog> log;
+    if (!state.request_log.empty())
+        log.emplace(std::filesystem::path(state.request_log.native()), [&host] {
+            const Agent::ProjectStateDocument& document = host.persistence().document();
+            return Agent::RequestLog::Chat{document.project_id(), document.active_conversation_id()};
+        });
+    const auto transport = [&log](std::unique_ptr<Agent::IAgentHttpTransport> inner) {
+        return log ? log->transport(std::move(inner)) : std::move(inner);
+    };
+    const HarnessState::Mode mode = state.mode;
     switch (mode) {
     case HarnessState::Mode::LiveAgentUnavailable:
     case HarnessState::Mode::ManualUnconfigured:
@@ -12889,13 +13125,50 @@ void install_harness_agent(HarnessState::Mode mode)
                       << " cached_input_tokens=" << usage.cached_input << " output_tokens=" << usage.output
                       << " total_tokens=" << usage.total << '\n';
         };
-        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), Agent::make_openai_http_transport()),
+        host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(std::move(config), transport(Agent::make_openai_http_transport())),
+                       Agent::AgentAvailability::Ready);
+        return;
+    }
+    case HarnessState::Mode::PlanJourney: {
+        // The provider the shipped app builds for a saved key, through the
+        // same factory and HTTP transport: JUSPRIN_JOURNEY_PROVIDER is
+        // "openai" (the default, OPENAI_API_KEY) or "anthropic"
+        // (ANTHROPIC_API_KEY); JUSPRIN_JOURNEY_MODEL overrides the row's
+        // model and JUSPRIN_AGENT_ENDPOINT its endpoint. Without a key the
+        // journey reports the missing service itself.
+        const char*        chosen   = std::getenv("JUSPRIN_JOURNEY_PROVIDER");
+        const std::string  provider = chosen != nullptr && *chosen != '\0' ? chosen : "openai";
+        const Agent::ProviderProfile* profile = Agent::profile_for(provider);
+        if (profile == nullptr || profile->account_sign_in) {
+            std::cerr << "HARNESS JOURNEY unsupported provider=" << provider << '\n';
+            return;
+        }
+        const char* key = std::getenv(provider == "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY");
+        if (key == nullptr || *key == '\0')
+            return;
+        const char* model = std::getenv("JUSPRIN_JOURNEY_MODEL");
+        Agent::ProviderListeners listeners;
+        listeners.usage = [provider](const Agent::AgentUsage& usage) {
+            std::cerr << "JUSPRIN LIVE USAGE provider=" << provider << " input_tokens=" << usage.input
+                      << " cached_input_tokens=" << usage.cached_input << " cache_creation_tokens=" << usage.cache_creation
+                      << " output_tokens=" << usage.output << " total_tokens=" << usage.total << '\n';
+        };
+        // A call the adapter refused never reaches a card or an activity;
+        // this is where the batch can read which call and why.
+        listeners.refusal = [](const std::string& tool, const std::string& arguments, const std::string& code) {
+            std::cerr << "HARNESS JOURNEY REFUSED tool=" << tool << " code=" << code << " arguments=" << arguments.substr(0, 1200)
+                      << '\n';
+        };
+        std::cerr << "HARNESS JOURNEY CONFIG provider=" << provider << " model=" << (model != nullptr ? model : profile->model)
+                  << '\n';
+        host.set_agent(Agent::make_provider_agent(*profile, key, model != nullptr ? model : "", Agent::agent_endpoint_override(),
+                                                  transport(Agent::make_openai_http_transport()), std::move(listeners)),
                        Agent::AgentAvailability::Ready);
         return;
     }
     case HarnessState::Mode::ProjectPromptRequests: {
         host.set_agent(std::make_unique<Agent::OpenAIResponsesAgent>(Agent::OpenAIResponsesConfig{"sk-harness-not-a-real-key"},
-                                                                     std::make_unique<HeldModelTransport>()),
+                                                                     transport(std::make_unique<HeldModelTransport>())),
                        Agent::AgentAvailability::Ready);
         return;
     }
@@ -12938,7 +13211,7 @@ void start_when_ready(GUI_App& app, const std::shared_ptr<HarnessState>& state)
 #ifdef __APPLE__
         if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
-        install_harness_agent(state->mode);
+        install_harness_agent(*state);
         if (state->fake_printer) {
             // The selected profile must be a Bambu Lab one for the fake to
             // be the printer agent (GUI_App::switch_printer_agent).
@@ -13123,6 +13396,17 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::Manual;
         else if (argument == "--manual-live-agent")
             state->mode = HarnessState::Mode::ManualLiveAgent;
+        else if (argument == "--request-log") {
+            if (++index == argc) {
+                std::cerr << "--request-log requires a directory\n";
+                return 2;
+            }
+            state->request_log = fs::absolute(utf8_argument(index, argv));
+            if (fs::exists(state->request_log) && !fs::is_empty(state->request_log)) {
+                std::cerr << "--request-log needs an empty or new directory: " << state->request_log.string() << '\n';
+                return 2;
+            }
+        }
         else if (argument == "--fake-printer")
             state->fake_printer = true;
         else if (argument == "--manual-unconfigured")
@@ -13149,6 +13433,16 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::SliceAllCold;
         else if (argument == "--live-agent")
             state->mode = HarnessState::Mode::LiveAgent;
+        else if (argument == "--plan-journey") {
+            if (index + 2 >= argc) {
+                std::cerr << "--plan-journey needs a model path and an exchange directory\n";
+                return 2;
+            }
+            state->mode          = HarnessState::Mode::PlanJourney;
+            state->journey_model = utf8_argument(++index, argv);
+            state->journey_dir   = fs::absolute(utf8_argument(++index, argv));
+            state->deadline      = std::chrono::steady_clock::now() + std::chrono::seconds(3600);
+        }
         else if (argument == "--mcp")
             state->mode = HarnessState::Mode::Mcp;
         else if (argument == "--mcp-setup")
@@ -13307,6 +13601,12 @@ int main(int argc, char** argv)
         else
             gui_arguments.emplace_back(argv[index]);
     }
+    if (!state->request_log.empty() && state->mode != HarnessState::Mode::LiveAgent &&
+        state->mode != HarnessState::Mode::ManualLiveAgent && state->mode != HarnessState::Mode::PlanJourney &&
+        state->mode != HarnessState::Mode::ProjectPromptRequests) {
+        std::cerr << "--request-log works with --live-agent, --manual-live-agent, --plan-journey and --project-prompt-requests\n";
+        return 2;
+    }
 #ifdef __APPLE__
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
@@ -13357,13 +13657,14 @@ int main(int argc, char** argv)
                            anchor + "\n    \"dark_color_mode\": \"" + (*state->dark_appearance ? "1" : "0") + "\",");
         }
 #endif
-        if (state->mode == HarnessState::Mode::LiveAgent ||
+        if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::PlanJourney ||
             state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured) {
             // The base config has the Agent off, like a fresh install. Only
             // the configured task-chat visual run adds a placeholder key.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
+                                      state->mode == HarnessState::Mode::PlanJourney ||
                                       state->mode == HarnessState::Mode::ManualLiveAgent ||
                                       state->mode == HarnessState::Mode::PrinterLive || state->task_chat_configured;
             const std::string consent = live_enabled ? "true" : "false";

@@ -38,11 +38,20 @@ TEST_CASE("MCP discovery publication is atomic and private", "[mcp][discovery]")
     JusPrinTest::McpDirectory directory;
     Mcp::write_discovery(directory.path(), "http://127.0.0.1:12345/mcp");
     std::atomic<bool> finished{false};
+    std::atomic<unsigned> reads{0};
     unsigned missing = 0;
     std::thread reader([&] {
-        while (!finished.load()) if (!Mcp::read_discovery(directory.path())) ++missing;
+        while (!finished.load()) {
+            if (!Mcp::read_discovery(directory.path())) ++missing;
+            ++reads;
+        }
     });
-    for (unsigned i = 0; i < 50; ++i) Mcp::write_discovery(directory.path(), "http://127.0.0.1:12345/mcp");
+    // The writes start once the reader is reading, and go on until it has read
+    // 50 times since, so the two overlap however the threads are scheduled.
+    while (reads.load() == 0) std::this_thread::yield();
+    const unsigned before = reads.load();
+    for (unsigned i = 0; i < 50 || reads.load() < before + 50; ++i)
+        Mcp::write_discovery(directory.path(), "http://127.0.0.1:12345/mcp");
     finished.store(true);
     reader.join();
     CHECK(missing == 0);

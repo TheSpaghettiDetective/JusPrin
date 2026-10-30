@@ -237,7 +237,7 @@ TEST_CASE("an OpenRouter key is checked against OpenRouter, and only the table d
     CHECK(request.header("X-Title") == "JusPrin");
     // The probe is the same fixed sentence, with the OpenRouter default model.
     const json body = json::parse(request.body);
-    CHECK(body["model"] == "openai/gpt-5.4-mini");
+    CHECK(body["model"] == profile_for("openrouter")->model);
     REQUIRE(body["input"].size() == 1);
     CHECK(body["input"][0]["content"][0]["text"] == "Reply with the single word: ready.");
 

@@ -458,7 +458,11 @@ private:
     std::optional<ConversationMessage> find_stored_message(const std::string& id, std::string* conversation_id = nullptr) const;
     void begin_reply(const std::string& user_message_id);
     void begin_stream(ConversationMessage assistant, const std::string& conversation_id);
-    AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id) const;
+    AgentRequest make_agent_request(const ConversationMessage& assistant, const std::string& conversation_id,
+                                    ChatRecord record) const;
+    // Reads the text of the record's pictures and PDFs from their blobs. A
+    // missing blob is an error: the chat could only send it empty.
+    void load_record_text(ChatRecord& record) const;
     // The page's skill for `trigger`, as one request gets it now, or nothing
     // when the page sent none for it or the conversation has no workspace.
     std::optional<AgentSkillUse> fire_skill(const std::string& trigger, const std::string& conversation_id,
@@ -485,7 +489,6 @@ private:
     void mark_setup_checked(const Workspace::WorkspaceSnapshot& workspace);
     void handle_skills(const std::string& envelope_id, const std::string& payload_json);
     ToolExecutionCoordinator::ExtensionResult read_skill(const ToolActivity& activity) const;
-    nlohmann::json tool_output_json(const ToolActivity& activity) const;
     void complete_stream();
     void fail_stream(AgentError error);
     void handle_agent_tool_call(AgentToolCall call);

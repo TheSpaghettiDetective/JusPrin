@@ -31,6 +31,30 @@ def reply(text):
     return {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": text}]}
 
 
+SKILL_HEADINGS = {"file-loaded": "# The first message after a file is opened or imported",
+                  "slice-failed": "# A slice that did not succeed",
+                  "print-issues": "# Issues I report about the print",
+                  "project-setup-changed": "# Checking the setup against the print's purpose"}
+
+
+def skills_and_pictures(items):
+    """The skills ("picture" for a picture) among `items`, in order."""
+    found = []
+    for item in items:
+        content = item.get("content")
+        if item.get("role") == "developer" and isinstance(content, str):
+            found += [skill for skill, heading in SKILL_HEADINGS.items() if content.startswith(heading)]
+        elif item.get("role") == "user" and isinstance(content, list) and [part.get("type") for part in content] == ["input_image"]:
+            found.append("picture")
+    return found
+
+
+def appended(name):
+    """The items the recorded request appended to its chat's last request."""
+    recorded = runner.REQUESTS[name]
+    return recorded["body"]["input"][len(recorded["body"]["input"]) - recorded["appended"]:]
+
+
 class Scripted:
     """The model, as a list of outputs, one per request; keeps each request."""
 
@@ -40,6 +64,12 @@ class Scripted:
     def __call__(self, body, key, endpoint=None):
         self.bodies.append(body)
         return {"output": self.outputs.pop(0), "usage": {}}
+
+
+def setUpModule():
+    # Most cases check each call against the app's schemas with the C++
+    # helper; without it they would fail as if the runner judged wrongly.
+    runner.CallCheck.path()
 
 
 class Steps(unittest.TestCase):
@@ -123,9 +153,8 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.PASS)
         self.assertTrue(detail.startswith("after workspace_inspect + printer_list: reply"), detail)
         self.assertEqual(len(bodies), 2)
-        # What the app sent this request only (the print-issues skill, since
-        # the fixture's slice carries the bed-temperature warning) is not
-        # repeated on the next one.
+        # What the app sent this request only, if anything, is not repeated
+        # on the next one.
         once = runner.REQUESTS["advice-infill"].get("once", 0)
         recorded = runner.REQUESTS["advice-infill"]["body"]["input"]
         recorded = recorded[:len(recorded) - once]
@@ -303,66 +332,73 @@ class Steps(unittest.TestCase):
         self.assertEqual(runner.refusal(step, {"valid": False, "code": "unknown_tool"}), runner.dump(
             {"state": "failed", "error": {"code": "unknown_tool", "message": unknown_head + "no_such_tool" + unknown_tail}}))
 
-    # --- A skill is sent on one request ------------------------------------
+    # --- A skill is appended on one request ---------------------------------
+    # A chat's requests repeat its record and append to it (ba08e2c18f). On
+    # the Responses API a fired skill stays in that record: nothing hides it
+    # after its own request (fe70eea593). So a skill "sent once" is appended
+    # by one request, the one that fired it, and replayed unchanged as
+    # history after that; these tests no longer expect it to leave.
 
-    def test_a_skill_and_its_picture_leave_the_request_after_theirs(self):
-        """The app sends the file-loaded skill and the plate's picture on the
-        request that first carries a load report and keeps them out of the
-        turn's next request; so does the runner when it answers a read."""
+    def assert_appended_once(self, name, skills, response):
+        """`name` appends `skills` to its chat's last request; the runner's
+        next request repeats it whole, then the read, and appends no skill or
+        picture again. Returns the case's verdict and detail."""
+        recorded = runner.REQUESTS[name]["body"]["input"]
+        self.assertEqual(skills_and_pictures(appended(name)), skills, name)
+        first = [call("workspace_inspect", {}, "call-w")]
+        verdict, detail, bodies = self.run_case(name, first, response)
+        self.assertEqual(len(bodies), 2, name)
+        sent = bodies[1]["input"]
+        self.assertEqual(sent[:len(recorded)], recorded, name)
+        self.assertEqual(sent[len(recorded):len(recorded) + 1], first, name)
+        self.assertEqual(sent[-1]["call_id"], "call-w", name)
+        self.assertEqual(skills_and_pictures(sent[len(recorded):]), [], name)
+        return verdict, detail
+
+    def test_a_skill_and_its_picture_are_appended_on_their_own_request_only(self):
+        """The app appends the plate's picture and the file-loaded skill on
+        the request that first carries a load report; the runner's next
+        request replays them and appends neither."""
         for name in ("model-opened-unnamed", "model-imported-by-tool", "model-opened-by-tool"):
-            recorded = runner.REQUESTS[name]["body"]["input"]
-            self.assertEqual(runner.REQUESTS[name].get("once"), 2, name)
-            self.assertEqual(recorded[-1]["role"], "developer", name)
-            self.assertTrue(recorded[-1]["content"].startswith("# The first message after a file is opened or imported"), name)
-            self.assertEqual([part["type"] for part in recorded[-2]["content"]], ["input_image"], name)
-            first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
+            verdict, detail = self.assert_appended_once(
+                name, ["picture", "file-loaded"], [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
             self.assertEqual(verdict, runner.FAIL, detail)
-            sent = bodies[1]["input"]
-            self.assertEqual(sent[:len(recorded) - 2], recorded[:-2], name)
-            self.assertEqual(sent[len(recorded) - 2:len(recorded) - 1], first, name)
-            self.assertEqual(sent[-1]["call_id"], "call-w", name)
-            self.assertNotIn("# The first message after a file is opened or imported", json.dumps(sent), name)
-            self.assertNotIn("input_image", json.dumps(sent), name)
 
-    def test_the_slice_failed_skill_leaves_the_request_after_its_own(self):
-        """The app sends the slice-failed skill, and no picture, on the request
-        where the model first reads a refused slice: the slice_start result, or
-        the message after the person pressed Slice."""
+    def test_the_slice_failed_skill_is_appended_on_its_own_request_only(self):
+        """The app appends the slice-failed skill, and no picture, on the
+        request where the model first reads a refused slice: the slice_start
+        result, or the message after the person pressed Slice."""
         for name in ("slice-refused-by-tool", "slice-refused-then-ready"):
             recorded = runner.REQUESTS[name]["body"]["input"]
-            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
-            self.assertEqual(recorded[-1]["role"], "developer", name)
-            self.assertTrue(recorded[-1]["content"].startswith("# A slice that did not succeed"), name)
             self.assertNotIn("input_image", json.dumps(recorded), name)
-            self.assertIn("is not suggested for use printing filament", json.dumps(recorded), name)
-            first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("slice_start", {})])
+            # OrcaSlicer's English differs between the macOS catalog and the
+            # Windows source strings (README, "Two differences are Windows'").
+            self.assertTrue(any(words in json.dumps(recorded) for words in
+                                ("is not suggested for use printing filament", "is not suggested to be used to print filament")),
+                            name)
+            verdict, detail = self.assert_appended_once(name, ["slice-failed"], [call("slice_start", {})])
             self.assertEqual(verdict, runner.FAIL, detail)
             self.assertIn("SLICED AGAIN UNCHANGED", detail)
-            sent = bodies[1]["input"]
-            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
-            self.assertNotIn("# A slice that did not succeed", json.dumps(sent), name)
+
+    def test_answer_from_context_names_the_filament_as_a_word(self):
+        """"pla" inside "plate" is not the filament."""
+        verdict, detail, _ = self.run_case("answer-from-context", [reply("An X1 Carbon on the Textured PEI Plate.")])
+        self.assertEqual(verdict, runner.FAIL, detail)
+        self.assertTrue(detail.startswith("DID NOT NAME BOTH"), detail)
+        verdict, detail, _ = self.run_case("answer-from-context", [reply("An X1 Carbon with Bambu PLA Basic.")])
+        self.assertEqual(verdict, runner.PASS, detail)
 
     def test_a_read_of_the_plate_or_filament_decides_a_refusal(self):
         verdict, detail, _ = self.run_case("slice-refused-by-tool", [call("presets_list", {"kind": "filament"})])
         self.assertEqual(verdict, runner.PASS, detail)
 
-    def test_the_print_issues_skill_leaves_the_request_after_its_own(self):
+    def test_the_print_issues_skill_is_appended_on_its_own_request_only(self):
         """A chip's message and the first message after a slice with warnings
-        carry the print-issues skill alone, no picture, on that request only."""
+        append the print-issues skill alone, no picture."""
         for name in ("issue-fix", "issue-explain", "slice-warnings-ready"):
-            recorded = runner.REQUESTS[name]["body"]["input"]
-            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
-            self.assertEqual(recorded[-1]["role"], "developer", name)
-            self.assertTrue(recorded[-1]["content"].startswith("# Issues I report about the print"), name)
-            self.assertNotIn("input_image", json.dumps(recorded[-2]), name)
-            first = [call("workspace_inspect", {}, "call-w")]
-            verdict, detail, bodies = self.run_case(name, first, [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
+            verdict, detail = self.assert_appended_once(
+                name, ["print-issues"], [call("setup_record", {"purpose": "Print it", "headline": "Print it"})])
             self.assertEqual(verdict, runner.FAIL, detail)
-            sent = bodies[1]["input"]
-            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
-            self.assertNotIn("# Issues I report about the print", json.dumps(sent), name)
 
     def test_the_slice_with_warnings_is_in_the_workspace_block(self):
         workspace = json.dumps(runner.REQUESTS["slice-warnings-ready"]["body"]["input"])
@@ -376,20 +412,10 @@ class Steps(unittest.TestCase):
         self.assertEqual(verdict, runner.FAIL)
         self.assertIn("UNREQUESTED CHANGE", detail)
 
-    def test_the_setup_skill_leaves_the_request_after_its_own(self):
-        """The setup skill comes without a picture: one item, sent once."""
-        for name in ("after-intent",):
-            recorded = runner.REQUESTS[name]["body"]["input"]
-            self.assertEqual(runner.REQUESTS[name].get("once"), 1, name)
-            self.assertEqual(recorded[-1]["role"], "developer", name)
-            self.assertTrue(recorded[-1]["content"].startswith("# Checking the setup against the print's purpose"), name)
-            self.assertNotIn("input_image", json.dumps(recorded), name)
-            first = [call("workspace_inspect", {}, "call-w")]
-            _, _, bodies = self.run_case(name, first, [call("slice_start")])
-            self.assertEqual(len(bodies), 2, name)
-            sent = bodies[1]["input"]
-            self.assertEqual(sent[:len(recorded) - 1], recorded[:-1], name)
-            self.assertNotIn("# Checking the setup against the print's purpose", json.dumps(sent), name)
+    def test_the_setup_skill_is_appended_on_its_own_request_only(self):
+        """The setup skill comes without a picture: one item, appended once."""
+        self.assertNotIn("input_image", json.dumps(runner.REQUESTS["after-intent"]["body"]["input"]))
+        self.assert_appended_once("after-intent", ["project-setup-changed"], [call("slice_start")])
 
     def test_the_setup_case_passes_on_a_check_and_fails_on_a_slice(self):
         """A slice straight after the first purpose skips the check."""
@@ -399,12 +425,13 @@ class Steps(unittest.TestCase):
             self.assertEqual(self.run_case("after-intent", [call(tool, checks[tool])])[0], runner.PASS, tool)
         self.assertEqual(self.run_case("after-intent", [call("slice_start")])[0], runner.FAIL)
 
-    def test_no_other_point_sends_anything_once(self):
-        self.assertEqual(sorted(name for name, request in runner.REQUESTS.items() if request.get("once")),
-                         ["advice-infill", "after-intent", "answer-from-context", "direct-change",
-                          "issue-explain", "issue-fix", "loaded-vs-configured", "model-imported-by-tool",
-                          "model-opened-by-tool", "model-opened-unnamed", "reply-in-german", "slice-refused-by-tool",
-                          "slice-refused-then-ready", "slice-warnings-ready", "troubleshoot-first-layer"])
+    def test_no_other_point_appends_a_skill_or_picture(self):
+        """Other points may replay a skill an earlier request appended; none
+        appends one."""
+        self.assertEqual(sorted(name for name in runner.REQUESTS if skills_and_pictures(appended(name))),
+                         ["after-intent", "issue-explain", "issue-fix", "model-imported-by-tool",
+                          "model-opened-by-tool", "model-opened-unnamed", "slice-refused-by-tool",
+                          "slice-refused-then-ready", "slice-warnings-ready"])
 
     # --- One call or none, as before ---------------------------------------
 
@@ -515,6 +542,21 @@ class Baseline(unittest.TestCase):
         lines, worse = self.compared(base, advice_infill=tally(0, 3))
         self.assertIsNone(worse)
         self.assertTrue(lines[-1].startswith("NOT COMPARABLE: this run's model differs"), lines[-1])
+
+    def test_a_run_that_was_not_judged_exits_2(self):
+        run = runner.results_of(self.SETUP, "instructions", {"advice-infill": tally(0, 3)})
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            missing = pathlib.Path(directory) / "baseline.json"
+            self.assertEqual(runner.exit_code(runner.finish(run, missing, None)), 2)
+            self.assertEqual(runner.exit_code(runner.finish(run, missing, 3)), 0)
+            other = pathlib.Path(directory) / "other.json"
+            other.write_text(json.dumps({**self.baseline(advice_infill=tally(3)), "model": "another/model"}))
+            self.assertEqual(runner.exit_code(runner.finish(run, other, None)), 2)
+            same = pathlib.Path(directory) / "same.json"
+            same.write_text(json.dumps(self.baseline(advice_infill=tally(3))))
+            self.assertEqual(runner.exit_code(runner.finish(run, same, None)), 1)
+            same.write_text(json.dumps(self.baseline(advice_infill=tally(0, 3))))
+            self.assertEqual(runner.exit_code(runner.finish(run, same, None)), 0)
 
     def test_a_case_without_a_baseline_says_why(self):
         base = self.baseline(advice_infill=tally(3))

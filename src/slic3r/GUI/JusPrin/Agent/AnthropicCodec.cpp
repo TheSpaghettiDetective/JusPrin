@@ -89,12 +89,14 @@ json tools_json(const std::vector<OfferedTool>& tools)
 }
 
 // One message of the request as it is built: a role and its blocks, or for
-// role "system" its text. Adjacent messages of one role are merged after.
+// role "system" its text and whether it clears at the next user message.
+// Adjacent messages of one role are merged after.
 struct Message
 {
     std::string role;
     json        blocks{json::array()};
     std::string text; // system only
+    bool        clears{false};
 };
 
 void push(std::vector<Message>& messages, std::string role, json blocks)
@@ -104,25 +106,27 @@ void push(std::vector<Message>& messages, std::string role, json blocks)
     messages.push_back(Message{std::move(role), std::move(blocks), {}});
 }
 
-void push_system(std::vector<Message>& messages, std::string text)
+void push_system(std::vector<Message>& messages, std::string text, bool clears)
 {
     if (!text.empty())
-        messages.push_back(Message{"system", json::array(), std::move(text)});
+        messages.push_back(Message{"system", json::array(), std::move(text), clears});
 }
 
-// The API takes alternating roles, and a mid-conversation system message
+// The API takes alternating roles, and mid-conversation system messages
 // only right after a user message, as the last message or before an
-// assistant one. Adjacent messages of one role become one; a system message
-// anywhere else becomes a text block of the user message it then joins.
-// What a message becomes depends only on its neighbours, which a later
-// request of the same turn keeps, so the history stays append-only.
+// assistant one; a run of them is judged as one. Adjacent messages of one
+// role become one, except system messages that clear and ones that stay;
+// a run of system messages anywhere else becomes text blocks of the user
+// message it then joins. What a message becomes depends only on its
+// neighbours, which a later request keeps, so the history stays
+// append-only.
 std::vector<Message> normalized(std::vector<Message> messages)
 {
     for (bool changed = true; changed;) {
         changed = false;
         std::vector<Message> merged;
         for (Message& message : messages) {
-            if (!merged.empty() && merged.back().role == message.role) {
+            if (!merged.empty() && merged.back().role == message.role && merged.back().clears == message.clears) {
                 Message& last = merged.back();
                 if (message.role == "system")
                     last.text += "\n\n" + message.text;
@@ -134,17 +138,24 @@ std::vector<Message> normalized(std::vector<Message> messages)
             merged.push_back(std::move(message));
         }
         messages = std::move(merged);
-        for (std::size_t i = 0; i < messages.size(); ++i) {
-            if (messages[i].role != "system")
+        for (std::size_t start = 0; start < messages.size(); ++start) {
+            if (messages[start].role != "system")
                 continue;
-            const bool after_user  = i > 0 && messages[i - 1].role == "user";
-            const bool then_answer = i + 1 == messages.size() || messages[i + 1].role == "assistant";
-            if (after_user && then_answer)
-                continue;
-            messages[i].role   = "user";
-            messages[i].blocks = json::array({text_block(messages[i].text)});
-            messages[i].text.clear();
-            changed = true;
+            std::size_t end = start;
+            while (end + 1 < messages.size() && messages[end + 1].role == "system")
+                ++end;
+            const bool after_user  = start > 0 && messages[start - 1].role == "user";
+            const bool then_answer = end + 1 == messages.size() || messages[end + 1].role == "assistant";
+            if (!after_user || !then_answer) {
+                for (std::size_t i = start; i <= end; ++i) {
+                    messages[i].role   = "user";
+                    messages[i].blocks = json::array({text_block(messages[i].text)});
+                    messages[i].text.clear();
+                    messages[i].clears = false;
+                }
+                changed = true;
+            }
+            start = end;
         }
     }
     return messages;
@@ -152,84 +163,57 @@ std::vector<Message> normalized(std::vector<Message> messages)
 
 json message_json(const Message& message)
 {
+    if (message.role == "system" && message.clears)
+        return json{{"role", "system"}, {"content", message.text}, {"clear_at", "next_user_message"}};
     if (message.role == "system")
         return json{{"role", "system"}, {"content", message.text}};
     return json{{"role", message.role}, {"content", message.blocks}};
 }
 
-void push_skills(std::vector<Message>& messages, const std::vector<AgentSkillUse>& skills)
+json part_block(const RecordPart& part)
 {
-    // Each fired skill: its picture as an image of its own, then its text in
-    // the app's voice.
-    for (const AgentSkillUse& skill : skills) {
-        if (skill.picture)
-            push(messages, "user", json::array({image_block(skill.picture->mime_type, skill.picture->base64)}));
-        push_system(messages, skill.text);
-    }
+    if (part.kind == RecordPart::Kind::Image)
+        return image_block(part.mime, part.base64);
+    if (part.kind == RecordPart::Kind::Pdf)
+        return json{{"type", "document"}, {"source", json{{"type", "base64"}, {"media_type", "application/pdf"}, {"data", part.base64}}}};
+    return text_block(part.text);
 }
 
-std::vector<Message> conversation(const TurnTranscript& transcript, RequestKind kind)
+// A fired skill clears only where the provider can clear it; elsewhere it
+// stays in place, as on Responses.
+std::vector<Message> conversation(const TurnTranscript& transcript, bool clears)
 {
     std::vector<Message> messages;
-    for (const AgentConversationContext& entry : transcript.opening) {
-        if (!entry.call_id.empty()) {
-            // A call from an earlier turn, replayed beside its result.
-            push(messages, "assistant",
-                 json::array({json{{"type", "tool_use"}, {"id", entry.call_id}, {"name", entry.tool},
-                                   {"input", json::parse(entry.arguments_json.empty() ? "{}" : entry.arguments_json)}}}));
-            push(messages, "user",
-                 json::array({json{{"type", "tool_result"}, {"tool_use_id", entry.call_id}, {"content", entry.output_json}}}));
-            continue;
-        }
-        if (entry.role == "developer") {
-            push_system(messages, entry.text);
-            continue;
-        }
-        json blocks = json::array();
-        if (!entry.text.empty())
-            blocks.push_back(text_block(entry.text));
-        if (!entry.issue_context.empty())
-            blocks.push_back(text_block(tagged_block("print_issue", entry.issue_context)));
-        push(messages, entry.role, std::move(blocks));
-    }
-    if (kind == RequestKind::ConversationTitle) {
-        // A request may not end on the assistant's turn: that would ask the
-        // model to continue it.
-        if (messages.empty() || messages.back().role == "assistant")
-            push(messages, "user", json::array({text_block("Write the title.")}));
-        return messages;
-    }
-    json content = json::array();
-    for (const TurnContentPart& part : transcript.user_content) {
-        switch (part.kind) {
-        case TurnContentPart::Kind::Text: content.push_back(text_block(part.text)); break;
-        case TurnContentPart::Kind::Image: content.push_back(image_block(part.mime, part.base64)); break;
-        case TurnContentPart::Kind::Pdf:
-            content.push_back(json{{"type", "document"},
-                                   {"source", json{{"type", "base64"}, {"media_type", "application/pdf"}, {"data", part.base64}}}});
+    for (const RecordItem& item : transcript.items) {
+        switch (item.kind) {
+        case RecordItem::Kind::User: {
+            json blocks = json::array();
+            for (const RecordPart& part : item.parts)
+                blocks.push_back(part_block(part));
+            push(messages, "user", std::move(blocks));
             break;
         }
-    }
-    push(messages, "user", std::move(content));
-    push_skills(messages, transcript.opening_once);
-    for (const TurnStep& step : transcript.steps) {
-        // The response's own content, thinking included, exactly as it came.
-        push(messages, "assistant", step.assistant_turn);
-        json results = json::array();
-        for (const TurnStepResult& result : step.results) {
-            json block{{"type", "tool_result"}, {"tool_use_id", result.call_id}};
-            json parts = json::array({text_block(result.output_json)});
-            if (result.image)
-                parts.push_back(image_block(result.image->mime_type, result.image->base64));
-            block["content"] = std::move(parts);
-            if (result.failed)
-                block["is_error"] = true;
-            results.push_back(std::move(block));
+        case RecordItem::Kind::Operator: push_system(messages, item.text, item.clears && clears); break;
+        case RecordItem::Kind::Assistant:
+            // The response's own content, thinking included, exactly as it came.
+            push(messages, "assistant", item.output);
+            break;
+        case RecordItem::Kind::Results: {
+            json results = json::array();
+            for (const RecordResult& result : item.results) {
+                json block{{"type", "tool_result"}, {"tool_use_id", result.call_id}};
+                json parts = json::array({text_block(result.output_json)});
+                if (result.image)
+                    parts.push_back(part_block(*result.image));
+                block["content"] = std::move(parts);
+                if (result.failed)
+                    block["is_error"] = true;
+                results.push_back(std::move(block));
+            }
+            push(messages, "user", std::move(results));
+            break;
         }
-        push(messages, "user", std::move(results));
-        // Kept on every later request, where it was first sent: removing it
-        // would change the history before the thinking that followed it.
-        push_skills(messages, step.once);
+        }
     }
     return messages;
 }
@@ -252,7 +236,7 @@ ProviderRequest AnthropicCodec::build(const TurnTranscript& transcript, const Pr
 {
     const bool title = kind == RequestKind::ConversationTitle;
     json       messages = json::array();
-    std::vector<Message> built = normalized(conversation(transcript, kind));
+    std::vector<Message> built = normalized(conversation(transcript, clears_skills(profile)));
     for (const Message& message : built)
         messages.push_back(message_json(message));
     // A breakpoint on the newest user content caches the turn so far for the
@@ -264,6 +248,8 @@ ProviderRequest AnthropicCodec::build(const TurnTranscript& transcript, const Pr
         }
 
     ProviderRequest request;
+    if (clears_skills(profile))
+        request.headers.push_back({"anthropic-beta", kClearAtBeta});
     request.body = json{{"model", profile.model},
                         {"max_tokens", profile.max_tokens},
                         {"stream", true},

@@ -99,6 +99,71 @@ std::string unique_temp_dir(const char* label)
 
 } // namespace
 
+TEST_CASE("a chat's record keeps every item as sent, in one format, and appends only", "[project-state][record]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p-1", "l-1", kT);
+    const std::string chat = document.active_conversation_id();
+    CHECK_FALSE(document.chat_record(chat));
+
+    RecordItem asked{RecordItem::Kind::User, "m-1", {RecordPart{RecordPart::Kind::Text, "What is this?"}}};
+    RecordPart picture;
+    picture.kind   = RecordPart::Kind::Image;
+    picture.mime   = "image/png";
+    picture.blob   = chat_record_dir(chat) + "/r-1";
+    picture.base64 = "aGVsbG8=";
+    asked.parts.push_back(picture);
+    RecordItem reply{RecordItem::Kind::Assistant, {}, {}, {},
+                     json::array({json{{"type", "thinking"}, {"thinking", "Hm."}, {"signature", "s"}},
+                                  json{{"type", "tool_use"}, {"id", "call_1"}, {"name", "view_render"}, {"input", json::object()}}})};
+    RecordItem results{RecordItem::Kind::Results};
+    results.results.push_back({"call_1", R"({"result":{}})", true, std::nullopt});
+    RecordItem note{RecordItem::Kind::Operator, "m-2", {}, "Slice ready."};
+    document.append_chat_record(chat, "anthropic", {asked, reply});
+    document.append_chat_record(chat, "anthropic", {results, note});
+
+    ProjectStateDocument reloaded;
+    REQUIRE(reloaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const std::optional<ChatRecord> record = reloaded.chat_record(chat);
+    REQUIRE(record);
+    CHECK(record->format == "anthropic");
+    CHECK(record->holds("m-1"));
+    CHECK(record->holds("m-2"));
+    CHECK_FALSE(record->holds("m-3"));
+    REQUIRE(record->items.size() == 4);
+    CHECK(record->items[0].source == "m-1");
+    REQUIRE(record->items[0].parts.size() == 2);
+    CHECK(record->items[0].parts[0].text == "What is this?");
+    CHECK(record->items[0].parts[1].blob == picture.blob);
+    CHECK(record->items[0].parts[1].mime == "image/png");
+    // The bytes live in the blob, never in the document.
+    CHECK(record->items[0].parts[1].base64.empty());
+    CHECK(document.dump().find("aGVsbG8=") == std::string::npos);
+    CHECK(record->items[1].output == reply.output);
+    REQUIRE(record->items[2].results.size() == 1);
+    CHECK(record->items[2].results[0].call_id == "call_1");
+    CHECK(record->items[2].results[0].output_json == R"({"result":{}})");
+    CHECK(record->items[2].results[0].failed);
+    CHECK(record->items[3].kind == RecordItem::Kind::Operator);
+    CHECK(record->items[3].text == "Slice ready.");
+
+    SECTION("another format is refused") {
+        CHECK_THROWS_AS(document.append_chat_record(chat, "responses", {note}), std::logic_error);
+        CHECK(document.chat_record(chat)->items.size() == 4);
+    }
+    SECTION("a record is in a format from its start") {
+        const std::string other = document.create_conversation("Other", kT);
+        CHECK_THROWS_AS(document.append_chat_record(other, "", {note}), std::logic_error);
+        CHECK_FALSE(document.chat_record(other));
+    }
+    SECTION("a record is read as it was written") {
+        json saved = json::parse(document.dump());
+        saved["conversations"][0]["record"]["items"][0]["parts"][1].erase("mime");
+        REQUIRE(reloaded.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+        CHECK_THROWS_AS(reloaded.chat_record(chat), json::out_of_range);
+    }
+}
+
 TEST_CASE("the document round-trips its semantic state", "[project-state][schema]")
 {
     ProjectStateDocument document;
@@ -239,7 +304,7 @@ TEST_CASE("deleting chats removes their content and preserves manufacturing hist
     REQUIRE(document.set_active_conversation(first));
     const auto removed = document.delete_conversation(first, kT);
     REQUIRE(removed);
-    CHECK(*removed == std::vector<std::string>{attachment.relative_dir()});
+    CHECK(*removed == std::vector<std::string>{chat_record_dir(first), attachment.relative_dir()});
     CHECK(document.active_conversation_id() != second);
     CHECK(document.viewed_conversation_id() == document.active_conversation_id());
     CHECK(document.messages(first).empty());
@@ -704,8 +769,7 @@ TEST_CASE("a document with Sent events and physical prints loads without them", 
 
 TEST_CASE("the project keeps the most recently written G-code copies", "[project-state][history]")
 {
-    const fs::path project = fs::temp_directory_path() / "jusprin-kept-gcode-test";
-    fs::remove_all(project);
+    const fs::path project = fs::path(unique_temp_dir("kept-gcode"));
     const fs::path sources = project / "sources";
     fs::create_directories(sources);
     const auto source = [&](int n) {
@@ -808,13 +872,15 @@ TEST_CASE("the kept package must hash as the newest send that kept one said", "[
 
 TEST_CASE("a file's hash is the hash of its bytes", "[project-state][history]")
 {
-    const fs::path path = fs::temp_directory_path() / "jusprin-hash-test.gcode";
+    const fs::path folder = fs::path(unique_temp_dir("hash"));
+    const fs::path path   = folder / "hash-test.gcode";
     std::string bytes(200000, 'x');
     bytes += "tail";
     std::ofstream(path, std::ios::binary) << bytes;
     CHECK(sha256_file_hex(path.u8string()) == sha256_hex(bytes));
     fs::remove(path);
     CHECK_THROWS(sha256_file_hex(path.u8string()));
+    fs::remove_all(folder);
 }
 
 // Documents written while the app kept builds and exported copies still load.
@@ -925,6 +991,7 @@ TEST_CASE("managed import moves semantic state and attachments into the local st
     const fs::path auxiliary = fs::path(workspace.auxiliary_data_dir()) / "JusPrin";
     write_text(auxiliary / "state.json", saved);
     write_text(auxiliary / "attachments" / "a-1" / "note.txt", "attached");
+    write_text(auxiliary / chat_record_dir(conversation) / "r-1", "aGVsbG8=");
     ProjectPersistence::Config config = test_config();
     config.managed_root = root;
     ProjectPersistence imported(workspace, config);
@@ -933,6 +1000,8 @@ TEST_CASE("managed import moves semantic state and attachments into the local st
     CHECK(imported.document().messages(conversation).size() == 1);
     CHECK(imported.draft() == "unfinished draft");
     CHECK(read_text(fs::path(imported.attachments_dir()) / "a-1" / "note.txt") == "attached");
+    // The pictures the chat's record sent come with it.
+    CHECK(imported.read_attachment_blob(chat_record_dir(conversation) + "/r-1") == "aGVsbG8=");
     CHECK_FALSE(fs::exists(fs::path(root) / "p-imported" / "state.json"));
     CHECK(read_text(auxiliary / "state.json") == saved);
 

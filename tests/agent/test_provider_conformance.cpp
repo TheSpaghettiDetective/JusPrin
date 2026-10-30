@@ -5,6 +5,7 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 
 #include <nlohmann/json.hpp>
@@ -123,6 +124,8 @@ Run run(const std::string& provider, const std::function<std::string(const Respo
     AgentServicePtr agent    = make_provider_agent(*profile_for(provider), "key", "", "", std::move(transport), std::move(listeners));
 
     AgentRequest request;
+
+    JusPrinTest::kept_nowhere(request);
     request.request_id           = "conformance";
     request.session.instructions = "Instructions.";
     request.user_text            = "Check the plate.";

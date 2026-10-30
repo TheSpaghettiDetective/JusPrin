@@ -12,10 +12,14 @@ using namespace Slic3r::GUI::JusPrin;
 
 namespace {
 
-// The token file's values: the 26 DIP icon button, 4 DIP padding and gaps,
-// 12 DIP from the canvas edges. test_shell_theme.cpp checks that
-// tool_strip_geometry() reads exactly these.
+// The layout's inputs, chosen as the token file's sizes today: a 26 DIP icon
+// button, 4 DIP padding and gaps, 12 DIP from the canvas edges. They are this
+// test's own; test_shell_theme.cpp checks what tool_strip_geometry() reads.
 constexpr StripGeometry kGeometry{26, 4, 4, 12};
+
+// Each button with the gap after it (the last one's is the divider's), and
+// the padding at both ends.
+constexpr float kTools = float(kStripToolCount);
 
 } // namespace
 
@@ -25,7 +29,7 @@ TEST_CASE("the strip sits in the canvas's upper-left corner", "[jusprin][tool_st
 
     CHECK(layout.strip.x == 12.f);
     CHECK(layout.strip.y == 12.f);
-    CHECK(layout.strip.w == 158.f); // 4 + 5 * 26 + 5 * 4 + 4
+    CHECK(layout.strip.w == 4.f + kTools * 26.f + kTools * 4.f + 4.f);
     CHECK(layout.strip.h == 34.f);  // 4 + 26 + 4
 }
 
@@ -59,7 +63,7 @@ TEST_CASE("the strip scales with the display and stays on whole pixels", "[juspr
 
     CHECK(layout.strip.x == 18.f);
     CHECK(layout.strip.y == 18.f);
-    CHECK(layout.strip.w == 237.f); // 6 + 5 * 39 + 5 * 6 + 6
+    CHECK(layout.strip.w == 6.f + kTools * 39.f + kTools * 6.f + 6.f);
     CHECK(layout.strip.h == 51.f);  // 6 + 39 + 6
     for (const StripRect& button : layout.buttons) {
         CHECK(button.x == std::round(button.x));
