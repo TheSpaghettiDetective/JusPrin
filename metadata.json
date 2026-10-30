@@ -3,17 +3,8 @@
   "checkpoint_id": "01M66EBAWJAZ8ZV7E2Q9B9CHP6",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 6,
-  "files_touched": [
-    "tests/data/test_stl/wall_hook.stl",
-    "tests/project_prompt/README.md",
-    "tests/project_prompt/baseline-claude-cli.json",
-    "tests/project_prompt/baseline.json",
-    "tests/project_prompt/requests.json",
-    "tests/project_prompt/run_prompt_tests.py",
-    "tests/project_prompt/script.json",
-    "tests/project_prompt/test_steps.py"
-  ],
+  "checkpoints_count": 3,
+  "files_touched": null,
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -31,10 +22,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 358,
-    "cache_creation_tokens": 1191655,
-    "cache_read_tokens": 35571187,
-    "output_tokens": 195858,
-    "api_call_count": 179
+    "input_tokens": 376,
+    "cache_creation_tokens": 1202751,
+    "cache_read_tokens": 38198745,
+    "output_tokens": 202308,
+    "api_call_count": 188
   }
 }

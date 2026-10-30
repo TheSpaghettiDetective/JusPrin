@@ -3,48 +3,28 @@
   "checkpoint_id": "01M66EBAWJAZ8ZV7E2Q9B9CHP6",
   "session_id": "878e476a-296a-4e79-bd3b-2062f964ab54",
   "strategy": "manual-commit",
-  "created_at": "2026-10-30T13:00:30.244803Z",
+  "created_at": "2026-10-30T13:10:57.352706Z",
   "branch": "jusprin-newui",
-  "checkpoints_count": 4,
-  "files_touched": [
-    "tests/data/test_stl/wall_hook.stl",
-    "tests/project_prompt/README.md",
-    "tests/project_prompt/baseline-claude-cli.json",
-    "tests/project_prompt/baseline.json",
-    "tests/project_prompt/requests.json",
-    "tests/project_prompt/run_prompt_tests.py",
-    "tests/project_prompt/script.json",
-    "tests/project_prompt/test_steps.py"
-  ],
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
   "agent": "Claude Code",
   "model": "claude-opus-5-5",
-  "turn_id": "f4c37bd3f514",
+  "turn_id": "61ac9ea86a1d",
   "compact_transcript_start": 0,
   "token_usage": {
-    "input_tokens": 178,
-    "cache_creation_tokens": 528361,
-    "cache_read_tokens": 17657018,
-    "output_tokens": 77195,
-    "api_call_count": 89
+    "input_tokens": 196,
+    "cache_creation_tokens": 539457,
+    "cache_read_tokens": 20284576,
+    "output_tokens": 83645,
+    "api_call_count": 98
   },
   "session_metrics": {
-    "turn_count": 4
-  },
-  "initial_attribution": {
-    "calculated_at": "2026-10-30T13:00:30.127545Z",
-    "agent_lines": 0,
-    "agent_removed": 0,
-    "human_added": 5896,
-    "human_modified": 177,
-    "human_removed": 0,
-    "total_committed": 5896,
-    "total_lines_changed": 6073,
-    "agent_percentage": 0,
-    "metric_version": 2
+    "turn_count": 5
   },
   "prompt_attributions": [
     {
-      "checkpoint_number": 1,
+      "checkpoint_number": 2,
       "user_lines_added": 0,
       "user_lines_removed": 0,
       "agent_lines_added": 0,
