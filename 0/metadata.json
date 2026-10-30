@@ -3,35 +3,26 @@
   "checkpoint_id": "01M66A88EAGQTZ653M253HY64D",
   "session_id": "6083c73e-2ec8-46d3-890b-e75708e800b3",
   "strategy": "manual-commit",
-  "created_at": "2026-10-30T11:48:55.717128Z",
+  "created_at": "2026-10-30T11:54:59.172463Z",
   "branch": "jusprin-newui",
-  "checkpoints_count": 7,
+  "checkpoints_count": 2,
   "save_step_count": 1,
   "files_touched": [],
   "agent": "Claude Code",
   "model": "claude-fable-5-1",
-  "turn_id": "052211791b9b",
-  "checkpoint_transcript_start": 3341,
-  "transcript_lines_at_start": 3341,
-  "compact_transcript_start": 376,
+  "turn_id": "d9d9e59676ab",
+  "compact_transcript_start": 0,
   "token_usage": {
-    "input_tokens": 946,
-    "cache_creation_tokens": 281631,
-    "cache_read_tokens": 7013912,
-    "output_tokens": 26586,
-    "api_call_count": 38
+    "input_tokens": 7366,
+    "cache_creation_tokens": 1531581,
+    "cache_read_tokens": 53190041,
+    "output_tokens": 253858,
+    "api_call_count": 278
   },
   "session_metrics": {
-    "turn_count": 11
+    "turn_count": 13
   },
   "prompt_attributions": [
-    {
-      "checkpoint_number": 1,
-      "user_lines_added": 0,
-      "user_lines_removed": 0,
-      "agent_lines_added": 0,
-      "agent_lines_removed": 0
-    },
     {
       "checkpoint_number": 2,
       "user_lines_added": 0,

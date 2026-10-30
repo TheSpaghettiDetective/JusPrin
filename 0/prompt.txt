@@ -261,3 +261,11 @@ Do you mean that you should have recognized the need to run it, but you failed t
 ---
 
 Yes, new baseline
+
+---
+
+can you squash the commit with the previous one?
+
+---
+
+Yes, squash and force-push
