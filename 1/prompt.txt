@@ -13,3 +13,11 @@ How:
 Done looks like: an untracked plain-English report `live-prompt-run-2026-10-29.md` in the checkout root with the comparison table, the per-case reading of every miss, the usage totals, and a one-paragraph verdict ("nothing looks like a regression" or which cases do and why). Do not promote the run to the new baseline; Kenneth decides that after reading the report. The printer prompt suite (`tests/printer_prompt`) is not part of this approved batch; say in the report whether it should also be run and roughly what it would cost. Leave no processes running and delete any harness data dirs you created (only your own).
 
 Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_34d95bfb-fc90-47e6-94ab-adc3d3711d01
+
+---
+
+test result in plain eng under 100 words
+
+---
+
+also check how you can run live prompt testing using claude subscription
