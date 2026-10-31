@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M695RBJNN709YDXT99GFW615",
+  "session_id": "aa11def1-46cb-4722-affe-13a9a32d9cb4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-31T14:27:57.965885Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "pricing-mental-model-2026-10.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "86a416f72ed9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1232,
+    "cache_creation_tokens": 631370,
+    "cache_read_tokens": 11340673,
+    "output_tokens": 111364,
+    "api_call_count": 61
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-31T14:27:57.853197Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 187,
+    "total_committed": 187,
+    "total_lines_changed": 187,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

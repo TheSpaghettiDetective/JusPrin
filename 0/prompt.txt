@@ -1,0 +1,7 @@
+There are a few things that I'm quite confident that you got wrong:
+
+*  the low usage of V1 is not an indication of the user's a typical usage pattern. It's an indication of low stickiness. You confuse these two. I'm pretty sure typical usage will be a lot lower than what v1 showed
+*  you had a very strong conviction that rewards incentivize gaming. It contradicted our own experience when we reward the user in Obico and we found that the data they provided were high quality. I don't know why research data contradicted the research. Maybe people feel less guilty about taking advantage of a well-known product because they assume that the business is making a lot of money anyway or it's because our audience are makers who are nurdier than the general population, I don't know for sure, but I am quite confident that we can use reward to get pretty good data. 
+*  some of the obico conversion and retention data you got was wrong. our conversion was around 5%, not 47%. our rention is probably better than 70% but not by a lot.
+
+ Now, update your report, as well as your assessments
