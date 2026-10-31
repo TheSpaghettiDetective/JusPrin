@@ -1,0 +1,7 @@
+> The six prompt cases that no longer expect the print-issues skill (harness commit 4d663df65c). The fixture’s only warning was deliberately stopped by an app change on 2026-10-28, so the skill cannot fire there. Options: keep the commit, or revert it and give the fixture a warning that still counts. My pick: keep, since the assertion-fixes branch already builds on it. A new fixture with a real warning would be a separate task.
+
+Explaining plain English.
+
+---
+
+does the prompt suite still have at least one case for skill loading? if so, why do we want to test this specific skill? What's unique about this skill?
