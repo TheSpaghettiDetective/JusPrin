@@ -30,4 +30,28 @@ describe('model-facing wording', () => {
       text.split('\n').filter((line) => /arriv/i.test(line)).map((line) => `${path}: ${line.trim().slice(0, 120)}`));
     expect(hits).toEqual([]);
   });
+
+  // The model is the app, so it reads about "the app", not a second program.
+  // Only the prompt names OrcaSlicer, to say that file data using the name
+  // means this app. A throw goes to Sentry and a log line to the log, so
+  // neither reaches the model; Orca's own warnings are rebranded in the
+  // translation catalogs (Brand/brand_catalogs.py). with_product_name's loop
+  // holds the names it removes from a tooltip, so they never reach the model;
+  // changing the list or the loop's body brings this check back to it.
+  const removesProductNames = /for \(const char\* name : \{"Orca Slicer", "OrcaSlicer", "Orca"\}\)\s+boost::replace_all\(text, name, SLIC3R_APP_NAME\);/;
+  it('never names Orca in what the app writes for the model', () => {
+    const owned = ['Agent', 'Workspace', 'PrinterSetup', 'Printers', 'Mcp'].flatMap((name) => {
+      const dir = join(root, 'src/slic3r/GUI/JusPrin', name);
+      return readdirSync(dir).filter((file) => /\.(cpp|hpp)$/.test(file)).map((file) => join(dir, file));
+    });
+    const literals = owned.map((path): [string, string] => {
+      const lines = readFileSync(path, 'utf8').replace(removesProductNames, '').split('\n')
+        .filter((line) => !/^\s*(\/\/|#include)|\bthrow\b|BOOST_LOG/.test(line));
+      return [path, (lines.join('\n').match(/"(?:[^"\\\n]|\\.)*"/g) ?? []).join('\n')];
+    });
+    const text = [...modelFacingText().filter(([path]) => !path.endsWith('projectInstructions.ts')), ...literals];
+    const hits = text.flatMap(([path, content]) =>
+      content.split('\n').filter((line) => /\bOrca(Slicer)?\b/.test(line)).map((line) => `${path}: ${line.trim().slice(0, 120)}`));
+    expect(hits).toEqual([]);
+  });
 });

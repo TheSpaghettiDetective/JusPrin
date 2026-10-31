@@ -2118,7 +2118,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         const auto snapshot = m_workspace.snapshot();
         activity.result_json = json{{"opened", true},
                                     {"dialog", outcome.dialog},
-                                    {"note", "OrcaSlicer's send dialog is open. The person checks it and presses Send there; "
+                                    {"note", "The app's send dialog is open. The person checks it and presses Send there; "
                                              "nothing is sent until they do. A send that happens shows in the print history."},
                                     {"sessionId", std::to_string(snapshot.session.value())},
                                     {"revision", snapshot.revision}}
@@ -2155,7 +2155,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 "Slicing has started in the background. The person sees its progress in a card in the chat, below this "
                 "turn, with a Cancel button. Until the run ends, slicing.running stays true and slice_report returns "
                 "valid: false. When it ends after this turn, the app starts a new turn with the outcome: sliced, or "
-                "OrcaSlicer's reason. Checking on it from this turn shows nothing the person can't already see." :
+                "the app's reason. Checking on it from this turn shows nothing the person can't already see." :
                 "Slicing has started in the background. Until the run ends, slicing.running stays true and slice_report "
                 "returns valid: false. Nothing notifies this client when it ends: the outcome shows in workspace_inspect's "
                 "slicing section, and slice_report reads the finished slice.";
@@ -2167,7 +2167,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
                 if (!failure) {
                     failure.emplace();
                     failure->severity = "blocker";
-                    failure->message  = "OrcaSlicer did not start slicing this plate.";
+                    failure->message  = "The app did not start slicing this plate.";
                 }
                 result["reason"] = slice_failure_result(*failure);
             }

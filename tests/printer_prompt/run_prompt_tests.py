@@ -754,7 +754,7 @@ class SavedPrinterCase:
             if key not in PRINTER_SETTINGS:
                 issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
             elif not PRINTER_SETTINGS[key][1]:
-                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this printer setting; the person changes it in OrcaSlicer."})
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this printer setting; the person changes it in the app."})
             else:
                 changes.append({"key": key, "before": PRINTER_SETTINGS[key][0], "after": str(value)})
         persist = arguments.get("persistAs")
@@ -764,7 +764,7 @@ class SavedPrinterCase:
                                                                              "so a change to it is saved: pass persistAs."})
             elif persist == own and self.stock:
                 issues.append({"key": "", "code": "read_only_preset", "suggestions": [own + " - Copy"],
-                               "message": f'"{own}" comes with OrcaSlicer and cannot be overwritten. Save the change as a copy: '
+                               "message": f'"{own}" comes with the app and cannot be overwritten. Save the change as a copy: '
                                           f'pass persistAs "{own} - Copy".'})
             elif persist is not None and persist != own and not self.selected:
                 issues.append({"key": "", "code": "not_selected",
@@ -1337,7 +1337,7 @@ class FilamentCase:
             if key not in FILAMENT_SETTINGS:
                 issues.append({"key": key, "code": "unknown_setting", "message": "Unknown setting."})
             elif not FILAMENT_SETTINGS[key][1]:
-                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this filament setting; the person changes it in OrcaSlicer."})
+                issues.append({"key": key, "code": "unsupported_setting_mutation", "message": "The tools do not change this filament setting; the person changes it in the app."})
             elif len(str(value).split(",")) != len(FILAMENT_SETTINGS[key][0].split(",")):
                 count = len(FILAMENT_SETTINGS[key][0].split(","))
                 issues.append({"key": key, "code": "invalid_setting_value",
@@ -1347,7 +1347,7 @@ class FilamentCase:
         persist = arguments.get("persistAs")
         if not issues and persist == own and self.stock:
             issues.append({"key": "", "code": "read_only_preset", "suggestions": [own + " - Copy"],
-                           "message": f'"{own}" comes with OrcaSlicer and cannot be overwritten. Save the change as a copy: '
+                           "message": f'"{own}" comes with the app and cannot be overwritten. Save the change as a copy: '
                                       f'pass persistAs "{own} - Copy".'})
         if name == "settings_preview_patch":
             return {**context, "valid": not issues, "changes": changes if not issues else [], "dependencies": [],

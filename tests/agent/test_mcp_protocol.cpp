@@ -164,7 +164,7 @@ TEST_CASE("MCP terminal results preserve structured content and error identity",
     // A failure reaches the client with the in-app agent's own code and
     // details: no code means "JusPrin is closed" unless it is that.
     activity.state = Agent::ToolState::Failed;
-    activity.error = Agent::ToolError{"busy", "OrcaSlicer is busy with another job. Try again when it finishes."};
+    activity.error = Agent::ToolError{"busy", "The app is busy with another job. Try again when it finishes."};
     auto busy = Mcp::activity_result(activity, snapshot)["structuredContent"]["error"];
     CHECK(busy["code"] == "busy");
     CHECK(busy["message"] == activity.error->message);

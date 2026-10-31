@@ -348,6 +348,14 @@ answers. To record them again, keep that form; two points recorded in one proces
 not get the same IDs. Only the file-load report's temporary folder, the picture's
 bytes and the plan's time differ between processes.
 
+The three sentences that named Orca were replaced in the file by hand on 2026-10-30,
+keeping those IDs: slice_start's note, and the quote and the sentence in the
+print-issues and file-loaded skills. A whole-script recording of the changed app
+(all 34 points, harness checks passing) differed from the file in those sentences
+and in the IDs, numbers and temporary paths that differ between any two recordings.
+The harness target does not rebuild the Agent page, so a recording after a skill's
+text changes needs `jusprin_web` first, or its skill checks fail.
+
 The app streams its requests and this script does not.
 
 ## Cases

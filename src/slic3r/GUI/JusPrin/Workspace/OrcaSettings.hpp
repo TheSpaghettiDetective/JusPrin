@@ -121,15 +121,15 @@ inline void check_process_dialogs(const DynamicPrintConfig& config, SettingsPrev
     const auto& printer = wxGetApp().preset_bundle->printers.get_edited_preset().config;
     const double maximum = printer.opt_float("max_layer_height", 0);
     if (height < EPSILON)
-        result.issues.push_back({"layer_height", "invalid_setting_value", "Layer height is below Orca's minimum.", {}, {}, EPSILON, {}});
+        result.issues.push_back({"layer_height", "invalid_setting_value", "Layer height is below the app's minimum.", {}, {}, EPSILON, {}});
     if (maximum > 0.2 && height > maximum + EPSILON)
         result.issues.push_back({"layer_height", "invalid_setting_value", "Layer height exceeds the printer maximum.", {}, {}, {}, maximum});
     for (const auto* key : {"ironing_spacing", "support_ironing_spacing"})
-        block(config.opt_float(key) < 0.05, key, "Ironing spacing would open Orca's correction dialog; correct it first.");
-    block(config.opt_float("initial_layer_print_height") < EPSILON, "initial_layer_print_height", "Initial layer height would open Orca's correction dialog.");
+        block(config.opt_float(key) < 0.05, key, "Ironing spacing would open the app's correction dialog; correct it first.");
+    block(config.opt_float("initial_layer_print_height") < EPSILON, "initial_layer_print_height", "Initial layer height would open the app's correction dialog.");
     for (const auto* key : {"xy_hole_compensation", "xy_contour_compensation"})
-        block(std::abs(config.opt_float(key)) > 2, key, "XY compensation would open Orca's correction dialog.");
-    block(config.opt_float("elefant_foot_compensation") > 1, "elefant_foot_compensation", "Elephant foot compensation would open Orca's correction dialog.");
+        block(std::abs(config.opt_float(key)) > 2, key, "XY compensation would open the app's correction dialog.");
+    block(config.opt_float("elefant_foot_compensation") > 1, "elefant_foot_compensation", "Elephant foot compensation would open the app's correction dialog.");
     if (config.opt_bool("spiral_mode")) {
         // The values Orca's spiral dialog sets when answered Yes. The refusal
         // names the ones that differ, for a patch to send with it.
@@ -180,7 +180,7 @@ inline void check_support_style(const DynamicPrintConfig& config, const std::map
         allowed.push_back(ConfigOptionEnum<SupportMaterialStyle>(candidate).serialize());
     result.issues.push_back({"support_style", "invalid_setting_value",
                              std::string("With ") + (tree ? "tree" : "normal") +
-                                 " supports, support_style must be one of the allowed values; OrcaSlicer would reset it to default.",
+                                 " supports, support_style must be one of the allowed values; the app would reset it to default.",
                              allowed});
 }
 
@@ -221,7 +221,7 @@ inline void check_filament_dialogs(const DynamicPrintConfig& config, SettingsPre
 {
     if (config.has("filament_max_volumetric_speed") && config.opt_float("filament_max_volumetric_speed", 0) < 0.5)
         result.issues.push_back({"filament_max_volumetric_speed", "invalid_setting_value",
-                                 "Orca resets a max volumetric speed below 0.5 to 0.5.", {}, {}, 0.5, {}});
+                                 "The app resets a max volumetric speed below 0.5 to 0.5.", {}, {}, 0.5, {}});
 }
 
 // TabPrinter::toggle_options asks to turn wipe off, or firmware retraction
@@ -236,7 +236,7 @@ inline void check_printer_dialogs(const DynamicPrintConfig& config, SettingsPrev
     for (std::size_t index = 0; wipe != nullptr && before != nullptr && index < wipe->values.size(); ++index)
         if (wipe->get_at(index) && before->get_at(index) < 100.)
             return result.issues.push_back({"use_firmware_retraction", "incompatible_settings",
-                                            "Firmware retraction with wipe needs retract_before_wipe at 100%; Orca asks to change one of them."});
+                                            "Firmware retraction with wipe needs retract_before_wipe at 100%; the app asks to change one of them."});
 }
 
 inline PresetCollection& scope_collection(SettingsScope scope)

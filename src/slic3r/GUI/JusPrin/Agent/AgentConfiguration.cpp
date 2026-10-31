@@ -6,6 +6,7 @@
 #include "OpenAIResponsesAgent.hpp"
 #include "ProviderFactory.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/Utils.hpp"
 
 #include <boost/log/trivial.hpp>
 
@@ -104,6 +105,7 @@ ProviderListeners logging_listeners()
     listeners.refusal = [](const std::string& tool, const std::string& arguments, const std::string& code) {
         BOOST_LOG_TRIVIAL(warning) << "Agent tool call refused (" << code << "): " << tool << " " << arguments.substr(0, 1024);
     };
+    listeners.request = request_log_writer(std::filesystem::u8path(data_dir()) / "jusprin" / "request-log");
     return listeners;
 }
 

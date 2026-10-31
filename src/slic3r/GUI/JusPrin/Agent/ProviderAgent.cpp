@@ -409,6 +409,9 @@ bool ProviderAgent::post()
             request.headers.push_back({"X-JusPrin-Chat", sha256_hex(m_transcript.chat_key).substr(0, 32)});
     }
     request.body = built.body.dump();
+    if (m_config.request_listener)
+        m_config.request_listener(SentRequest{m_config.profile.id, m_transcript.chat_key, m_transcript.request_id,
+                                              m_transcript.request_sequence, built.body});
     const std::uint64_t generation = ++m_http_generation;
     if (!m_transport->post(std::move(request), [this, generation](AgentHttpEvent event) {
             accept_http(generation, std::move(event));

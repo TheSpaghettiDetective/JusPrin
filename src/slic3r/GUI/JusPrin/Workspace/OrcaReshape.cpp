@@ -137,7 +137,7 @@ CommandResult check_divide(const ModelObject& object, const DivideRequest& reque
         return CommandResult::failure(WorkspaceError::Refused, object.name + " has no instance to divide");
     if (object.is_cut())
         return CommandResult::failure(WorkspaceError::Refused,
-                                      object.name + " was cut with connectors; divide it with OrcaSlicer's cut tool");
+                                      object.name + " was cut with connectors; divide it with the app's cut tool");
     if (request.mode == DivideRequest::Mode::Plane) {
         const Vec3d normal(request.normal[0], request.normal[1], request.normal[2]);
         if (normal.norm() < 1e-9)
@@ -233,7 +233,7 @@ CommandResult OrcaWorkspaceAdapter::divide_object(ObjectId id, const DivideReque
         Cut                  cut(&object, 0, cut_matrix(object, request), cut_attributes(request));
         const ModelObjectPtrs& pieces = cut.perform_with_plane();
         if (pieces.empty())
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer's cut produced nothing");
+            return CommandResult::failure(WorkspaceError::Failed, "The app's cut produced nothing");
         added = pieces.size();
         m_plater.apply_cut_object_to_model(resolved->index, pieces);
     } else if (!request.as_parts) {
@@ -243,7 +243,7 @@ CommandResult OrcaWorkspaceAdapter::divide_object(ObjectId id, const DivideReque
         m_plater.select_object(resolved->index);
         m_plater.split_object(false);
         if (model.objects.size() < count_before)
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not split " + object.name);
+            return CommandResult::failure(WorkspaceError::Failed, "The app did not split " + object.name);
         added = model.objects.size() - count_before + 1;
     } else {
         // ObjectList::split for every part, less its selection and message.
@@ -301,11 +301,11 @@ CommandResult OrcaWorkspaceAdapter::merge_objects(const std::vector<ObjectId>& i
     // snapshot; select exactly these objects first.
     list->select_items(selection);
     if (!list->can_merge_to_multipart_object())
-        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer cannot merge these objects");
+        return CommandResult::failure(WorkspaceError::Refused, "The app cannot merge these objects");
     const std::size_t count_before = model.objects.size();
     list->merge(true);
     if (model.objects.size() != count_before - ids.size() + 1)
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not merge the objects");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not merge the objects");
     merged = ObjectId(m_session, model.objects.back()->id().id);
     return CommandResult::success();
 }
@@ -355,7 +355,7 @@ CommandResult OrcaWorkspaceAdapter::repair_object(ObjectId id, RepairResult& res
         if (!MeshBoolean::cgal::repair(mesh, nullptr, &error)) {
             // What already happened stays: the paint is gone and the parts
             // before this one are repaired.
-            std::string message = "OrcaSlicer could not repair " + object.name + ": " + error;
+            std::string message = "The app could not repair " + object.name + ": " + error;
             if (painted || repaired > 0)
                 message += std::string(" Already changed by this call, and not undone:") +
                            (painted ? " its painted supports, seams, colors and fuzzy skin were removed" : "") +

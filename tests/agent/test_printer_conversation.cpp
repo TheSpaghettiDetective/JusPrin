@@ -1244,7 +1244,7 @@ TEST_CASE("OrcaSlicer's printer list, where the page could not load, reports wha
     backend.manual_result = ManualPrinterResult{true, {lab_printer()}};
     conversation.handle_page_message("printer_action", json{{"action", "orca_printer_list"}});
     CHECK(conversation.printer_name() == "Lab Printer");
-    REQUIRE(panel.notes == std::vector<std::string>{"The person added Lab Printer from OrcaSlicer's printer list."});
+    REQUIRE(panel.notes == std::vector<std::string>{"The person added Lab Printer from the printer list."});
     check_is_a_statement(panel.notes.front());
     CHECK(panel.turns == 1);
     CHECK(backend.manual_setups == 2);
@@ -1503,7 +1503,7 @@ TEST_CASE("creating a filament preset adds the printer first, then puts what was
     CHECK(backend.starts.empty());
     REQUIRE(panel.notes.size() == 1);
     CHECK_THAT(panel.notes.front(), ContainsSubstring("Textured PEI Plate. The person made the filament preset Silk blue @Bambu Lab A1 mini "
-                                                      "in OrcaSlicer's Create filament window; it is in slot 1."));
+                                                      "in the Create filament window; it is in slot 1."));
     CHECK(panel.turns == 1);
 
     // Closing OrcaSlicer's window without making one leaves the default.

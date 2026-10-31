@@ -677,7 +677,7 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         const ManualPrinterResult result = m_backend.run_manual_setup();
         if (!result.added.empty()) {
             m_printer_name = result.added.front().name;
-            m_host.post_note("The person added " + m_printer_name + " from OrcaSlicer's printer list.");
+            m_host.post_note("The person added " + m_printer_name + " from the printer list.");
             m_host.printers_changed(m_printer_name);
             m_host.session_changed();
             m_host.start_turn();
@@ -875,9 +875,9 @@ void PrinterConversation::finish_form(const json& payload)
     }
     if (create) {
         const std::string made = m_backend.create_filament_preset(now.name);
-        filament_note = made.empty() ? " The person opened OrcaSlicer's Create filament window and made no preset for this printer, so it starts with " +
+        filament_note = made.empty() ? " The person opened the Create filament window and made no preset for this printer, so it starts with " +
                                            starting + "."
-                                     : " The person made the filament preset " + made + " in OrcaSlicer's Create filament window; it is in slot 1.";
+                                     : " The person made the filament preset " + made + " in the Create filament window; it is in slot 1.";
     }
 
     std::string note = "The person added " + now.name + " themselves with the printer form: " + printer->display_name() + ", " +

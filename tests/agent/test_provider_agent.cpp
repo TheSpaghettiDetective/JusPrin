@@ -7,13 +7,17 @@
 
 #include "kept_turn.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolRegistry.hpp"
 #include "project_chat_tools.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 using namespace Slic3r::GUI::JusPrin::Agent;
@@ -1060,4 +1064,127 @@ TEST_CASE("a paused response is sent again with its turn appended, a bounded num
     REQUIRE(failed);
     CHECK(failed->error->code == "agent_paused_too_often");
     CHECK(h.fake->requests.size() == before + 4);
+}
+
+namespace {
+
+// A new directory for one test, gone afterwards.
+struct LogDirectory
+{
+    LogDirectory()
+    {
+        static int count = 0;
+        path = std::filesystem::temp_directory_path() / ("jusprin-request-log-test-" + std::to_string(++count));
+        std::filesystem::remove_all(path);
+    }
+    ~LogDirectory() { std::filesystem::remove_all(path); }
+
+    // The files in name order, which is the order they were written.
+    std::vector<json> files() const
+    {
+        std::vector<std::filesystem::path> paths;
+        for (const auto& entry : std::filesystem::directory_iterator(path))
+            paths.push_back(entry.path());
+        std::sort(paths.begin(), paths.end());
+        std::vector<json> parsed;
+        for (const auto& file : paths) {
+            std::ifstream in(file, std::ios::binary);
+            std::stringstream text;
+            text << in.rdbuf();
+            parsed.push_back(json::parse(text.str()));
+        }
+        return parsed;
+    }
+
+    std::filesystem::path path;
+};
+
+} // namespace
+
+TEST_CASE("every request of a turn reaches the request listener, named by its chat and turn", "[agent][loop][request-log]")
+{
+    std::vector<std::string> seen;
+    ProviderAgentConfig      config;
+    config.request_listener = [&seen](const SentRequest& sent) {
+        seen.push_back(sent.provider + " " + sent.chat_key + " " + sent.turn_id + " " + std::to_string(sent.sequence));
+        CHECK(sent.body.contains("items"));
+    };
+    Harness h(std::move(config));
+    AgentRequest request = request_fixture();
+    request.chat_key     = "p-1/c-2";
+    REQUIRE(h.agent->start(request));
+    h.fake->data(frame(json{{"turn", "t"}, {"calls", json::array({call("call-a", "workspace_inspect")})}}));
+    REQUIRE(h.poll_until(AgentEventKind::ToolCall));
+    REQUIRE(h.agent->continue_after_tool({"call-a", "succeeded", R"({"state":"succeeded"})"}));
+
+    const std::string turn = request.request_id;
+    CHECK(seen == std::vector<std::string>{"test p-1/c-2 " + turn + " 1", "test p-1/c-2 " + turn + " 2"});
+}
+
+TEST_CASE("the request log keeps the words sent and leaves out pictures and files", "[agent][request-log]")
+{
+    LogDirectory directory;
+    const json   body = json{{"instructions", "the words sent, data: and all"},
+                             {"input", json::array({json{{"type", "input_image"}, {"image_url", "data:image/png;base64,QUJD"}},
+                                                    json{{"type", "input_file"}, {"file_data", "data:application/pdf;base64,QUJDRA=="}},
+                                                    json{{"type", "image"}, {"source", json{{"type", "base64"}, {"media_type", "image/png"}, {"data", "QUJD"}}}},
+                                                    json{{"type", "text"}, {"data", "not a picture"}}})}};
+    request_log_writer(directory.path)(SentRequest{"openrouter", "p-1/c-2", "turn-1", 3, body});
+
+    const std::vector<json> files = directory.files();
+    REQUIRE(files.size() == 1);
+    CHECK(files[0]["provider"] == "openrouter");
+    CHECK(files[0]["chat"] == "p-1/c-2");
+    CHECK(files[0]["turn"] == "turn-1");
+    CHECK(files[0]["sequence"] == 3);
+    const json& logged = files[0]["body"];
+    CHECK(logged["instructions"] == "the words sent, data: and all");
+    CHECK(logged["input"][0]["image_url"] == "[26 characters left out]");
+    CHECK(logged["input"][1]["file_data"] == "[36 characters left out]");
+    CHECK(logged["input"][2]["source"]["data"] == "[4 characters left out]");
+    CHECK(logged["input"][2]["source"]["media_type"] == "image/png");
+    CHECK(logged["input"][3]["data"] == "not a picture");
+}
+
+TEST_CASE("the request log holds no credential", "[agent][loop][request-log]")
+{
+    LogDirectory        directory;
+    ProviderAgentConfig config;
+    config.api_key          = "secret-key";
+    config.request_listener = request_log_writer(directory.path);
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+
+    const std::vector<json> files = directory.files();
+    REQUIRE(files.size() == 1);
+    CHECK(files[0].dump().find("secret-key") == std::string::npos);
+    // The header that carries it went out as usual.
+    CHECK(h.fake->requests.at(0).header("Authorization") == "Bearer secret-key");
+}
+
+TEST_CASE("the request log keeps the newest requests", "[agent][request-log]")
+{
+    LogDirectory directory;
+    const auto   write = request_log_writer(directory.path, 3);
+    const json   body  = json::object();
+    for (unsigned sequence = 1; sequence <= 5; ++sequence)
+        write(SentRequest{"test", "", "turn", sequence, body});
+
+    const std::vector<json> files = directory.files();
+    REQUIRE(files.size() == 3);
+    CHECK(files[0]["sequence"] == 3);
+    CHECK(files[1]["sequence"] == 4);
+    CHECK(files[2]["sequence"] == 5);
+}
+
+TEST_CASE("a request log that can't be written still lets the request go out", "[agent][loop][request-log]")
+{
+    LogDirectory directory;
+    // A file where the log's directory should be.
+    std::ofstream(directory.path, std::ios::binary) << "in the way";
+    ProviderAgentConfig config;
+    config.request_listener = request_log_writer(directory.path);
+    Harness h(std::move(config));
+    REQUIRE(h.agent->start(request_fixture()));
+    CHECK(h.fake->requests.size() == 1);
 }

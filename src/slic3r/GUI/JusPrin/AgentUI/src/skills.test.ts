@@ -190,7 +190,7 @@ describe('the skill for issues OrcaSlicer reports', () => {
 
   it('guides the warning families OrcaSlicer raises, in its own words', () => {
     for (const words of ['floating cantilever', "Object can't be printed for empty layer", 'is too close to others',
-      'Found gcode path conflicts', 'A G-code path goes beyond the plate boundaries', 'Orca will automatically cap',
+      'Found gcode path conflicts', 'A G-code path goes beyond the plate boundaries', 'JusPrin will automatically cap',
       'Partial flushing volume set to 0', 'The nozzle hardness required by the filament'])
       expect(text).toContain(words);
     expect(text).toContain('I raise no slicing warning for thin walls, bridges, bed adhesion, brims or cooling');

@@ -26,6 +26,16 @@
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
+// A request about to be sent. The headers stay out: they hold the credential.
+struct SentRequest
+{
+    std::string           provider;
+    std::string           chat_key; // empty for a request of no chat
+    std::string           turn_id;
+    unsigned              sequence{0}; // which request of the turn, from 1
+    const nlohmann::json& body;
+};
+
 struct ProviderAgentConfig
 {
     // The provider, with the configured model and endpoint in place of the
@@ -36,6 +46,7 @@ struct ProviderAgentConfig
     // A tool call the loop refused before it reached a card: the tool name,
     // the arguments as the model sent them, and why.
     std::function<void(const std::string&, const std::string&, const std::string&)> refusal_listener;
+    std::function<void(const SentRequest&)> request_listener;
 };
 
 class ProviderAgent : public IAgentService

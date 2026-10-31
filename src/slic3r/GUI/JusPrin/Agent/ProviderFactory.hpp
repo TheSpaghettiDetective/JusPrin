@@ -8,6 +8,7 @@
 #include "ProviderAgent.hpp"
 #include "ProviderProfile.hpp"
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -18,7 +19,14 @@ struct ProviderListeners
 {
     std::function<void(const AgentUsage&)> usage;
     std::function<void(const std::string&, const std::string&, const std::string&)> refusal;
+    std::function<void(const SentRequest&)> request;
 };
+
+// Keeps each request sent as one JSON file in `directory`, the newest `keep`
+// of them, so that what a model was told can be read after the reply looks
+// wrong. A picture or file in a request becomes a note of its size. A file
+// that can't be written costs the log only: the request is still sent.
+std::function<void(const SentRequest&)> request_log_writer(std::filesystem::path directory, std::size_t keep = 200);
 
 // The agent for a provider, with the codec its family speaks. An empty model
 // or endpoint keeps the row's default.

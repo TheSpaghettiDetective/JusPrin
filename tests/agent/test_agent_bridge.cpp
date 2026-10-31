@@ -4707,7 +4707,7 @@ TEST_CASE("a slice the model started that ends after its turn starts one app tur
         chat.harness->workspace.fail_slice_for_testing(failure);
         chat.tick();
         REQUIRE(chat.notes() ==
-                std::vector<std::string>{"OrcaSlicer stopped the slice of " + chat.plate_name() + ": " + failure.message});
+                std::vector<std::string>{"The app stopped the slice of " + chat.plate_name() + ": " + failure.message});
         REQUIRE(chat.app_turns().size() == 1);
         REQUIRE(chat.app_turns().front()->skills.size() == 1);
         CHECK(chat.app_turns().front()->skills.front().name == "slice-failed");

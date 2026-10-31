@@ -3,6 +3,9 @@
 #include "SettingsSupport.hpp"
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/PrintConfig.hpp"
+#include "libslic3r/libslic3r.h"
+
+#include <boost/algorithm/string/replace.hpp>
 
 #include <limits>
 
@@ -32,11 +35,22 @@ inline std::string setting_type(ConfigOptionType type)
     return std::string(name) + (vector ? "[]" : "");
 }
 
+// A tooltip names the product as Orca wrote it. The catalogs rebrand what the
+// person reads (Brand/brand_catalogs.py), but this is the source text, which
+// goes to the model as it is.
+inline std::string with_product_name(std::string text)
+{
+    for (const char* name : {"Orca Slicer", "OrcaSlicer", "Orca"})
+        boost::replace_all(text, name, SLIC3R_APP_NAME);
+    return text;
+}
+
 inline SettingDefinition setting_definition(const std::string& key)
 {
     const auto& def = *print_config_def.get(key);
     SettingDefinition result{key, setting_type(def.type), def.full_label.empty() ? def.label : def.full_label,
-        def.category, def.tooltip, def.sidetext, {}, {}, def.enum_values, def.enum_labels, writable_setting(key) && !def.readonly};
+        def.category, with_product_name(def.tooltip), def.sidetext, {}, {}, def.enum_values, def.enum_labels,
+        writable_setting(key) && !def.readonly};
     // An open enum (the interface layer counts) takes any number; its list is
     // a set of shortcuts, not the allowed values.
     if (def.gui_type == ConfigOptionDef::GUIType::i_enum_open || def.gui_type == ConfigOptionDef::GUIType::f_enum_open) {

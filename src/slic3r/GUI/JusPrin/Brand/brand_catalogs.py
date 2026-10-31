@@ -23,6 +23,12 @@ import sys
 from pathlib import Path
 
 PRODUCT_PATTERN = re.compile(r"Orca ?Slicer")
+# "Orca" alone also names the product. Only an ASCII letter ends the word:
+# \b would miss "Orca将", where the next character counts as a word character.
+BARE_PATTERN = re.compile(r"(?<![A-Za-z])Orca(?![A-Za-z])")
+# Things named Orca that are not the product. Decided on the msgid, because a
+# translation may move the word ("Куб Orca").
+KEEP_BARE_NAME = re.compile(r"Orca ?(?:Cloud|Cube|String Hell|Tolerance Test)")
 
 # msgids that are attribution and must keep the upstream name.
 KEEP_UPSTREAM_NAME = (
@@ -77,8 +83,13 @@ def parse_po(path):
     return entries
 
 
-def substitute(text, product):
-    return PRODUCT_PATTERN.sub(product, text)
+def names_product(msgid):
+    return bool(PRODUCT_PATTERN.search(msgid) or (BARE_PATTERN.search(msgid) and not KEEP_BARE_NAME.search(msgid)))
+
+
+def substitute(text, product, msgid):
+    text = PRODUCT_PATTERN.sub(product, text)
+    return text if KEEP_BARE_NAME.search(msgid) else BARE_PATTERN.sub(product, text)
 
 
 def keep_upstream(msgid):
@@ -116,16 +127,15 @@ def catalog_messages(entries, product, english):
             if "charset=" not in header:
                 header += "Content-Type: text/plain; charset=UTF-8\n"
             continue
-        names_product = bool(PRODUCT_PATTERN.search(msgid) or PRODUCT_PATTERN.search(e.get("msgid_plural", "")))
         msgstr = dict(e.get("msgstr", {}))
         if not any(msgstr.values()):
-            if not (english or names_product):
+            if not (english or names_product(msgid) or names_product(e.get("msgid_plural", ""))):
                 continue  # untranslated and nothing to substitute
             msgstr = {0: msgid}
             if "msgid_plural" in e:
                 msgstr[1] = e["msgid_plural"]
         if not keep_upstream(msgid):
-            msgstr = {i: substitute(t, product) for i, t in msgstr.items()}
+            msgstr = {i: substitute(t, product, msgid) for i, t in msgstr.items()}
         elif english:
             continue
         key = msgid

@@ -114,6 +114,26 @@ TEST_CASE("Every OrcaSlicer setting reads as one short line", "[setting_display]
     }
 }
 
+// The model reads a setting's source text, which the catalogs never touch.
+TEST_CASE("No setting names Orca in what the model reads", "[setting_display]")
+{
+    const std::vector<RealSetting> settings = real_settings();
+    REQUIRE(settings.size() > 500);
+    for (const RealSetting& setting : settings) {
+        const SettingDefinition& definition = setting.definition;
+        std::string text = definition.label + "\n" + definition.category + "\n" + definition.description + "\n" + definition.unit;
+        for (const std::string& label : definition.enum_labels)
+            text += "\n" + label;
+        INFO(definition.key << ": " << text);
+        CHECK(text.find("Orca") == std::string::npos);
+    }
+    const auto preheat = std::find_if(settings.begin(), settings.end(), [](const RealSetting& setting) {
+        return setting.definition.key == "preheat_time";
+    });
+    REQUIRE(preheat != settings.end());
+    CHECK(preheat->definition.description.find("JusPrin can preheat the next tool") != std::string::npos);
+}
+
 // A table to read, not a check: run with "[.sample]" and, to draw a different
 // sample, --rng-seed.
 TEST_CASE("Sample of displayed settings", "[.sample]")

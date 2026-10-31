@@ -159,7 +159,7 @@ CommandResult OrcaWorkspaceAdapter::render_view(const RenderRequest& request, Re
     ThumbnailsParams params{{}, false, true, false, true, index};
     canvas->render_thumbnail(data, width, height, params, Camera::EType::Ortho, *angle);
     if (!data.is_valid())
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer rendered nothing");
+        return CommandResult::failure(WorkspaceError::Failed, "The app rendered nothing");
     const auto png = GCodeThumbnails::compress_thumbnail(data, GCodeThumbnailsFormat::PNG);
     if (!png || png->size == 0 || png->size > kImageBytes)
         return CommandResult::failure(WorkspaceError::Failed, "The rendered picture could not be encoded");
@@ -208,7 +208,7 @@ CommandResult OrcaWorkspaceAdapter::read_attachment(const std::string& id, Attac
         bytes.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
         content.kind = "image";
         if (!bounded_image(bytes, extension, content))
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer could not read that picture");
+            return CommandResult::failure(WorkspaceError::Failed, "The app could not read that picture");
         return CommandResult::success();
     }
     bytes.resize(std::min<std::uint64_t>(content.bytes, kTextBytes + 4));
@@ -307,7 +307,7 @@ CommandResult OrcaWorkspaceAdapter::check_export(const ExportRequest& request) c
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder " + directory.generic_string() + " does not exist");
     // The app's own folders are not export destinations.
     if (inside(path, fs::path(data_dir())) || inside(path, fs::path(auxiliary_data_dir())))
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer's own data folders are not an export destination");
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The app's own data folders are not an export destination");
     const std::string extension = lower_extension(path);
     const std::map<std::string, std::string> wanted{{"gcode", ".gcode"}, {"sliced_3mf", ".3mf"}, {"project_3mf", ".3mf"}, {"stl", ".stl"}};
     if (!folder) {
@@ -367,7 +367,7 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
                                           SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::WithGcode | SaveStrategy::SkipModel :
                                           SaveStrategy::Silence | SaveStrategy::SplitModel | SaveStrategy::ShareMesh;
         if (m_plater.export_3mf(path, strategy, request.kind == "sliced_3mf" ? index : -1) < 0)
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer could not write the file");
+            return CommandResult::failure(WorkspaceError::Failed, "The app could not write the file");
     } else if (request.kind == "stl") {
         // The model parts of the chosen objects, or of the plate's objects,
         // as they are placed.

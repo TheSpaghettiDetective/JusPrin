@@ -1819,7 +1819,7 @@ bool AgentHost::slice_ended(const std::string& action_id)
         sliced = sliced && plate.sliced;
         if (text.empty() && plate.slice_failure)
             text = std::string(plate.slice_failure->kind == Workspace::SliceFailureKind::Refused ?
-                                   "OrcaSlicer did not slice " : "OrcaSlicer stopped the slice of ") +
+                                   "The app did not slice " : "The app stopped the slice of ") +
                    plate.name + ": " + plate.slice_failure->message;
     }
     // A run that neither sliced nor failed was stopped: nothing to tell.

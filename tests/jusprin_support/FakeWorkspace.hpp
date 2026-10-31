@@ -1124,7 +1124,7 @@ public:
                 if (volume.id == id) {
                     if (object.volumes.size() < 2)
                         return CommandResult::failure(WorkspaceError::Refused,
-                                                      "Orca does not select a volume of a single-part object");
+                                                      "The app does not select a volume of a single-part object");
                     if (m_outline.selected_volumes == std::vector<VolumeId>{id})
                         return CommandResult::failure(WorkspaceError::NoChange, "Volume is already selected");
                     m_outline.selected_volumes = {id};
@@ -1267,7 +1267,7 @@ public:
         if (const std::string problem = calibration_request_problem(asked); !problem.empty())
             return CommandResult::failure(WorkspaceError::InvalidArgument, problem);
         if (calibration_release_fails)
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not generate the test");
+            return CommandResult::failure(WorkspaceError::Failed, "The app did not generate the test");
         const CalibrationRequest request = with_dialog_defaults(asked);
         ++calibrations;
         last_calibration = request;

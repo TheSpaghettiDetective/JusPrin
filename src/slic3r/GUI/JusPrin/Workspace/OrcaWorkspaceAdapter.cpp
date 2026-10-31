@@ -992,7 +992,7 @@ bool OrcaWorkspaceAdapter::record_slice_failure(SliceFailureKind kind)
     if (failure.message.empty()) {
         failure.kind     = kind;
         failure.severity = "blocker";
-        failure.message  = kind == SliceFailureKind::Refused ? "OrcaSlicer did not start slicing this plate." :
+        failure.message  = kind == SliceFailureKind::Refused ? "The app did not start slicing this plate." :
                                                                "The slice stopped with an error.";
     }
     const auto known = m_slice_failures.find(plate);
@@ -1329,7 +1329,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
         else
             print = found;
     } else if (printer_changes && !compatible(prints, *print)) {
-        result.substitutions.push_back({"process", print->name, "not made for " + printer_name + "; OrcaSlicer picks another"});
+        result.substitutions.push_back({"process", print->name, "not made for " + printer_name + "; the app picks another"});
     }
     if (request.process_preset && print->name == *request.process_preset) {
         // The same refusal settings_apply_patch makes: a process that would
@@ -1361,7 +1361,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             const bool requested = request.filament_presets && slot < request.filament_presets->size();
             const Preset* current = filaments.find_preset(filament_names[slot], false);
             if (!requested && current != nullptr && !compatible(filaments, *current))
-                result.substitutions.push_back({"filament", filament_names[slot], "not made for " + printer_name + "; OrcaSlicer picks another"});
+                result.substitutions.push_back({"filament", filament_names[slot], "not made for " + printer_name + "; the app picks another"});
         }
 
     const std::vector<std::string> plates  = supported_plates(printers, *printer);
@@ -1379,7 +1379,7 @@ PrinterSetupPreview OrcaWorkspaceAdapter::preview_printer_setup(const PrinterSet
             plate = *found;
         }
     } else if (printer_changes && !current.empty() && std::find(plates.begin(), plates.end(), current) == plates.end()) {
-        result.substitutions.push_back({"plate", current, printer_name + " does not offer it; OrcaSlicer picks another"});
+        result.substitutions.push_back({"plate", current, printer_name + " does not offer it; the app picks another"});
     }
 
     // What a switch would throw away. A printer switch can replace any of the
@@ -1467,7 +1467,7 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
                 if (definition->enum_labels[index] == preview.resulting.plate_type)
                     value = index + 1;
             if (value == 0 || !SetupCommands::select_bed_type(m_plater, value))
-                return stopped("OrcaSlicer did not select the plate.");
+                return stopped("The app did not select the plate.");
         }
         if (request.process_preset && *request.process_preset != current_process_preset()) {
             // The process branch of Plater::priv::on_select_preset.
@@ -1482,7 +1482,7 @@ CommandResult OrcaWorkspaceAdapter::apply_printer_setup(const PrinterSetupReques
                 // The same path the header's filament menu takes, so a slot
                 // changed by the agent gets Orca's colour rule too.
                 if (!SetupCommands::select_filament_preset(m_plater, slot, name))
-                    return stopped("OrcaSlicer did not select filament " + std::to_string(slot + 1) + ".");
+                    return stopped("The app did not select filament " + std::to_string(slot + 1) + ".");
             }
         m_plater.notify_project_state_changed(ProjectStateChangeReason::Settings);
     }
@@ -1611,7 +1611,7 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
             return CommandResult::failure(WorkspaceError::InvalidArgument,
                                           "This project has " + std::to_string(filaments) + " filaments");
         if (row.quantity && *row.quantity != object.instances.size() && object.is_cut())
-            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer does not copy a cut object");
+            return CommandResult::failure(WorkspaceError::Refused, "The app does not copy a cut object");
         // Orca adds copies only of an object whose copies all print, as they
         // will once this row's enabled is applied.
         const bool prints = row.enabled ? *row.enabled :
@@ -1619,13 +1619,13 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
                                                       [](const ModelInstance* instance) { return instance->printable; });
         if (row.quantity && *row.quantity > object.instances.size() && !prints)
             return CommandResult::failure(WorkspaceError::Refused,
-                                          row.enabled ? object.name + " is disabled by this same row, and OrcaSlicer does not copy a disabled object." :
-                                                        object.name + " is disabled, and OrcaSlicer does not copy a disabled object. "
+                                          row.enabled ? object.name + " is disabled by this same row, and the app does not copy a disabled object." :
+                                                        object.name + " is disabled, and the app does not copy a disabled object. "
                                                                       "Pass enabled: true in the same row to copy it.");
         if (row.quantity && *row.quantity != object.instances.size() &&
             m_plater.canvas3D()->get_gizmos_manager().is_in_editing_mode())
             return CommandResult::failure(WorkspaceError::Refused,
-                                          "An OrcaSlicer editing tool is open, and OrcaSlicer does not change copies while it is. "
+                                          "An editing tool is open, and the app does not change copies while it is. "
                                           "Ask the person to close it.");
         if (row.name && row.name->find_first_not_of(" \t") == std::string::npos)
             return CommandResult::failure(WorkspaceError::InvalidArgument, "An object name cannot be empty");
@@ -1635,13 +1635,13 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
         if (row.id && plate_index(*row.id) < 0)
             return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         if (row.bed_type && !bed_type_of(*row.bed_type))
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + *row.bed_type + "\" is not a plate type OrcaSlicer knows");
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "\"" + *row.bed_type + "\" is not a plate type the app knows");
     }
     if (request.arrange && request.arrange->plate && plate_index(*request.arrange->plate) < 0)
         return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
     Worker& worker = m_plater.get_ui_job_worker();
     if (!worker.is_idle())
-        return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        return CommandResult::failure(WorkspaceError::Busy, "The app is busy with another job. Try again when it finishes.");
     const int added = int(std::count_if(request.plates.begin(), request.plates.end(), [](const LayoutPlate& row) { return !row.id; }));
     if (added > 0) {
         const int limit = int(PartPlateList::MAX_PLATES_COUNT);
@@ -1651,7 +1651,7 @@ CommandResult OrcaWorkspaceAdapter::lay_out(const LayoutRequest& request, const 
                                               std::to_string(plates.get_plate_count()) + ", so it can take " +
                                               std::to_string(limit - plates.get_plate_count()) + " more.");
         if (!m_plater.can_add_plate())
-            return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer does not add a plate while it slices. Try again when the slice ends.");
+            return CommandResult::failure(WorkspaceError::Busy, "The app does not add a plate while it slices. Try again when the slice ends.");
     }
 
     {
@@ -1764,9 +1764,9 @@ CommandResult OrcaWorkspaceAdapter::place_object(ObjectId id, const PlacementReq
     if (request.instance >= model.objects[resolved->index]->instances.size())
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The object has no such instance");
     if (request.auto_orient && !m_plater.get_ui_job_worker().is_idle())
-        return CommandResult::failure(WorkspaceError::Busy, "OrcaSlicer is busy with another job. Try again when it finishes.");
+        return CommandResult::failure(WorkspaceError::Busy, "The app is busy with another job. Try again when it finishes.");
     if (!request.mirror_axis.empty() && model.objects[resolved->index]->is_cut())
-        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer does not mirror a cut object");
+        return CommandResult::failure(WorkspaceError::Refused, "The app does not mirror a cut object");
 
     // The face must still be the one that was read: resolve it before
     // anything moves.
@@ -2547,7 +2547,7 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
         if (!path.is_absolute() || !boost::filesystem::is_regular_file(path, error))
             return CommandResult::failure(WorkspaceError::InvalidArgument, "Open an absolute path to a file that exists");
         if (openable.count(extension) == 0)
-            return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer opens .3mf, .stl, .obj, .step, .amf and .drc files");
+            return CommandResult::failure(WorkspaceError::InvalidArgument, "The app opens .3mf, .stl, .obj, .step, .amf and .drc files");
     }
     const ToolLoad tool_load(m_tool_loads);
     // Inside the load, the file listener answers and records; this catches
@@ -2588,7 +2588,7 @@ CommandResult OrcaWorkspaceAdapter::open_project(const ProjectOpenRequest& reque
     if (!released)
         return CommandResult::failure(WorkspaceError::Failed, "The open project could not be saved, so it stays open");
     if (!loaded)
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not open that file");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not open that file");
     return CommandResult::success();
 }
 
@@ -2614,7 +2614,7 @@ CommandResult OrcaWorkspaceAdapter::generate_calibration(const CalibrationReques
     if (const std::string problem = calibration_request_problem(asked); !problem.empty())
         return CommandResult::failure(WorkspaceError::InvalidArgument, problem);
     if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptFFF)
-        return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer's calibration tests are for FFF printers");
+        return CommandResult::failure(WorkspaceError::Refused, "The app's calibration tests are for FFF printers");
     const CalibrationRequest request = with_dialog_defaults(asked);
     // The generator's own loads are this tool's, not the person's.
     const ToolLoad tool_load(m_tool_loads);
@@ -2691,7 +2691,7 @@ CommandResult OrcaWorkspaceAdapter::generate_calibration(const CalibrationReques
     // A generator that returned without making its test (calib_flowrate's
     // cancelled new_project, a missing resource) leaves an empty project.
     if (result.objects.empty() || (request.test != CalibrationTest::Flow && applied.mode != params.mode))
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not generate the test");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not generate the test");
     return CommandResult::success();
 }
 
@@ -2733,7 +2733,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
     static const std::set<std::string> importable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf", ".drc"};
     if (importable.count(boost::algorithm::to_lower_copy(path.extension().string())) == 0)
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "OrcaSlicer imports .stl, .obj, .step, .amf, .drc and .3mf files");
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The app imports .stl, .obj, .step, .amf, .drc and .3mf files");
     PartPlateList& plates = m_plater.get_partplate_list();
     int plate = -1;
     if (request.plate) {
@@ -2763,7 +2763,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
     report = take_load_report(/*started_by_agent=*/true);
     add_outside_messages(report, outside.take_messages());
     if (indices.empty())
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not import that file");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not import that file");
     for (size_t index : indices) {
         const ObjectId id(m_session, m_plater.model().objects[index]->id().id);
         m_known_object_ids.insert(id.value());
@@ -2809,7 +2809,7 @@ CommandResult OrcaWorkspaceAdapter::delete_items(const std::vector<DeleteItem>& 
                 return CommandResult::failure(WorkspaceError::NotFound, "That part is not in " + object.name);
             if (object.is_cut() && ((*volume)->is_model_part() || (*volume)->is_negative_volume()))
                 return CommandResult::failure(WorkspaceError::Refused,
-                                              "OrcaSlicer does not delete the solid parts of a cut object");
+                                              "The app does not delete the solid parts of a cut object");
             if ((*volume)->is_model_part())
                 ++removing[resolved->index].first;
             subitems.emplace_back(itVolume, int(resolved->index), int(volume - object.volumes.begin()));
@@ -3169,7 +3169,7 @@ void check_persist(const SettingsPatch& patch, const PresetOwner& owner, Setting
         if (!preset.can_overwrite()) {
             const std::string copy = copy_name(collection, preset);
             result.issues.push_back({"", "read_only_preset",
-                                     "\"" + preset.name + "\" comes with OrcaSlicer and cannot be overwritten. Save the change "
+                                     "\"" + preset.name + "\" comes with the app and cannot be overwritten. Save the change "
                                      "as a copy: pass persistAs \"" + copy + "\".", {}, {copy}});
         }
     } else if (preset_name_in_use(collection, name)) {
@@ -3421,7 +3421,7 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         const auto def = setting_definition(key);
         if (!def.writable) {
             result.issues.push_back({key, "unsupported_setting_mutation", std::string("The tools do not change this ") + scope_name(scope) +
-                                                                                 " setting; the person changes it in OrcaSlicer."});
+                                                                                 " setting; the person changes it in the app."});
             continue;
         }
         if (auto refused = set_setting_value(next, key, text))
@@ -3448,7 +3448,7 @@ SettingsPreview OrcaWorkspaceAdapter::preview_settings(const SettingsPatch& patc
         predict_process_normalization(next);
     for (const auto& key : requested.diff(next)) {
         result.dependencies.push_back({key, current.option(key)->serialize(), next.option(key)->serialize()});
-        result.warnings.push_back({key, "normalized_dependency", "Orca will normalize " + key + " to " + next.option(key)->serialize() + "."});
+        result.warnings.push_back({key, "normalized_dependency", "The app will normalize " + key + " to " + next.option(key)->serialize() + "."});
     }
 
     // The print is validated with the process or the printer in use. A
@@ -3515,7 +3515,7 @@ CommandResult OrcaWorkspaceAdapter::remove_filament_preset(const PresetRemoval& 
     for (std::size_t slot = 0; slot < bundle.filament_presets.size(); ++slot)
         if (bundle.filament_presets[slot] == removal.name && !SetupCommands::select_filament_preset(m_plater, slot, removal.replacement))
             return CommandResult::failure(WorkspaceError::Failed,
-                                          "OrcaSlicer did not switch the filament back to \"" + removal.replacement + "\".");
+                                          "The app did not switch the filament back to \"" + removal.replacement + "\".");
     if (filaments.get_selected_preset_name() == removal.name && !tab->select_preset(removal.replacement))
         throw std::runtime_error("Orca did not open filament preset " + removal.replacement + " for editing");
     // Orca's order for an unselected preset, as CreatePresetsDialog deletes
@@ -3630,7 +3630,7 @@ CommandResult OrcaWorkspaceAdapter::apply_settings(const SettingsPatch& patch, c
         for (auto& change : *changes) {
             const std::string actual_value = config.option(change.key)->serialize();
             if (actual_value != change.after || changes == &applied.dependencies)
-                applied.warnings.push_back({change.key, "normalized", "Orca normalized this setting to " + actual_value + "."});
+                applied.warnings.push_back({change.key, "normalized", "The app normalized this setting to " + actual_value + "."});
             change.after = actual_value;
         }
     if (patch.persist_as) {
@@ -3679,7 +3679,7 @@ CommandResult OrcaWorkspaceAdapter::edit_own_setting(ObjectId id, const OwnSetti
         if (volumes.empty())
             return CommandResult::failure(WorkspaceError::NoChange, object.name + " has no " + edit.kind + " any more");
         if (list == nullptr)
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer's object list is not open");
+            return CommandResult::failure(WorkspaceError::Failed, "The app's object list is not open");
         const ProjectStateTransaction transaction = m_plater.project_state_transaction();
         Plater::TakeSnapshot snapshot(&m_plater, volumes.size() == 1 ? "Remove " + edit.kind :
                                                      "Remove " + std::to_string(volumes.size()) + " " + edit.kind + "s");

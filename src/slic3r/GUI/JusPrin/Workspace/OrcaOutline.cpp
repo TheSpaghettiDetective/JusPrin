@@ -338,7 +338,7 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
     switch (action) {
     case ObjectAction::Quantity:
         if (!m_plater.can_increase_instances())
-            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't change the quantity of this object now");
+            return CommandResult::failure(WorkspaceError::Refused, "The app can't change the quantity of this object now");
         m_plater.set_number_of_copies();
         break;
     case ObjectAction::TogglePrintable:
@@ -346,7 +346,7 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
         // The list ignores a selection that is not an object or a copy and says
         // nothing, so the effect is what tells whether it ran.
         if (printable_flags(model_object) == flags_before)
-            return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not change the printable switch");
+            return CommandResult::failure(WorkspaceError::Failed, "The app did not change the printable switch");
         // The object list changes the switch without telling anyone who is
         // not looking at the list.
         publish_change(WorkspaceChangeReasons::Contents);
@@ -357,17 +357,17 @@ CommandResult OrcaWorkspaceAdapter::run_object_action(ObjectId id, ObjectAction 
         break;
     case ObjectAction::Repair:
         if (!m_plater.can_fix_through_cgal())
-            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't repair this object now");
+            return CommandResult::failure(WorkspaceError::Refused, "The app can't repair this object now");
         list.fix_through_cgal();
         break;
     case ObjectAction::Split:
         if (!m_plater.can_split(true))
-            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't split this object");
+            return CommandResult::failure(WorkspaceError::Refused, "The app can't split this object");
         m_plater.split_object();
         break;
     case ObjectAction::SplitToParts:
         if (!m_plater.can_split(false))
-            return CommandResult::failure(WorkspaceError::Refused, "OrcaSlicer can't split this object into parts");
+            return CommandResult::failure(WorkspaceError::Refused, "The app can't split this object into parts");
         m_plater.split_volume();
         break;
     }
@@ -391,7 +391,7 @@ CommandResult OrcaWorkspaceAdapter::toggle_copy_printable(InstanceId id)
     const bool before = instance->printable;
     list.toggle_printable_state();
     if (instance->printable == before)
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not change the printable switch");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not change the printable switch");
     publish_change(WorkspaceChangeReasons::Contents);
     return CommandResult::success();
 }
@@ -424,7 +424,7 @@ CommandResult OrcaWorkspaceAdapter::open_customization(ObjectId id, Customizatio
     if (gizmos.get_current_type() == type)
         return CommandResult::failure(WorkspaceError::NoChange, "That tool is already open");
     if (!gizmos.open_gizmo(type))
-        return CommandResult::failure(WorkspaceError::Failed, "OrcaSlicer did not open that tool");
+        return CommandResult::failure(WorkspaceError::Failed, "The app did not open that tool");
     canvas.set_as_dirty();
     return CommandResult::success();
 }
@@ -490,7 +490,7 @@ CommandResult OrcaWorkspaceAdapter::select_volume(VolumeId id)
             // selects them only on a copy that sits on a plate.
             if (!object.is_multiparts())
                 return CommandResult::failure(WorkspaceError::Refused,
-                                              "Orca does not select a volume of a single-part object");
+                                              "The app does not select a volume of a single-part object");
             Selection& selection = m_plater.canvas3D()->get_selection();
             if (selection.is_single_volume_or_modifier() && selection.get_object_idx() == static_cast<int>(object_index) &&
                 selection.get_first_volume()->volume_idx() == static_cast<int>(volume_index))

@@ -186,7 +186,7 @@ public:
                 continue;
             }
             if (!def->writable) {
-                result.issues.push_back({key, "unsupported_setting_mutation", "The tools do not change this process setting; the person changes it in OrcaSlicer."});
+                result.issues.push_back({key, "unsupported_setting_mutation", "The tools do not change this process setting; the person changes it in the app."});
                 continue;
             }
             if (patch.target.object && !object_setting(key)) {
@@ -246,7 +246,7 @@ public:
         if (!patch.target.object && next.at("sparse_infill_density") != "0%" && next.at("sparse_infill_pattern") == "line" &&
             next.at("fill_multiline") != "1") {
             result.dependencies.push_back({"fill_multiline", current.at("fill_multiline"), "1"});
-            result.warnings.push_back({"fill_multiline", "normalized_dependency", "Orca resets multiline infill to 1 for this pattern."});
+            result.warnings.push_back({"fill_multiline", "normalized_dependency", "The app resets multiline infill to 1 for this pattern."});
         }
         for (const auto& [key, text] : patch.changes) {
             if (!definition(key) || !writable_setting(key))
@@ -280,7 +280,7 @@ public:
         for (const auto& change : actual)
             (patch.target.object ? overrides[patch.target.object->value()] : values)[change.key] = change.after;
         for (const auto& change : applied.dependencies)
-            applied.warnings.push_back({change.key, "normalized", "Orca normalized this dependent setting to " + change.after + "."});
+            applied.warnings.push_back({change.key, "normalized", "The app normalized this dependent setting to " + change.after + "."});
         if (patch.persist_as) {
             preset_values    = values;
             applied.saved_as = *patch.persist_as;
@@ -354,7 +354,7 @@ private:
             }
             if (!def->writable) {
                 result.issues.push_back({key, "unsupported_setting_mutation", std::string("The tools do not change this ") + scope_name(patch.target.scope) +
-                                                                                  " setting; the person changes it in OrcaSlicer."});
+                                                                                  " setting; the person changes it in the app."});
                 continue;
             }
             if (def->type == "integer" &&
@@ -373,7 +373,7 @@ private:
                                                                                             "change to it is saved: pass persistAs."});
         } else if (*patch.persist_as == patch.target.preset) {
             if (found->system)
-                result.issues.push_back({"", "read_only_preset", "\"" + patch.target.preset + "\" comes with OrcaSlicer and cannot be "
+                result.issues.push_back({"", "read_only_preset", "\"" + patch.target.preset + "\" comes with the app and cannot be "
                                                                                                 "overwritten. Save the change as a copy: "
                                                                                                 "pass persistAs \"" + patch.target.preset + " - Copy\".",
                                          {}, {patch.target.preset + " - Copy"}});
