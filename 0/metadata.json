@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M685HW24DT5EY0P63FEDAVCA",
+  "session_id": "2f942139-3d5a-4531-83e7-266db91eaa7c",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-31T05:05:16.002171Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "44856869454d",
+  "checkpoint_transcript_start": 1658,
+  "transcript_lines_at_start": 1658,
+  "compact_transcript_start": 221,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 466144,
+    "cache_read_tokens": 3312716,
+    "output_tokens": 14981,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-31T05:05:15.734661Z",
+    "agent_lines": 97,
+    "agent_removed": 0,
+    "human_added": 2,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 99,
+    "total_lines_changed": 101,
+    "agent_percentage": 96.03960396039604,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
