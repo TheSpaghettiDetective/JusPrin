@@ -1,0 +1,53 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with an LLM agent. The printer chat panel lets the model add a printer and connect it with five tools: `printer_identify`, `printer_add`, `printer_change`, `printer_connection_status` and `printer_connect`. Bambu Lab printers are found by Orca's SSDP network search and connected in LAN mode with an access code; Moonraker and OctoPrint printers connect by a typed address.
+
+On 2026-10-31 Kenneth tried to connect his own Bambu P1S (192.168.0.198) through the chat and never could. The app log `~/Library/Application Support/JusPrin2/log/debug_Sat_Oct_31_07_19_33_85053.log.0` shows: `printer_connect` refused at 07:25:27 with "No printer in LAN mode is on the network now" although no network search had started; the search began only at 18:22:30 (first `printer_connection_status`); SSDP announced the P1S at 18:23:08 with `con_type= cloud, bind_state= occupied` (re-announcing about every 10 s); a second connect was refused at 18:23:15 with the same sentence. The model saw no difference between "no search yet", "search 0 s old" and "a P1S at the typed address, in cloud mode". Root cause: the app observed these states and reported none of them. The chat text was not saved and the model used is unknown, so the model's own mistake (asking for an address) is not in scope.
+
+Constraints from Kenneth: the standing system prompt holds principles only; a rule about one tool lives in that tool's description in `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp`; the app must never report a guess as fact or hide an error; other brands, people who rely on Bambu's cloud features, and people who do not want to connect must not be worse off; changes to OrcaSlicer-owned files need `agent-docs/jusprin/fork-stewardship.md`, but all three bugs are in fork-owned `src/slic3r/GUI/JusPrin/PrinterSetup/`. No live-model prompt run without Kenneth's approval. Developer Mode guidance text is out of scope until tested on the printer. Read `AGENTS.md` first (build on the shared Mac with `-j4`, one build per directory, check `pgrep -fl ninja` first). Temporary notes stay untracked.
+
+Task:
+Reproduce and fix three bugs in the printer chat's Bambu connection tools, all in `src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp` and the tool descriptions in `src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp`. Write a failing Catch2 test for each bug first in `tests/agent/test_printer_conversation.cpp` using the existing `FakeBackend` fixtures (`bambu_on_network()` already includes a cloud-mode candidate `CLOUD01`), then fix, then run the agent tests and the AgentUI tests.
+
+Bug 1, false refusal. `PrinterConversation::preflight_tool` for `printer_connect` (the `unknown_device` branch, around line 388) says "No printer in LAN mode is on the network now" even when no search has run (`m_prepared` is empty for this printer). The message must not claim what the app has not checked: when no search has run, say so and name `printer_connection_status`.
+
+Bug 2, hidden observations. `connection_json` (around line 120) drops every candidate with `lan_mode == false` before the model sees it, although `OrcaPrinterBackend::connection` in `OrcaPrinterBackend.cpp` already lists them with name, IP and mode. Report printers of this model that were seen but cannot be offered in the status result, each with name, address and a reason (cloud mode, meaning LAN Only is off), separate from the connectable LAN candidates. In the `printer_connect` refusal, when the model's argument names or matches a seen cloud-mode printer (by id, name or address), say that printer is on the network with LAN Only off. Put the reading rule in the tool descriptions: a cloud-mode entry means LAN Only is off on the printer, connecting is the person's choice, and the printer prepares prints without a connection. The test at `tests/agent/test_printer_conversation.cpp:955` asserts the current hiding; change it deliberately and say why in the commit. Extend `printer_connection_schema()` in `ToolRegistry.cpp` and `PrinterPanel.tsx` or `bridge/protocol.ts` only if the page renders the result.
+
+Bug 3, empty first read. `connection_status` (around line 557) starts the search with `prepare_connection` and reads the list in the same call, so the first read is empty by construction. Return the search state in the result (not started, started N seconds ago, listening), and from `tick()` post a note through `m_host.post_note` plus `start_turn` when the first printer of this model appears, or after about 15 s with none, the same way the existing connection-outcome notes work. Keep the "start the search once" rule in the comment above `m_prepared`.
+
+Verification: Catch2 agent tests green (`tests/agent`), AgentUI tests green (`npm test` in `src/slic3r/GUI/JusPrin/AgentUI`), the `tests/printer_prompt` fixtures (`run_prompt_tests.py` fakes `unknown_device` around line 813) updated to the new result shape without running the live model, and a no-model live check against the real P1S at 192.168.0.198 in cloud mode through the manual tool harness (see `src/slic3r/GUI/JusPrin/Testing/README.md`; the shell harness has a manual MCP mode where `probe.call` drives any tool) showing the status result names the P1s at that address as seen in cloud mode and the connect refusal says so. Do not run a live-model prompt batch; do not add Developer Mode guidance text. Done is a commit on the worktree branch with the tests, the fix, and the harness output quoted in an untracked note at the worktree root.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_05f541e9-abc1-4ee8-a987-a295f5fa2c65
+
+---
+
+<cross-session-message from="local_8b0d405b-fbbb-49ef-a0e2-d7ef8057ea7c" from-name="Fix the failing Orca wording test">
+jusprin-newui was rewritten and force-pushed at Kenneth's request, and your branch claude/festive-lederberg-693438 is still based on the old history.
+
+Your base dc3cffe1fc is now 69780c7af4 on local jusprin-newui. The only code difference is three added lines in AgentUI/src/components/MessageList.scroll.test.tsx. All nine commits from f091e4caab up got new hashes. Messages, authors and dates are unchanged.
+
+If you later bring your work onto jusprin-newui, this keeps only your own commits: git rebase --onto 69780c7af4 dc3cffe1fc claude/festive-lederberg-693438
+
+A plain merge or rebase will likely hit an add/add conflict in that test file and show duplicate commits. I haven't tested that. Nothing you have done is affected until then. No reply needed.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>baihiw1t1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-festive-lederberg-693438/2d849e51-0126-4373-8fc7-34a1e7966d63/tasks/baihiw1t1.output</output-file>
+<status>completed</status>
+<summary>Monitor "harness build in the printer-connect worktree finished or failed" stream ended</summary>
+<event>exit=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bobadkpu5</task-id>
+<tool-use-id>toolu_011MVVby5evKd3VYeJcp4SjM</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-festive-lederberg-693438/2d849e51-0126-4373-8fc7-34a1e7966d63/tasks/bobadkpu5.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the harness build to finish" completed (exit code 0)</summary>
+</task-notification>
