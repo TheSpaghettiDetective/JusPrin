@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bklv2wf8o</task-id>
+<tool-use-id>toolu_01912mMbbS2oiBYYU1SZfkLf</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/4439e18d-0a2f-47a9-bf86-82fce66f7757/tasks/bklv2wf8o.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait in the background for the harness build to finish" completed (exit code 0)</summary>
+</task-notification>
