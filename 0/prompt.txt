@@ -1,0 +1,7 @@
+Background (from the session that started this one):
+AGENTS.md says wording the model reads calls the product "the app", never Orca or OrcaSlicer, and that `wording.test.ts` guards this. The test and `OrcaSettingDefinitions.hpp` last changed in commit faa5fbd32f ("Stop naming Orca to the model, and keep each request sent to it"). The failure was seen while another session was changing the printer and filament chat message boxes, and that uncommitted work does not touch either file. Other sessions share this checkout, so touch only the files this task needs and do not stash, reset or switch branches.
+
+Task:
+`src/slic3r/GUI/JusPrin/AgentUI/src/wording.test.ts`, the test "never names Orca in what the app writes for the model", fails on `jusprin-newui`. It flags the literals "Orca Slicer", "OrcaSlicer" and "Orca" in `src/slic3r/GUI/JusPrin/Workspace/OrcaSettingDefinitions.hpp`. Find out whether each literal reaches the model. If it does, change the wording so the model reads "the app". If it does not, narrow the test so it stays strict for text the model reads. Done means `npx vitest run` passes in `src/slic3r/GUI/JusPrin/AgentUI`, and you have shown the guard still fails when a real model-facing string names Orca. Do not commit unless Kenneth asks.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_d15e9191-9376-400d-acf9-504c5a5d4808
