@@ -63,9 +63,12 @@ interface Props {
   started?: boolean;
   // The newest reply shows answer buttons; the field says typing works too.
   choicesOffered?: boolean;
-  // Labelled "Photo" instead of the + menu: in the printer panel a picture
-  // is a primary way to say which printer this is, not an extra.
-  photoButton?: boolean;
+  // The + menu's kinds this chat can use, where it cannot use them all: the
+  // printer chat has no project for a 3D model to go into.
+  attachKinds?: readonly AttachmentPickKind[];
+  // What the field says once a file is staged, where the chat has words for
+  // it: a photo in the printer chat waits for the person, it never sends itself.
+  stagedPlaceholder?: string;
   // What the band says above the field when the field cannot be used as it
   // is: the notice on an earlier chat, or a recovery alert.
   notice?: ReactNode;
@@ -95,7 +98,8 @@ export function Composer({
   placeholder,
   started = false,
   choicesOffered = false,
-  photoButton,
+  attachKinds,
+  stagedPlaceholder,
   notice,
   attachable = true,
   models,
@@ -250,9 +254,8 @@ export function Composer({
               ? disabledReason ?? 'The Agent is not available'
               : streaming
                 ? 'Agent is responding…'
-                // A staged photo waits for the person; it never sends itself.
-                : photoButton && hasSendable
-                  ? 'add a note, or just send'
+                : stagedPlaceholder && hasSendable
+                  ? stagedPlaceholder
                   : !started && placeholder
                     ? placeholder
                     : choicesOffered
@@ -276,23 +279,14 @@ export function Composer({
         />
         <div className="composer-toolbar">
           <div ref={choices} className={narrow ? 'composer-choices composer-choices--narrow' : 'composer-choices'}>
-            {attachable && (photoButton ? (
-              <button
-                type="button"
-                className="attach-button attach-button-photo"
-                aria-label="Add a photo"
-                disabled={disabled}
-                onClick={() => pickFiles(ATTACHMENT_CHOICES[0])}
-              >
-                Photo
-              </button>
-            ) : (
-              // Disabled while the Agent responds, like every choice in the
-              // toolbar; the field stays open for the next message.
+            {/* Disabled while the Agent responds, like every choice in the
+                toolbar; the field stays open for the next message. */}
+            {attachable && (
               <ActionMenu label="Attach a file" icon="plus" above disabled={disabled || streaming}
-                items={ATTACHMENT_CHOICES.map((choice) => ({ label: choice.label, onSelect: () => pickFiles(choice) }))} />
-            ))}
-            {!photoButton && models && chatModel && onChooseModel && (
+                items={ATTACHMENT_CHOICES.filter((choice) => !attachKinds || attachKinds.includes(choice.kind))
+                  .map((choice) => ({ label: choice.label, onSelect: () => pickFiles(choice) }))} />
+            )}
+            {models && chatModel && onChooseModel && (
               <ModelPickers catalog={models} choice={chatModel} disabled={disabled || streaming}
                 onChoose={onChooseModel} />
             )}

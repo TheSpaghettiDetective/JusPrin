@@ -7549,6 +7549,29 @@ private:
         check(chip->filament_half().decoration().slot_dots.size() == 1, "the_chip_follows_back_to_one_slot");
     }
 
+    // Where an agent is set up, the temporary chats' message box has the
+    // project chat's model picker. The configured run's lists cannot load (its
+    // port is closed), and the picker still names the chat's model. The report
+    // goes through the draft, so this runs after the chat's capture.
+    void check_task_chat_model_picker(PrinterSetup::PrinterPanel& panel, const std::string& name)
+    {
+        using namespace std::chrono_literals;
+        if (!m_state->task_chat_configured)
+            return;
+        int report = 0;
+        const auto page_shows = [&panel, &name, &report] {
+            const std::string mark = name + std::to_string(++report) + ":";
+            WebView::RunScript(panel.web_view()->webview(),
+                               "setTimeout(function () {"
+                               "  window.__jusprinTest.setDraft('" + mark + "' + "
+                               "    (document.querySelector('.composer .composer-picker') ? 'picker' : 'none'));"
+                               "}, 0);");
+            const auto reported = [&panel, &mark] { return panel.persistence()->draft().rfind(mark, 0) == 0; };
+            return wait_for(reported, 10s) ? panel.persistence()->draft().substr(mark.size()) : std::string("no report");
+        };
+        check(wait_for([&page_shows] { return page_shows() == "picker"; }, 30s), name + "_chat_shows_the_model_picker");
+    }
+
     // The header's Printer settings… covers Prepare with a temporary chat.
     void verify_header_printer_settings_open()
     {
@@ -7569,6 +7592,7 @@ private:
                             "header_printer_chat_fills_the_workspace");
                 self->check(!wxGetApp().params_dialog()->IsShown(), "header_printer_settings_leaves_settings_window_closed");
                 self->live_capture_themed("prepare_printer_chat");
+                self->check_task_chat_model_picker(*panel, "printer");
                 panel->close();
                 self->wait_until([self,panel] { return !panel->IsShown() && self->m_notebook->IsShownOnScreen(); },
                     "header_printer_conversation_restores_prepare",
@@ -7627,6 +7651,7 @@ private:
                                 task_messages.front().text.find("slot 1") != std::string::npos,
                             "header_filament_chat_opens_with_filament_context");
                 self->live_capture_themed("prepare_filament_chat");
+                self->check_task_chat_model_picker(*panel, "filament");
                 self->live_send("shell_action", {{"action", "open_filament_settings"}});
                 self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
                     "header_setup_opens_" + kind + "_editor", [self,type,kind] {

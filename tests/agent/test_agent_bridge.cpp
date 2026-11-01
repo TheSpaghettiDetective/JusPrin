@@ -2073,6 +2073,7 @@ struct FakeModelSource final : IChatModelSource
     // Built agents keep a record of what they sent, as the real ones do.
     bool                                 recording{false};
     std::vector<ChatModelChoice>         built;
+    std::vector<RecordingAgent*>         built_recording;
     std::map<std::string, ModelsDone>    asked;
 
     std::vector<std::string> configured_providers() const override { return providers; }
@@ -2082,8 +2083,11 @@ struct FakeModelSource final : IChatModelSource
         if (refuse_to_build)
             return nullptr;
         built.push_back(choice);
-        if (recording)
-            return std::make_unique<RecordingAgent>();
+        if (recording) {
+            auto agent = std::make_unique<RecordingAgent>();
+            built_recording.push_back(agent.get());
+            return agent;
+        }
         return std::make_unique<DeterministicMockAgent>();
     }
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
@@ -2170,6 +2174,31 @@ TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][
     CHECK(source->asked.count("jusprin") == 1);
     const std::string chat = h.persistence.document().active_conversation_id();
     CHECK_FALSE(h.persistence.document().chat_model(chat).has_value());
+}
+
+// The printer and filament chats have the pickers too: the model the person
+// picks answers with the chat's own instructions, and no earlier message of
+// the chat's fixes its format before the first request goes out.
+TEST_CASE("a session with tools of its own keeps them on the model the person picks", "[agent][models]")
+{
+    Harness h;
+    auto source       = std::make_shared<FakeModelSource>();
+    source->recording = true;
+    h.host.set_chat_model_source(source);
+    AgentSessionProfile panel;
+    panel.instructions = "You are the printer panel.";
+    panel.tool_names   = {"printer_list"};
+    h.host.set_session_profile(panel);
+    h.handshake();
+    CHECK(h.last_of_type("model_catalog") != nullptr);
+
+    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", "high"}});
+    h.send_user_message("Add my printer", "c-panel");
+    REQUIRE(source->built_recording.size() == 1);
+    CHECK(source->built.back() == ChatModelChoice{"anthropic", "claude-sonnet-5-5", "high"});
+    REQUIRE_FALSE(source->built_recording.back()->requests.empty());
+    CHECK(source->built_recording.back()->requests.front().session.instructions == "You are the printer panel.");
+    CHECK(h.last_of_type("assistant_failed") == nullptr);
 }
 
 // The composer's pickers: each chat picks its provider, model and thinking

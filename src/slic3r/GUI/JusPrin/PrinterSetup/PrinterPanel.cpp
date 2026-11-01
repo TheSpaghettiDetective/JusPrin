@@ -81,6 +81,7 @@ void PrinterPanel::build_runtime()
     m_web_view = std::make_unique<AgentWebView>(this, m_theme, m_workspace, *m_persistence, runtime.availability,
                                                 std::move(runtime.service), runtime.setup,
                                                 m_task == Task::Printer ? AgentPageMode::PrinterPanel : AgentPageMode::Conversation);
+    m_web_view->enable_chat_model_choice(wxGetApp().app_config);
     m_web_view->apply_appearance(m_dark);
     m_web_view->SetName(m_task == Task::Printer ? _L("Printer conversation") : _L("Filament conversation"));
     GetSizer()->Add(m_web_view.get(), 1, wxEXPAND);

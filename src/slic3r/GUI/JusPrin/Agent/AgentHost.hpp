@@ -37,8 +37,8 @@ namespace Slic3r::GUI::JusPrin::Mcp { class McpRuntime; struct CatalogItem; }
 namespace Slic3r::GUI::JusPrin::Agent {
 
 // Where a chat's model choice becomes an agent. The wx side supplies it, from
-// the keys setup stored and the providers' own model lists; without one (the
-// printer panel) every chat uses the agent the host was given.
+// the keys setup stored and the providers' own model lists; without one every
+// chat uses the agent the host was given.
 class IChatModelSource
 {
 public:

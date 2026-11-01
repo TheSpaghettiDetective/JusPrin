@@ -1897,28 +1897,10 @@ input[type='radio']:checked {
   white-space: nowrap;
 }
 
-.attach-button,
 .composer-send {
   flex: 0 0 auto;
   border: 0;
   cursor: pointer;
-}
-
-.attach-button {
-  min-height: var(--button-link-height);
-  padding: var(--button-link-padding);
-  border-radius: var(--radius-small);
-  background: transparent;
-  color: var(--action-primary);
-  font: var(--font-label-bold);
-}
-
-.attach-button:hover:enabled { color: var(--action-primary-hover); }
-.attach-button:active:enabled { color: var(--action-primary-pressed); }
-
-.attach-button:disabled {
-  color: var(--action-disabled-text);
-  cursor: default;
 }
 
 /* Send is Button/Primary at the small recipe's 28 DIP, so it sits inside
@@ -2925,11 +2907,6 @@ p.agent-row-note {
 }
 
 .panel-back-link { display: inline-flex; align-items: center; gap: 4px; }
-
-/* Labelled, because a picture is a primary way to name a printer. */
-.attach-button-photo {
-  color: var(--action-primary);
-}
 
 /* -- The All settings panel ------------------------------------------------
    Every setting in force, in the pane's place: the setup card's "All

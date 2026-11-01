@@ -601,7 +601,8 @@ export function App({
               placeholder={session ? placeholder(session) : undefined}
               started={started}
               choicesOffered={choicesOffered}
-              photoButton
+              attachKinds={['image', 'pdf']}
+              stagedPlaceholder="add a note, or just send"
               streaming={streaming}
               attachments={stagedAttachments}
               onDraftChange={(text) => { printerDraft.current = text; }}
@@ -613,6 +614,9 @@ export function App({
               onAttachFiles={attachFiles}
               onPickFiles={pickFiles}
               onRemoveAttachment={removeAttachment}
+              models={state.modelCatalog}
+              chatModel={state.chatModel}
+              onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
             />
           )}
         </div>

@@ -236,10 +236,29 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_opening')).toBeUndefined();
   });
 
-  it('asks a likely answer, and leads the composer with Photo', () => {
-    open(state({ session: session({ mode: 'change', printerName: 'Lab Printer' }) }));
+  it('asks a likely answer, and attaches only what the chat can use', async () => {
+    const host = open(state({ session: session({ mode: 'change', printerName: 'Lab Printer' }) }));
     expect(screen.getByPlaceholderText('e.g. "I put a 0.6 nozzle on it" or "loaded black PETG"')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add a photo' })).toBeInTheDocument();
+    host.deliver('hello_ack', { version: PROTOCOL_VERSION, capabilities: ['native_file_picker'] });
+    await userEvent.click(screen.getByRole('button', { name: 'Attach a file' }));
+    expect(screen.getAllByRole('menuitem').map((row) => row.textContent)).toEqual(['Photo or image', 'Document (PDF)']);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Photo or image' }));
+    expect(host.lastOfType('pick_attachment')?.payload).toEqual({ kind: 'image' });
+  });
+
+  it('offers the model and thinking pickers, and sends a choice to the host', async () => {
+    const host = open(state({ chatModel: { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' } } as Partial<StatePayload>));
+    expect(screen.queryByRole('button', { name: /^Model/ })).toBeNull();
+    host.deliver('model_catalog', {
+      defaultProvider: 'anthropic',
+      providers: [{ id: 'anthropic', label: 'Anthropic', defaultModel: 'claude-opus-5-5', state: 'ready', models: [
+        { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', efforts: ['low', 'medium', 'high'] },
+        { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', efforts: ['low', 'medium', 'high'] },
+      ] }],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /Claude Opus 5\.5/ }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /Claude Sonnet 5\.5/ }));
+    expect(host.lastOfType('set_chat_model')?.payload).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-5-5' });
   });
 
   it('draws the cards the agent drew, under the message that drew them, with nothing to tap', () => {

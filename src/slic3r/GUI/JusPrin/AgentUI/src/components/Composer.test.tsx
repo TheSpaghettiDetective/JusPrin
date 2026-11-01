@@ -1,5 +1,5 @@
 import { ComponentProps } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import tokens from '@resources/jusprin/ui/design-tokens.json';
@@ -163,13 +163,6 @@ describe('the + menu', () => {
     expect(click).not.toHaveBeenCalled();
   });
 
-  it('asks the host for a picture from the Photo button', async () => {
-    const onPickFiles = vi.fn();
-    renderComposer({ onPickFiles, photoButton: true });
-    await userEvent.click(screen.getByRole('button', { name: 'Add a photo' }));
-    expect(onPickFiles).toHaveBeenCalledWith('image');
-  });
-
   it('hands picked files to the host as picker attachments', () => {
     const { container, props } = renderComposer();
     const file = new File(['G1 X0'], 'part.gcode');
@@ -220,19 +213,25 @@ describe('while the Agent responds', () => {
   });
 });
 
-describe('the printer panel’s Photo mode', () => {
-  it('keeps the Photo button instead of +', async () => {
-    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
-    renderComposer({ photoButton: true });
-    expect(screen.queryByRole('button', { name: 'Attach a file' })).toBeNull();
-    await act(async () => { await userEvent.click(screen.getByRole('button', { name: 'Add a photo' })); });
-    expect(click).toHaveBeenCalledTimes(1);
+describe('a chat that attaches only some kinds', () => {
+  it('lists only those kinds in the + menu', async () => {
+    const onPickFiles = vi.fn();
+    renderComposer({ onPickFiles, attachKinds: ['image', 'pdf'] });
+    await userEvent.click(screen.getByRole('button', { name: 'Attach a file' }));
+    expect(screen.getAllByRole('menuitem').map((row) => row.textContent)).toEqual(['Photo or image', 'Document (PDF)']);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Document (PDF)' }));
+    expect(onPickFiles).toHaveBeenCalledWith('pdf');
+  });
+
+  it('says its own words once a file is staged', () => {
+    const staged = { id: 'a-1', name: 'plate.jpg', kind: 'image', state: 'staged' } as AttachmentInfo;
+    renderComposer({ stagedPlaceholder: 'add a note, or just send', attachments: [staged] });
+    expect(screen.getByPlaceholderText('add a note, or just send')).toBeInTheDocument();
   });
 
   it('has no attachment action at all where nothing can be attached', () => {
     renderComposer({ attachable: false, disabled: true, disabledReason: '' });
     expect(screen.queryByRole('button', { name: 'Attach a file' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Add a photo' })).toBeNull();
   });
 });
 

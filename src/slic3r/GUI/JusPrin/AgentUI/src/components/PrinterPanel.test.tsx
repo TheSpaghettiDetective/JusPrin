@@ -84,6 +84,7 @@ describe('the cards the agent draws', () => {
   it('says how a photo gets in, in words', () => {
     render(<PrinterBlockView block={block({ kind: 'tip' })} />);
     expect(screen.getByText(/a photo is the fastest way/)).toBeInTheDocument();
+    expect(screen.getByText('+')).toBeInTheDocument();
   });
 });
 

@@ -31,7 +31,7 @@ export const PrinterBlockView = memo(function PrinterBlockView({
     return (
       <div className="printer-tip">
         <span>
-          <b>Tip:</b> a photo is the fastest way. Use <b>Photo</b> below, or drop a picture of the printer, its nameplate or the box
+          <b>Tip:</b> a photo is the fastest way. Use <b>+</b> below, or drop a picture of the printer, its nameplate or the box
           into this panel.
         </span>
       </div>
