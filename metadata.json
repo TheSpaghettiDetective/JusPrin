@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6EYG8KRHB1XM4BB01QNVBW5",
+  "strategy": "manual-commit",
+  "branch": "claude/connection-skill",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/agent/test_printer_conversation.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 94007,
+    "cache_read_tokens": 504435,
+    "output_tokens": 1814,
+    "api_call_count": 4
+  }
+}
