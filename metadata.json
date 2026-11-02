@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6EJ644FNDCPRA5S3703D1BX",
   "strategy": "manual-commit",
   "branch": "claude/credits-onboarding",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "resources/jusprin/agent/protocol.json",
     "resources/jusprin/home/protocol.json",
@@ -99,6 +99,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
