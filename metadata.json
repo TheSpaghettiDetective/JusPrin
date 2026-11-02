@@ -3,13 +3,14 @@
   "checkpoint_id": "01M6EZ75WGREMC5K4S12BKD919",
   "strategy": "manual-commit",
   "branch": "claude/credits-onboarding",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Home/HomeHost.cpp",
     "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
     "src/slic3r/GUI/JusPrin/Home/PrintHistory.cpp",
     "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
     "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrintReportForm.tsx",
     "tests/agent/test_print_history.cpp",
     "tests/jusprin/test_home_host.cpp"
   ],
@@ -20,6 +21,13 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
