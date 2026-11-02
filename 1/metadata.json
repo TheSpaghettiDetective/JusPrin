@@ -1,0 +1,84 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6EVBFAVKXJH7GC0K7FJHE8D",
+  "session_id": "f57d8b7e-fd5a-4daf-9378-2e3d21342f7c",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-02T19:21:47.094292Z",
+  "branch": "worktree-tool-results-rules",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "71bad794da37",
+  "checkpoint_transcript_start": 5021,
+  "transcript_lines_at_start": 5021,
+  "compact_transcript_start": 642,
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 170594,
+    "cache_read_tokens": 5745684,
+    "output_tokens": 39864,
+    "api_call_count": 33
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01RkCcu74CCgwp2qZGCrsE2a",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:computer-use"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "71bad794da37",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1649,
+        "end": 1650,
+        "entry_ids": [
+          "aaa0b118-df1f-4de4-9a4f-5730540ed1a0"
+        ],
+        "tool_use_id": "toolu_01RkCcu74CCgwp2qZGCrsE2a"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01RkCcu74CCgwp2qZGCrsE2a"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:computer-use",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-02T19:21:44.321462Z",
+    "agent_lines": 0,
+    "agent_removed": 16,
+    "human_added": 0,
+    "human_modified": 100,
+    "human_removed": 150,
+    "total_committed": 99,
+    "total_lines_changed": 312,
+    "agent_percentage": 5.128205128205128,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
