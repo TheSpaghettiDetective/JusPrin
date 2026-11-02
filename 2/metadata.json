@@ -1,0 +1,79 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6ERSM7VPHKQWPPSMB3TKZ92",
+  "session_id": "73de5d33-07b2-44a6-bbd2-bedca734a244",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-02T18:37:30.873758Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "99cff1ddab0b",
+  "checkpoint_transcript_start": 2201,
+  "transcript_lines_at_start": 2201,
+  "compact_transcript_start": 260,
+  "token_usage": {
+    "input_tokens": 132,
+    "cache_creation_tokens": 15924,
+    "cache_read_tokens": 842919,
+    "output_tokens": 2940,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-02T18:37:30.451768Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 5350,
+    "human_modified": 1049,
+    "human_removed": 0,
+    "total_committed": 5350,
+    "total_lines_changed": 6431,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 576,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 90,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".codex/config.toml": 4
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
