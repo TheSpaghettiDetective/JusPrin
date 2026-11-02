@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6EZY8VEHH504QM0TQG8CHYC",
   "strategy": "manual-commit",
   "branch": "credits-integration-2026-11",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "tests/shell/shell_harness.cpp"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3204,
-    "cache_creation_tokens": 528353,
-    "cache_read_tokens": 21535846,
-    "output_tokens": 91600,
-    "api_call_count": 133
+    "input_tokens": 3220,
+    "cache_creation_tokens": 547549,
+    "cache_read_tokens": 24352139,
+    "output_tokens": 101028,
+    "api_call_count": 141
   }
 }
