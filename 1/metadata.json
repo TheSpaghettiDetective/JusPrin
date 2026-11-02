@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6EDSBG48MFECAHPT5HV3BE2",
+  "session_id": "9ec6699e-25dd-4d74-b77d-0c769aecb404",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-02T15:24:38.844694Z",
+  "branch": "claude/connection-skill",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "5cc7ab94bcfd",
+  "checkpoint_transcript_start": 1207,
+  "transcript_lines_at_start": 1207,
+  "compact_transcript_start": 133,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-02T15:24:38.647724Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 16037,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16037,
+    "total_lines_changed": 16037,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
