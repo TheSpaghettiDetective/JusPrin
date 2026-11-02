@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6EP5B6J5D81ZCHH72F1HRRD",
   "strategy": "manual-commit",
-  "checkpoints_count": 12,
+  "checkpoints_count": 22,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
     "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
@@ -42,13 +42,27 @@
       "compact_transcript": "/3/transcript.jsonl",
       "content_hash": "/3/content_hash.txt",
       "prompt": "/3/prompt.txt"
+    },
+    {
+      "metadata": "/4/metadata.json",
+      "transcript": "/4/full.jsonl",
+      "compact_transcript": "/4/transcript.jsonl",
+      "content_hash": "/4/content_hash.txt",
+      "prompt": "/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4086,
-    "cache_creation_tokens": 3264576,
-    "cache_read_tokens": 112320858,
-    "output_tokens": 699465,
-    "api_call_count": 528
+    "input_tokens": 4418,
+    "cache_creation_tokens": 4329056,
+    "cache_read_tokens": 149516497,
+    "output_tokens": 912686,
+    "api_call_count": 695,
+    "subagent_tokens": {
+      "input_tokens": 88,
+      "cache_creation_tokens": 955131,
+      "cache_read_tokens": 8736476,
+      "output_tokens": 149864,
+      "api_call_count": 44
+    }
   }
 }
