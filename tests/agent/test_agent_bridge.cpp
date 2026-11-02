@@ -1662,6 +1662,21 @@ TEST_CASE("conversations are created and switched over the bridge", "[agent][con
     }
 }
 
+TEST_CASE("a chat checkpoint tells the blank project from a failed save", "[agent][conversations]")
+{
+    Harness harness;
+    std::optional<std::string> pinned = std::string();
+    harness.host.set_chat_checkpoint_callbacks(
+        [&] { return pinned; }, [] { return std::string(); }, [](const std::string&) { return false; }, [] { return true; },
+        [](const std::string&, const std::string&) { return true; });
+    harness.handshake();
+    auto& document = harness.persistence.document();
+    CHECK(harness.host.checkpoint_active_chat());
+    CHECK_FALSE(document.chat_checkpoint(document.active_conversation_id()));
+    pinned.reset();
+    CHECK_FALSE(harness.host.checkpoint_active_chat());
+}
+
 TEST_CASE("switching chats with matching checkpoints continues without restoration", "[agent][conversations]")
 {
     Harness harness;

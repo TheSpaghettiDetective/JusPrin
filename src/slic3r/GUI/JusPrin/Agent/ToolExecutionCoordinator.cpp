@@ -1087,8 +1087,6 @@ void ToolExecutionCoordinator::pump()
             if (versioned) {
                 try {
                     before = m_version_before(activity);
-                    if (before.empty())
-                        throw std::runtime_error("the current project could not be saved");
                 } catch (const std::exception& error) {
                     std::clog << "Could not save before Agent action: " << error.what() << '\n';
                     fail(activity, "local_save_failed", "Nothing ran: the project could not be saved first. Tell the person the project is not saved.");

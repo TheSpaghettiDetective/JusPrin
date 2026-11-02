@@ -111,6 +111,19 @@ struct Harness
 
 } // namespace
 
+TEST_CASE("an action on the blank project runs with no before-version", "[tools][versions]")
+{
+    Harness h;
+    std::vector<std::string> linked;
+    h.coordinator.set_version_callbacks(
+        [](const ToolActivity&) { return std::string(); },
+        [&linked](const ToolActivity&, const std::string& before) { linked.push_back(before); });
+    const std::string id = h.coordinator.submit(h.duplicate_cube_request(), "m-1").action_id;
+    h.pump_to_completion(id);
+    CHECK(h.coordinator.find(id)->state == ToolState::Succeeded);
+    CHECK(linked == std::vector<std::string>{std::string()});
+}
+
 TEST_CASE("project mutations are bracketed by durable version callbacks", "[tools][versions]")
 {
     Harness harness;

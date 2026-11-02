@@ -1178,6 +1178,7 @@ struct HarnessState
         ReopenPrompt,
         ChatRestoration,
         FileOpening,
+        BlankProjectSaves,
         FileCorpus,
         ProjectPromptRequests,
         LeftPane,
@@ -1346,6 +1347,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::FileOpening) {
                 verify_file_opening();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::BlankProjectSaves) {
+                verify_blank_project_saves();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::FileCorpus) {
@@ -2387,8 +2392,8 @@ private:
         // Neither the shell's first project nor Orca's startup new project
         // had anything saved, so neither has a folder.
         check(unsaved_project_folders().empty(), "startup_blank_projects_leave_no_folder");
-        check(!installed_shell()->autosave()->pin_current().empty(),
-              "restart_blank_agent_before_state_pinned");
+        check(installed_shell()->autosave()->pin_current() == std::string(),
+              "restart_blank_has_no_version_to_pin");
         const fs::path source = fs::path(data_dir()) / "restart-source.stl";
         fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
                       source, fs::copy_option::overwrite_if_exists);
@@ -11212,6 +11217,221 @@ private:
     // and a drop on Home do; a drop on the Prepare canvas adds; a .3mf opens
     // as a project and asks the "Previously opened file" question, never
     // OrcaSlicer's "project or geometry?" one.
+    // OrcaSlicer's empty project stays in memory until it holds a model. Nothing
+    // on an empty plate saves it; a model does, with everything said so far, and
+    // a project that was saved stays saved.
+    void verify_blank_project_saves()
+    {
+        auto* autosave = installed_shell()->autosave();
+        auto& host     = installed_shell()->agent_pane()->web_view().host();
+        auto& document = persistence().document();
+        check(project_folders().empty(), "blank_start_saves_nothing");
+
+        Agent::ChangeEntry choice;
+        choice.kind     = "preset";
+        choice.actor    = "person";
+        choice.label    = "Generic Klipper Printer";
+        choice.location = "printer";
+        document.add_change(choice, persistence().timestamp());
+        persistence().commit();
+        check_blank_stays_unsaved("printer_choice");
+
+        Agent::ChangeEntry setting;
+        setting.kind  = "setting";
+        setting.actor = "person";
+        setting.label = "Layer height";
+        setting.key   = "layer_height";
+        setting.from  = "0.2";
+        setting.to    = "0.1";
+        document.add_change(setting, persistence().timestamp());
+        persistence().commit();
+        check_blank_stays_unsaved("setting_edit");
+
+        Agent::ChatModelChoice model;
+        model.provider = "jusprin";
+        model.model    = "standard";
+        document.set_chat_model(document.active_conversation_id(), model);
+        persistence().commit();
+        check_blank_stays_unsaved("chat_model_choice");
+
+        Agent::ConversationMessage message;
+        message.id    = document.allocate_message_id();
+        message.role  = Agent::MessageRole::User;
+        message.state = Agent::MessageState::Complete;
+        message.text  = "What can I print first?";
+        document.append_message(document.active_conversation_id(), message, persistence().timestamp());
+        persistence().commit();
+        check_blank_stays_unsaved("chat_message");
+
+        persistence().set_draft("half a sentence");
+        check_blank_stays_unsaved("draft");
+
+        check(host.checkpoint_active_chat(), "blank_checkpoint_succeeds");
+        check(!document.chat_checkpoint(document.active_conversation_id()), "blank_checkpoint_names_no_version");
+        check_blank_stays_unsaved("chat_checkpoint");
+        document.create_conversation("Second chat", persistence().timestamp());
+        persistence().commit();
+        check_blank_stays_unsaved("new_chat");
+
+        Agent::ToolActivity activity;
+        activity.action_id    = document.allocate_action_id();
+        activity.tool         = "workspace_inspect";
+        activity.action_class = Agent::ActionClass::ReadOnly;
+        document.upsert_activity(activity, persistence().timestamp());
+        persistence().commit();
+        check_blank_stays_unsaved("read_only_tool");
+
+        const auto pinned = autosave->pin_current();
+        check(pinned && pinned->empty(), "blank_has_no_version_to_pin");
+        autosave->record_agent_operation(document.allocate_action_id(), "printer_setup", "succeeded", std::string());
+        check_blank_stays_unsaved("agent_action");
+
+        // Autosave's own timer, which waits for its probe and the quiet period.
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        wait_until([until] { return std::chrono::steady_clock::now() >= until; }, "blank_autosave_ticks",
+                   [self = shared_from_this(), autosave] {
+            self->check(self->project_folders().empty(), "blank_autosave_timer_saves_nothing: " + self->project_folder_names());
+
+            // A picture attached on an empty plate goes to a folder of its
+            // own, which isn't a saved project and goes when the project does.
+            self->blank_attachment();
+            self->check(self->project_folders().size() == 1, "blank_attachment_has_a_folder");
+            self->check(self->unsaved_folder_count() == 1, "blank_attachment_folder_is_not_saved");
+            const auto with_attachment = autosave->projects();
+            self->check(with_attachment && with_attachment->empty(), "blank_attachment_has_no_card");
+            self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "blank_replaced_by_new_project");
+            self->persistence().resolve_pending_boundary();
+            self->check(autosave->save_now(), "blank_replaced_save_succeeds");
+            self->check(self->project_folders().empty(), "blank_replaced_leaves_nothing: " + self->project_folder_names());
+
+            // A model saves the project, with what was said before it came.
+            auto& document = self->persistence().document();
+            Agent::ConversationMessage message;
+            message.id    = document.allocate_message_id();
+            message.role  = Agent::MessageRole::User;
+            message.state = Agent::MessageState::Complete;
+            message.text  = "What can I print first?";
+            document.append_message(document.active_conversation_id(), message, self->persistence().timestamp());
+            self->persistence().commit();
+            const std::string kept_blob = self->blank_attachment();
+            const std::string project = document.project_id();
+            const fs::path source = fs::path(data_dir()) / "blank-saves-source.stl";
+            fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl", source,
+                          fs::copy_option::overwrite_if_exists);
+            self->check(!self->m_plater->load_files(std::vector<std::string>{source.string()}, LoadStrategy::LoadModel, false).empty(),
+                        "model_loaded_on_blank");
+            const auto pinned = autosave->pin_current();
+            self->check(pinned && !pinned->empty(), "model_is_saved");
+            const fs::path folder = fs::path(data_dir()) / "jusprin" / "projects" / project;
+            self->check(fs::exists(folder / "HEAD"), "model_project_has_a_head");
+            self->check(fs::exists(folder / kept_blob), "model_project_keeps_the_attachment");
+            std::ifstream state_file((folder / "current-state.json").string());
+            const auto state = nlohmann::json::parse(state_file).at("state");
+            self->check(state.at("conversations").front().at("messages").size() == 1, "model_project_keeps_the_chat");
+            auto listed = autosave->projects();
+            self->check(listed && listed->size() == 1, "model_project_has_a_card");
+
+            // Saved stays saved, with its card, when the plate is emptied.
+            self->m_plater->delete_all_objects_from_model();
+            self->check(self->m_plater->model().objects.empty(), "saved_project_emptied");
+            self->check(autosave->save_now(), "emptied_project_saves");
+            listed = autosave->projects();
+            self->check(listed && listed->size() == 1, "emptied_project_keeps_its_card");
+            self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "emptied_project_replaced");
+            self->persistence().resolve_pending_boundary();
+            self->check(autosave->save_now(), "emptied_project_replaced_save_succeeds");
+            self->check(fs::exists(folder / "HEAD"), "emptied_project_stays_on_disk");
+            listed = autosave->projects();
+            self->check(listed && listed->size() == 1, "emptied_project_card_survives_leaving");
+
+            // A saved empty project from an earlier build never held a model.
+            const fs::path old = folder.parent_path() / "old-blank";
+            fs::create_directories(old / "versions" / "v-1");
+            std::ofstream(old.string() + "/HEAD") << R"({"schema":1,"current":"v-1","versions":["v-1"]})";
+            std::ofstream((old / "versions" / "v-1" / "manifest.json").string()) << R"({"objects":[]})";
+            listed = autosave->projects();
+            self->check(listed && listed->size() == 1, "old_empty_project_has_no_card");
+            self->verify_blank_folder_across_classic_view();
+        });
+    }
+
+    // The shell coming back from classic view takes the project up again, so
+    // its attachment stays; a shell that is going for good takes it along.
+    void verify_blank_folder_across_classic_view()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "blank_for_classic_view");
+        persistence().resolve_pending_boundary();
+        const std::string blob = blank_attachment();
+        const fs::path folder = fs::path(data_dir()) / "jusprin" / "projects" / persistence().document().project_id();
+        detach_shell();
+        wait_until([] { return installed_shell() == nullptr; }, "blank_classic_view_opens",
+                   [self = shared_from_this(), folder, blob] {
+            self->check(fs::exists(folder / blob), "classic_view_keeps_blank_attachment");
+            reattach_shell();
+            self->wait_until([] { return installed_shell() != nullptr && !wxGetApp().is_adding_script_handler(); }, "blank_shell_comes_back",
+                       [self, folder, blob] {
+                self->check(self->persistence().document().project_id() == folder.filename().string(), "shell_takes_blank_project_up_again");
+                self->check(fs::exists(folder / blob), "shell_back_keeps_blank_attachment");
+                installed_shell()->uninstall();
+                self->check(!fs::exists(folder), "leaving_removes_blank_folder");
+                self->finish();
+            });
+        });
+    }
+
+    std::string blank_attachment()
+    {
+        auto& document = persistence().document();
+        Agent::AttachmentRecord record;
+        record.id            = document.allocate_attachment_id();
+        record.original_name = "picture.png";
+        record.stored_name   = "picture.png";
+        record.source        = "picker";
+        record.kind          = "image";
+        record.mime          = "image/png";
+        record.state         = "staged";
+        const std::string bytes = "picture";
+        record.size_bytes       = bytes.size();
+        check(persistence().write_attachment_blob(record.relative_path(), bytes), "blank_attachment_stored");
+        document.add_attachment(record, persistence().timestamp());
+        persistence().commit();
+        return record.relative_path();
+    }
+
+    void check_blank_stays_unsaved(const std::string& step)
+    {
+        check(installed_shell()->autosave()->save_now(), "blank_save_succeeds_" + step);
+        check(project_folders().empty(), "blank_saves_nothing_" + step + ": " + project_folder_names());
+        const auto listed = installed_shell()->autosave()->projects();
+        check(listed && listed->empty(), "blank_has_no_card_" + step);
+    }
+
+    std::size_t unsaved_folder_count() const
+    {
+        const auto folders = project_folders();
+        return std::count_if(folders.begin(), folders.end(), [](const std::string& name) {
+            return !fs::exists(fs::path(data_dir()) / "jusprin" / "projects" / name / "HEAD");
+        });
+    }
+
+    std::vector<std::string> project_folders() const
+    {
+        std::vector<std::string> folders;
+        const fs::path root = fs::path(data_dir()) / "jusprin" / "projects";
+        if (fs::is_directory(root))
+            for (const auto& entry : fs::directory_iterator(root))
+                folders.push_back(entry.path().filename().string());
+        return folders;
+    }
+
+    std::string project_folder_names() const
+    {
+        std::string names;
+        for (const auto& name : project_folders())
+            names += name + " ";
+        return names;
+    }
+
     void verify_file_opening()
     {
         using Decision = ShellController::ReimportDecision;
@@ -13440,6 +13660,8 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::ChatRestoration;
         else if (argument == "--file-opening")
             state->mode = HarnessState::Mode::FileOpening;
+        else if (argument == "--blank-project-saves")
+            state->mode = HarnessState::Mode::BlankProjectSaves;
         else if (argument == "--project-prompt-requests") {
             if (index + 2 >= argc) {
                 std::cerr << "--project-prompt-requests needs a script and an output path\n";

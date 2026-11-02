@@ -57,9 +57,13 @@ public:
     std::uint64_t capture_attempts() const { return m_capture_attempts; }
     std::string current_version() const;
     std::vector<ProjectVersionStore::Version> history();
-    std::string pin_current();
+    // The version to go back to, empty for the blank project, which has none;
+    // nothing when the save failed.
+    std::optional<std::string> pin_current();
+    // For a project being left that nothing was saved for.
+    void discard_if_never_saved();
     // Links an Agent action to the version pinned before it and, when `save`,
-    // to a version saved now. During a model turn the shell links only the
+    // to a version saved now. An action on the blank project has none to link. During a model turn the shell links only the
     // before-version: the turn's end saves once for all its actions.
     void record_agent_operation(const std::string& action_id, const std::string& tool,
                                 const std::string& outcome, const std::string& before, bool save = true);
@@ -97,6 +101,9 @@ public:
     bool export_copy(const std::filesystem::path& destination);
 
 private:
+    // OrcaSlicer's empty project, never saved: it stays in memory. A project
+    // is saved once it holds a model, and stays saved from then on.
+    bool blank() const;
     bool restore_impl(const std::string& version_id, const std::string& conversation_id);
     void adopt_project();
     bool capture(bool wait_for_commit);

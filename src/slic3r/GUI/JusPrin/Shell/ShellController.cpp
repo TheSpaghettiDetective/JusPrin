@@ -656,12 +656,12 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         const auto version_before = [this, in_model_turn](const Agent::ToolActivity&) {
             if (in_model_turn() && !m_turn_before_version.empty())
                 return m_turn_before_version;
-            const std::string before = m_autosave ? m_autosave->pin_current() : std::string();
-            if (before.empty())
+            const std::optional<std::string> before = m_autosave ? m_autosave->pin_current() : std::nullopt;
+            if (!before)
                 throw std::runtime_error("Couldn't save the project. The action was not run.");
             if (in_model_turn())
-                m_turn_before_version = before;
-            return before;
+                m_turn_before_version = *before;
+            return *before;
         };
         const auto version_after = [this, in_model_turn](const Agent::ToolActivity& activity, const std::string& before) {
             const char* outcome = activity.state == Agent::ToolState::Succeeded ? "succeeded" :
@@ -1610,6 +1610,9 @@ void ShellController::uninstall()
     // back with the next slice.
     m_plater->SetDropTarget(new PrepareDropTarget(*m_frame, *m_plater, {}));
     m_gcode_history.reset();
+    // The shell coming back from classic view takes the project up again.
+    if (m_autosave && !left_project())
+        m_autosave->discard_if_never_saved();
     m_autosave.reset();
     if (m_plater->get_project_name().empty())
         m_frame->SetTitle(m_saved_frame_title);

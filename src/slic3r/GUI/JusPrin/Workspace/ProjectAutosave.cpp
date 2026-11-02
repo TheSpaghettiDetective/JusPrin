@@ -167,22 +167,18 @@ std::optional<std::vector<std::filesystem::path>> project_folders(const std::fil
     return folders;
 }
 
+// A project has a card once it has held a model, whatever it holds now: a
+// person who deleted every object can still go back to an earlier version.
 bool authored_head(const std::filesystem::path& project)
 {
     std::ifstream head(project / "HEAD", std::ios::binary);
     std::string content((std::istreambuf_iterator<char>(head)), std::istreambuf_iterator<char>());
     if (content.empty()) return false;
-    const std::string id = nlohmann::json::parse(content).at("current").get<std::string>();
-    const auto version = project / "versions" / id;
-    std::ifstream manifest_file(version / "manifest.json", std::ios::binary);
-    const auto manifest = nlohmann::json::parse(manifest_file);
-    if (!manifest.at("objects").empty())
-        return true;
-    const auto current_path = project / "current-state.json";
-    if (!std::filesystem::exists(current_path))
-        return false;
-    std::ifstream current_file(current_path, std::ios::binary);
-    return nlohmann::json::parse(current_file).at("state").value("docRevision", std::uint64_t{0}) > 1;
+    const auto versions = nlohmann::json::parse(content).at("versions").get<std::vector<std::string>>();
+    return std::any_of(versions.rbegin(), versions.rend(), [&project](const std::string& id) {
+        std::ifstream manifest(project / "versions" / id / "manifest.json", std::ios::binary);
+        return manifest && !nlohmann::json::parse(manifest).at("objects").empty();
+    });
 }
 
 // The MD5 of a file's content; empty when it cannot be read.
@@ -491,6 +487,7 @@ void ProjectAutosave::adopt_project()
     if (m_store && m_store->project_id() == id)
         return;
     settle(true);
+    discard_if_never_saved();
     m_store.reset();
     if (id.empty())
         throw std::runtime_error("open project has no identity");
@@ -642,8 +639,7 @@ void ProjectAutosave::tick()
         if (now < m_next_probe)
             return;
         m_next_probe = now + kProbeInterval;
-        if (m_plater.model().objects.empty() && m_store->head_id().empty() &&
-            m_persistence.document().doc_revision() <= 1) {
+        if (blank()) {
             m_state = State::Saved;
             return;
         }
@@ -891,6 +887,7 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
                 BOOST_LOG_TRIVIAL(warning) << m_warning;
             }
         }
+        discard_if_never_saved();
         m_store = std::move(target);
         m_project_name = versions.back().project_name;
         m_opened_from = versions.back().opened_from;
@@ -970,6 +967,26 @@ void ProjectAutosave::ensure_current_preview()
     }
 }
 
+bool ProjectAutosave::blank() const
+{
+    return m_plater.model().objects.empty() && m_store->head_id().empty();
+}
+
+void ProjectAutosave::discard_if_never_saved()
+{
+    settle(true);
+    if (!m_store || !m_store->head_id().empty())
+        return;
+    // Attachments and a chat's pictures go to the project's folder as they
+    // come, and leave with the project when nothing was ever saved. Another
+    // instance with this project identity may have saved here since. A folder
+    // that can't be removed has no HEAD, so it has no card and does no harm.
+    const auto folder = m_root / m_store->project_id();
+    std::error_code ignored;
+    if (!std::filesystem::exists(folder / "HEAD", ignored))
+        std::filesystem::remove_all(folder, ignored);
+}
+
 bool ProjectAutosave::save_now()
 {
     try {
@@ -977,8 +994,7 @@ bool ProjectAutosave::save_now()
         settle(true); // A failed older write can be retried from the live model.
         m_store->ensure_durable_head();
         observe_document_change();
-        if (m_plater.model().objects.empty() && m_store->head_id().empty() &&
-            m_persistence.document().doc_revision() <= 1) {
+        if (blank()) {
             m_error.clear();
             m_state = State::Saved;
             return true;
@@ -1019,29 +1035,20 @@ std::vector<ProjectVersionStore::Version> ProjectAutosave::history()
     return m_store ? m_store->history() : std::vector<ProjectVersionStore::Version>{};
 }
 
-std::string ProjectAutosave::pin_current()
+std::optional<std::string> ProjectAutosave::pin_current()
 {
     if (!save_now())
-        return {};
-    // A blank startup draft has no automatic version, but it is still the
-    // exact before-state of an Agent operation that may add its first object.
-    if (m_store->head_id().empty()) {
-        GLCanvas3D* canvas = m_plater.get_view3D_canvas3D();
-        if (canvas == nullptr || !canvas->is_initialized()) {
-            fail("The project canvas is not ready for a durable save");
-            return {};
-        }
-        if (!capture(true))
-            return {};
-    }
+        return std::nullopt;
     const std::string id = m_store->head_id();
+    if (id.empty())
+        return id;
     try {
         m_store->pin(id);
     } catch (const std::exception& error) {
         // Pinning writes into the project folder like any save, so a folder
         // that cannot be written is a failed save, reported and retried.
         fail(error.what());
-        return {};
+        return std::nullopt;
     }
     return id;
 }
@@ -1050,7 +1057,8 @@ void ProjectAutosave::record_agent_operation(const std::string& action_id, const
                                              const std::string& outcome, const std::string& before, bool save)
 {
     const bool saved = save && save_now();
-    m_store->record_operation(action_id, tool, outcome, before, saved ? m_committed_head : std::string());
+    if (!before.empty())
+        m_store->record_operation(action_id, tool, outcome, before, saved ? m_committed_head : std::string());
     if (save && !saved)
         throw std::runtime_error(m_error);
 }

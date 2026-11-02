@@ -16,9 +16,8 @@ does not represent whether the local project has been saved. Before restoring,
 JusPrin saves and pins
 the current version, then records the restore as a new version, so the prior
 state remains available. Each older timestamp has a separate Restore button;
-clicking the timestamp does nothing, and Restore asks for confirmation. A blank authored project gets one empty baseline
-version so it can be reopened; later document edits do not add versions. A
-first Agent model operation pins that baseline as its before-version.
+clicking the timestamp does nothing, and Restore asks for confirmation. Document
+edits do not add versions.
 Conversations with each chat's intent and plan, audit, and completed print
 records remain in the current document; restoring a model marks the active
 chat's plan for reassessment. Region descriptions follow the model: each
@@ -73,6 +72,18 @@ document. `docRevision` is a signal to coalesce that write; neither
 it nor document contents participate in model-version equality. A workspace
 event can prompt a model check, but cannot make unchanged checkpoint content
 into a new version.
+
+OrcaSlicer always holds a project, and it starts with an empty one. That empty
+project stays in memory: a project is saved when a model is present, or when it
+was saved before. Nothing else on an empty plate saves it, neither a chat, a
+typed draft, a setting edit, a preset choice nor a tool. All of that is lost on
+restart or when a file is opened, unless a model comes first, which saves the
+project with its chats so far. An agent action on the empty project has no
+version to go back to, so undoing its first import means deleting the object.
+Attachments and a chat's pictures go to the project's folder as they come. A
+project left with nothing saved removes that folder; a crash can leave one
+behind, which has no `HEAD` and so no card. Home lists a project if any of its
+versions holds a model.
 
 A project's directory and its lock are created by its first write, so a
 blank project nothing was saved for leaves no directory behind. That first

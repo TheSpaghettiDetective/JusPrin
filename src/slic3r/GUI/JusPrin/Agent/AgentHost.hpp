@@ -171,7 +171,7 @@ public:
     void set_turn_boundary_callback(std::function<void()> callback) { m_turn_boundary_callback = std::move(callback); }
     // Managed projects supply native model-version operations. Temporary
     // printer conversations intentionally leave these unset.
-    void set_chat_checkpoint_callbacks(std::function<std::string()> pin_current,
+    void set_chat_checkpoint_callbacks(std::function<std::optional<std::string>()> pin_current,
                                        std::function<std::string()> current_version,
                                        std::function<bool(const std::string&)> version_exists,
                                        std::function<bool()> save_document,
@@ -581,7 +581,7 @@ private:
     SendFn                m_send;
     std::function<void()> m_handshake_listener;
     std::function<void()> m_turn_boundary_callback;
-    std::function<std::string()> m_pin_chat_version;
+    std::function<std::optional<std::string>()> m_pin_chat_version;
     std::function<std::string()> m_current_chat_version;
     std::function<bool(const std::string&)> m_chat_version_exists;
     std::function<bool()> m_save_chat_document;

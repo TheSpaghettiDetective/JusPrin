@@ -136,7 +136,8 @@ public:
         m_attachment_path_resolver = std::move(resolver);
     }
     // The host can durably bracket each printable-project mutation. Empty callbacks
-    // preserve GUI-free coordinator behavior in unit tests and task chats.
+    // preserve GUI-free coordinator behavior in unit tests and task chats. `before`
+    // throws when it can't save, and returns an empty version for the blank project.
     void set_version_callbacks(std::function<std::string(const ToolActivity&)> before,
                                std::function<void(const ToolActivity&, const std::string&)> after)
     {

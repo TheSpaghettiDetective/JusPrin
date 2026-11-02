@@ -2113,13 +2113,16 @@ bool AgentHost::checkpoint_active_chat()
         return true; // Temporary sessions and GUI-free hosts have no model store.
     if (transition_busy())
         return false;
-    const std::string version = m_pin_chat_version();
-    if (version.empty())
+    const std::optional<std::string> version = m_pin_chat_version();
+    if (!version)
         return false;
+    // The blank project has no version for a chat to go back to.
+    if (version->empty())
+        return true;
     ProjectStateDocument& document = m_persistence.document();
     const std::string active = document.active_conversation_id();
     const WorkspaceSnapshot snapshot = m_workspace.snapshot();
-    if (!document.save_chat_checkpoint(active, version,
+    if (!document.save_chat_checkpoint(active, *version,
             context_json(snapshot, m_workspace.configured_printer(), current_printer_review(m_workspace, m_product_state)),
             m_persistence.timestamp()))
         return false;
