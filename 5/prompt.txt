@@ -1,0 +1,23 @@
+<task-notification>
+<task-id>b5drubrc7</task-id>
+<tool-use-id>toolu_011xZNnb8McmBx8H8ZQSMFzp</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e4ed3f35-35dc-4121-ba7d-12c70a470bf1/tasks/b5drubrc7.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for load to drop, then build the harness, tests and page" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b10yr9prd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/e4ed3f35-35dc-4121-ba7d-12c70a470bf1/tasks/b10yr9prd.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the printer to answer ping and its port again" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_7d426a6b-3b92-4817-bb1d-928832d54177" from-name="Fix Bambu connect tools: report what the app saw">
+claude/tool-results-truth is now at 469ecf0f8a, which removes "can be connected" from the printer search note and the printer_connection_status description. Please rebase on it before you push. It touches `tests/agent/test_printer_conversation.cpp`, `tests/shell/shell_harness.cpp`, `PrinterConversation.cpp`, one line of `OrcaPrinterBackend.cpp` (the print host failure with no reason, not `connection_failure_text`), and `ToolRegistry.cpp` plus its copy in `tests/printer_prompt/printer_tools.json`. Two pieces are still yours because I left them alone: the "refused" text in `connection_failure_text`, and the `SKILL.md` line saying `candidates` lists printers in LAN mode "that can be connected". That line now disagrees with the tool description.
+</cross-session-message>
