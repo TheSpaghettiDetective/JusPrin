@@ -182,3 +182,30 @@ Kenneth wants all the printer-chat work on one common branch: claude/tool-result
 
 Any further commit of yours goes there the same way: `git rebase claude/tool-results-truth` your branch, then `git push . HEAD:refs/heads/claude/tool-results-truth`. The local push is fast-forward only; if refused, another session moved the branch first, so rebase onto the new tip and push again. Never `git branch -f` or force-push it, and nobody checks it out in a worktree. Untracked notes stay off it. If the session you started (local_f69cfade-185e-4b34-be29-8e5e89d17f61, same title as yours) has commits of its own, pass this on to it. Reply only if you have commits not yet on the branch.
 </cross-session-message>
+
+---
+
+<cross-session-message from="local_f69cfade-185e-4b34-be29-8e5e89d17f61" from-name="Tool results: one method and guard for every app state">
+Kenneth decided: drop the committed inventory document agent-docs/jusprin/tool-result-inventory.md from branch claude/tool-silent-failures and fold its useful content into places that are actually read.
+
+Context: Kenneth asked whether that file should be committed and when anyone would read it. I could not name a reading moment the tests do not already cover. His words: "if a document is supposed to be used when it's only written. And you can't ... find any scenarios when it's supposed to be read. There's no point for that document." He then said to tell you to do the following.
+
+What to do, on the worktree .claude/worktrees/tool-silent-failures (branch claude/tool-silent-failures):
+1. Remove agent-docs/jusprin/tool-result-inventory.md and its index line in agent-docs/jusprin/README.md. Do it as a new commit; do not rewrite f455015a2a or 04fbbaab6e.
+2. Keep the rule where it is (Agent/ToolErrors.hpp header comment and the mcp-tool-extension-guide.md subsection "A reason travels with every refusal and every empty result"). Add the six collapse causes to that guide subsection as a short paragraph, two or three lines each, no file:line references: (1) fork reads Orca leftover state instead of the event, (2) a filter drops the reason, (3) fakes and tests only produce imagined states, (4) a generic error for common distinguishable states, (5) result written before or without checking the work, (6) dialog or throw outside any result channel.
+3. Move each "accepted collapse" rationale from the inventory into a one-line comment at the test that asserts it (tests/agent/test_tool_coordinator.cpp [states] table, tests/agent/test_printer_conversation.cpp, shell_harness checks).
+4. Move the open items (finding 6 Add chat network line, slice_start unchanged-plate anomaly, slice_inspect on an unopened G-code file, finding 1 against the real plug-in, unreproduced occupied/no_access_code branches) into the untracked note tool-silent-failures-notes.md at the worktree root, not into any tracked file.
+5. Update the memory file ~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/tool-result-states-method.md: the inventory is the state-table tests, not a document; "How to apply" should say add a state-table test, not inventory rows.
+
+Nothing merged or pushed, as before.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bk33rhpr2</task-id>
+<tool-use-id>toolu_01Ryotkt2F29Au4zJq7EJb8C</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/bk33rhpr2.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent tests and compile the harness file after the comment edits" completed (exit code 0)</summary>
+</task-notification>
