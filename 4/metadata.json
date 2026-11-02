@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6D2ETQ1KCSM5H5GXC8JMX87",
+  "session_id": "ef18cd36-1657-455f-8b31-232a5d966dd2",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-02T02:47:30.819144Z",
+  "branch": "claude/printer-live-p1s",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/printer_tools.json",
+    "tests/printer_prompt/run_prompt_tests.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "d2e0aab31bfd",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 630,
+    "cache_creation_tokens": 409859,
+    "cache_read_tokens": 6622499,
+    "output_tokens": 59573,
+    "api_call_count": 31
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-02T02:47:30.653057Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 8500,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 8500,
+    "total_lines_changed": 8502,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
