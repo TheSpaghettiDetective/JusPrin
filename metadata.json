@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6EVBFAVKXJH7GC0K7FJHE8D",
+  "strategy": "manual-commit",
+  "branch": "worktree-tool-results-rules",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/NamedPrinters.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaOutputs.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaRegions.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaReshape.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/agent/test_tool_coordinator.cpp",
+    "tests/printer_prompt/printer_tools.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 480,
+    "cache_creation_tokens": 1267166,
+    "cache_read_tokens": 53904762,
+    "output_tokens": 293846,
+    "api_call_count": 241,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
