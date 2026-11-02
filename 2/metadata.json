@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6D2ETQ1KCSM5H5GXC8JMX87",
+  "session_id": "aee0a899-9c4e-4dbf-9722-e90cbcd70923",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-02T02:47:25.381514Z",
+  "branch": "claude/printer-live-p1s",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "932fdf60cd1a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 744,
+    "cache_creation_tokens": 439171,
+    "cache_read_tokens": 5862730,
+    "output_tokens": 69830,
+    "api_call_count": 28
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

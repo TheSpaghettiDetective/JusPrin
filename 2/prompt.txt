@@ -1,0 +1,19 @@
+actually, before we do that, let's discuss how we should call them: 
+
+* "coins": this was just the placeholder I came up with. Come up with a term that sounds more intuitive and easier to understand and when it comes to what it represents and how it's mapped to the number of messages. 
+* names for $10/mo and $20/mo plans
+* name for the pack
+
+---
+
+<cross-session-message from="local_ef18cd36-1657-455f-8b31-232a5d966dd2" from-name="JusPrin pricing model brainstorm">
+Kenneth settled the naming question in a forked session: keep his coin model as is, rename the unit, name the plans.
+
+Decisions:
+- Keep Kenneth's model unchanged: one unit, Basic message 1, Expert message 5, 500 for $10, the two subscriptions and the pack as planned. My alternative (Expert messages as the only unit with a free Basic allowance per plan) was rejected as more complicated once the allowances were tiered and stated; do not pursue it.
+- The unit is called "credits", not "coins". Wherever a balance is shown, show it translated: "612 credits = 612 Basic or 122 Expert messages", so nobody converts in their head.
+- Plan names: Hobby ($10/month), Workshop ($20/month), Pay as you go (the never-expiring pack). Avoid Pro/Plus/Premium (Obico Pro exists next door).
+- The sign-up grant is described as "your first month", not "trial".
+
+Also: I repeated the v1-usage error a fourth time in that session (sizing allowances from v1's churn-shaped medians). The corrections memory now has a tightened rule: no allowance or ceiling sentence without an engaged-usage source or the word "placeholder"; v1 figures only with "floor" in the same sentence. Please apply "credits", the plan names and the translated-balance rule when updating pricing-implementation-plan-2026-11.md and pricing-touchpoints-design-2026-11.md.
+</cross-session-message>
