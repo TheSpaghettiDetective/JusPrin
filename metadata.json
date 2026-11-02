@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6D0K3DZWYH01GYPFTDV5VRT",
+  "strategy": "manual-commit",
+  "branch": "claude/tool-silent-failures",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "agent-docs/jusprin/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 162,
+    "cache_creation_tokens": 433602,
+    "cache_read_tokens": 21061023,
+    "output_tokens": 142524,
+    "api_call_count": 81
+  }
+}
