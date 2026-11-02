@@ -1,0 +1,111 @@
+<pasted_content id="3f88">
+9d565b8e6b (2026-10-28, “Start on Home without reopening a project or asking to sync the printer”) stopped the app from reopening your most recent saved project at launch.
+
+Its commit message says what replaced that: “The app now starts on Home with a blank project behind it; a saved project opens only when the person picks it.” Its harness check also confirms that a restart starts on a blank project.
+
+So what I told you matches that commit: no saved project opens at launch, but a blank one still sits behind Home. The blank project in my real-app run fits this too, because it recorded the printer choice before Benchy opened.
+
+I searched the log for commit messages about startup, Home and blank projects, and found nothing later that removes the blank project. That search only covered message keywords, so it isn’t exhaustive.
+</pasted_content id="3f88">
+
+find out what was the reason why a blank project was created. If necessary, go find the session to see if there was any justification or my specific approval was given for this logic.
+
+---
+
+<cross-session-message from="local_abb1844a-8502-4040-9a96-1d9b9f7969dd" from-name="Blank project at startup rationale">
+Kenneth's request: find out whether JusPrin can keep OrcaSlicer's empty project in memory only and not save it when no project is needed; if so, fix every unjustified save of a blank project.
+
+Kenneth's words: "investigate if, When there is no need for a project, we can just have orcawslicer's empty project in memory, and refraine from saving it. If this is doable, do a scan of the current code base to identify all the places where we are saving blank projects without a good reason and fix all of them."
+
+What the side session found (code read only, nothing run):
+- OrcaSlicer's editor always holds a project and creates an empty one at startup, so the blank project in memory is probably unavoidable. Kenneth accepts that if there is no easy way around it.
+- Its project stays in memory. Model::get_backup_path does create a temporary folder under temporary_dir() (orcaslicer_model/...), and I did not check whether anything writes project files there while backup is suspended. ShellController.cpp:557 suspends OrcaSlicer's periodic backup.
+- Since 6165ea6aee, ProjectVersionStore creates a project's folder under jusprin/projects only on first write. So saved blank projects should come from JusPrin's own writes.
+- Known lead, unconfirmed for normal setup: a printer choice is recorded into the blank project and it can then appear on Home as a card. The session "Build JusPrin Cloud credits and finish onboarding" (local_bf1ce8cd-f800-46c9-9c6d-aff405c410bb) saw this in a real-app run and has a failing harness check, fresh_example_leaves_no_blank_project. Coordinate with it if that work is still open.
+- Not checked: what relies on those early saves, for example a chat started on the blank project, pin_current (its comment says a blank startup draft is the before-state of an Agent operation), and project ID assumptions. Printer and filament chats should be independent of projects, per Kenneth.
+
+History, so nobody treats this as a design decision: I found no record of Kenneth or an agent deciding that a blank project should be saved. Details are in memory note blank-project-behind-home-inherited.md.
+
+If it is not doable, or a save has a good reason to stay, tell Kenneth which and why rather than removing it.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bfjv90kh4</task-id>
+<tool-use-id>toolu_01Kd1tKY8T9hsnwr3157Bri5</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/652e487a-cf34-4bb4-8055-6939f0667d89/tasks/bfjv90kh4.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the harness build to finish and show the result" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>byor0ntcl</task-id>
+<tool-use-id>toolu_019pp7X7Mj1AbWPn91cTxrJ7</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/652e487a-cf34-4bb4-8055-6939f0667d89/tasks/byor0ntcl.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the fix build to finish and show the result" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Yes, propose
+
+---
+
+<task-notification>
+<task-id>bcsgq2sbf</task-id>
+<tool-use-id>toolu_01SdaiXgr96DrwPtyyuJ9uhe</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/652e487a-cf34-4bb4-8055-6939f0667d89/tasks/bcsgq2sbf.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the app and tests with the printer switch change" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>beqajf3m6</task-id>
+<tool-use-id>toolu_011ob5Nu98TxRtFuDeMLeVnw</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/652e487a-cf34-4bb4-8055-6939f0667d89/tasks/beqajf3m6.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the harness suites that touch project saving" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_a51ed414-0952-4f25-810a-1d653811f23a" from-name="Blank project at startup rationale">
+Kenneth decided on a simpler rule for saving blank projects; please rewrite the uncommitted fix in the main checkout to match it.
+
+Kenneth's words: "Save when a model is present, the project was already saved, or a chat has messages. drop chats. tell the main session to change this way. and run a tally about the code change at the end"
+
+My reading, since the sentence lists chats and then drops them: the final rule has two conditions. Save when a model is present (objects not empty) or the project was already saved (head_id() not empty). A chat with messages does not cause a save. If Kenneth's words read differently to you, check with them before building.
+
+The changes this implies, based on reading the code, not on running it:
+1. In ProjectAutosave.cpp/.hpp, remove the holds_work field list and use the two conditions in tick and save_now. authored_head also uses holds_work, so Home's card filter needs the same test.
+2. Remove the printer special case (switches_printer_on_blank, m_project_is_blank) in ToolExecutionCoordinator, and m_nothing_to_return_to in AgentHost if it is no longer needed, along with their wiring in ShellController.cpp.
+3. The first object an agent imports into an empty project currently needs a saved before-version, and version_before fails the tool without one. Allow no before-version on a blank project. Undoing that import then means deleting the object, not going back to a saved empty version.
+4. Attachments and chat records are written under the project folder straight away. Without the chat condition, they can leave a folder with no saved project, so they need holding back or another decision. Tell Kenneth what you did.
+5. Chats on an empty plate are now lost on restart or when a file is opened. Kenneth accepted this. I earlier suggested the app should probably say so; no one has decided that, so raise it rather than build it.
+6. Unverified: a G-code file opened directly may have no objects, so a print sent from it might lose its print record. Check this path.
+7. Update tests/shell/shell_harness.cpp (--blank-project-saves), tests/agent/test_tool_coordinator.cpp and the paragraph in agent-docs/jusprin/autosave-version-history.md. Rerun the suites and the real-app check. Earlier failures to tell apart from new ones: --autosave-seed (home_describes_managed_project) and --print-history (exit 139).
+
+Do not commit unless Kenneth asks.
+
+At the end, report a tally of the code change: lines added and removed, split into app code, tests and docs, using git diff --numstat against de366d3618, and whether any OrcaSlicer-owned file changed. The previous version was app code +53/-10, tests +174, docs +10, with no OrcaSlicer-owned files changed.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bf5zrqc5c</task-id>
+<tool-use-id>toolu_0179LntNLd5aysba9y8PL2BL</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/652e487a-cf34-4bb4-8055-6939f0667d89/tasks/bf5zrqc5c.output</output-file>
+<status>completed</status>
+<summary>Background command "Run all project-saving test suites" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Squash. Your commits into one on jusprin-newui and push
