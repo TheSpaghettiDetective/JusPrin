@@ -1,0 +1,5 @@
+Tell me what has happened in this session, in plain eng
+
+---
+
+Have we discussed how we can let the user help us improve the procedure for connecting to any printer model?
