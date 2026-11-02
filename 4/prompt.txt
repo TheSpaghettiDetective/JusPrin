@@ -1,0 +1,531 @@
+Why did you miss this?
+
+The app gave it a false conclusion. The app’s note said “refused”, when all it knew was that the plug-in returned -1.
+
+<pasted_content id="aaf5">
+There are three things you may be thinking of, and none of them covers this:
+
+* `ff2fee4fbd` and `ff10faa501`: these tell the model what the Bambu network search has heard, and when the search can’t hear printers. That covers finding the printer through its broadcast announcements, which happens before the connection. The search can hear a printer while the login on port 8883 still fails, and that’s what happened to you.
+* `04fbbaab6e` (“Carry the reason with every refusal”): this came from the tool results sweep, and `788ff792b7` later took out eight of those fixes. I didn’t check which parts of it survive. The note above is still on the branch either way, and the code search found no port check.
+* My uncommitted edit in the `connection-skill` worktree: this only rewords the note to “could not connect to the printer and reported code -1, which does not say why”. It’s more honest, but it still reports no timing and no port check.
+
+The nearest existing code is `HostLink::Reachable` in `HostLanes.cpp`. From its name and the search results, it looks like the check for Moonraker and OctoPrint hosts, not Bambu, though I only saw those search lines and didn’t read the code.
+</pasted_content id="aaf5">
+
+
+check your own code on the origin/claude/tool-results-truth branch
+
+---
+
+The problem is how will I know that you will not miss anything this time around? What was the root problem for you to make things misobvious?
+
+---
+
+I don't understand. is the nature of this task just when the API returned a non-success with error message, you just forward its non-success status and error message without hiding them to the tool caller. How can you get this part wrong? I don't understand.
+
+---
+
+So you wrote a lot of code to hide the real information. When the shortest code, which is to forward the information, should be the correct choice. You can't be this genius, right?
+
+---
+
+Is it fair to say that the problem is the mistake junior engineers often make: Catch the error, throw it away, and invent another error code that carries no meaning whatsoever, and then throw that new error that nobody understand?
+
+---
+
+I don't believe there's only one such problem in the code. Do a sweep for the tool calls. List all the places where such a stupid code is discovered.
+
+---
+
+<task-notification>
+<task-id>ad4448661b0b3a2a9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b47f90f4-7491-4a9c-a16a-eddb38284f24/tasks/ad4448661b0b3a2a9.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep printer tool failures" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All paths are under `.../scratchpad/tree/src/slic3r/GUI/JusPrin/` unless they start with `Utils/` or `GUI/`. Nothing was run: reachability comes from reading the code. I did not use git, so whether a line in an OrcaSlicer-owned file is upstream or fork is unverified.
+
+## Hits, most misleading first
+
+1. `PrinterSetup/OrcaPrinterBackend.cpp:61` | printer_connect note, status | B (known)
+   - Lower layer: `GUI/GUI_App.cpp:2082` passes the plug-in's status and msg; any status other than Ok or Lost becomes Failed (`Printers/ConnectionEvents.cpp:21`).
+   - Text: "The printer refused the connection; Bambu's network plug-in reported code " + code + ". Check that the printer is on and in LAN mode, then try again."
+   - Not checked: a refusal, power, or mode. An empty msg gives "code .".
+
+2. `PrinterSetup/PrinterConversation.cpp:905` | status, note | B, D (known; worse than reported)
+   - Lower layer: besides the UDP case, `GUI/DeviceCore/DevManager.cpp:31-43` restores saved machines at launch as lan, free and online with no announcement. The only silence-independent offline setter is a received message (`GUI/DeviceManager.cpp:4323`).
+   - Text: "The network search found " + name + " in LAN mode, which can be connected". `Agent/ToolRegistry.cpp:1602` and `SKILL.md:20` say the same.
+   - Not checked: that it was heard this session, or its current mode.
+
+3. `AgentUI/src/printerInstructions.ts:189` and `PrinterConversation.cpp:1206` | every Add turn, form note | B
+   - Lower layer: `PrinterSetup/PrinterDiscovery.cpp:113` reads the account list (`dev_online` comes from the cloud, `DevManager.cpp:774`) plus restored records. `:133` merges account printers into "nearby".
+   - Text: "On the network now: "; "found on the network, which is not connected yet."
+   - Not checked: network presence.
+
+4. `PrinterConversation.cpp:194-218` with `OrcaPrinterBackend.cpp:532-543` | status (`seen`), printer_connect | B
+   - Lower layer: `reason` is set without looking at `account_only`, and `seen_reason` returns `reason` first.
+   - Text: an account-only printer gets name + " was seen on the network, but it is a X". `ToolRegistry.cpp:1604` says "the search heard".
+   - Not checked: it was never heard.
+
+5. `OrcaPrinterBackend.cpp:569-571` | note, status | E
+   - Lower layer: `get_selected_machine` prefers the user-list object (`DevManager.cpp:582`), while `get_my_machine` returns the local object for LAN mode (`:657-670`). A signed-in person's LAN printer on their own account therefore compares unequal with `selected_machine` unchanged. Hypothesis from reading, not run.
+   - Text: "The selected printer changed. Select this printer again to reconnect."
+   - Not checked: the selected id, or who changed it. No tool selects a printer.
+
+6. `OrcaPrinterBackend.cpp:578-580` and `printerInstructions.ts:154` | note | A, D
+   - Lower layer: `MachineObject::connect` returns -1 for an empty IP or no agent, swallows exceptions (`GUI/DeviceManager.cpp:2404-2417`), and returns the plug-in's own code. `DevManager.cpp:534,558` ignore that result. A recorded Ok is never consulted (`:565` tests only `!= Ok`).
+   - Text: "The printer did not respond. Check that it is on the network and try again."; "A failure that is a timeout means no response, not a wrong code."
+   - Not checked: whether the connect was attempted, or whether the plug-in said Ok with no push following.
+
+7. `OrcaPrinterBackend.cpp:733` | note | B, A
+   - Lower layer: `Utils/OctoPrint.cpp:222-225` fails with msg untouched when a host answered 2xx without "api". On Windows, `on_ip_resolve` then writes the IP into msg (`:243`, order at `Utils/Http.cpp:497-502`).
+   - Text: "Could not reach the print host. Check its address, API key and network, then try again."; on Windows, "The print host test failed: &lt;ip&gt;".
+   - Not checked: the host did answer. This is the case the comment at `:726-729` says was fixed.
+
+8. `AgentUI/src/skills/connect-bambu/SKILL.md:27` | every `failed` | C, B
+   - Lower layer: timeout, lost, "selected changed" and code 5 all have state `failed`.
+   - Text: "Ask them to compare the access code on the printer's screen with what they typed".
+   - Not checked: the cause. It contradicts `printerInstructions.ts:154`.
+
+9. `OrcaPrinterBackend.cpp:505` and `printerInstructions.ts:211` | status, prompt | C, A
+   - Lower layer: `Utils/BBLNetworkPlugin.cpp:140-144` keeps the dlopen error and `is_loaded` is only module != null. `GUI/GUI_App.cpp:1833-1837` separates CorruptedPlugin from MissingPlugin.
+   - Text: "...which is not installed or not turned on."; "Bambu's network plug-in: not installed".
+   - Not checked: `get_load_error`.
+
+10. `Printers/HostLaneReader.cpp:66-68` with `OrcaPrinterBackend.cpp:169-172` | printer_add, printer_change, prompt | D, A
+    - Lower layer: any server's 404 counts as `reached`. 401, 403 and 500 count as not reached, and the status is dropped. `HostLink::Checking` and all OctoPrint printers (`:129`) give `connected` false.
+    - Text: `"connected":false`; "Connected to this app: no", "not known, as it is not connected", even straight after "verified".
+    - Not checked: that the host is Moonraker, or auth. "Not yet asked" is reported as no.
+
+11. `SetupCommands.cpp:490-492` (in `Shell/`) | printer_add | D
+    - Lower layer: the `Tab::select_preset` result is ignored. The person can cancel at `GUI/Tab.cpp:6042`. `Printers/NamedPrinters.cpp:184,199` then saves the previously selected system profile under the new name, or throws a logic_error if that one is a user preset.
+    - Text: a success result.
+    - Not checked: `is_selected`, which the same file's `select()` does check.
+
+12. `OrcaPrinterBackend.cpp:535-537` and `PrinterConversation.cpp:217` | status, printer_connect | E
+    - Lower layer: `link_named_printer` writes the link before the attempt (`:636`) and it survives failure (`:750`).
+    - Text: "a printer of this model, but not the one this printer was set up from (&lt;id&gt;)"; later "This printer is already linked to another device."
+    - Not checked: a failed pick is reported as how the printer was set up.
+
+13. `PrinterConversation.cpp:220` and `ToolRegistry.cpp:1604` | status, printer_connect | B
+    - Lower layer: `is_avaliable` is `bind_state == "free"` (`GUI/DeviceManager.hpp:233`). Upstream says only "The printer has already been bound." (`GUI/ReleaseNote.cpp:1957`).
+    - Text: "it reports itself bound to another account (occupied)".
+    - Not checked: whose account. It may be the person's own.
+
+14. `PrinterConversation.cpp:198,208` and `SKILL.md:22` | status, printer_connect | B
+    - Lower layer: `cloud_mode` is `!lan_mode`, meaning connect type != "lan", which includes empty (`DevManager.cpp:296-298`, U0 firmware).
+    - Text: " was seen on the network with LAN Only off."
+    - Not checked: the actual mode value.
+
+15. `OrcaPrinterBackend.cpp:345` and `NamedPrinters.cpp:386-387` | printer_change | C, B
+    - Lower layer: no catalogue entry for a custom printer; `old_parent` null when `inherits` is empty or missing (main-checkout `libslic3r/Preset.cpp:3117`, not in the snapshot); `new_parent` missing.
+    - Text: "This printer does not come with that nozzle size."
+    - Not checked: what the model ships.
+
+16. `OrcaPrinterBackend.cpp:55-57` | note | A, B
+    - Lower layer: `ConnectionEvents.cpp:24` drops msg for Lost.
+    - Text: "The connection to the printer was lost before it answered. Check that the printer is on and on this network, then try again."
+    - Not checked: "before it answered".
+
+17. `OrcaPrinterBackend.cpp:575-577` | note | E
+    - Lower layer: `get_my_machine` is null when the code was erased, the bind state changed, or the mode changed (`DevManager.cpp:665`).
+    - Text: "The printer is no longer available. Refresh the printer list and try again."
+    - Not checked: which of these happened. No such refresh exists.
+
+18. `OrcaPrinterBackend.cpp:404` and `:412-438`, `PrinterConversation.cpp:591,933` | status, notes | D
+    - Lower layer: the `start_discovery` bool is dropped (`Utils/BBLPrinterAgent.cpp:104-112`). `DiscoveryPort::Ours` also means Windows, fake agent, a failed probe, or another errno.
+    - Text: "The network search has listened for 15 seconds and has found no printer of this model." (the 15 comes from `kSearchWait`).
+    - Not checked: that anything listened.
+
+19. `OrcaPrinterBackend.cpp:621` | note | C
+    - Lower layer: gone, other_model, other_device, linked_elsewhere and occupied all land here.
+    - Text: "Choose a matching printer from the refreshed list."
+    - Not checked: the `reason` it holds.
+
+20. `Utils/PrintHost.cpp:123-126` | note, via settle | B, A
+    - Lower layer: the curl string and errbuf are replaced (`Utils/Http.cpp:416`).
+    - Text: "The Hostname/IP/URL could not be parsed, please check it and try again." for a DNS failure; "File/data transfer interrupted..." for a test with no transfer.
+
+21. `Utils/Moonraker.cpp:90-99` and `Utils/Http.cpp:496-509` | note | D
+    - Lower layer: `klippy_state` error or shutdown is only logged. A status that is neither 2xx nor &gt;=400 calls no callback, so `res` stays true.
+    - Text: "Connection to X verified."
+
+22. `OrcaPrinterBackend.cpp:58-60` | note | B
+    - Lower layer: erasure is skipped if `selected_machine != dev_id` or the object is absent (`GUI/GUI_App.cpp:2087-2103`).
+    - Text: "The app has dropped the code it had saved for this printer".
+
+23. `Workspace/OrcaWorkspaceAdapter.cpp:2272` with `PrinterDiscovery.cpp:110-117` | printer_list | D
+    - Lower layer: only `get_my_machine_list`. Host printers appear only through `GUI/GUI_App.cpp:3688`; LAN printers without a code are filtered (`DevManager.cpp:665`). No DeviceManager gives an empty list. `activity` ignores `is_online`.
+    - Text: description "List the physical printers this application knows about"; `[]`; "offline" while the cloud says online.
+
+24. `PrinterConversation.cpp:516-517,757-758` | printer_connect, status | C
+    - Lower layer: an empty name is either never added or removed/renamed since. The backend's "renamed or removed" text (`:461`) is unreachable from these tools.
+    - Text: "There is no saved printer to connect yet: add one first."
+
+25. `OrcaPrinterBackend.cpp:553` | status | B
+    - Lower layer: configured and no recent data, which includes never selected this launch.
+    - Text: "Connection status is unknown. Check that the printer is on, then reconnect."
+
+26. Printer form, reaching the model by note or the person only | A, D, C
+    - `OrcaPrinterBackend.cpp:253-254`: `failures` dropped (main-checkout `Preset.cpp:2773`: the name already exists). Text: "A copy of X for P could not be saved."
+    - `:283-284` with `PrinterConversation.cpp:1193`: a preset was made but selecting it failed. Text: "made no preset for this printer".
+    - `PrinterConversation.cpp:1123`: `options-&gt;error`, whose real text comes from `SetupOptionsLoader.cpp:83`, is collapsed into "The form was out of date. Choose the printer again."
+
+## Plain generic messages: 8
+- `OrcaPrinterBackend.cpp:309`, `:260`, `:511`
+- `PrinterBackend.hpp:228`, `:273`, `:275`
+- `PrinterConversation.cpp:839`
+- `SetupCommands.cpp:454`
+
+`SetupCommands.cpp:497,504` are close: the reason is only in logs, and "Your previous setup is unchanged" follows a rollback that did report.
+
+## Read in full
+- `PrinterConversation.cpp`, `OrcaPrinterBackend.cpp`, `PrinterBackend.hpp`, `PrinterDiscovery.cpp`, `PrinterPanel.cpp`, `SetupOptionsLoader.cpp`, `PrinterCatalog.cpp`
+- `NamedPrinters.cpp`, `HostLanes.cpp` and `.hpp`, `HostLaneReader.cpp`, `ConnectionEvents.cpp` and `.hpp`
+- `printerInstructions.ts`, `connect-bambu/SKILL.md`
+
+**Function level only:**
+- `ToolRegistry.cpp` (printer tools and schemas)
+- `SetupCommands.cpp`, `DevManager.cpp`, `DeviceManager.cpp`, `GUI_App.cpp`, `Tab.cpp`, `Moonraker.cpp`, `OctoPrint.cpp`, `PrintHost.cpp`, `Http.cpp`, `NetworkAgent.cpp`, `BBLPrinterAgent.cpp`, `BBLNetworkPlugin.cpp`
+- `OrcaWorkspaceAdapter.cpp`
+
+**Not read in the snapshot:** `libslic3r/Preset.cpp` and `PresetBundle.cpp` are missing from it, so I read them in the main checkout. The plug-in itself is closed source, so what its codes mean is UNVERIFIED. `apply_vendor_config` was read only around its one `return false` (`PresetBundle.cpp:1184`).</result>
+<usage><subagent_tokens>266150</subagent_tokens><tool_uses>42</tool_uses><duration_ms>441662</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acfe10325aabcb895</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b47f90f4-7491-4a9c-a16a-eddb38284f24/tasks/acfe10325aabcb895.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep slice and output tool failures" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The sweep found 21 hits, and the first two are the worst: they replace a tool's real outcome or error with a wrong statement. No code was built or run, so every hit comes from reading the code. The disk-full behaviour in hit 5 comes from a 2026-09-29 memory note and was not rerun.
+
+`Config.cpp`, `PresetBundle.cpp` and `TriangleMesh.cpp` are not in the snapshot, so I read them from the main checkout on `jusprin-newui`. Paths are relative to `src/slic3r/GUI/JusPrin/` unless they start with `Plater.cpp`, `libslic3r/` or similar. "TEC" means `Agent/ToolExecutionCoordinator.cpp`.
+
+## Hits, most misleading first
+
+1. **TEC:1128-1129** | export_file, print_dialog_open (any caller); object_import_file, project_delete_items (MCP outside a turn) | A+B
+   - **Lower layer:** `pump()` runs the save after `execute()` whatever the outcome. `fail()` may then overwrite an error while `m_saving_after` is set. The real error is lost, for example `"Nothing ran: the project changed after this call was made..."` (TEC:1192) or `"The G-code could not be written: "` + the error (`OrcaOutputs.cpp:362`).
+   - **Text:** `"The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved."`
+   - **Not checked:** `activity.state` before saying the change was made.
+
+2. **TEC:1092-1094, `Shell/ShellController.cpp:659-661`; `Workspace/OrcaWorkspaceAdapter.cpp:2589`** | object_import_file, project_delete_items; project_open, calibration_generate | A
+   - **Lower layer:** `ProjectAutosave::fail` holds `m_error`, which can be:
+     - `"project is open in another JusPrin instance"` (`ProjectVersionStore.cpp:530`)
+     - `"project was saved by another JusPrin instance"` (:498, reached through `publish_document`:824 and `persist_document`)
+     - `"The project canvas is not ready for a durable save"` (`ProjectAutosave.cpp:996`)
+     - `"OrcaSlicer could not capture project metadata"` (:534)
+     - filesystem `what()` strings
+   - **How it is lost:** the shell throws its own string, and the coordinator sends that only to `clog`. The release hook returns only a bool (`ShellController.cpp:564`).
+   - **Text:** `"Nothing ran: the project could not be saved first. Tell the person the project is not saved."` and `"The open project could not be saved, so it stays open"`
+   - **Not checked:** nothing passes `m_error` on, so the person is never told to close the other instance.
+
+3. **`Workspace/OrcaOutputs.cpp:390-391, 407-409`** | export_file (stl) | D
+   - **Lower layer:** `store_stl` always returns true (`libslic3r/Format/STL.cpp:42-50`, `//FIXME returning false even if write failed.`). It drops the bool from `its_write_stl_binary`, which is false when `fopen` fails (`TriangleMesh.cpp:1623-1628`), and the `fwrite` calls are unchecked.
+   - **Text:** a success result with `files:[path]`; `bytes` comes from a `file_size` call whose error is ignored. `"The STL could not be written"` can never be sent.
+   - **Not checked:** that the file exists afterwards.
+
+4. **`Workspace/OrcaOutputs.cpp:397-405`** | export_file (presets) | D+B
+   - **Lower layer:** `save_to_json` never checks its stream (`Config.cpp:1499-1502`), so an unwritten file is still listed as success.
+   - **Empty result:** `export_current_configs` also returns empty when every preset `is_default` (`PresetBundle.cpp:5519`).
+   - **Overwrite:** an answer of 2 skips the first existing file, then `overwrite &lt; 2` is false, so later existing files are overwritten without `overwrite` (:5523-5528). The tool description says `"An existing file is replaced only with overwrite."`
+   - **Text:** `"Nothing was written; the preset files exist in that folder (pass overwrite to replace them)"`
+   - **Not checked:** that the files exist.
+
+5. **`Workspace/OrcaOutputs.cpp:369-370`** | export_file (sliced_3mf, project_3mf) | D+A
+   - **Lower layer:** `bbs_3mf.cpp:7033-7040` ignores the results of `_add_model_file_to_archive`, finalize and `add_from_zip_reader`. The memory note records a full disk returning success with a damaged file. On a reported failure, the exporter's error list goes only to the log (`bbs_3mf.cpp:9023-9024`).
+   - **Text:** success, or `"The app could not write the file"`.
+   - **Not checked:** the written file.
+
+6. **TEC:1054-1067, 2111-2122; `Shell/ShellController.cpp:1751-1764, 1791-1794`** | print_dialog_open | D
+   - **Lower layer:** the opener only queues `CallAfter`. With a plate id not in the project, `targets_sliced` returns true because the loop skips every plate. The person then gets `"The plate to print is no longer in the project."` in a dialog. `print_again` can also return silently.
+   - **Text:** `opened:true`, `"The app's send dialog is open. The person checks it and presses Send there; ..."`
+   - **Not checked:** that the plate exists, or that any dialog opened. `send_gcode_legacy` was not read.
+
+7. **TEC:1277-1280; `Workspace/ProjectAutosave.cpp:850, 875, 927, 931`** | project_open (`openedBefore` existing) | A+C
+   - **Lower layer:** a bool only. The causes differ: the current project failed to save, `"local project has no current version"`, a materialize `what()`, or `"; previous project also failed to reload: "`, which leaves the open project broken.
+   - **Text:** `"The saved project could not be opened"`, with details `projectOpened:true` set before the attempt.
+   - **Not checked:** which of these happened, or whether the rollback worked.
+
+8. **`Workspace/OrcaWorkspaceAdapter.cpp:2559, 2576, 2586, 2589-2591`** | project_open | D+E
+   - **After a failed load:** once `release_project` succeeds the old project is gone, yet the failure does not say so. `Mcp/McpProtocol.cpp:190` tells clients `"A failed call changed nothing unless its message says what it already changed."`
+   - **Report:** `project_opened = true` is set unconditionally, even when the text says the project stays open.
+   - **Lower layer:** `Plater::load_project` is void with silent returns (`Plater.cpp:12173-12192`), so `loaded` is inferred from the project filename left behind. `Plater.cpp:12256-12258` sets that filename even for an empty load when `using_exported_file()`.
+   - **Text:** `"The app did not open that file"`. Orca's messages do travel in `details.report` when it reported any.
+
+9. **`Workspace/OrcaWorkspaceAdapter.cpp:2669-2670, 2693-2694`; TEC:1362** | calibration_generate | A
+   - **Lower layer:** a missing resource reaches `show_error(q, e.what())` (`Plater.cpp:6683-6685`), which the load report records. `take_load_report` is then thrown away, and `made.messages` is not sent on failure.
+   - **Text:** `"The app did not generate the test"`. It omits that the open project was already replaced at TEC:1336.
+   - **Not checked:** the discarded messages.
+
+10. **TEC:2163-2172; `Workspace/OrcaWorkspaceAdapter.cpp:982-997`; `PrintIssues/PrintIssue.cpp:90-110`; `Agent/ToolResults.cpp:797-799`** | slice_start, slice_report | E
+    - **Lower layer:** `report_slice_declined` carries no reason (`Workspace/SliceRequests.hpp:43`).
+    - **How the reason is chosen:** it is read afterwards as the first Blocker across Validation, Placement, SliceFailure and Notice, with `issue.stale` unfiltered (marked at `PrintIssues/PrintIssueMonitor.cpp:581`).
+    - **Silent returns:** `reslice` returns with no report at `Plater.cpp:16076-16086` (for example `"Could not stop UI job within"`, log only). `reason` is then whatever older failure the plate holds, and only with none does the fallback appear.
+    - **Staleness:** failures clear only on run start or a valid slice, so `sliceFailure` can describe a project edited since.
+    - **Text:** the leftover failure's message, or `"The app did not start slicing this plate."`
+
+11. **`Agent/AgentHost.cpp:1839-1841`; TEC:2154-2158** | slice_start | E+D
+    - **Lower layer:** `evt.cancelled()` exists (`Plater.cpp:9984`), but the adapter reads only `evt.error()` (`Workspace/OrcaWorkspaceAdapter.cpp:962`). The outcome waits for the turn to end (`Agent/AgentHost.cpp:1818-1821`). A finished run invalidated by an edit in that gap therefore reads as stopped.
+    - **Text:** nothing is sent, though the tool result promised `"the app starts a new turn with the outcome: sliced, or the app's reason."`
+    - **Not checked:** whether the run was actually cancelled.
+
+12. **TEC:1721-1724** | activity_cancel | B
+    - **Lower layer:** `cancel_slicing` is false when `background_process.idle()` (`Plater.cpp:18407-18413`). During slice-all, `m_is_slicing` is true while idle between plates (:16124-16128).
+    - **Text:** `"That slice has ended; a slice started since is not the tools' to stop."`, while the run continues.
+    - **Not checked:** the slicing state after the call.
+
+13. **`Workspace/ProjectAutosave.cpp:768-773, 189-197`; TEC:915-916** | project_open | B
+    - **Lower layer:** `file_digest` is `""` when the file cannot be read, and `"" != digest` makes `changed` true.
+    - **Text:** `" The file has changed since."`
+    - **Not checked:** whether a digest was actually computed.
+
+14. **`Workspace/OrcaOutputs.cpp:240-254`** | slice_inspect | D
+    - **Lower layer:** the stream's open failure is never checked.
+    - **Text:** `valid:true` with an empty `gcode`.
+
+15. **`Workspace/OrcaOutputs.cpp:205-219, 187-189`** | project_attachment_read | D+C
+    - **Lower layer:** an unopened stream gives `text:""` with `bytes` above 0. `is_regular_file`'s error, such as permission denied, is dropped.
+    - **Text:** success, or `"The project has no attachment "` + id + `"; read workspace_inspect's project section"`.
+
+16. **`Workspace/OrcaWorkspaceAdapter.cpp:2732-2733`** | object_import_file, object_import | C
+    - **Lower layer:** the same check fires on a relative path, a non-regular file, a zero-byte file or a `file_size` error.
+    - **Text:** `"The model file does not exist"`. For a zero-byte file that is false, since TEC:640 already found it.
+
+17. **TEC:640-641, 898-899** | object_import_file, project_open | C
+    - **Lower layer:** the `error_code` is ignored, and a folder, a permission error and a relative path all land here.
+    - **Text:** `"Give the absolute path of a file that exists."`
+
+18. **`Workspace/OrcaOutputs.cpp:306-307`** | export_file | C
+    - **Lower layer:** `is_directory` is also false for a file at that path or a permission error, and the error is dropped.
+    - **Text:** `"The folder "` + path + `" does not exist"`
+
+19. **`Workspace/OrcaOutputs.cpp:330-331`; TEC:2105-2108** | export_file, print_dialog_open | C+A
+    - **Lower layer:** this covers an invalid slice, a null result and a slice in flight, where the next `slice_start` answers `"A slice is already running..."`. `print_dialog_open` computes `failure` and discards it.
+    - **Text:** `"Slice the plate first; it has no current G-code"`, `"This plate has no valid slice. Slice it with slice_start first, then open the print dialog."`
+    - **Note:** both recover with the next call, so these are low severity under the rule in `Agent/ToolErrors.hpp`.
+
+20. **`Workspace/ProjectAutosave.cpp:810-813`** | project_open | D
+    - **Lower layer:** a project folder with a damaged manifest is logged and skipped.
+    - **Result:** the file reads as never opened before and no `opened_before` is raised.
+
+21. **TEC:1497-1500** | project_delete_items | D, text UNVERIFIED
+    - **Lower layer:** items are already deleted when `remove_regions` fails. Only its message is sent, and I did not read `change_regions`' failure strings.
+
+## UNVERIFIED lead
+`Workspace/OrcaSliceChecks.cpp:79-81, 90-93, 250-253, 267-270` | slice_report. A plate loaded from a sliced 3MF may hold a Print with no objects. That would read as `generated:false` and empty islands and first-layer sections. I did not read the load path, so this is my hypothesis only.
+
+## Checked and not hits
+- `"Finish the current tool edit before replacing the project"` cannot be sent: `GLGizmosManager::is_in_editing_mode` always returns false (`Gizmos/GLGizmosManager.cpp:1446-1457`).
+- Critical slice errors are not lost: `PrintIssueMonitor::read_failure` takes them from the completion event.
+- `kProjectsUnreadable` states what `project_folders` just checked, although its code `local_save_failed` is a poor fit.
+
+## Plain generic messages: 5
+- `"The app did not import that file"` (Orca's messages travel in details)
+- `"The app could not read that picture"`
+- `"The slice stopped with an error."`
+- `"The app did not start slicing this plate."` when no older failure exists
+- `"Malformed HTTP request."` at the MCP protocol level
+
+## Files read in full
+- **Agent:** `ToolExecutionCoordinator.cpp`, `ToolResults.cpp`, `ToolErrors.hpp`
+- **Mcp:** `McpServer.cpp`, `McpProtocol.cpp`, `McpRuntime.cpp`
+- **Workspace:** `OrcaOutputs.cpp`, `OrcaSliceChecks.cpp`, `FileLoads.cpp`, `LoadFacts.cpp`, `SliceResultWarnings.cpp`
+
+## Read in part (the tool paths only)
+- `Agent/AgentHost.cpp`: read 560-680, 1091-1110, 1803-1856 and 3065-3094. I grepped its catches at 923, 3691 and 3730 but did not open them.
+- `Workspace/OrcaWorkspaceAdapter.cpp`: the functions serving these tools.
+- `Workspace/ProjectAutosave.cpp`: 150-210, 344-350 and 525-1119.
+- `Workspace/ProjectVersionStore.cpp`: 30-41 and 484-533, plus a grep of its throws.
+
+The snapshot root is `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b47f90f4-7491-4a9c-a16a-eddb38284f24/scratchpad/tree`.</result>
+<usage><subagent_tokens>335489</subagent_tokens><tool_uses>64</tool_uses><duration_ms>508793</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acaed84746e273ab9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b47f90f4-7491-4a9c-a16a-eddb38284f24/tasks/acaed84746e273ab9.output</output-file>
+<status>completed</status>
+<summary>Agent "Sweep settings and geometry tool failures" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**The sweep is finished: 26 hits, with nothing edited, built or run, and no git commands used.** The worst is H1: `object_divide` reports success when nothing split, and returns a possibly different object as the piece.
+
+Paths are relative to `src/slic3r/GUI/JusPrin/` unless they name a file in `src/slic3r/GUI/`. "Adapter" is `Workspace/OrcaWorkspaceAdapter.cpp` and "Coord" is `Agent/ToolExecutionCoordinator.cpp`.
+
+**Evidence limits**
+- The snapshot's libslic3r holds only `Print.*` and `Format/`. I read `MeshBoolean`, `CutUtils`, `Model`, `Orient`, `Preset` and `Thumbnails` from the main checkout (branch `jusprin-newui`), so they may differ from 3c650c9127.
+- I did not use git, so upstream versus fork attribution is unverified for every line.
+
+## Hits
+
+**H1.** `Workspace/OrcaReshape.cpp:243-247, 269-273` (preview `:204-207`) | object_divide, object_divide_preview | D
+- **Lower layer:** `Plater::priv::split_object` (`Plater.cpp:7669-7684`) returns void. With one resulting object it only shows a modal, "The selected object couldn't be split.", and changes nothing. This is reachable: `ModelObject::split` (`Model.cpp:2039`) only splits to volume when `volumes.size()&gt;1`, for example one multi-shell part plus a modifier.
+- **Sent:** success, with `added = 1` and `pieces` set to the last object in the model, which may be a different object. The failure text `"The app did not split " + name` needs `size() &lt; count_before`, so it cannot fire when nothing changed.
+- **Not checked:** whether the count grew, or whether the piece is the selected object.
+
+**H2.** Coord `:340-346, 350` | settings_search, settings_get, settings_preview_patch, settings_apply_patch (object scope) | B
+- **Lower layer:** `settings_target` walks only `snapshot.plates`. `PartPlateList::notify_instance_update` (`PartPlate.cpp`) moves an instance off every plate into `unprintable_plate`, which the adapter never reads. `object_details` (Adapter `:2148`) still lists the object.
+- **Sent:** "That object is not in the open project. Read workspace_inspect again." The re-read does not help, so the model loops.
+- **Not checked:** model membership.
+
+**H3.** Coord `:2336-2339` | settings_apply_patch | D
+- **Lower layer:** the code comment says "The revision check above means the target cannot have gone". The revision check covers only Settings and Project reasons (`:39, :1188`), while object delete raises Objects and Plates (Adapter `:2874`). With no target, `preset_owner` picks the process preset (Adapter `:3085-3089`) and `settings_object` returns null (`:3262`).
+- **Sent:** success, with the object patch written to the process preset through `tab-&gt;load_config` (`:3619`).
+- **Not checked:** `target.found` at execute time. I did not measure how long the window is.
+
+**H4.** Coord `:1111-1129` | every versioned tool (settings_apply_patch, plate_layout, object_place, object_divide, object_merge, object_repair, region_annotate, printer_setup) | A+B
+- **Lower layer:** `version_after` runs after failed calls too (`Shell/ShellController.cpp:666-670`). `record_agent_operation` (`Workspace/ProjectAutosave.cpp:1049`) throws `m_error` when the save fails, whatever the outcome, and saves only outside a model turn. `fail` then overwrites the tool's real error.
+- **Sent:** "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved."
+- **Not checked:** whether the change happened (the outcome is known at that line). `what()` goes only to clog.
+
+**H5.** `Workspace/OrcaRegions.cpp:273-275` | region_annotate | B
+- **Lower layer:** `facets_of` for a direction (`Workspace/OrcaGeometry.hpp:197-202`) returns an empty set when no facet is within tolerance, even on a brand-new request.
+- **Sent:** `"No facet of " + name + " matches that face any more"`, with code `stale_workspace`.
+- **Not checked:** whether anything changed. No earlier face is involved.
+
+**H6.** Adapter `:1474`, `Shell/SetupCommands.cpp:356, 424-428` | printer_setup | D
+- **Lower layer:** `Tab::select_preset` returns `!canceled` (`Tab.cpp:6273`). The result is ignored for the process preset, and `select_printer_preset` always returns true after selecting.
+- **Sent:** success, with `processPreset` still showing the old name.
+- **Not checked:** the returned bool.
+
+**H7.** Adapter `:932, 2962-2965` | workspace_inspect (`slicing.plates[].invalidatedBy`, `ToolResults.cpp:721`), slice_start | E
+- **Lower layer:** the handler at Adapter `:914-937` reads only the state from `EVT_SLICE_STATUS_CHANGED`. The cause comes from the newest `m_last_change_reason`. Orca's poster not read.
+- **Sent:** "you moved the object", "the objects changed", "a setting changed". It says "you" even when the agent did the move.
+- **Not checked:** what actually invalidated the slice.
+
+**H8.** Adapter `:1563-1574`, `ToolResults.cpp:729-732` | plate_layout, then workspace_inspect `notPlaced` | E
+- **Lower layer:** `ArrangeJob` knows what it could not pack (`m_unprintable`, `Jobs/ArrangeJob.cpp:582`). The adapter ignores that and uses `find_instance_belongs&lt;0`.
+- **Sent:** `notPlaced`, with the comment "an instance no plate holds entirely is what did not fit".
+- **Not checked:** whether the arrange touched that instance. A plate-only arrange still lists any straddling object.
+
+**H9.** Adapter `:1524-1526`, `Jobs/ArrangeJob.cpp:610-619`, `Jobs/PlaterWorker.hpp:88-92` | plate_layout, object_place, then workspace_inspect jobs | A+D
+- **Lower layer:** `finalize` catches `GeometryException`, shows "Arrange failed. Found some exceptions when processing object geometries." and clears `eptr`. Other exceptions go to a popup, "An unexpected error occurred: …".
+- **Sent:** job state `finished` for the first case, and a bare `failed` for the others.
+- **Not checked:** the exception text.
+
+**H10.** `Workspace/OrcaRegions.cpp:137-140` (`region_object` `:85-99`) | region_annotate | B+C
+- **Lower layer:** returns nullopt when `part_facets` differ (after a repair or split) or the name differs across sessions.
+- **Sent:** "Region X's object is no longer in the project; annotate it again with an objectId".
+- **Not checked:** whether the object is still there.
+
+**H11.** Coord `:2208` | setup_record | C
+- **Lower layer:** `set_setup_intent` (`Agent/ProjectStateDocument.cpp:741-757`) returns false for over 120 characters, whitespace only, a line break, or no conversation.
+- **Sent:** "purpose must be one line."
+- **Not checked:** which of these failed. A long one-line purpose gets told something false.
+
+**H12.** `Workspace/OrcaRegions.cpp:401` | object_analyze regions | D
+- **Lower layer:** an unresolved object builds `RegionStatus{record, nullopt, true, true}`.
+- **Sent:** `bindingLost: true, artifactsMissing: true`.
+- **Not checked:** the artifacts. Nothing was looked at.
+
+**H13.** `Workspace/OrcaRegions.cpp:288-294, 351-355` | region_annotate (replaced), project_delete_items | D
+- **Lower layer:** records whose object does not resolve are skipped, and so are `find_volume&lt;0` and out-of-range parts.
+- **Sent:** success, with the record replaced or removed while the artifacts stay.
+- **Not checked:** whether anything was removed.
+
+**H14.** Coord `:1092-1094`, Shell version_before | same versioned tools as H4 | A
+- **Lower layer:** `pin_current` (`Workspace/ProjectAutosave.cpp:1022`) records a specific `m_error`, such as "The project canvas is not ready for a durable save" or the store's exception. ShellController replaces it with a fixed string.
+- **Sent:** "Nothing ran: the project could not be saved first. Tell the person the project is not saved."
+- **Not checked:** the cause. A canvas that is not ready reads the same as a full disk.
+
+**H15.** `Workspace/PrinterFactsStore.cpp:49-51, 56-60, 74-77, 132`, Coord `:1994` | workspace_inspect printer, printer_setup_preview, printer_setup | A+D
+- **Lower layer:** an `fs::exists` error counts as no file. An unopenable file is labelled corrupt and moved aside. `corrupt_reason()` has no consumer in JusPrin (grep). `write()` throws at Coord `:1994`, after setup was applied, and Coord `:1111` is outside any try.
+- **Sent:** empty `confirmedFacts`, or no result at all.
+- **Not checked:** the difference between "no facts" and "could not read".
+
+**H16.** Adapter `:1819-1821`, `Plater.cpp:7095/7107, 14999-15003` | object_place unitsFix | A+D
+- **Lower layer:** the "too large … scale it down" dialog is answered No, and `answers` is destroyed without `take_messages`. `convert_unit` returns silently on an empty selection, and the adapter then acts on the last object. Whether the selection can be empty is UNVERIFIED.
+- **Sent:** success.
+- **Not checked:** the dialog text, or whether the conversion ran.
+
+**H17.** Adapter `:2478-2488` | workspace_inspect project | D
+- **Lower layer:** a boost `error_code` ends the walk, and a `file_size` error stores `(uintmax_t)-1`.
+- **Sent:** empty or partial attachments with no flag.
+- **Not checked:** `ec`.
+
+**H18.** Adapter `:958-966, 985-997` | workspace_inspect `sliceFailure`, slice_start | A+E
+- **Lower layer:** `on_process_completed` drops the event's error and keeps only the plate. The message is read later, for the active plate only (`m_slice_failure_reader`). `PrintIssueMonitor::slice_failure` is UNVERIFIED and may overlap the slice sweep.
+- **Sent:** "The slice stopped with an error." as the fallback.
+- **Not checked:** the completion event's error.
+
+**H19.** `Workspace/OrcaReshape.cpp:138-140, 289-290` | object_divide(_preview), object_merge | B
+- **Lower layer:** `is_cut` (`Model.hpp:547`) only tests `cut_id` validity. Whether a cut without connectors keeps `cut_id` is UNVERIFIED.
+- **Sent:** " was cut with connectors; divide it with the app's cut tool", " was cut with connectors and cannot be merged".
+- **Not checked:** connectors.
+
+**H20.** Adapter `:3169-3173` | settings_preview_patch, settings_apply_patch | B, low
+- **Lower layer:** `can_overwrite` (`Preset.hpp:247`) is also false when `bundle_id` is non-empty (`:283`).
+- **Sent:** "comes with the app and cannot be overwritten".
+- **Not checked:** which of the three flags applied.
+
+**H21.** Adapter `:1780, 2022, 2121`, `Workspace/OrcaRegions.cpp:167` | object_place, object_analyze, region_annotate | B, low
+- **Lower layer:** `commit` (`Workspace/Workspace.hpp:1617-1622`) advances the revision for every reason, including Selection and Slicing.
+- **Sent:** "The project changed since ... Read the features again." (elided)
+- **Not checked:** whether the geometry changed. One call recovers.
+
+**H22.** Adapter `:2323-2324` | presets_list | D, low
+- **Lower layer:** the `from_chars` result is ignored, while `Workspace/SettingsSupport.hpp:104-113` rejects a bad cursor.
+- **Sent:** page one, silently.
+- **Not checked:** cursor validity.
+
+**H23.** Coord `:957-958, 2329-2330, 53-59` | settings_apply_patch | C, low
+- **Lower layer:** the same branch covers a wrong session and `expectedRevision &gt; current`.
+- **Sent:** "The workspace changed. Read and preview again." The numbers are in `details`.
+- **Not checked:** which case applied.
+
+**H24.** `Workspace/OrcaOutputs.cpp:164-165` | view_render | C, low
+- **Lower layer:** encoding may have succeeded (`GCode/Thumbnails.cpp:46-51`), but `png-&gt;size &gt; kImageBytes` shares the branch.
+- **Sent:** "The rendered picture could not be encoded".
+- **Not checked:** which condition fired.
+
+**H25.** Adapter `:3102-3106`, `Workspace/OrcaSettings.hpp:27-32` | settings_* | C, low
+- **Lower layer:** a null bundle, non-FFF printer, empty name and missing tab all land here.
+- **Sent:** "No FFF process preset is selected. Ask the person to select one."
+- **Not checked:** which of these applied.
+
+**H26.** Adapter `:1967-1968, 2026`, `Workspace/OrcaRegions.cpp:179` | object_analyze, region_annotate | D, low
+- **Lower layer:** a face with a non-finite centre is dropped without setting `truncated`, and `value_or(Vec3d::UnitZ())` substitutes +Z for a missing normal.
+- **Sent:** data that looks complete, then later "is not a face of this object".
+- **Not checked:** the dropped face.
+
+## Checked and cleared
+- **`Tab::save_preset` pair check:** Adapter `:3641-3644` answers it Yes, and the limits match (`Tab.cpp:7263, 7277` against `Workspace/SkippedConfirmations.hpp`, 30 and 15).
+- **object_repair:** passes CGAL's error through (`MeshBoolean.cpp:478-560`).
+- **"is not made for":** consistent with `is_compatible_with_printer` (`Preset.cpp:809`).
+- **Device activity:** Offline only when not connected (`PrinterSetup/PrinterDiscovery.cpp:84-86`).
+- **`has_printer_facts` and Coord `:2200`:** both state what was just checked.
+- **Plate-add and copy refusals, and `set_setting_value`:** match the checks or pass the real exception text.
+
+## Plain generic messages
+There are 7.
+
+## Files read in full (snapshot)
+- `Workspace/OrcaWorkspaceAdapter.cpp`
+- `Workspace/OrcaReshape.cpp`
+- `Workspace/OrcaRegions.cpp`
+- `Workspace/OrcaOutline.cpp`
+- `Workspace/OrcaSettings.hpp`
+- `Workspace/SettingsSupport.hpp`
+- `Workspace/PrinterFactsStore.cpp`
+- `Workspace/DialogListeners.cpp`
+- `Agent/ToolExecutionCoordinator.cpp`
+- `Agent/ToolErrors.hpp`
+- `Shell/SetupCommands.cpp`
+- `Printers/PresetLookup.hpp`
+- `Workspace/OrcaGeometry.hpp`
+- `Workspace/Regions.hpp`
+
+`OrcaOutline` is not called from the coordinator. I did not confirm its other callers, because a failed grep was not rerun.
+
+## Follow-up, out of scope
+`CutUtils.cpp` `perform_with_plane` appears to dereference a null `upper` for keep "lower" plus asParts (`OrcaReshape.cpp:93-105`). I did not check whether the registry schema allows that combination.</result>
+<usage><subagent_tokens>124097</subagent_tokens><tool_uses>35</tool_uses><duration_ms>653457</duration_ms></usage>
+</task-notification>
