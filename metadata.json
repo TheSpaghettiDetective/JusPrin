@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6EP5B6J5D81ZCHH72F1HRRD",
   "strategy": "manual-commit",
-  "checkpoints_count": 10,
+  "checkpoints_count": 12,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
     "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
@@ -10,6 +10,7 @@
     "src/slic3r/GUI/JusPrin/Workspace/OrcaOutputs.cpp",
     "src/slic3r/GUI/JusPrin/Workspace/OrcaReshape.cpp",
     "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/printer_tools.json",
     "tests/shell/shell_harness.cpp",
     "tests/workspace/real_adapter_harness.cpp"
   ],
@@ -34,6 +35,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
