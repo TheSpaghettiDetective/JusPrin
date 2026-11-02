@@ -1,0 +1,1 @@
+let's hand it off to the coding agent. I will make decision there. the coding agents can access the artificats pages, boards, and design system. cp other necessary docs to gcp vm jusprin-win-test, user guitest, folder ~/Downloads
