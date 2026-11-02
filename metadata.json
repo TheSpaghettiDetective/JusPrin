@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6D0WTRVJEZBG9C08WSZHKY6",
+  "strategy": "manual-commit",
+  "branch": "claude/tool-silent-failures",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/tool-result-inventory.md",
+    "src/slic3r/GUI/GUI_App.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolRegistry.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/ConnectionEvents.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/ConnectionEvents.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/sources.cmake",
+    "tests/printer_prompt/printer_tools.json",
+    "tests/project_prompt/project_tools.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 168,
+    "cache_creation_tokens": 541467,
+    "cache_read_tokens": 19029361,
+    "output_tokens": 173198,
+    "api_call_count": 84
+  }
+}
