@@ -1,0 +1,66 @@
+> Which printer the bundled example uses on a fresh install, since “I don’t have a printer here” always refuses with no printer installed.
+> Whether to deploy before step 3, since the gateway already reports a v1 subscription and board 1d would then show a Hobby price billing has not moved people to.
+> Whether to approve three staging chats, estimated under $2, to check an Expert-to-Standard crossing, a free file-open turn and the cache ttl.
+
+I either don't understand the question or I don't understand why this is a question for me. Also, I don't understand why you want to do live chat. This onboarding process doesn't involve any live chats, right?
+
+---
+
+approved the live batch. tell the main session
+
+---
+
+Why does the implementation show the number of standard messages in the remaining credits at the same time? I thought our design was to consolidate everything into the credits itself. showing a number of messages and credits at the same time is fucking confusing, right? Who messed that up here?
+
+---
+
+Where do you think are the places where the user needs to know such info so that they won't be confused?
+
+---
+
+Okay, I agree. Change the boards accordingly Afterwards, show me the screenshots of your changed board so that I can review.
+
+---
+
+Changes first
+
+---
+
+Why is it still "standard credits" and "expert credits"? the credit uisage  Progress bars should be grouped only by when the credits expire. Why doesn't pay as you go credits  not have a progress bar? I'm now seriously worried that we are not on the same page in terms of what the pricing plan was.
+
+---
+
+Why is it still "standard credits" and "expert credits"? the credit uisage  Progress bars should be grouped only by when the credits expire. Why doesn't pay as you go credits  not have a progress bar? I'm now seriously worried that we are not on the same page in terms of what the pricing plan was. rephrase to meet your understanding so that I can be sure.
+
+---
+
+* Workshop: $20 a month for 1,000 credits that reset each month, plus unlimited Standard messages up to a placeholder ceiling of 600, after which Standard costs 1 credit. - no ceiling. It's probably easier just to say standard messages cost 0 credits
+* he “Free Standard credits · Standard only” lot. The plan carried a placeholder of 50 Standard-only credits a month for everyone, as a free tier that never ends. That lot is the only reason “Standard credits” and “Expert messages” ever appear in a balance. I don’t find it in your words. If it is not your intent, it goes, and every credit is the same. - let's just give free users 50/mo use-it-or-loose it credits 
+*
+
+---
+
+Sums question: the box above the message box tells a Workshop subscriber that Pay as you go would last longer.
+
+Did you also invent this yourself?
+
+---
+
+What are the other things that you invented without asking me?
+
+---
+
+keep:
+
+* Launch offer: double credits on every pack until a date. Mine, in the plan as a server flag. You never asked for a launch promotion. It is drawn on the pricing page and built in the gateway.
+
+Low-balance notice “About 25 credits left”
+Draw order “Expiring credits are used first”, stated in the panel. Mine.
+“Alert me when a subscription would save me money” switch, on by default, in Account. The forward alert is yours; the switch and its default are mine.
+Account page shape:
+Default tier for a new chat after the first month: Standard (6a).
+v1 welcome-back fill-ins:
+Print-report form details:
+Alias ids slicer-1 and slicer-basic, and t
+
+The expiration should be One month from the day when the credits were granted
