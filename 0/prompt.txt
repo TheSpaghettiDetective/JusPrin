@@ -1,0 +1,31 @@
+<cross-session-message from="local_05f541e9-abc1-4ee8-a987-a295f5fa2c65" from-name="AI agent design for printer setup">
+Correction to your brief, from Kenneth: your commits belong on the consolidated branch claude/tool-results-truth, not on a branch of your own. Every sub-session on this work uses that one branch.
+
+How to do it:
+1. If your worktree has claude/tool-results-truth checked out, commit on it directly. If your worktree is on its own branch cut from it, keep that branch only as the working carrier: after every commit run `git rebase claude/tool-results-truth` and then `git push . HEAD:refs/heads/claude/tool-results-truth` (fast-forward only; if refused, someone else moved it, so rebase again and retry). Never merge, never force-update it.
+2. After each fast-forward, `git push origin claude/tool-results-truth`, fast-forward only. If origin rejects it, fetch, rebase onto origin's tip, push again. Never force.
+3. Never leave a commit that exists only on your own branch at the end of a turn.
+4. When your task is done: copy any untracked notes into the main checkout root with cp (untracked, overwrite nothing), then remove your own worktree and delete your own branch from the main repository, leaving only claude/tool-results-truth.
+
+Reply with one line confirming, and which branch your worktree has checked out right now.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bri3i7ev1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/445726c4-adce-47cb-81a4-658405e48110/tasks/bri3i7ev1.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the first build's ninja process to exit" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blt7w39s8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/445726c4-adce-47cb-81a4-658405e48110/tasks/blt7w39s8.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the second build to end and show errors" completed (exit code 0)</summary>
+</task-notification>
