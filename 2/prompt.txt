@@ -1,0 +1,228 @@
+<task-notification>
+<task-id>a0b2c8f03a9155052</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/a0b2c8f03a9155052.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory slice and output tools" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The inventory is written to `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/scratchpad/inventory-slice-tools.md` (280 lines: one table per tool, every `workspace_inspect` section, a cause breakdown, and the fake/test coverage).
+
+Summary of the collapses, in plain English:
+
+1. The earlier findings (4), (7), (8) and (9) are confirmed in the code: `export_file` (OrcaOutputs.cpp:329-331), `slice_inspect` (OrcaOutputs.cpp:234) and `print_dialog_open` (ToolExecutionCoordinator.cpp:2105-2108) each give one answer for never sliced, invalidated, refused, failed and slicing now; `print_dialog_open` computes the failure reason and drops it on the next line; `slice_inspect` opens the G-code file with no `is_open()` check and answers `valid: true, gcode: ""` when it is missing.
+2. A new one: all three of those tools plus `slice_report` read the app-wide `is_background_process_slicing()` flag, so while plate B slices they refuse plate A even though A holds a valid slice and `workspace_inspect` says `sliced: true` for it. Cause (1), stated nowhere.
+3. `print_dialog_open` with a `plateId` that is not in the project returns `opened: true`: `targets_sliced` starts from `sliced = !plates.empty()` and matches nothing, then the host's `CallAfter` fails `select_plate` and shows the person an Orca MessageDialog the model never hears about. Every other plate-taking tool returns `not_found`, and the test at test_tool_coordinator.cpp:2411 leaves this tool out of that list. Unverified live.
+4. `alreadySliced` is never set from OrcaSlicer saying "nothing to do"; it is inferred (ToolExecutionCoordinator.cpp:2163-2165) from `is_slice_result_valid()` after the posted event returns. `Plater::reslice()` has two silent early returns with no `report_slice_declined()` hook (gizmo editing at Plater.cpp:16076, UI job not stopped at 16082) and an idle branch (16153-16165) that sets the flag from `has_printable_instances()`; those produce either the synthesized "The app did not start slicing this plate." or a wrong `alreadySliced: true`. The live anomaly (sliced plate answered "refused" and then read `sliced: false`) lives on this path, but I could not find statically what cleared the flag; marked unverified with the candidate writers (Plater.cpp:8018 and 16158).
+5. A cancelled run leaves no record: `on_process_completed` keys on `event.error()` only, and the run start erased the plate's old failure (OrcaWorkspaceAdapter.cpp:948-950), so after a cancel the slicing section and `slice_report` read exactly like never sliced, and the refusal reason the model had a turn earlier is gone.
+6. `activity_cancel` uses one sentence, "That slice has ended; a slice started since is not the tools' to stop.", for finished, failed, cancelled by the person, and a new run by the person; a handle superseded by a later `slice_start` with preempt becomes `not_found`, "Nothing the tools started has the handle X.", as if it never existed.
+7. `slice_start` with `preempt` does not restart the running slice: `background_process.start()` returns false while the thread runs, so the tool adopts the run, claims the handle and says `started: true`. Unverified live.
+8. `workspace_inspect` collapses are mostly small and by section design: the default summary carries only `sliced`, so a mid-slice plate reads like a never-sliced one unless `slicing` is asked; `sliceFailure` there is the short form without `code`, `objectName` or `sequence`; `sliceWarnings` absent means both "none" and "never read while active" for a non-active plate; `observed` absent covers no device, nothing found, and discovery not possible. The description of `print_dialog_open` points at `printHistory`, which exists only in the chat's request context (ProviderAgent.cpp:136), not in any `workspace_inspect` section.
+9. Cause (3) is real: the fake's `inspect_slice` ignores `slicing.running`, its `check_export` refuses only `gcode` and only when no plate at all is sliced, its `start_slice` has three outcomes with none of Orca's silent exits, exports never fail, and the test print-dialog opener is synchronous. No coordinator test exercises `export_file`'s "Slice the plate first" message, a failed run's `sliceFailure` at the tool level, or any read of the slicing section after a cancel.
+10. Two causes beyond the four given: (5) an unchecked I/O result (`slice_inspect` gcode), and (6) a result written before the work happens (`print_dialog_open`'s `opened: true` before its `CallAfter`, whose three failure modes reach no channel, not even `activities`).</result>
+<usage><subagent_tokens>226635</subagent_tokens><tool_uses>54</tool_uses><duration_ms>806939</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae6a5d45e44dd685d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/ae6a5d45e44dd685d.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory settings and setup tools" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The inventory is written to `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/scratchpad/inventory-settings-tools.md`. Summary of the collapses, in ten lines:
+
+1. Finding (10) is confirmed: `presets_list` skips hidden presets at `OrcaWorkspaceAdapter.cpp:2328` before counting, so an installed-but-hidden preset and a nonexistent one both come back as `items: [], total: 0`; an incompatible preset under the default `compatibleOnly` collapses into the same answer, and the result never hints at `compatibleOnly: false`. The fake (`tests/jusprin_support/FakeWorkspace.hpp:771-795`) has no visibility flag, so no test can see this.
+2. The same hidden-preset collapse reaches every tool that names a preset: `Printers::preset_by_name` (`PresetLookup.hpp:27-32`) returns null for a hidden preset not in use, so settings_search, settings_get, settings_preview_patch and printer_setup_preview all say `unknown_preset` "No … preset is named \"X\"" or "No installed printer preset is named", wording that is false for a preset that is installed. Only the printer branch of printer_setup_preview gives a remedy.
+3. Finding (11) is confirmed: settings_search returns `items: []` with no hint for a key that exists only in another scope, because it searches `scope_definitions(scope)` alone; settings_get and preview say `unsupported_scope` for the same key. Tests cover `unsupported_scope` on read and preview, never on search.
+4. settings_search also returns a silent `items: []` when `writable: true` or `changedOnly: true` removes every match, and always when `changedOnly` is asked of a preset that is not being edited (`OrcaWorkspaceAdapter.cpp:3250-3254` fills `changed` only for the selected preset).
+5. Finding (5) is confirmed: printer_list reads `discover_printers(true)`, which is Orca's `DeviceManager::get_my_machine_list` (`DevManager.cpp:651-675`); that list holds account-bound printers plus LAN-mode printers with an access code, so a cloud-mode printer heard on the network with nobody signed in, or a LAN printer without a code, is simply absent. The description promises the opposite ("A printer it has not heard from is listed as offline"). I also infer, not fully traced, that a Moonraker/Klipper printer added on Home never appears, since Home reads it from `Printers::named_printers()` and `host_status()`, not from the DeviceManager.
+6. calibration_generate's `failed` "The app did not generate the test" covers a cancelled flow `new_project`, a missing test resource and a wrong mode, and it does not say that the person's project has already been closed and an empty calibration project opened; the non-FFF `refused` check also runs only after that close.
+7. Several common failures end in a throw with no result at all: apply_settings when Orca will not open or save a preset (`OrcaWorkspaceAdapter.cpp:3600, 3645`), printer_setup when the facts file cannot be written (`PrinterFactsStore.cpp:131-144`) or Orca will not select the previewed printer (:1458). Nothing catches around `m_tools.pump()` in `AgentHost.cpp:2623`, so the activity never fails; I named this a fifth cause.
+8. Smaller single-code collapses: `workspace_unavailable` "No FFF process preset is selected" also covers a missing Print tab and a non-FFF printer; `unsupported_setting_mutation` merges Orca's `readonly` with the fork's blocked list; setup_record says "purpose must be one line." for a blank purpose; a corrupt facts file reads as "no facts" because nothing reads `corrupt()`; presets_list treats an unparsable cursor as page one while settings_search refuses it; `applied: false` on settings_apply_patch drops the "All requested values are unchanged." message.
+9. By cause: (1) printer_list's device filter and printer_setup's unchecked process `select_preset`; (2) every hidden-preset, scope-filter and `writable`/`changedOnly` silence, plus `selected` meaning slot 1 only in presets_list; (3) fakes with no hidden presets and no device filtering; (4) calibration's generic `failed`, the empty lists while presets or the device manager are not loaded, and the small single-message cases above; (5) the throws.
+10. Plausibly intended because the description states the limit: `compatibleOnly` defaulting to true, alias versus exact name, and `writable`/`changedOnly` as filters; everything else, including every empty-list silence and the hidden-preset wording, is unstated. settings_get, settings_preview_patch's issue codes, settings_apply_patch's staleness messages and printer_setup's "Already changed by this call" message distinguish their states well.</result>
+<usage><subagent_tokens>249366</subagent_tokens><tool_uses>62</tool_uses><duration_ms>1076257</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa3a2d1e15ca68fd9</task-id>
+<tool-use-id>toolu_019HLsHEpH5ngcz9es9xsait</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/aa3a2d1e15ca68fd9.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory object and project tools" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The inventory is written to `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/scratchpad/inventory-object-tools.md`. It has one table per tool (all fifteen), each row citing file and line, quoting the exact string the model receives, and marking the collapse and its cause; unverified inferences are labelled.
+
+Summary of the collapses:
+
+1. view_render's "The app rendered nothing" is unreachable: `ThumbnailData::is_valid()` only fails for a zero size, which the adapter clamps away (`OrcaOutputs.cpp:156-162`). An empty plate, a plate whose objects are all disabled or partly off the plate, an incomplete framebuffer, or a missing shader all return a valid blank PNG as success. Orca counts the visible volumes before drawing (`GLCanvas3D.cpp:6217`) and logs the FBO failure, so the app knows why; the fork reads only the pixel buffer. Cause 1, not stated.
+2. object_place `unitsFix` discards the dialog answers it collects (`OrcaWorkspaceAdapter.cpp:1814`) and assumes the last model object is the converted one (`:1816`); if Orca's `convert_unit` returns early on an empty selection the result names a wrong object as success. The wrong-id part is unverified. Cause 1.
+3. object_divide shells: when Orca splits nothing it shows "The selected object couldn't be split." to the person (no answer scope), and the adapter reports a one-piece success whose `objectId` is whatever object is last (`OrcaReshape.cpp:245-248`). A plane crossing the bounding box but missing the mesh also returns one piece with a new id. Both unverified for reachability. Cause 1 plus a new cause: dialogs outside any `ScopedLeastChangeAnswers` scope.
+4. region_annotate gives "No facet of X matches that face any more" with code `stale_workspace` for a new direction region whose cone contains no facet (`OrcaRegions.cpp:271-275`); the state is neither stale nor a face, and the code sends the model to re-read the workspace. Cause 4, common.
+5. Five structurally different handle problems (other object, malformed, bad volume, bad plane, hole where a face is wanted) collapse to "is not a face/feature of this object" in object_place, object_analyze orientations and measure, and region_annotate. Cause 4.
+6. object_analyze: `mesh.partList` caps at 16 with no truncated flag (`:1919`), so JusPrin's own region volumes can vanish from the list; `fit.overlaps` checks only the first instance's plate (`:2080-2098`); `measurement: {}` says nothing about why; `bindingLost` is never computed for box, cylinder, direction or object regions (`OrcaRegions.cpp:408-409`); an unmatched region shows as both flags true with no `objectId`. Cause 2.
+7. project_open and both imports pass Orca's words through `report.messages` as the earlier sweep said, but "The app did not open that file" / "did not import that file" carries no reason when Orca was silent, and a model-file open always reports `projectOpened: true` even when nothing loaded. object_import reports an empty file as "does not exist". Cause 4.
+8. Jobs (arrange, orient) end as `failed` with the exception text dropped (`:1518`); Orca's "Arrange failed..." and "ignored the following objects" go to the person, and `notPlaced` is recomputed from geometry by a different rule. project_delete_items logs a mid-delete dialog instead of returning it (`:2874-2876`). Cause 1 and 2.
+9. `validate_call` reduces every per-tool rule failure (two orientation facets, no facet at all, both `plane` and `shells`) to the bare "The tool arguments do not match the registered contract." (`ToolRegistry.cpp:1740`). Cause 4.
+10. object_repair is the only mutation that reports partial progress correctly, and the earlier sweep's verdict on it stands. The fake workspace cannot produce any of the states above (its `render_view` always returns a PNG, its imports always add one object), and no coordinator test asserts any of the adapter failure strings, so every collapse here is also cause 3.</result>
+<usage><subagent_tokens>298502</subagent_tokens><tool_uses>72</tool_uses><duration_ms>1266178</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsl7jqp7g</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/bsl7jqp7g.output</output-file>
+<status>failed</status>
+<summary>Monitor "Wait for build 7 to finish" script failed (exit 1)</summary>
+<event>2 warnings generated.
+[117/118] Linking CXX executable tests/agent/Release/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests
+0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bvfwigc5l</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/bvfwigc5l.output</output-file>
+<status>completed</status>
+<summary>Monitor "Wait for the printer-setup harness rerun to exit" stream ended</summary>
+<event>HARNESS RESULT PASS failures=0
+HARNESS EXIT 0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bllo79rr2</task-id>
+<tool-use-id>toolu_01Gjw8r7vz2h1h38Zqp3yjLz</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/bllo79rr2.output</output-file>
+<status>completed</status>
+<summary>Monitor "Wait for the network check to exit" stream ended</summary>
+<event>HARNESS CHECK application_ready PASS
+HARNESS CHECK notebook_found PASS
+HARNESS CHECK startup_post_init_complete PASS
+HARNESS CHECK shell_installed PASS
+HARNESS CHECK shell_starts_on_home PASS
+HARNESS CHECK status_row_hidden_on_home PASS
+HARNESS CHECK overflow_summary_is_the_project_name_alone PASS
+HARNESS CHECK shell_theme_loaded PASS
+HARNESS CHECK font_body_em_is_14_dip PASS
+HARNESS CHECK font_label_em_is_12_dip PASS
+HARNESS CHECK font_metadata_em_is_10_dip PASS
+HARNESS CHECK agent_pane_collapsed_on_home PASS
+HARNESS CHECK shell_starts_mcp_automatically PASS
+HARNESS CHECK tab_strip_hidden PASS
+HARNESS CHECK sidebar_marked_unavailable PASS
+HARNESS CHECK prepare_legacy_overlays_hidden PASS
+HARNESS CHECK sidebar_stays_hidden_after_reenable_attempt PASS
+HARNESS CHECK second_install_rejected PASS
+HARNESS CHECK shell_survives_rejected_install PASS
+HARNESS CHECK agent_pane_prepare_first_visit PASS
+HARNESS CHECK status_row_shown_on_prepare PASS
+HARNESS CHECK header_has_all_five_controls PASS
+HARNESS CHECK header_matches_56_dip_design PASS
+HARNESS CHECK header_home_follows_optional_left_pane_toggle PASS
+HARNESS CHECK header_home_setup_actions_order_without_overlap PASS
+HARNESS CHECK header_lone_action_precedes_overflow PASS
+HARNESS CHECK header_action_height PASS
+HARNESS CHECK header_overflow_right_aligned PASS
+HARNESS CHECK header_setup_compact_no_plate_or_raw_suffix PASS
+HARNESS CHECK header_has_no_standalone_print_count PASS
+HARNESS CHECK left_pane_defaults_closed_on_prepare PASS
+HARNESS CHECK agent_pane_shown_on_prepare PASS
+HARNESS CHECK agent_pane_user_collapses_on_prepare PASS
+HARNESS CHECK agent_pane_home_after_user_collapse PASS
+HARNESS CHECK status_row_hidden_on_return_to_home PASS
+HARNESS CHECK agent_pane_collapsed_on_home_after_user_collapse PASS
+HARNESS CHECK agent_pane_prepare_after_user_collapse PASS
+HARNESS CHECK agent_pane_user_collapse_restored_on_prepare PASS
+HARNESS CHECK agent_pane_user_expands_on_prepare PASS
+HARNESS CHECK agent_pane_home_after_user_expand PASS
+HARNESS CHECK agent_pane_collapsed_on_home_after_user_expand PASS
+HARNESS CHECK agent_pane_prepare_after_user_expand PASS
+HARNESS CHECK agent_pane_user_expand_restored_on_prepare PASS
+HARNESS CHECK agent_pane_returns_home PASS
+HARNESS CHECK network_check_uses_the_real_plugin PASS
+HARNESS CHECK network_check_has_no_fake PASS
+HARNESS CHECK network_check_p1s_is_in_the_catalogue PASS
+HARNESS CHECK network_check_p1s_saved PASS
+HARNESS CHECK network_check_page_loaded PASS
+HARNESS CHECK before_search_no_turn_running PASS
+HARNESS CHECK before_search_tool_called PASS
+HARNESS CHECK network_check_refusal_before_the_search_says_so PASS
+HARNESS CHECK first_read_no_turn_running PASS
+HARNESS CHECK first_read_tool_called PASS
+HARNESS CHECK network_check_first_read_is_bambu PASS
+HARNESS CHECK network_check_search_started PASS
+HARNESS CHECK during_search_no_turn_running PASS
+HARNESS CHECK during_search_tool_called PASS
+HARNESS CHECK network_check_note_names_the_printer PASS
+HARNESS CHECK later
+...(truncated)</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+Are we supposed to commit /Users/kenneth/Projects/JusPrin/.claude/worktrees/tool-silent-failures/agent-docs/jusprin/tool-result-inventory.md to git, and if so, how is it supposed to be used and maintained and kept up to date?
+
+---
+
+<cross-session-message from="local_05f541e9-abc1-4ee8-a987-a295f5fa2c65" from-name="AI agent design for printer setup">
+Kenneth wants all the printer-chat work on one common branch: claude/tool-results-truth, created in the main repo at your tip 04fbbaab6e, so your four commits (f455015a2a, e225450611, cf29d70b2b, 04fbbaab6e) and the six below them are already on it. Kenneth's words: "Let's use a common branch for these subsessions ... tell all the subsessions to move their commits on that branch as well."
+
+Any further commit of yours goes there the same way: `git rebase claude/tool-results-truth` your branch, then `git push . HEAD:refs/heads/claude/tool-results-truth`. The local push is fast-forward only; if refused, another session moved the branch first, so rebase onto the new tip and push again. Never `git branch -f` or force-push it, and nobody checks it out in a worktree. Untracked notes stay off it. If the session you started (local_f69cfade-185e-4b34-be29-8e5e89d17f61, same title as yours) has commits of its own, pass this on to it. Reply only if you have commits not yet on the branch.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_f69cfade-185e-4b34-be29-8e5e89d17f61" from-name="Tool results: one method and guard for every app state">
+Kenneth decided: drop the committed inventory document agent-docs/jusprin/tool-result-inventory.md from branch claude/tool-silent-failures and fold its useful content into places that are actually read.
+
+Context: Kenneth asked whether that file should be committed and when anyone would read it. I could not name a reading moment the tests do not already cover. His words: "if a document is supposed to be used when it's only written. And you can't ... find any scenarios when it's supposed to be read. There's no point for that document." He then said to tell you to do the following.
+
+What to do, on the worktree .claude/worktrees/tool-silent-failures (branch claude/tool-silent-failures):
+1. Remove agent-docs/jusprin/tool-result-inventory.md and its index line in agent-docs/jusprin/README.md. Do it as a new commit; do not rewrite f455015a2a or 04fbbaab6e.
+2. Keep the rule where it is (Agent/ToolErrors.hpp header comment and the mcp-tool-extension-guide.md subsection "A reason travels with every refusal and every empty result"). Add the six collapse causes to that guide subsection as a short paragraph, two or three lines each, no file:line references: (1) fork reads Orca leftover state instead of the event, (2) a filter drops the reason, (3) fakes and tests only produce imagined states, (4) a generic error for common distinguishable states, (5) result written before or without checking the work, (6) dialog or throw outside any result channel.
+3. Move each "accepted collapse" rationale from the inventory into a one-line comment at the test that asserts it (tests/agent/test_tool_coordinator.cpp [states] table, tests/agent/test_printer_conversation.cpp, shell_harness checks).
+4. Move the open items (finding 6 Add chat network line, slice_start unchanged-plate anomaly, slice_inspect on an unopened G-code file, finding 1 against the real plug-in, unreproduced occupied/no_access_code branches) into the untracked note tool-silent-failures-notes.md at the worktree root, not into any tracked file.
+5. Update the memory file ~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/tool-result-states-method.md: the inventory is the state-table tests, not a document; "How to apply" should say add a state-table test, not inventory rows.
+
+Nothing merged or pushed, as before.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bk33rhpr2</task-id>
+<tool-use-id>toolu_01Ryotkt2F29Au4zJq7EJb8C</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b2d2c400-439c-4486-af2f-1479f86f533d/tasks/bk33rhpr2.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the agent tests and compile the harness file after the comment edits" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_05f541e9-abc1-4ee8-a987-a295f5fa2c65" from-name="AI agent design for printer setup">
+Kenneth asks: put every commit you have made so far on the common branch claude/tool-results-truth, and make every future commit land there too.
+
+How to do it from your worktree (the branch cannot be checked out in two worktrees, so keep your own branch as the working carrier and fast-forward the common one):
+1. `git fetch` is not needed; everything is local. Run `git rebase claude/tool-results-truth` on your branch so your commits sit on top of the common tip.
+2. Run `git push . HEAD:refs/heads/claude/tool-results-truth`. This is a fast-forward-only update of the local branch. If git refuses it, someone else moved the common branch; rebase again and retry.
+3. After every future commit, repeat steps 1 and 2 at once, so the common branch is never behind your work.
+
+Do not merge, do not force-update the common branch, and do not touch jusprin-newui. When your commits so far are on it, reply with the hashes now on claude/tool-results-truth and confirm you will follow the rule for new commits.
+</cross-session-message>
+
+---
+
+Now let's figure out why the previous coding sessions made those mistakes. Was it because our tool guide did not make it clear to them? Do not add anything for now. We need to figure out how to prevent this from happening in the future by addressing the root cause. If the documentation was already there and the coding agent didn't bother to look anyway, it won't be helpful if we just keep on adding more documents that the future coding agents will ignore.
