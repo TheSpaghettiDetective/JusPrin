@@ -71,3 +71,7 @@ Correction to my last message: the connection skill work is committed locally, t
 ---
 
 the command with -C
+
+---
+
+Have you updated the relevant documents to warn future agents about  the problems we fixed in this chat ?
