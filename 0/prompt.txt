@@ -75,3 +75,13 @@ the command with -C
 ---
 
 Have you updated the relevant documents to warn future agents about  the problems we fixed in this chat ?
+
+---
+
+Yes, add them
+
+---
+
+The pushed branch (claude/tool-results-truth at b87ab789ca) still has the false note: “The printer refused the connection; Bambu’s network plug-in reported code -1. Check that the printer is on and in LAN mode, then try again.” The other agent fixed other messages in that file, such as the plug-in not loading and the print host failing, and left this one to me.
+
+is it true?
