@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6E262274KK5CBTZR68JN729",
   "strategy": "manual-commit",
   "branch": "claude/tool-silent-failures",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "agent-docs/jusprin/README.md",
     "agent-docs/jusprin/mcp-tool-extension-guide.md",
@@ -34,13 +34,20 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2040,
-    "cache_creation_tokens": 206180,
-    "cache_read_tokens": 12575130,
-    "output_tokens": 53446,
-    "api_call_count": 76
+    "input_tokens": 2492,
+    "cache_creation_tokens": 345269,
+    "cache_read_tokens": 15047211,
+    "output_tokens": 74817,
+    "api_call_count": 92
   }
 }
