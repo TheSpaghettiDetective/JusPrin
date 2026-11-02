@@ -337,7 +337,7 @@
                 self->check(layers->GetHigherValue() == 0 && top_before != 0, "cp_a_finding_moves_the_layer_slider");
                 self->check(dialog.caption() && dialog.caption()->layer == 1, "cp_a_caption_names_layer_one");
                 canvas.render();
-                const int inset = int(std::round(m.space_3 * wxGetApp().imgui()->get_style_scaling()));
+                const int inset = int(std::round(m.space_3 * canvas_ui_scale(canvas)));
                 std::cerr << "HARNESS CHECKPRINT caption_rect=" << (dialog.caption_rect() ? dialog.caption_rect()->x : -1) << ","
                           << (dialog.caption_rect() ? dialog.caption_rect()->y : -1) << " inset=" << inset << '\n';
                 self->check(dialog.caption_rect() && dialog.caption_rect()->x == inset && dialog.caption_rect()->y == inset,

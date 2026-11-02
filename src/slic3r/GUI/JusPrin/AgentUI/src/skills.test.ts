@@ -28,6 +28,12 @@ describe('project skills', () => {
     expect([quoted.name, quoted.trigger]).toEqual(['quoted', 'some_event']);
   });
 
+  it('sends the same text from a Windows checkout', () => {
+    expect(parseSkill('---\r\nname: some-event\r\ntrigger: some_event\r\n---\r\n\r\n# Some event\r\n\r\nSay so.\r\n',
+      './skills/some-event/SKILL.md').text).toBe('# Some event\n\nSay so.');
+    expect(skills.every((skill) => !skill.text.includes('\r'))).toBe(true);
+  });
+
   it('refuses a file the app could not use', () => {
     const file = (front: string, body = '# Body\n') => `---\n${front}\n---\n${body}`;
     expect(() => parseSkill('# No frontmatter', './skills/bad/SKILL.md')).toThrow('frontmatter');

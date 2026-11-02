@@ -2,7 +2,18 @@
 
 #include <string>
 
+namespace Slic3r::GUI {
+class GLCanvas3D;
+}
+
 namespace Slic3r::GUI::JusPrin {
+
+// How many of ImGui's pixels one design-token pixel is on this canvas. Not
+// ImGuiWrapper::get_style_scaling(): that comes from wx's content scale factor,
+// which stays 1 on Windows at any display scale while the canvas's font grows,
+// so a token-sized box stops fitting its text above 100%. On macOS and GTK 3
+// the two are the same number.
+float canvas_ui_scale(const GLCanvas3D& canvas);
 
 // The shared icon textures for everything the fork draws inside the GL canvas.
 //

@@ -13,7 +13,7 @@ export interface Skill {
 
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TRIGGER = /^[a-z]+(?:_[a-z]+)*$/;
-const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+const FRONTMATTER = /^---\n([\s\S]*?)\n---(?:\n|$)/;
 // The app refuses a longer text (AgentHost, Protocol::kSkills).
 export const SKILL_TEXT_LIMIT = 16 * 1024;
 const encoder = new TextEncoder();
@@ -38,12 +38,14 @@ function scalar(raw: string, source: string): string {
   return raw;
 }
 
-export function parseSkill(text: string, source: string): Skill {
+export function parseSkill(file: string, source: string): Skill {
+  // A Windows checkout has CRLF. The model gets the same bytes from every build.
+  const text = file.replace(/\r\n/g, '\n');
   const match = text.match(FRONTMATTER);
   if (!match) throw new Error(`${source}: SKILL.md must start with YAML frontmatter`);
 
   const fields = new Map<string, string>();
-  for (const line of match[1].split(/\r?\n/)) {
+  for (const line of match[1].split('\n')) {
     const separator = line.indexOf(':');
     if (separator < 1) throw new Error(`${source}: invalid frontmatter line`);
     const key = line.slice(0, separator).trim();
@@ -66,7 +68,7 @@ export function parseSkill(text: string, source: string): Skill {
   if (description !== undefined && (/[\r\n]/.test(description) || encoder.encode(description).length > 300))
     throw new Error(`${source}: description must be one line of at most 300 UTF-8 bytes`);
 
-  const body = text.slice(match[0].length).replace(/^(?:\r?\n)+/, '').trimEnd();
+  const body = text.slice(match[0].length).replace(/^\n+/, '').trimEnd();
   if (!body) throw new Error(`${source}: skill body is empty`);
   if (encoder.encode(body).length > SKILL_TEXT_LIMIT)
     throw new Error(`${source}: skill body exceeds 16 KiB`);

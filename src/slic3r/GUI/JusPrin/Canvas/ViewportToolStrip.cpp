@@ -8,7 +8,6 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
-#include "slic3r/GUI/ImGuiWrapper.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoBase.hpp"
 
@@ -84,7 +83,7 @@ void ViewportToolStrip::render()
 
     const ShellMetrics& m = theme->metrics();
     const ShellPalette& p = theme->palette(GUI_App::dark_mode());
-    const float scale = wxGetApp().imgui()->get_style_scaling();
+    const float scale = canvas_ui_scale(m_canvas);
     const Size canvas_size = m_canvas.get_canvas_size();
     const StripLayout layout = layout_tool_strip(tool_strip_geometry(m), scale, float(canvas_size.get_width()),
                                                  float(canvas_size.get_height()));

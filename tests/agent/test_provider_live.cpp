@@ -504,15 +504,25 @@ TEST_CASE("Anthropic makes a tool call and sees the image inside its tool_result
 
 namespace {
 
-// An earlier turn's call as the host replays it, with an id OpenAI minted.
-AgentConversationContext openai_minted_call()
+// An earlier exchange as the chat's record replays it, with a call id OpenAI
+// minted.
+ChatRecord record_with_openai_minted_call()
 {
-    AgentConversationContext call;
-    call.call_id        = "call_Ab3dE5fG7hI9jK1lM3nO5pQ7";
-    call.tool           = "workspace_inspect";
-    call.arguments_json = R"({"sections":["summary"]})";
-    call.output_json    = R"({"state":"succeeded","result":{"summary":{"objects":1}}})";
-    return call;
+    const std::string call_id = "call_Ab3dE5fG7hI9jK1lM3nO5pQ7";
+    const auto        words   = [](const std::string& text) { return json::array({json{{"type", "text"}, {"text", text}}}); };
+    RecordItem        asked{RecordItem::Kind::User};
+    asked.parts.push_back(RecordPart{RecordPart::Kind::Text, "Is anything on the plate?"});
+    RecordItem results{RecordItem::Kind::Results};
+    results.results.push_back(RecordResult{call_id, R"({"state":"succeeded","result":{"summary":{"objects":1}}})", false, std::nullopt});
+    return ChatRecord{"anthropic",
+                      {asked,
+                       RecordItem{RecordItem::Kind::Assistant, {}, {}, {},
+                                  json::array({json{{"type", "tool_use"},
+                                                    {"id", call_id},
+                                                    {"name", "workspace_inspect"},
+                                                    {"input", json{{"sections", json::array({"summary"})}}}}})},
+                       results,
+                       RecordItem{RecordItem::Kind::Assistant, {}, {}, {}, words("One object.")}}};
 }
 
 bool has_block(const json& messages, const std::string& type)
@@ -543,7 +553,7 @@ TEST_CASE("Anthropic accepts a turn that replays its thinking with a fired skill
     request.session.instructions      = "You are a connectivity check. First call the workspace_inspect tool once, with sections "
                                         "[\"summary\"]. When its result arrives, reply with the single word: checked.";
     request.session.include_workspace = false;
-    request.conversation              = {{"user", "Is anything on the plate?"}, openai_minted_call(), {"assistant", "One object."}};
+    request.record                    = record_with_openai_minted_call();
     request.user_text                 = "Run the check.";
     request.skills = {AgentSkillUse{"file-loaded", "A file was loaded. This note is part of the check; act on the instructions.",
                                     nullptr, "file_loaded"}};
@@ -572,37 +582,30 @@ TEST_CASE("Anthropic accepts a turn that replays its thinking with a fired skill
     CHECK(sent.back().body.find("call_Ab3dE5fG7hI9jK1lM3nO5pQ7") != std::string::npos);
 }
 
-TEST_CASE("Anthropic writes a title from a conversation with a replayed call, or one that opens on the assistant",
-          "[agent][anthropic][live][.]")
+TEST_CASE("Anthropic writes a title from the person's words", "[agent][anthropic][live][.]")
 {
     if (anthropic_key().empty())
         SKIP("ANTHROPIC_API_KEY is not set");
-    const auto title = [](std::vector<AgentConversationContext> conversation) {
-        std::vector<AgentHttpRequest> sent;
-        std::vector<AgentUsage>       usage;
-        AgentServicePtr               agent = live_anthropic_agent(sent, usage);
-        AgentRequest                  request;
-        request.request_id   = "live-anthropic-title";
-        request.purpose      = AgentRequest::Purpose::ConversationTitle;
-        request.conversation = std::move(conversation);
-        REQUIRE(agent->start(request));
-        const Turn turn = run_until_settled(*agent);
-        report(usage);
-        INFO("title: " << turn.text << (turn.error ? " error: " + turn.error->code + " " + turn.error->message : ""));
-        CHECK_FALSE(turn.error);
-        CHECK(turn.completed);
-        CHECK_FALSE(turn.text.empty());
-        REQUIRE(sent.size() == 1);
-        return json::parse(sent.front().body);
-    };
-    // A tool exchange with an OpenAI id and no tools declared, ending on the
-    // assistant, so the codec adds "Write the title.".
-    const json replayed = title({{"user", "Help me print a backpack frame."}, openai_minted_call(), {"assistant", "Use five walls."}});
-    CHECK_FALSE(replayed.contains("tools"));
-    CHECK(replayed["messages"].back()["content"].dump().find("Write the title.") != std::string::npos);
-    // A conversation whose first message is the assistant's.
-    const json opening = title({{"assistant", "Hello! Load a model to begin."}, {"user", "A phone stand."}});
-    CHECK(opening["messages"][0]["role"] == "assistant");
+    std::vector<AgentHttpRequest> sent;
+    std::vector<AgentUsage>       usage;
+    AgentServicePtr               agent = live_anthropic_agent(sent, usage);
+    AgentRequest                  request;
+    request.request_id = "live-anthropic-title";
+    request.purpose    = AgentRequest::Purpose::ConversationTitle;
+    request.user_text  = "Help me print a backpack frame.";
+    REQUIRE(agent->start(request));
+    const Turn turn = run_until_settled(*agent);
+    report(usage);
+    INFO("title: " << turn.text << (turn.error ? " error: " + turn.error->code + " " + turn.error->message : ""));
+    CHECK_FALSE(turn.error);
+    CHECK(turn.completed);
+    CHECK_FALSE(turn.text.empty());
+    REQUIRE(sent.size() == 1);
+    const json body = json::parse(sent.front().body);
+    CHECK_FALSE(body.contains("tools"));
+    REQUIRE(body["messages"].size() == 1);
+    CHECK(body["messages"][0]["role"] == "user");
+    CHECK(body["messages"][0]["content"].dump().find("backpack frame") != std::string::npos);
 }
 
 namespace {

@@ -9,6 +9,9 @@ namespace Slic3r::GUI::JusPrin::Printers {
 
 // A visible user printer profile. Profiles embedded in a project, shipped in
 // a bundle, or supplied by a vendor are not printers the person added.
+//
+// Both rules read how a profile is marked, so pass the stored preset. The edited
+// copy of a profile embedded in a project is not marked as embedded.
 bool is_named_printer(const Preset& preset);
 
 // The printer profile came with something other than the person's own setup:

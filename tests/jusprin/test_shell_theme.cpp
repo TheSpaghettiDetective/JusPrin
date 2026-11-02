@@ -362,7 +362,7 @@ TEST_CASE("the printer chip marks a printer from the file", "[shell][theme][wx]"
     const ShellTheme theme = load_packaged_theme();
     auto* frame = new wxFrame(nullptr, wxID_ANY, "chip");
     auto* chip  = new PrinterFilamentChip(frame, theme);
-    auto near = [](const wxColour& a, unsigned char r, unsigned char g, unsigned char b) {
+    auto close_to = [](const wxColour& a, unsigned char r, unsigned char g, unsigned char b) {
         return std::abs(a.Red() - r) < 24 && std::abs(a.Green() - g) < 24 && std::abs(a.Blue() - b) < 24;
     };
     for (const bool dark : {false, true}) {
@@ -376,7 +376,7 @@ TEST_CASE("the printer chip marks a printer from the file", "[shell][theme][wx]"
             const int glyph_end = half.FromDIP(12 + theme.metrics().button.icon.icon_size);
             for (int x = half.FromDIP(12); x < glyph_end; ++x)
                 for (int y = 0; y < image.GetHeight(); ++y)
-                    if (near(palette.status_warning, image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y)))
+                    if (close_to(palette.status_warning, image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y)))
                         return true;
             return false;
         };

@@ -173,7 +173,7 @@ void ToolValuePanel::render_move(const ShellTheme& theme, const ShellPalette& pa
         return -1;
     };
 
-    const float space_size = imgui->get_style_scaling() * 8;
+    const float space_size = scale * 8;
 
     Vec3d original_position;
     if (manip.m_imperial_units)
@@ -264,7 +264,7 @@ void ToolValuePanel::render_rotate(const ShellTheme& theme, const ShellPalette& 
         return -1;
     };
 
-    const float space_size = imgui->get_style_scaling() * 8;
+    const float space_size = scale * 8;
     const float end_text_size = imgui->calc_text_size(manip.m_new_unit_string).x;
 
     Vec3d rotation = manip.m_buffered_rotation;
@@ -369,7 +369,7 @@ void ToolValuePanel::render_scale(const ShellTheme& theme, const ShellPalette& p
         return -1;
     };
 
-    const float space_size = imgui->get_style_scaling() * 8;
+    const float space_size = scale * 8;
     const float end_text_size = imgui->calc_text_size(manip.m_new_unit_string).x;
     ImGui::AlignTextToFramePadding();
     const unsigned int current_active_id = ImGui::GetActiveID();

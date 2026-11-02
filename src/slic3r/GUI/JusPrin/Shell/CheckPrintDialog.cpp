@@ -4,6 +4,7 @@
 #include "SetupCommands.hpp"
 #include "ShellRecipes.hpp"
 
+#include "slic3r/GUI/JusPrin/Canvas/CanvasIcons.hpp"
 #include "slic3r/GUI/JusPrin/CanvasPresentationController.hpp"
 #include "libslic3r/Model.hpp"
 #include "slic3r/GUI/Event.hpp"
@@ -333,7 +334,7 @@ void CheckPrintDialog::draw_caption()
     const ShellMetrics& m     = m_theme.metrics();
     const ShellPalette& p     = m_theme.palette(GUI_App::dark_mode());
     ImGuiWrapper&       imgui = *wxGetApp().imgui();
-    const float         scale = imgui.get_style_scaling();
+    const float         scale = canvas_ui_scale(*canvas);
     const Size          size  = canvas->get_canvas_size();
 
     std::string title = m_caption->title.ToUTF8().data();

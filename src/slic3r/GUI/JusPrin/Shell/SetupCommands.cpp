@@ -100,11 +100,14 @@ PrinterInfo current_printer()
     if (presets == nullptr)
         return info;
     const Preset& printer = presets->printers.get_edited_preset();
+    // Where a printer came from is known to the stored preset alone: the edited
+    // copy of one embedded in a file is not marked as embedded.
+    const Preset& origin = presets->printers.get_selected_preset();
     info.preset_name = printer.name;
     // A named printer is called what the person called it; a system profile
     // is only a model.
-    info.nickname = wxString::FromUTF8(Printers::is_named_printer(printer) ? printer.name
-                                                                            : printer.config.opt_string("printer_model"));
+    info.nickname = wxString::FromUTF8(Printers::is_named_printer(origin) ? printer.name
+                                                                           : printer.config.opt_string("printer_model"));
     if (info.nickname.empty()) {
         info.nickname = wxString::FromUTF8(printer.label(false));
         // Custom profiles often encode the nozzle in their display name.
@@ -116,7 +119,7 @@ PrinterInfo current_printer()
         info.nozzles        = nozzle->values;
         info.extruder_count = nozzle->values.size();
     }
-    info.from_file = Printers::printer_from_file(printer);
+    info.from_file = Printers::printer_from_file(origin);
     info.valid = true;
     return info;
 }

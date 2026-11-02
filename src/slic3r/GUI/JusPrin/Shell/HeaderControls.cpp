@@ -428,7 +428,14 @@ wxBitmap HeaderButton::snapshot(double scale)
     bitmap.CreateWithDIPSize(size, scale, 24);
     wxMemoryDC dc(bitmap);
     std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
-    if (gc) draw(dc, *gc, size);
+    if (gc) {
+#ifndef wxHAS_DPI_INDEPENDENT_PIXELS
+        // Windows draws in device pixels, so nothing else fills the bitmap's
+        // extra ones: the button would land in its top-left corner at 1x.
+        gc->Scale(scale, scale);
+#endif
+        draw(dc, *gc, size);
+    }
     dc.SelectObject(wxNullBitmap);
     return bitmap;
 }

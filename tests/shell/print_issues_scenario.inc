@@ -198,6 +198,11 @@
                   frame.bubble_rect.x + frame.bubble_rect.w <= float(canvas.get_width()) &&
                   frame.bubble_rect.y + frame.bubble_rect.h <= float(canvas.get_height()),
               name + "_bubble_stays_inside_the_canvas");
+        // The words grow with the display's scale, so the box must too or they
+        // are cut off. Read from the window, not from what the overlay uses.
+        check(std::abs(frame.bubble_rect.w - float(brand_theme()->metrics().print_issues.bubble_width *
+                                                   prepare_canvas().get_wxglcanvas()->GetDPIScaleFactor())) <= 1.f,
+              name + "_bubble_is_as_wide_as_the_display_scale_asks");
         m_last_anchor = {frame.anchor_x, frame.anchor_y};
     }
 
@@ -1334,6 +1339,9 @@
         steps.push_back({"list_opens", {}, {}, [self] {
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();
             self->check(frame.list_open && frame.rows.size() == self->issues().issues.size(), "the_list_shows_every_issue");
+            self->check(std::abs(frame.list.w - float(brand_theme()->metrics().print_issues.list_width *
+                                                      self->prepare_canvas().get_wxglcanvas()->GetDPIScaleFactor())) <= 1.f,
+                        "the_list_is_as_wide_as_the_display_scale_asks");
             self->check(!frame.bubble, "opening_the_list_closes_the_bubble");
             self->check(!self->prepare_canvas().get_selection().is_empty(), "opening_the_list_leaves_the_selection");
             self->capture_issues("19b-list");

@@ -1,5 +1,6 @@
 #include "CanvasIcons.hpp"
 
+#include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLTexture.hpp"
 #include "libslic3r/Utils.hpp"
 
@@ -9,6 +10,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/nowide/fstream.hpp>
+
+#include <wx/glcanvas.h>
 
 #include <iterator>
 #include <map>
@@ -43,6 +46,8 @@ void load_icon(GLTexture& texture, const std::string& name, int size_px)
 }
 
 } // namespace
+
+float canvas_ui_scale(const GLCanvas3D& canvas) { return float(canvas.get_wxglcanvas()->GetDPIScaleFactor()); }
 
 unsigned int canvas_icon_texture(const std::string& name, int size_px)
 {

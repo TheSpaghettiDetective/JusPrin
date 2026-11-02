@@ -9,7 +9,6 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
-#include "slic3r/GUI/ImGuiWrapper.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/Selection.hpp"
 #include "slic3r/GUI/format.hpp"
@@ -415,7 +414,7 @@ void IssueOverlay::render()
         return;
     const PrintIssueSnapshot& snapshot = m_monitor.snapshot();
     const ShellMetrics&       m        = theme->metrics();
-    const float               scale    = wxGetApp().imgui()->get_style_scaling();
+    const float               scale    = canvas_ui_scale(m_canvas);
     const Size                canvas   = m_canvas.get_canvas_size();
     const Style style{m, theme->palette(GUI_App::dark_mode()), scale, float(canvas.get_width()), float(canvas.get_height()),
                       std::round(m.space_3 * scale), std::round(m.space_3 * scale), std::round(m.space_2 * scale),

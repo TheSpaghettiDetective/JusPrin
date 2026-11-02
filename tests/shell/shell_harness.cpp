@@ -305,6 +305,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/SliceBounds.hpp"
 #include "slic3r/GUI/3DScene.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
+#include "slic3r/GUI/JusPrin/Canvas/CanvasIcons.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/ViewportToolStrip.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/ImGuiWrapper.hpp"
@@ -1360,6 +1361,7 @@ public:
                 check(selected_printer() == kSetupFixturePrinter, "printer_menu_fixture_starts_on_system_profile");
                 verify_other_printers_menu();
                 verify_hidden_presets_in_use();
+                verify_printer_embedded_in_a_file();
                 finish();
                 return;
             }
@@ -3330,6 +3332,46 @@ private:
             preset->is_visible = true;
     }
 
+    // A printer that came inside a project file, opened where no printer of
+    // that name exists, is not one the person set up. Only the stored preset
+    // says so: OrcaSlicer does not mark the edited copy it works on.
+    void verify_printer_embedded_in_a_file()
+    {
+        struct AnswerDialogs : wxModalDialogHook
+        {
+            int Enter(wxDialog*) override { return wxID_OK; }
+        } dialogs;
+        dialogs.Register();
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        const std::string name = Printers::add_named_printer(*m_plater, "Printer In A File", {});
+        check(SetupCommands::select_named_printer(*m_plater, name), "file_printer_fixture_selected");
+        // A file falls back on a parent profile that is installed; this one's isn't.
+        PresetCollection& fixture_printers = wxGetApp().preset_bundle->printers;
+        for (Preset* preset : {&fixture_printers.get_selected_preset(), &fixture_printers.get_edited_preset()})
+            Preset::inherits(preset->config) = "A printer that is not installed";
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/20mm_cube.obj";
+        check(m_plater->load_files(std::vector<std::string>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "file_printer_fixture_has_a_model");
+        const boost::filesystem::path file = boost::filesystem::path(data_dir()) / "printer-in-a-file.3mf";
+        m_plater->export_3mf(file);
+        check(boost::filesystem::exists(file), "file_printer_fixture_saved");
+        SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(Printers::remove_named_printer(*m_plater, name).empty(), "file_printer_fixture_removed");
+
+        m_plater->load_files(std::vector<std::string>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::LoadConfig, false);
+        const PresetCollection& printers = wxGetApp().preset_bundle->printers;
+        std::cerr << "HARNESS NOTE file_printer preset=" << printers.get_selected_preset_name()
+                  << " stored_embedded=" << printers.get_selected_preset().is_project_embedded
+                  << " edited_embedded=" << printers.get_edited_preset().is_project_embedded << '\n';
+        check(printers.get_selected_preset().is_project_embedded, "file_printer_is_embedded_after_a_real_load");
+        const SetupCommands::PrinterInfo info = SetupCommands::current_printer();
+        check(info.from_file, "file_printer_is_marked_from_the_file");
+        check(info.nickname == printers.get_edited_preset().config.opt_string("printer_model"),
+              "file_printer_goes_by_its_model_not_a_name_the_person_gave_it");
+        dialogs.Unregister();
+    }
+
     void verify_other_printers_menu()
     {
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
@@ -3469,12 +3511,11 @@ private:
         printers.get_edited_preset().config.set_key_value("printer_notes", new ConfigOptionString("kept"));
         const std::filesystem::path pending = std::filesystem::path(data_dir()) / "jusprin" / "projects" /
                                                persistence().document().project_id() / "pending";
-        const auto writable = std::filesystem::status(pending).permissions();
-        std::filesystem::permissions(pending, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
-                                     std::filesystem::perm_options::replace);
-        const Agent::ToolActivity* unsaved = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}},
-                                                           "nozzle_panel_unsaved");
-        std::filesystem::permissions(pending, writable, std::filesystem::perm_options::replace);
+        const Agent::ToolActivity* unsaved = nullptr;
+        {
+            UnavailableFolder folder(pending);
+            unsaved = call_in_panel(named, "printer_change", {{"printerName", named}, {"nozzle", 0.4}}, "nozzle_panel_unsaved");
+        }
         check(unsaved != nullptr && unsaved->state == Agent::ToolState::Failed && unsaved->error &&
                   unsaved->error->code == "local_save_failed" && parent() == "Bambu Lab X1 Carbon 0.6 nozzle" &&
                   printers.get_edited_preset().config.opt_string("printer_notes") == "kept",
@@ -4662,16 +4703,27 @@ private:
     }
 
     // Waits, yielding to the app, until `done` or `limit` passes.
+    // Waits in an event loop of its own, not by calling wxYield: a modal window
+    // opened from inside a wxYield on Windows gets a web view that never starts.
     static bool wait_for(const std::function<bool()>& done, std::chrono::milliseconds limit)
     {
         const auto until = std::chrono::steady_clock::now() + limit;
-        while (!done()) {
-            if (std::chrono::steady_clock::now() > until)
-                return false;
-            wxYield();
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        return true;
+        if (done())
+            return true;
+        wxEventLoop loop;
+        wxTimer     timer;
+        bool        result = false;
+        timer.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
+            // Looked at between ticks, never during one: `done` may wait too.
+            result = done();
+            if (result || std::chrono::steady_clock::now() > until)
+                loop.Exit();
+            else
+                timer.StartOnce(10);
+        });
+        timer.StartOnce(10);
+        loop.Run();
+        return result;
     }
 
     // What Home's printer rail shows for the named printer `name`, read through
@@ -9525,7 +9577,7 @@ private:
     StripLayout tool_strip_layout()
     {
         const Size size = prepare_canvas().get_canvas_size();
-        return layout_tool_strip(tool_strip_geometry(brand_theme()->metrics()), wxGetApp().imgui()->get_style_scaling(),
+        return layout_tool_strip(tool_strip_geometry(brand_theme()->metrics()), canvas_ui_scale(prepare_canvas()),
                                  float(size.get_width()), float(size.get_height()));
     }
 
@@ -9587,8 +9639,7 @@ private:
             return;
         const StripLayout layout = tool_strip_layout();
         const StripRect& button = layout.buttons[size_t(tool)];
-        const float padding = std::round(brand_theme()->metrics().tool_panel.padding *
-                                         wxGetApp().imgui()->get_style_scaling());
+        const float padding = std::round(brand_theme()->metrics().tool_panel.padding * canvas_ui_scale(prepare_canvas()));
         check(std::abs(window->Pos.x - button.x) <= 1.f, name + "_panel_left_edge_under_the_button");
         check(std::abs(window->Pos.y - (layout.strip.y + layout.strip.h + padding)) <= 1.f,
               name + "_panel_hangs_below_the_strip");
