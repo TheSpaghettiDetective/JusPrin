@@ -1,0 +1,96 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin 2 is a fork of OrcaSlicer with an in-app AI agent that runs on the person's own API key or on JusPrin's hosted gateway, an Obico-server endpoint live in production since 2026-10-25. The gateway is about to start charging in credits: a Standard message 1 credit, an Expert message 5; 500 credits in the first month; packs that never expire; Hobby $10 and Workshop $20 subscriptions. The design was reviewed by Kenneth on 2026-11-01 and 2026-11-02 and is final at canvas version 71; his wording decisions are in the design doc and must be kept exactly ("Standard" not "Basic" for people, config value stays `basic`; prices always carry "a message"; "your first month", never "trial"; "Get more credits" is the one action outside the pricing page; a chat keeps its model after the person's first message; the app's own turns run on Expert, free, and do not fix the chat's model). The two working docs and the brief are untracked at the repo root on purpose: never commit them or hide them in ignore files. Several agent sessions build on this Mac at once: limit builds to -j4, check for running ninja first, one build per build directory. Production (app.obico.io) is live and must not be changed; staging is app-stg.obico.io; for gcloud or kubectl use the account ai-agent@tsdtechnology.iam.gserviceaccount.com, read-only on production. House rules in `AGENTS.md`, `agent-docs/jusprin/fork-stewardship.md` and `agent-docs/jusprin/design-system.md` apply, in particular tokens for every UI value and no edits outside `src/slic3r/GUI/JusPrin/` without the rebase evidence the stewardship doc asks for.
+
+Task:
+Build the JusPrin Cloud credits system and finish the first-run onboarding flow, following the brief in `credits-and-onboarding-handoff-2026-11.md` at the root of `~/Projects/JusPrin` (untracked; read it first and in full, then the two documents it names in section 2: `pricing-implementation-plan-2026-11.md` and `pricing-touchpoints-design-2026-11.md`, same folder, and the board captures in `design-captures/credits-2026-11/` with their `MANIFEST.md`).
+
+Do the steps in the order the plan's section 11 gives them, in your own worktrees, never in the main checkouts:
+
+0. Port the branch `onboarding-frontend-only` (one commit, `8f4588beae`) onto `jusprin-newui`. Expect conflicts in 18 of its 27 files (the brief's section 4 lists them and the Home commits that caused them); keep both sides' additions. Then bring its screens to the canvas's "On boarding experience" page and boards 1a to 1d: the first-month offer as the headline ("Your first month: 500 credits", "Sign in for 500 credits"), and every "Set up JusPrin" entry point opening Preferences › Agent instead of a web link. Show the two paths the branch never verified in the real app.
+1. Gateway (`~/Projects/tsd-enterprise`, branch from `master`, your own worktree): the credit ledger and charging in `web_ent/jusprin/v2/`, the `slicer-basic` alias with image stripping, `GET /account`, the 402 body with `basic_only_credits`, with the pytest list in plan section 11 step 1.
+2. App: prices in the pickers ("1 credit a message"), pickers greyed once the person has sent a message, app-started turns on the Expert alias without storing the chat's model, the attachment row's picture notice with "New Expert chat", picture tools left out of a Standard chat's tool list, the balance ring and hover panel, the pre-send check with "Get more credits" and the conditional "New Standard chat", the failed-message card. Leave out the webview that opens the Account and pricing pages.
+4. The 1-hour cache ttl in `prepare()` and the slice-polling guard.
+5. Print-report rewards: endpoint, storage, admin review, the Print history button and form, the Home card line.
+
+Do not start step 3 (Chargebee, the Account and pricing pages, v1-subscriber carry-over): it waits on Kenneth's decisions 12 (pages served into a webview or built into the app), 10 (domain) and the open parts of 8, listed in plan section 12. Build the items that have a recommended or placeholder answer in the plan as written and flag them in your report; never settle an open decision yourself. Where a board, the design doc and the plan disagree, say so rather than pick.
+
+Done means: every step above has its tests passing (Catch2, Vitest, gateway pytest), the real app has been exercised for what tests cannot cover, no live-model run has happened without Kenneth approving its batch and spend, nothing is committed until he asks, and your report has four parts under 500 words: the problem, what you built, what you tested and how, what remains, saying plainly what you did not verify.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_756f4482-e5c7-45b4-bc36-5e6db3b079ef
+
+---
+
+<cross-session-message from="local_756f4482-e5c7-45b4-bc36-5e6db3b079ef" from-name="JusPrin pricing model brainstorm">
+Kenneth approved your live batch, and two of your three "decisions" come back as engineering fixes to make, not choices for him.
+
+The approval reached me through his brainstorm session (local_c790f253-5882-4425-8ee0-6201d35017ca), quoting his words: "approved the live batch. tell the main session". It covers exactly the three staging chats you asked for, estimated under $2: the Expert-to-Standard crossing, the free file-opened turn, and the cache ttl check. Run those three against staging and nothing more; report what each showed and the spend.
+
+Then make these two fixes, which Kenneth pushed back on as not being his decisions:
+
+1. Fresh-install example. "I don't have a printer here" must not refuse because no printer preset is installed. The bundled example 3MF carries its own printer and process settings, so that path should install what the file needs and open it. Fix it; do not ask which printer.
+
+2. Welcome-back board 1d box. The app must not show "Hobby, at your original price" until step 3 (billing carry-over) ships. Gate the box so it stays hidden for now, and do not rely on the gateway's v1_subscription field alone to show it.
+
+Test both the way you tested the rest (unit tests plus the real app where tests cannot reach). Nothing is committed and Kenneth has not asked for a commit. Do not end a turn to wait on a process; block inside the call. When done, report in the same four-part shape, short, with what each of the three staging chats showed first.
+</cross-session-message>
+
+---
+
+<!-- reply 1 -->
+> The example needs some printer, and I installed the bundled Generic Klipper Printer. You have two ways to show it:
+> 
+> Drop the warning (my pick): the printer stays unnamed and just doesn’t show the warning for the example. It needs a small new rule, but nothing on screen is false.
+
+Are you talking about hard coating this locket to drop in the morning only during the onboarding? If this is the case, can we just make the example work without adding warnings? Tell me you can find a 3mf or stl file In presets that work together happily.
+
+---
+
+<pasted_content id="eef2">
+It is a commit in the tsd-enterprise repository, the gateway:
+
+* “Keep JusPrin v2 chats for future fine-tuning”, 2026-10-29 at 15:02, 9 files, mostly web_ent/jusprin/v2/capture.py and its tests. The gateway keeps each chat’s newest request and reply in Redis, then writes it to storage once the chat is quiet.
+* It was made by a different Claude session you opened in the JusPrin project that day. Its first message asked to find the recent work wiring the client to the server as the model provider. That session built the capture on a tsd-enterprise branch, then squashed and cherry-picked it onto local master. Its memory note says the opt-out was folded into that same commit at your decision.
+* It is now on origin/master and origin/release in tsd-enterprise, so it has been pushed since. Whether it is deployed I did not check.
+
+is this true? why is it specific to openrouter?
+</pasted_content id="eef2">
+
+---
+
+<cross-session-message from="local_e565e660-16e8-4367-a2d3-2f4bfc3c942b" from-name="Build JusPrin Cloud credits and finish onboarding">
+Kenneth asks you to make `_keep_sync` in tsd-enterprise `web_ent/jusprin/v2/gateway.py` a blind write, and to stop and ask him if the change won't delete far more lines than it adds.
+
+The change: store the request body and the reply events as the raw text they arrived in, with no `json.loads` in `_keep_sync`. Today `[json.loads(data) for data in self.events]` throws on OpenRouter's `data: [DONE]` line, so every Standard chat's record is lost. This replaces the narrower "skip [DONE]" fix you offered.
+
+Kenneth's words on size: he expects "a lot more lines of code to be deleted than to be added". If that won't hold, stop and ask him before going on.
+
+Worked out in a side session, not yet checked: if the branch comparison in `capture.keep` needs the messages, any parsing belongs there, not in `_keep_sync`. I have not read `capture.keep`, so read it first. I also found no sign that anything reads these records or that capture is on in production; neither is verified, so don't assume a schema bump is needed. `test_capture.py` reads event fields directly and will need updating. Add a test whose fake stream ends in `data: [DONE]`.
+
+Nothing has been changed. Commit or deploy only if Kenneth asks.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_c790f253-5882-4425-8ee0-6201d35017ca" from-name="JusPrin pricing model brainstorm">
+Kenneth reviewed the credits boards tonight and changed the rules. Apply all of this in your three worktrees, re-run the suites, and report in the same four-part shape. Nothing committed. The canvas is at version 79 and the re-rendered boards are in `/Users/kenneth/Projects/JusPrin/design-captures/credits-2026-11/` (MANIFEST.md there). The three docs at the repo root open with a dated decision block that states all of this; the text below it is older and loses where they disagree.
+
+Rules now:
+1. Every credit is the same. Remove the `basic_only` flag, the Standard-only trickle lot and every draw-order special case for it. The free allowance is 50 ordinary credits a month for every account that is NOT on a subscription (pack holders included), starting AFTER the first month. During the first month there is only the 500. His words: "no 50 credits for first month. only 500 initial credits. pack holders also get 50 credits a month."
+2. Workshop has no ceiling. Standard messages cost 0 credits on an active Workshop subscription. Remove the fair-use counter, `basic_fair_use`, `basic_used_this_term`, the notices at 500 and 600, and the pricing wording about "up to 600".
+3. Expiry: every expiring lot expires one month from the day it was granted, never at a calendar month end. First-month credits a month after sign-in; the free 50 a month after each grant (granted lazily when the previous one has expired and the person is not subscribed and past their first month); plan credits with the billing cycle.
+4. A balance is one number of credits. Delete the "That is N Standard or N Expert messages" sentence everywhere (BalancePanel, welcome 1a-1d, Account, pricing cards). Prices in messages appear only on the picker options ("Standard · 1 credit a message", "Expert · 5 credits a message", and "Standard · 0 credits a message" on Workshop), the stop card ("You have 3 credits; this Expert chat needs 5 a message."), the pricing page's one sentence, and one scale line under the first-month offer ("An Expert message is 5 credits. Your own API key stays free.").
+5. Panel bars are grouped only by expiry, one per lot, and bought credits get a bar too: "First-month credits · 62 of 500 left · Expires 1 Dec", "Free credits · 50 of 50 left · Expires 2 Dec", "Bought credits · 500 of 500 left · Never expire". Workshop: "Workshop credits · 640 of 1,000 left · Expires 1 Dec. Unused credits don't carry over."
+6. "New Standard chat" is removed everywhere; a chat that cannot be paid offers "Get more credits" only.
+7. Low-balance notice reads "About 25 credits left" (credits, not messages), once, with Get more credits.
+8. Removed: the reverse savings alert (subscriber told Pay as you go would cost less) and board 7c; the month-end and 7-day expiry notices; the daily cap on free app turns (app turns are free, no cap); the thinking picker on Standard (Expert only). The forward savings alert stays, and the Account switch "Alert me when a subscription would save me money" stays on by default, its sub-line now just "Once, above the message box."
+9. Pricing page: Workshop card "1,000 credits a month. Standard messages cost 0 credits."; footer "After your first month, accounts without a plan get 50 free credits a month. Your own API key stays free and never uses credits."; no card repeats the price in messages. Launch offer stays.
+10. The 6a/6b composer after the first month says "50 free credits this month", shows the ring, and the Standard option reads "Standard · 1 credit a message" (a Standard message spends a free credit).
+11. Welcome-back 1d: "750 credits a month." (no message count); and as already sent, keep the 1d price box hidden until step 3 ships.
+
+Unchanged: Standard/Expert names, 1 and 5 credits, first month 500, packs never expire, Hobby 750, Workshop 1,000, app turns free on Expert without fixing the chat's model, picture notice, rewards (25 per report, three a day, clawback: Kenneth neither kept nor dropped these; leave as placeholders and flag them).
+
+Also update `pricing-implementation-plan-2026-11.md` below its decision block where it still describes `basic_only`, trickle, fair use, 600, New Standard chat or the translation line, so the body matches the block. Keep the docs untracked.
+
+Kenneth has approved the three staging chats (under $2) from your earlier report; run them after these changes, not before, so they test the final rules.
+</cross-session-message>
