@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6G1VWHM3DW3HWZAHYKP2NN2",
   "strategy": "manual-commit",
   "branch": "claude/first-run-flow-f7be35",
-  "checkpoints_count": 12,
+  "checkpoints_count": 31,
   "files_touched": [
     "resources/jusprin/ui/design-tokens.json",
     "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
@@ -34,6 +34,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
