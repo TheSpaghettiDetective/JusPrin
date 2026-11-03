@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6G1VCPN7BPNTPQZWJFC9J7M",
   "strategy": "manual-commit",
   "branch": "claude/first-run-flow-f7be35",
-  "checkpoints_count": 12,
+  "checkpoints_count": 31,
   "files_touched": [
     "resources/jusprin/home/protocol.json",
     "src/slic3r/GUI/JusPrin/Home/HomeBackend.hpp",
@@ -13,10 +13,13 @@
     "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
     "src/slic3r/GUI/JusPrin/Home/HomeWebView.cpp",
     "src/slic3r/GUI/JusPrin/Home/HomeWebView.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OnboardingModel.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OnboardingModel.hpp",
     "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
     "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp",
     "tests/jusprin/test_home_host.cpp",
     "tests/jusprin/test_home_snapshot.cpp",
+    "tests/jusprin/test_onboarding_model.cpp",
     "tests/shell/shell_harness.cpp"
   ],
   "sessions": [
@@ -33,6 +36,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {

@@ -1,0 +1,1 @@
+create a task chip opus 5.5 to do that. probably a good idea to branch off of credits-integration-2026-11 instead of commit directly to it
