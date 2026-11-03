@@ -1,0 +1,170 @@
+Background (from the session that started this one):
+JusPrin 2 is a fork of OrcaSlicer with an in-app AI agent. On 2026-11-02 Kenneth decided the first-launch experience from rendered comparisons: no wizard; one welcome screen with a looping silent clip on the left and the title, subtitle and four "doors" on the right; then a Printers step; then Home. The proposition is expert help with a failed print from an AI that sees the person's file, settings and slice and fixes the settings. The design is on the JusPrin v2 canvas (https://claude.ai/artifact/ENCtdaz7gjynfbcy4JYbWJ), page "On boarding experience", version 89: boards `first-run-welcome-01..03` and `first-run-04..11`, where 11 is the flow board. PNGs of every board are in `design-captures/first-run-2026-11/` at the repo root of `~/Projects/JusPrin` (untracked; read them from there, never commit them). The decision records are the memory notes `~/.claude/projects/-Users-kenneth-Projects-JusPrin/memory/first-run-value-prop-decisions.md` and `first-run-flow-sequence.md`; read both first.
+
+The branch `credits-integration-2026-11` (five commits on today's `jusprin-newui`, checked out by another session in `.claude/worktrees/credits-onboarding`, which you must not touch) already ports an older onboarding into Home: `src/slic3r/GUI/JusPrin/Home/OnboardingModel.{hpp,cpp}` (a pure step function with tests in `tests/jusprin/test_onboarding_model.cpp`), `OrcaHomeBackend.cpp` (OrcaSlicer folder detection `detect_orca_profiles`, preset import `use_detected_profiles`, `choose_offline_example` installing a Generic Klipper printer, progress persisted in AppConfig section `kOnboardingSection`, `complete_onboarding`), `HomeHost.cpp` (the `onboarding_*` messages), and `HomeUI/src/components/Onboarding.tsx` (the old screens). Its screens and strings came from retired Figma frames and are superseded. Kenneth's words: "probably a good idea to branch off of credits-integration-2026-11 instead of commit directly to it." Your worktree is cut from that branch; commit there, never to the branch itself.
+
+House rules that bite: read `AGENTS.md`, `agent-docs/jusprin/README.md`, `fork-stewardship.md` and `design-system.md` before editing; every colour, size and radius comes from the token file through `ShellTheme`, the shell recipes or the CSS variables, never a literal; changes to OrcaSlicer-owned files stay small and additive; untracked working docs at the repo root are never committed or hidden via ignore files; never commit submodules. The Mac is shared by several agent sessions: check `uptime` and `pgrep -fl ninja` before a build, build with `cmake --build build/arm64 --config RelWithDebInfo --target all -- -j4` in your own worktree (configure per the `jusprin-worktree-build` memory note, reusing the deps), one build at a time, never restart a running build. Web bundles are CMake-built and gitignored. The shell harness under `tests/shell/` drives the built app without a screen; the branch's `--fresh-example` mode exercises the old onboarding.
+
+Task:
+Build the decided first-run flow on your branch, keeping the credits branch's onboarding machinery and replacing its screens and step order.
+
+THE FLOW (board 11; `first-run-flow-sequence.md` has the same in words). Onboarding is a sequence, Welcome → Printers → Home, owned by a controller. The agent doors on the welcome are detours that return into the sequence, never exits.
+
+Step 1, Welcome, a full-window screen with no shell header and no footer, the brand lockup top-left (`resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg`, 43 px tall), the clip on the left, and on the right: title "The AI slicer that fixes failed prints.", subtitle "Show it a photo of what went wrong. The agent reads your file, your settings and your slice, changes the settings and slices again.", a label "Pick how the agent should think. Change it any time in Preferences › Agent.", then the doors: a selected card "Your first month: 500 credits" / "An Expert message is 5 credits. Then paid, or your own key." / primary button "Sign in for 500 credits"; two rows "Your own API key" with cost "Free" and "Claude Code or Claude Desktop" with cost "Free · MCP server"; the link "Just slice for now". Board PNGs: `welcome-01-clip-beat-1.png`, `04-welcome-sign-in-waiting.png`, `05-welcome-signed-in.png`, `06-preferences-over-welcome.png`.
+- Sign in: start the existing loopback sign-in (`Agent/CloudAccount.hpp`, `CloudSignInMachine`); the card becomes "Finish signing in in your browser" with a Cancel link and the other doors dimmed; when the sign-in lands the card reads "Signed in as <email> · 500 credits" briefly, then the controller advances to step 2. Cancel restores the card.
+- Own key / MCP: open Preferences › Agent on that section through the shell's existing modal path (`ShellController::request_preferences`); when it closes with a verified key or with Done on the MCP section, advance; closed unfinished, stay on the welcome with nothing chosen. Preferences never navigates; it only closes.
+- Just slice for now: advance to step 2 at once.
+
+Step 2, Printers. The app needs one printer. One of three screens by what the app finds: an OrcaSlicer folder → "Bring your printers from OrcaSlicer?" listing printers by name with a filament count, the source folder, Import (primary), Start fresh, Back (board `07-orcaslicer-import.png`; reuse `detect_orca_profiles` and `use_detected_profiles`, importing all kinds, no tick boxes, no partial-import or choose-a-bundle screens); JusPrin v1 import happened → skip the step, the existing welcome-back window shows over Home; neither → the existing add-printer form as this step with a "Skip, use a default" link (board `08-add-printer.png`) that installs the default printer (the branch installs Generic Klipper; keep that unless a better default is already defined) and records that it is assumed. Back returns to the welcome; finished detours stay finished. A 3MF opened on first launch still shows the welcome, then skips this step because the file carries its printer.
+
+Step 3, Home, first-run state: after sign-in the agent column shows the connection and the balance (board `09-home-after-sign-in.png`); after Just slice it shows the three doors collapsed under "Set up the agent" (board `10-home-after-just-slice.png`); the Printers column lists what was imported, added, or the assumed default marked "assumed". Onboarding is marked done only when Home is reached; quitting earlier shows the welcome again next launch with finished detours reflected.
+
+KEEP from the branch: `OnboardingModel` as the controller (rewrite its steps to Welcome, Printers, Hidden and its progress fields to what this flow needs; update `test_onboarding_model.cpp` to the new transitions); the AppConfig persistence and the save fix; `detect_orca_profiles` and `use_detected_profiles`; the printer install in `choose_offline_example`; the v1 `returning_user` fact. REPLACE: `Onboarding.tsx` and its strings; the Welcome → Profiles → ConfirmSetup → Setup → Project order; the rule that a configured agent hides the welcome (the welcome shows once regardless); the "Explore first" and "Dismiss onboarding" links; the wizard call in `run_manual_setup`; the tick-box, partial-import, choose-bundle and choose-folder screens; the Project step and "Try the example". Decide where the welcome lives: the Home web view can host it full-window if the shell header can be hidden for it; if not, say what you chose and why.
+
+THE CLIP: the real clip is not recorded yet (it must be a recording of the real app). Wire a looping, silent, autoplaying video element at 620×388 and use `design-captures/value-prop-2026-11/animatic/animatic-stringing.mp4` as the placeholder, copied into `resources/jusprin/` and named as a placeholder in the commit message. It contains two CC BY 2.0 photos (`design-captures/value-prop-2026-11/photo/ATTRIBUTION.md`); if the placeholder ships, their credit must appear in the About box or an equivalent visible place.
+
+NOT in scope: the gateway (tsd-enterprise) and ops; the credits UI already on the branch; the five states the design session left undrawn (the MCP door's Preferences state, Home after a 3MF on first launch, the assumed mark on Prepare's chip, the add-printer form's later steps, the welcome after a quit) beyond making them behave per the flow text.
+
+DONE means: the new step function and its tests; HomeUI Vitest and tsc green; `jusprin_tests` and `agent_bridge_tests` green; the shell harness's first-run mode updated to the new sequence and passing; and the real app run on an empty `--datadir` through all four doors on this Mac, with a screenshot of the welcome, the Printers step and Home after Just slice sent back with SendUserFile. Windows and Linux need not run. Commit on your branch in small commits with messages that say what changed and what was tested; open no PR and push nothing unless Kenneth asks. Report what you built, what you could not verify, and any decision you had to make that the boards do not settle.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_4d17825a-ac19-4732-a080-7e0c1dca6d1c
+
+---
+
+<task-notification>
+<task-id>bf137jomt</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bf137jomt.output</output-file>
+<status>completed</status>
+<summary>Background command "until ! kill -0 61610 2&gt;/dev/null || grep -q "FAILED" /tmp/claude/frf-build2.log; do sleep 5; done; grep -o "^\[[0-9]*/[0-9]*\]" /tmp/claude/frf-build2.log | tail -1; grep -n "error:" -A3 /tmp/claude/frf-build2.log | head -40" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqluyma2</task-id>
+<tool-use-id>toolu_011zucrcTjANhKfwch8LGBA1</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/boqluyma2.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/first-run-flow-f7be35; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cmake --build build/arm64 --config Release --target jusprin_tests agent_bridge_tests brand_tokens_tests shell_theme_tests jusprin_web jusprin_catalogs OrcaSlicer shell_integration_harness -- -j4 &gt; /tmp/claude/frf-build3.log 2&gt;&amp;1; echo EXIT $?; grep -n "error:" -A3 /tmp/claude/frf-build3.log | head -30; tail -2 /tmp/claude/frf-build3.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brx7ps8ji</task-id>
+<tool-use-id>toolu_015f5UuctyXKjfNNy2RUqa1p</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/brx7ps8ji.output</output-file>
+<status>completed</status>
+<summary>Background command "H=$(mktemp -d /tmp/claude/frf-home2.XXXX); pkill -f jusprin-mcp; cd /tmp/claude; HOME=$H timeout 900 /Users/kenneth/Projects/JusPrin/.claude/worktrees/first-run-flow-f7be35/build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness &gt; /tmp/claude/frf-harness2.log 2&gt;&amp;1; echo EXIT $?; grep -n "FAIL\|RESULT" /tmp/claude/frf-harness2.log | grep -v "HARNESS WAIT" | tail -15" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bsi86bg15</task-id>
+<tool-use-id>toolu_016idMLuLhFv6csvU6vDyLve</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bsi86bg15.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/first-run-flow-f7be35; python3 - &lt;&lt;'EOF'
+p='tests/shell/shell_harness.cpp'
+s=open(p).read()
+old='''        check(saved("status") == "completed" &amp;&amp; saved("welcome_left") == "true" &amp;&amp; saved("fresh_start") == "false" &amp;&amp;
+                  saved("printer_chosen") == "false",
+              "onboarding_saves_each_value");
+    }'''
+new='''        check(saved("status") == "completed" &amp;&amp; saved("welcome_left") == "true" &amp;&amp; saved("fresh_start") == "false" &amp;&amp;
+                  saved("printer_chosen") == "false",
+              "onboarding_saves_each_value");
+        // Someone who dismissed the earlier onboarding is not welcomed again.
+        m_app.app_config-&gt;set("jusprin_onboarding", "status", std::string("dismissed"));
+        m_app.app_config-&gt;set("jusprin_onboarding", "welcome_left", false);
+        check(installed_shell()-&gt;home_view()-&gt;backend().onboarding().step == Home::OnboardingStep::Hidden,
+              "dismissed_onboarding_stays_done");
+        m_app.app_config-&gt;set("jusprin_onboarding", "status", std::string("completed"));
+    }'''
+assert old in s; s=s.replace(old,new)
+open(p,'w').write(s)
+EOF
+uptime; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; cmake --build build/arm64 --config Release --target jusprin_tests OrcaSlicer shell_integration_harness -- -j4 &gt; /tmp/claude/frf-build4.log 2&gt;&amp;1; echo EXIT $?; grep -n "error:" -A3 /tmp/claude/frf-build4.log | head -20" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bnqej8z6l</task-id>
+<tool-use-id>toolu_017forsJwwDyy5dftTnKpjqt</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bnqej8z6l.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/scratchpad/drive; mv drive.log run1-drive.log; : &gt; drive.log
+APP=/Users/kenneth/Projects/JusPrin/.claude/worktrees/first-run-flow-f7be35/build/arm64/src/Release/OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+JUSPRIN_HOME_DEV_URL=http://127.0.0.1:8766/home.html JUSPRIN_AGENT_DEV_URL=http://127.0.0.1:8766/agent.html nohup $APP --datadir $PWD/run2/JusPrin &gt; app2.out 2&gt;&amp;1 &amp;
+echo PID $! &gt; app2.pid; ./run.sh a 2&gt;&amp;1 | cut -c1-700" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b900y8e3i</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/b900y8e3i.output</output-file>
+<status>failed</status>
+<summary>Background command "cd /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/scratchpad/drive; for i in $(seq 1 180); do grep -q "WATCH DONE" watch.log &amp;&amp; break; sleep 10; done; cat watch.log | cut -c1-900; ./islocked &amp;&amp; echo "still locked at $(date)"" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_4d17825a-ac19-4732-a080-7e0c1dca6d1c" from-name="JusPrin pricing goals and priorities">
+Kenneth approved a new sign-in door for the welcome and four take-backs from the original onboarding; build them on your branch claude/first-run-flow-f7be35, with the gateway half in a tsd-enterprise worktree of your own.
+
+The whole brief, including the server contract, the approved renders and the test plan, is in /Users/kenneth/Projects/JusPrin/sign-in-door-brief-2026-11-03.md (untracked, read it from the main checkout, never commit it). In short:
+
+1. The sign-in door becomes: "Continue with Google" (your existing browser flow), then one email field with "Continue with email". The server says whether that address has a password: if not, a 6-digit code is emailed and typed into the app (six cells, auto-submit on the sixth); if it has one, a password field with "Email me a code instead". The browser wait gains "Open the browser again" and "Use an email code instead" (and "Check sign-in" only if you can make it real). A Terms and Privacy line sits under the door. Renders: design-captures/first-run-2026-11/13a, 12b, 12c, 13b, 12d. Home's agent card uses the same component.
+2. Gateway (tsd-enterprise, branch off credits-integration-2026-11, own worktree): POST auth/email, auth/code, auth/password, auth/resend under web_ent/jusprin/v2/, all ending in a django-oauth-toolkit token for the JusPrin2 application so CloudAccount and auth.py need no change. The brief has bodies, errors, rate limits, the duplicate-email rule (ACCOUNT_UNIQUE_EMAIL is False on Obico) and new-account creation. Never commit the obico-server submodule pointer.
+3. The scale line under the offer must read exactly "An Expert message is 5 credits. Your own API key stays free."
+4. Printers step: an import result screen per item (imported / imported as "(Orca copy)" / not imported with the reason, Retry failed items) instead of a yes/no dialog per conflict, and a link "Import from an OrcaSlicer folder…" with a folder picker when nothing is detected.
+5. When facts.v1_imported is true the door shows "Subscribed to JusPrin v1? You get these 500 credits and keep your original price." under the scale line.
+6. No example model: Kenneth ruled it out.
+
+Tests as in the brief: Vitest for every door state and the six-cell field, Catch2 for the host actions, pytest for the four endpoints, the harness --fresh-example extended with the email path against a fake gateway, and one end-to-end run on the local compose stack reading the code from the local mail backend. Screenshots of each door state from the built app as files. Placeholder address is always alex@example.com. Do not press Continue with Google on this Mac; the browser is signed in and finishes by itself. Same rules as before: small commits, no attribution lines, tokens only, working docs stay untracked. Report in four parts under 500 words and say plainly what you did not verify.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>biji8bso9</task-id>
+<tool-use-id>toolu_01JKD1tZB6DcgtL3QzQJaf1D</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/biji8bso9.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the app build to finish or fail" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjnf7yd8t</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bjnf7yd8t.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the app build to end" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bary0lsiy</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bary0lsiy.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the harness without the backend fix" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bgs65cz8d</task-id>
+<tool-use-id>toolu_01MPqu48SHwgHu1uZFx4zPWs</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-first-run-flow-f7be35/72fe7caf-4574-4ee5-94d6-f591255bb12d/tasks/bgs65cz8d.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the harness, app and agent tests with the fix" completed (exit code 0)</summary>
+</task-notification>
