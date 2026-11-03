@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6HB2E508C40KKG0T64EYAWH",
+  "strategy": "manual-commit",
+  "branch": "claude/modal-dialog-gaps-1c048e",
+  "checkpoints_count": 23,
+  "files_touched": [
+    "src/slic3r/GUI/GUI_Utils.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecution.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.hpp",
+    "src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/DialogListeners.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "tests/shell/dialog_routing_scenario.inc",
+    "tests/shell/dialog_witness.hpp",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 702,
+    "cache_creation_tokens": 853019,
+    "cache_read_tokens": 85969055,
+    "output_tokens": 222077,
+    "api_call_count": 351
+  }
+}
