@@ -1,10 +1,10 @@
 #pragma once
 
-// Listens to OrcaSlicer's own dialogs. Every Orca dialog opens through
-// DPIAware::ShowModal, which first asks answer_modal (GUI_Utils.hpp); that
-// hands the dialog to the listeners registered here, innermost first. A
+// Listens to the app's modal dialogs. Every one, OrcaSlicer's own, a plain
+// wxDialog, a native message box or file picker, passes wxWidgets' ShowModal
+// hook, which hands it to the listeners registered here, innermost first. A
 // listener answers the dialog, and it is never shown, or passes it on; when
-// every listener has passed, Orca shows it as usual.
+// every listener has passed, it shows as usual.
 //
 // A listener learns what the window itself shows: its title, its message and
 // which of the standard buttons it offers. Nothing is matched against the
@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+class wxDialog;
 class wxWindow;
 
 namespace Slic3r::GUI::JusPrin::Workspace {
@@ -61,6 +62,23 @@ private:
     friend bool dispatch_dialog(wxWindow& dialog, int& answer);
     Listener              m_listener;
     ScopedDialogListener* m_outer{nullptr};
+};
+
+// Sees each dialog that no listener answered, as it is about to show. Tests
+// watch dialogs through this, not through a wxModalDialogHook of their own:
+// wxWidgets asks the newest hook first, so a test's hook would see a dialog
+// before the listeners do. The newest observer is asked first; Enter returns
+// wxID_NONE to let the dialog show, or the id ShowModal returns instead.
+class UnansweredDialogObserver
+{
+public:
+    UnansweredDialogObserver() = default;
+    virtual ~UnansweredDialogObserver() { Unregister(); }
+    UnansweredDialogObserver(const UnansweredDialogObserver&)            = delete;
+    UnansweredDialogObserver& operator=(const UnansweredDialogObserver&) = delete;
+    void        Register();
+    void        Unregister();
+    virtual int Enter(wxDialog* dialog) = 0;
 };
 
 // Answers every dialog with the least change and writes each one down: the

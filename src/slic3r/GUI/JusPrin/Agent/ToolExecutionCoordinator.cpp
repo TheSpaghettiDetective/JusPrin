@@ -1107,6 +1107,13 @@ void ToolExecutionCoordinator::pump()
             struct Saved { std::string& id; ~Saved() { id.clear(); } } saved{m_saving_after};
             if (versioned || document_boundary)
                 m_saving_after = activity.action_id;
+            // The app's dialogs that open while the call runs, its save
+            // included, are answered and become part of its outcome, so
+            // that outcome too is announced only once the call is done.
+            const std::string ran = activity.action_id;
+            struct Announced { std::string& id; ~Announced() { id.clear(); } } announced{m_announce_after};
+            m_announce_after = ran;
+            Workspace::IWorkspace::ToolCallDialogs dialogs(m_workspace);
             execute(activity);
             std::optional<std::string> save_error;
             if (versioned) {
@@ -1128,11 +1135,15 @@ void ToolExecutionCoordinator::pump()
                 fail(activity, activity.error->code, activity.error->message + " The project also could not be saved: " + *save_error + ".", activity.error->details_json);
             else if (save_error)
                 fail(activity, "local_save_failed", "The change was made, but the project could not be saved: " + *save_error + ". Do not repeat the call; tell the person the project is not saved.");
-            if (!m_saving_after.empty()) {
-                m_saving_after.clear();
-                if (tool_state_terminal(activity.state))
-                    notify(activity);
-            }
+            m_saving_after.clear();
+            // A call that replaced the project may have moved its record.
+            ToolActivity* done = find_mutable(ran);
+            const std::vector<Workspace::OrcaMessage> answered = dialogs.finish();
+            if (done != nullptr && !answered.empty())
+                done->app_dialogs_json = app_dialogs_result(answered).dump();
+            m_announce_after.clear();
+            if (done != nullptr && tool_state_terminal(done->state))
+                notify(*done);
         }
         // One activity per tick keeps event ordering deterministic.
         return;
@@ -2430,8 +2441,11 @@ void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, st
 
 void ToolExecutionCoordinator::notify(const ToolActivity& activity)
 {
-    // pump() announces this outcome once the save after it is done.
-    if (!m_saving_after.empty() && activity.action_id == m_saving_after && tool_state_terminal(activity.state))
+    // pump() announces this outcome once the call and the save after it
+    // are done.
+    if (tool_state_terminal(activity.state) &&
+        ((!m_saving_after.empty() && activity.action_id == m_saving_after) ||
+         (!m_announce_after.empty() && activity.action_id == m_announce_after)))
         return;
     std::shared_ptr<ObserverState> state = m_observers;
     std::vector<std::uint64_t> ids;

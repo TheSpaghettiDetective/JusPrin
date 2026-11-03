@@ -87,10 +87,6 @@ void update_dark_ui(wxWindow* window);
 #endif
 
 extern std::deque<wxDialog*> dialogStack;
-// JusPrin: a listener registered for a stretch of work answers the dialog
-// instead of showing it. False when none answers. Defined in
-// JusPrin/Workspace/DialogListeners.cpp.
-bool answer_modal(wxWindow& dialog, int& answer);
 
 template<class P> class DPIAware : public P
 {
@@ -202,8 +198,6 @@ public:
 
     int ShowModal()
     {
-        if (int answer = 0; answer_modal(*this, answer))
-            return answer;
         dialogStack.push_front(this);
         int r = wxDialog::ShowModal();
         dialogStack.pop_front();

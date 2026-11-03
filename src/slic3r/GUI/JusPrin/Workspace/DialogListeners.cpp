@@ -3,13 +3,22 @@
 #include "slic3r/GUI/GUI_Utils.hpp"
 #include "slic3r/GUI/StepMeshDialog.hpp"
 
+#include <wx/dialog.h>
 #include <wx/html/htmlwin.h>
+#include <wx/modalhook.h>
+#include <wx/msgdlg.h>
 #include <wx/stattext.h>
 #include <wx/thread.h>
 #include <wx/toplevel.h>
 #include <wx/window.h>
 
+#include <algorithm>
+
+#include <boost/log/trivial.hpp>
+
 namespace Slic3r::GUI::JusPrin::Workspace {
+
+bool dispatch_dialog(wxWindow& dialog, int& answer);
 
 namespace {
 ScopedDialogListener* g_innermost = nullptr;
@@ -34,11 +43,84 @@ void collect_text(wxWindow& window, wxString& text)
 }
 
 constexpr size_t kMessageTextLimit = 4000; // characters
+
+// Newest first. Never destroyed: a test's observer may unregister at exit,
+// after this file's statics are gone.
+std::vector<UnansweredDialogObserver*>& observers()
+{
+    static auto* const list = new std::vector<UnansweredDialogObserver*>;
+    return *list;
+}
+
+// Every modal dialog, OrcaSlicer's or a native one, passes wxWidgets'
+// ShowModal hook before it is drawn: the listeners answer it here, or it
+// shows.
+class ListenerHook : public wxModalDialogHook
+{
+    int Enter(wxDialog* dialog) override
+    {
+        if (dialog == nullptr || !wxIsMainThread())
+            return wxID_NONE;
+        if (int answer = wxID_NONE; dispatch_dialog(*dialog, answer)) {
+            BOOST_LOG_TRIVIAL(info) << "JusPrin answered the dialog \"" << dialog->GetTitle().ToUTF8().data() << "\" with " << answer
+                                    << (std::find(dialogStack.begin(), dialogStack.end(), dialog) == dialogStack.end() ? " (not an OrcaSlicer DPIAware dialog)" : "");
+            return answer;
+        }
+        // A copy: an observer may unregister itself.
+        for (UnansweredDialogObserver* observer : std::vector<UnansweredDialogObserver*>(observers()))
+            if (const int answer = observer->Enter(dialog); answer != wxID_NONE)
+                return answer;
+        return wxID_NONE;
+    }
+};
+
+// Registered once, on first use, and never destroyed: wxWidgets' hook list is
+// a static that may be gone by the time a static hook would unregister.
+void ensure_hook()
+{
+    static ListenerHook* const hook = [] {
+        auto* created = new ListenerHook;
+        created->Register();
+        return created;
+    }();
+    (void) hook;
+}
 } // namespace
+
+void UnansweredDialogObserver::Register()
+{
+    ensure_hook();
+    auto& list = observers();
+    if (std::find(list.begin(), list.end(), this) == list.end())
+        list.insert(list.begin(), this);
+}
+
+void UnansweredDialogObserver::Unregister()
+{
+    auto& list = observers();
+    list.erase(std::remove(list.begin(), list.end(), this), list.end());
+}
 
 DialogFacts read_dialog(wxWindow& dialog)
 {
     DialogFacts facts;
+    // A native message box draws its words and buttons outside wxWidgets:
+    // they are read from what it was made with.
+    if (const auto* box = dynamic_cast<const wxMessageDialogBase*>(&dialog)) {
+        wxString text = box->GetMessage();
+        if (!box->GetExtendedMessage().empty())
+            text += "\n" + box->GetExtendedMessage();
+        if (text.length() > kMessageTextLimit)
+            text = text.Left(kMessageTextLimit) + wxString::FromUTF8("…");
+        const long style = box->GetMessageDialogStyle();
+        facts.title  = box->GetCaption().ToUTF8().data();
+        facts.text   = text.ToUTF8().data();
+        facts.yes    = (style & wxYES) != 0;
+        facts.no     = (style & wxNO) != 0;
+        facts.ok     = !facts.yes && (style & wxOK) != 0;
+        facts.cancel = (style & wxCANCEL) != 0;
+        return facts;
+    }
     if (const auto* window = dynamic_cast<const wxTopLevelWindow*>(&dialog))
         facts.title = window->GetTitle().ToUTF8().data();
     wxString text;
@@ -90,13 +172,20 @@ OrcaMessage least_change_answer(const DialogFacts& facts, int& answer)
 ScopedDialogListener::ScopedDialogListener(Listener listener) : m_listener(std::move(listener)), m_outer(g_innermost)
 {
     wxASSERT(wxIsMainThread());
+    ensure_hook();
     g_innermost = this;
 }
 
 ScopedDialogListener::~ScopedDialogListener()
 {
-    wxASSERT(g_innermost == this);
-    g_innermost = m_outer;
+    // Normally the innermost. A listener held across work that ends out of
+    // order (a person's open that outlives a tool call's scope) unlinks
+    // where it is, so the chain never points at a destroyed listener.
+    for (ScopedDialogListener** link = &g_innermost; *link != nullptr; link = &(*link)->m_outer)
+        if (*link == this) {
+            *link = m_outer;
+            return;
+        }
 }
 
 bool dispatch_dialog(wxWindow& dialog, int& answer)
@@ -128,12 +217,3 @@ ScopedLeastChangeAnswers::ScopedLeastChangeAnswers(bool prefer_cancel)
 {}
 
 } // namespace Slic3r::GUI::JusPrin::Workspace
-
-namespace Slic3r::GUI {
-
-bool answer_modal(wxWindow& dialog, int& answer)
-{
-    return JusPrin::Workspace::dispatch_dialog(dialog, answer);
-}
-
-} // namespace Slic3r::GUI

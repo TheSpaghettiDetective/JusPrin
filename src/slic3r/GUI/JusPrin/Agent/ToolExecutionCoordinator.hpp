@@ -324,6 +324,7 @@ private:
     // The action whose project save, after it ran, is not done yet: its
     // outcome is held back from subscribers until it is (see pump()).
     std::string                      m_saving_after;
+    std::string                      m_announce_after; // the call pump() is running, announced when it is done
     std::function<EarlierLookup(const std::string&)> m_find_earlier;
     std::function<std::string(const std::string&)>                   m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;

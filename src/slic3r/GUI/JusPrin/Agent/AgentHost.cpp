@@ -3084,6 +3084,9 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     if (m_session_tool_output)
         if (std::optional<json> own = m_session_tool_output(activity))
             output = std::move(*own);
+    // The app's dialogs this call answered instead of showing them.
+    if (!activity.app_dialogs_json.empty() && output.is_object())
+        output["appDialogs"] = parsed_or_object(activity.app_dialogs_json);
     AgentToolResult result;
     // A session about something other than the project is never told about
     // the project, in its tool results any more than in its turns.

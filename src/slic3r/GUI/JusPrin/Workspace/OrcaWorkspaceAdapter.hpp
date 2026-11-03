@@ -258,6 +258,10 @@ private:
     struct ActiveLoad;
     std::unique_ptr<ActiveLoad>            m_active_load;
     std::unique_ptr<ScopedLeastChangeAnswers> m_open_answers;
+    std::uint64_t open_tool_call_dialogs() override;
+    std::vector<OrcaMessage> close_tool_call_dialogs(std::uint64_t token) override;
+    std::map<std::uint64_t, std::unique_ptr<ScopedLeastChangeAnswers>> m_tool_call_dialogs; // by token
+    std::uint64_t                          m_next_tool_call_dialogs{0};
     std::vector<FileLoadRecord>            m_finished_loads;
     LoadSelectedSetup                      m_setup_before_loads;
     std::vector<std::uint64_t>             m_loaded_objects; // Orca ids of what the finished loads added

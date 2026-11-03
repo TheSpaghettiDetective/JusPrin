@@ -31,7 +31,6 @@
 #include "slic3r/GUI/Selection.hpp"
 
 #include <wx/app.h>
-#include <wx/modalhook.h>
 
 #include <boost/any.hpp>
 #include <boost/filesystem.hpp>
@@ -212,7 +211,7 @@ public:
 private:
     void verify_process_settings()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -573,7 +572,7 @@ private:
     // all through Orca's own tabs and files, with no dialog.
     void verify_preset_settings()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -940,7 +939,7 @@ private:
     // how many questions that patch raises.
     void verify_skipped_confirmations()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -1095,7 +1094,7 @@ private:
 
     void verify_every_writable_setting()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -1713,7 +1712,7 @@ private:
         store.prune(1, 1024 * 1024);
         check(store.history().size() == 3, "versions_operation_references_survive_prune");
         const auto empty_restore = store.materialize(empty.first);
-        struct Dialogs : wxModalDialogHook {
+        struct Dialogs : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -2346,7 +2345,7 @@ private:
 
     // Records every dialog Orca shows and closes it with OK, so a test never
     // waits for a person.
-    struct ShownDialogs : wxModalDialogHook
+    struct ShownDialogs : UnansweredDialogObserver
     {
         std::vector<std::string> titles;
         int Enter(wxDialog* dialog) override

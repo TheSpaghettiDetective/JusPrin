@@ -2115,7 +2115,37 @@ public:
         std::string m_outer_client;
     };
 
+    // Held by the tool executor around a call's run: a dialog of the app's
+    // that opens meanwhile and that no listener nearer to it answers is
+    // answered with the least change instead of shown. finish() lists them.
+    class ToolCallDialogs
+    {
+    public:
+        explicit ToolCallDialogs(IWorkspace& workspace) : m_workspace(workspace), m_token(workspace.open_tool_call_dialogs()) {}
+        ~ToolCallDialogs()
+        {
+            if (!m_finished)
+                m_workspace.close_tool_call_dialogs(m_token);
+        }
+        std::vector<OrcaMessage> finish()
+        {
+            m_finished = true;
+            return m_workspace.close_tool_call_dialogs(m_token);
+        }
+        ToolCallDialogs(const ToolCallDialogs&)            = delete;
+        ToolCallDialogs& operator=(const ToolCallDialogs&) = delete;
+
+    private:
+        IWorkspace&   m_workspace;
+        std::uint64_t m_token;
+        bool          m_finished{false};
+    };
+
 protected:
+    // A workspace with no dialogs of its own answers none.
+    virtual std::uint64_t            open_tool_call_dialogs() { return 0; }
+    virtual std::vector<OrcaMessage> close_tool_call_dialogs(std::uint64_t) { return {}; }
+
     void publish_edit(WorkspaceEdit edit)
     {
         edit.actor  = m_edit_actor;

@@ -57,6 +57,14 @@
 //   --mcp-bridge  same native scenario through a persistent stdio subprocess
 //   --mcp-setup   native setup-command lifetime, output and argument checks;
 //                 uses this harness as a fixture, never edits client config
+//   --dialog-routing <output-directory>
+//                 makes OrcaSlicer raise its own dialogs through agent tools
+//                 and checks none reaches the screen over the chat
+//                 (dialog_routing_scenario.inc); pictures any that does
+//   --dialog-witness <output-directory>
+//                 with any mode: says on stderr which of OrcaSlicer's dialogs
+//                 reached the screen (HARNESS DIALOG SHOWN), pictures each and
+//                 closes it with the answer that changes least
 //   --manual-mcp <fixture-directory>
 //                 leaves a two-plate native fixture open for real MCP clients;
 //                 exposes Orca's sidebar for native-edit/stale-revision checks;
@@ -364,6 +372,7 @@
 #include "../agent/mcp_test_client.hpp"
 #include "mcp_stdio_client.hpp"
 #include "figma_timeline_fixture.hpp"
+#include "dialog_witness.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ClassicView.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
@@ -422,7 +431,6 @@
 #include <wx/dcmemory.h>
 #include <wx/dcscreen.h>
 #include <wx/glcanvas.h>
-#include <wx/modalhook.h>
 #include <wx/dialog.h>
 #include <wx/dnd.h>
 #include <wx/hyperlink.h>
@@ -459,6 +467,9 @@
 #include <vector>
 
 namespace fs = boost::filesystem;
+
+// --dialog-witness: every dialog that reaches the screen, said and pictured.
+std::unique_ptr<JusPrinTest::DialogWitness> g_dialog_witness;
 
 #ifdef __APPLE__
 void set_harness_appearance(bool dark);
@@ -1199,6 +1210,7 @@ bool g_issue_no_agent = false;
 bool g_issue_readers = false;
 // --check-print: the Check print window steps instead of the lifecycle steps.
 bool g_check_print = false;
+bool g_dialog_routing = false;
 
 // wxString::ToStdString() narrows through that same locale converter and
 // returns an empty string when a character will not fit the code page. Names
@@ -1560,6 +1572,8 @@ public:
                         // the page's own error pane is re-checked last.
                         self->check(!installed_shell()->agent_pane()->web_view().bridge_error_shown(),
                                     "mcp_fixture_agent_page_healthy_at_handover");
+                        if (g_dialog_witness)
+                            g_dialog_witness->start();
                         std::cerr << "HARNESS MCP FIXTURE READY failures=" << self->m_failures
                                   << " discovery=" << data_dir() << "/jusprin/mcp.json\n";
                     });
@@ -1609,6 +1623,7 @@ public:
                 m_issue_agent = g_issue_agent;
                 wait_for_agent_page("print_issues", [self = shared_from_this()] {
                     if (g_check_print) self->begin_check_print();
+                    else if (g_dialog_routing) self->begin_dialog_routing();
                     else if (g_issue_readers) self->begin_issue_readers();
                     else self->begin_print_issues();
                 });
@@ -2759,7 +2774,7 @@ private:
                   refused->error->message.find("could not read its saved projects") != std::string::npos &&
                   persistence().document().project_id() == project_id,
               "unavailable_projects_folder_agent_open_says_why_and_opens_nothing");
-        struct Answer : wxModalDialogHook
+        struct Answer : Workspace::UnansweredDialogObserver
         {
             std::string text;
             int Enter(wxDialog* dialog) override
@@ -3407,7 +3422,7 @@ private:
         Preset* const     hidden[] = {bundle.printers.find_preset(kSetupFixturePrinter, false), bundle.filaments.find_preset(filament, false)};
         for (Preset* preset : hidden)
             preset->is_visible = false;
-        struct DialogCount : wxModalDialogHook
+        struct DialogCount : Workspace::UnansweredDialogObserver
         {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_OK; }
@@ -3436,7 +3451,7 @@ private:
     // says so: OrcaSlicer does not mark the edited copy it works on.
     void verify_printer_embedded_in_a_file()
     {
-        struct AnswerDialogs : wxModalDialogHook
+        struct AnswerDialogs : Workspace::UnansweredDialogObserver
         {
             int Enter(wxDialog*) override { return wxID_OK; }
         } dialogs;
@@ -5915,7 +5930,7 @@ private:
     {
         using namespace std::chrono_literals;
         // Upstream's "Incorrect password" dialog would hold the run.
-        struct Answer : wxModalDialogHook
+        struct Answer : Workspace::UnansweredDialogObserver
         {
             int Enter(wxDialog* dialog) override
             {
@@ -6488,7 +6503,7 @@ private:
         auto* devices = wxGetApp().getDeviceManager();
         // Upstream shows the person "Incorrect password" in a modal dialog;
         // answer it here and keep its text.
-        struct Answer : wxModalDialogHook
+        struct Answer : Workspace::UnansweredDialogObserver
         {
             std::vector<std::string> texts;
             int Enter(wxDialog* dialog) override
@@ -11186,6 +11201,7 @@ private:
 #include "print_issues_scenario.inc"
 #include "print_issue_readers_scenario.inc"
 #include "check_print_scenario.inc"
+#include "dialog_routing_scenario.inc"
 #include "project_prompt_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
@@ -12312,10 +12328,12 @@ private:
             // Once the question is up: drawn to a PNG, then answered Cancel.
             const std::string png = (m_state->capture_dir / (std::string("reopen-") + variant + ".png")).string();
             wxTimer           capture;
+            bool              shown = false;
             capture.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
                 for (wxWindow* window : wxTopLevelWindows)
                     if (auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal()) {
                         capture.Stop();
+                        shown = true;
 #ifdef __APPLE__
                         check(snapshot_native_window(dialog->GetHandle(), png.c_str()), std::string("reopen_prompt_") + variant + "_drawn");
 #else
@@ -12328,6 +12346,9 @@ private:
             capture.Start(500);
             m_plater->load_project(wxString::FromUTF8(source.string()));
             capture.Stop();
+            // The person's open answers OrcaSlicer's other dialogs; this
+            // question is theirs, so it reaches the screen.
+            check(shown, std::string("reopen_prompt_") + variant + "_reaches_the_person");
             check(persistence().document().project_id() == before, std::string("reopen_prompt_") + variant + "_cancelled");
         };
         ask("open-project-unchanged", false);
@@ -14972,6 +14993,14 @@ int main(int argc, char** argv)
         }
         else if (argument == "--fake-printer")
             state->fake_printer = true;
+        else if (argument == "--dialog-witness") {
+            if (++index == argc) {
+                std::cerr << "--dialog-witness requires an output directory\n";
+                return 2;
+            }
+            fs::create_directories(fs::absolute(argv[index]));
+            g_dialog_witness = std::make_unique<JusPrinTest::DialogWitness>(fs::absolute(argv[index]));
+        }
         else if (argument == "--manual-unconfigured")
             state->mode = HarnessState::Mode::ManualUnconfigured;
         else if (argument == "--manual-tool-strip")
@@ -15187,6 +15216,16 @@ int main(int argc, char** argv)
         else if (argument == "--print-issue-readers") {
             state->mode = HarnessState::Mode::PrintIssues;
             g_issue_readers = true;
+        }
+        else if (argument == "--dialog-routing") {
+            if (++index == argc) {
+                std::cerr << "--dialog-routing requires an output directory\n";
+                return 2;
+            }
+            state->mode      = HarnessState::Mode::PrintIssues;
+            g_dialog_routing = true;
+            fs::create_directories(fs::absolute(argv[index]));
+            g_dialog_witness = std::make_unique<JusPrinTest::DialogWitness>(fs::absolute(argv[index]));
         }
         else if (argument == "--check-print") {
             state->mode   = HarnessState::Mode::PrintIssues;

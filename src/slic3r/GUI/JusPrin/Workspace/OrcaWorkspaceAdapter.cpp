@@ -711,6 +711,25 @@ void OrcaWorkspaceAdapter::file_open_started()
     m_open_answers = std::make_unique<ScopedLeastChangeAnswers>(/*prefer_cancel=*/true);
 }
 
+std::uint64_t OrcaWorkspaceAdapter::open_tool_call_dialogs()
+{
+    wxASSERT(wxIsMainThread());
+    const std::uint64_t token = ++m_next_tool_call_dialogs;
+    m_tool_call_dialogs.emplace(token, std::make_unique<ScopedLeastChangeAnswers>());
+    return token;
+}
+
+std::vector<OrcaMessage> OrcaWorkspaceAdapter::close_tool_call_dialogs(std::uint64_t token)
+{
+    wxASSERT(wxIsMainThread());
+    const auto found = m_tool_call_dialogs.find(token);
+    if (found == m_tool_call_dialogs.end())
+        throw std::logic_error("A tool call's dialog listener was closed twice");
+    std::vector<OrcaMessage> messages = found->second->take_messages();
+    m_tool_call_dialogs.erase(found);
+    return messages;
+}
+
 void OrcaWorkspaceAdapter::file_open_finished()
 {
     wxASSERT(wxIsMainThread());
