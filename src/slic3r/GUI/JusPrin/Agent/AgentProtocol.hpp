@@ -215,7 +215,8 @@ inline constexpr const char* kCalibrationStarted = "calibration_started";
 // opening the chat to connect it, by a connection tool call, or by linking a
 // printer found on the network in the printer form. There is one such trigger
 // per connection type, chosen by the app from the printer, and the skill stays
-// in that conversation from then on (PrinterConversation::connection_skill).
+// in that conversation from then on, with issue_report_open offered beside it
+// (PrinterConversation::connection_skill).
 inline constexpr const char* kConnectBambu = "connect_bambu";
 // The same for a print host, once the saved connection or the first
 // connection attempt says which kind it is.

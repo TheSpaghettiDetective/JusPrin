@@ -296,6 +296,7 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::PrinterAdd:
     case ToolHandler::PrinterConnectionStatus:
     case ToolHandler::PrinterConnect:
+    case ToolHandler::IssueReportOpen: // opens a browser page; the person files it
     case ToolHandler::SkillRead:
         return false;
     }

@@ -1143,15 +1143,16 @@ std::optional<AgentSkillUse> AgentHost::fire_skill(const std::string& trigger, c
 
 std::optional<AgentSkillUse> AgentHost::session_skill() const
 {
-    const std::optional<std::string> trigger = m_session_skill ? m_session_skill() : std::nullopt;
-    if (!trigger)
+    const std::optional<SessionSkill> session = m_session_skill ? m_session_skill() : std::nullopt;
+    if (!session)
         return std::nullopt;
     const auto skill = std::find_if(m_skills.begin(), m_skills.end(),
-                                    [&trigger](const AgentSkill& candidate) { return candidate.trigger == *trigger; });
+                                    [&session](const AgentSkill& candidate) { return candidate.trigger == session->trigger; });
     if (skill == m_skills.end())
         return std::nullopt;
-    AgentSkillUse use{skill->name, skill->text, nullptr, *trigger, {}};
+    AgentSkillUse use{skill->name, skill->text, nullptr, session->trigger, {}};
     use.stays = true;
+    use.tools = session->tools;
     return use;
 }
 

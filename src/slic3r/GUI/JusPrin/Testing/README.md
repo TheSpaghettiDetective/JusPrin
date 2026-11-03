@@ -144,6 +144,13 @@ printer is on; it tests everything after the plug-in, not the plug-in. Printers 
 starts, so once that program lets go the status reports `not_listening` until a
 restart. Holding the port from a small script is how to test both states.
 
+`--printer-connect-skill <dir> <address> <version>` runs the same chats for
+the connection skill; pass `none` as the version to run without the plug-in.
+`--open-issue` after the version also calls `issue_report_open`, which opens
+the default browser on a filled-in GitHub issue page. Nothing is filed unless
+someone presses Submit there, so close the tab. That run keeps its data
+folder; the link is in `log/debug_*.log` under "opening an issue page".
+
 ## Unit tests
 
 `jusprin_fake_bambu_tests` (Catch2, GUI build). They cover announce JSON,

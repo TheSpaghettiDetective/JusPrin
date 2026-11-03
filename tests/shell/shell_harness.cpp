@@ -1298,6 +1298,9 @@ struct HarnessState
     // --printer-connect-skill: what the same run shows about the skill.
     bool        connect_skill_check{false};
     std::string host_check_cases;
+    // --open-issue after it: the issue tool that comes with the skill opens
+    // the person's browser on a filled-in GitHub page.
+    bool        open_issue{false};
     // --printer-live-p1s: that printer through the live model.
     bool printer_live_p1s{false};
     std::string p1s_scenario;
@@ -6011,6 +6014,7 @@ private:
         std::cerr << "HARNESS SKILL connect chat, first request: " << connecting.size() << " skills\n";
         if (connecting.empty())
             return finish();
+        check(connecting.front().tools == std::vector<std::string>{"issue_report_open"}, "connect_skill_brings_the_issue_tool");
         const std::string text = connecting.front().text;
 
         const nlohmann::json early = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_first_read", connecting);
@@ -6049,6 +6053,16 @@ private:
             const auto request = panel->session_json().at("blocks");
             check(std::any_of(request.begin(), request.end(), [](const nlohmann::json& block) { return block.value("kind", "") == "plugin"; }),
                   "connect_skill_no_plugin_shows_the_notice");
+        }
+        if (m_state->open_issue) {
+            // Opens the default browser: Submit there is the person's.
+            const nlohmann::json opened = connect_skill_turn(
+                "issue_report_open",
+                {{"title", "Harness check: P1S does not connect"},
+                 {"body", "Bambu Lab P1S at " + m_state->network_check_address + ". Tried to connect; the app said the plug-in is "
+                          "missing. The person said: it works in Bambu Studio & 50% of the time + more."}},
+                "skill_issue", connecting);
+            check(opened.value("state", "") == "opened", "connect_skill_issue_page_opened");
         }
         // Where a report the person agreed to send goes: the real data folder.
         const std::string kept = backend.keep_connection_report("{\"report\":\"connection\"}");
@@ -15067,6 +15081,12 @@ int main(int argc, char** argv)
             data_directory                      = fs::absolute(argv[++index]);
             state->network_check_address        = argv[++index];
             state->network_check_plugin_version = argv[++index];
+            // Kept, so its log shows the link the browser was given.
+            if (index + 1 < argc && std::string(argv[index + 1]) == "--open-issue") {
+                state->open_issue = true;
+                state->keep_data  = true;
+                ++index;
+            }
         }
         else if (argument == "--printer-live-p1s") {
             if (++index == argc) {

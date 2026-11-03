@@ -756,6 +756,16 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
         });
     }
 
+    // The issue's own words: a title GitHub shows in a list, and a summary
+    // that the tool cuts to fit the link.
+    if (definition.handler == ToolHandler::IssueReportOpen) {
+        const auto given = [&arguments](const char* key, std::size_t limit) {
+            return arguments.contains(key) && arguments[key].is_string() && !arguments[key].get_ref<const std::string&>().empty() &&
+                   arguments[key].get_ref<const std::string&>().size() <= limit;
+        };
+        return has_only(arguments, {"title", "body"}) && given("title", kToolLabelLimit) && given("body", 4 * kToolTextLimit);
+    }
+
     if (definition.handler == ToolHandler::SkillRead)
         return has_only(arguments, {"name"}) && arguments.contains("name") && arguments["name"].is_string() &&
                !arguments["name"].get_ref<const std::string&>().empty();
@@ -1633,6 +1643,31 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterConnect},
+        // Offered only with the skill for a printer's connection type
+        // (PrinterConversation::connection_skill), never on a session's own
+        // list, so a chat that only adds a printer never has it. It posts
+        // nothing: the person submits the page on GitHub themselves.
+        {"issue_report_open",
+         "Open an issue for the developers",
+         "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body. "
+         "Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to "
+         "know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub "
+         "account, which they need. Write the body as a short summary for a developer: the printer model, what was tried, what "
+         "the app reported, and what the person said. Leave out the access code. The app adds its version, the connection "
+         "type and the printer, removes printer serials and IP addresses, and cuts a body too long for the link.",
+         object_schema(json{{"title", {{"type", "string"}, {"maxLength", kToolLabelLimit},
+                                       {"description", "One line naming the problem, such as the printer and what failed."}}},
+                            {"body", {{"type", "string"}, {"maxLength", 4 * kToolTextLimit},
+                                      {"description", "Plain text or Markdown, a few short paragraphs."}}}},
+                       json::array({"title", "body"})),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"opened"})}}},
+                            {"shortened", boolean_schema()},
+                            {"message", string_schema()}},
+                       json::array({"state", "shortened", "message"})),
+         ActionClass::ReadOnly,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::IssueReportOpen},
     };
     std::sort(definitions.begin(), definitions.end(),
               [](const ToolDefinition& lhs, const ToolDefinition& rhs) { return lhs.name < rhs.name; });

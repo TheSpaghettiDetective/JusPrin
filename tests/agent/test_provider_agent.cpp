@@ -751,6 +751,49 @@ TEST_CASE("a skill fired for a turn's first request follows its message and stay
     CHECK(Harness::of_kind(h.last_body(), "operator").size() == 1);
 }
 
+TEST_CASE("a skill's tools are offered from the request it is first read in, a result's continuation included",
+          "[agent][loop][skills]")
+{
+    const auto names = [](const json& body) {
+        std::vector<std::string> out;
+        for (const json& tool : body["tools"])
+            out.push_back(tool["name"]);
+        return out;
+    };
+    AgentSkillUse skill{"connect-bambu", "How the connection works.", nullptr, "connect_bambu", {}, true, {"issue_report_open"}};
+    Harness       h;
+    AgentRequest  request      = request_fixture();
+    request.session.tool_names = {"printer_connection_status"};
+
+    SECTION("brought by a tool result") {
+        REQUIRE(h.agent->start(request));
+        CHECK(names(h.last_body()) == std::vector<std::string>{"printer_connection_status"});
+        h.fake->data(frame(json{{"turn", "t"}, {"calls", json::array({call("call-1", "printer_connection_status")})}}));
+        REQUIRE(h.poll_until(AgentEventKind::ToolCall));
+        AgentToolResult result{"call-1", "succeeded", R"({"state":"listening"})"};
+        result.skills.push_back(skill);
+        REQUIRE(h.agent->continue_after_tool(result));
+        // In the registry's order, so the list stays the same from here on.
+        CHECK(names(h.last_body()) == std::vector<std::string>{"issue_report_open", "printer_connection_status"});
+        // And the model may call it in that same response.
+        h.fake->data(frame(json{{"turn", "t2"},
+                                {"calls", json::array({call("call-2", "issue_report_open", json{{"title", "t"}, {"body", "b"}})})}}));
+        CHECK(h.poll_until(AgentEventKind::ToolCall));
+    }
+    SECTION("in force from a turn's first request") {
+        request.skills.push_back(skill);
+        REQUIRE(h.agent->start(request));
+        CHECK(names(h.last_body()) == std::vector<std::string>{"issue_report_open", "printer_connection_status"});
+    }
+    SECTION("never without the skill") {
+        REQUIRE(h.agent->start(request));
+        h.fake->data(frame(json{{"turn", "t"},
+                                {"calls", json::array({call("call-1", "issue_report_open", json{{"title", "t"}, {"body", "b"}})})}}));
+        CHECK_FALSE(h.poll_until(AgentEventKind::ToolCall));
+        CHECK(h.last_results().back()["output"]["error"]["code"] == "unknown_tool");
+    }
+}
+
 TEST_CASE("a skill a tool result fires follows every result of its response, once", "[agent][loop][skills]")
 {
     Harness h;

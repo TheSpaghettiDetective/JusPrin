@@ -45,3 +45,7 @@ A `failed` note says what the plug-in reported and what the app saw at port 8883
 - **It turned the connection down at once.** The printer is reachable but not taking logins. This has not been seen on a real printer. A printer that is still starting up is one guess.
 
 What is worth trying for the network or the printer has not been tested on this printer, so search for what owners of this model report before you suggest it. Without a search, general knowledge gives: wait a few minutes, restart the printer, ask what its screen shows about Wi-Fi signal, or bring it closer to the router. When they want to try again, call `printer_connect` again, which opens the form.
+
+## When they are stuck
+
+The JusPrin developers can only fix what they hear about, and they have not tested most printers. A person who has tried and wants them to know can report it with `issue_report_open`, which opens a GitHub issue page in their browser with your summary filled in. It files nothing: they read the page, change it if they like, and submit it with their own GitHub account.

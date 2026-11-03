@@ -169,6 +169,26 @@ std::vector<OfferedTool> offered_tools(const AgentRequest& request)
     return tools;
 }
 
+// Adds the tools that come into force with `skills` to those offered, in the
+// registry's order, so the list a chat sends stays the same from then on.
+void bring_tools(std::vector<OfferedTool>& tools, const std::vector<AgentSkillUse>& skills)
+{
+    bool added = false;
+    for (const AgentSkillUse& skill : skills)
+        for (const std::string& name : skill.tools) {
+            if (std::any_of(tools.begin(), tools.end(), [&name](const OfferedTool& tool) { return tool.definition->name == name; }))
+                continue;
+            const ToolDefinition* definition = ToolRegistry::instance().find(name);
+            if (definition == nullptr)
+                throw std::logic_error("The skill " + skill.name + " brings a tool this build does not have: " + name);
+            tools.push_back(OfferedTool{definition, definition->description});
+            added = true;
+        }
+    if (added)
+        std::sort(tools.begin(), tools.end(),
+                  [](const OfferedTool& lhs, const OfferedTool& rhs) { return lhs.definition->name < rhs.definition->name; });
+}
+
 // The skills to send with one request. A skill that yields to another fired
 // for the same request is left out.
 std::vector<AgentSkillUse> skills_to_send(const std::vector<AgentSkillUse>& skills)
@@ -244,6 +264,7 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     items      = request.record.items;
     m_recorded = items.size();
     m_transcript.tools = offered_tools(request);
+    bring_tools(m_transcript.tools, request.skills);
 
     // What the model has not been sent yet, the person's side first: a
     // message that never reached it, then this turn's own.
@@ -375,6 +396,9 @@ bool ProviderAgent::continue_after_tool(const AgentToolResult& result)
         else
             m_step_skills.push_back(skill);
     }
+    // The request after this result is where those skills are first read, so
+    // their tools are offered from it on.
+    bring_tools(m_transcript.tools, result.skills);
     if (result.state != "succeeded" && m_failed_call.empty())
         m_failed_call = m_pending_tool + " (" + m_pending_call_id + ")";
     m_waiting_for_tool = false;

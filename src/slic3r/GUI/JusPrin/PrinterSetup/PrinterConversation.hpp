@@ -62,6 +62,10 @@ public:
     virtual void profile_changed() = 0;
     // The panel is done: restore its originating workspace.
     virtual void close_panel() = 0;
+    // Opens `url` in the person's default browser. False when none opened.
+    virtual bool open_in_browser(const std::string& url) = 0;
+    // This app's version, as an issue report gives it.
+    virtual std::string app_version() const = 0;
     // Home's printer list is out of date. `added` names a printer this
     // session just added, which Home leads with; empty for any other change.
     virtual void printers_changed(const std::string& added = {}) = 0;
@@ -72,6 +76,17 @@ public:
 // API key goes into a form of its own and is in neither.
 nlohmann::json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages,
                                       const std::vector<Agent::ToolActivity>&        activities);
+
+// The GitHub page for a new JusPrin issue, filled in with `title` and `body`
+// and ending in the app's own `footer`. A body that would take the link past
+// kIssueLinkLimit bytes is cut, never the footer, and `shortened` says so.
+inline constexpr std::size_t kIssueLinkLimit = 8000;
+struct IssueLink
+{
+    std::string url;
+    bool        shortened{false};
+};
+IssueLink issue_link(const std::string& title, const std::string& body, const std::string& footer);
 
 class PrinterConversation
 {
@@ -104,11 +119,12 @@ public:
                                                                  const Agent::ToolActivity& activity);
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
-    // The trigger of the skill for this printer's connection type, once the
-    // person has tried to connect it. Nothing before that, so someone who
-    // only picks a printer and prepares prints never gets it, and nothing for
-    // a connection type that has no skill yet.
-    std::optional<std::string> connection_skill() const;
+    // The skill for this printer's connection type, once the person has
+    // tried to connect it, and the tool that comes with it: issue_report_open,
+    // for someone stuck who wants the developers to know. Nothing before
+    // that, so someone who only picks a printer and prepares prints never
+    // gets either, and nothing for a connection type that has no skill yet.
+    std::optional<Agent::SessionSkill> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once
     // they are read. While a connection is being verified, looks at most once
@@ -134,6 +150,7 @@ private:
     Result change(const nlohmann::json& arguments);
     Result connection_status(const std::string& name, const std::string& message_id);
     Result request_credential(const nlohmann::json& arguments, const std::string& action_id);
+    Result open_issue(const nlohmann::json& arguments);
     void   connect(const nlohmann::json& arguments, const std::string& credential);
     // Why printer_connect refused `asked`, from what the app has observed.
     std::string    unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const;

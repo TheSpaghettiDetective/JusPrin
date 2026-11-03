@@ -16,8 +16,10 @@
 #include "libslic3r/PresetBundle.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
+#include <wx/utils.h>
 
 #include <optional>
 
@@ -460,5 +462,13 @@ void PrinterPanel::printers_changed(const std::string& added)
     if (m_callbacks.printers_changed)
         m_callbacks.printers_changed(added);
 }
+
+bool PrinterPanel::open_in_browser(const std::string& url)
+{
+    BOOST_LOG_TRIVIAL(info) << "Printer chat: opening an issue page, " << url.size() << " bytes: " << url;
+    return wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+}
+
+std::string PrinterPanel::app_version() const { return SLIC3R_VERSION; }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

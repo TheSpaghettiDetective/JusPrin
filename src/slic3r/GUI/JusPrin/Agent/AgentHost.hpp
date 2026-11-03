@@ -159,10 +159,10 @@ public:
     // place of the host's envelope; nullopt keeps the host's.
     using ToolOutputFormatter = std::function<std::optional<nlohmann::json>(const ToolActivity& activity)>;
     void set_session_tool_output(ToolOutputFormatter formatter) { m_session_tool_output = std::move(formatter); }
-    // The trigger of the skill a session's own subject has added to the
-    // conversation, if any. Asked for every request and every tool result; the
-    // skill stays once it is sent (AgentSkillUse::stays).
-    void set_session_skill(std::function<std::optional<std::string>()> trigger) { m_session_skill = std::move(trigger); }
+    // The skill a session's own subject has added to the conversation, if
+    // any, and the tools that come with it. Asked for every request and every
+    // tool result; the skill stays once it is sent (AgentSkillUse::stays).
+    void set_session_skill(std::function<std::optional<SessionSkill>()> skill) { m_session_skill = std::move(skill); }
     // Appends a message the agent is shown as having said, without asking the
     // model for it: a panel whose opening line is always the same. Returns
     // its id so the owner can anchor what it draws underneath.
@@ -636,7 +636,7 @@ private:
     std::function<nlohmann::json()> m_restore_points_provider;
     ToolExecutionCoordinator::ExtensionExecutor m_session_tool_executor;
     ToolOutputFormatter             m_session_tool_output;
-    std::function<std::optional<std::string>()> m_session_skill;
+    std::function<std::optional<SessionSkill>()> m_session_skill;
     std::function<nlohmann::json()> m_session_state_provider;
     std::function<nlohmann::json()> m_navigation_state_provider;
     ImageThumbnailFn                m_image_thumbnail_maker;
