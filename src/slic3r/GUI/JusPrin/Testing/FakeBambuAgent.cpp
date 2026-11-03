@@ -143,6 +143,23 @@ bool FakeBambuAgent::control_send_fails(const std::string& json_text)
     return j.is_object() && j.contains("send_fails") && j["send_fails"].is_boolean() && j["send_fails"].get<bool>();
 }
 
+std::string FakeBambuAgent::control_connect_failure(const std::string& json_text)
+{
+    json j = json::parse(json_text, nullptr, false);
+    if (!j.is_object() || !j.contains("connect_fails"))
+        return {};
+    if (j["connect_fails"].is_string())
+        return j["connect_fails"].get<std::string>();
+    // A bare true is the one code upstream names: a wrong access code.
+    return j["connect_fails"].is_boolean() && j["connect_fails"].get<bool>() ? "5" : std::string();
+}
+
+void FakeBambuAgent::fail_next_connect(std::string code)
+{
+    std::lock_guard<std::mutex> lock(state_mutex);
+    m_next_connect_failure = std::move(code);
+}
+
 bool FakeBambuAgent::apply_control_json(const std::string& json_text, FakeBambuStatusStep& step, bool& offline)
 {
     json j = json::parse(json_text, nullptr, false);
@@ -441,6 +458,7 @@ bool FakeBambuAgent::reload_control_file()
         m_current              = step;
         m_offline              = offline;
         m_send_fails           = control_send_fails(ss.str());
+        m_control_connect_failure = control_connect_failure(ss.str());
         m_control_file_present = true;
         m_control_mtime        = mtime;
     }
@@ -624,14 +642,27 @@ int FakeBambuAgent::connect_printer(std::string dev_id, std::string dev_ip, std:
     OnLocalConnectedFn  connect_fn;
     FakeBambuStatusStep initial_step;
     std::string         id;
+    std::string         failure;
     {
         std::lock_guard<std::mutex> lock(state_mutex);
-        connected_dev_id = dev_id.empty() ? std::string(JUSPRIN_FAKE_BAMBU_DEV_ID) : dev_id;
-        id               = connected_dev_id;
-        connect_fn       = on_local_connect_fn;
-        initial_step     = m_current;
-        if (selected_machine.empty())
-            selected_machine = connected_dev_id;
+        id         = dev_id.empty() ? std::string(JUSPRIN_FAKE_BAMBU_DEV_ID) : dev_id;
+        connect_fn = on_local_connect_fn;
+        failure    = m_next_connect_failure.empty() ? m_control_connect_failure : m_next_connect_failure;
+        m_next_connect_failure.clear();
+        if (failure.empty()) {
+            connected_dev_id = id;
+            initial_step     = m_current;
+            if (selected_machine.empty())
+                selected_machine = connected_dev_id;
+        }
+    }
+    if (!failure.empty()) {
+        // What the plug-in reports for a printer that refuses: the callback
+        // hears the failure and its code, and no status follows.
+        if (connect_fn)
+            connect_fn(ConnectStatusFailed, id, failure);
+        BOOST_LOG_TRIVIAL(info) << "FakeBambuAgent: connect to " << id << " failed with code " << failure;
+        return BAMBU_NETWORK_ERR_CONNECT_FAILED;
     }
     if (connect_fn)
         connect_fn(ConnectStatusOk, id, "connected");

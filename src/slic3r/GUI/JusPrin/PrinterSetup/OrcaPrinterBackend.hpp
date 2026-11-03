@@ -40,6 +40,7 @@ public:
     void open_printer_settings(const std::string& name) override;
     PrinterConnectionInfo connection(const std::string& name) override;
     void prepare_connection(const std::string& name) override;
+    DiscoveryPort discovery_port() override;
     void sign_in_to_bambu() override;
     void install_network_plugin() override;
     std::string connect_printer(const std::string& name, const std::string& device_id,
@@ -68,6 +69,10 @@ private:
         std::string device_id;
         std::chrono::steady_clock::time_point started;
         std::chrono::system_clock::time_point observation_start;
+        // When the device was asked to connect: an answer from the plug-in
+        // before this (the disconnect a re-selection starts with) is not this
+        // attempt's.
+        std::chrono::steady_clock::time_point connect_requested;
         // Deselected, to be selected again on the next event turn.
         bool reselecting{false};
     };
@@ -82,6 +87,10 @@ private:
         std::string name, host_type, address, api_key;
         std::chrono::steady_clock::time_point started;
         std::shared_ptr<std::atomic<HostVerdict>> verdict;
+        // What the host's test said, written before the verdict: the HTTP
+        // status and body, Moonraker's "doesn't look like Moonraker", or
+        // curl's reason the host was not reached.
+        std::shared_ptr<std::string> detail;
         std::string state;
         std::string message;
     };

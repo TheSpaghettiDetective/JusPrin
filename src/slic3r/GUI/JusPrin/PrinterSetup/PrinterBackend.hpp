@@ -150,6 +150,22 @@ struct ConnectionCandidate
     std::string name;
     std::string address;
     bool lan_mode{false};
+    // On the person's Bambu account, and not announced on this network since
+    // the app started: where it is, and which mode it is in, are not known.
+    bool account_only{false};
+    // Why the app does not offer this printer, or empty when it does. Every
+    // printer the search heard is listed, so the model is never told "found
+    // no printer" about one the app chose not to offer:
+    //   other_model      a printer of another model (detail: that model's name)
+    //   linked_elsewhere the same model, already another saved printer's
+    //                    device (detail: that printer's name)
+    //   other_device     the same model, while this saved printer is linked to
+    //                    a different device (detail: that device id)
+    //   occupied         in LAN mode, but bound elsewhere by its own account
+    // A printer in cloud mode or known only from the account carries no
+    // reason here; lan_mode and account_only say so.
+    std::string reason;
+    std::string detail;
 };
 
 // How long a connection attempt waits for the printer before it is reported
@@ -171,6 +187,12 @@ struct PrinterConnectionInfo
     // installed or not turned on: nothing reaches the printer until it is.
     bool needs_network_plugin{false};
 };
+
+// Who holds the UDP port Bambu Lab printers announce themselves on. Discovery
+// reports success even when another program holds it, and hears nothing. The
+// plug-in takes the port only as the app starts: once it has missed it, neither
+// stopping and starting discovery nor reloading the plug-in takes it up.
+enum class DiscoveryPort { Ours, Taken, Free };
 
 struct ManualPrinterResult
 {
@@ -237,6 +259,7 @@ public:
     // once the printer has answered.
     virtual PrinterConnectionInfo connection(const std::string& name) { return {}; }
     virtual void prepare_connection(const std::string& name) {}
+    virtual DiscoveryPort discovery_port() { return DiscoveryPort::Ours; }
     virtual void sign_in_to_bambu() {}
     // Downloads and loads Bambu's network plug-in behind Orca's own progress
     // dialog, as Orca's "Click here to install it" does. Returns once that

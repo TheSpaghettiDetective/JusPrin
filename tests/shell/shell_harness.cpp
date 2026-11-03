@@ -253,6 +253,28 @@
 //              then named printers: a second printer of one model, Home's
 //              list, rename, remove, and a nozzle change that keeps the
 //              printer's own settings
+//   --printer-network-check <fixture-directory> <address> <plug-in-version> [--simulate-announce]
+//              no model and no fake: against a real Bambu Lab P1S in cloud
+//              mode at <address>, on this network, with Bambu's real network
+//              plug-in copied to <fixture-directory>/plugins beforehand. Saves
+//              a P1S, opens its Connect chat and runs printer_connect and
+//              printer_connection_status with a scripted stand-in for the
+//              model, printing each result and each note the app posts. Sends
+//              nothing to the printer: it only listens for its announcements
+//              and is refused before any credential is asked for. With
+//              --simulate-announce, no printer is needed: 25 seconds in, the
+//              app is handed the announcement the plug-in would have passed on
+//   --printer-live-p1s <address>
+//              needs ANTHROPIC_API_KEY or OPENAI_API_KEY, macOS, and Bambu's real
+//              network plug-in in ~/Library/Application Support/JusPrin2/plugins,
+//              which it copies to this run's throwaway data directory: against
+//              a real Bambu Lab P1S in cloud mode at <address>, saves a P1S, opens
+//              its Connect chat and plays a person through the live model: asks
+//              to connect it, gives the address, and at least 20 seconds into the
+//              search asks what to do. Prints every message, tool call and note
+//              with its timing, and checks the status was read, no connect
+//              succeeded, and what the model then said. Costs one live chat each
+//              run; other programs on UDP 2021 hide the printer (see Testing/README.md)
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -404,6 +426,7 @@
 #include <mutex>
 #include <optional>
 #include <regex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -615,13 +638,18 @@ wxString ui_name(const std::string& utf8) { return wxString::FromUTF8(utf8.c_str
 // A print host on a loopback port, for connection tests without hardware.
 // Each request is held for `hold` (until the stand-in goes, when it is
 // negative), then either answered as Moonraker's /server/info or hung up on.
+// `status` and `body` make it answer as something else: a host that rejects
+// the key (401), or one that is not Moonraker at all (200 with another body).
 class StandInHost
 {
 public:
-    StandInHost(std::chrono::milliseconds hold, bool answer)
+    StandInHost(std::chrono::milliseconds hold, bool answer, unsigned status = 200,
+                std::string body = R"({"result":{"klippy_state":"ready"}})")
         : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
         , m_hold(hold)
         , m_answer(answer)
+        , m_status(status)
+        , m_body(std::move(body))
     {
         m_thread = std::thread([this] { serve(); });
     }
@@ -670,9 +698,9 @@ private:
             else
                 m_released.wait_for(lock, m_hold, [this] { return m_stopping; });
             if (m_answer && !m_stopping) {
-                const std::string body = R"({"result":{"klippy_state":"ready"}})";
-                const std::string reply = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
-                                          std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+                const std::string reply = "HTTP/1.1 " + std::to_string(m_status) + (m_status == 200 ? " OK" : " Error") +
+                                          "\r\nContent-Type: application/json\r\nContent-Length: " +
+                                          std::to_string(m_body.size()) + "\r\nConnection: close\r\n\r\n" + m_body;
                 boost::asio::write(socket, boost::asio::buffer(reply), error);
             }
             socket.close(error);
@@ -683,6 +711,8 @@ private:
     boost::asio::ip::tcp::acceptor m_acceptor;
     std::chrono::milliseconds      m_hold;
     bool                           m_answer;
+    unsigned                       m_status;
+    std::string                    m_body;
     std::atomic<int>               m_requests{0};
     std::mutex                     m_mutex;
     std::condition_variable        m_released;
@@ -1144,6 +1174,7 @@ struct HarnessState
 {
     enum class Mode {
         Shell,
+        PrinterNetworkCheck,
         Stock,
         Manual,
         ManualLiveAgent,
@@ -1223,6 +1254,13 @@ struct HarnessState
     // on the network, in a hands-on run (Testing/README.md); with
     // --manual-mcp, the fixture's saved printer is connected to it.
     bool fake_printer{false};
+    // --printer-network-check: where the real printer is, and the version of
+    // the real network plug-in in the data directory.
+    std::string network_check_address;
+    std::string network_check_plugin_version;
+    bool        network_check_simulate{false};
+    // --printer-live-p1s: that printer through the live model.
+    bool printer_live_p1s{false};
     // --printer-settings-live, --filament-settings-live: a settings change to
     // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
     bool settings_live{false};
@@ -1372,6 +1410,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PrinterSetup) {
                 verify_printer_setup();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrinterNetworkCheck) {
+                verify_printer_network_check();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::PrinterLive) {
@@ -3906,6 +3948,11 @@ private:
             run_live_steps();
             return;
         }
+        if (m_state->printer_live_p1s) {
+            queue_printer_live_p1s();
+            run_live_steps();
+            return;
+        }
         if (m_state->settings_live) {
             queue_settings_live();
             run_live_steps();
@@ -4637,6 +4684,221 @@ private:
         live_close("no_plugin_connect_flow");
     }
 
+    // --- A real printer, a live model (--printer-live-p1s) ------------------
+    //
+    // The person of 2026-10-31, against their real P1S in cloud mode: asks to
+    // connect it, gives its address, and asks what to do. Every message, tool
+    // call and note is printed once as it settles, with the seconds since the
+    // chat opened.
+
+    std::chrono::steady_clock::time_point                m_p1s_start;
+    std::optional<std::chrono::steady_clock::time_point> m_p1s_first_status;
+    std::optional<std::chrono::steady_clock::time_point> m_p1s_quiet_since;
+    std::vector<std::string>                             m_p1s_printed;
+    std::size_t                                          m_p1s_tools_started{0};
+    std::size_t                                          m_p1s_tools_finished{0};
+    bool                                                 m_p1s_address_given{false};
+
+    std::string p1s_stamp() const
+    {
+        return "HARNESS LIVE +" +
+               std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - m_p1s_start).count()) + "s ";
+    }
+
+    void p1s_watch()
+    {
+        for (const Agent::ConversationMessage& message : live_messages()) {
+            if (message.state == Agent::MessageState::Streaming ||
+                std::find(m_p1s_printed.begin(), m_p1s_printed.end(), message.id) != m_p1s_printed.end())
+                continue;
+            m_p1s_printed.push_back(message.id);
+            const char* who = message.role == Agent::MessageRole::User ? "person" :
+                              message.role == Agent::MessageRole::Note ? "app note" :
+                                                                         "model";
+            std::cerr << p1s_stamp() << who << ": " << message.text << '\n';
+            if (message.error)
+                std::cerr << p1s_stamp() << who << " error: " << message.error->code << ' ' << message.error->message << '\n';
+        }
+        m_live_printed = live_messages().size();
+        const auto& activities = live_activities();
+        for (; m_p1s_tools_started < activities.size(); ++m_p1s_tools_started) {
+            const Agent::ToolActivity& activity = activities[m_p1s_tools_started];
+            std::cerr << p1s_stamp() << "tool call: " << activity.tool << ' ' << activity.arguments_json << '\n';
+            if (activity.tool == "printer_connection_status" && !m_p1s_first_status)
+                m_p1s_first_status = std::chrono::steady_clock::now();
+        }
+        for (; m_p1s_tools_finished < activities.size() && activities[m_p1s_tools_finished].state != Agent::ToolState::Running; ++m_p1s_tools_finished) {
+            const Agent::ToolActivity& activity = activities[m_p1s_tools_finished];
+            std::cerr << p1s_stamp() << "tool result: " << activity.tool << " (" << tool_state_label(activity.state) << ") "
+                      << (activity.error ? activity.error->code + ": " + activity.error->message : activity.result_json) << '\n';
+        }
+    }
+
+    // Nothing running for three seconds: a tool's result, or a note, can start
+    // the next request just after the last one ended.
+    bool p1s_quiet()
+    {
+        p1s_watch();
+        const auto        messages = live_messages();
+        const bool        failed   = !messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+                            messages.back().state == Agent::MessageState::Failed;
+        Agent::AgentHost* host     = live_panel()->host();
+        if (!live_settled() && !(failed && host != nullptr && !host->stream_active())) {
+            m_p1s_quiet_since.reset();
+            return false;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (!m_p1s_quiet_since)
+            m_p1s_quiet_since = now;
+        return now - *m_p1s_quiet_since >= std::chrono::seconds(3);
+    }
+
+    // The app has told the model about the printer, by a note or a status read.
+    bool p1s_printer_reported() const
+    {
+        const std::string& address = m_state->network_check_address;
+        for (const Agent::ConversationMessage& message : live_messages())
+            if (message.role == Agent::MessageRole::Note && message.text.find(address) != std::string::npos)
+                return true;
+        for (const Agent::ToolActivity* call : live_calls("printer_connection_status"))
+            if (call->result_json.find(address) != std::string::npos)
+                return true;
+        return false;
+    }
+
+    // At least 20 seconds after the search began, with the model done answering
+    // whatever the app reported. A printer that stays silent ends this at two
+    // minutes, what --printer-network-check allows it.
+    bool p1s_after_the_search()
+    {
+        using namespace std::chrono_literals;
+        const bool quiet = p1s_quiet();
+        if (!m_p1s_first_status)
+            return quiet;
+        const auto waited = std::chrono::steady_clock::now() - *m_p1s_first_status;
+        return quiet && waited >= 20s && (waited >= 120s || p1s_printer_reported());
+    }
+
+    bool p1s_asked_for_the_address() const
+    {
+        const auto messages = live_messages();
+        return !messages.empty() && messages.back().role == Agent::MessageRole::Assistant &&
+               messages.back().text.find('?') != std::string::npos && mentions(messages.back().text, {"address", " ip"});
+    }
+
+    // What the model said once the app had told it about the printer: after the
+    // note naming the address, or else its answer to the last line.
+    std::vector<std::string> p1s_replies_after_the_report() const
+    {
+        const auto         messages = live_messages();
+        const std::string& address  = m_state->network_check_address;
+        auto               from     = std::find_if(messages.begin(), messages.end(), [&address](const Agent::ConversationMessage& message) {
+            return message.role == Agent::MessageRole::Note && message.text.find(address) != std::string::npos;
+        });
+        if (from == messages.end())
+            from = std::find_if(messages.rbegin(), messages.rend(), [](const Agent::ConversationMessage& message) {
+                       return message.role == Agent::MessageRole::User;
+                   }).base();
+        std::vector<std::string> replies;
+        for (; from != messages.end(); ++from)
+            if (from->role == Agent::MessageRole::Assistant && !from->text.empty())
+                replies.push_back(from->text);
+        return replies;
+    }
+
+    void queue_printer_live_p1s()
+    {
+        const std::string address = m_state->network_check_address;
+        m_live_steps.push_back({"save: Bambu Lab P1S",
+                                [this] {
+                                    check(NetworkAgent::is_network_module_loaded(), "live_p1s_uses_the_real_plugin");
+                                    check(fake_bambu_printer_agent_id(wxGetApp().app_config).empty(), "live_p1s_has_no_fake");
+                                    const auto& catalog = live_backend().catalog();
+                                    const auto  model   = std::find_if(catalog.begin(), catalog.end(), [](const PrinterSetup::CatalogPrinter& printer) {
+                                        return printer.id == "BBL/Bambu Lab P1S";
+                                    });
+                                    check(model != catalog.end(), "live_p1s_is_in_the_catalogue");
+                                    if (model == catalog.end())
+                                        return;
+                                    PrinterSetup::SavedPrinter added;
+                                    const std::string          problem = live_backend().add_printer(
+                                        {model->vendor_id, model->model_id, "0.4", model->filament_for(0.4), model->display_name(), {}, {}}, added);
+                                    check(problem.empty(), "live_p1s_saved");
+                                    m_live_added.push_back(added.name);
+                                    std::cerr << "HARNESS LIVE   provider " << wxGetApp().app_config->get("jusprin_agent", "provider") << ", model "
+                                              << wxGetApp().app_config->get("jusprin_agent", "model") << ", printer " << added.name << '\n';
+                                },
+                                [] { return true; },
+                                {}});
+        m_live_steps.push_back({"open: Connect on the P1S",
+                                [this] {
+                                    live_show(PrinterSetup::ConversationMode::Connect, m_live_added.empty() ? std::string() : m_live_added.front());
+                                    m_live_printed = 0;
+                                    m_p1s_start    = std::chrono::steady_clock::now();
+                                },
+                                [this] {
+                                    return live_panel()->IsShown() && live_panel()->host() != nullptr &&
+                                           live_panel()->host()->handshake_complete() && live_panel()->instructions_ready() &&
+                                           !live_messages().empty();
+                                },
+                                [this] { p1s_watch(); }});
+        m_live_steps.push_back({"say: Connect my printer", [this] { say("Connect my printer"); }, [this] { return p1s_quiet(); }, {}});
+        const auto give_address = [this, address] {
+            m_p1s_quiet_since.reset();
+            m_p1s_address_given = true;
+            say("It's at " + address);
+        };
+        m_live_steps.push_back({"say, if asked: the address",
+                                [this, give_address] {
+                                    m_p1s_quiet_since.reset();
+                                    if (p1s_asked_for_the_address())
+                                        give_address();
+                                },
+                                [this] { return p1s_quiet(); },
+                                {}});
+        m_live_steps.push_back({"wait: the search reports",
+                                [this] { m_p1s_quiet_since.reset(); },
+                                [this] { return p1s_after_the_search(); },
+                                {}});
+        // The person of 2026-10-31 gave the address whether or not the model
+        // asked, so the refusal for that address is read either way.
+        m_live_steps.push_back({"say, if not yet said: the address",
+                                [this, give_address] {
+                                    m_p1s_quiet_since.reset();
+                                    if (!m_p1s_address_given)
+                                        give_address();
+                                },
+                                [this] { return p1s_quiet(); },
+                                {}});
+        m_live_steps.push_back({"say: so what do I do now?",
+                                [this] {
+                                    m_p1s_quiet_since.reset();
+                                    say("so what do I do now?");
+                                },
+                                [this] { return p1s_after_the_search(); },
+                                [this, address] {
+                                    p1s_watch();
+                                    check(!live_calls("printer_connection_status").empty(), "live_p1s_status_was_called");
+                                    check(p1s_printer_reported(), "live_p1s_the_app_reported_the_printer");
+                                    const auto connects = live_calls("printer_connect");
+                                    check(std::none_of(connects.begin(), connects.end(),
+                                                       [](const Agent::ToolActivity* call) { return call->state == Agent::ToolState::Succeeded; }),
+                                          "live_p1s_no_connect_succeeded");
+                                    const auto replies = p1s_replies_after_the_report();
+                                    const auto any     = [&replies](const std::vector<std::string>& words) {
+                                        return std::any_of(replies.begin(), replies.end(), [&words](const std::string& reply) { return mentions(reply, words); });
+                                    };
+                                    check(std::any_of(replies.begin(), replies.end(),
+                                                      [](const std::string& reply) { return mentions(reply, {"p1s"}) && mentions(reply, {"lan only", "lan mode"}); }),
+                                          "live_p1s_words_name_the_printer_and_lan_only");
+                                    check(!any({"no printer", "not on the network", "isn't on the network", "not on your network", "couldn't find", "can't find", "cannot find", "not found"}),
+                                          "live_p1s_words_do_not_say_no_printer");
+                                    // Not plain "menu": "Connect… in its menu on Home" is the app's real menu.
+                                    check(!any({" > ", "→", "->", "gear icon", "wlan", "settings menu", "network menu", "printer's menu"}),
+                                          "live_p1s_words_invent_no_menu_path");
+                                }});
+    }
+
     void finish_printer_live()
     {
         live_panel()->close();
@@ -4686,14 +4948,15 @@ private:
     // outcome, counting a 100 ms timer's ticks meanwhile: a test run on the
     // main thread stops the app, and the timer with it.
     static HostOutcome connect_host_and_wait(PrinterSetup::OrcaPrinterBackend& backend, const std::string& name,
-                                             const std::string& address, std::chrono::seconds limit)
+                                             const std::string& address, std::chrono::seconds limit,
+                                             const std::string& kind = "moonraker")
     {
         HostOutcome outcome;
         wxTimer     timer;
         timer.Bind(wxEVT_TIMER, [&outcome](wxTimerEvent&) { ++outcome.ticks; });
         timer.Start(100);
         const auto        start   = std::chrono::steady_clock::now();
-        const std::string problem = backend.connect_host(name, "moonraker", address, "");
+        const std::string problem = backend.connect_host(name, kind, address, "");
         outcome.state             = problem.empty() ? backend.connection(name).state : "refused: " + problem;
         while (outcome.state == "connecting" && std::chrono::steady_clock::now() - start < limit) {
             wxYield();
@@ -4843,6 +5106,43 @@ private:
             // reports nothing gets no Loaded row.
             check(card && card->spools.empty(), "home_claims_nothing_loaded_on_a_printer_that_reports_nothing");
         }
+        // What the host answered travels with the failure: a host that
+        // rejects the key, one that is not Moonraker, and one that cannot be
+        // reached are three different situations, and Moonraker's own test
+        // tells them apart. Before 2026-11-01 all three read "Could not reach
+        // the print host".
+        {
+            std::set<std::string> messages;
+            const auto            failure = [&](const std::string& address, const std::string& label) {
+                const HostOutcome outcome = connect_host_and_wait(backend, kAddedPrinter, address, 20s);
+                const std::string message = backend.connection(kAddedPrinter).message;
+                std::cerr << "HARNESS NOTE " << label << " state=" << outcome.state << " message=" << message << '\n';
+                check(outcome.state == "failed", label + "_fails");
+                messages.insert(message);
+                return message;
+            };
+            StandInHost       rejecting(0ms, /*answer=*/true, 401, R"({"error":{"code":401,"message":"Unauthorized"}})");
+            const std::string rejected = failure(rejecting.address(), "host_rejects_the_key");
+            check(rejected.find("401") != std::string::npos, "host_rejected_key_carries_the_hosts_answer");
+            check(rejected.find("Could not reach") == std::string::npos, "host_rejected_key_is_not_reported_as_unreachable");
+            StandInHost       other(0ms, /*answer=*/true, 200, R"({"api":"0.1","server":"1.9.3"})");
+            const std::string wrong_kind = failure(other.address(), "host_is_not_moonraker");
+            check(wrong_kind.find("Moonraker") != std::string::npos && wrong_kind.find("Could not reach") == std::string::npos,
+                  "host_of_another_kind_is_named_as_such");
+            const std::string closed = failure("http://127.0.0.1:1", "host_port_closed");
+            check(closed.find("reach") != std::string::npos || closed.find("connect") != std::string::npos, "host_closed_port_is_unreachable");
+            check(messages.size() == 3, "host_failures_are_told_apart");
+            check(saved_address() == address_before, "host_failures_leave_the_profile_as_it_was");
+        }
+        // OctoPrint's test fails with no message on a 200 without "api". The
+        // host answered, so "could not reach" would be false.
+        {
+            StandInHost       no_api(0ms, /*answer=*/true, 200, R"({"server":"1.9.3"})");
+            const HostOutcome outcome = connect_host_and_wait(backend, kAddedPrinter, no_api.address(), 20s, "octoprint");
+            const std::string message = backend.connection(kAddedPrinter).message;
+            std::cerr << "HARNESS NOTE host_gives_no_reason state=" << outcome.state << " message=" << message << '\n';
+            check(outcome.state == "failed" && message.find("Could not reach") == std::string::npos, "host_that_answered_is_not_called_unreachable");
+        }
         std::string answered;
         {
             StandInHost       host(0ms, /*answer=*/true);
@@ -4990,6 +5290,134 @@ private:
               "host_lanes_silent_host_goes_offline");
         check(gone && gone->spools.empty(), "host_lanes_silent_host_claims_nothing_loaded");
         check(!saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_sees_the_silent_host_disconnected");
+    }
+
+    int m_network_check_refusals{0};
+
+    // Runs one tool in the panel already open, through a stand-in for the
+    // model, and prints what the model would read.
+    nlohmann::json network_check_call(const std::string& tool, const nlohmann::json& arguments, const std::string& name)
+    {
+        using namespace std::chrono_literals;
+        Agent::AgentHost* host = installed_shell()->printer_panel()->host();
+        check(wait_for([host] { return !host->stream_active(); }, 20s), name + "_no_turn_running");
+        const std::size_t before = host->tools().activities().size();
+        host->set_agent(std::make_unique<ToolCallingAgent>(tool, arguments), Agent::AgentAvailability::Ready);
+        host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                             {"version", Agent::Protocol::kVersion},
+                                             {"id", name},
+                                             {"type", "user_message"},
+                                             {"payload", {{"clientMessageId", name + "-c"}, {"text", "go on"}}}}
+                                  .dump());
+        const bool made = wait_for([&] {
+            const auto& activities = host->tools().activities();
+            return activities.size() > before && activities.back().state != Agent::ToolState::Running;
+        }, 10s);
+        check(made, name + "_tool_called");
+        if (!made)
+            return {};
+        const Agent::ToolActivity& activity = host->tools().activities().back();
+        const nlohmann::json       output   = activity.error ?
+                  nlohmann::json{{"error", {{"code", activity.error->code}, {"message", activity.error->message}}}} :
+                  nlohmann::json::parse(activity.result_json);
+        std::cerr << "HARNESS NETWORK " << tool << ' ' << arguments.dump() << " -> " << output.dump() << '\n';
+        return output;
+    }
+
+    void verify_printer_network_check()
+    {
+        using namespace std::chrono_literals;
+        const std::string& address = m_state->network_check_address;
+        check(NetworkAgent::is_network_module_loaded(), "network_check_uses_the_real_plugin");
+        check(fake_bambu_printer_agent_id(wxGetApp().app_config).empty(), "network_check_has_no_fake");
+
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        const auto& catalog = backend.catalog();
+        const auto  model   = std::find_if(catalog.begin(), catalog.end(),
+                                           [](const PrinterSetup::CatalogPrinter& printer) { return printer.id == "BBL/Bambu Lab P1S"; });
+        check(model != catalog.end(), "network_check_p1s_is_in_the_catalogue");
+        if (model == catalog.end())
+            return finish();
+        PrinterSetup::SavedPrinter added;
+        const std::string          problem = backend.add_printer(
+            {model->vendor_id, model->model_id, "0.4", model->filament_for(0.4), model->display_name(), {}, {}}, added);
+        check(problem.empty(), "network_check_p1s_saved");
+        if (!problem.empty())
+            return finish();
+
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        panel->open(PrinterSetup::ConversationMode::Connect, added.name);
+        const bool loaded = wait_for([panel] {
+            return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+        }, 60s);
+        check(loaded, "network_check_page_loaded");
+        if (!loaded)
+            return finish();
+
+        std::size_t printed = 0;
+        const auto  start   = std::chrono::steady_clock::now();
+        const auto  notes   = [&]() {
+            std::vector<std::string> found;
+            const Agent::ProjectPersistence* persistence = panel->persistence();
+            for (const auto& message : persistence->document().messages(persistence->document().active_conversation_id()))
+                if (message.role == Agent::MessageRole::Note)
+                    found.push_back(message.text);
+            for (; printed < found.size(); ++printed)
+                std::cerr << "HARNESS NETWORK note at "
+                          << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count()
+                          << " s: " << found[printed] << '\n';
+            return found;
+        };
+        const auto said = [](const nlohmann::json& output) { return output.at("error").at("message").get<std::string>(); };
+
+        // Nothing has looked: the refusal must not claim anything was found.
+        const std::string before = said(network_check_call("printer_connect", {{"deviceId", address}}, "before_search"));
+        check(before.find("No network search has run") != std::string::npos, "network_check_refusal_before_the_search_says_so");
+        const nlohmann::json first = network_check_call("printer_connection_status", nlohmann::json::object(), "first_read");
+        check(first.value("provider", "") == "bambu", "network_check_first_read_is_bambu");
+        check(first.at("search").at("state") != "not_started", "network_check_search_started");
+        network_check_call("printer_connect", {{"deviceId", address}}, "during_search");
+
+        // A printer that answers ends this, whatever was said at 15 seconds.
+        const auto names_it = [&address](const std::string& note) { return note.find(address) != std::string::npos; };
+        bool       announced = false;
+        check(wait_for([&] {
+                  // --simulate-announce: what the plug-in hands the app for a
+                  // P1S in cloud mode, as the log of 2026-10-31 records it.
+                  if (m_state->network_check_simulate && !announced && std::chrono::steady_clock::now() - start > 25s) {
+                      announced = true;
+                      std::cerr << "HARNESS NETWORK simulated announcement, no printer involved\n";
+                      wxGetApp().getDeviceManager()->on_machine_alive(
+                          nlohmann::json{{"dev_name", "P1s"}, {"dev_id", "01P00C652900116"}, {"dev_ip", address}, {"dev_type", "C12"},
+                                         {"dev_signal", "-43"}, {"connect_type", "cloud"}, {"bind_state", "occupied"}}
+                              .dump());
+                  }
+                  const auto found = notes();
+                  return std::any_of(found.begin(), found.end(), names_it);
+              }, 120s),
+              "network_check_note_names_the_printer");
+
+        const nlohmann::json later = network_check_call("printer_connection_status", nlohmann::json::object(), "later_read");
+        const nlohmann::json seen  = later.at("seen");
+        const auto reported = std::find_if(seen.begin(), seen.end(), [&address](const nlohmann::json& printer) {
+            return printer.at("address") == address && printer.at("reason") == "cloud_mode";
+        });
+        check(reported != seen.end(), "network_check_status_reports_it_seen_in_cloud_mode");
+        check(later.at("candidates").empty(), "network_check_it_is_not_offered");
+        if (reported == seen.end()) {
+            panel->close();
+            return finish();
+        }
+        const std::string name = reported->at("name");
+        for (const nlohmann::json& arguments : {nlohmann::json{{"deviceId", address}}, nlohmann::json{{"deviceId", name}},
+                                                nlohmann::json{{"hostType", "moonraker"}, {"address", address}}}) {
+            const std::string refusal = said(network_check_call("printer_connect", arguments, "refused_" + std::to_string(++m_network_check_refusals)));
+            check(refusal.find(address) != std::string::npos && refusal.find("seen on the network with LAN Only off") != std::string::npos,
+                  "network_check_refusal_says_so_" + std::to_string(m_network_check_refusals));
+        }
+        notes();
+        panel->close();
+        finish();
     }
 
     // Opens the panel on `printer` with a model that answers the first
@@ -5307,6 +5735,9 @@ private:
                 // turn: a connect re-selects an already-selected printer on the next.
                 wxYield();
                 wxGetApp().getDeviceManager()->set_selected_machine("");
+                // A real change of selection still reads "The selected printer
+                // changed": the backend reads the plug-in's answer first, and
+                // falls back to the selection only when there was none.
                 const auto interrupted = backend->connection(name);
                 self->check(interrupted.state == "failed" && interrupted.message.find("The selected printer changed") != std::string::npos &&
                     interrupted.message.find("access code") == std::string::npos, "selection_interruption_does_not_blame_credentials");
@@ -5357,7 +5788,7 @@ private:
                                 fake->set_on_message_fn({});
                                 self->check(backend->connect_printer(name, device, "").empty(), "timeout_fixture_starts_attempt");
                                 self->wait_until([backend, name] { return backend->connection(name).state == "failed"; },
-                                    "connection_times_out_without_messages", [self, backend, name] {
+                                    "connection_times_out_without_messages", [self, backend, name, device] {
                                         const auto timeout = backend->connection(name);
                                         self->check(timeout.message.find("did not respond") != std::string::npos &&
                                             timeout.message.find("access code") == std::string::npos,
@@ -5371,6 +5802,8 @@ private:
                                         self->check(silent && silent->connection_state == Home::ConnectionState::Offline &&
                                             silent->connection_text == "Offline" && silent->connection_action == "reconnect" &&
                                             !silent->can_launch_monitor, "home_says_offline_for_a_silent_verified_printer");
+                                        self->verify_bambu_connection_failures(*backend, name, device);
+                                        self->verify_bambu_seen_reasons(*backend, name, device);
                                         self->verify_other_printers_menu();
                                         self->finish();
                                     });
@@ -5382,6 +5815,144 @@ private:
                     });
                 });
             });
+    }
+
+    // Every way a Bambu Lab connection attempt can end is reported as what
+    // the plug-in said, not as what upstream's handler left behind. The fake
+    // answers as the plug-in does: ConnectStatusFailed with a code ("5" is a
+    // wrong access code, which upstream also erases), or ConnectStatusLost.
+    // Before 2026-11-01 a wrong code read "The printer is no longer available"
+    // and every other failure "The selected printer changed".
+    void verify_bambu_connection_failures(PrinterSetup::OrcaPrinterBackend& backend, const std::string& name, const std::string& device)
+    {
+        using namespace std::chrono_literals;
+        const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
+        check(fake != nullptr, "connection_failures_drive_the_fake");
+        if (fake == nullptr)
+            return;
+        auto* devices = wxGetApp().getDeviceManager();
+        // Upstream shows the person "Incorrect password" in a modal dialog;
+        // answer it here and keep its text.
+        struct Answer : wxModalDialogHook
+        {
+            std::vector<std::string> texts;
+            int Enter(wxDialog* dialog) override
+            {
+                texts.push_back(Workspace::read_dialog(*dialog).text);
+                return wxID_OK;
+            }
+        } answer;
+        answer.Register();
+        // Each attempt starts from no selection, as a failed one leaves it, and
+        // gives the access code again, as a wrong one leaves none saved.
+        const auto attempt = [&](const std::function<void()>& make_it_fail, const std::string& label) {
+            devices->set_selected_machine("");
+            wxYield();
+            make_it_fail();
+            check(backend.connect_printer(name, device, "12345678").empty(), label + "_attempt_starts");
+            check(wait_for([&] { return backend.connection(name).state != "connecting"; }, 10s), label + "_settles");
+            const auto info = backend.connection(name);
+            std::cerr << "HARNESS NOTE " << label << " state=" << info.state << " message=" << info.message << '\n';
+            return info;
+        };
+        std::set<std::string> messages;
+
+        const auto refused = attempt([&] { fake->fail_next_connect("7"); }, "connection_refused_code_7");
+        messages.insert(refused.message);
+        check(refused.state == "failed" && refused.message.find("code 7") != std::string::npos,
+              "connection_refused_names_the_plugins_code");
+        check(refused.message.find("selected printer changed") == std::string::npos,
+              "connection_refused_is_not_blamed_on_the_selection");
+
+        // Connected, then dropped before any status: Lost, which upstream also
+        // answers by clearing the selection.
+        const auto lost = attempt([&] { wxGetApp().CallAfter([fake] { fake->disconnect_printer(); }); }, "connection_lost");
+        messages.insert(lost.message);
+        check(lost.state == "failed" && lost.message.find("lost") != std::string::npos, "connection_lost_says_it_was_lost");
+        check(lost.message.find("selected printer changed") == std::string::npos, "connection_lost_is_not_blamed_on_the_selection");
+
+        const auto wrong = attempt([&] { fake->fail_next_connect("5"); }, "connection_wrong_access_code");
+        messages.insert(wrong.message);
+        check(!answer.texts.empty() && answer.texts.back().find("Incorrect password") != std::string::npos,
+              "wrong_access_code_shows_the_person_upstreams_dialog");
+        check(wrong.state == "failed" && wrong.message.find("access code") != std::string::npos,
+              "wrong_access_code_names_the_access_code");
+        check(wrong.message.find("no longer available") == std::string::npos, "wrong_access_code_is_not_reported_as_a_vanished_printer");
+        // Upstream erased the saved code; the model hears that the person must give it again.
+        check(wxGetApp().app_config->get("user_access_code", device).empty() && wrong.message.find("again") != std::string::npos,
+              "wrong_access_code_says_the_saved_code_is_gone");
+        // The fake answers as the plug-in does (ConnectStatusFailed with a code,
+        // ConnectStatusLost); the codes were not observed from the real plug-in,
+        // which needs a LAN-mode printer and a deliberately wrong access code.
+        check(messages.size() == 3, "connection_failures_are_told_apart");
+        answer.Unregister();
+        devices->set_selected_machine("");
+        wxYield();
+    }
+
+    // A Bambu Lab printer the search heard and the connection does not offer
+    // is reported in `seen` with its reason, whatever the reason: another
+    // model, the same model already linked to another saved printer, or the
+    // same model while this printer is linked to a different device. Before
+    // 2026-11-01 all three were dropped, and the refusal read "found no
+    // printer of this model".
+    void verify_bambu_seen_reasons(PrinterSetup::OrcaPrinterBackend& backend, const std::string& name, const std::string& device)
+    {
+        const auto print = [](const std::string& label, const PrinterSetup::PrinterConnectionInfo& info) {
+            std::cerr << "HARNESS NOTE " << label << " candidates=" << info.candidates.size();
+            for (const auto& candidate : info.candidates)
+                std::cerr << " [" << candidate.id << " lan=" << candidate.lan_mode << " account_only=" << candidate.account_only
+                          << " reason=" << candidate.reason << " detail=" << candidate.detail << "]";
+            std::cerr << '\n';
+        };
+        const auto seen_as = [](const PrinterSetup::PrinterConnectionInfo& info, const std::string& id, const std::string& reason) {
+            return std::any_of(info.candidates.begin(), info.candidates.end(), [&](const PrinterSetup::ConnectionCandidate& candidate) {
+                return candidate.id == id && candidate.reason == reason;
+            });
+        };
+        const auto selected_before = selected_printer();
+
+        // Another model: a P1S saved, while the fake announces an A1 mini.
+        PrinterSetup::AddPrinterRequest other_model;
+        other_model.vendor_id = "BBL";
+        other_model.model_id  = "Bambu Lab P1S";
+        other_model.variant   = "0.4";
+        other_model.name      = "Other model fixture";
+        PrinterSetup::SavedPrinter p1s;
+        check(backend.add_printer(other_model, p1s).empty(), "seen_reasons_other_model_saved");
+        const auto other = backend.connection(p1s.name);
+        print("seen_other_model", other);
+        check(other.candidates.empty() || seen_as(other, device, "other_model"), "seen_reports_a_printer_of_another_model");
+        check(seen_as(other, device, "other_model"), "seen_other_model_names_the_reason");
+        check(std::none_of(other.candidates.begin(), other.candidates.end(),
+                           [](const PrinterSetup::ConnectionCandidate& candidate) { return candidate.reason.empty(); }),
+              "seen_other_model_is_not_offered");
+
+        // The same model, already linked to the connection fixture.
+        PrinterSetup::AddPrinterRequest same_model;
+        same_model.vendor_id = "BBL";
+        same_model.model_id  = "Bambu Lab A1 mini";
+        same_model.variant   = "0.4";
+        same_model.name      = "Second mini fixture";
+        PrinterSetup::SavedPrinter second;
+        check(backend.add_printer(same_model, second).empty(), "seen_reasons_same_model_saved");
+        const auto linked = backend.connection(second.name);
+        print("seen_linked_elsewhere", linked);
+        check(seen_as(linked, device, "linked_elsewhere"), "seen_reports_a_printer_linked_to_another_saved_printer");
+        check(std::any_of(linked.candidates.begin(), linked.candidates.end(),
+                          [&](const PrinterSetup::ConnectionCandidate& candidate) { return candidate.detail == name; }),
+              "seen_linked_elsewhere_names_that_printer");
+
+        // The same model, while this saved printer is linked to a device that
+        // is not announcing: the fake is a different A1 mini.
+        check(Printers::link_named_printer(second.name, "OTHER0001").empty(), "seen_reasons_other_device_linked");
+        const auto other_device = backend.connection(second.name);
+        print("seen_other_device", other_device);
+        check(seen_as(other_device, device, "other_device"), "seen_reports_a_different_printer_of_this_model");
+
+        check(Printers::remove_named_printer(*m_plater, p1s.name).empty() && Printers::remove_named_printer(*m_plater, second.name).empty(),
+              "seen_reasons_fixtures_removed");
+        SetupCommands::select_printer_preset(*m_plater, selected_before);
     }
 
     // --- Home's printer cards, live while Home stays up (--home-live) -----
@@ -12387,6 +12958,26 @@ private:
         exported("stl", folder / "plate.stl", "outputs_export_stl");
         const auto presets = exported("presets", folder, "outputs_export_presets");
         std::cout << "exported presets: " << presets.files.size() << " files" << std::endl;
+#ifndef _WIN32
+        // A folder that takes no files: both used to report success, listing
+        // files that were never written.
+        const fs::path locked = folder / "locked";
+        fs::create_directories(locked);
+        fs::permissions(locked, fs::owner_read | fs::owner_exe);
+        const auto not_written = [&](const std::string& kind, const fs::path& path, const char* name) {
+            Workspace::ExportRequest request;
+            request.kind  = kind;
+            request.path  = path.string();
+            request.plate = kind == "presets" ? std::nullopt : std::optional<Workspace::PlateId>(plate);
+            Workspace::ExportResult result;
+            const auto done = workspace->export_file(request, result);
+            std::cout << name << ": " << done.message << std::endl;
+            check(!done.succeeded(), name);
+        };
+        not_written("stl", locked / "plate.stl", "outputs_export_stl_reports_no_file");
+        not_written("presets", locked, "outputs_export_presets_reports_no_file");
+        fs::permissions(locked, fs::owner_all);
+#endif
         Workspace::ExportRequest again;
         again.kind = "gcode";
         again.path = (folder / "plate.gcode").string();
@@ -13784,6 +14375,29 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::HomeLive;
         else if (argument == "--printer-live")
             state->mode = HarnessState::Mode::PrinterLive;
+        else if (argument == "--printer-network-check") {
+            if (index + 3 >= argc) {
+                std::cerr << "--printer-network-check requires a fixture directory, an address and the plug-in version\n";
+                return 2;
+            }
+            state->mode                         = HarnessState::Mode::PrinterNetworkCheck;
+            data_directory                      = fs::absolute(argv[++index]);
+            state->network_check_address        = argv[++index];
+            state->network_check_plugin_version = argv[++index];
+            if (index + 1 < argc && std::string(argv[index + 1]) == "--simulate-announce") {
+                state->network_check_simulate = true;
+                ++index;
+            }
+        }
+        else if (argument == "--printer-live-p1s") {
+            if (++index == argc) {
+                std::cerr << "--printer-live-p1s requires the printer's address\n";
+                return 2;
+            }
+            state->mode                  = HarnessState::Mode::PrinterLive;
+            state->printer_live_p1s      = true;
+            state->network_check_address = argv[index];
+        }
         else if (argument == "--printer-live-no-plugin") {
             state->mode      = HarnessState::Mode::PrinterLive;
             state->no_plugin = true;
@@ -13909,6 +14523,21 @@ int main(int argc, char** argv)
     if (state->dark_appearance) set_harness_appearance(*state->dark_appearance);
 #endif
     fs::create_directories(data_directory / "log");
+    if (state->printer_live_p1s) {
+        // A copy: the person's own data folder is only read. The version is in
+        // the library's name, as the README says for --printer-network-check.
+        const std::filesystem::path plugins = std::filesystem::path(std::getenv("HOME")) / "Library/Application Support" / SLIC3R_APP_KEY / "plugins";
+        std::filesystem::copy(plugins, data_directory.string() + "/plugins",
+                              std::filesystem::copy_options::recursive | std::filesystem::copy_options::copy_symlinks);
+        const std::string prefix = "libbambu_networking_";
+        for (const auto& entry : std::filesystem::directory_iterator(plugins))
+            if (entry.path().stem().string().rfind(prefix, 0) == 0)
+                state->network_check_plugin_version = entry.path().stem().string().substr(prefix.size());
+        if (state->network_check_plugin_version.empty()) {
+            std::cerr << "--printer-live-p1s found no " << prefix << "* in " << plugins << '\n';
+            return 2;
+        }
+    }
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured ||
         state->mode == HarnessState::Mode::PrintIssues || state->mode == HarnessState::Mode::PrinterSetup) {
         // The unavailable setup check exercises a connection failure. The
@@ -13928,6 +14557,12 @@ int main(int argc, char** argv)
         if (state->mode == HarnessState::Mode::Stock) {
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
+        }
+        if (state->mode == HarnessState::Mode::PrinterNetworkCheck || state->printer_live_p1s) {
+            const std::string anchor = "\"language\": \"en_US\",";
+            config.replace(config.find(anchor), anchor.size(),
+                           anchor + "\n    \"installed_networking\": true,\n    \"network_plugin_version\": \"" +
+                               state->network_check_plugin_version + "\",");
         }
         if (state->mode == HarnessState::Mode::StartupRequests) {
             // A person's data folder: OrcaSlicer's setup guide finished,

@@ -56,10 +56,19 @@ json printer_connection_schema()
                              {"items", object_schema(json{{"deviceId", string_schema()}, {"name", string_schema()},
                                                           {"address", string_schema()}},
                                                      json::array({"deviceId", "name", "address"}))}}},
+             {"seen", {{"type", "array"},
+                       {"items", object_schema(json{{"name", string_schema()}, {"address", string_schema()},
+                                                    {"reason", {{"type", "string"}, {"enum", json::array({"cloud_mode", "account_only", "other_model", "linked_elsewhere", "other_device", "occupied"})}}},
+                                                    {"detail", string_schema()}},
+                                               json::array({"name", "address", "reason"}))}}},
+             {"search", object_schema(json{{"state", {{"type", "string"},
+                                                      {"enum", json::array({"not_applicable", "not_started", "started", "listening", "port_taken", "not_listening"})}}},
+                                           {"secondsAgo", {{"type", "integer"}}}},
+                                      json::array({"state"}))},
              {"address", string_schema()},
              {"hostType", string_schema()},
              {"nozzleMismatch", boolean_schema()}},
-        json::array({"provider", "state", "message", "candidates", "address", "hostType", "nozzleMismatch"}));
+        json::array({"provider", "state", "message", "candidates", "seen", "search", "address", "hostType", "nozzleMismatch"}));
 }
 
 bool has_only(const json& value, std::initializer_list<std::string_view> allowed)
@@ -1590,8 +1599,18 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_connection_status",
          "Check a printer's connection",
          "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it "
-         "also lists the printers of that model in LAN mode on the network now, and starts looking for them if it was not "
-         "already.",
+         "starts the network search if it has not started, and reports what it has found of that model so far. candidates "
+         "are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt "
+         "shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN "
+         "Only is off on it; connecting it is the person's choice, and they can prepare prints for it without a connection. "
+         "Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode bound to another account. While "
+         "search.state is started, an empty list says nothing yet: the app posts a note when a printer appears, or after "
+         "about 15 seconds with none. When it is listening and nothing is listed, LAN mode may be off or the printer may be "
+         "on another network: say where to turn LAN mode on (on the printer's screen, in its network settings; ask what they "
+         "see rather than invent a menu). port_taken means another app on this computer holds the port printers announce "
+         "on, so nothing can be found, whatever mode the printer is in: ask the person to close that app and then restart "
+         "this one. not_listening means nothing holds that port and this app takes it only as it starts: ask them to "
+         "restart this app.",
          object_schema(json::object()),
          printer_connection_schema(),
          ActionClass::ReadOnly,
@@ -1603,7 +1622,9 @@ std::vector<ToolDefinition> make_definitions()
          "Connects the printer this conversation is about. It opens a local form where the person types the access code or API "
          "key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from "
          "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
-         "until they give one, ask for it instead of calling this. The app reports the connection outcome in a note.",
+         "until they give one, ask for it instead of calling this. Only a printer in the status check's candidates can be "
+         "connected; one in cloud mode cannot, because LAN Only is off on it: connecting it is the person's choice, and the "
+         "person can prepare prints for it without a connection. The app reports the connection outcome in a note.",
          object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
                             {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
                                           {"description", "Moonraker or OctoPrint only, together with address."}}},

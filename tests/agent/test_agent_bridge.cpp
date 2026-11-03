@@ -4436,7 +4436,7 @@ TEST_CASE("the Agent continuing an earlier project is not spoken about", "[agent
         },
         [&continued](const std::string& id) {
             continued.push_back(id);
-            return true;
+            return std::string();
         },
         {});
     harness.handshake();

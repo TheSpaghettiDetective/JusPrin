@@ -389,6 +389,38 @@ The settings tools return these correction details, each limited in size:
 
 A failure that should be impossible (a broken invariant) must stay visible to diagnostics and to Sentry. Catch an error at the boundary between two layers only to recover from it, to translate a known error, or to add context that is essential.
 
+### A reason travels with every refusal and every empty result
+
+Added 2026-11-01, narrowed 2026-11-02. On 2026-10-31 a Bambu Lab P1S failed to connect through the printer chat: the person gave its address, the app had heard the printer in cloud mode, and the result said "No printer in LAN mode is on the network now". The right next step, turning LAN Only on, was in the app's hands and in nobody else's. The four rules above are about the code; this one is about the person on the other side of the model:
+
+**A refusal or an empty result is wrong when it leaves a person stuck: told something false or useless at that moment, with the right next step hidden, at a cost beyond one more tool call.**
+
+That is the whole test, and it is applied per case, not per code shape. A sweep on 2026-11-01 found eleven places where a result said less than the app knew. Judged by this test, three were real and were fixed; the other eight were not, and their fixes were taken out again (Kenneth, 2026-11-02: "fixing a non-problem is a lot worse than not fixing a real problem"). The model recovering the truth with its next ordinary call (`slice_report` after a bare `valid: false`, a search without a scope after an empty page) is not a stuck person, and every field added for such a case is text every model reads on every call. The three that were real:
+
+1. **A wrong Bambu access code.** Upstream's handler erases the saved code and clears the selection; a backend that read the selection said "The selected printer changed" or "The printer is no longer available", and the person, who had mistyped the code from the printer's screen, was sent to refresh a list. `Printers/ConnectionEvents` records the plug-in's answer at the moment it arrives, and the backend reads that before it reads the selection.
+2. **A print host that answered.** A Klipper owner who types the Mainsail port instead of Moonraker's, or picks Moonraker for an OctoPrint host, was told "Could not reach the print host. Check its address, API key and network." The host was reached and said what it was. One line of the host's own answer travels with the failure.
+3. **A heard printer the connection does not offer.** A person retrying after a failed add, with the printer's serial already linked to the first saved entry, was told "no printer of this model is on the network" while it was being heard. Every printer the search heard is in `seen` with a `reason` (`other_model`, `linked_elsewhere`, `other_device`, `occupied`, `cloud_mode`, `account_only`), and the refusal names it.
+
+What they share: the fork read what OrcaSlicer's event left behind (a cleared selection, a pass-or-fail flag, a filtered list) instead of the event itself, and the fakes could not produce the failing answer, so no test ever showed the sentence a person would read. The guard for a case that passes the test is a state table: arrange each state, read the tools that report it, and assert the results differ (`tests/agent/test_printer_conversation.cpp` "reports every printer it heard", the `--printer-setup` harness checks named `*_are_told_apart`), with the fake taught to produce every failure the real owner can (`FakeBambuAgent::fail_next_connect`, the harness's `StandInHost` with a status and body). Where a table deliberately leaves two states reading the same, a one-line comment at that assertion says why. Kenneth's rule of 2026-10-15 stands as it was: a rare failure the app has nothing more to say about gets one generic error.
+
+### How to fix a result that hides the failure
+
+Added 2026-11-02. The fix is mechanical, and a new check is almost never part of it. Four rules, in order (Kenneth, 2026-11-02):
+
+1. **The source gives an error: forward it.** Pass on the `what()`, the reason string or the list the code already holds, and keep any instruction the sentence carried, such as "Do not repeat the call".
+2. **The source gives nothing: say what the code tested or saw, and delete any guessed cause.** Do not add a check or a branch to tell causes apart. If the code does not know something, the sentence stops claiming it, and there is nothing further to investigate.
+3. **A comment says a lower layer's message misleads the model: keep the replacement.** `generate_calibration` drops the load report on purpose, because the over-the-build-volume warning is about the test model before the generator cut it. A replacement with no such comment is not protected by this rule.
+4. **The fix needs a file OrcaSlicer owns: skip the entry.** Kenneth approves any upstream change one by one.
+
+A forwarded error reaches the model, so it must not name Orca or OrcaSlicer, and `AgentUI/src/wording.test.ts` does not see those strings.
+
+False successes are the exception to rule 1, because the source reports nothing. These OrcaSlicer calls do not say when they failed, so check the outcome yourself:
+
+- `store_stl` always returns true. `TriangleMesh::write_binary` returns false only when the file will not open, so a full disk shows only in the file size (84 + 50 per facet).
+- `PresetBundle::export_current_configs` lists a file whether or not it was written.
+- `Plater::split_object` returns nothing and only shows a dialog, and the model is unchanged.
+- `ModelObject::split` splits a multi-volume object only by volume, so one solid part with a modifier stays whole however many shells it has.
+
 ## Read, mutation, and destructive policy
 
 Decide what a tool may do from its action class in the registry, not from its name:

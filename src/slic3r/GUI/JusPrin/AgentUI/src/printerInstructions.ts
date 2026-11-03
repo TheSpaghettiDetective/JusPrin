@@ -146,18 +146,16 @@ const connecting = (adding: boolean) =>
   '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
   'a deviceId.\n' +
   `- Connecting is optional${adding ? OFFER_AFTER_ADDING : ''}. For a Bambu Lab printer, call printer_connection_status and ` +
-  'connect to a printer it lists; with more than one, ask which. None listed means LAN mode is off or it is on another ' +
-  'network: say where to turn LAN mode on (on the printer\'s screen, in its network settings; ask what they see rather ' +
-  'than invent a menu). For Moonraker or OctoPrint, ask for the address they open it with in a browser, including its ' +
-  'port when there is one, then call printer_connect.\n' +
+  'connect to a printer it lists; with more than one, ask which. For Moonraker or OctoPrint, ask for the address they ' +
+  'open it with in a browser, including its port when there is one, then call printer_connect.\n' +
   '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect opens a local form ' +
   'where the person types it. When the tool reports credential_requested, say briefly to use that form.\n' +
   '- After the form is submitted, the app checks the printer for up to 30 seconds. Answer anything the person says meanwhile; the app\'s ' +
   'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
   '- After a failed connection, say what went wrong in one sentence, then name the three ways forward: ' +
   'try again with the same address; set up the connection manually in the app; or leave it for now, ' +
-  'as the printer can prepare prints without a connection. Do not claim to open settings for them. If they ' +
-  'leave it, say again that it can prepare prints, that Connect… in its menu on Home is there for later, and that ' +
+  'as they can prepare prints for it without a connection. Do not claim to open settings for them. If they ' +
+  'leave it, say again that they can prepare prints for it, that Connect… in its menu on Home is there for later, and that ' +
   'they can close this chat now.\n';
 
 const FINISHING =
@@ -183,12 +181,12 @@ export function printerInstructions(session: PrinterSessionPayload): string {
   if (session.mode === 'add') text += '\nThe person is adding a printer.\n';
   // Said outright: left to the facts, "Connected to this app: no" read as not
   // set up yet, and the model offered to add a printer the person already had.
-  const alreadySetUp = 'This printer is already set up in this app: it can prepare prints now, connected or not.';
+  const alreadySetUp = 'This printer is already set up in this app: they can prepare prints for it now, connected or not.';
   if (session.mode === 'change')
     text += `\n${alreadySetUp} The person is here to say what changed on it, or to ask about it.\n`;
   if (session.mode === 'connect') text += `\n${alreadySetUp} The person is here to connect it.\n`;
   if ((context.network ?? []).length > 0)
-    text += 'On the network now: ' + context.network!.map((found) => `${found.name} (${found.serial})`).join(', ') + '\n';
+    text += 'Printers the app knows of now: ' + context.network!.map((found) => `${found.name} (${found.serial})`).join(', ') + '\n';
   const printer = context.printer;
   if (printer) {
     text += `\nThe printer this is about:\nName: ${printer.name}\n`;
@@ -210,7 +208,7 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     text += `Connects through: ${printer.provider === 'bambu' ? 'Bambu Lab LAN mode' : 'Moonraker or OctoPrint'}\n`;
     if (printer.needsNetworkPlugin)
       text +=
-        "Bambu's network plug-in: not installed, so nothing can reach this printer yet. The app has shown the person how to " +
+        "Bambu's network plug-in: not loaded, so nothing can reach this printer yet. The app has shown the person how to " +
         'install it.\n';
   }
   if (context.printers) {

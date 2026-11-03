@@ -67,7 +67,7 @@ describe('the instructions', () => {
   it('state that the printer cannot be reached without the plug-in, when the app says so', () => {
     const printer = { ...change.context.printer!, needsNetworkPlugin: true };
     const text = printerInstructions({ ...change, context: { ...change.context, printer } });
-    expect(text).toContain("Bambu's network plug-in: not installed, so nothing can reach this printer yet.");
+    expect(text).toContain("Bambu's network plug-in: not loaded, so nothing can reach this printer yet.");
     expect(text).not.toMatch(/button/);
   });
 
@@ -85,7 +85,7 @@ describe('the instructions', () => {
 
   it('name what is on the network', () => {
     const text = printerInstructions(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
-    expect(text).toContain('On the network now: Workshop (01P00A3B)\n');
+    expect(text).toContain('Printers the app knows of now: Workshop (01P00A3B)\n');
   });
 
   it('keep the rules that encode real constraints', () => {
@@ -108,7 +108,7 @@ describe('the instructions', () => {
       'browse the full list manually in the app',
       'If the person asks to see the full printer list',
       'do not recite the list in chat or claim to open it for them',
-      'leave it for now, as the printer can prepare prints without a connection',
+      'leave it for now, as they can prepare prints for it without a connection',
       'nozzle mismatch reported by the printer',
       'when someone says what they loaded there is nothing to save',
       'call the tool without asking again',
@@ -158,7 +158,7 @@ describe('the instructions', () => {
     // the printer it was about (2026-09-28).
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(change), printerInstructions(connect)])
-      expect(text).toContain('This printer is already set up in this app: it can prepare prints now, connected or not.');
+      expect(text).toContain('This printer is already set up in this app: they can prepare prints for it now, connected or not.');
     expect(printerInstructions(add)).not.toContain('already set up in this app');
   });
 

@@ -306,6 +306,7 @@ class ConnectBambu:
     }
     # printer_connection_status as the app answered it for the fake printer.
     status = {"address": "", "candidates": [{"address": "127.0.0.1", "deviceId": "FAKE001", "name": "JusPrin Fake A1 mini"}],
+              "seen": [], "search": {"state": "listening", "secondsAgo": 3},
               "hostType": "", "message": "", "nozzleMismatch": False, "provider": "bambu", "state": "not_configured"}
 
     def __init__(self):
@@ -660,7 +661,8 @@ VORON = {"name": "Voron 2.4 350", "model": "Voron 2.4 350", "nozzle": 0.4, "nozz
          "connected": False}
 # printer_connection_status for a print host with no address saved, as
 # OrcaPrinterBackend reports it; Orca's default host type is OctoPrint.
-HOST_NOT_CONFIGURED = {"address": "", "candidates": [], "hostType": "octoprint", "message": "", "nozzleMismatch": False,
+HOST_NOT_CONFIGURED = {"address": "", "candidates": [], "seen": [], "search": {"state": "not_applicable"},
+                       "hostType": "octoprint", "message": "", "nozzleMismatch": False,
                        "provider": "host", "state": "not_configured"}
 
 
@@ -808,10 +810,15 @@ class SavedPrinterCase:
                 return {"error": {"code": "address_needed", "message": "Pass hostType and the address the person gave."}}, False
             return {"state": "credential_requested",
                     "message": "The app is waiting for the person to enter the printer credential locally."}, False
-        listed = [c for c in self.status.get("candidates", []) if arguments.get("deviceId") in (c["deviceId"], c["name"])]
+        candidates = self.status.get("candidates", [])
+        listed = [c for c in candidates if arguments.get("deviceId") in (c["deviceId"], c["name"])]
         if not listed:
-            return {"error": {"code": "unknown_device", "message": "No printer in LAN mode is on the network now; check again "
-                                                                   "with printer_connection_status."}}, False
+            # PrinterConversation::unknown_device_text, for a status with nothing in cloud mode.
+            lan = ", ".join(f'{c["deviceId"]} ({c["name"]})' for c in candidates)
+            message = ("Pass the deviceId of one of these printers in LAN mode: " + lan + "." if lan else
+                       "The network search has listened for 20 seconds and has found no printer of this model in LAN "
+                       "mode. The app posts a note if one appears.")
+            return {"error": {"code": "unknown_device", "message": message}}, False
         return {"state": "credential_requested",
                 "message": "The app is waiting for the person to enter the printer credential locally."}, False
 
@@ -1067,8 +1074,9 @@ class ConnectBambuNotFound(SavedPrinterCase):
     mode = "connect"
     provider = "bambu"
     printer = A1_MINI
-    status = {"address": "", "candidates": [], "hostType": "", "message": "", "nozzleMismatch": False,
-              "provider": "bambu", "state": "not_configured"}
+    # The search has had its 15 seconds: an empty list that means something.
+    status = {"address": "", "candidates": [], "seen": [], "search": {"state": "listening", "secondsAgo": 20},
+              "hostType": "", "message": "", "nozzleMismatch": False, "provider": "bambu", "state": "not_configured"}
 
     def run(self, conversation):
         last_reply(conversation, "Yes, it is")
@@ -1080,7 +1088,7 @@ class ConnectBambuNotFound(SavedPrinterCase):
 
 class ConnectAskWhy(SavedPrinterCase):
     """A question before connecting. Passes when nothing runs and the reply
-    says the printer prepares prints without a connection."""
+    says they can prepare prints for it without a connection."""
 
     name = "connect-ask-why"
     mode = "connect"
@@ -1089,7 +1097,7 @@ class ConnectAskWhy(SavedPrinterCase):
     def run(self, conversation):
         last_reply(conversation, "do I have to connect it? what do I get from that?")
         yes, why = judge(conversation.log, "Does the assistant's last message make clear that connecting is optional, or that "
-                                           "the printer can already be used to prepare prints without a connection?")
+                                           "the person can already prepare prints for the printer without a connection?")
         return verdict([self.forbidden(), "" if yes else "NOT SAID OPTIONAL: " + why], "said it is optional")
 
 
@@ -1217,7 +1225,7 @@ class ConnectFailedWaysForward(SavedPrinterCase):
                                       "the network and try again.")
         yes, why = judge(conversation.log, "Does the assistant's last message offer all three of these: trying again with the "
                                            "same address; setting up the connection manually in the app; and leaving "
-                                           "it for now because the printer can still prepare prints?")
+                                           "it for now because they can still prepare prints for it?")
         return verdict([self.forbidden(ADDING + ("printer_change",)),
                         "" if yes else "NOT THE THREE WAYS: " + why], "named the three ways")
 
@@ -1234,10 +1242,11 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
     printer = A1_MINI
     needs_plugin = True
     # OrcaPrinterBackend::connection without the plug-in.
-    status = {"address": "", "candidates": [], "hostType": "", "nozzleMismatch": False, "provider": "bambu",
+    status = {"address": "", "candidates": [], "seen": [], "search": {"state": "not_started"},
+              "hostType": "", "nozzleMismatch": False, "provider": "bambu",
               "state": "unavailable",
               "message": "Connecting a Bambu Lab printer needs Bambu's network plug-in, which is not installed or not turned "
-                         "on. The printer can already prepare prints without it."}
+                         "on. The person can already prepare prints for this printer without it."}
 
     def run(self, conversation):
         last_reply(conversation, "ok, connect it")

@@ -225,6 +225,7 @@ private:
     // comes before OrcaSlicer has finished with the plate, so the record is
     // made at the slice-status change that follows.
     std::optional<std::uint64_t>                   m_failed_run_plate;
+    std::string                                    m_failed_run_message;
     SliceFailureReader                             m_slice_failure_reader;
     // What each plate's slice last warned about, by plate id, read while the
     // plate is active and kept for as long as that slice is its current one.

@@ -99,7 +99,9 @@ public:
     // Called on the panel's pump. Picks up the printer form's options once
     // they are read. While a connection is being verified, looks at most once
     // a second, and once it settles says how in a note and has the model
-    // answer.
+    // answer. Does the same for a network search: when it first finds a
+    // printer, and when it has found none after about 15 seconds, or cannot
+    // hear any because this app does not hold the port they announce on.
     void tick(std::chrono::steady_clock::time_point now);
 
     // A settings tool this session ran has settled. A copy of the printer
@@ -119,6 +121,12 @@ private:
     Result connection_status(const std::string& name, const std::string& message_id);
     Result request_credential(const nlohmann::json& arguments, const std::string& action_id);
     void   connect(const nlohmann::json& arguments, const std::string& credential);
+    // Why printer_connect refused `asked`, from what the app has observed.
+    std::string    unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const;
+    // How far the network search has got, for a refusal and for the status.
+    std::string    search_text() const;
+    nlohmann::json search_json(const PrinterConnectionInfo& info) const;
+    void           watch_search(std::chrono::steady_clock::time_point now);
     // The notice that Bambu's network plug-in is missing, under this message:
     // drawn by the app, once a session, whatever the model says around it.
     void show_plugin_needed(const std::string& message_id);
@@ -165,8 +173,22 @@ private:
 
     // What this session added, by catalogue id: the saved printer's name.
     std::map<std::string, std::string> m_added;
-    // The printer discovery was started for this session.
+    // The printer discovery was started for this session -- once: starting
+    // again switches the printer agent and restarts discovery, so a model that
+    // checks again would never let it find anything.
     std::string m_prepared;
+    // That search, from when it could run. `said_none`, `port` and `found`
+    // record what the model has been told, by a note or by reading the status;
+    // once it has been told of a printer there is nothing left to watch for.
+    struct NetworkSearch
+    {
+        std::chrono::steady_clock::time_point started;
+        std::chrono::steady_clock::time_point last_look{};
+        bool                                  said_none{false};
+        DiscoveryPort                         port{DiscoveryPort::Ours};
+        bool                                  found{false};
+    };
+    std::optional<NetworkSearch> m_search;
     // The printer this is about cannot be reached until Bambu's network
     // plug-in is installed.
     bool m_needs_plugin{false};

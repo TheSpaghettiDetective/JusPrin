@@ -347,7 +347,7 @@ SettingsTargetLookup settings_target(const json& arguments, const Workspace::Wor
     return result;
 }
 
-constexpr const char* kMissingTarget = "That object is not in the open project. Read workspace_inspect again.";
+constexpr const char* kMissingTarget = "No plate in the open project holds that object. Read workspace_inspect again.";
 constexpr const char* kPlateNotFound = "That plate is not in the open project. Read workspace_inspect for the plate ids.";
 constexpr const char* kProjectsUnreadable =
     "Nothing was opened: JusPrin could not read its saved projects to check whether this file was opened before. "
@@ -1089,7 +1089,7 @@ void ToolExecutionCoordinator::pump()
                     before = m_version_before(activity);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save before Agent action: " << error.what() << '\n';
-                    fail(activity, "local_save_failed", "Nothing ran: the project could not be saved first. Tell the person the project is not saved.");
+                    fail(activity, "local_save_failed", std::string("Nothing ran: the project could not be saved first: ") + error.what() + ". Tell the person the project is not saved.");
                     return;
                 }
             }
@@ -1107,24 +1107,26 @@ void ToolExecutionCoordinator::pump()
             if (versioned || document_boundary)
                 m_saving_after = activity.action_id;
             execute(activity);
-            bool save_failed = false;
+            std::optional<std::string> save_error;
             if (versioned) {
                 try {
                     m_version_after(activity, before);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save after Agent action: " << error.what() << '\n';
-                    save_failed = true;
+                    save_error = error.what();
                 }
             } else if (document_boundary) {
                 try {
                     m_document_boundary(activity);
                 } catch (const std::exception& error) {
                     std::clog << "Could not save Agent document: " << error.what() << '\n';
-                    save_failed = true;
+                    save_error = error.what();
                 }
             }
-            if (save_failed)
-                fail(activity, "local_save_failed", "The change was made, but the project could not be saved. Do not repeat the call; tell the person the project is not saved.");
+            if (save_error && activity.state == ToolState::Failed)
+                fail(activity, activity.error->code, activity.error->message + " The project also could not be saved: " + *save_error + ".", activity.error->details_json);
+            else if (save_error)
+                fail(activity, "local_save_failed", "The change was made, but the project could not be saved: " + *save_error + ". Do not repeat the call; tell the person the project is not saved.");
             if (!m_saving_after.empty()) {
                 m_saving_after.clear();
                 if (tool_state_terminal(activity.state))
@@ -1273,9 +1275,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         }
         if (earlier) {
             report.project_opened = true;
-            if (!m_open_earlier || !m_open_earlier(earlier->id))
+            const std::string problem = m_open_earlier ? m_open_earlier(earlier->id) : "nothing here opens saved projects";
+            if (!problem.empty())
                 opened = Workspace::CommandResult::failure(Workspace::WorkspaceError::Failed,
-                                                           "The saved project could not be opened");
+                                                           "The saved project could not be opened: " + problem);
         } else {
             opened = m_workspace.open_project(request, report);
             if (opened.succeeded() && !request.new_project && m_opened_from)
@@ -1719,7 +1722,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             if (before.slicing.running && m_slice_running)
                 m_workspace.cancel_slice(cancelled);
             message = cancelled ? "The slice was stopped." :
-                                  "That slice has ended; a slice started since is not the tools' to stop.";
+                                  "Nothing was stopped. The tools stop only a slice they started.";
         } else if (std::any_of(before.jobs.begin(), before.jobs.end(), [&handle](const auto& job) { return job.handle == handle; })) {
             kind = "job";
             const auto done = m_workspace.cancel_job(handle, cancelled);
@@ -2203,7 +2206,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
         // Left out, the recorded purpose stays, whether or not there is one.
         if (arguments.contains("purpose") &&
             !m_product_state->set_setup_title(activity.correlation_id, arguments.at("purpose").get<std::string>())) {
-            fail(activity, "invalid_arguments", "purpose must be one line.");
+            fail(activity, "invalid_arguments", "purpose must be one line of up to 120 characters.");
             return;
         }
         // Neither record is in Orca's undo stack: say so where every other

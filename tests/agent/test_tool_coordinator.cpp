@@ -154,7 +154,26 @@ TEST_CASE("project mutations are bracketed by durable version callbacks", "[tool
     const std::string refused_id = refused.coordinator.submit(refused.duplicate_cube_request(), "version-refused").action_id;
     refused.pump_to_completion(refused_id);
     CHECK(refused.coordinator.find(refused_id)->state == ToolState::Failed);
+    CHECK(refused.coordinator.find(refused_id)->error->message.find("disk full") != std::string::npos);
     CHECK(refused.object_count() == 1);
+}
+
+TEST_CASE("a call that fails keeps its own error when the save after it fails too", "[tools][versions]")
+{
+    Harness h;
+    h.coordinator.set_version_callbacks(
+        [](const ToolActivity&) { return std::string("v-before"); },
+        [](const ToolActivity&, const std::string&) { throw std::runtime_error("disk full"); });
+    ToolRequest request = h.duplicate_cube_request();
+    request.arguments_json = json{{"sessionId", std::to_string(h.workspace.snapshot().session.value())},
+                                  {"objects", json::array({json{{"objectId", "999999999"}, {"quantity", 2}}})}}.dump();
+    const std::string id = h.coordinator.submit(request, "m-1").action_id;
+    h.pump_to_completion(id);
+    const ToolActivity* failed = h.coordinator.find(id);
+    REQUIRE(failed->error.has_value());
+    CHECK(failed->error->code == "not_found");
+    CHECK(failed->error->message.find("The change was made") == std::string::npos);
+    CHECK(failed->error->message.find("The project also could not be saved: disk full.") != std::string::npos);
 }
 
 TEST_CASE("a change whose save fails is announced once, as failed, and never changes after", "[tools][versions]")
@@ -183,6 +202,7 @@ TEST_CASE("a change whose save fails is announced once, as failed, and never cha
     CHECK(terminal.front().state == ToolState::Failed);
     REQUIRE(terminal.front().error);
     CHECK(terminal.front().error->code == "local_save_failed");
+    CHECK(terminal.front().error->message.find("could not be saved: disk full.") != std::string::npos);
     // The record keeps the outcome its subscribers were told.
     const ToolActivity& stored = *h.coordinator.find(id);
     CHECK(stored.state == terminal.front().state);
@@ -1109,7 +1129,7 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
             if (path != model) return std::nullopt;
             return ToolExecutionCoordinator::EarlierProject{"p-1", "Bracket", false, true};
         },
-        [&](const std::string& id) { continued.push_back(id); return true; },
+        [&](const std::string& id) { continued.push_back(id); return std::string(); },
         [&](const std::string& path) { recorded.push_back(path); });
     const ToolActivity asked = submit(json{{"path", model}});
     REQUIRE(asked.error.has_value());
@@ -1125,6 +1145,24 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
     settle(existing);
     CHECK(continued == std::vector<std::string>{"p-1"});
     CHECK(h.workspace.opens == opens);
+    // What opening it failed with is what the call says.
+    std::string open_problem = "the version store is damaged";
+    h.coordinator.set_earlier_projects(
+        [&](const std::string& path) -> std::optional<ToolExecutionCoordinator::EarlierProject> {
+            if (path != model) return std::nullopt;
+            return ToolExecutionCoordinator::EarlierProject{"p-1", "Bracket", false, true};
+        },
+        [&](const std::string&) { return open_problem; },
+        [&](const std::string& path) { recorded.push_back(path); });
+    const ToolActivity not_opened = submit(json{{"path", model}, {"openedBefore", "existing"}});
+    settle(not_opened);
+    const auto not_opened_end = std::find_if(h.events.rbegin(), h.events.rend(), [&](const ToolActivity& event) {
+        return event.action_id == not_opened.action_id && tool_state_terminal(event.state);
+    });
+    REQUIRE(not_opened_end != h.events.rend());
+    REQUIRE(not_opened_end->error.has_value());
+    CHECK(not_opened_end->error->message == "The saved project could not be opened: the version store is damaged");
+    open_problem.clear();
     settle(submit(json{{"path", model}, {"openedBefore", "new"}}));
     CHECK(h.workspace.opens == opens + 1);
     CHECK(recorded == std::vector<std::string>{model});
@@ -1139,7 +1177,7 @@ TEST_CASE("opening a project names the activity and reports what was asked", "[t
             lookup.unreadable = true;
             return lookup;
         },
-        [&](const std::string& id) { continued.push_back(id); return true; }, {});
+        [&](const std::string& id) { continued.push_back(id); return std::string(); }, {});
     const int opens_before_unreadable = h.workspace.opens;
     const ToolActivity unreadable = submit(json{{"path", model}});
     REQUIRE(unreadable.error.has_value());
@@ -1783,6 +1821,9 @@ TEST_CASE("a preset that is not being edited changes only by being saved", "[too
     const auto unsaved = preview(json{{"scope", "filament"}, {"target", {{"preset", "Fixture PLA"}}}, {"changes", hotter}});
     CHECK(unsaved["valid"] == true);
     CHECK(unsaved["changes"][0] == json{{"key", "nozzle_temperature"}, {"before", "210"}, {"after", "250"}});
+    // One code for OrcaSlicer's own read-only settings and for the fork's
+    // blocked keys: the next step is the same for both (choose another key),
+    // so the two are deliberately not told apart.
     CHECK(preview(json{{"scope", "filament"}, {"target", petg}, {"changes", {{"compatible_printers", "Any"}}}, {"persistAs", "x"}})["issues"][0]["code"] ==
           "unsupported_setting_mutation");
 

@@ -7,6 +7,25 @@
 // a code that is not listed here, so a new failure picks the code whose next
 // step fits instead of inventing one. The table in the tool guide's "Error
 // codes" section lists the same codes for people.
+//
+// The code is half of a result; the other half is what the message lets a
+// person's next step be. The rule for that half (tool guide, "A reason travels
+// with every refusal and every empty result", 2026-11-01, narrowed 2026-11-02):
+//
+//   A refusal or an empty result is wrong when it leaves a person stuck: told
+//   something false or useless at that moment, with the right next step
+//   hidden, at a cost beyond one more tool call.
+//
+// So a refusal carries the reason the app read from the event (a plug-in's
+// status code, a host's own answer) and not what that event left behind
+// elsewhere, where a person would otherwise be sent the wrong way. It is a
+// test per case, not per code shape: a state the model can recover with its
+// next ordinary call needs no field of its own, and a rare failure the app has
+// nothing more to say about keeps one generic message.
+//
+// How to fix one: forward what the source gave, or say what the code tested;
+// add no check to tell causes apart (tool guide, "How to fix a result that
+// hides the failure").
 
 #include <algorithm>
 #include <iterator>
