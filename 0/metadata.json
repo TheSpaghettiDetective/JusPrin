@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6G14FGQB91GXB808R0NJEAP",
+  "session_id": "2f193581-218d-4f44-9e5b-2e1cd6c2ac38",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-03T06:21:53.938575Z",
+  "branch": "claude/connection-issue-report",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "882393c6debb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3898,
+    "cache_creation_tokens": 751876,
+    "cache_read_tokens": 23820260,
+    "output_tokens": 91714,
+    "api_call_count": 150
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
