@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6GW438PTGE5KN3VNWQK2XZ7",
   "strategy": "manual-commit",
   "branch": "claude/connection-skill",
-  "checkpoints_count": 6,
+  "checkpoints_count": 16,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
     "src/slic3r/GUI/JusPrin/Agent/AnthropicCodec.cpp",
@@ -36,6 +36,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
