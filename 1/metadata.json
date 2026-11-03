@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6HJKX6Z571KPPHZH1300RNV",
+  "session_id": "b2d2c400-439c-4486-af2f-1479f86f533d",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-03T20:46:41.599334Z",
+  "branch": "claude/tool-results-truth",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AnthropicCodec.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ResponsesCodec.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/filamentInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/filamentInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.fixture.txt",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/projectInstructions.ts",
+    "tests/agent/test_anthropic_codec.cpp",
+    "tests/agent/test_openai_responses_agent.cpp",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/printer_prompt/run_prompt_tests.py",
+    "tests/project_prompt/run_prompt_tests.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "42d273213a9e",
+  "checkpoint_transcript_start": 2512,
+  "transcript_lines_at_start": 2512,
+  "compact_transcript_start": 304,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-03T20:46:41.228377Z",
+    "agent_lines": 9937,
+    "agent_removed": 0,
+    "human_added": 261,
+    "human_modified": 18,
+    "human_removed": 0,
+    "total_committed": 10216,
+    "total_lines_changed": 10228,
+    "agent_percentage": 97.15486898709426,
+    "metric_version": 2
+  }
+}
