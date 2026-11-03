@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6HB2E508C40KKG0T64EYAWH",
+  "session_id": "b2d2c400-439c-4486-af2f-1479f86f533d",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-03T18:34:50.167811Z",
+  "branch": "claude/modal-dialog-gaps-1c048e",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/GUI_Utils.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolExecution.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ToolResults.hpp",
+    "src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/DialogListeners.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/Workspace.hpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "42d273213a9e",
+  "checkpoint_transcript_start": 2512,
+  "transcript_lines_at_start": 2512,
+  "compact_transcript_start": 304,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-03T18:34:49.831799Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 579,
+    "human_modified": 49,
+    "human_removed": 0,
+    "total_committed": 579,
+    "total_lines_changed": 635,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
