@@ -4,7 +4,7 @@
 
 JusPrin should make advanced 3D printing feel immediate: a confident path from model to machine that removes detours without hiding control. The product should feel focused, assured, inventive, and approachable. Its voice is direct, capable, and optimistic—never cute, cryptic, or over-engineered.
 
-The original JusPrin logo was supplied by the user and restored from repository revision `6eecb78b19`. The purple gradient endpoints were verified from the source SVG. Positioning language in the POC brand kit is proposed product direction, not an externally sourced market claim.
+The JusPrin logo is a soft-serve cone, chosen on 2026-11-03 from the concepts on the JusPrin Logo Concepts canvas (https://claude.ai/artifact/Qroq8EdcQDSPkCAyFceDtQ). It replaced the earlier star-and-ring mark, which is still in repository history at revision `6eecb78b19`. The purple gradient endpoints are the Orbit and Bloom tokens. Positioning language in the POC brand kit is proposed product direction, not an externally sourced market claim.
 
 ## Brand behavior
 
@@ -14,7 +14,7 @@ The original JusPrin logo was supplied by the user and restored from repository 
 - **Approachable:** use plain language instead of slicer jargon where possible.
 - Make the next action obvious. Brand behavior should feel as focused as the visual system.
 
-The logo suggests an end-to-end journey through its orbit, precision and momentum through the crossing diagonals, flexible control through the open circle, and technical confidence softened by warmth through the purple gradient.
+The mark is a soft-serve swirl of four rounded print layers on a waffle cone, with a curl on top: 3D printing shown as something friendly. Beside it, the name is cut into the same layers (seven for capitals, five for small letters), and a small nozzle above the i is still printing its dot, the last layer. `src/slic3r/GUI/JusPrin/Brand/brand_logo.py` draws every logo file from this one geometry.
 
 Write the name exactly as **JusPrin**: capital J and P, no space, never all caps in body copy. Use surrounding text color for the name in ordinary copy; do not force a gradient into small text.
 
@@ -46,7 +46,7 @@ Always use the original artwork, preserve its aspect ratio and components, maint
 | Danger | `#B44757` | Light error or destructive state |
 | Warning | `#D49A2A` | Light warning state |
 
-The signature gradient runs from Orbit to Bloom. Reserve it for the original logo, splash, onboarding, and rare hero moments. Do not use it as ordinary product chrome.
+The signature gradient runs from Orbit to Bloom. Reserve it for the logo mark, splash, onboarding, and rare hero moments. Do not use it as ordinary product chrome.
 
 Product code must resolve colors through semantic tokens in `resources/jusprin/ui/design-tokens.json`; raw palette values are not a component API.
 
@@ -348,7 +348,7 @@ Every high-fidelity product frame must:
 4. Use HarmonyOS Sans SC for product UI, and monospace only for code (the design system's `code` style uses the system monospace font).
 5. Show normal, hover, pressed, disabled, focus, error, warning, and success states as applicable.
 6. Test long filenames, localized labels, dense settings, empty states, and narrow windows.
-7. Use the original logo and existing functional icon system.
+7. Use the logo files in `resources/jusprin/branding/` and the existing functional icon system.
 8. Label and justify any value that is not in the token files.
 9. Draw a repeated feature composition, such as the setup card, chat header, composer or printer-and-spool chip, once, on the Compositions page of the JusPrin v2 canvas, and import it into screens by name. Never paste a copy into a screen.
 
