@@ -1,0 +1,1 @@
+In the original onboarding flow, there is a way to sign up with verification code. Was it a conscious decision to not have that? If so, what was the justification, or it just simply didn't bother to check the original onboarding flow?
