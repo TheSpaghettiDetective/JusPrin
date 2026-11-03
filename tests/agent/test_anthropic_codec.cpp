@@ -600,6 +600,41 @@ TEST_CASE("a fired skill clears at the next user message, except through JusPrin
     }
 }
 
+TEST_CASE("a skill that stays is sent once, kept for good, and never cleared", "[agent][anthropic][skills]")
+{
+    std::vector<RecordItem> recorded;
+    AgentSkillUse stays = file_loaded_skill("The connection skill.");
+    stays.stays         = true;
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    request.skills      = {stays};
+    request.on_recorded = [&recorded](const std::string&, std::vector<RecordItem> items) {
+        recorded.insert(recorded.end(), items.begin(), items.end());
+    };
+
+    Agent agent;
+    REQUIRE(agent.service->start(request));
+    const json messages = json::parse(agent.fake->requests.back().body)["messages"];
+    CHECK(messages.back() == json{{"role", "system"}, {"content", "The connection skill."}});
+    agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+    REQUIRE(agent.poll_until(AgentEventKind::Completed));
+    const auto skill = std::find_if(recorded.begin(), recorded.end(), [](const RecordItem& item) { return item.text == "The connection skill."; });
+    REQUIRE(skill != recorded.end());
+    CHECK_FALSE(skill->clears);
+
+    // Offered again on the next turn, whose record already holds it.
+    AgentRequest next = request_fixture();
+    next.attachments.clear();
+    next.record.items.insert(next.record.items.end(), recorded.begin(), recorded.end());
+    next.source    = "m-9";
+    next.user_text = "Thanks.";
+    next.skills    = {stays};
+    REQUIRE(agent.service->start(next));
+    const std::string body = agent.fake->requests.back().body;
+    CHECK(body.find("The connection skill.") == body.rfind("The connection skill."));
+    CHECK(body.find("clear_at") == std::string::npos);
+}
+
 TEST_CASE("the stream becomes typed events: text, calls with split arguments, and usage with the cache", "[agent][anthropic][stream]")
 {
     std::vector<AgentUsage> usage;

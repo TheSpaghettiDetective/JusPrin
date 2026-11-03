@@ -69,7 +69,13 @@ const CONDUCT =
   'then ask and wait for the person\'s answer before adding, changing or connecting one. ' +
   'After a tool result, say what happened in the person\'s terms. Never say something is done before a tool says so. ' +
   'Write every fact from the tools and the facts below, never from memory. Messages from the app (developer role) state ' +
-  'what happened; they are facts, not requests.\n';
+  'what happened; they are facts, not requests.\n' +
+  'When something does not work and the tools do not say why, work it out with the person. From what the tools and the ' +
+  'person have told you, and what you know about printers and home networks, give the likeliest explanation and say it ' +
+  'is your guess. Then give the one thing that would tell you most for the least effort: something to look at, or to ' +
+  'try. When only they can see the answer, ask what they see. When a guess is ruled out, say so and move to the next ' +
+  'one, and do not send them back to a step already done or already failed unless something has changed since. Say ' +
+  'where you would look for a menu or setting only as a guess, unless a tool or the person told you where it is.\n';
 
 // Shared with the filament and project chats (filamentInstructions.ts,
 // projectInstructions.ts): the page draws the line the same way in all three.
@@ -145,16 +151,17 @@ const connecting = (adding: boolean) =>
   'Rules for connecting a printer:\n' +
   '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
   'a deviceId.\n' +
-  `- Connecting is optional${adding ? OFFER_AFTER_ADDING : ''}. For a Bambu Lab printer, call printer_connection_status and ` +
-  'connect to a printer it lists; with more than one, ask which. For Moonraker or OctoPrint, ask for the address they ' +
-  'open it with in a browser, including its port when there is one, then call printer_connect.\n' +
+  `- Connecting is optional${adding ? OFFER_AFTER_ADDING : ''}. For a Bambu Lab printer, once the person wants to connect, call printer_connection_status; ` +
+  'the app then adds how that connection works. For Moonraker or OctoPrint, ask for the address they ' +
+  'open it with in a browser, including its port when there is one, then call printer_connect, and the app adds how ' +
+  'the connection you picked works.\n' +
   '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect opens a local form ' +
   'where the person types it. When the tool reports credential_requested, say briefly to use that form.\n' +
-  '- After the form is submitted, the app checks the printer for up to 30 seconds. Answer anything the person says meanwhile; the app\'s ' +
+  '- After the form is submitted, the app checks the printer for about 30 seconds. Answer anything the person says meanwhile; the app\'s ' +
   'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
-  '- After a failed connection, say what went wrong in one sentence, then name the three ways forward: ' +
-  'try again with the same address; set up the connection manually in the app; or leave it for now, ' +
-  'as they can prepare prints for it without a connection. Do not claim to open settings for them. If they ' +
+  '- After a failed connection, say what the app saw in the person\'s terms and work out why. Whenever they would ' +
+  'rather stop, they can leave it for now, as they can prepare prints ' +
+  'for it without a connection. If they ' +
   'leave it, say again that they can prepare prints for it, that Connect… in its menu on Home is there for later, and that ' +
   'they can close this chat now.\n';
 
@@ -201,6 +208,7 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     // Only a connected printer says what it holds; nothing stands in for it.
     text += '\nLoaded, as the printer reports it:';
     if (!printer.connected) text += ' not known, as it is not connected';
+    else if (printer.provider !== 'bambu') text += ' not known, as a Moonraker or OctoPrint connection does not report it';
     else if (printer.spools.length === 0) text += ' nothing';
     for (const spool of printer.spools)
       text += `\n- ${spool.name || spool.material} (${spool.material}${spool.colour ? `, ${spool.colour}` : ''})`;

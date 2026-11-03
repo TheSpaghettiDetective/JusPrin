@@ -80,6 +80,30 @@ class Responses(unittest.TestCase):
     def results(body):
         return {item["call_id"]: json.loads(item["output"]) for item in body["input"] if item.get("type") == "function_call_output"}
 
+    # --- The connection skill ----------------------------------------------
+
+    def test_a_print_host_gets_its_skill_once_the_kind_is_named(self):
+        """Connecting a Klipper printer: no skill while its kind is unknown,
+        then the Moonraker one with the results of the printer_connect that
+        names it, as PrinterConversation::connection_skill gives it."""
+        passed, detail, case, bodies = self.run_case(
+            runner.ConnectHostAddress,
+            [call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+            [reply("Type its API key into the form if it asks for one.")])
+        self.assertTrue(passed, detail)
+        skills = [[item["content"] for item in body["input"] if item.get("role") == "developer"
+                   and item.get("content") in runner.CONNECTION_SKILLS.values()] for body in bodies]
+        self.assertEqual(skills, [[], [runner.CONNECTION_SKILLS["moonraker"]]])
+
+    def test_an_add_chat_that_checks_the_connection_does_not_crash(self):
+        """An add case names its printer by catalogue id, a string. A
+        connection check there once crashed the runner looking the printer's
+        vendor up as if it were a saved printer."""
+        passed, detail, case, bodies = self.run_case(
+            runner.AddThenUndo, [call("printer_connection_status", {})], [reply("Which printer do you have?")])
+        self.assertFalse(passed)
+        self.assertTrue(detail.startswith("setup:"), detail)
+
     # --- Every call of a response runs -------------------------------------
 
     def test_a_change_after_a_read_runs(self):
@@ -191,7 +215,7 @@ class Responses(unittest.TestCase):
 
     def test_the_unrun_result_is_the_apps_own(self):
         """The runner's "not run" text is the app's, word for word."""
-        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp").read_text(encoding="utf-8")
+        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp").read_text(encoding="utf-8")
         block = source[source.index('"Not run:'):source.index('still needed."') + len('still needed."')]
         head, *rest = re.findall(r'"((?:[^"\\]|\\.)*)"', block)
         expected = {"state": "failed", "error": {"code": "not_run", "message": head + "printer_add (call-p)" + "".join(rest)}}

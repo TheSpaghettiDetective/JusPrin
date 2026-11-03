@@ -7,6 +7,7 @@
 
 #include "ProviderCodec.hpp"
 
+#include <chrono>
 #include <map>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -39,6 +40,11 @@ private:
     AgentUsage           m_usage;
     std::string          m_stop_reason;
     nlohmann::json       m_stop_details;
+    // What the search log records for each response.
+    nlohmann::json                        m_first_usage;
+    nlohmann::json                        m_last_usage;
+    std::string                           m_model;
+    std::chrono::steady_clock::time_point m_started;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

@@ -265,6 +265,10 @@ public:
     // dialog, as Orca's "Click here to install it" does. Returns once that
     // dialog closes, whether or not the plug-in is loaded then.
     virtual void install_network_plugin() {}
+    // Keeps a connection report the person agreed to send, and returns where,
+    // or nothing if it could not. There is no server to send it to yet, so
+    // this is where one goes.
+    virtual std::string keep_connection_report(const std::string& text) { return {}; }
     virtual std::string connect_printer(const std::string& name, const std::string& device_id,
                                        const std::string& access_code) { return "Connection is unavailable."; }
     virtual std::string connect_host(const std::string& name, const std::string& host_type,

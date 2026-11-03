@@ -1141,6 +1141,20 @@ std::optional<AgentSkillUse> AgentHost::fire_skill(const std::string& trigger, c
     return use;
 }
 
+std::optional<AgentSkillUse> AgentHost::session_skill() const
+{
+    const std::optional<std::string> trigger = m_session_skill ? m_session_skill() : std::nullopt;
+    if (!trigger)
+        return std::nullopt;
+    const auto skill = std::find_if(m_skills.begin(), m_skills.end(),
+                                    [&trigger](const AgentSkill& candidate) { return candidate.trigger == *trigger; });
+    if (skill == m_skills.end())
+        return std::nullopt;
+    AgentSkillUse use{skill->name, skill->text, nullptr, *trigger, {}};
+    use.stays = true;
+    return use;
+}
+
 std::optional<AgentSkillUse> AgentHost::fire_on_new_slice_failure(const std::string& conversation_id,
                                                               const WorkspaceSnapshot& workspace) const
 {
@@ -2939,6 +2953,8 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     if (std::optional<AgentSkillUse> skill =
             fire_print_issues(conversation_id, request.workspace, !request.issue_context.empty()))
         request.skills.push_back(std::move(*skill));
+    if (std::optional<AgentSkillUse> skill = session_skill())
+        request.skills.push_back(std::move(*skill));
     if (request.source.empty())
         return request;
 
@@ -3113,6 +3129,10 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         if (std::optional<AgentSkillUse> skill = fire_print_issues(continuation.conversation_id, current_workspace, false))
             result.skills.push_back(std::move(*skill));
     }
+    // A connection tool call is the moment a printer chat's skill comes into
+    // force: the model reads it right after that call's result.
+    if (std::optional<AgentSkillUse> skill = session_skill())
+        result.skills.push_back(std::move(*skill));
     result.call_id     = continuation.call_id;
     result.state       = tool_state_name(activity.state);
     result.output_json = output.dump();

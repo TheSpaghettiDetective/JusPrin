@@ -89,7 +89,9 @@ describe('the printer panel page', () => {
     expect((sent()[0].payload as { text: string }).text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm');
     // The panel has its own assistant; the project's prompt is not sent here.
     expect(host.received.some((envelope) => envelope.type === 'project_instructions')).toBe(false);
-    expect(host.received.some((envelope) => envelope.type === 'skills')).toBe(false);
+    // The skills go to the app, which adds one when the person tries to connect.
+    const skills = host.received.find((envelope) => envelope.type === 'skills')?.payload as { skills: { trigger?: string }[] };
+    expect(skills.skills.some((skill) => skill.trigger === 'connect_bambu')).toBe(true);
 
     // A new card changes nothing the model is told.
     host.deliver('printer_session', session({ blocks: [{ id: 'b1', seq: 1, afterMessageId: 'm-1', kind: 'tip' }],

@@ -192,20 +192,20 @@ export function App({
     client.send('project_instructions', { text });
   }, [printerPanel, state.connection, client]);
 
-  // The project skills: situational text the app adds to one request when
-  // its trigger fires (skills/*/SKILL.md). Once per connection: a reload
-  // reconnects, and the words do not change. The app starts no project turn
-  // before it has them.
+  // The skills: situational text the app adds when a trigger fires
+  // (skills/*/SKILL.md). Once per connection: a reload reconnects, and the
+  // words do not change. The app starts no project turn before it has them;
+  // the printer panel uses the ones for its connection types.
   const sentSkills = useRef(false);
   useEffect(() => {
-    if (printerPanel || state.connection !== 'connected') {
-      if (state.connection !== 'connected') sentSkills.current = false;
+    if (state.connection !== 'connected') {
+      sentSkills.current = false;
       return;
     }
     if (sentSkills.current) return;
     sentSkills.current = true;
     client.send('skills', { skills });
-  }, [printerPanel, state.connection, client]);
+  }, [state.connection, client]);
 
   // The filament chat's instructions, likewise: written from the facts the
   // app sends, sent again when they change, such as after a save as a copy.
@@ -590,6 +590,7 @@ export function App({
               printerBlocks={session?.blocks ?? []}
               onUndoAdd={(blockId) => client.send('printer_action', { action: 'undo_add', blockId })}
               onInstallPlugin={() => client.send('printer_action', { action: 'install_network_plugin' })}
+              onAnswerReport={(blockId, send) => client.send('printer_action', { action: send ? 'report_send' : 'report_decline', blockId })}
               onRetry={(messageId) => client.send('retry_message', { messageId })}
               onToolCancel={sendToolCancel}
             />

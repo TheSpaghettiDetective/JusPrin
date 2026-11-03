@@ -2780,6 +2780,21 @@ p.agent-row-note {
 
 .printer-plugin-installed .printer-notice-heading { color: var(--status-success); }
 
+/* A connection report's question: what it holds, to read before answering. */
+.printer-report-details { color: var(--text-secondary); }
+.printer-report-text {
+  overflow: auto;
+  max-height: 240px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--font-code);
+}
+.printer-report-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* What is on the network now (Figma "PrinterChat/Discovery state"): a subtle
    card of rows, each a printer with the one thing to do about it. */
 .printer-found {

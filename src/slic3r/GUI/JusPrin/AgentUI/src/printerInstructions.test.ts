@@ -83,6 +83,13 @@ describe('the instructions', () => {
     expect(printerInstructions(empty)).toContain('Loaded, as the printer reports it: nothing\n');
   });
 
+  it('do not say a connected print host has nothing loaded, as it never reports it', () => {
+    const host = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], provider: 'host' } } });
+    const text = printerInstructions(host);
+    expect(text).toContain('Loaded, as the printer reports it: not known, as a Moonraker or OctoPrint connection does not report it\n');
+    expect(text).not.toContain('reports it: nothing');
+  });
+
   it('name what is on the network', () => {
     const text = printerInstructions(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
     expect(text).toContain('Printers the app knows of now: Workshop (01P00A3B)\n');
@@ -101,10 +108,8 @@ describe('the instructions', () => {
       'Never ask for a password, access code or API key in chat',
       'a timeout means no response, not a wrong code',
       'answer anything the person says meanwhile',
-      'name the three ways forward:',
-      'try again with the same address',
-      'set up the connection manually in the app',
-      'Do not claim to open settings for them',
+      'give the likeliest explanation and say it is your guess',
+      'do not send them back to a step already done or already failed',
       'browse the full list manually in the app',
       'If the person asks to see the full printer list',
       'do not recite the list in chat or claim to open it for them',

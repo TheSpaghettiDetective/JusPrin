@@ -264,7 +264,17 @@
 //              and is refused before any credential is asked for. With
 //              --simulate-announce, no printer is needed: 25 seconds in, the
 //              app is handed the announcement the plug-in would have passed on
-//   --printer-live-p1s <address>
+//   --printer-connect-skill <fixture-directory> <address> <plug-in-version>
+//              no model and no fake, like --printer-network-check, whatever mode
+//              the printer at <address> is in: what skill reaches the model, and
+//              when. A chat that only adds a printer gets none; a chat about the
+//              printer gets it with its first connection tool's result; a chat
+//              opened to connect has it on its first request. Prints each state
+//              the app reports and the skill's line for it, then stops at the
+//              app's access code request at the latest. <plug-in-version> "none"
+//              is the person with no plug-in: leave plugins/ out of the fixture
+//              directory and the printer need not be there.
+//   --printer-live-p1s <address> [lan | wrong-code | cloud-on | real-code | no-printer]
 //              needs ANTHROPIC_API_KEY or OPENAI_API_KEY, macOS, and Bambu's real
 //              network plug-in in ~/Library/Application Support/JusPrin2/plugins,
 //              which it copies to this run's throwaway data directory: against
@@ -275,6 +285,22 @@
 //              with its timing, and checks the status was read, no connect
 //              succeeded, and what the model then said. Costs one live chat each
 //              run; other programs on UDP 2021 hide the printer (see Testing/README.md)
+//              A scenario plays the connection skill's chat against a printer in
+//              LAN mode instead: lan stops at the access code form; wrong-code
+//              types a made-up code twice, and answers the report card; cloud-on
+//              starts in cloud mode and waits, up to 15 minutes, for someone to
+//              turn LAN Only on; real-code waits as long for someone to type the
+//              real code into the form, or takes it from JUSPRIN_P1S_CODE, and
+//              never prints it.
+//   --printer-live-host <script>
+//              needs ANTHROPIC_API_KEY or OPENAI_API_KEY: plays a person
+//              connecting a print host through the live model, from a script
+//              (see queue_printer_live_host). Prints every message, tool call
+//              and note with its timing. Costs one live chat each run.
+//   --print-host-check <cases-file>
+//              no model: the app's own print host test against each line of
+//              "<moonraker|octoprint> <address> [<variable holding the key>]",
+//              printing what the printer chat would be told.
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -364,6 +390,7 @@
 #include <deque>
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
+#include "slic3r/GUI/JusPrin/Printers/ConnectionEvents.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
@@ -821,14 +848,19 @@ private:
 class ToolCallingAgent final : public Agent::IAgentService
 {
 public:
-    ToolCallingAgent(std::string tool, nlohmann::json arguments) : m_tool(std::move(tool)), m_arguments(std::move(arguments)) {}
+    // `tool` empty answers in words alone. `skills`, when given, collects every
+    // skill the app adds for this model, on a request or with a tool's result.
+    ToolCallingAgent(std::string tool, nlohmann::json arguments, std::vector<Agent::AgentSkillUse>* skills = nullptr)
+        : m_tool(std::move(tool)), m_arguments(std::move(arguments)), m_skills(skills) {}
 
     bool ready() const override { return true; }
     bool busy() const override { return m_active; }
     bool start(const Agent::AgentRequest& request) override
     {
         m_active = true;
-        if (request.purpose != Agent::AgentRequest::Purpose::ConversationTitle && !m_called) {
+        if (m_skills != nullptr && request.purpose != Agent::AgentRequest::Purpose::ConversationTitle)
+            m_skills->insert(m_skills->end(), request.skills.begin(), request.skills.end());
+        if (request.purpose != Agent::AgentRequest::Purpose::ConversationTitle && !m_called && !m_tool.empty()) {
             m_called = true;
             m_events.push_back(Agent::AgentEvent::tool_call({"call-1", Agent::ToolRequest{m_tool, m_arguments.dump()}, true}));
         } else {
@@ -837,8 +869,10 @@ public:
         }
         return true;
     }
-    bool continue_after_tool(const Agent::AgentToolResult&) override
+    bool continue_after_tool(const Agent::AgentToolResult& result) override
     {
+        if (m_skills != nullptr)
+            m_skills->insert(m_skills->end(), result.skills.begin(), result.skills.end());
         m_events.push_back(Agent::AgentEvent::delta("Checking."));
         m_events.push_back(Agent::AgentEvent::completed());
         return true;
@@ -862,6 +896,7 @@ public:
 private:
     std::string                   m_tool;
     nlohmann::json                m_arguments;
+    std::vector<Agent::AgentSkillUse>* m_skills{nullptr};
     std::deque<Agent::AgentEvent> m_events;
     bool                          m_active{false};
     bool                          m_called{false};
@@ -1175,6 +1210,7 @@ struct HarnessState
     enum class Mode {
         Shell,
         PrinterNetworkCheck,
+        PrintHostCheck,
         Stock,
         Manual,
         ManualLiveAgent,
@@ -1259,8 +1295,14 @@ struct HarnessState
     std::string network_check_address;
     std::string network_check_plugin_version;
     bool        network_check_simulate{false};
+    // --printer-connect-skill: what the same run shows about the skill.
+    bool        connect_skill_check{false};
+    std::string host_check_cases;
     // --printer-live-p1s: that printer through the live model.
     bool printer_live_p1s{false};
+    std::string p1s_scenario;
+    // --printer-live-host: the person's lines for a print host's Connect chat.
+    std::string live_host_script;
     // --printer-settings-live, --filament-settings-live: a settings change to
     // the printer, or slot 1's filament, OrcaSlicer ships, from the header.
     bool settings_live{false};
@@ -1412,8 +1454,15 @@ public:
                 verify_printer_setup();
                 return;
             }
+            if (m_state->mode == HarnessState::Mode::PrintHostCheck) {
+                verify_print_host_check();
+                return;
+            }
             if (m_state->mode == HarnessState::Mode::PrinterNetworkCheck) {
-                verify_printer_network_check();
+                if (m_state->connect_skill_check)
+                    verify_printer_connect_skill();
+                else
+                    verify_printer_network_check();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::PrinterLive) {
@@ -3953,6 +4002,11 @@ private:
             run_live_steps();
             return;
         }
+        if (!m_state->live_host_script.empty()) {
+            queue_printer_live_host();
+            run_live_steps();
+            return;
+        }
         if (m_state->settings_live) {
             queue_settings_live();
             run_live_steps();
@@ -4695,6 +4749,7 @@ private:
     std::optional<std::chrono::steady_clock::time_point> m_p1s_first_status;
     std::optional<std::chrono::steady_clock::time_point> m_p1s_quiet_since;
     std::vector<std::string>                             m_p1s_printed;
+    wxString                                             m_p1s_dialog;
     std::size_t                                          m_p1s_tools_started{0};
     std::size_t                                          m_p1s_tools_finished{0};
     bool                                                 m_p1s_address_given{false};
@@ -4720,6 +4775,14 @@ private:
                 std::cerr << p1s_stamp() << who << " error: " << message.error->code << ' ' << message.error->message << '\n';
         }
         m_live_printed = live_messages().size();
+        // OrcaSlicer's own info dialog, which upstream's local-connect handler
+        // shows on a failed connection whoever asked for it.
+        const wxString shown = wxGetApp().get_inf_dialog_contect();
+        if (shown != m_p1s_dialog) {
+            m_p1s_dialog = shown;
+            if (!shown.empty())
+                std::cerr << p1s_stamp() << "upstream dialog shown: " << shown.ToUTF8().data() << '\n';
+        }
         const auto& activities = live_activities();
         for (; m_p1s_tools_started < activities.size(); ++m_p1s_tools_started) {
             const Agent::ToolActivity& activity = activities[m_p1s_tools_started];
@@ -4842,6 +4905,10 @@ private:
                                            !live_messages().empty();
                                 },
                                 [this] { p1s_watch(); }});
+        if (!m_state->p1s_scenario.empty()) {
+            queue_p1s_scenario();
+            return;
+        }
         m_live_steps.push_back({"say: Connect my printer", [this] { say("Connect my printer"); }, [this] { return p1s_quiet(); }, {}});
         const auto give_address = [this, address] {
             m_p1s_quiet_since.reset();
@@ -4896,6 +4963,320 @@ private:
                                     // Not plain "menu": "Connect… in its menu on Home" is the app's real menu.
                                     check(!any({" > ", "→", "->", "gear icon", "wlan", "settings menu", "network menu", "printer's menu"}),
                                           "live_p1s_words_invent_no_menu_path");
+                                }});
+    }
+
+    // --- A print host, a live model (--printer-live-host) ---------------------
+    //
+    // A script of lines: "printer <catalogue id>" saves that printer and
+    // opens its Connect chat; "say <words>" says them; "form <words>" says them
+    // only if the connection form is not open yet; "key <variable>" submits the
+    // form with the key in that environment variable ("-" for none), never
+    // printed, and waits for the app's note on the attempt. Everything is
+    // printed as the P1S chats print it, to be read, not judged here.
+    void queue_printer_live_host()
+    {
+        std::ifstream script(m_state->live_host_script);
+        std::string   line;
+        int           attempts = 0;
+        while (std::getline(script, line)) {
+            const auto        space = line.find(' ');
+            const std::string verb  = line.substr(0, space);
+            const std::string rest  = space == std::string::npos ? std::string() : line.substr(space + 1);
+            if (verb == "printer") {
+                m_live_steps.push_back({"save: " + rest,
+                                        [this, rest] {
+                                            const auto& catalog = live_backend().catalog();
+                                            const auto  model   = std::find_if(catalog.begin(), catalog.end(),
+                                                                               [&rest](const PrinterSetup::CatalogPrinter& printer) {
+                                                                                   return printer.id == rest;
+                                                                               });
+                                            check(model != catalog.end(), "live_host_printer_is_in_the_catalogue");
+                                            if (model == catalog.end())
+                                                return;
+                                            PrinterSetup::SavedPrinter added;
+                                            check(live_backend().add_printer({model->vendor_id, model->model_id, "0.4", model->filament_for(0.4),
+                                                                              model->display_name(), {}, {}},
+                                                                             added)
+                                                      .empty(),
+                                                  "live_host_printer_saved");
+                                            m_live_added.push_back(added.name);
+                                            std::cerr << "HARNESS LIVE   provider " << wxGetApp().app_config->get("jusprin_agent", "provider")
+                                                      << ", model " << wxGetApp().app_config->get("jusprin_agent", "model") << ", printer "
+                                                      << added.name << '\n';
+                                        },
+                                        [] { return true; },
+                                        {}});
+                m_live_steps.push_back({"open: Connect",
+                                        [this] {
+                                            live_show(PrinterSetup::ConversationMode::Connect,
+                                                      m_live_added.empty() ? std::string() : m_live_added.front());
+                                            m_live_printed = 0;
+                                            m_p1s_start    = std::chrono::steady_clock::now();
+                                        },
+                                        [this] {
+                                            return live_panel()->IsShown() && live_panel()->host() != nullptr &&
+                                                   live_panel()->host()->handshake_complete() && live_panel()->instructions_ready() &&
+                                                   !live_messages().empty();
+                                        },
+                                        [this] { p1s_watch(); }});
+            } else if (verb == "say" || verb == "form") {
+                m_live_steps.push_back({line,
+                                        [this, rest, only_without_form = verb == "form"] {
+                                            m_p1s_quiet_since.reset();
+                                            if (!only_without_form || !p1s_form_open())
+                                                say(rest);
+                                        },
+                                        [this] { return p1s_quiet(); },
+                                        [this] { p1s_watch(); }});
+            } else if (verb == "key") {
+                ++attempts;
+                const char* key = rest == "-" ? "" : std::getenv(rest.c_str());
+                const auto  sent = std::make_shared<bool>(false);
+                m_live_steps.push_back({"form: key from " + rest,
+                                        [this, sent, key = std::string(key != nullptr ? key : "")] {
+                                            m_p1s_quiet_since.reset();
+                                            const nlohmann::json state = live_panel()->session_json();
+                                            *sent = state.contains("credentialRequest");
+                                            check(*sent, "live_host_the_form_is_open");
+                                            if (*sent)
+                                                live_send("printer_action", {{"action", "connect"},
+                                                                             {"actionId", state.at("credentialRequest").at("actionId")},
+                                                                             {"credential", key}});
+                                        },
+                                        [this, sent, attempts] {
+                                            return !*sent || (!live_panel()->session_json().contains("credentialRequest") && p1s_quiet() &&
+                                                              p1s_notes_with(" verified.") + p1s_notes_with(" failed: ") >= attempts);
+                                        },
+                                        [this] { p1s_watch(); }});
+            } else if (!line.empty())
+                fail("unknown --printer-live-host line: " + line);
+        }
+        // With PRINTER_LIVE_CAPTURE_DIR set, the whole chat from the top, one
+        // screen at a time with a little overlap, as WebKit draws it.
+        m_live_steps.push_back({"capture: the whole chat", [] {}, [] { return true; }, [this] {
+                                    if (std::getenv("PRINTER_LIVE_CAPTURE_DIR") == nullptr)
+                                        return;
+                                    wxWebView* view = live_panel()->web_view()->webview();
+                                    const auto run  = [view](const std::string& script) {
+                                        wxString out;
+                                        view->RunScript(wxString::FromUTF8(script), &out);
+                                        return std::string(out.ToUTF8().data());
+                                    };
+                                    const std::string sizes = run("(function(){const l=document.querySelector('.message-list');"
+                                                                  "return l.scrollHeight+' '+l.clientHeight;})()");
+                                    int total = 0, screen = 0;
+                                    std::istringstream(sizes) >> total >> screen;
+                                    check(total > 0 && screen > 0, "live_host_chat_measured");
+                                    if (total <= 0 || screen <= 0)
+                                        return;
+                                    const int step = screen * 9 / 10;
+                                    for (int top = 0, page = 1;; top += step, ++page) {
+                                        run("document.querySelector('.message-list').scrollTop=" + std::to_string(top));
+                                        for (int settle = 0; settle < 6; ++settle) {
+                                            wxYield();
+                                            wxMilliSleep(50);
+                                        }
+                                        char name[32];
+                                        std::snprintf(name, sizeof(name), "chat-%02d", page);
+                                        live_capture(name);
+                                        if (top + screen >= total || page == 40)
+                                            break;
+                                    }
+                                }});
+    }
+
+    // --- The connection skill's chats, against the real printer ---------------
+
+    bool p1s_form_open() const { return live_panel()->session_json().contains("credentialRequest"); }
+
+    int p1s_notes_with(const std::string& words) const
+    {
+        const auto messages = live_messages();
+        return static_cast<int>(std::count_if(messages.begin(), messages.end(), [&words](const Agent::ConversationMessage& message) {
+            return message.role == Agent::MessageRole::Note && message.text.find(words) != std::string::npos;
+        }));
+    }
+
+    std::vector<nlohmann::json> p1s_report_cards() const
+    {
+        const nlohmann::json        state = live_panel()->session_json();
+        std::vector<nlohmann::json> cards;
+        for (const nlohmann::json& block : state.at("blocks"))
+            if (block.value("kind", "") == "report")
+                cards.push_back(block);
+        return cards;
+    }
+
+    // Whether the model, told the person wants this, has opened the form.
+    void queue_p1s_ask_for_the_form(const std::string& words)
+    {
+        m_live_steps.push_back({"say, if no form yet: " + words,
+                                [this, words] {
+                                    m_p1s_quiet_since.reset();
+                                    if (!p1s_form_open())
+                                        say(words);
+                                },
+                                [this] { return p1s_quiet(); },
+                                [this] { check(p1s_form_open(), "live_p1s_the_access_code_form_is_open"); }});
+    }
+
+    void queue_p1s_submit_code(const std::string& code, int failure)
+    {
+        m_live_steps.push_back({"form: an access code",
+                                [this, code] {
+                                    m_p1s_quiet_since.reset();
+                                    const nlohmann::json state = live_panel()->session_json();
+                                    if (state.contains("credentialRequest"))
+                                        live_send("printer_action", {{"action", "connect"},
+                                                                     {"actionId", state.at("credentialRequest").at("actionId")},
+                                                                     {"credential", code}});
+                                },
+                                [this, failure] { return p1s_quiet() && p1s_notes_with(" failed: ") >= failure; },
+                                [this] { p1s_watch(); }});
+    }
+
+    void queue_p1s_scenario()
+    {
+        using namespace std::chrono_literals;
+        const std::string scenario = m_state->p1s_scenario;
+        // Whatever each chat goes on to do, the search reports first.
+        m_live_steps.push_back({"say: Connect my printer",
+                                [this] {
+                                    m_p1s_quiet_since.reset();
+                                    say("Connect my printer");
+                                },
+                                [this] { return p1s_after_the_search(); },
+                                [this] { p1s_watch(); }});
+        if (scenario == "lan") {
+            queue_p1s_ask_for_the_form("Yes, connect it");
+        } else if (scenario == "wrong-code") {
+            queue_p1s_ask_for_the_form("Yes, connect it");
+            queue_p1s_submit_code("00000000", 1);
+            m_live_steps.push_back({"say: I checked the code, try again",
+                                    [this] {
+                                        m_p1s_quiet_since.reset();
+                                        say("I checked the code on the printer's screen. Let's try again.");
+                                    },
+                                    [this] { return p1s_quiet(); },
+                                    {}});
+            queue_p1s_ask_for_the_form("Yes, open the form again");
+            queue_p1s_submit_code("00000000", 2);
+            m_live_steps.push_back({"card: Send report",
+                                    [this] {
+                                        m_p1s_quiet_since.reset();
+                                        const auto cards = p1s_report_cards();
+                                        check(cards.size() == 1, "live_p1s_second_failure_shows_the_report_card");
+                                        if (cards.empty())
+                                            return;
+                                        std::cerr << "HARNESS LIVE   report card holds:\n" << cards.front().value("report", "") << '\n';
+                                        live_send("printer_action", {{"action", "report_send"}, {"blockId", cards.front().at("id")}});
+                                    },
+                                    // The answer is a note and starts no turn.
+                                    [this] {
+                                        const auto cards = p1s_report_cards();
+                                        return cards.empty() || cards.front().contains("answer");
+                                    },
+                                    [this] {
+                                        p1s_watch();
+                                        const auto cards = p1s_report_cards();
+                                        check(!cards.empty() && cards.front().value("answer", "") == "kept", "live_p1s_report_was_kept");
+                                        if (!cards.empty())
+                                            std::cerr << "HARNESS LIVE   report kept at " << cards.front().value("path", "") << '\n';
+                                    }});
+        } else if (scenario == "cloud-on") {
+            m_live_steps.push_back({"wait, up to 15 minutes: LAN Only turned on",
+                                    [this] {
+                                        std::cerr << "HARNESS LIVE   waiting for LAN Only on the printer\n";
+                                        m_p1s_quiet_since.reset();
+                                    },
+                                    [this, last = std::make_shared<std::chrono::steady_clock::time_point>(), started = std::chrono::steady_clock::now()] {
+                                        p1s_watch();
+                                        const auto now = std::chrono::steady_clock::now();
+                                        if (now - started >= 15min)
+                                            return true;
+                                        if (now - *last < 2s)
+                                            return false;
+                                        *last = now;
+                                        const auto candidates = live_backend().connection(m_live_added.front()).candidates;
+                                        return std::any_of(candidates.begin(), candidates.end(), [](const PrinterSetup::ConnectionCandidate& candidate) {
+                                            return candidate.lan_mode && candidate.reason.empty();
+                                        });
+                                    },
+                                    [this] { std::cerr << p1s_stamp() << "the app now hears the printer in LAN mode\n"; }});
+            m_live_steps.push_back({"say: I turned LAN Only on",
+                                    [this] {
+                                        m_p1s_quiet_since.reset();
+                                        say("I turned LAN Only on.");
+                                    },
+                                    [this] { return p1s_quiet(); },
+                                    {}});
+            queue_p1s_ask_for_the_form("Yes, connect it");
+        } else if (scenario == "real-code") {
+            queue_p1s_ask_for_the_form("Yes, connect it");
+            // From the person who owns the printer, for this run: never printed.
+            const char* code = std::getenv("JUSPRIN_P1S_CODE");
+            m_live_steps.push_back({"wait, up to 15 minutes: the access code typed into the form",
+                                    [this, code = std::string(code != nullptr ? code : "")] {
+                                        std::cerr << "HARNESS LIVE   waiting for the access code in the form\n";
+                                        m_p1s_quiet_since.reset();
+                                        const nlohmann::json state = live_panel()->session_json();
+                                        if (!code.empty() && state.contains("credentialRequest"))
+                                            live_send("printer_action", {{"action", "connect"},
+                                                                         {"actionId", state.at("credentialRequest").at("actionId")},
+                                                                         {"credential", code}});
+                                    },
+                                    [this, started = std::chrono::steady_clock::now()] {
+                                        p1s_watch();
+                                        const bool told = p1s_notes_with(" verified.") + p1s_notes_with(" failed: ") > 0;
+                                        return (p1s_quiet() && told) || std::chrono::steady_clock::now() - started >= 15min;
+                                    },
+                                    [this] {
+                                        p1s_watch();
+                                        // Reported, not judged: these chats are judged by where they leave
+                                        // the person, and a printer may fail for reasons outside the app.
+                                        std::cerr << p1s_stamp() << "connection verified: " << (p1s_notes_with(" verified.") == 1 ? "yes" : "no") << '\n';
+                                    }});
+            // A failure with the right code: what the model makes of it when
+            // the person has already ruled the code out.
+            m_live_steps.push_back({"say, if it failed: it is the same code",
+                                    [this] {
+                                        m_p1s_quiet_since.reset();
+                                        if (p1s_notes_with(" verified.") == 0)
+                                            say("I compared them, it's the same code. What else could it be?");
+                                    },
+                                    [this] { return p1s_quiet(); },
+                                    [this] { p1s_watch(); }});
+        } else if (scenario == "no-printer") {
+            // JUSPRIN_TEST_HEAR_NOTHING makes the app hear nothing. The person
+            // answers the obvious checks, so what the model says next comes
+            // from its own knowledge.
+            for (const char* words : {"It's on, and it's on the same Wi-Fi as this computer. What should I check?",
+                                      "The printer's screen says Wi-Fi connected and LAN Only is on. What else could it be?"})
+                m_live_steps.push_back({std::string("say: ") + words,
+                                        [this, words] {
+                                            m_p1s_quiet_since.reset();
+                                            say(words);
+                                        },
+                                        [this] { return p1s_quiet(); },
+                                        [this] { p1s_watch(); }});
+        } else
+            fail("unknown --printer-live-p1s scenario: " + scenario);
+        // What holds for every chat, and is read from its words afterwards.
+        m_live_steps.push_back({"read: the whole chat",
+                                [] {},
+                                [] { return true; },
+                                [this] {
+                                    const auto messages = live_messages();
+                                    const auto any      = [&messages](const std::vector<std::string>& words) {
+                                        return std::any_of(messages.begin(), messages.end(), [&words](const Agent::ConversationMessage& message) {
+                                            return message.role == Agent::MessageRole::Assistant && mentions(message.text, words);
+                                        });
+                                    };
+                                    check(!any({" > ", "→", "->", "gear icon", "wlan", "settings menu", "network menu", "printer's menu"}),
+                                          "live_p1s_words_invent_no_menu_path");
+                                    check(!any({"not on the network", "isn't on the network", "not on your network", "couldn't find", "can't find", "cannot find"}),
+                                          "live_p1s_words_do_not_say_no_printer");
                                 }});
     }
 
@@ -5324,6 +5705,60 @@ private:
         return output;
     }
 
+    // No model and no fake: the app's own print host test against each case,
+    // printing what the printer chat would be told. A case is a line
+    // "<moonraker|octoprint> <address> [<environment variable holding the key>]";
+    // the key itself is never printed.
+    void verify_print_host_check()
+    {
+        using namespace std::chrono_literals;
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        const auto& catalog = backend.catalog();
+        const auto  model   = std::find_if(catalog.begin(), catalog.end(),
+                                           [](const PrinterSetup::CatalogPrinter& printer) { return printer.vendor_id != "BBL"; });
+        check(model != catalog.end(), "host_check_has_a_printer_to_save");
+        if (model == catalog.end())
+            return finish();
+        PrinterSetup::SavedPrinter added;
+        const std::string          problem = backend.add_printer(
+            {model->vendor_id, model->model_id, "0.4", model->filament_for(0.4), model->display_name(), {}, {}}, added);
+        check(problem.empty(), "host_check_printer_saved");
+        if (!problem.empty())
+            return finish();
+        const auto print_state = [&added](const char* when, const PrinterSetup::PrinterConnectionInfo& info) {
+            std::cerr << "HARNESS HOST state " << when << ": " << info.provider << ' ' << info.state << " (host type " << info.host_type
+                      << ", address " << info.address << ")\n";
+        };
+        print_state("before any attempt", backend.connection(added.name));
+        std::ifstream cases(m_state->host_check_cases);
+        std::string   line;
+        while (std::getline(cases, line)) {
+            std::istringstream words(line);
+            std::string        kind, address, key_variable;
+            if (!(words >> kind >> address))
+                continue;
+            words >> key_variable;
+            const char*       key   = key_variable.empty() ? nullptr : std::getenv(key_variable.c_str());
+            const auto        start = std::chrono::steady_clock::now();
+            const std::string refused = backend.connect_host(added.name, kind, address, key ? key : "");
+            PrinterSetup::PrinterConnectionInfo info = backend.connection(added.name);
+            while (refused.empty() && info.state == "connecting" && std::chrono::steady_clock::now() - start < 60s) {
+                wxYield();
+                std::this_thread::sleep_for(10ms);
+                info = backend.connection(added.name);
+            }
+            const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+            std::cerr << "HARNESS HOST " << kind << ' ' << address << (key_variable.empty() ? "" : " with " + key_variable) << " -> "
+                      << (refused.empty() ? info.state + " after " + std::to_string(took.count()) + " ms: " + info.message
+                                          : "refused: " + refused)
+                      << '\n';
+        }
+        // As the next chat finds it: saved by the last attempt, untested since.
+        print_state("in a new session", PrinterSetup::OrcaPrinterBackend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()))
+                                            .connection(added.name));
+        finish();
+    }
+
     void verify_printer_network_check()
     {
         using namespace std::chrono_literals;
@@ -5417,6 +5852,212 @@ private:
         }
         notes();
         panel->close();
+        finish();
+    }
+
+    // One person's message and one scripted turn, collecting the skills the
+    // app adds for the model; a tool's output comes back, or nothing.
+    nlohmann::json connect_skill_turn(const std::string& tool, const nlohmann::json& arguments, const std::string& name,
+                                      std::vector<Agent::AgentSkillUse>& skills)
+    {
+        using namespace std::chrono_literals;
+        Agent::AgentHost* host = installed_shell()->printer_panel()->host();
+        check(wait_for([host] { return !host->stream_active(); }, 20s), name + "_no_turn_running");
+        const std::size_t before = host->tools().activities().size();
+        host->set_agent(std::make_unique<ToolCallingAgent>(tool, arguments, &skills), Agent::AgentAvailability::Ready);
+        host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                             {"version", Agent::Protocol::kVersion},
+                                             {"id", name},
+                                             {"type", "user_message"},
+                                             {"payload", {{"clientMessageId", name + "-c"}, {"text", "go on"}}}}
+                                  .dump());
+        const bool settled = wait_for([&] {
+            if (!tool.empty() && (host->tools().activities().size() == before || host->tools().activities().back().state == Agent::ToolState::Running))
+                return false;
+            return !host->stream_active();
+        }, 20s);
+        check(settled, name + "_settled");
+        if (!settled || tool.empty())
+            return {};
+        const Agent::ToolActivity& activity = host->tools().activities().back();
+        const nlohmann::json       output   = activity.error ?
+                  nlohmann::json{{"error", {{"code", activity.error->code}, {"message", activity.error->message}}}} :
+                  nlohmann::json::parse(activity.result_json);
+        std::cerr << "HARNESS SKILL " << tool << ' ' << arguments.dump() << " -> " << output.dump() << '\n';
+        return output;
+    }
+
+    // What a status read reports, each state with the skill's line for it.
+    void connect_skill_lines(const nlohmann::json& status, const std::string& text)
+    {
+        std::vector<std::string> states{status.at("state").get<std::string>(), status.at("search").at("state").get<std::string>()};
+        if (!status.at("candidates").empty())
+            states.push_back("candidates");
+        for (const nlohmann::json& seen : status.at("seen"))
+            states.push_back(seen.at("reason").get<std::string>());
+        for (const std::string& state : states) {
+            std::istringstream lines(text);
+            std::string        line;
+            std::string        found;
+            while (found.empty() && std::getline(lines, line))
+                if (line.find("`" + state + "`") != std::string::npos)
+                    found = line;
+            std::cerr << "HARNESS SKILL state " << state << " -> " << (found.empty() ? "(not named: the model works it out)" : found) << '\n';
+        }
+    }
+
+    // Goes on past the form with no model, to see what the app's note says on
+    // the real printer. The code is never printed.
+    void connect_skill_try_code(const std::string& code, std::vector<Agent::AgentSkillUse>& skills)
+    {
+        using namespace std::chrono_literals;
+        // Upstream's "Incorrect password" dialog would hold the run.
+        struct Answer : wxModalDialogHook
+        {
+            int Enter(wxDialog* dialog) override
+            {
+                std::cerr << "HARNESS SKILL dialog: " << Workspace::read_dialog(*dialog).text << '\n';
+                return wxID_OK;
+            }
+        } answer;
+        answer.Register();
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        panel->host()->set_agent(std::make_unique<ToolCallingAgent>(std::string(), nlohmann::json::object(), &skills), Agent::AgentAvailability::Ready);
+        const nlohmann::json state = panel->session_json();
+        check(state.contains("credentialRequest"), "connect_skill_form_is_up");
+        if (state.contains("credentialRequest")) {
+            const auto start = std::chrono::steady_clock::now();
+            live_send("printer_action", {{"action", "connect"}, {"actionId", state.at("credentialRequest").at("actionId")}, {"credential", code}});
+            std::string outcome;
+            check(wait_for([&] {
+                const Agent::ProjectPersistence* persistence = panel->persistence();
+                for (const auto& message : persistence->document().messages(persistence->document().active_conversation_id()))
+                    if (message.role == Agent::MessageRole::Note &&
+                        (message.text.find(" failed: ") != std::string::npos || message.text.find(" verified.") != std::string::npos))
+                        outcome = message.text;
+                return !outcome.empty();
+            }, 120s), "connect_skill_attempt_settled");
+            std::cerr << "HARNESS SKILL attempt, after "
+                      << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count()
+                      << " s: " << outcome << '\n';
+        }
+        answer.Unregister();
+    }
+
+    void verify_printer_connect_skill()
+    {
+        using namespace std::chrono_literals;
+        const bool plugin = m_state->network_check_plugin_version != "none";
+        check(NetworkAgent::is_network_module_loaded() == plugin, "connect_skill_plugin_as_asked");
+        check(fake_bambu_printer_agent_id(wxGetApp().app_config).empty(), "connect_skill_has_no_fake");
+        const auto named = [](const std::vector<Agent::AgentSkillUse>& skills) {
+            return std::any_of(skills.begin(), skills.end(), [](const Agent::AgentSkillUse& skill) { return skill.name == "connect-bambu"; });
+        };
+
+        PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
+        const auto& catalog = backend.catalog();
+        const auto  model   = std::find_if(catalog.begin(), catalog.end(),
+                                           [](const PrinterSetup::CatalogPrinter& printer) { return printer.id == "BBL/Bambu Lab P1S"; });
+        check(model != catalog.end(), "connect_skill_p1s_is_in_the_catalogue");
+        if (model == catalog.end())
+            return finish();
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        const auto open = [&](PrinterSetup::ConversationMode mode, const std::string& name) {
+            panel->open(mode, name);
+            const bool loaded = wait_for([panel] {
+                return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+            }, 60s);
+            check(loaded, "connect_skill_page_loaded");
+            return loaded;
+        };
+
+        // A chat that only sets up a printer: printer_add, then a word. None.
+        if (!open(PrinterSetup::ConversationMode::Add, {}))
+            return finish();
+        std::vector<Agent::AgentSkillUse> adding;
+        connect_skill_turn("printer_add", {{"catalogId", model->id}}, "skill_add", adding);
+        connect_skill_turn({}, nlohmann::json::object(), "skill_add_after", adding);
+        const std::string added = panel->session_json().value("printerName", "");
+        check(!added.empty(), "connect_skill_printer_added");
+        check(adding.empty(), "connect_skill_none_for_a_chat_that_only_adds");
+        std::cerr << "HARNESS SKILL add chat: " << adding.size() << " skills on its requests and results\n";
+        // close() hides at once and tears the session down from a CallAfter,
+        // which would take the next one with it.
+        panel->close();
+        wait_for([panel] { return panel->host() == nullptr; }, 5s);
+        if (added.empty())
+            return finish();
+
+        // A chat about the printer, until it calls a connection tool.
+        if (!open(PrinterSetup::ConversationMode::Change, added))
+            return finish();
+        std::vector<Agent::AgentSkillUse> changing;
+        connect_skill_turn({}, nlohmann::json::object(), "skill_change", changing);
+        check(changing.empty(), "connect_skill_none_before_trying");
+        std::cerr << "HARNESS SKILL change chat before trying: " << changing.size() << " skills\n";
+        const nlohmann::json first = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_change_status", changing);
+        check(named(changing), "connect_skill_comes_with_the_first_connection_tool");
+        std::cerr << "HARNESS SKILL change chat after its first status read: " << changing.size() << " skills\n";
+        check(first.value("provider", "") == "bambu", "connect_skill_type_is_bambu");
+        panel->close();
+        wait_for([panel] { return panel->host() == nullptr; }, 5s);
+
+        // A chat opened to connect: on its first request, then every state.
+        if (!open(PrinterSetup::ConversationMode::Connect, added))
+            return finish();
+        std::vector<Agent::AgentSkillUse> connecting;
+        connect_skill_turn({}, nlohmann::json::object(), "skill_connect", connecting);
+        check(named(connecting), "connect_skill_on_a_connect_chats_first_request");
+        std::cerr << "HARNESS SKILL connect chat, first request: " << connecting.size() << " skills\n";
+        if (connecting.empty())
+            return finish();
+        const std::string text = connecting.front().text;
+
+        const nlohmann::json early = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_first_read", connecting);
+        connect_skill_lines(early, text);
+        if (plugin) {
+            // The printer's first announcement, or the port's state, is news a
+            // note gives; then what a read says about it.
+            const auto start = std::chrono::steady_clock::now();
+            std::size_t printed = 0;
+            bool        noted = false;
+            wait_for([&] {
+                const Agent::ProjectPersistence* persistence = panel->persistence();
+                std::size_t count = 0;
+                for (const auto& message : persistence->document().messages(persistence->document().active_conversation_id()))
+                    if (message.role == Agent::MessageRole::Note && ++count > printed) {
+                        printed = count;
+                        std::cerr << "HARNESS SKILL note at "
+                                  << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count()
+                                  << " s: " << message.text << '\n';
+                        noted = noted || message.text.find("listened for") == std::string::npos;
+                    }
+                return noted;
+            }, 120s);
+            const nlohmann::json later = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_later_read", connecting);
+            connect_skill_lines(later, text);
+            if (!later.at("candidates").empty()) {
+                // Stops at the app's access code request: nothing goes to the printer.
+                const nlohmann::json asked = connect_skill_turn("printer_connect", {{"deviceId", later.at("candidates").front().at("deviceId")}},
+                                                                "skill_connect_call", connecting);
+                check(asked.value("state", "") == "credential_requested", "connect_skill_stops_at_the_access_code_request");
+                if (const char* code = std::getenv("JUSPRIN_P1S_TRY_CODE"); code != nullptr)
+                    connect_skill_try_code(code, connecting);
+            }
+        } else {
+            check(early.value("state", "") == "unavailable", "connect_skill_no_plugin_is_unavailable");
+            const auto request = panel->session_json().at("blocks");
+            check(std::any_of(request.begin(), request.end(), [](const nlohmann::json& block) { return block.value("kind", "") == "plugin"; }),
+                  "connect_skill_no_plugin_shows_the_notice");
+        }
+        // Where a report the person agreed to send goes: the real data folder.
+        const std::string kept = backend.keep_connection_report("{\"report\":\"connection\"}");
+        std::ifstream     report(kept, std::ios::binary);
+        const std::string held((std::istreambuf_iterator<char>(report)), std::istreambuf_iterator<char>());
+        check(held == "{\"report\":\"connection\"}", "connect_skill_report_is_kept_in_the_data_folder");
+        std::cerr << "HARNESS SKILL report kept at " << kept << '\n';
+        panel->close();
+        wait_for([panel] { return panel->host() == nullptr; }, 5s);
         finish();
     }
 
@@ -5863,6 +6504,12 @@ private:
               "connection_refused_names_the_plugins_code");
         check(refused.message.find("selected printer changed") == std::string::npos,
               "connection_refused_is_not_blamed_on_the_selection");
+        // The note carries what the app saw at the printer's port, and no
+        // conclusion: nothing listens on the fake's port 8883.
+        check(refused.message.find("port 8883 at 127.0.0.1") != std::string::npos &&
+                  refused.message.find("turned the connection down") != std::string::npos,
+              "connection_failure_says_what_the_port_did");
+        check(refused.message.find("refused the connection") == std::string::npos, "connection_failure_draws_no_conclusion");
 
         // Connected, then dropped before any status: Lost, which upstream also
         // answers by clearing the selection.
@@ -5885,6 +6532,19 @@ private:
         // ConnectStatusLost); the codes were not observed from the real plug-in,
         // which needs a LAN-mode printer and a deliberately wrong access code.
         check(messages.size() == 3, "connection_failures_are_told_apart");
+        // Each thing a look at the port can see, on a real socket.
+        {
+            boost::asio::io_context io;
+            boost::asio::ip::tcp::acceptor open_port(io, {boost::asio::ip::address_v4::loopback(), 0});
+            const int port = open_port.local_endpoint().port();
+            check(Printers::look_at_port("127.0.0.1", port, 2s).find("it answered in ") != std::string::npos, "port_look_sees_an_answer");
+            open_port.close();
+            check(Printers::look_at_port("127.0.0.1", port, 2s).find("turned the connection down") != std::string::npos,
+                  "port_look_sees_a_refusal");
+            // A documentation address: no answer, or this computer saying there is no way there.
+            check(Printers::look_at_port("192.0.2.1", 8883, 300ms).find("it answered in ") == std::string::npos,
+                  "port_look_does_not_invent_an_answer");
+        }
         answer.Unregister();
         devices->set_selected_machine("");
         wxYield();
@@ -14389,6 +15049,25 @@ int main(int argc, char** argv)
                 ++index;
             }
         }
+        else if (argument == "--print-host-check") {
+            if (++index == argc) {
+                std::cerr << "--print-host-check requires a file of cases\n";
+                return 2;
+            }
+            state->mode             = HarnessState::Mode::PrintHostCheck;
+            state->host_check_cases = fs::absolute(argv[index]).string();
+        }
+        else if (argument == "--printer-connect-skill") {
+            if (index + 3 >= argc) {
+                std::cerr << "--printer-connect-skill requires a fixture directory, an address and the plug-in version\n";
+                return 2;
+            }
+            state->mode                         = HarnessState::Mode::PrinterNetworkCheck;
+            state->connect_skill_check          = true;
+            data_directory                      = fs::absolute(argv[++index]);
+            state->network_check_address        = argv[++index];
+            state->network_check_plugin_version = argv[++index];
+        }
         else if (argument == "--printer-live-p1s") {
             if (++index == argc) {
                 std::cerr << "--printer-live-p1s requires the printer's address\n";
@@ -14397,6 +15076,18 @@ int main(int argc, char** argv)
             state->mode                  = HarnessState::Mode::PrinterLive;
             state->printer_live_p1s      = true;
             state->network_check_address = argv[index];
+            if (index + 1 < argc && argv[index + 1][0] != '-')
+                state->p1s_scenario = argv[++index];
+            // Two chats wait for a person at the printer.
+            state->deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3600);
+        }
+        else if (argument == "--printer-live-host") {
+            if (++index == argc) {
+                std::cerr << "--printer-live-host requires a script\n";
+                return 2;
+            }
+            state->mode             = HarnessState::Mode::PrinterLive;
+            state->live_host_script = fs::absolute(argv[index]).string();
         }
         else if (argument == "--printer-live-no-plugin") {
             state->mode      = HarnessState::Mode::PrinterLive;
@@ -14558,7 +15249,8 @@ int main(int argc, char** argv)
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(), anchor + "\n    \"jusprin_shell\": \"0\",");
         }
-        if (state->mode == HarnessState::Mode::PrinterNetworkCheck || state->printer_live_p1s) {
+        if ((state->mode == HarnessState::Mode::PrinterNetworkCheck || state->printer_live_p1s) &&
+            state->network_check_plugin_version != "none") {
             const std::string anchor = "\"language\": \"en_US\",";
             config.replace(config.find(anchor), anchor.size(),
                            anchor + "\n    \"installed_networking\": true,\n    \"network_plugin_version\": \"" +

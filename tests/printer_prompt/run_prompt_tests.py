@@ -74,6 +74,9 @@ JUDGE_MODEL = "gpt-5.5-2026-04-23"  # pinned, so a count moves only when the pro
 # UTF-8 throughout: on Windows, Python otherwise reads text as the system code
 # page and garbles "×" and curly quotes before the model sees them.
 TOOLS = json.loads((HERE / "printer_tools.json").read_text(encoding="utf-8"))
+# The body of the file: what the page sends and the app adds (skillParser.ts).
+CONNECTION_SKILLS = {kind: (HERE / f"../../src/slic3r/GUI/JusPrin/AgentUI/src/skills/connect-{kind}/SKILL.md").read_text(
+    encoding="utf-8").split("\n---\n", 1)[1].strip() for kind in ("bambu", "moonraker", "octoprint")}
 MAX_REQUESTS_PER_TURN = 8
 # Conversations one invocation runs by default, shared by the cases it runs,
 # and the most one case gets from that share.
@@ -207,7 +210,7 @@ def succeeded(result):
 
 def not_run(failed):
     """The result the app gives a call after one in the same response did not
-    succeed (OpenAIResponsesAgent::next_call), word for word. failed is that
+    succeed (ProviderAgent::next_call), word for word. failed is that
     call as "tool (call_id)"."""
     return {"state": "failed", "error": {"code": "not_run", "message":
             f"Not run: an earlier call in the same response, {failed}, did not succeed. "
@@ -226,13 +229,37 @@ class Conversation:
         self.routing = {"provider": {"order": providers, "allow_fallbacks": False}} if providers else {}
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
+        self.skills_sent = set()
+        self.host_type = ""
 
     def say(self, words):
         """One turn: the person's words, then the model until it stops."""
         self.log.append("person: " + words)
         turn = self.history + [{"role": "user", "content": [{"type": "input_text", "text": words}]}]
         self.history.append({"role": "user", "content": words})
+        if getattr(self.case, "session", {}).get("mode") == "connect":
+            self.add_connection_skill(turn)
         self.respond(turn)
+
+    def add_connection_skill(self, turn):
+        """PrinterConversation::connection_skill: once the person has tried to
+        connect, the skill for the connection type follows the message or the
+        results of that moment, once, and stays. A print host's type is the
+        saved one, or else the one the first printer_connect names."""
+        printer = getattr(self.case, "printer", None) or getattr(self.case, "session", {}).get("context", {}).get("printer") or {}
+        # An add case names its printer by catalogue id, the vendor first.
+        if isinstance(printer, str):
+            bambu = printer.startswith("BBL/")
+        else:
+            bambu = printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu")
+        kind = "bambu" if bambu else self.host_type
+        if kind not in CONNECTION_SKILLS or kind in self.skills_sent:
+            return
+        self.skills_sent.add(kind)
+        self.log.append(f"app: (the connect-{kind} skill)")
+        message = {"role": "developer", "content": CONNECTION_SKILLS[kind]}
+        turn.append(message)
+        self.history.append(message)
 
     def note(self, text):
         """The app's own line, as the developer, then the turn it starts
@@ -273,12 +300,19 @@ class Conversation:
                     result, recorded = {"state": "failed", "error": problem}, False
                 else:
                     (result, _), recorded = self.case.tool(call["name"], arguments), True
+                    if call["name"] == "printer_connect" and arguments.get("hostType"):
+                        self.host_type = arguments["hostType"]
+                    elif (call["name"] == "printer_connection_status" and result.get("provider") == "host"
+                          and result.get("address") and not self.host_type):
+                        self.host_type = result.get("hostType", "")
                 if not failed and not succeeded(result):
                     failed = f"{call['name']} ({call['call_id']})"
                 self.log.append("  -> " + dump(result))
                 turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
                 if recorded:
                     self.history += self.replayed(call, result)
+            if any(call["name"] in ("printer_connect", "printer_connection_status") for call in calls):
+                self.add_connection_skill(turn)
 
     @staticmethod
     def replayed(call, result):
@@ -569,6 +603,101 @@ class ConnectOutcome(Finishing, ConnectBambu):
         if not self.card:
             return None
         return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
+
+
+def ended_badly(conversation, truth):
+    """What is wrong with where the chat left the person, or "": Kenneth's test
+    for a tool result, a person told something false or useless with the right
+    step hidden, asked of the whole chat. The truth is what the scenario knows
+    and the assistant cannot, so a wrong guess marked as a guess still passes
+    when its next step would lead them there."""
+    yes, why = judge(conversation.log, "The truth in this scenario, which the assistant cannot know for certain: " + truth +
+                                       " Reading the whole chat as that person, are all of these true? Every cause the "
+                                       "assistant gave is either stated in the app's or the person's messages or marked as "
+                                       "a guess. It did not send them back to something they had already done or ruled "
+                                       "out, unless something had changed. It gave no menu, screen or setting path as "
+                                       "fact unless the messages gave it. Its last message leaves them with a concrete "
+                                       "next thing to look at, try or answer that moves them toward the truth.")
+    return "" if yes else "LEFT STUCK: " + why
+
+
+class ConnectWorkedOut(ConnectOutcome):
+    """A failure the person cannot get past by following a line in the skill.
+    Passes by where the chat leaves the person (ended_badly)."""
+
+    truth = ""
+    failure = ""
+    person = ()
+
+    def run(self, conversation):
+        if self.connect(conversation, "failed: " + self.failure) is None:
+            return False, "NO CARD"
+        for words in self.person:
+            last_reply(conversation, words)
+        return verdict([ended_badly(conversation, self.truth)], "worked it out with them")
+
+
+class ConnectRightCodeSilentPort(ConnectWorkedOut):
+    """Kenneth's P1S, 2026-11-02: the right code, and a network too slow to
+    reach the port. The model blamed the code."""
+
+    name = "connect-right-code-silent-port"
+    truth = "The access code is right. The Wi-Fi between this computer and the printer is badly overloaded."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, nothing answered within "
+               "5 seconds. Right after it failed, nothing answered within 5 seconds.")
+    person = ("I compared them, it's the same code. What else could it be?",)
+
+
+class ConnectPortWentQuiet(ConnectWorkedOut):
+    """The real P1S on 2026-11-02: the port answered, a failed attempt, then
+    nothing for minutes. Trying again at once says nothing about the code."""
+
+    name = "connect-port-went-quiet"
+    truth = "The printer stopped answering after the failed attempt, and will answer again in several minutes or after a restart."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 73 ms. "
+               "Right after it failed, nothing answered within 5 seconds.")
+    person = ("should I just try again right now?",)
+
+
+class ConnectCodeRuledOut(ConnectWorkedOut):
+    """The port answers, so the code is the first guess, and the person then
+    rules it out. Not seen on a real printer: the skill was not written from it."""
+
+    name = "connect-code-ruled-out"
+    truth = "The access code is right. The printer has been running for weeks and needs a restart."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 14 ms. "
+               "Right after it failed, it answered in 16 ms.")
+    person = ("I checked twice, it's the same code.",)
+
+
+class ConnectUnforeseenFailure(ConnectWorkedOut):
+    """A code and an answer the skill never mentions, and a cause the person
+    brings up. Passes only by reasoning: no line in the skill covers it."""
+
+    name = "connect-unforeseen-failure"
+    truth = "This computer is on a work VPN, which blocks the local network."
+    failure = ("Bambu's network plug-in reported code -3 2 seconds after being asked to connect, which does not say why. The "
+               "app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, the app could not try, as "
+               "this computer said \"No route to host\". Right after it failed, the app could not try, as this computer said "
+               "\"No route to host\".")
+    person = ("hm, I'm on my work VPN today, does that matter?",)
+
+
+class ConnectScreenSaysDisconnected(ConnectOutcome):
+    """Nothing is heard, and the person reads the printer's screen. Passes when
+    the model takes what they see as the likely cause."""
+
+    name = "connect-screen-says-disconnected"
+    status = {**ConnectBambu.status, "candidates": [], "search": {"state": "listening", "secondsAgo": 40}}
+
+    def run(self, conversation):
+        conversation.say("Yes, it is")
+        last_reply(conversation, "the printer's screen says Wi-Fi disconnected")
+        problem = ended_badly(conversation, "The printer lost its Wi-Fi settings and has to be joined to the network again.")
+        return verdict(["OPENED THE FORM" if self.card else "", problem], "took what they see as the cause")
 
 
 class ConnectVerifiedClose(ConnectOutcome):
@@ -1065,27 +1194,6 @@ class ConnectHostAddress(SavedPrinterCase):
                         "" if cards else f"NO MOONRAKER CARD {self.called('printer_connect')}"], "card for voron.local")
 
 
-class ConnectBambuNotFound(SavedPrinterCase):
-    """No Bambu Lab printer in LAN mode is on the network. Passes when the
-    status is checked, no card opens, and the reply points to LAN mode on the
-    printer or asks what they see."""
-
-    name = "connect-bambu-not-found"
-    mode = "connect"
-    provider = "bambu"
-    printer = A1_MINI
-    # The search has had its 15 seconds: an empty list that means something.
-    status = {"address": "", "candidates": [], "seen": [], "search": {"state": "listening", "secondsAgo": 20},
-              "hostType": "", "message": "", "nozzleMismatch": False, "provider": "bambu", "state": "not_configured"}
-
-    def run(self, conversation):
-        last_reply(conversation, "Yes, it is")
-        yes, why = judge(conversation.log, "Does the assistant's last message tell the person where to turn LAN mode on, or "
-                                           "ask what they see on the printer's screen?")
-        return verdict([self.forbidden(), "" if self.called("printer_connection_status") else "NO STATUS CHECK",
-                        "" if yes else "NO LAN MODE GUIDANCE: " + why], "checked; pointed to LAN mode")
-
-
 class ConnectAskWhy(SavedPrinterCase):
     """A question before connecting. Passes when nothing runs and the reply
     says they can prepare prints for it without a connection."""
@@ -1207,11 +1315,12 @@ class ChangeAskLoadedNotConnected(SavedPrinterCase):
                                              "is loaded in the printer?")], "claimed nothing loaded")
 
 
-class ConnectFailedWaysForward(SavedPrinterCase):
+class ConnectHostNoResponse(SavedPrinterCase):
     """A print host is given and the app reports no response. Passes when the
-    failure reply names the three ways forward."""
+    person is left with a guess at why and something to look at or try, not
+    only a list of ways out."""
 
-    name = "connect-failed-ways-forward"
+    name = "connect-host-no-response"
     mode = "connect"
     printer = VORON
 
@@ -1223,11 +1332,8 @@ class ConnectFailedWaysForward(SavedPrinterCase):
             return False, "NO CREDENTIAL REQUEST"
         last_reply(conversation, note="Connection to Voron 2.4 350 failed: The printer did not respond. Check that it is on "
                                       "the network and try again.")
-        yes, why = judge(conversation.log, "Does the assistant's last message offer all three of these: trying again with the "
-                                           "same address; setting up the connection manually in the app; and leaving "
-                                           "it for now because they can still prepare prints for it?")
-        return verdict([self.forbidden(ADDING + ("printer_change",)),
-                        "" if yes else "NOT THE THREE WAYS: " + why], "named the three ways")
+        problem = ended_badly(conversation, "The printer is switched off.")
+        return verdict([self.forbidden(ADDING + ("printer_change",)), problem], "left with a guess and a next step")
 
 
 class ConnectBambuNoPlugin(SavedPrinterCase):
@@ -1259,8 +1365,8 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
 
 # Session payloads for the saved-printer cases.
 for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
-              ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectBambuNotFound, ConnectAskWhy,
-              ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin, ChangeEditStartGcode,
+              ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectAskWhy,
+              ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin, ChangeEditStartGcode,
               ChangeStockCopy, ChangeBedSize):
     _case.session = _case.session_for()
 
@@ -1268,10 +1374,12 @@ CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFrom
                                       ConnectVerifiedClose, ConnectLeaveClose, ChangeNozzleClose,
                                       ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
-                                      ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
+                                      ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
                                       AddManyFit, AddNameStartsTwo, AddUnshippedNozzle, AddFullList,
-                                      ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin,
-                                      ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize)}
+                                      ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin,
+                                      ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize,
+                                      ConnectRightCodeSilentPort, ConnectPortWentQuiet, ConnectCodeRuledOut, ConnectUnforeseenFailure,
+                                      ConnectScreenSaysDisconnected)}
 
 
 # --- The filament chat ---------------------------------------------------------

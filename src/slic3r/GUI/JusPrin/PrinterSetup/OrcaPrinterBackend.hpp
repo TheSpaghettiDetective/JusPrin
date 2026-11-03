@@ -43,6 +43,7 @@ public:
     DiscoveryPort discovery_port() override;
     void sign_in_to_bambu() override;
     void install_network_plugin() override;
+    std::string keep_connection_report(const std::string& text) override;
     std::string connect_printer(const std::string& name, const std::string& device_id,
                                const std::string& access_code) override;
     std::string connect_host(const std::string& name, const std::string& host_type,
@@ -64,6 +65,12 @@ private:
     // candidates: the panel proposes printers, and a nozzle is a fact about
     // the printer rather than a printer of its own.
     std::vector<CatalogPrinter> m_models;
+    // What the app saw at the printer's port around an attempt. The thread
+    // writes `said` before `done`, which the reader loads first.
+    struct PortLook {
+        std::atomic<bool> done{false};
+        std::string       said;
+    };
     struct ConnectionAttempt {
         std::string name;
         std::string device_id;
@@ -75,8 +82,15 @@ private:
         std::chrono::steady_clock::time_point connect_requested;
         // Deselected, to be selected again on the next event turn.
         bool reselecting{false};
+        // A printer in LAN mode: where the app looks, as the attempt starts
+        // and when it fails.
+        std::string address{};
+        std::shared_ptr<PortLook> port_before{};
+        std::shared_ptr<PortLook> port_after{};
     };
     std::optional<ConnectionAttempt> m_connection_attempt;
+    static std::shared_ptr<PortLook> start_port_look(const std::string& address);
+    void report_failure(PrinterConnectionInfo& info, const std::string& failure, bool look);
     // What a deferred reselection checks before touching this backend.
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
     // A print host is tested on a thread of its own, which writes its verdict

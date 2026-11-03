@@ -34,4 +34,9 @@ void record_connection_event(int connect_status, const std::string& device_id, c
 // The last answer about a device, if the plug-in has given one.
 std::optional<ConnectionEvent> last_connection_event(const std::string& device_id);
 
+// Part of a sentence saying what a TCP connection to a port did just now: how
+// long it took to answer, that it was turned down, or that nothing answered
+// within `limit`. Blocks for up to `limit`, so call it off the GUI thread.
+std::string look_at_port(const std::string& address, int port, std::chrono::milliseconds limit);
+
 } // namespace Slic3r::GUI::JusPrin::Printers

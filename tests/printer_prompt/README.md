@@ -203,9 +203,6 @@ and nozzle size are read-only.
 - Connect:
   - `connect-host-address`: a Voron given as "http://voron.local, I open it
     with Mainsail". Passes when the card opens for Moonraker at that address.
-  - `connect-bambu-not-found`: no A1 mini in LAN mode on the network. Passes
-    when the status is checked, no card opens, and the reply points to LAN
-    mode or asks what the screen shows.
   - `connect-ask-why`: "do I have to connect it?" Passes when the reply says
     it is optional.
 - Add:
@@ -236,10 +233,21 @@ cannot quietly undo it.
   that result is not comparable after removing the tool.
 - `change-ask-loaded-not-connected`: what is loaded on a printer that is not
   connected (492fdb5531). Passes when no filament is claimed as loaded.
-- `connect-failed-ways-forward`: a print host that does not respond
-  (c922876c66: a failure ended with no way forward). Passes when the initial
-  reply says how long it can take and the failure reply names the three ways
-  forward.
+- `connect-host-no-response`: a print host that does not respond (c922876c66:
+  a failure ended with no way forward). Passes when the chat leaves the person
+  with a guess at why and something to look at or try.
+- `connect-right-code-silent-port`: the right access code, a port that does not
+  answer, then "it's the same code" (the real P1S on 2026-11-02, where the
+  model blamed the code). Judged by where the chat leaves the person.
+- `connect-port-went-quiet`: the port answers before the attempt and not after
+  it, and the person asks whether to try again at once (the real P1S on
+  2026-11-02).
+- `connect-code-ruled-out`: the port answers, and the person rules the code out.
+  Not seen on a real printer, so the skill was not written from it.
+- `connect-unforeseen-failure`: a code and an answer the skill never mentions,
+  and a work VPN the person brings up. Passes only by reasoning.
+- `connect-screen-says-disconnected`: nothing is heard, and the person reads
+  out the printer's screen.
 - `connect-bambu-no-plugin`: connecting without Bambu's network plug-in
   (e2e1c6e7cc: "isn't available right now" with no reason). Passes when no
   credential form opens and the reply gives the plug-in as the reason.

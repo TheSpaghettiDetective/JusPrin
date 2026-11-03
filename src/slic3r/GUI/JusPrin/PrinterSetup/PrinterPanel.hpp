@@ -86,6 +86,7 @@ public:
 
 private:
     // IConversationHost
+    nlohmann::json chat_record() const override;
     std::string post_note(const std::string& text) override;
     std::string post_opening(const std::string& text) override;
     void        start_turn() override;

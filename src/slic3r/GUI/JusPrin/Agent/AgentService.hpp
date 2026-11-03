@@ -57,6 +57,9 @@ struct AgentSkillUse
     // Triggers of skills this one gives way to: when one of them fires for
     // the same request, this one is left out of it.
     std::vector<std::string>         yields_to;
+    // Added to the conversation rather than to one request: sent once, kept
+    // in the record, and in force from then on.
+    bool                             stays{false};
 };
 
 // What one conversation is for. The project conversation leaves the tools and

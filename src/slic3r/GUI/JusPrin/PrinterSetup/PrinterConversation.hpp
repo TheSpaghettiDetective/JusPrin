@@ -22,6 +22,7 @@
 // supply fakes.
 
 #include "PrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 
@@ -46,6 +47,8 @@ class IConversationHost
 public:
     virtual ~IConversationHost() = default;
 
+    // The chat so far, for a report; see connection_chat_record.
+    virtual nlohmann::json chat_record() const = 0;
     // A line in the thread stating what happened, which the model reads as
     // the app's own words. Returns its message id.
     virtual std::string post_note(const std::string& text) = 0;
@@ -63,6 +66,12 @@ public:
     // session just added, which Home leads with; empty for any other change.
     virtual void printers_changed(const std::string& added = {}) = 0;
 };
+
+// What a connection report says of a chat: its messages as {role, text} under
+// "turns", and its connection tools' calls under "tools". The access code or
+// API key goes into a form of its own and is in neither.
+nlohmann::json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages,
+                                      const std::vector<Agent::ToolActivity>&        activities);
 
 class PrinterConversation
 {
@@ -88,13 +97,18 @@ public:
     bool handle_page_message(const std::string& type, const nlohmann::json& payload);
 
     // Checks printer_connect before its input form is shown, and titles it.
-    std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity) const;
+    std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity);
     // The session's own tools. Returns an unhandled result for any other
     // handler, so the host's own extensions still run.
     Agent::ToolExecutionCoordinator::ExtensionResult execute_tool(Agent::ToolHandler         handler,
                                                                  const Agent::ToolActivity& activity);
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
+    // The trigger of the skill for this printer's connection type, once the
+    // person has tried to connect it. Nothing before that, so someone who
+    // only picks a printer and prepares prints never gets it, and nothing for
+    // a connection type that has no skill yet.
+    std::optional<std::string> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once
     // they are read. While a connection is being verified, looks at most once
@@ -133,6 +147,11 @@ private:
     // Its Install button: runs the installer, and tells the model if the
     // plug-in is there afterwards.
     void install_network_plugin();
+    // A connection attempt failed; `message_id` is the note that says so.
+    // The second failure in a session puts the report card under it.
+    void connection_failed(const std::string& message_id);
+    // The person's answer on that card.
+    void answer_report(const std::string& block_id, bool send);
     // Drops a connection attempt still waiting, so what the printer answers
     // later is never read.
     void abandon_connection();
@@ -192,6 +211,14 @@ private:
     // The printer this is about cannot be reached until Bambu's network
     // plug-in is installed.
     bool m_needs_plugin{false};
+    // The person has tried to connect the printer this is about: opened the
+    // chat for that, had the model call a connection tool, or linked a printer
+    // found on the network in the form.
+    bool m_connect_tried{false};
+    // A print host's kind, "moonraker" or "octoprint", once the saved
+    // connection or a connection attempt names one; it picks the skill.
+    std::string m_host_type;
+    int  m_failed_connections{0};
     // The local credential form and the call it will complete. The secret is
     // passed directly to connect and is never stored here.
     std::string    m_credential_action;

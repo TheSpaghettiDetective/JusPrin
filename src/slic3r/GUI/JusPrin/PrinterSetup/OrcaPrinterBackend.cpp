@@ -30,6 +30,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <thread>
 #include <wx/utils.h>
@@ -37,6 +40,7 @@
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <cerrno>
+#include <cstdlib>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -46,17 +50,23 @@ namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
 namespace {
 
-// Why a Bambu Lab connection attempt ended, in the plug-in's terms.
-std::string connection_failure_text(const Printers::ConnectionEvent& answer)
+// The port a Bambu Lab printer in LAN mode takes its login on, and how long the
+// app waits for it to answer after a failed connection.
+constexpr int                       kBambuLanPort = 8883;
+constexpr std::chrono::milliseconds kPortLookLimit{5000};
+
+// What the plug-in did, as observed. -1 came with a wrong code and with the
+// right one on a slow network, so it is not read as either.
+std::string connection_failure_text(const Printers::ConnectionEvent& answer, std::chrono::steady_clock::time_point asked)
 {
     if (answer.kind == Printers::ConnectionEvent::Kind::Lost)
-        return "The connection to the printer was lost before it answered. Check that the printer is on and on this network, "
-               "then try again.";
+        return "The connection to the printer was lost before it answered.";
     if (answer.code == "5")
         return "The printer refused the access code. The app has dropped the code it had saved for this printer; the person "
                "gives the code shown on the printer's screen again to try again.";
-    return "The printer refused the connection; Bambu's network plug-in reported code " + answer.code +
-           ". Check that the printer is on and in LAN mode, then try again.";
+    const auto took = std::chrono::duration_cast<std::chrono::seconds>(answer.at - asked).count();
+    return "Bambu's network plug-in reported code " + answer.code + " " + std::to_string(took) +
+           " seconds after being asked to connect, which does not say why.";
 }
 
 // A host's answer as one bounded line: a response body can be a page.
@@ -512,7 +522,11 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
     }
     // The local list is what has announced itself on this network; the cloud
     // list is the person's account, wherever those printers are.
-    const auto nearby = devices->get_local_machinelist();
+    auto nearby = devices->get_local_machinelist();
+    // For the harness's no-printer chat (JUSPRIN_TEST_HEAR_NOTHING): no printer
+    // is heard, whatever the real printer announces.
+    if (std::getenv("JUSPRIN_TEST_HEAR_NOTHING") != nullptr)
+        nearby.clear();
     auto candidates = nearby;
     for (const auto& entry : devices->get_my_cloud_machine_list())
         candidates[entry.first] = entry.second;
@@ -563,8 +577,8 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         const auto answered = Printers::last_connection_event(attempt.device_id);
         if (answered && !attempt.reselecting && answered->at >= attempt.connect_requested &&
             answered->kind != Printers::ConnectionEvent::Kind::Ok) {
-            info.state   = "failed";
-            info.message = connection_failure_text(*answered);
+            // The printer answered a wrong code, so its port needs no look.
+            report_failure(info, connection_failure_text(*answered, attempt.connect_requested), answered->code != "5");
         } else if (devices->get_selected_machine() != machine && machine != nullptr && !attempt.reselecting) {
             info.state = "failed";
             info.message = "The selected printer changed. Select this printer again to reconnect.";
@@ -575,8 +589,7 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             info.state = "failed";
             info.message = "The printer is no longer available. Refresh the printer list and try again.";
         } else if (std::chrono::steady_clock::now() - attempt.started > kConnectionWait) {
-            info.state = "failed";
-            info.message = "The printer did not respond. Check that it is on the network and try again.";
+            report_failure(info, "The printer did not respond within " + std::to_string(kConnectionWait.count()) + " seconds.", true);
         } else {
             info.state = "connecting";
             info.message.clear();
@@ -592,13 +605,61 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
     return info;
 }
 
+// On a thread of its own, as a print host's test is: a printer that does not
+// answer would hold the app for the whole limit.
+std::shared_ptr<OrcaPrinterBackend::PortLook> OrcaPrinterBackend::start_port_look(const std::string& address)
+{
+    auto look = std::make_shared<PortLook>();
+    std::thread([look, address] {
+        look->said = Printers::look_at_port(address, kBambuLanPort, kPortLookLimit);
+        look->done.store(true);
+    }).detach();
+    return look;
+}
+
+void OrcaPrinterBackend::report_failure(PrinterConnectionInfo& info, const std::string& failure, bool look)
+{
+    auto& attempt = *m_connection_attempt;
+    if (!look || attempt.address.empty()) {
+        info.state   = "failed";
+        info.message = failure;
+        return;
+    }
+    // The attempt keeps reading "connecting" until both looks are back, so its
+    // note says everything at once.
+    if (!attempt.port_after)
+        attempt.port_after = start_port_look(attempt.address);
+    if (!attempt.port_before->done.load() || !attempt.port_after->done.load()) {
+        info.state = "connecting";
+        info.message.clear();
+        return;
+    }
+    info.state   = "failed";
+    info.message = failure + " The app also tried the printer's port " + std::to_string(kBambuLanPort) + " at " + attempt.address +
+                   ". Just before the attempt, " + attempt.port_before->said + ". Right after it failed, " + attempt.port_after->said + ".";
+}
+
+std::string OrcaPrinterBackend::keep_connection_report(const std::string& text)
+{
+    const std::filesystem::path folder = std::filesystem::u8path(Slic3r::data_dir()) / "jusprin" / "connection_reports";
+    std::error_code             failed;
+    std::filesystem::create_directories(folder, failed);
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const std::filesystem::path path = folder / ("report-" + std::to_string(seconds) + ".json");
+    std::ofstream               file(path, std::ios::binary);
+    file << text;
+    file.close();
+    return file.good() ? path.u8string() : std::string();
+}
+
 std::string OrcaPrinterBackend::connect_printer(const std::string& name, const std::string& device_id,
                                                const std::string& access_code)
 {
     // The same printer asked for again keeps waiting; anything else replaces
-    // the attempt below.
+    // the attempt below. One that has failed and is only having its port looked
+    // at is over, though it still reads "connecting".
     if (m_connection_attempt && m_connection_attempt->name == name && m_connection_attempt->device_id == device_id &&
-        connection(name).state == "connecting")
+        connection(name).state == "connecting" && !m_connection_attempt->port_after)
         return {};
     const auto info = connection(name);
     if (info.provider != "bambu" || info.state == "unavailable")
@@ -630,6 +691,10 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
         machine->set_user_access_code(access_code);
     m_connection_attempt = ConnectionAttempt{name, device_id, std::chrono::steady_clock::now(),
                                               std::chrono::system_clock::now(), std::chrono::steady_clock::now()};
+    if (machine->is_lan_mode_printer() && !machine->get_dev_ip().empty()) {
+        m_connection_attempt->address     = machine->get_dev_ip();
+        m_connection_attempt->port_before = start_port_look(m_connection_attempt->address);
+    }
     if (devices->get_selected_machine() != machine) {
         devices->set_selected_machine(device_id);
         return {};
@@ -726,7 +791,10 @@ void OrcaPrinterBackend::settle(HostAttempt& attempt)
     case HostVerdict::Testing:
         if (std::chrono::steady_clock::now() - attempt.started > kConnectionWait) {
             attempt.state   = "failed";
-            attempt.message = "The printer did not respond. Check that it is on the network and try again.";
+            // What the app saw, without a cause: a name this computer cannot
+            // look up waits here as long as a host that never answers.
+            attempt.message = "The print host test had no answer from " + attempt.address + " after " +
+                              std::to_string(kConnectionWait.count()) + " seconds.";
         }
         break;
     }

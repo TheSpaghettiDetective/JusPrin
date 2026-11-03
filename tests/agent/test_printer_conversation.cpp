@@ -128,10 +128,11 @@ public:
         added.push_back(request);
         if (!refusal.empty())
             return refusal;
-        result.name     = request.name;
-        result.model    = request.name;
-        result.model_id = request.model_id;
-        result.nozzle   = std::stod(request.variant);
+        result.name      = request.name;
+        result.model     = request.name;
+        result.model_id  = request.model_id;
+        result.vendor_id = request.vendor_id;
+        result.nozzle    = std::stod(request.variant);
         saved.push_back(result);
         return {};
     }
@@ -170,6 +171,13 @@ public:
     std::vector<std::vector<std::string>> connects;
     PrinterConnectionInfo connection(const std::string&) override { return connection_info; }
     void prepare_connection(const std::string& name) override { prepared.push_back(name); }
+    std::vector<std::string> kept_reports;
+    std::string              keep_report_path{"/data/report.json"};
+    std::string keep_connection_report(const std::string& text) override
+    {
+        kept_reports.push_back(text);
+        return keep_report_path;
+    }
     DiscoveryPort port{DiscoveryPort::Ours};
     int           port_checks{0};
     DiscoveryPort discovery_port() override
@@ -236,6 +244,7 @@ public:
     int                      closes{0};
     int                      refreshes{0};
 
+    nlohmann::json chat_record() const override { return json{{"turns", json::array()}}; }
     std::string post_note(const std::string& text) override
     {
         notes.push_back(text);
@@ -1010,7 +1019,7 @@ TEST_CASE("printer_connect is checked before its card, and titles it", "[printer
 
 namespace {
 
-std::optional<Agent::ToolError> connect_refusal(const PrinterConversation& conversation, const json& arguments)
+std::optional<Agent::ToolError> connect_refusal(PrinterConversation& conversation, const json& arguments)
 {
     Agent::ToolActivity activity = call("printer_connect", arguments);
     return conversation.preflight_tool(Agent::ToolHandler::PrinterConnect, activity);
@@ -1070,13 +1079,13 @@ TEST_CASE("printer_connection_status reports a printer in cloud mode apart from 
     CHECK(output.at("seen") == json::array({json{{"name", "Office"}, {"address", ""}, {"reason", "account_only"}},
                                             json{{"name", "P1s"}, {"address", "192.168.0.198"}, {"reason", "cloud_mode"}}}));
 
-    // The rule for reading it lives in the descriptions of the two tools.
+    // The two tools say what the state means. What to do about it is the
+    // connection skill's, so a chat that never tries to connect is not told.
     for (const char* tool : {"printer_connection_status", "printer_connect"}) {
         const std::string description = Agent::ToolRegistry::instance().find(tool)->description;
         INFO(tool);
         CHECK_THAT(description, ContainsSubstring("LAN Only is off"));
-        CHECK_THAT(description, ContainsSubstring("person's choice"));
-        CHECK_THAT(description, ContainsSubstring("can prepare prints for it without a connection"));
+        CHECK_THAT(description, !ContainsSubstring("choice"));
     }
 
     // A print host is reached by its address: nothing is searched for or seen.
@@ -2261,10 +2270,16 @@ bool is_results(const Agent::RecordItem& item) { return item.kind == Agent::Reco
 class HostedPanel final : public IConversationHost
 {
 public:
-    Agent::AgentHost*    host{nullptr};
-    PrinterConversation* conversation{nullptr};
-    int                  closes{0};
+    Agent::AgentHost*          host{nullptr};
+    Agent::ProjectPersistence* persistence{nullptr};
+    PrinterConversation*       conversation{nullptr};
+    int                        closes{0};
 
+    nlohmann::json chat_record() const override
+    {
+        const Agent::ProjectStateDocument& document = persistence->document();
+        return connection_chat_record(document.messages(document.active_conversation_id()), host->tools().activities());
+    }
     std::string post_note(const std::string& text) override { return host->post_note(text); }
     std::string post_opening(const std::string& text) override { return host->post_assistant_message(text); }
     void        start_turn() override { host->start_turn(); }
@@ -2308,6 +2323,7 @@ struct PrinterHost
         host.set_send([this](const std::string& envelope) { sent.push_back(envelope); });
         backend.saved = {lab_printer()};
         panel.host         = &host;
+        panel.persistence  = &persistence;
         panel.conversation = &conversation;
         if (printer_session) {
             host.set_page_message_handler([this](const std::string& type, const json& payload) {
@@ -2321,6 +2337,7 @@ struct PrinterHost
                 return conversation.preflight_tool(handler, activity);
             });
             host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return conversation.tool_output(activity); });
+            host.set_session_skill([this] { return conversation.connection_skill(); });
             conversation.start(mode, "Lab Printer");
             // What the page does once it has the session's facts.
             conversation.handle_page_message("printer_instructions", json{{"text", "You are the printer assistant."}});
@@ -2914,4 +2931,455 @@ TEST_CASE("write the printer session requests for the evaluation", "[.printer-ev
     for (const CatalogPrinter& printer : backend.printers)
         identified_all[printer.id] = ran(adding, "printer_identify", json{{"catalogIds", {printer.id}}})["printers"][0];
     std::ofstream(std::string(out) + "/identify_results.json") << identified_all.dump(2);
+}
+
+// -- The skill for a printer's connection type ---------------------------------
+
+namespace {
+
+// The Bambu Lab skill as the page bundles it: the file's text after its
+// frontmatter (skillParser.ts).
+std::string skill_text(const std::string& name)
+{
+    std::ifstream file(std::string(JUSPRIN_SOURCE_DIR) + "/src/slic3r/GUI/JusPrin/AgentUI/src/skills/" + name + "/SKILL.md");
+    REQUIRE(file.good());
+    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    const std::string end = "\n---\n";
+    const std::size_t body = text.find(end, 3);
+    REQUIRE(body != std::string::npos);
+    text = text.substr(text.find_first_not_of('\n', body + end.size()));
+    return text.substr(0, text.find_last_not_of("\n") + 1);
+}
+
+std::string connect_bambu_text() { return skill_text("connect-bambu"); }
+
+SavedPrinter bambu_printer()
+{
+    SavedPrinter printer = lab_printer();
+    printer.vendor_id    = "BBL";
+    return printer;
+}
+
+std::optional<Agent::ToolError> preflight(PrinterConversation& conversation, const char* tool, const json& arguments)
+{
+    Agent::ToolActivity activity = call(tool, arguments, "m-1");
+    return conversation.preflight_tool(Agent::ToolRegistry::instance().find(tool)->handler, activity);
+}
+
+bool carries_skill(const std::vector<Agent::AgentSkillUse>& skills)
+{
+    return std::any_of(skills.begin(), skills.end(), [](const Agent::AgentSkillUse& skill) {
+        return skill.trigger == Agent::Protocol::SkillTrigger::kConnectBambu && skill.stays && skill.text == connect_bambu_text();
+    });
+}
+
+} // namespace
+
+TEST_CASE("the connection skill comes only once the person tries to connect, and only for its connection type", "[printer-conversation][connection-skill]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved           = {bambu_printer()};
+    backend.connection_info = bambu_on_network();
+    PrinterConversation conversation(backend, panel);
+    const std::optional<std::string> bambu = std::string("connect_bambu");
+
+    SECTION("opening the chat to connect it is trying") {
+        conversation.start(ConversationMode::Connect, "Lab Printer");
+        CHECK(conversation.connection_skill() == bambu);
+    }
+    SECTION("a chat about the printer has none until a connection tool is called") {
+        conversation.start(ConversationMode::Change, "Lab Printer");
+        CHECK_FALSE(conversation.connection_skill());
+        ran(conversation, "printer_change", json{{"printerName", "Lab Printer"}, {"nozzle", 0.6}});
+        CHECK_FALSE(conversation.connection_skill());
+        ran(conversation, "printer_connection_status", json::object());
+        CHECK(conversation.connection_skill() == bambu);
+    }
+    SECTION("a printer_connect the app refuses is trying too") {
+        conversation.start(ConversationMode::Change, "Lab Printer");
+        backend.connection_info = bambu_nothing_found();
+        REQUIRE(preflight(conversation, "printer_connect", json{{"deviceId", "192.168.1.30"}}));
+        CHECK(conversation.connection_skill() == bambu);
+    }
+    SECTION("adding a printer is not trying, and choosing one found on the network in the form is") {
+        backend.saved.clear();
+        backend.nearby = {found_a1()};
+        open_on_mini(backend, conversation);
+        const json finish{{"action", "form_finish"}, {"catalogId", "BBL/Bambu Lab A1 mini"}, {"nozzle", 0.4}, {"plate", 4}, {"filament", "Generic PETG"}};
+        SECTION("a model alone") {
+            action(conversation, finish);
+            REQUIRE(backend.added.size() == 1);
+            CHECK_FALSE(conversation.connection_skill());
+        }
+        SECTION("a printer on the network") {
+            json linked = finish;
+            linked["deviceId"] = "01P00A3B";
+            action(conversation, linked);
+            REQUIRE(backend.added.size() == 1);
+            CHECK(conversation.connection_skill() == bambu);
+        }
+    }
+    SECTION("with no printer saved there is no connection type to choose from") {
+        backend.saved.clear();
+        conversation.start(ConversationMode::Add);
+        CHECK(refused(conversation, "printer_connection_status", json::object()) == "no_printer");
+        CHECK_FALSE(conversation.connection_skill());
+    }
+    SECTION("a print host gets the skill for the kind the first attempt names") {
+        backend.saved           = {lab_printer()};
+        backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
+        conversation.start(ConversationMode::Connect, "Lab Printer");
+        // Until a kind is named, both would stay in force, so neither comes.
+        CHECK_FALSE(conversation.connection_skill());
+        ran(conversation, "printer_connection_status", json::object());
+        CHECK_FALSE(conversation.connection_skill());
+        REQUIRE_FALSE(preflight(conversation, "printer_connect", json{{"hostType", "octoprint"}, {"address", "192.168.1.42"}}));
+        CHECK(conversation.connection_skill() == std::optional<std::string>("connect_octoprint"));
+    }
+    SECTION("a saved print host says its kind") {
+        backend.saved           = {lab_printer()};
+        backend.connection_info = PrinterConnectionInfo{"host", "unknown"};
+        backend.connection_info.address   = "192.168.1.42:7125";
+        backend.connection_info.host_type = "moonraker";
+        conversation.start(ConversationMode::Change, "Lab Printer");
+        CHECK_FALSE(conversation.connection_skill());
+        ran(conversation, "printer_connection_status", json::object());
+        CHECK(conversation.connection_skill() == std::optional<std::string>("connect_moonraker"));
+    }
+    SECTION("a new session starts over") {
+        conversation.start(ConversationMode::Connect, "Lab Printer");
+        conversation.start(ConversationMode::Change, "Lab Printer");
+        CHECK_FALSE(conversation.connection_skill());
+    }
+}
+
+TEST_CASE("what reaches the model: a chat that only sets up a printer never receives the skill", "[printer-conversation][connection-skill]")
+{
+    PrinterHost printer(ConversationMode::Add);
+    printer.backend.saved.clear();
+    printer.page("skills", {{"skills", json::array({json{{"name", "connect-bambu"}, {"trigger", "connect_bambu"}, {"text", connect_bambu_text()}}})}});
+
+    printer.agent->call = Agent::ToolRequest{"printer_add", json{{"catalogId", "BBL/Bambu Lab A1 mini"}}.dump()};
+    printer.say("I have an A1 mini");
+    printer.pump();
+    REQUIRE(printer.backend.added.size() == 1);
+    REQUIRE(printer.backend.saved.front().vendor_id == "BBL");
+    printer.say("Not now, thanks");
+    printer.pump();
+
+    REQUIRE(printer.agent->requests.size() >= 2);
+    for (const Agent::AgentRequest& request : printer.agent->requests)
+        CHECK(request.skills.empty());
+    for (const Agent::AgentToolResult& result : printer.agent->results)
+        CHECK(result.skills.empty());
+}
+
+TEST_CASE("what reaches the model: the skill comes with the first connection tool's result and stays offered", "[printer-conversation][connection-skill]")
+{
+    PrinterHost printer(ConversationMode::Change);
+    printer.backend.saved           = {bambu_printer()};
+    printer.backend.connection_info = bambu_on_network();
+    printer.page("skills", {{"skills", json::array({json{{"name", "connect-bambu"}, {"trigger", "connect_bambu"}, {"text", connect_bambu_text()}}})}});
+
+    printer.say("What nozzle is on it?");
+    printer.pump();
+    REQUIRE_FALSE(printer.agent->requests.empty());
+    CHECK(printer.agent->requests.back().skills.empty());
+
+    printer.agent->call = Agent::ToolRequest{"printer_connection_status", "{}"};
+    printer.say("Connect it");
+    printer.pump();
+    // The request that made the call was sent before the attempt.
+    CHECK(printer.agent->requests.back().skills.empty());
+    REQUIRE(printer.agent->results.size() == 1);
+    CHECK(carries_skill(printer.agent->results.back().skills));
+
+    printer.say("It is on");
+    printer.pump();
+    CHECK(carries_skill(printer.agent->requests.back().skills));
+}
+
+TEST_CASE("what reaches the model: a chat opened to connect has the skill on its first request", "[printer-conversation][connection-skill]")
+{
+    PrinterHost printer(ConversationMode::Connect);
+    printer.backend.saved = {bambu_printer()};
+    printer.page("skills", {{"skills", json::array({json{{"name", "connect-bambu"}, {"trigger", "connect_bambu"}, {"text", connect_bambu_text()}}})}});
+    printer.say("Yes, it is");
+    printer.pump();
+    REQUIRE_FALSE(printer.agent->requests.empty());
+    CHECK(carries_skill(printer.agent->requests.front().skills));
+}
+
+// The evidence rule: a state gets a line in the skill only after it was made
+// to happen for real, so a new line fails here until the run it rests on is
+// named. printer-connect-live-check is the untracked note of those runs;
+// connection-skill-report the one this skill was built with.
+TEST_CASE("the connection skill names only states the tools report, each seen for real, and leaves the model free to reason", "[printer-conversation][connection-skill]")
+{
+    const std::map<std::string, std::string> seen_for_real{
+        {"started", "P1S, 2026-11-01, printer-connect-live-check"},
+        {"listening", "P1S, 2026-11-01, printer-connect-live-check"},
+        {"port_taken", "P1S with a script holding UDP 2021, 2026-11-01, printer-connect-live-check"},
+        {"not_listening", "P1S with the port let go, 2026-11-01, printer-connect-live-check"},
+        {"cloud_mode", "P1S in cloud mode, 2026-11-01, printer-connect-live-check"},
+        {"linked_elsewhere", "P1S as a second saved printer, 2026-11-02, printer-connect-live-check"},
+        {"failed", "P1S, plug-in code -1 with a wrong code and with the right code on a slow network, 2026-11-02, connection-skill-report"},
+        {"credential_requested", "P1S in LAN mode, 2026-11-01, printer-connect-live-check"},
+        {"unknown_device", "P1S before any search, 2026-11-01, printer-connect-live-check"},
+        {"unavailable", "no plug-in in the data folder, 2026-11-02, connection-skill-report"},
+        {"not_started", "no plug-in in the data folder, 2026-11-02, connection-skill-report"},
+        {"not_configured", "P1S with no connection saved, 2026-11-02, connection-skill-report"},
+    };
+
+    // What the tools can report, from the registry itself.
+    const Agent::ToolDefinition* status  = Agent::ToolRegistry::instance().find("printer_connection_status");
+    const Agent::ToolDefinition* connect = Agent::ToolRegistry::instance().find("printer_connect");
+    REQUIRE(status != nullptr);
+    REQUIRE(connect != nullptr);
+    const json& properties = status->output_schema.at("properties");
+    std::set<std::string> states;
+    for (const json* list : {&properties.at("state").at("enum"), &properties.at("search").at("properties").at("state").at("enum"),
+                             &properties.at("seen").at("items").at("properties").at("reason").at("enum"),
+                             &connect->output_schema.at("properties").at("state").at("enum")})
+        for (const json& state : *list)
+            states.insert(state.get<std::string>());
+    states.insert("unknown_device"); // preflight_tool's refusal
+    // Not states: the tools, and the result's fields, named as they are.
+    // web_search is the provider's tool, offered beside the app's.
+    std::set<std::string> names{"printer_connection_status", "printer_connect", "web_search"};
+    for (const auto& [field, schema] : properties.items())
+        names.insert(field);
+    for (const auto& [field, schema] : properties.at("candidates").at("items").at("properties").items())
+        names.insert(field);
+    names.insert("detail");
+
+    const std::string text = connect_bambu_text();
+    std::istringstream lines(text);
+    std::string line;
+    std::set<std::string> named;
+    while (std::getline(lines, line)) {
+        std::vector<std::string> spans;
+        for (std::size_t open = line.find('`'); open != std::string::npos;) {
+            const std::size_t close = line.find('`', open + 1);
+            REQUIRE(close != std::string::npos);
+            spans.push_back(line.substr(open + 1, close - open - 1));
+            open = line.find('`', close + 1);
+        }
+        CAPTURE(line);
+        for (const std::string& span : spans) {
+            CAPTURE(span);
+            CHECK((states.count(span) == 1 || names.count(span) == 1));
+            if (states.count(span) == 1) {
+                named.insert(span);
+                CHECK(seen_for_real.count(span) == 1);
+            }
+        }
+    }
+    // Every state with a run behind it is explained, so nothing rests on the
+    // list alone.
+    for (const auto& [state, run] : seen_for_real) {
+        CAPTURE(state, run);
+        CHECK(named.count(state) == 1);
+    }
+    // No menu wording stated as fact, and nothing that forbids working out why:
+    // "add no cause" kept the model repeating a false reason to someone whose
+    // code was right (P1S, 2026-11-02).
+    for (const char* banned : {" > ", "→", "Settings >", "gear icon", "WLAN", "add no cause", "never say which"})
+        CHECK_THAT(text, !ContainsSubstring(banned));
+}
+
+// The same rule for the print host skills. Their states come from
+// --print-host-check against real hosts in Docker (connection-skill-report);
+// an address or a scheme in backquotes is an example, not a state.
+TEST_CASE("the print host skills name only states seen from a real host", "[printer-conversation][connection-skill]")
+{
+    const std::map<std::string, std::string> seen_for_real{
+        {"not_configured", "a saved printer before any attempt, 2026-11-02, --print-host-check"},
+        {"unknown", "a host saved by a verified attempt, in a new session, 2026-11-02, --print-host-check"},
+        {"failed", "Moonraker, OctoPrint and Mainsail in Docker, 2026-11-02, --print-host-check"},
+    };
+    const std::set<std::string> names{"printer_connect", "printer_connection_status", "web_search"};
+    for (const char* skill : {"connect-moonraker", "connect-octoprint"}) {
+        const std::string text = skill_text(skill);
+        CAPTURE(skill);
+        std::set<std::string> named;
+        for (std::size_t open = text.find('`'); open != std::string::npos;) {
+            const std::size_t close = text.find('`', open + 1);
+            REQUIRE(close != std::string::npos);
+            const std::string span = text.substr(open + 1, close - open - 1);
+            open                   = text.find('`', close + 1);
+            CAPTURE(span);
+            if (span.find_first_of(":./") != std::string::npos)
+                continue;
+            CHECK((seen_for_real.count(span) == 1 || names.count(span) == 1));
+            named.insert(span);
+        }
+        for (const auto& [state, run] : seen_for_real) {
+            CAPTURE(state, run);
+            CHECK(named.count(state) == 1);
+        }
+        for (const char* banned : {" > ", "→", "Settings >", "gear icon", "add no cause", "never say which"})
+            CHECK_THAT(text, !ContainsSubstring(banned));
+    }
+}
+
+// -- A connection report --------------------------------------------------------
+
+namespace {
+
+// A Bambu Lab printer's connect, refused by the plug-in, `times` times, with
+// the code in the form.
+void fail_connecting(PrinterHost& printer, int times, const std::string& code)
+{
+    printer.backend.connection_info = bambu_on_network();
+    printer.backend.connection_error = "Check the access code.";
+    for (int i = 0; i < times; ++i) {
+        printer.agent->call = Agent::ToolRequest{"printer_connect", json{{"deviceId", "01P00A3B"}}.dump()};
+        printer.say("Connect it, please");
+        printer.pump();
+        const std::vector<Agent::ToolActivity> activities = printer.activities();
+        REQUIRE_FALSE(activities.empty());
+        REQUIRE(activities.back().tool == "printer_connect");
+        REQUIRE(activities.back().state == Agent::ToolState::Succeeded);
+        printer.page("printer_action", {{"action", "connect"}, {"actionId", activities.back().action_id}, {"credential", code}});
+        printer.pump();
+    }
+}
+
+std::vector<json> report_cards(const PrinterConversation& conversation)
+{
+    std::vector<json> cards;
+    const json        state = conversation.state_json();
+    for (const json& block : state.at("blocks"))
+        if (block.value("kind", "") == "report")
+            cards.push_back(block);
+    return cards;
+}
+
+} // namespace
+
+TEST_CASE("the second failed connection asks whether to send a report, once", "[printer-conversation][connection-report]")
+{
+    PrinterHost printer(ConversationMode::Connect);
+    printer.backend.saved = {bambu_printer()};
+
+    fail_connecting(printer, 1, "11112222");
+    CHECK(report_cards(printer.conversation).empty());
+
+    fail_connecting(printer, 1, "11112222");
+    REQUIRE(report_cards(printer.conversation).size() == 1);
+    const json card = report_cards(printer.conversation).front();
+    const json report = json::parse(card.at("report").get<std::string>());
+    CHECK(report.at("trigger") == "failed_twice");
+    CHECK(report.at("connectionType") == "bambu");
+    CHECK(report.at("chat").at("tools").size() == 2);
+    CHECK(report.at("chat").at("tools").front().at("tool") == "printer_connect");
+    CHECK(report.at("chat").at("tools").front().at("output").at("state") == "credential_requested");
+    CHECK_FALSE(report.at("chat").at("turns").empty());
+    // Nothing is kept or sent by asking.
+    CHECK(printer.backend.kept_reports.empty());
+
+    fail_connecting(printer, 1, "11112222");
+    CHECK(report_cards(printer.conversation).size() == 1);
+}
+
+TEST_CASE("a connection the printer failed afterwards counts the same", "[printer-conversation][connection-report]")
+{
+    PrinterHost printer(ConversationMode::Connect);
+    printer.backend.saved = {bambu_printer()};
+    fail_connecting(printer, 1, "11112222");
+    printer.backend.connection_error.clear();
+    printer.backend.connection_info = bambu_on_network();
+    printer.agent->call = Agent::ToolRequest{"printer_connect", json{{"deviceId", "01P00A3B"}}.dump()};
+    printer.say("Again");
+    printer.pump();
+    printer.page("printer_action", {{"action", "connect"}, {"actionId", printer.activities().back().action_id}, {"credential", "11112222"}});
+    printer.pump();
+    CHECK(report_cards(printer.conversation).empty());
+    printer.backend.connection_info.state   = "failed";
+    printer.backend.connection_info.message = "The printer did not answer (code -1).";
+    printer.conversation.tick(std::chrono::steady_clock::now());
+    printer.pump();
+    REQUIRE(report_cards(printer.conversation).size() == 1);
+    CHECK_THAT(report_cards(printer.conversation).front().at("report").get<std::string>(), ContainsSubstring("The printer did not answer"));
+}
+
+TEST_CASE("a print host's failed connections ask nothing: it has no skill to improve", "[printer-conversation][connection-report]")
+{
+    FakeBackend    backend;
+    RecordingPanel panel;
+    backend.saved            = {lab_printer()};
+    backend.connection_error = "Refused.";
+    PrinterConversation conversation(backend, panel);
+    conversation.start(ConversationMode::Connect, "Lab Printer");
+    tap_connect(conversation, panel, kHostArguments, "a-1");
+    tap_connect(conversation, panel, kHostArguments, "a-2");
+    CHECK(report_cards(conversation).empty());
+}
+
+TEST_CASE("a report never holds the access code or an API key", "[printer-conversation][connection-report]")
+{
+    const std::string form_code = "F0rmCode9";
+    const std::string typed_code = "87654321";
+    const std::string typed_key = "sk-ant-abc_DEF-123456";
+    PrinterHost printer(ConversationMode::Connect);
+    printer.backend.saved = {bambu_printer()};
+    printer.say("My code is " + typed_code + " and my key is " + typed_key);
+    printer.pump();
+    fail_connecting(printer, 2, form_code);
+
+    REQUIRE(report_cards(printer.conversation).size() == 1);
+    const std::string held = report_cards(printer.conversation).front().at("report").get<std::string>();
+    CHECK_THAT(held, ContainsSubstring("My code is [hidden]"));
+    CHECK_THAT(held, ContainsSubstring("my key is [hidden]"));
+    CHECK_THAT(held, !ContainsSubstring(form_code));
+    CHECK_THAT(held, !ContainsSubstring(typed_code));
+    CHECK_THAT(held, !ContainsSubstring(typed_key));
+    // A printer's serial goes too, and what the person needs to recognise stays.
+    CHECK_THAT(held, !ContainsSubstring("01P00A3B"));
+    CHECK_THAT(held, ContainsSubstring("Check the access code."));
+
+    printer.page("printer_action", {{"action", "report_send"}, {"blockId", report_cards(printer.conversation).front().at("id")}});
+    REQUIRE(printer.backend.kept_reports.size() == 1);
+    CHECK_THAT(printer.backend.kept_reports.front(), !ContainsSubstring(form_code));
+    CHECK_THAT(printer.backend.kept_reports.front(), !ContainsSubstring(typed_code));
+    CHECK_THAT(printer.backend.kept_reports.front(), !ContainsSubstring(typed_key));
+}
+
+TEST_CASE("the person answers the report card, once", "[printer-conversation][connection-report]")
+{
+    PrinterHost printer(ConversationMode::Connect);
+    printer.backend.saved = {bambu_printer()};
+    fail_connecting(printer, 2, "11112222");
+    REQUIRE(report_cards(printer.conversation).size() == 1);
+    const std::string id = report_cards(printer.conversation).front().at("id");
+    const auto notes = [&printer] {
+        const Agent::ProjectStateDocument& document = printer.persistence.document();
+        return document.messages(document.active_conversation_id()).back().text;
+    };
+
+    SECTION("Not now sends nothing, and the model is told") {
+        printer.page("printer_action", {{"action", "report_decline"}, {"blockId", id}});
+        CHECK(printer.backend.kept_reports.empty());
+        CHECK(report_cards(printer.conversation).front().at("answer") == "declined");
+        CHECK_THAT(notes(), ContainsSubstring("chose not to send"));
+        // An answered card cannot be answered again.
+        printer.page("printer_action", {{"action", "report_send"}, {"blockId", id}});
+        CHECK(printer.backend.kept_reports.empty());
+    }
+    SECTION("Send report keeps it, and nothing claims it reached anyone") {
+        printer.page("printer_action", {{"action", "report_send"}, {"blockId", id}});
+        REQUIRE(printer.backend.kept_reports.size() == 1);
+        CHECK(printer.backend.kept_reports.front() == report_cards(printer.conversation).front().at("report").get<std::string>());
+        CHECK(report_cards(printer.conversation).front().at("answer") == "kept");
+        CHECK(report_cards(printer.conversation).front().at("path") == printer.backend.keep_report_path);
+        CHECK_THAT(notes(), ContainsSubstring("has not reached the developers"));
+    }
+    SECTION("a report that cannot be saved says so") {
+        printer.backend.keep_report_path.clear();
+        printer.page("printer_action", {{"action", "report_send"}, {"blockId", id}});
+        CHECK(report_cards(printer.conversation).front().at("answer") == "failed");
+        CHECK_THAT(notes(), ContainsSubstring("could not be saved"));
+    }
 }

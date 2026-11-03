@@ -313,8 +313,15 @@ void ProviderAgent::push_skills(const std::vector<AgentSkillUse>& skills, std::v
             m_transcript.items.push_back(RecordItem{RecordItem::Kind::User, {}, {kept(image_part(*skill.picture))}});
     for (RecordItem& note : notes)
         m_transcript.items.push_back(std::move(note));
-    for (const AgentSkillUse& skill : skills)
-        m_transcript.items.push_back(RecordItem{RecordItem::Kind::Operator, {}, {}, skill.text, {}, {}, true});
+    for (const AgentSkillUse& skill : skills) {
+        // One that stays is offered on every request and sent once: the chat's
+        // own record says whether it has been, a turn that failed included.
+        if (skill.stays && std::any_of(m_transcript.items.begin(), m_transcript.items.end(), [&skill](const RecordItem& item) {
+                return item.kind == RecordItem::Kind::Operator && item.text == skill.text;
+            }))
+            continue;
+        m_transcript.items.push_back(RecordItem{RecordItem::Kind::Operator, {}, {}, skill.text, {}, {}, !skill.stays});
+    }
 }
 
 RecordPart ProviderAgent::kept(RecordPart part)

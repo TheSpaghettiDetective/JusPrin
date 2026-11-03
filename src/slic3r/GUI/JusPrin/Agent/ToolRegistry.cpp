@@ -50,7 +50,7 @@ json printer_connection_schema()
 {
     return object_schema(
         json{{"provider", {{"type", "string"}, {"enum", json::array({"bambu", "host", "unavailable"})}}},
-             {"state", string_schema()},
+             {"state", {{"type", "string"}, {"enum", json::array({"not_configured", "unknown", "connecting", "verified", "failed", "unavailable"})}}},
              {"message", string_schema()},
              {"candidates", {{"type", "array"},
                              {"items", object_schema(json{{"deviceId", string_schema()}, {"name", string_schema()},
@@ -1602,15 +1602,12 @@ std::vector<ToolDefinition> make_definitions()
          "starts the network search if it has not started, and reports what it has found of that model so far. candidates "
          "are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt "
          "shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN "
-         "Only is off on it; connecting it is the person's choice, and they can prepare prints for it without a connection. "
-         "Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode bound to another account. While "
+         "Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. While "
          "search.state is started, an empty list says nothing yet: the app posts a note when a printer appears, or after "
-         "about 15 seconds with none. When it is listening and nothing is listed, LAN mode may be off or the printer may be "
-         "on another network: say where to turn LAN mode on (on the printer's screen, in its network settings; ask what they "
-         "see rather than invent a menu). port_taken means another app on this computer holds the port printers announce "
-         "on, so nothing can be found, whatever mode the printer is in: ask the person to close that app and then restart "
-         "this one. not_listening means nothing holds that port and this app takes it only as it starts: ask them to "
-         "restart this app.",
+         "about 15 seconds with none. listening with nothing listed means nothing has been heard so far, and the search "
+         "goes on. port_taken means another app on this computer holds the port printers announce on, so nothing can be "
+         "found, whatever mode the printer is in. not_listening means nothing holds that port and this app takes it only "
+         "as it starts.",
          object_schema(json::object()),
          printer_connection_schema(),
          ActionClass::ReadOnly,
@@ -1623,8 +1620,7 @@ std::vector<ToolDefinition> make_definitions()
          "key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from "
          "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
          "until they give one, ask for it instead of calling this. Only a printer in the status check's candidates can be "
-         "connected; one in cloud mode cannot, because LAN Only is off on it: connecting it is the person's choice, and the "
-         "person can prepare prints for it without a connection. The app reports the connection outcome in a note.",
+         "connected; one in cloud mode cannot, because LAN Only is off on it. The app reports the connection outcome in a note.",
          object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
                             {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
                                           {"description", "Moonraker or OctoPrint only, together with address."}}},
