@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6HXJPM2G1ZRAB5J3KBV4XY3",
   "strategy": "manual-commit",
   "branch": "claude/new-logo",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 390,
-    "cache_creation_tokens": 809926,
-    "cache_read_tokens": 42956028,
-    "output_tokens": 218524,
-    "api_call_count": 195
+    "input_tokens": 820,
+    "cache_creation_tokens": 1253424,
+    "cache_read_tokens": 88705014,
+    "output_tokens": 348445,
+    "api_call_count": 411
   }
 }
