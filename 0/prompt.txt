@@ -1,0 +1,11 @@
+You spit out a wall of text. What's important? Whatever you need, ask me again.
+
+---
+
+<task-notification>
+<task-id>bmq08o0oe</task-id>
+<tool-use-id>toolu_01PrzepAo5apue29B9QuUJXb</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/5b0e6f1e-7195-453d-9f17-275ec206b831/tasks/bmq08o0oe.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the worktree build to finish" completed (exit code 0)</summary>
+</task-notification>
