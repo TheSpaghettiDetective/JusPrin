@@ -50,6 +50,11 @@ struct ProviderProfile
     // account's allowance is used up. A reply also names its chat
     // (X-JusPrin-Chat), so the gateway can keep the chat whole.
     bool           account_sign_in{false};
+    // The provider's own web search, as the Responses API tools list names
+    // it: OpenAI's spelling, which JusPrin's gateway passes to OpenAI, unless
+    // the row gives its own. The Messages API has one spelling, which
+    // AnthropicCodec writes.
+    std::string    web_search_type{"web_search"};
 };
 
 // Every provider this build can talk to, in the order setup lists them.
@@ -72,9 +77,9 @@ inline const std::vector<ProviderProfile>& provider_profiles()
         // X-Title names the app in OpenRouter's usage pages. OpenRouter
         // also reads HTTP-Referer, the app's website, to give it a page of
         // its own; this build has no website constant to send, so it sends
-        // none.
+        // none. Its web search is a tool of its own, for any model it serves.
         {"openrouter", ProviderFamily::Responses, "https://openrouter.ai/api/v1/responses", AuthStyle::Bearer,
-         "openai/gpt-5.4-mini", "OpenRouter", {{"X-Title", "JusPrin"}}, 0},
+         "openai/gpt-5.4-mini", "OpenRouter", {{"X-Title", "JusPrin"}}, 0, {}, false, "openrouter:web_search"},
         // The Messages API. max_tokens is required there and also bounds the
         // model's thinking, which this model cannot turn off; 64000 is the
         // value Anthropic suggests for streaming requests.

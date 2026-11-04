@@ -27,6 +27,17 @@ using nlohmann::json;
 
 namespace {
 
+// The app's own tools in a request's list, without the provider's web search
+// the codec adds after them.
+json app_tools(const json& tools)
+{
+    json own = json::array();
+    for (const json& tool : tools)
+        if (tool.value("type", "") == "function")
+            own.push_back(tool);
+    return own;
+}
+
 class FakeTransport final : public IAgentHttpTransport
 {
 public:
@@ -143,10 +154,12 @@ TEST_CASE("OpenAI request preserves canonical schemas", "[agent][openai]")
     CHECK(body["instructions"] == kPageProjectInstructions);
     // The project chat's tools with no skills listed; which ones they are is
     // test_tool_registry.cpp's.
+    // Then OpenAI's own web search, last.
     const std::vector<std::string> offered = JusPrinTest::project_chat_tool_names();
-    REQUIRE(body["tools"].size() == offered.size());
+    REQUIRE(body["tools"].size() == offered.size() + 1);
+    CHECK(body["tools"].back() == json{{"type", "web_search"}});
     std::vector<std::string> emitted_names;
-    for (const json& tool : body["tools"]) {
+    for (const json& tool : app_tools(body["tools"])) {
         const std::string name = tool["name"];
         CHECK(tool["parameters"]["additionalProperties"] == false);
         const ToolDefinition* definition = ToolRegistry::instance().find(tool["name"].get<std::string>());
@@ -192,7 +205,7 @@ TEST_CASE("an OpenRouter agent posts the same Responses body to OpenRouter, with
     CHECK(wire.header("Idempotency-Key") == "assistant-7-attempt-1-request-1");
     CHECK(wire.body.find("sk-or-secret") == std::string::npos);
 
-    // The body is the OpenAI adapter's, but for the model's name.
+    // The body is the OpenAI adapter's, but for the model's name
     auto           openai_transport = std::make_unique<FakeTransport>();
     FakeTransport* openai_fake      = openai_transport.get();
     OpenAIResponsesAgent openai({"sk-openai"}, std::move(openai_transport));
@@ -203,6 +216,11 @@ TEST_CASE("an OpenRouter agent posts the same Responses body to OpenRouter, with
     CHECK(openai_body["model"] == openai_profile().model);
     body.erase("model");
     openai_body.erase("model");
+    // And for its web search, which OpenRouter spells its own way.
+    CHECK(body["tools"].back() == json{{"type", "openrouter:web_search"}});
+    CHECK(openai_body["tools"].back() == json{{"type", "web_search"}});
+    body["tools"].erase(body["tools"].size() - 1);
+    openai_body["tools"].erase(openai_body["tools"].size() - 1);
     CHECK(body == openai_body);
     // The OpenAI row sends no fixed headers of its own.
     CHECK(openai_fake->requests.front().headers.size() == 2);
@@ -493,7 +511,7 @@ TEST_CASE("the printer prompt tests send the printer panel's tools as the app do
         request.session.tool_names.push_back(name);
     request.session.include_workspace = false;
     REQUIRE(agent.start(request));
-    const json sent = json::parse(fake->requests.front().body)["tools"];
+    const json sent = app_tools(json::parse(fake->requests.front().body)["tools"]);
 
     const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/printer_prompt/printer_tools.json";
     if (const char* update = std::getenv("JUSPRIN_UPDATE_PRINTER_TOOLS"); update != nullptr && std::string(update) == "1")
@@ -539,7 +557,7 @@ TEST_CASE("the project prompt tests send the project chat's tools as the app doe
     REQUIRE(request.session.tool_names.empty());
     REQUIRE(request.session.include_workspace);
     REQUIRE(agent.start(request));
-    const json sent = json::parse(fake->requests.front().body)["tools"];
+    const json sent = app_tools(json::parse(fake->requests.front().body)["tools"]);
 
     const std::string path = std::string(JUSPRIN_SOURCE_DIR) + "/tests/project_prompt/project_tools.json";
     if (const char* update = std::getenv("JUSPRIN_UPDATE_PROJECT_TOOLS"); update != nullptr && std::string(update) == "1")
@@ -659,7 +677,7 @@ TEST_CASE("OpenAI offers attachment import whatever the message carries, and pas
 
     const json tools = json::parse(fake->requests.back().body)["tools"];
     CHECK(tools == without_model);
-    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool["name"] == "object_import"; }));
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool.value("name", "") == "object_import"; }));
 
     const json call{{"type", "function_call"},
                     {"call_id", "call-import"},
@@ -1050,4 +1068,21 @@ TEST_CASE("a request carries its chat's prompt_cache_key, except through JusPrin
     CHECK_FALSE(codec.build(transcript, openai_profile(), RequestKind::ConversationTitle).body.contains("prompt_cache_key"));
     transcript.chat_key.clear();
     CHECK_FALSE(codec.build(transcript, openai_profile(), RequestKind::Reply).body.contains("prompt_cache_key"));
+}
+
+// Every reply request offers the provider's own web search after the app's
+// tools, each provider in its own spelling: OpenAI's, which JusPrin's gateway
+// passes to OpenAI, and OpenRouter's. A title request offers no tools.
+TEST_CASE("each Responses provider offers its own web search on a reply, and a title request none", "[agent][openai][tools]")
+{
+    ResponsesCodec codec;
+    TurnTranscript transcript;
+    transcript.instructions = "You are the project assistant.";
+    for (const std::string id : {"openai", "openrouter", "jusprin"}) {
+        CAPTURE(id);
+        const ProviderProfile& profile = *profile_for(id);
+        const json tools = codec.build(transcript, profile, RequestKind::Reply).body["tools"];
+        CHECK(tools == json::array({json{{"type", id == "openrouter" ? "openrouter:web_search" : "web_search"}}}));
+        CHECK_FALSE(codec.build(transcript, profile, RequestKind::ConversationTitle).body.contains("tools"));
+    }
 }

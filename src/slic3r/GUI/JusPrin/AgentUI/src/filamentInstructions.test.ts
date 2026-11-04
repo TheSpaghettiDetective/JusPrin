@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FilamentSessionPayload } from './bridge/protocol';
 import { filamentInstructions } from './filamentInstructions';
+import { LOOK_IT_UP } from './printerInstructions';
 import { splitChoices } from './replyChoices';
 
 const shipped: FilamentSessionPayload = {
@@ -21,6 +22,10 @@ describe('the filament instructions', () => {
   it('name the filament by its preset name, and the slot and material', () => {
     const text = filamentInstructions(shipped);
     expect(text).toContain('Name: Bambu PLA Basic @BBL X1C\nShown as: Bambu PLA Basic\nMaterial: PLA\nSlot: 2\n');
+  });
+
+  it('tell the model it has web search', () => {
+    expect(filamentInstructions(shipped).split(LOOK_IT_UP)).toHaveLength(2);
   });
 
   it('say a shipped filament is saved as the copy the app names, and one of the person\'s own in place', () => {

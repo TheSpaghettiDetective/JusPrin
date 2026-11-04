@@ -6294,7 +6294,7 @@ TEST_CASE("the tool list is the same on every request of a chat, whatever a mess
 
     REQUIRE(chat.provider->replies.size() == 5);
     const json tools = json::parse(chat.provider->replies.front())["tools"];
-    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool["name"] == "object_import"; }));
+    CHECK(std::any_of(tools.begin(), tools.end(), [](const json& tool) { return tool.value("name", "") == "object_import"; }));
     for (const std::string& body : chat.provider->replies)
         CHECK(json::parse(body)["tools"] == tools);
 }

@@ -7,10 +7,6 @@ trigger: connect_octoprint
 
 The rules above still apply. The person is trying to connect this printer. Your job is to guide them until it is connected or they choose to leave it, which they can do at any time. This explains how the connection works, so you can work out what is going on, including in situations it does not mention.
 
-## Look it up before you guess
-
-You have `web_search`. Before you say where something is in OctoPrint or their printer's setup, such as where the API key is, or what a failure might mean, search for it with their OctoPrint version or printer's model, and say what you found and that it comes from the web. Guess only what the search does not answer, and say it is a guess. How this app works is not on the web: that is here and in the app's notes.
-
 ## How the connection works
 
 Each step depends on the ones before it, so a step that worked says nothing about the ones after it.

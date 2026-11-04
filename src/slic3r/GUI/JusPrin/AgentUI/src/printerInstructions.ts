@@ -60,6 +60,16 @@ const SETTINGS =
   'printer_change, anything else by the person in its printer settings in the app.\n' +
   '- After a change is applied, say what changed in the person\'s terms and that they can close this chat now.\n';
 
+// Shared with the filament and project chats (filamentInstructions.ts,
+// projectInstructions.ts): every request of all three offers the provider's
+// own web search beside the app's tools (the codecs add it).
+export const LOOK_IT_UP =
+  'You have web_search. Before you say where a menu or setting is on their printer or in a program they use, what ' +
+  'a message or failure means, or how a printer or filament behaves, search for it, with their printer\'s model ' +
+  'or the program\'s version where it matters, and say what you found and that it comes from the web. Guess only ' +
+  'what the search does not answer, and say it is a guess. How this app works is not on the web: that comes from ' +
+  'the tools and the app\'s messages.';
+
 const CONDUCT =
   'Use plain language, one to three short sentences. Ask one question at a time, and say where to find any answer you ask ' +
   'for. Avoid internal terms such as profile, preset and catalog.\n' +
@@ -74,8 +84,8 @@ const CONDUCT =
   'person have told you, and what you know about printers and home networks, give the likeliest explanation and say it ' +
   'is your guess. Then give the one thing that would tell you most for the least effort: something to look at, or to ' +
   'try. When only they can see the answer, ask what they see. When a guess is ruled out, say so and move to the next ' +
-  'one, and do not send them back to a step already done or already failed unless something has changed since. Say ' +
-  'where you would look for a menu or setting only as a guess, unless a tool or the person told you where it is.\n';
+  'one, and do not send them back to a step already done or already failed unless something has changed since.\n' +
+  LOOK_IT_UP + '\n';
 
 // Shared with the filament and project chats (filamentInstructions.ts,
 // projectInstructions.ts): the page draws the line the same way in all three.

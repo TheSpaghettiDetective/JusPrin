@@ -30,6 +30,8 @@ Usage:
   OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py
       [--runs N] [--must-pass N] [--case NAME] [--jobs 5] [--verbose]
       [--model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
+  tests/printer_prompt/run_prompt_tests.py --backend claude-cli --judge claude-cli
+      [--claude-model M] [--claude-effort E] [other flags as above]
 
 Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts that answer an app note (MODEL, PROVIDERS; decided 2026-09-28), and
@@ -37,6 +39,10 @@ on nothing else. --model tries another model through a Responses API endpoint,
 with its key in the variable --key-env names, for comparing models, not for
 judging a prompt change. The judge stays on OpenAI
 (OPENAI_API_KEY) whichever model answers, so counts are judged alike.
+--backend claude-cli runs every turn on the locally installed Claude Code CLI,
+on the developer's Claude subscription, as the project suite's claude-cli
+backend does (tests/project_prompt/claude_cli.py); --judge claude-cli moves
+the judge there too. Its counts are compared only with its own baseline.
 
 Without --runs, the cases run share RUN_BUDGET conversations: 5 runs each for
 20 cases, fewer when there are more, never more than MAX_RUNS for one case.
@@ -60,6 +66,8 @@ import urllib.error
 import urllib.request
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "project_prompt"))
+import claude_cli  # noqa: E402
 # The model prompts are judged on (decided 2026-09-28): DeepSeek V4 Flash on
 # OpenRouter, served only by the hosts that answer an app note -- the others
 # render the app's developer messages so that the model replies with nothing
@@ -71,6 +79,11 @@ PROVIDERS = ["Alibaba", "Novita", "Baidu", "AtlasCloud"]
 # The judge stays on OpenAI whichever model answers, so counts are judged alike.
 JUDGE_ENDPOINT = "https://api.openai.com/v1/responses"
 JUDGE_MODEL = "gpt-5.5-2026-04-23"  # pinned, so a count moves only when the prompt does
+# --backend claude-cli and --judge claude-cli: (model, effort), pinned as the
+# project suite's are.
+CLAUDE_MODEL, CLAUDE_EFFORT = "claude-opus-5-5", "medium"
+CLAUDE = None
+CLAUDE_JUDGE = None
 # UTF-8 throughout: on Windows, Python otherwise reads text as the system code
 # page and garbles "×" and curly quotes before the model sees them.
 TOOLS = json.loads((HERE / "printer_tools.json").read_text(encoding="utf-8"))
@@ -95,7 +108,16 @@ def render(session, revision=None):
     return json.loads(result.stdout)
 
 
+def web_search(endpoint):
+    """The provider's own web search, which the app offers after its tools on
+    every reply request (ProviderProfile::web_search_type): OpenRouter's
+    spelling there, OpenAI's elsewhere."""
+    return {"type": "openrouter:web_search" if "openrouter.ai" in endpoint else "web_search"}
+
+
 def post(body, key, endpoint=ENDPOINT):
+    if "tools" in body:
+        body = {**body, "tools": body["tools"] + [web_search(endpoint)]}
     request = urllib.request.Request(endpoint, data=json.dumps(body).encode(), method="POST",
                                      headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
     for attempt in range(5):
@@ -116,10 +138,14 @@ def judge(log, question):
     for what no string test can check. Returns (yes, why)."""
     schema = {"type": "object", "additionalProperties": False, "required": ["answer", "why"],
               "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}, "why": {"type": "string"}}}
-    response = post({"model": JUDGE_MODEL, "store": False,
-                     "instructions": "You read a chat between a 3D printing app's assistant and a person, and answer one "
-                                     "question about it strictly as written, judging only what the messages say.",
-                     "input": "\n".join(log) + "\n\nQuestion: " + question,
+    instructions = ("You read a chat between a 3D printing app's assistant and a person, and answer one question "
+                    "about it strictly as written, judging only what the messages say. A \"web search:\" line is a "
+                    "search the assistant ran, with the pages it found.")
+    prompt = "\n".join(log) + "\n\nQuestion: " + question
+    if CLAUDE_JUDGE:
+        verdict, _ = claude_cli.judge(instructions, prompt, schema, *CLAUDE_JUDGE)
+        return verdict["answer"] == "yes", verdict["why"]
+    response = post({"model": JUDGE_MODEL, "store": False, "instructions": instructions, "input": prompt,
                      "text": {"format": {"type": "json_schema", "name": "verdict", "strict": True, "schema": schema}}},
                     os.environ["OPENAI_API_KEY"], JUDGE_ENDPOINT)
     text = "".join(output_text(item) for item in response.get("output", []) if item.get("type") == "message")
@@ -217,6 +243,53 @@ def not_run(failed):
             "Nothing was queued. Call it again if it is still needed."}}
 
 
+class ApiTurn:
+    """One turn on a Responses API endpoint: every request carries the turn
+    so far, the results and a skill after them included."""
+
+    def __init__(self, conversation, turn):
+        self.conversation, self.turn = conversation, turn
+
+    def next(self):
+        conversation = self.conversation
+        return post({"model": conversation.model, "store": False, "parallel_tool_calls": True,
+                     "instructions": conversation.instructions, "tools": getattr(conversation.case, "tools", TOOLS),
+                     "input": self.turn, **conversation.routing},
+                    conversation.key, conversation.endpoint).get("output", [])
+
+    def answer(self, calls, results, skill):
+        pass  # already in the turn the next request sends
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+
+class ClaudeTurn(ApiTurn):
+    """One turn on the Claude Code CLI (claude_cli.Run): the turn so far goes
+    in once, and the results of each response's calls are its tool results.
+    A skill the app adds after them goes in as further text of the last
+    result, as the project suite gives the app's notes after a result."""
+
+    def __init__(self, conversation, turn):
+        super().__init__(conversation, turn)
+        self.run = claude_cli.Run(conversation.instructions, getattr(conversation.case, "tools", TOOLS), list(turn),
+                                  *CLAUDE)
+
+    def next(self):
+        return self.run.next_response()[0]
+
+    def answer(self, calls, results, skill):
+        if skill:
+            results = results[:-1] + [[results[-1], claude_cli.developer_block(skill)["text"]]]
+        self.run.answer(calls, results)
+
+    def __exit__(self, *_):
+        self.run.close()
+
+
 class Conversation:
     """One run of a case: the chat as the app would hold it."""
 
@@ -254,12 +327,13 @@ class Conversation:
             bambu = printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu")
         kind = "bambu" if bambu else self.host_type
         if kind not in CONNECTION_SKILLS or kind in self.skills_sent:
-            return
+            return None
         self.skills_sent.add(kind)
         self.log.append(f"app: (the connect-{kind} skill)")
         message = {"role": "developer", "content": CONNECTION_SKILLS[kind]}
         turn.append(message)
         self.history.append(message)
+        return message["content"]
 
     def note(self, text):
         """The app's own line, as the developer, then the turn it starts
@@ -275,44 +349,49 @@ class Conversation:
         succeed, the calls after it in that response are answered not_run
         without running."""
         refused = 0
-        for _ in range(MAX_REQUESTS_PER_TURN):
-            response = post({"model": self.model, "store": False, "parallel_tool_calls": True,
-                             "instructions": self.instructions, "tools": getattr(self.case, "tools", TOOLS), "input": turn,
-                             **self.routing},
-                            self.key, self.endpoint)
-            output = response.get("output", [])
-            turn += output
-            for reply in (output_text(item) for item in output if item.get("type") == "message"):
-                if reply:
-                    self.history.append({"role": "assistant", "content": reply})
-                    self.log.append("assistant: " + reply)
-            calls = [item for item in output if item.get("type") == "function_call"]
-            if not calls:
-                break
-            failed = None  # "tool (call_id)" of the first call that did not succeed
-            for call in calls:
-                arguments = json.loads(call.get("arguments") or "{}")
-                self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
-                if failed:
-                    result, recorded = not_run(failed), False
-                elif (problem := invalid_arguments(call["name"], arguments)) and refused < 2:
-                    refused += 1
-                    result, recorded = {"state": "failed", "error": problem}, False
-                else:
-                    (result, _), recorded = self.case.tool(call["name"], arguments), True
-                    if call["name"] == "printer_connect" and arguments.get("hostType"):
-                        self.host_type = arguments["hostType"]
-                    elif (call["name"] == "printer_connection_status" and result.get("provider") == "host"
-                          and result.get("address") and not self.host_type):
-                        self.host_type = result.get("hostType", "")
-                if not failed and not succeeded(result):
-                    failed = f"{call['name']} ({call['call_id']})"
-                self.log.append("  -> " + dump(result))
-                turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
-                if recorded:
-                    self.history += self.replayed(call, result)
-            if any(call["name"] in ("printer_connect", "printer_connection_status") for call in calls):
-                self.add_connection_skill(turn)
+        with (ClaudeTurn if CLAUDE else ApiTurn)(self, turn) as model:
+            for _ in range(MAX_REQUESTS_PER_TURN):
+                output = model.next()
+                turn += output
+                for item in output:
+                    if searched := claude_cli.web_search_line(item):
+                        # Kept, as the app sends a response's items back.
+                        self.history.append(item)
+                        self.log.append(searched)
+                    elif item.get("type") == "message" and (reply := output_text(item)):
+                        self.history.append({"role": "assistant", "content": reply})
+                        self.log.append("assistant: " + reply)
+                calls = [item for item in output if item.get("type") == "function_call"]
+                if not calls:
+                    break
+                failed = None  # "tool (call_id)" of the first call that did not succeed
+                results = []
+                for call in calls:
+                    arguments = json.loads(call.get("arguments") or "{}")
+                    self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
+                    if failed:
+                        result, recorded = not_run(failed), False
+                    elif (problem := invalid_arguments(call["name"], arguments)) and refused < 2:
+                        refused += 1
+                        result, recorded = {"state": "failed", "error": problem}, False
+                    else:
+                        (result, _), recorded = self.case.tool(call["name"], arguments), True
+                        if call["name"] == "printer_connect" and arguments.get("hostType"):
+                            self.host_type = arguments["hostType"]
+                        elif (call["name"] == "printer_connection_status" and result.get("provider") == "host"
+                              and result.get("address") and not self.host_type):
+                            self.host_type = result.get("hostType", "")
+                    if not failed and not succeeded(result):
+                        failed = f"{call['name']} ({call['call_id']})"
+                    self.log.append("  -> " + dump(result))
+                    results.append(dump(result))
+                    turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
+                    if recorded:
+                        self.history += self.replayed(call, result)
+                skill = None
+                if any(call["name"] in ("printer_connect", "printer_connection_status") for call in calls):
+                    skill = self.add_connection_skill(turn)
+                model.answer(calls, results, skill)
 
     @staticmethod
     def replayed(call, result):
@@ -610,14 +689,19 @@ def ended_badly(conversation, truth):
     for a tool result, a person told something false or useless with the right
     step hidden, asked of the whole chat. The truth is what the scenario knows
     and the assistant cannot, so a wrong guess marked as a guess still passes
-    when its next step would lead them there."""
+    when its next step would lead them there. The prompt has the model search
+    before it says where a menu or setting is and say what came from the
+    web (LOOK_IT_UP), so what a search shown in the chat found counts as
+    given, when the assistant says it came from the web."""
     yes, why = judge(conversation.log, "The truth in this scenario, which the assistant cannot know for certain: " + truth +
                                        " Reading the whole chat as that person, are all of these true? Every cause the "
-                                       "assistant gave is either stated in the app's or the person's messages or marked as "
-                                       "a guess. It did not send them back to something they had already done or ruled "
-                                       "out, unless something had changed. It gave no menu, screen or setting path as "
-                                       "fact unless the messages gave it. Its last message leaves them with a concrete "
-                                       "next thing to look at, try or answer that moves them toward the truth.")
+                                       "assistant gave is stated in the app's or the person's messages, or said to come "
+                                       "from a web search the chat shows, or marked as a guess. It did not send them back "
+                                       "to something they had already done or ruled out, unless something had changed. "
+                                       "It gave no menu, screen or setting path as fact unless the messages gave it or it "
+                                       "said the path came from a web search the chat shows. Its last message leaves "
+                                       "them with a concrete next thing to look at, try or answer that moves them toward "
+                                       "the truth.")
     return "" if yes else "LEFT STUCK: " + why
 
 
@@ -1592,19 +1676,37 @@ def main():
                         help="run the prompt as the page's source had it at this git revision, e.g. HEAD, to compare "
                              "an uncommitted edit with the one before it")
     parser.add_argument("--verbose", action="store_true", help="print every run's conversation, not only failures")
+    parser.add_argument("--backend", choices=("api", "claude-cli"), default="api",
+                        help="api: the model through a Responses API endpoint (default); claude-cli: the Claude Code "
+                             "CLI on the developer's subscription")
+    parser.add_argument("--judge", choices=("openai", "claude-cli"), default="openai",
+                        help=f"openai: {JUDGE_MODEL} (default); claude-cli: --claude-model on the subscription")
+    parser.add_argument("--claude-model", default=CLAUDE_MODEL, help=f"claude-cli's model (default {CLAUDE_MODEL})")
+    parser.add_argument("--claude-effort", default=CLAUDE_EFFORT, help=f"claude-cli's effort (default {CLAUDE_EFFORT})")
     args = parser.parse_args()
+    global CLAUDE, CLAUDE_JUDGE
+    if args.backend == "claude-cli":
+        CLAUDE = (args.claude_model, args.claude_effort)
+    if args.judge == "claude-cli":
+        CLAUDE_JUDGE = (args.claude_model, args.claude_effort)
     # Hosts are pinned per model: another model starts unpinned.
     model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
     providers = args.provider or (PROVIDERS if model == MODEL else None)
     args.key_env = key_env
     key = os.environ.get(args.key_env)
-    if not key or not os.environ.get("OPENAI_API_KEY"):
-        sys.exit(f"{args.key_env} is required, and OPENAI_API_KEY for the judge")
+    if not CLAUDE and not key:
+        sys.exit(f"{args.key_env} is required")
+    if not CLAUDE_JUDGE and not os.environ.get("OPENAI_API_KEY"):
+        sys.exit("OPENAI_API_KEY is required for the judge, or --judge claude-cli")
     names = args.case or sorted(CASES)
     if args.runs is None:
         args.runs = max(1, min(MAX_RUNS, RUN_BUDGET // len(names)))
     must_pass = args.runs if args.must_pass is None else args.must_pass
-    print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else "") +
+    if CLAUDE:
+        print(f"model {CLAUDE[0]} (effort {CLAUDE[1]}) through the Claude Code CLI", end="")
+    else:
+        print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else ""), end="")
+    print(f"; judge {CLAUDE_JUDGE[0] + ' through the Claude Code CLI' if CLAUDE_JUDGE else JUDGE_MODEL}"
           f"; prompt from {args.prompt_rev or 'the checkout'}")
 
     ok = True

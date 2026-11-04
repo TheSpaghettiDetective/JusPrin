@@ -25,12 +25,19 @@ How a recorded request reaches the model:
     off." after the result.
 Every later call goes through the stub to the runner, which answers it with
 answer() or ends the run by closing the process.
+  - web search: the app offers its provider's own search on every reply
+    request, so a run offers the CLI's WebSearch, the one built-in tool it
+    has. The CLI runs a search itself; its query, the pages it found and the
+    result the model read come back as a web_search output item, and the
+    model goes on. A search in the history is resumed as the CLI's own call
+    and result, as the app sends a response's items back.
 
 Nothing from the developer's own Claude Code setup reaches the model:
 --setting-sources "" (no settings, hooks or output style), no CLAUDE.md and no
 auto-memory (environment), --disable-slash-commands (no skills),
---strict-mcp-config (only the stub), --tools "" (no built-in tools), a
-minimal environment, and an empty working directory."""
+--strict-mcp-config (only the stub), --tools "WebSearch" ("" for the judge:
+no other built-in tool), a minimal environment, and an empty working
+directory."""
 
 import json
 import os
@@ -52,6 +59,8 @@ SERVER = "jusprin"
 PREFIX = f"mcp__{SERVER}__"
 # The tool the CLI adds for --json-schema.
 STRUCTURED_OUTPUT = "StructuredOutput"
+# The CLI's own search, which a run offers as the app offers its provider's.
+WEB_SEARCH = "WebSearch"
 # For an offline check against a fake Messages endpoint: its URL. The CLI is
 # then given a dummy API key instead of the subscription's login.
 TEST_ENDPOINT_ENV = "JUSPRIN_CLAUDE_CLI_TEST_ENDPOINT"
@@ -70,9 +79,23 @@ def environment():
     return env
 
 
-def isolation_args():
-    return ["--tools", "", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands",
+def isolation_args(tools=""):
+    return ["--tools", tools, "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands",
             "--no-session-persistence"]
+
+
+def web_search_line(item):
+    """A search the model ran, as a line of a transcript: a provider's own
+    search item (OpenRouter's openrouter:web_search, OpenAI's
+    web_search_call) or the CLI's (web_search, from output_items). None for
+    any other item."""
+    if not str(item.get("type", "")).endswith(("web_search", "web_search_call")):
+        return None
+    action = item.get("action") or {}
+    if item.get("result"):  # the CLI's: what the model read, its summary included
+        return f"web search: {action.get('query', '')} -> {item['result']}"
+    pages = [source["url"] for source in action.get("sources") or [] if source.get("url")]
+    return f"web search: {action.get('query', '')}" + (" -> " + ", ".join(pages) if pages else "")
 
 
 def check_auth(init):
@@ -122,7 +145,7 @@ def user_blocks(item):
 def messages(items):
     """Responses API input items as Messages API messages, consecutive items
     of one role in one message."""
-    out = []
+    out, searches = [], 0
 
     def push(role, blocks):
         if out and out[-1]["role"] == role:
@@ -143,8 +166,17 @@ def messages(items):
             content = item["content"]
             text = content if isinstance(content, str) else "".join(part.get("text", "") for part in content)
             push("assistant", [{"type": "text", "text": text}])
+        elif web_search_line(item):
+            # Replayed as the app replays a response's items: here as the
+            # CLI's own call and the result the model read.
+            action = item.get("action") or {}
+            searches += 1
+            push("assistant", [{"type": "tool_use", "id": f"toolu_search_{searches}", "name": WEB_SEARCH,
+                                "input": {"query": action.get("query", "")}}])
+            push("user", [{"type": "tool_result", "tool_use_id": f"toolu_search_{searches}",
+                           "content": item.get("result") or web_search_line(item)}])
         elif kind == "reasoning":
-            continue
+            continue  # the model's own
         else:
             raise ValueError(f"unsupported input item {kind or item.get('role')}")
     return out
@@ -237,8 +269,9 @@ class Run:
         threading.Thread(target=self.serve, daemon=True).start()
 
         command = [find_claude(), "-p", "--model", model, "--effort", effort, "--system-prompt", instructions,
-                   "--mcp-config", str(self.directory / "mcp.json"), "--allowedTools", f"mcp__{SERVER}",
-                   "--output-format", "stream-json", "--verbose", "--include-partial-messages"] + isolation_args()
+                   "--mcp-config", str(self.directory / "mcp.json"), "--allowedTools", f"mcp__{SERVER},{WEB_SEARCH}",
+                   "--output-format", "stream-json", "--verbose", "--include-partial-messages"] + \
+                  isolation_args(WEB_SEARCH)
         if history or deferred:
             session = self.directory / "session.jsonl"
             session_file(session, history, cwd, deferred)
@@ -296,7 +329,11 @@ class Run:
         self.events.put(None)
 
     def next_response(self):
-        blocks, usage = [], {}
+        """The model's next response that ends on a reply or on calls to the
+        stub. A message whose only calls are web searches does not end it:
+        the CLI runs them and asks the model again, and the searches join the
+        output in order. Its usage is that of every message in it."""
+        blocks, usage, start, started_output = [], {}, 0, 0
         while True:
             remaining = RUN_TIMEOUT - (time.monotonic() - self.started)
             try:
@@ -313,13 +350,29 @@ class Run:
                     raise RuntimeError(f"the tool stub did not connect: {event.get('mcp_servers')}")
             elif kind == "assistant" and not event.get("parent_tool_use_id"):
                 blocks += event["message"]["content"]
+            elif kind == "user" and isinstance(event.get("tool_use_result"), dict) and \
+                    "query" in event["tool_use_result"]:
+                # The result the model read; with two searches at once, the
+                # one that names this query.
+                search = event["tool_use_result"]
+                reads = [block["content"] for block in event["message"]["content"] if block.get("type") == "tool_result"]
+                reads = [read if isinstance(read, str) else json.dumps(read, ensure_ascii=False) for read in reads]
+                read = next((read for read in reads if f'query: "{search["query"]}"' in read), reads[0] if reads else "")
+                blocks.append({"type": "web_search", **search, "read": read})
             elif kind == "stream_event":
                 raw = event["event"]
                 if raw["type"] == "message_start":
-                    usage = dict(raw["message"].get("usage") or {})
+                    start = len(blocks)
+                    for name, value in (raw["message"].get("usage") or {}).items():
+                        if isinstance(value, int):
+                            usage[name] = usage.get(name, 0) + value
+                    started_output = usage.get("output_tokens", 0)
                 elif raw["type"] == "message_delta":
-                    usage["output_tokens"] = (raw.get("usage") or {}).get("output_tokens", 0)
+                    usage["output_tokens"] = started_output + (raw.get("usage") or {}).get("output_tokens", 0)
                 elif raw["type"] == "message_stop":
+                    calls = [block for block in blocks[start:] if block["type"] == "tool_use"]
+                    if calls and all(block["name"] == WEB_SEARCH for block in calls):
+                        continue
                     self.usage.append(usage)
                     return output_items(blocks), usage
             elif kind == "result":
@@ -370,16 +423,24 @@ class Run:
 def output_items(blocks):
     """The CLI's content blocks as the Responses API output items Step reads.
     Thinking blocks are the model's own and are left out, as reasoning items
-    are."""
+    are. A web search is the CLI's own call: its result, with the query and
+    the pages found, becomes a web_search item, shaped as OpenRouter's, with
+    the result the model read."""
     items = []
     for block in blocks:
         if block["type"] == "text" and block["text"].strip():
             items.append({"type": "message", "role": "assistant",
                           "content": [{"type": "output_text", "text": block["text"]}]})
-        elif block["type"] == "tool_use":
+        elif block["type"] == "tool_use" and block["name"] != WEB_SEARCH:
             name = block["name"][len(PREFIX):] if block["name"].startswith(PREFIX) else block["name"]
             items.append({"type": "function_call", "call_id": block["id"], "name": name,
                           "arguments": json.dumps(block.get("input") or {}, ensure_ascii=False)})
+        elif block["type"] == "web_search":
+            pages = [page for result in block.get("results") or [] if isinstance(result, dict)
+                     for page in result.get("content") or [] if isinstance(page, dict)]
+            items.append({"type": "web_search", "result": block.get("read", ""),
+                          "action": {"query": block["query"],
+                                     "sources": [{"url": page.get("url"), "title": page.get("title")} for page in pages]}})
     return items
 
 

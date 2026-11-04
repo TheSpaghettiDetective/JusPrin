@@ -4,14 +4,14 @@
   "effort": "medium",
   "hosts": null,
   "judge": "claude-opus-5-5 (claude-cli)",
-  "date": "2026-10-30",
-  "commit": "1adb93c64f",
-  "uncommitted": false,
-  "note": "Recorded from the run of 2026-10-30 on macOS (CLI 2.1.283), confirmed by Kenneth that day. That commit was then squashed together with this file into the commit that carries it, so the hash is the measured tree, not a commit on the branch.",
+  "date": "2026-11-03",
+  "commit": "3e662278ea",
+  "uncommitted": true,
+  "note": "Recorded from the run of 2026-11-03 on macOS (CLI 2.1.283) on 3e662278ea (claude/tool-results-truth: the provider's own web search offered on every request, here the CLI's WebSearch) with the test changes that offer it and show a search in the judged transcript; that commit and those changes were then folded together with this file into the commit that carries it, so the hash is the measured tree without these test changes, not a commit on the branch. Recorded at Kenneth's request on 2026-11-03.",
   "sha256": {
-    "prompt": "2d9e439b5e0f6847175824d83c26d4892a47ff98b2be0f6a8cbc9c8c04d4c86a",
-    "tools": "304484b8560466141e554b1fcf884df1eaff824afe4144044b7b97f1273f7725",
-    "recording": "717e0a8e31a062a5d45b74b9aa0252d7452888f0561c87f67f3974bfb939c5f5"
+    "prompt": "7e59efa86637636345b3da22840a227eb8e71361f12c4b6e989ca1b3bab45009",
+    "tools": "c8a15b8c472227e24b555a565b5560e7405d601714b06cb89bf7dca8434155cc",
+    "recording": "24f3caac92e8b30a01070d4d703f3d605f33fcf92d711b29f485d10f5b9233ab"
   },
   "cases": {
     "advice-infill": {
@@ -51,8 +51,8 @@
     },
     "after-slice": {
       "runs": 3,
-      "pass": 3,
-      "fail": 0,
+      "pass": 2,
+      "fail": 1,
       "unobserved": 0,
       "errors": 0
     },
@@ -156,8 +156,8 @@
     },
     "model-opened-unnamed": {
       "runs": 3,
-      "pass": 3,
-      "fail": 0,
+      "pass": 2,
+      "fail": 1,
       "unobserved": 0,
       "errors": 0
     },

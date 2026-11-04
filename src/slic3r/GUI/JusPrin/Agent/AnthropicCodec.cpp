@@ -85,12 +85,10 @@ json tools_json(const std::vector<OfferedTool>& tools)
                              {"input_schema", std::move(schema)},
                              {"strict", strict}});
     }
-    // Web search, offered only when JUSPRIN_TEST_WEB_SEARCH is set: the
-    // connection skills tell the model to look things up before it guesses.
-    // Direct calls only, so no code execution blocks or containers come back
-    // to be replayed.
-    if (std::getenv("JUSPRIN_TEST_WEB_SEARCH") != nullptr)
-        items.push_back(json{{"type", "web_search_20250305"}, {"name", "web_search"}, {"max_uses", 5}});
+    // Anthropic's web search, which the instructions tell the model to use
+    // before it guesses. Direct calls only, so no code execution blocks or
+    // containers come back to be replayed.
+    items.push_back(json{{"type", "web_search_20250305"}, {"name", "web_search"}, {"max_uses", 5}});
     // Tools render first, so one breakpoint on the last caches them all.
     if (!items.empty())
         items.back()["cache_control"] = ephemeral();

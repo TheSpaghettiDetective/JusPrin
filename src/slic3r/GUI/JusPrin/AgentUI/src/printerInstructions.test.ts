@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
-import { printerInstructions } from './printerInstructions';
+import { LOOK_IT_UP, printerInstructions } from './printerInstructions';
 import { splitChoices } from './replyChoices';
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
@@ -150,6 +150,14 @@ describe('the instructions', () => {
       expect(text).toContain('Rules for finishing');
     }
     expect(printerInstructions(add)).toContain('Rules for finding the printer');
+  });
+
+  it('tell the model in every session that it has web search, and drop the old guess-only rule', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(add), printerInstructions(change), printerInstructions(connect)]) {
+      expect(text.split(LOOK_IT_UP)).toHaveLength(2);
+      expect(text).not.toContain('only as a guess, unless a tool or the person told you');
+    }
   });
 
   it('keep the rule for a refused nozzle size in every session, since printer_change refuses one too', () => {

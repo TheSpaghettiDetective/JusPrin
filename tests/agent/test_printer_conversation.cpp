@@ -2884,6 +2884,9 @@ TEST_CASE("the model is offered every printer tool, the settings tools, and no p
     std::vector<std::string> names;
     const std::vector<std::string> settings = PrinterConversation::settings_tools();
     for (const json& tool : body.at("tools")) {
+        // The provider's web search is not the app's.
+        if (tool.at("type") != "function")
+            continue;
         names.push_back(tool.at("name"));
         // No tool takes a credential from the model.
         for (const char* secret : {"accessCode", "apiKey", "credential", "password"})
@@ -3151,8 +3154,10 @@ std::vector<std::string> offered(Agent::AgentRequest request)
     REQUIRE(capture->requests.size() == 1);
     const json body = json::parse(capture->requests.front().body);
     std::vector<std::string> names;
+    // The app's tools by name; the provider's web search has only a type.
     for (const json& tool : body.value("tools", json::array()))
-        names.push_back(tool.at("name"));
+        if (tool.at("type") == "function")
+            names.push_back(tool.at("name"));
     return names;
 }
 

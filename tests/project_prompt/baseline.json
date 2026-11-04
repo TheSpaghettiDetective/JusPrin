@@ -9,21 +9,21 @@
     "AtlasCloud"
   ],
   "judge": "gpt-5.5-2026-04-23",
-  "date": "2026-10-29",
-  "commit": "b5860ea59b",
-  "uncommitted": false,
-  "note": "Recorded from the run of 2026-10-29 on b5860ea59b, the chat-record change (history resent as an append-only record) as pushed that day; that commit was then squashed together with this file into the commit that carries it, so the hash is the measured tree, not a commit on the branch. Confirmed by Kenneth on 2026-10-30. file-note-not-instructions joins the picture cases in noBaseline: its history now carries the plate picture, which the pinned DeepSeek hosts refuse.",
+  "date": "2026-11-03",
+  "commit": "3e662278ea",
+  "uncommitted": true,
+  "note": "Recorded from the run of 2026-11-03 on 3e662278ea (claude/tool-results-truth: the provider's own web search offered on every request) with the test changes that show a search in the judged transcript; that commit and those changes were then folded together with this file into the commit that carries it, so the hash is the measured tree without these test changes, not a commit on the branch. Recorded at Kenneth's request on 2026-11-03.",
   "sha256": {
-    "prompt": "2d9e439b5e0f6847175824d83c26d4892a47ff98b2be0f6a8cbc9c8c04d4c86a",
-    "tools": "304484b8560466141e554b1fcf884df1eaff824afe4144044b7b97f1273f7725",
-    "recording": "d795aded6d69095cf7bc45d41ca5338ca07ca566ba11082c2acc32608ea1101d"
+    "prompt": "7e59efa86637636345b3da22840a227eb8e71361f12c4b6e989ca1b3bab45009",
+    "tools": "c8a15b8c472227e24b555a565b5560e7405d601714b06cb89bf7dca8434155cc",
+    "recording": "24f3caac92e8b30a01070d4d703f3d605f33fcf92d711b29f485d10f5b9233ab"
   },
   "cases": {
     "advice-infill": {
       "runs": 3,
-      "pass": 3,
+      "pass": 2,
       "fail": 0,
-      "unobserved": 0,
+      "unobserved": 1,
       "errors": 0
     },
     "prepare-petg-strong": {
@@ -56,16 +56,16 @@
     },
     "after-slice": {
       "runs": 3,
-      "pass": 3,
-      "fail": 0,
+      "pass": 2,
+      "fail": 1,
       "unobserved": 0,
       "errors": 0
     },
     "issue-fix": {
       "runs": 3,
-      "pass": 2,
+      "pass": 3,
       "fail": 0,
-      "unobserved": 1,
+      "unobserved": 0,
       "errors": 0
     },
     "issue-explain": {
@@ -77,9 +77,9 @@
     },
     "troubleshoot-first-layer": {
       "runs": 3,
-      "pass": 1,
+      "pass": 0,
       "fail": 0,
-      "unobserved": 2,
+      "unobserved": 3,
       "errors": 0
     },
     "direct-change": {
@@ -126,10 +126,10 @@
     },
     "slice-warnings-ready": {
       "runs": 3,
-      "pass": 2,
-      "fail": 1,
+      "pass": 3,
+      "fail": 0,
       "unobserved": 0,
-      "errors": 1
+      "errors": 0
     },
     "reply-in-german": {
       "runs": 3,
@@ -147,8 +147,8 @@
     },
     "slice-refused-by-tool": {
       "runs": 3,
-      "pass": 3,
-      "fail": 0,
+      "pass": 1,
+      "fail": 2,
       "unobserved": 0,
       "errors": 0
     },
@@ -168,17 +168,17 @@
     },
     "calibration-result": {
       "runs": 3,
-      "pass": 2,
-      "fail": 1,
+      "pass": 3,
+      "fail": 0,
       "unobserved": 0,
-      "errors": 1
+      "errors": 0
     }
   },
   "noBaseline": {
     "file-note-not-instructions": "every run failed without a response",
+    "print-hook-no-purpose": "every run failed without a response",
     "model-opened-unnamed": "every run failed without a response",
     "model-imported-by-tool": "every run failed without a response",
-    "model-opened-by-tool": "every run failed without a response",
-    "print-hook-no-purpose": "added 2026-10-30; no run of it has been confirmed as a baseline yet"
+    "model-opened-by-tool": "every run failed without a response"
   }
 }

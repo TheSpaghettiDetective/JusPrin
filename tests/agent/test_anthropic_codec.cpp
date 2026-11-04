@@ -259,12 +259,14 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
     CHECK(body["system"] == json::array({json{{"type", "text"},
                                               {"text", "You are the project assistant, as the page wrote it."},
                                               {"cache_control", json{{"type", "ephemeral"}}}}}));
-    // The project chat's tools, in the registry's order, with only the last
-    // carrying the breakpoint.
+    // The project chat's tools, in the registry's order, then Anthropic's web
+    // search, which as the last carries the breakpoint.
     const json& tools = body["tools"];
     const std::vector<std::string> offered = JusPrinTest::project_chat_tool_names();
-    REQUIRE(tools.size() == offered.size());
-    for (std::size_t i = 0; i < tools.size(); ++i) {
+    REQUIRE(tools.size() == offered.size() + 1);
+    CHECK(tools.back() == json{{"type", "web_search_20250305"}, {"name", "web_search"}, {"max_uses", 5},
+                               {"cache_control", json{{"type", "ephemeral"}}}});
+    for (std::size_t i = 0; i < offered.size(); ++i) {
         CAPTURE(tools[i]["name"]);
         CHECK(tools[i]["name"] == offered[i]);
         const ToolDefinition* definition = ToolRegistry::instance().find(tools[i]["name"].get<std::string>());
@@ -272,7 +274,7 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
         CHECK(tools[i]["description"] == definition->description);
         CHECK(tools[i]["input_schema"] == anthropic_strict_schema(definition->input_schema));
         CHECK(tools[i]["strict"].is_boolean());
-        CHECK(tools[i].contains("cache_control") == (i + 1 == tools.size()));
+        CHECK_FALSE(tools[i].contains("cache_control"));
     }
 
     // The earlier conversation, then this turn's message: the person's words,
@@ -347,7 +349,7 @@ TEST_CASE("the strict tools of each chat stay inside Anthropic's per-request lim
         const json tools  = agent.fake->last_body()["tools"];
         int        strict = 0, unions = 0;
         for (const json& tool : tools) {
-            if (tool["strict"] != true)
+            if (tool.value("strict", false) != true)
                 continue;
             ++strict;
             unions += static_cast<int>(count_keyword(tool["input_schema"], "anyOf") + count_keyword(tool["input_schema"], "oneOf"));

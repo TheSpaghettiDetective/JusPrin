@@ -194,7 +194,16 @@ def render(revision=None):
     return json.loads(result.stdout)["instructions"]
 
 
+def web_search(endpoint):
+    """The provider's own web search, which the app offers after its tools on
+    every reply request (ProviderProfile::web_search_type): OpenRouter's
+    spelling there, OpenAI's elsewhere."""
+    return {"type": "openrouter:web_search" if "openrouter.ai" in endpoint else "web_search"}
+
+
 def post(body, key, endpoint=ENDPOINT):
+    if "tools" in body:
+        body = {**body, "tools": body["tools"] + [web_search(endpoint)]}
     request = urllib.request.Request(endpoint, data=json.dumps(body).encode(), method="POST",
                                      headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
     for attempt in range(5):
@@ -268,6 +277,8 @@ def readable(item, limit=1500):
     if item.get("type") == "function_call_output":
         output = item["output"]
         return "tool result: " + (output if len(output) <= limit else output[:limit] + " …")
+    if searched := claude_cli.web_search_line(item):
+        return searched
     if "role" not in item:
         return None  # a reasoning item: the model's own, not part of the chat
     content = item.get("content")
