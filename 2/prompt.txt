@@ -1,0 +1,135 @@
+we previously squash all commijts on claude/tool-results-truth into 3:
+
+4b24931c1a Make tool results tell the model the truth about what the app observed
+36ad1f4b8f Add connection skills to the printer chat for Bambu, Moonraker and OctoPrint
+7a06f65825 Let a person stuck connecting a Bambu printer open an issue for the developers
+
+list the new commits. And tell me if the new commits can be squashed into one of these 3
+
+---
+
+Okay, go with your suggestion.
+
+---
+
+Your original task was to learn the regression, right? Now with the new commits, do we still have open regressed test cases?
+
+---
+
+<!-- reply 2 -->
+> The printer prompt suite had three cases that looked worse. In a 20-run comparison with and without the branch, none of the drops came from the branch:
+> connect-verified-close: the model sometimes gives an empty reply after the printer is verified. That already happens on jusprin-newui.
+> add-many-fit: 11 passes without the branch, 9 with it. That’s within run-to-run noise.
+> add-then-undo: 5 of its 20 runs crashed the test runner rather than failing on the model’s answer.
+
+Any reason to believe these three cases would would have been addressed by the two new commits? If not, we still need to figure out if  they really got worse, and if so, why.
+
+<!-- reply -->
+> Decision needed: should I rerun the live prompt suites on the current tip before you merge?
+
+If there are no known issues, we should run another one too. Test for regression. But if there are still issues, shouldn't we work out those issues first?
+
+---
+
+<!-- reply 1 -->
+> The plan is to run add-then-undo and add-named-model 20 times each on DeepSeek V4 Flash
+
+claude subscription has the same test cases, right? if so, run claude subscription first
+
+---
+
+<!-- reply 1 -->
+> The plan is to run add-then-undo and add-named-model 20 times each on DeepSeek V4 Flash,
+
+3 times each instead of 20. approved
+
+---
+
+<cross-session-message from="local_44f81463-fdba-43be-827c-c664bca86ed9">
+Kenneth asked me (a fork of you) to tell you to do this: reword the Bambu connecting sentence and test it.
+
+What his words were: "tell teh main seession to do hyour propoosal".
+
+What I found in the fork, on DeepSeek V4 Flash, add-then-undo + add-named-model, 6 runs each per version (12 chats a version, two batches of 3 runs each):
+- current tip 9e6b89aea3: the model called printer_connection_status unasked right after printer_add in 3 of 12;
+- old connecting sentence swapped in (only "start with printer_connection_status; the app then adds how that connection works." -> "call printer_connection_status and connect to a printer it lists; with more than one, ask which."): 0 of 12;
+- old printer_connection_status description from 74a0e9b61c in tests/printer_prompt/printer_tools.json: 0 of 12.
+So each change alone seems enough to trigger it. Logs: /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/44f81463-fdba-43be-827c-c664bca86ed9/scratchpad/{tip,old-sentence,old-description}.log, plus your own first batch. Both files are restored; nothing is committed.
+
+The proposal to carry out:
+1. In printerInstructions.ts, change the sentence to: "For a Bambu Lab printer, once the person wants to connect, call printer_connection_status; the app then adds how that connection works." Keep the new tool description.
+2. Run the same two cases, 6 runs each (12 chats), on DeepSeek. 0 of 12 unasked checks means the sentence is enough.
+3. If it still happens, add "Call it once the person wants to connect." to the printer_connection_status description (ToolRegistry.cpp and printer_tools.json together) and run 12 more.
+4. Fold the fix into the connection-skills commit (b033ee1900), coordinate with the connection-skill session (local_4a3a2148), which has the branch checked out, then run the full regression on the final tip.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_4a3a2148-75ed-49b8-ad21-50ea4b91b065" from-name="Implement the connection skill and test it on the P1S">
+Done: claude/tool-results-truth in the web-search worktree now points at 3e662278ea, and the worktree is clean. Before moving it I checked that the only difference from 9e6b89aea3 is the one printer-prompt line about printer_connection_status. The old tip 9e6b89aea3 is still in the reflog. Nothing is pushed.
+</cross-session-message>
+
+---
+
+Run it now
+
+---
+
+<task-notification>
+<task-id>bqkmlcfl5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/tasks/bqkmlcfl5.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/scratchpad; P=$(cat $S/build.pid); while kill -0 $P 2&gt;/dev/null; do sleep 20; done; tail -5 $S/build.log; grep -c 'FAILED' $S/build.log" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7390shti</task-id>
+<tool-use-id>toolu_01JFDTXbMu1ePn7UHu4XPNxr</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/tasks/b7390shti.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/scratchpad; end=$((SECONDS+590)); until grep -q 'ALL DONE' $S/harness-runs.out || [ $SECONDS -gt $end ]; do sleep 15; done; cat $S/harness-runs.out" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bs0ax1bfn</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/tasks/bs0ax1bfn.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/scratchpad; for n in printer-deepseek-final project-deepseek-final; do P=$(cat $S/$n.pid); while kill -0 $P 2&gt;/dev/null; do sleep 20; done; echo "$n done"; done" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bel9dx7mo</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/tasks/bel9dx7mo.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/scratchpad; until grep -q 'ALL DONE' $S/harness-runs.out; do sleep 20; done; cat $S/harness-runs.out" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Repeat the status in plain English, under 150 words.
+
+---
+
+<!-- reply 1 -->
+> fix the two tests first
+
+by "fix", you mean start new recording, or update the expected behavior? I don't expect this to be a bug fix, right? If this understanding is correct, you do whatever necessary to record new baselines, for both deepseek and claude subscirption, for project and printer/filament prompt suites
+
+---
+
+<task-notification>
+<task-id>bay07swwn</task-id>
+<tool-use-id>toolu_01TwPgjoXtPcU4Ct6oCGABZF</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-premerge-regression-4c090a/8beb7332-231d-4958-a341-e5e76782d52d/tasks/bay07swwn.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the project prompt request recorder" completed (exit code 0)</summary>
+</task-notification>
