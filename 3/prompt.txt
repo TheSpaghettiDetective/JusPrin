@@ -1,0 +1,16 @@
+You still see it because the change only answers dialogs that open while an agent tool call is running, and this one opens after the call has finished.
+
+1. The printer chat calls its connect tool. That call asks the Bambu plug-in to connect and then returns.
+2. Seconds later, the plug-in reports that the connection failed (code -1). OrcaSlicer’s own connection handler in `GUI_App.cpp`, around line 2107, runs on that report and calls `show_dialog`, which puts up this popup.
+3. By then the tool call is over, so no listener is active and the popup shows. This is the case the plan you approved left on purpose: “a dialog that opens after a call ends shows”. The commit message and the sweep doc both list it as left. “Incorrect password” comes from the same handler and behaves the same way.
+
+The printer chat already records the failure through its own line in that handler, so the person gets the chat’s explanation with this popup on top of it.
+Decision needed: should the printer chat’s connection attempts stop showing this popup? This is your call because the fix means changing OrcaSlicer’s code at this one place, which is the kind of per-site line you questioned before. The options:
+
+* Leave it. The person sees a popup that adds little to what the chat already says. Nothing changes, and there’s no rebase cost.
+* Add a small check in that handler. The fork’s existing line would report whether the printer chat is waiting for this printer’s answer, and if so the handler would skip both popups. That’s about two lines in `GUI_App.cpp`, re-resolved at every rebase. A failure the person causes from OrcaSlicer’s own device screens would still show the popup.
+* Widen the general rule so it also covers “the chat is waiting for this connection”. That brings back the cause-tracking design you dropped as too complex.
+
+My pick is the small check in the handler. The popup interrupts the chat’s main flow every time a connection fails, and the change is two lines in one place.
+
+This problem will be automatically fixed once the connect flow session is done, right? Because now this error, this dialogue will be during the tool call, not after it, right?
