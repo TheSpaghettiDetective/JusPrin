@@ -7,6 +7,9 @@ describe('project skills', () => {
   it('loads every SKILL.md, sorted by name, one per trigger', () => {
     expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
       ['calibration', 'calibration_started'],
+      ['connect-bambu', 'connect_bambu'],
+      ['connect-moonraker', 'connect_moonraker'],
+      ['connect-octoprint', 'connect_octoprint'],
       ['file-loaded', 'file_loaded'],
       ['print-issues', 'print_issues'],
       ['project-setup-changed', 'setup_changed'],

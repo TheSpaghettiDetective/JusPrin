@@ -57,6 +57,23 @@ struct AgentSkillUse
     // Triggers of skills this one gives way to: when one of them fires for
     // the same request, this one is left out of it.
     std::vector<std::string>         yields_to;
+    // Added to the conversation rather than to one request: sent once, kept
+    // in the record, and in force from then on.
+    bool                             stays{false};
+    // Tools that come into force with a skill that stays: offered from the
+    // request it is first sent with, a tool result's continuation included,
+    // and on every request after. Adding one costs that chat one prompt-cache
+    // miss, which is why a session offers few tools this way.
+    std::vector<std::string>         tools;
+};
+
+// What a session with its own subject puts in force once its event has
+// happened: the trigger of the skill, and the session's own tools that come
+// with it (AgentSkillUse::tools).
+struct SessionSkill
+{
+    std::string              trigger;
+    std::vector<std::string> tools;
 };
 
 // What one conversation is for. The project conversation leaves the tools and

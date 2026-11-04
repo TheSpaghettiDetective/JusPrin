@@ -1,10 +1,13 @@
 #include "PrinterConversation.hpp"
 
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <regex>
 #include <sstream>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
@@ -30,6 +33,21 @@ constexpr std::size_t kNoteLimit = 2 * 1024;
 
 // How often a connection attempt is looked at while it settles.
 constexpr auto kConnectionLook = std::chrono::seconds(1);
+
+// How long the network search listens before the app says it has found
+// nothing, and how often it looks after that: on 2026-10-31 a P1S first
+// answered 38 seconds in.
+constexpr auto kSearchWait     = std::chrono::seconds(15);
+constexpr auto kSearchLateLook = std::chrono::seconds(5);
+
+const char* const kPortTaken = "The network search cannot hear printers: another app on this computer holds UDP port 2021, where they "
+                              "announce themselves, so none can be found, whatever mode they are in. It may be another slicer. "
+                              "Searching needs that app closed and then this app restarted.";
+const char* const kNotListening = "The network search cannot hear printers: this app is not listening on UDP port 2021, where they "
+                                 "announce themselves, so none can be found, whatever mode they are in. It takes that port only as "
+                                 "it starts, so searching needs this app restarted.";
+
+const char* const kPersonsChoice = "Connecting it is the person's choice, and they can prepare prints for it without a connection.";
 
 Result ok(const json& output)
 {
@@ -117,16 +135,136 @@ json spools_json(const std::vector<PrinterSpool>& spools)
 }
 
 
-// Only LAN mode: a printer reached through a Bambu account is not offered.
-json connection_json(const PrinterConnectionInfo& info)
+std::string with_address(const ConnectionCandidate& candidate)
+{
+    return candidate.address.empty() ? candidate.name : candidate.name + " at " + candidate.address;
+}
+
+bool found_on_network(const PrinterConnectionInfo& info)
+{
+    return std::any_of(info.candidates.begin(), info.candidates.end(),
+                       [](const ConnectionCandidate& candidate) { return !candidate.account_only; });
+}
+
+// A report holds neither an access code nor an API key. The form's credential
+// never reaches the chat; this takes out what a person may type into the chat
+// anyway, and a printer's serial, which a report has no need of: a key's own
+// shape, and any run of six or more letters and digits with a digit in it. A
+// code of letters alone reads as a word, which is why the person is shown the
+// report and told to look.
+std::string without_secrets(const std::string& text)
+{
+    static const std::regex key("sk-[A-Za-z0-9_-]{6,}");
+    static const std::regex token("[A-Za-z0-9]{6,}");
+    const std::string       no_keys = std::regex_replace(text, key, "[hidden]");
+    std::string             out;
+    std::size_t             from = 0;
+    for (auto it = std::sregex_iterator(no_keys.begin(), no_keys.end(), token); it != std::sregex_iterator(); ++it) {
+        const std::string word = it->str();
+        out += no_keys.substr(from, it->position() - from);
+        out += std::any_of(word.begin(), word.end(), [](unsigned char c) { return std::isdigit(c) != 0; }) ? "[hidden]" : word;
+        from = it->position() + word.size();
+    }
+    return out + no_keys.substr(from);
+}
+
+// What an issue on GitHub, which anyone can read, holds of the person's
+// printer: neither the serial and address the app knows it by, nor anything
+// that reads as an IP address, nor what without_secrets takes out.
+std::string for_public(std::string text, const std::vector<std::string>& known)
+{
+    static const std::regex address("\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b");
+    for (const std::string& value : known)
+        for (std::size_t at = value.empty() ? std::string::npos : text.find(value); at != std::string::npos;
+             at = text.find(value, at + 8))
+            text.replace(at, value.size(), "[hidden]");
+    return without_secrets(std::regex_replace(text, address, "[hidden]"));
+}
+
+std::string percent_encoded(const std::string& text)
+{
+    static const char* const digits = "0123456789ABCDEF";
+    std::string              out;
+    for (const unsigned char c : text)
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~')
+            out += static_cast<char>(c);
+        else
+            out += {'%', digits[c >> 4], digits[c & 15]};
+    return out;
+}
+
+json without_secrets(const json& value)
+{
+    if (value.is_string())
+        return without_secrets(value.get<std::string>());
+    json out = value;
+    if (value.is_structured())
+        for (auto it = out.begin(); it != out.end(); ++it)
+            *it = without_secrets(json(*it));
+    return out;
+}
+
+// A printer the app offers to connect: in LAN mode, and not held back for a
+// reason of the backend's.
+bool offered(const ConnectionCandidate& candidate) { return candidate.lan_mode && candidate.reason.empty(); }
+
+// A printer in cloud mode on this network: the one kind the person can
+// change by turning LAN Only on.
+bool in_cloud_mode(const ConnectionCandidate& candidate)
+{
+    return !candidate.lan_mode && !candidate.account_only && candidate.reason.empty();
+}
+
+// Why a printer is in `seen` rather than offered.
+std::string seen_reason(const ConnectionCandidate& candidate)
+{
+    if (!candidate.reason.empty())
+        return candidate.reason;
+    return candidate.account_only ? "account_only" : "cloud_mode";
+}
+
+// A printer the app knows of and does not offer, and what it knows about it.
+std::string not_offered_text(const ConnectionCandidate& candidate)
+{
+    const std::string reason = seen_reason(candidate);
+    if (reason == "account_only")
+        return candidate.name + " is on the person's Bambu account and has not been seen on the network.";
+    if (reason == "cloud_mode")
+        return with_address(candidate) + " was seen on the network with LAN Only off.";
+    if (reason == "other_model")
+        return with_address(candidate) + " is " +
+               (candidate.detail.empty() ? std::string("a printer of another model") : "a " + candidate.detail) +
+               ", not this printer's model.";
+    if (reason == "linked_elsewhere")
+        return with_address(candidate) + " is already the printer \"" + candidate.detail +
+               "\" in this app, and a device connects to one saved printer.";
+    if (reason == "other_device")
+        return with_address(candidate) + " is a printer of this model, but not the one this printer was "
+               "set up from (" + candidate.detail + ").";
+    if (reason == "occupied")
+        return with_address(candidate) + " is in LAN mode, but its bind state is not free (occupied), so it is not offered.";
+    throw std::logic_error("A connection candidate has a reason this conversation does not know: " + reason);
+}
+
+// Only LAN mode can be connected. Every other printer the app heard of is
+// reported apart, with the reason, so the model knows it was seen and is
+// never told "found no printer" about one the app chose not to offer.
+json connection_json(const PrinterConnectionInfo& info, json search)
 {
     json candidates = json::array();
+    json seen       = json::array();
     for (const ConnectionCandidate& candidate : info.candidates)
-        if (candidate.lan_mode)
+        if (offered(candidate))
             candidates.push_back(json{{"deviceId", candidate.id}, {"name", candidate.name}, {"address", candidate.address}});
+        else {
+            json entry{{"name", candidate.name}, {"address", candidate.address}, {"reason", seen_reason(candidate)}};
+            if (!candidate.detail.empty())
+                entry["detail"] = candidate.detail;
+            seen.push_back(std::move(entry));
+        }
     return json{{"provider", info.provider},         {"state", info.state},         {"message", info.message},
-                {"candidates", std::move(candidates)}, {"address", info.address}, {"hostType", info.host_type},
-                {"nozzleMismatch", info.nozzle_mismatch}};
+                {"candidates", std::move(candidates)}, {"seen", std::move(seen)},   {"search", std::move(search)},
+                {"address", info.address},           {"hostType", info.host_type},  {"nozzleMismatch", info.nozzle_mismatch}};
 }
 
 } // namespace
@@ -161,8 +299,12 @@ void PrinterConversation::start(ConversationMode mode, const std::string& printe
     m_credential_action.clear();
     m_credential_arguments = json::object();
     m_prepared.clear();
+    m_search.reset();
     m_added.clear();
     m_needs_plugin = false;
+    m_connect_tried = mode == ConversationMode::Connect;
+    m_host_type.clear();
+    m_failed_connections = 0;
     m_form.reset();
 
     // The session is the one it was opened for. Its opener names a printer
@@ -222,6 +364,7 @@ void PrinterConversation::install_network_plugin()
     // Discovery could not start without the plug-in; the next status check
     // starts it.
     m_prepared.clear();
+    m_search.reset();
     m_host.post_note("Bambu's network plug-in is installed now, so " + m_printer_name + " can be connected.");
     m_host.session_changed();
     m_host.start_turn();
@@ -312,9 +455,45 @@ json PrinterConversation::state_json() const
     return state;
 }
 
+// -- The report ------------------------------------------------------------
+
+json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages, const std::vector<ToolActivity>& activities)
+{
+    json turns = json::array();
+    for (const Agent::ConversationMessage& message : messages)
+        if (!message.text.empty()) // a turn that only called a tool
+            turns.push_back({{"role", message.role == Agent::MessageRole::User ? "person" :
+                                      message.role == Agent::MessageRole::Note ? "app" :
+                                                                                 "model"},
+                             {"text", message.text}});
+    json tools = json::array();
+    for (const ToolActivity& activity : activities) {
+        if (activity.tool != "printer_connect" && activity.tool != "printer_connection_status")
+            continue;
+        tools.push_back({{"tool", activity.tool},
+                         {"arguments", json::parse(activity.arguments_json, nullptr, false)},
+                         {"output", activity.error ? json(activity.error->code + ": " + activity.error->message) :
+                                                     json::parse(activity.result_json, nullptr, false)}});
+    }
+    return json{{"turns", std::move(turns)}, {"tools", std::move(tools)}};
+}
+
 // -- The session's tools ----------------------------------------------------
 
-std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity) const
+std::optional<Agent::SessionSkill> PrinterConversation::connection_skill() const
+{
+    if (!m_connect_tried)
+        return std::nullopt;
+    if (saved(m_printer_name).vendor_id == "BBL")
+        return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectBambu, {"issue_report_open"}};
+    if (m_host_type == "moonraker")
+        return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectMoonraker, {}};
+    if (m_host_type == "octoprint")
+        return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectOctoPrint, {}};
+    return std::nullopt;
+}
+
+std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity)
 {
     // Every session is offered every printer tool, so the tool list stays the
     // same for the prompt cache; what a call may do depends on the session.
@@ -366,7 +545,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     json              arguments = json::parse(activity.arguments_json);
     const std::string name      = m_printer_name;
     if (saved(name).name.empty())
-        return ToolError{"no_printer", "There is no saved printer to connect yet: add one first."};
+        return ToolError{"no_printer", "There is no saved printer for this conversation: add one first."};
+    m_connect_tried = true;
 
     const PrinterConnectionInfo info = m_backend.connection(name);
     // No printer can be listed without the plug-in, so the reason is that,
@@ -378,16 +558,12 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         // finds it as surely as its id.
         const std::string device = arguments.value("deviceId", std::string());
         const auto found = std::find_if(info.candidates.begin(), info.candidates.end(), [&](const ConnectionCandidate& candidate) {
-            return candidate.lan_mode && (candidate.id == device || candidate.name == device);
+            return offered(candidate) && (candidate.id == device || candidate.name == device);
         });
-        if (found == info.candidates.end()) {
-            std::string listed;
-            for (const ConnectionCandidate& candidate : info.candidates)
-                if (candidate.lan_mode)
-                    listed += (listed.empty() ? "" : ", ") + candidate.id + " (" + candidate.name + ")";
-            return ToolError{"unknown_device", listed.empty() ? "No printer in LAN mode is on the network now; check again with printer_connection_status." :
-                                                                "Pass the deviceId of one of these printers in LAN mode: " + listed + "."};
-        }
+        // A call written for a print host reaches this branch with an address
+        // instead of an id, and may be naming a printer the app has seen.
+        if (found == info.candidates.end())
+            return ToolError{"unknown_device", unknown_device_text(info, device.empty() ? arguments.value("address", std::string()) : device)};
         activity.title = "Connect to " + found->name;
         arguments["deviceId"] = found->id;
         arguments["target"]   = found->name;
@@ -396,6 +572,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         // deviceId here names a Bambu Lab printer this one is not.
         if (!arguments.contains("hostType"))
             return ToolError{"address_needed", "Pass hostType and the address the person gave."};
+        m_host_type = arguments["hostType"].get<std::string>();
         activity.title      = "Connect to " + arguments["address"].get<std::string>();
         arguments["target"] = arguments["address"];
     } else
@@ -407,6 +584,59 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     return std::nullopt;
 }
 
+std::string PrinterConversation::unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const
+{
+    // What it was asked for may be a printer the app has seen and does not
+    // offer. An empty id or address is not a match for one with none known.
+    const auto wanted = std::find_if(info.candidates.begin(), info.candidates.end(), [&asked](const ConnectionCandidate& candidate) {
+        return !offered(candidate) && !asked.empty() && (candidate.id == asked || candidate.name == asked || candidate.address == asked);
+    });
+    if (wanted != info.candidates.end())
+        return not_offered_text(*wanted) + " It cannot be connected as it is." +
+               (in_cloud_mode(*wanted) ? std::string(" ") + kPersonsChoice : std::string());
+
+    std::string listed;
+    std::string others;
+    bool        cloud = false;
+    for (const ConnectionCandidate& candidate : info.candidates)
+        if (offered(candidate))
+            listed += (listed.empty() ? "" : ", ") + candidate.id + " (" + candidate.name + ")";
+        else {
+            others += " " + not_offered_text(candidate);
+            cloud = cloud || in_cloud_mode(candidate);
+        }
+    return (listed.empty() ? search_text() : "Pass the deviceId of one of these printers in LAN mode: " + listed + ".") + others +
+           (cloud ? std::string(" ") + kPersonsChoice : std::string());
+}
+
+std::string PrinterConversation::search_text() const
+{
+    if (!m_search)
+        return "No network search has run yet in this conversation; printer_connection_status starts it.";
+    const std::string seconds =
+        std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - m_search->started).count());
+    if (m_search->port != DiscoveryPort::Ours)
+        return m_search->port == DiscoveryPort::Taken ? kPortTaken : kNotListening;
+    if (!m_search->said_none && !m_search->found)
+        return "The network search started " + seconds + " seconds ago and has found no printer of this model yet. The app posts a note "
+               "when one appears, or after about " + std::to_string(kSearchWait.count()) + " seconds with none.";
+    return "The network search has listened for " + seconds + " seconds and has found no printer of this model in LAN mode." +
+           (m_search->found ? "" : " The app posts a note if one appears.");
+}
+
+json PrinterConversation::search_json(const PrinterConnectionInfo& info) const
+{
+    if (info.provider != "bambu")
+        return json{{"state", "not_applicable"}};
+    if (!m_search || info.state == "unavailable")
+        return json{{"state", "not_started"}};
+    return json{{"state", m_search->port == DiscoveryPort::Taken ? "port_taken" :
+                          m_search->port == DiscoveryPort::Free  ? "not_listening" :
+                          m_search->said_none || m_search->found ? "listening" :
+                                                                   "started"},
+                {"secondsAgo", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - m_search->started).count()}};
+}
+
 Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity& activity)
 {
     const json arguments = json::parse(activity.arguments_json);
@@ -416,6 +646,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
     case ToolHandler::PrinterChange: return change(arguments);
     case ToolHandler::PrinterConnectionStatus: return connection_status(m_printer_name, activity.correlation_id);
     case ToolHandler::PrinterConnect: return request_credential(arguments, activity.action_id);
+    case ToolHandler::IssueReportOpen: return open_issue(arguments);
     default: return {};
     }
 }
@@ -423,7 +654,7 @@ Result PrinterConversation::execute_tool(ToolHandler handler, const ToolActivity
 std::optional<json> PrinterConversation::tool_output(const ToolActivity& activity) const
 {
     const std::vector<std::string> tools = session_tools();
-    if (std::find(tools.begin(), tools.end(), activity.tool) == tools.end())
+    if (std::find(tools.begin(), tools.end(), activity.tool) == tools.end() && activity.tool != "issue_report_open")
         return std::nullopt;
     if (activity.state == Agent::ToolState::Succeeded)
         return json::parse(activity.result_json);
@@ -557,18 +788,30 @@ Result PrinterConversation::change(const json& arguments)
 Result PrinterConversation::connection_status(const std::string& name, const std::string& message_id)
 {
     if (saved(name).name.empty())
-        return refuse("no_printer", "There is no saved printer to connect yet: add one first.");
-    // For a Bambu Lab printer this starts looking for it on the network --
-    // once: starting again switches the printer agent and restarts discovery,
-    // so a model that checks again would never let it find anything.
+        return refuse("no_printer", "There is no saved printer for this conversation: add one first.");
+    m_connect_tried = true;
+    // For a Bambu Lab printer this starts looking for it on the network, once;
+    // see m_prepared.
     if (m_prepared != name) {
         m_backend.prepare_connection(name);
         m_prepared = name;
+        m_search.reset();
     }
     const PrinterConnectionInfo info = m_backend.connection(name);
+    // A host already saved says which kind it is; until one is, the first
+    // connection attempt does.
+    if (info.provider == "host" && !info.address.empty() && m_host_type.empty())
+        m_host_type = info.host_type;
     if (info.needs_network_plugin)
         show_plugin_needed(message_id);
-    return ok(connection_json(info));
+    if (!m_search && info.provider == "bambu" && info.state != "unavailable")
+        m_search = NetworkSearch{std::chrono::steady_clock::now()};
+    // What this read lists, the model now knows: no note need say it again.
+    // A printer already reached needs no search to report on, however it is
+    // reached.
+    if (m_search && (found_on_network(info) || info.state == "verified"))
+        m_search->found = true;
+    return ok(connection_json(info, search_json(info)));
 }
 
 Result PrinterConversation::request_credential(const json& arguments, const std::string& action_id)
@@ -589,7 +832,7 @@ void PrinterConversation::connect(const json& arguments, const std::string& cred
             m_backend.connect_printer(name, arguments.at("deviceId"), credential) :
             m_backend.connect_host(name, arguments.at("hostType"), arguments.at("address"), credential);
     if (!problem.empty()) {
-        m_host.post_note("Connection to " + target + " failed: " + problem);
+        connection_failed(m_host.post_note("Connection to " + target + " failed: " + problem));
         m_host.session_changed();
         m_host.start_turn();
         return;
@@ -597,6 +840,100 @@ void PrinterConversation::connect(const json& arguments, const std::string& cred
     m_connecting = name;
     m_last_look  = {};
     m_host.session_changed();
+}
+
+void PrinterConversation::connection_failed(const std::string& message_id)
+{
+    // The rule is the app's, not the model's: a model that is stuck is the one
+    // least likely to say so. Only where there is a skill a report can improve.
+    if (++m_failed_connections != 2 || !connection_skill())
+        return;
+    const json report{{"report", "connection"},
+                      {"trigger", "failed_twice"},
+                      {"connectionType", m_host_type.empty() ? "bambu" : m_host_type},
+                      {"model", saved(m_printer_name).model},
+                      {"chat", without_secrets(m_host.chat_record())}};
+    m_blocks.push_back(json{{"id", next_block_id()}, {"seq", m_blocks.size() + 1}, {"afterMessageId", message_id},
+                            {"kind", "report"}, {"report", report.dump(2)}});
+    m_host.post_note("The app is asking the person, on a card of its own, whether to send a report of this chat to the JusPrin "
+                     "developers. Nothing is sent unless they choose to.");
+}
+
+void PrinterConversation::answer_report(const std::string& block_id, bool send)
+{
+    for (json& block : m_blocks) {
+        if (block.value("id", std::string()) != block_id || block.value("kind", std::string()) != "report" || block.contains("answer"))
+            continue;
+        if (send) {
+            const std::string kept = m_backend.keep_connection_report(block.at("report").get<std::string>());
+            block["answer"] = kept.empty() ? "failed" : "kept";
+            block["path"]   = kept;
+        } else
+            block["answer"] = "declined";
+        m_host.post_note(!send                     ? "The person chose not to send the report." :
+                         block["answer"] == "kept" ? "The person chose to send the report. Sending is not built yet, so it is saved on "
+                                                     "this computer and has not reached the developers." :
+                                                     "The person chose to send the report, and it could not be saved.");
+        m_host.session_changed();
+        return;
+    }
+}
+
+// -- An issue for the developers --------------------------------------------
+
+IssueLink issue_link(const std::string& title, const std::string& body, const std::string& footer)
+{
+    static const std::string page   = "https://github.com/TheSpaghettiDetective/JusPrin/issues/new";
+    static const std::string marker = percent_encoded("\n\n(Cut short to fit the link.)");
+    const std::string        start  = page + "?title=" + percent_encoded(title) + "&body=";
+    const std::string        end    = percent_encoded(footer);
+    const std::string        whole  = percent_encoded(body);
+    if (start.size() + whole.size() + end.size() <= kIssueLinkLimit)
+        return {start + whole + end, false};
+    if (start.size() + marker.size() + end.size() > kIssueLinkLimit)
+        throw std::logic_error("An issue's title and footer leave no room for its body");
+    // Whole characters, so the cut never splits one.
+    const std::size_t room = kIssueLinkLimit - start.size() - marker.size() - end.size();
+    std::string       kept;
+    for (std::size_t from = 0; from < body.size();) {
+        std::size_t next = from + 1;
+        while (next < body.size() && (static_cast<unsigned char>(body[next]) & 0xC0) == 0x80)
+            ++next;
+        const std::string character = percent_encoded(body.substr(from, next - from));
+        if (kept.size() + character.size() > room)
+            break;
+        kept += character;
+        from = next;
+    }
+    return {start + kept + marker + end, true};
+}
+
+Result PrinterConversation::open_issue(const json& arguments)
+{
+    // The tool is offered only with the connection skill, and the footer
+    // below is the Bambu Lab one: another connection type's needs its own.
+    const std::optional<Agent::SessionSkill> skill = connection_skill();
+    if (!skill || skill->trigger != Agent::Protocol::SkillTrigger::kConnectBambu)
+        throw std::logic_error("issue_report_open ran in a printer chat with no connection skill in force");
+    const SavedPrinter          printer = saved(m_printer_name);
+    const PrinterConnectionInfo info    = m_backend.connection(m_printer_name);
+    std::vector<std::string>    known{printer.device_id, info.device_id, info.address};
+    for (const ConnectionCandidate& candidate : info.candidates) {
+        known.push_back(candidate.id);
+        known.push_back(candidate.address);
+    }
+    // The app's own facts, which the model may have wrong or left out.
+    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() + "\nConnection: Bambu Lab, LAN mode\nPrinter: " +
+                               printer.model;
+    const IssueLink link = issue_link(for_public(arguments.at("title").get<std::string>(), known),
+                                    for_public(arguments.at("body").get<std::string>(), known), footer);
+    if (!m_host.open_in_browser(link.url))
+        return refuse("failed", "The app could not open the person's browser, so no issue page is open.");
+    std::string message = "The new issue page is open in the person's browser, filled in. Nothing has been filed: it is filed "
+                          "only when they press Submit on it, signed in to GitHub.";
+    if (link.shortened)
+        message += " The body was too long for the link, so its end was cut; they can add the rest on the page.";
+    return ok(json{{"state", "opened"}, {"shortened", link.shortened}, {"message", message}});
 }
 
 void PrinterConversation::abandon_connection()
@@ -613,6 +950,7 @@ void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
         m_form->options = m_form->reading.get();
         m_host.session_changed();
     }
+    watch_search(now);
     if (m_connecting.empty() || now - m_last_look < kConnectionLook)
         return;
     m_last_look = now;
@@ -621,9 +959,76 @@ void PrinterConversation::tick(std::chrono::steady_clock::time_point now)
         return;
     const std::string name = m_connecting;
     m_connecting.clear();
-    m_host.post_note(info.state == "verified" ? "Connection to " + name + " verified." :
-                                                "Connection to " + name + " failed: " + info.message);
+    const std::string note = m_host.post_note(info.state == "verified" ? "Connection to " + name + " verified." :
+                                                                         "Connection to " + name + " failed: " + info.message);
+    if (info.state != "verified")
+        connection_failed(note);
     m_host.printers_changed();
+    m_host.session_changed();
+    m_host.start_turn();
+}
+
+void PrinterConversation::watch_search(std::chrono::steady_clock::time_point now)
+{
+    // An attempt under way is read by tick alone: reading a connection can
+    // settle it.
+    if (!m_search || m_search->found || !m_connecting.empty() ||
+        now - m_search->last_look < (m_search->said_none || m_search->port != DiscoveryPort::Ours ? std::chrono::seconds(kSearchLateLook) :
+                                                                                                       std::chrono::seconds(kConnectionLook)))
+        return;
+    m_search->last_look = now;
+    const PrinterConnectionInfo info = m_backend.connection(m_prepared);
+    // The printer was renamed or removed, or nothing can reach the network now.
+    if (info.provider != "bambu" || info.state == "unavailable") {
+        m_search.reset();
+        return;
+    }
+    if (info.state == "verified") {
+        m_search->found = true;
+        return;
+    }
+    std::string note;
+    if (found_on_network(info)) {
+        m_search->found = true;
+        bool cloud = false;
+        for (const ConnectionCandidate& candidate : info.candidates) {
+            if (candidate.account_only)
+                continue;
+            cloud = cloud || in_cloud_mode(candidate);
+            if (offered(candidate))
+                note += (note.empty() ? "The network search found " : "; ") + with_address(candidate) + " in LAN mode";
+            else if (in_cloud_mode(candidate))
+                note += (note.empty() ? "The network search found " : "; ") + with_address(candidate) +
+                        " with LAN Only off, which cannot be connected as it is";
+            else
+                // Heard, and not this printer: said as such, so "found no
+                // printer of this model" is never the note about a printer
+                // the app saw.
+                note += (note.empty() ? "The network search heard a printer it does not offer: " : "; ") + not_offered_text(candidate);
+        }
+        note += ".";
+        if (cloud)
+            note += std::string(" ") + kPersonsChoice;
+    } else if (now - m_search->started < kSearchWait)
+        return;
+    else {
+        // Checked only once discovery has had time to bind: the check itself
+        // binds the port for a moment, which could cost discovery its own bind.
+        const DiscoveryPort port = m_backend.discovery_port();
+        if (port == m_search->port && (port != DiscoveryPort::Ours || m_search->said_none))
+            return;
+        m_search->port = port;
+        if (port == DiscoveryPort::Taken)
+            note = kPortTaken;
+        else if (port == DiscoveryPort::Free)
+            note = kNotListening;
+        else {
+            m_search->said_none = true;
+            note = "The network search has listened for " + std::to_string(kSearchWait.count()) +
+                   " seconds and has found no printer of this model. The app posts another note if one appears.";
+        }
+    }
+    m_host.post_note(note);
     m_host.session_changed();
     m_host.start_turn();
 }
@@ -696,6 +1101,8 @@ bool PrinterConversation::handle_page_message(const std::string& type, const jso
         undo_add(payload.value("blockId", std::string()));
     else if (action == "install_network_plugin")
         install_network_plugin();
+    else if (action == "report_send" || action == "report_decline")
+        answer_report(payload.value("blockId", std::string()), action == "report_send");
     return true;
 }
 
@@ -732,8 +1139,10 @@ void PrinterConversation::undo_add(const std::string& block_id)
         added = added->second == name ? m_added.erase(added) : std::next(added);
     if (m_printer_name == name)
         m_printer_name.clear();
-    if (m_prepared == name)
+    if (m_prepared == name) {
         m_prepared.clear();
+        m_search.reset();
+    }
     m_host.post_note("The person tapped Undo on the receipt: " + name + " is removed and is no longer one of their printers.");
     m_host.printers_changed();
     m_host.session_changed();
@@ -806,7 +1215,7 @@ void PrinterConversation::finish_form(const json& payload)
     };
     const std::optional<SetupOptions>& options = m_form->options;
     if (printer == nullptr || !options || options->catalog_id != id || options->nozzle != nozzle || !options->error.empty())
-        return refuse_form("The form was out of date. Choose the printer again.");
+        return refuse_form(options && !options->error.empty() ? options->error : "The form was out of date. Choose the printer again.");
 
     std::optional<int> plate;
     std::string        plate_label;
@@ -875,7 +1284,7 @@ void PrinterConversation::finish_form(const json& payload)
     }
     if (create) {
         const std::string made = m_backend.create_filament_preset(now.name);
-        filament_note = made.empty() ? " The person opened the Create filament window and made no preset for this printer, so it starts with " +
+        filament_note = made.empty() ? " The person opened the Create filament window and no new preset for this printer is in slot 1, so it starts with " +
                                            starting + "."
                                      : " The person made the filament preset " + made + " in the Create filament window; it is in slot 1.";
     }
@@ -888,11 +1297,14 @@ void PrinterConversation::finish_form(const json& payload)
         note += ", starting with " + starting;
     note += "." + filament_note;
     if (!device.empty())
-        note += " It is linked to the printer " + found->first.name + " found on the network, which is not connected yet.";
+        note += " It is linked to the printer " + found->first.name + ", which is not connected yet.";
 
     m_form.reset();
     m_printer_name = now.name;
     m_added[id]    = now.name;
+    // Choosing a printer found on the network is trying to reach that one;
+    // choosing a model alone is not.
+    m_connect_tried = m_connect_tried || !device.empty();
     m_host.post_note(note);
     m_host.printers_changed(now.name);
     m_host.session_changed();

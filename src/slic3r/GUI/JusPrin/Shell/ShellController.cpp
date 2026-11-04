@@ -658,7 +658,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 return m_turn_before_version;
             const std::optional<std::string> before = m_autosave ? m_autosave->pin_current() : std::nullopt;
             if (!before)
-                throw std::runtime_error("Couldn't save the project. The action was not run.");
+                throw std::runtime_error(m_autosave && !m_autosave->error().empty() ? m_autosave->error() : "no reason was reported");
             if (in_model_turn())
                 m_turn_before_version = *before;
             return *before;
@@ -686,7 +686,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 const auto& match = found->front();
                 return Coordinator::EarlierLookup{Coordinator::EarlierProject{match.id, match.name, match.current, match.changed}};
             },
-            [this](const std::string& id) { return m_autosave && m_autosave->open_managed_project(id); },
+            [this](const std::string& id) {
+                if (!m_autosave)
+                    return std::string("the project autosave is not running");
+                return m_autosave->open_managed_project(id) ? std::string() : m_autosave->error();
+            },
             [this](const std::string& path) {
                 if (m_autosave)
                     m_autosave->record_opened_from(std::filesystem::u8path(path));
@@ -698,7 +702,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane->web_view().host().tools().set_document_boundary_callback(
             [this](const Agent::ToolActivity&) {
                 if (!m_autosave->save_now())
-                    throw std::runtime_error("The action ran, but its changes couldn't be saved.");
+                    throw std::runtime_error(m_autosave->error().empty() ? "no reason was reported" : m_autosave->error());
             });
 
         // One shell-owned pump continues throughout WebView page reloads.

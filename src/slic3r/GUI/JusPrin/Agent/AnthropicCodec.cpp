@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -82,6 +85,10 @@ json tools_json(const std::vector<OfferedTool>& tools)
                              {"input_schema", std::move(schema)},
                              {"strict", strict}});
     }
+    // Anthropic's web search, which the instructions tell the model to use
+    // before it guesses. Direct calls only, so no code execution blocks or
+    // containers come back to be replayed.
+    items.push_back(json{{"type", "web_search_20250305"}, {"name", "web_search"}, {"max_uses", 5}});
     // Tools render first, so one breakpoint on the last caches them all.
     if (!items.empty())
         items.back()["cache_control"] = ephemeral();
@@ -218,6 +225,34 @@ std::vector<Message> conversation(const TurnTranscript& transcript, bool clears)
     return messages;
 }
 
+// With JUSPRIN_TEST_WEB_SEARCH_LOG set, one line per response, to read what
+// was searched. Holds no encrypted result content, only what was searched,
+// found and cited.
+void log_response(const std::string& model, const json& blocks, const json& first_usage, const json& last_usage, const std::string& stop_reason,
+                  long long elapsed_ms)
+{
+    const char* path = std::getenv("JUSPRIN_TEST_WEB_SEARCH_LOG");
+    if (path == nullptr)
+        return;
+    json summary = json::array();
+    for (const json& block : blocks) {
+        const std::string type = block.value("type", "");
+        if (type == "web_search_tool_result" && block.contains("content") && block["content"].is_array()) {
+            json results = json::array();
+            for (const json& result : block["content"])
+                results.push_back(json{{"url", result.value("url", "")}, {"title", result.value("title", "")}, {"page_age", result.value("page_age", json())}});
+            summary.push_back(json{{"type", type}, {"results", std::move(results)}});
+        } else if (type == "text") {
+            summary.push_back(json{{"type", type}, {"text", block.value("text", "")}, {"citations", block.value("citations", json())}});
+        } else if (type == "server_tool_use" || type == "tool_use") {
+            summary.push_back(json{{"type", type}, {"name", block.value("name", "")}, {"input", block.value("input", json())}});
+        } else if (type != "thinking" && type != "redacted_thinking") {
+            summary.push_back(block);
+        }
+    }
+    std::ofstream(path, std::ios::app) << json{{"model", model}, {"stop_reason", stop_reason}, {"elapsed_ms", elapsed_ms}, {"usage_start", first_usage}, {"usage_end", last_usage}, {"blocks", std::move(summary)}}.dump() << '\n';
+}
+
 std::uint64_t count(const json& usage, const char* field)
 {
     return usage.contains(field) && usage[field].is_number_unsigned() ? usage[field].get<std::uint64_t>() : 0;
@@ -278,6 +313,10 @@ void AnthropicCodec::reset()
     m_usage = AgentUsage{};
     m_stop_reason.clear();
     m_stop_details = json();
+    m_first_usage = json();
+    m_last_usage = json();
+    m_model.clear();
+    m_started = std::chrono::steady_clock::now();
 }
 
 std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
@@ -297,6 +336,8 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
     const std::string type = event.value("type", "");
     if (type == "message_start") {
         const json usage   = event.value("message", json::object()).value("usage", json::object());
+        m_first_usage = usage;
+        m_model       = event.value("message", json::object()).value("model", "");
         m_usage.cached_input   = count(usage, "cache_read_input_tokens");
         m_usage.cache_creation = count(usage, "cache_creation_input_tokens");
         // Anthropic counts cache reads and writes apart from input_tokens;
@@ -321,6 +362,11 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
             out.kind = StreamEvent::Kind::TextDelta;
             out.text = text;
             events.push_back(std::move(out));
+        } else if (kind == "citations_delta") {
+            // Each search citation has to come back in later requests as it came.
+            if (!block.content.contains("citations") || !block.content["citations"].is_array())
+                block.content["citations"] = json::array();
+            block.content["citations"].push_back(delta.value("citation", json::object()));
         } else if (kind == "input_json_delta") {
             block.partial_json += delta.value("partial_json", "");
         } else if (kind == "thinking_delta") {
@@ -330,7 +376,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
         }
     } else if (type == "content_block_stop") {
         const auto found = m_blocks.find(event.value("index", 0));
-        if (found != m_blocks.end() && found->second.content.value("type", "") == "tool_use") {
+        if (found != m_blocks.end() && (found->second.content.value("type", "") == "tool_use" || found->second.content.value("type", "") == "server_tool_use")) {
             const std::string& text  = found->second.partial_json;
             const json         input = json::parse(text.empty() ? "{}" : text, nullptr, false);
             if (input.is_discarded()) {
@@ -346,6 +392,7 @@ std::vector<StreamEvent> AnthropicCodec::parse(const std::string& payload)
         if (delta.contains("stop_details"))
             m_stop_details = delta["stop_details"];
         const json usage = event.value("usage", json::object());
+        m_last_usage = usage;
         if (usage.contains("output_tokens"))
             m_usage.output = count(usage, "output_tokens");
     } else if (type == "message_stop") {
@@ -384,6 +431,8 @@ StreamEvent AnthropicCodec::finish()
                                    block.partial_json.empty() ? "{}" : block.partial_json});
         event.assistant_turn.push_back(block.content);
     }
+    log_response(m_model, event.assistant_turn, m_first_usage, m_last_usage, m_stop_reason,
+                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_started).count());
     m_usage.total = m_usage.input + m_usage.output;
     event.usage   = m_usage;
     event.resend  = m_stop_reason == "pause_turn";

@@ -111,6 +111,46 @@ def texts(body):
             yield block.get("text") or json.dumps(block.get("content", ""))
 
 
+READ = 'Web search results for query: "A1 mini LAN Only Mode"\n\nLinks: [{"title":"Wiki","url":"https://wiki.example/lan"}]' \
+       '\n\nLAN Only Mode is under Settings on the printer\'s screen.'
+
+
+def cli_search():
+    """The CLI's search, as output_items makes it from the result the CLI
+    reports and the text the model read."""
+    result = {"type": "web_search", "query": "A1 mini LAN Only Mode", "read": READ,
+              "results": [{"tool_use_id": "srvtoolu_1", "content": [{"title": "Wiki", "url": "https://wiki.example/lan"}]},
+                          "LAN Only Mode is under Settings on the printer's screen."]}
+    [item] = cli.output_items([{"type": "tool_use", "id": "t1", "name": cli.WEB_SEARCH, "input": {"query": "x"}}, result])
+    return item
+
+
+class WebSearch(unittest.TestCase):
+    def test_a_search_is_a_line_of_the_transcript(self):
+        """The judge reads what the model read: the CLI's whole result, or
+        every page OpenRouter cites; other items are not searches."""
+        self.assertEqual(cli.web_search_line(cli_search()), "web search: A1 mini LAN Only Mode -> " + READ)
+        pages = [{"type": "url", "url": f"https://wiki.example/{n}"} for n in range(7)]
+        openrouter = {"type": "openrouter:web_search", "status": "completed",
+                      "action": {"type": "search", "query": "A1 mini LAN Only Mode", "sources": pages}}
+        self.assertEqual(cli.web_search_line(openrouter), "web search: A1 mini LAN Only Mode -> " +
+                         ", ".join(page["url"] for page in pages))
+        self.assertIsNone(cli.web_search_line({"type": "function_call", "name": "printer_add"}))
+        self.assertIsNone(cli.web_search_line({"role": "assistant", "content": "Done."}))
+
+    def test_a_search_is_replayed_as_the_clis_own(self):
+        """A search in the history goes back as the CLI's WebSearch call and
+        the result the model read, before the reply that used it."""
+        reply = {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Found it."}]}
+        self.assertEqual(cli.messages([{"role": "user", "content": "where?"}, cli_search(), reply]),
+                         [{"role": "user", "content": [{"type": "text", "text": "where?"}]},
+                          {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_search_1", "name": cli.WEB_SEARCH,
+                                                             "input": {"query": "A1 mini LAN Only Mode"}}]},
+                          {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_search_1",
+                                                        "content": READ}]},
+                          {"role": "assistant", "content": [{"type": "text", "text": "Found it."}]}])
+
+
 class Split(unittest.TestCase):
     def test_every_recorded_point_splits(self):
         """Every point becomes a session and a last message, or a session
@@ -138,12 +178,39 @@ class ThroughTheCli(unittest.TestCase):
 
     def assertIsolated(self, body, tools):
         self.assertEqual(body["system"][-1]["text"], "INSTRUCTIONS")
-        self.assertEqual([plain(t) for t in body["tools"]],
+        # The CLI's own search, as the app offers its provider's, then the
+        # case's tools and nothing else.
+        self.assertEqual(body["tools"][0]["name"], cli.WEB_SEARCH)
+        self.assertEqual([plain(t) for t in body["tools"][1:]],
                          [{"name": cli.PREFIX + t["name"], "description": t["description"], "input_schema": t["parameters"]}
                           for t in tools])
         for text in texts(body):  # nothing of the developer's own Claude Code setup
             self.assertNotIn("CLAUDE.md", text)
             self.assertNotIn("Output Style", text)
+
+    def test_a_search_in_the_history_is_resumed(self):
+        """A history holding a search (the printer chat's next turn) resumes:
+        the model gets the CLI's own call and the result it read before the
+        reply that used it."""
+        search = cli_search()
+        items = [{"role": "user", "content": "where is LAN mode?"}, search,
+                 {"role": "assistant", "content": "Under Settings, says the wiki."},
+                 {"role": "user", "content": [{"type": "input_text", "text": "found it"}]}]
+        fake = FakeMessages([{"type": "text", "text": "Good."}])
+        os.environ[cli.TEST_ENDPOINT_ENV] = fake.url
+        try:
+            with cli.Run("INSTRUCTIONS", [], items, "claude-opus-5-5", "medium") as run:
+                [reply], _ = run.next_response()
+        finally:
+            del os.environ[cli.TEST_ENDPOINT_ENV]
+            fake.close()
+        self.assertEqual(reply["content"][0]["text"], "Good.")
+        sent = conversation(fake.bodies[0])
+        self.assertEqual(sent[1], {"role": "assistant", "content": [
+            {"type": "tool_use", "id": "toolu_search_1", "name": cli.WEB_SEARCH, "input": {"query": "A1 mini LAN Only Mode"}}]})
+        self.assertEqual(sent[2]["content"][0]["type"], "tool_result")
+        self.assertIn("LAN Only Mode is under Settings", json.dumps(sent[2]["content"][0]["content"]))
+        self.assertEqual(sent[3]["content"][0]["text"], "Under Settings, says the wiki.")
 
     def test_a_point_mid_turn(self):
         """after-preview: the turn's calls and results are replayed as real

@@ -31,7 +31,6 @@
 #include "slic3r/GUI/Selection.hpp"
 
 #include <wx/app.h>
-#include <wx/modalhook.h>
 
 #include <boost/any.hpp>
 #include <boost/filesystem.hpp>
@@ -212,7 +211,7 @@ public:
 private:
     void verify_process_settings()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -573,7 +572,7 @@ private:
     // all through Orca's own tabs and files, with no dialog.
     void verify_preset_settings()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -940,7 +939,7 @@ private:
     // how many questions that patch raises.
     void verify_skipped_confirmations()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -1095,7 +1094,7 @@ private:
 
     void verify_every_writable_setting()
     {
-        struct DialogProbe : wxModalDialogHook {
+        struct DialogProbe : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -1246,6 +1245,7 @@ private:
         }
         verify_cross_plate_duplicate();
         verify_plate_membership_after_cut();
+        verify_split_of_one_part_with_a_modifier();
         verify_local_versions();
         verify_reopened_local_versions();
         verify_paint_version_resources();
@@ -1472,6 +1472,44 @@ private:
               "duplicate_plate_uses_current_plate");
     }
 
+    // Orca splits a multi-volume object part by part, so two shells in one
+    // solid part stay together once it has a modifier. Plater then shows its
+    // dialog and changes nothing, which the tool used to report as success
+    // with the model's last object as the piece.
+    void verify_split_of_one_part_with_a_modifier()
+    {
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "split_modifier_new_project");
+        TriangleMesh shells(its_make_cube(10, 10, 10));
+        TriangleMesh second(its_make_cube(10, 10, 10));
+        second.translate(30, 0, 0);
+        shells.merge(second);
+        const fs::path file = fs::temp_directory_path() / fs::unique_path("jusprin-two-shells-%%%%.stl");
+        check(shells.write_binary(file.string().c_str()), "split_modifier_file_written");
+        const auto loaded = m_plater->load_files(
+            std::vector<std::string>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        boost::system::error_code removed;
+        fs::remove(file, removed);
+        check(loaded.size() == 1, "split_modifier_object_loaded");
+        Model& model = m_plater->model();
+        model.objects[0]->add_volume(TriangleMesh(its_make_cube(5, 5, 5)), ModelVolumeType::PARAMETER_MODIFIER);
+        m_plater->canvas3D()->reload_scene(true, true);
+        OrcaWorkspaceAdapter adapter(*m_plater);
+        const ObjectId id = adapter.snapshot().plates[0].objects.front().id;
+        DivideRequest request;
+        request.mode = DivideRequest::Mode::Shells;
+        DivideResult result;
+        const CommandResult previewed = adapter.preview_divide(id, request, result);
+        std::cout << "split with a modifier, preview: " << previewed.message << std::endl;
+        check(!previewed.succeeded(), "split_modifier_preview_refuses");
+        // Asked only once refused: the split itself would wait on the dialog.
+        if (previewed.succeeded())
+            return;
+        check(!adapter.divide_object(id, request, result).succeeded(), "split_modifier_divide_refuses");
+        check(model.objects.size() == 1, "split_modifier_leaves_the_object_alone");
+        request.as_parts = true;
+        check(adapter.divide_object(id, request, result).succeeded() && result.pieces.size() == 2, "split_modifier_shells_parts_splits_it");
+    }
+
     void verify_plate_membership_after_cut()
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, "cut_plate_new_project");
@@ -1674,7 +1712,7 @@ private:
         store.prune(1, 1024 * 1024);
         check(store.history().size() == 3, "versions_operation_references_survive_prune");
         const auto empty_restore = store.materialize(empty.first);
-        struct Dialogs : wxModalDialogHook {
+        struct Dialogs : UnansweredDialogObserver {
             int count{0};
             int Enter(wxDialog*) override { ++count; return wxID_CANCEL; }
         } dialogs;
@@ -2307,7 +2345,7 @@ private:
 
     // Records every dialog Orca shows and closes it with OK, so a test never
     // waits for a person.
-    struct ShownDialogs : wxModalDialogHook
+    struct ShownDialogs : UnansweredDialogObserver
     {
         std::vector<std::string> titles;
         int Enter(wxDialog* dialog) override

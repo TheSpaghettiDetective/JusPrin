@@ -28,7 +28,7 @@ only by the hosts that answer the app's notes, and on no other model (decided
 A run is one sample of a model that answers differently each time, so each case
 runs several times, in parallel, and reports a count. By default one invocation
 runs at most 100 conversations (`RUN_BUDGET`), shared by the cases it runs: 2
-each for the 36 cases, and at most 20 for a case run alone. `--runs N` sets
+each for the 39 cases, and at most 20 for a case run alone. `--runs N` sets
 the count per case instead; use it to look closer at one case. By default
 every run must pass; `--must-pass N` lowers the bar. `--verbose` prints every
 conversation, not only the failed ones.
@@ -92,7 +92,8 @@ worded too broadly fails good replies.
   `JUSPRIN_UPDATE_PRINTER_TOOLS=1 agent_bridge_tests '[printer]'`.
 - **The chat history** is built the way `AgentHost` and `OpenAIResponsesAgent`
   build it: each earlier assistant message's words, then the tool calls it
-  made with their results (replayed since `jusprin-newui` 115e2776bf); then
+  made with their results (replayed since `jusprin-newui` 115e2776bf), and the
+  provider's searches where the response put them; then
   this turn's message, tool calls and results. A call the app refused before
   it ran is not replayed, because the app never recorded it.
 - **Several calls in one response** are run as `OpenAIResponsesAgent` runs
@@ -111,6 +112,14 @@ worded too broadly fails good replies.
   `python3 tests/printer_prompt/test_responses.py`.
 - **Tool answers** are what the app returned for the in-process fake Bambu
   printer, recorded from a real run.
+- **Web search** is offered after the tools on every request, spelled as the
+  app spells it for OpenRouter (`{"type": "openrouter:web_search"}`), since
+  the app offers its provider's own search in every chat (2026-11-03). The
+  provider runs a search inside the response. The transcript the judge reads
+  shows each search as a `web search: <query> -> <pages>` line before the
+  reply that used it, and the judge's questions accept a menu path or a cause
+  the reply says came from a search the chat shows, as the prompt's rule to
+  look things up asks (`LOOK_IT_UP` in `printerInstructions.ts`).
 
 The app streams its requests and this script does not, and the model that
 answers them is the one prompts are evaluated on, not necessarily the one the
@@ -203,9 +212,6 @@ and nozzle size are read-only.
 - Connect:
   - `connect-host-address`: a Voron given as "http://voron.local, I open it
     with Mainsail". Passes when the card opens for Moonraker at that address.
-  - `connect-bambu-not-found`: no A1 mini in LAN mode on the network. Passes
-    when the status is checked, no card opens, and the reply points to LAN
-    mode or asks what the screen shows.
   - `connect-ask-why`: "do I have to connect it?" Passes when the reply says
     it is optional.
 - Add:
@@ -236,10 +242,21 @@ cannot quietly undo it.
   that result is not comparable after removing the tool.
 - `change-ask-loaded-not-connected`: what is loaded on a printer that is not
   connected (492fdb5531). Passes when no filament is claimed as loaded.
-- `connect-failed-ways-forward`: a print host that does not respond
-  (c922876c66: a failure ended with no way forward). Passes when the initial
-  reply says how long it can take and the failure reply names the three ways
-  forward.
+- `connect-host-no-response`: a print host that does not respond (c922876c66:
+  a failure ended with no way forward). Passes when the chat leaves the person
+  with a guess at why and something to look at or try.
+- `connect-right-code-silent-port`: the right access code, a port that does not
+  answer, then "it's the same code" (the real P1S on 2026-11-02, where the
+  model blamed the code). Judged by where the chat leaves the person.
+- `connect-port-went-quiet`: the port answers before the attempt and not after
+  it, and the person asks whether to try again at once (the real P1S on
+  2026-11-02).
+- `connect-code-ruled-out`: the port answers, and the person rules the code out.
+  Not seen on a real printer, so the skill was not written from it.
+- `connect-unforeseen-failure`: a code and an answer the skill never mentions,
+  and a work VPN the person brings up. Passes only by reasoning.
+- `connect-screen-says-disconnected`: nothing is heard, and the person reads
+  out the printer's screen.
 - `connect-bambu-no-plugin`: connecting without Bambu's network plug-in
   (e2e1c6e7cc: "isn't available right now" with no reason). Passes when no
   credential form opens and the reply gives the plug-in as the reason.
@@ -291,6 +308,34 @@ empty 3 of 3, DeepInfra junk; Alibaba, Novita, Baidu and AtlasCloud correct).
 Unpinned, those cases measure which host a request landed on. Check a new
 model's hosts with a note as the last message before trusting its counts.
 
+## Running on the Claude subscription (`--backend claude-cli`)
+
+`--backend claude-cli` answers every request with the locally installed
+Claude Code CLI (`claude -p`), billed to the developer's Claude subscription,
+through the project suite's `claude_cli.py`; `--judge claude-cli` moves the
+judge there as well. Neither needs a key. See
+`tests/project_prompt/README.md`, "Running on the Claude subscription", for
+the login, the isolation from the developer's own Claude Code setup and what
+differs from the app's request.
+
+```bash
+tests/printer_prompt/run_prompt_tests.py --backend claude-cli --judge claude-cli --case connect-bambu --runs 1
+```
+
+The model is `claude-opus-5-5` at effort `medium` for both, pinned
+(`--claude-model`, `--claude-effort`). Each turn, started by the person's
+message or by an app note, is one CLI run: the chat so far is a session the
+CLI resumes, and every call in the turn reaches
+the case through the CLI's tool stub. A connection skill the app adds after a
+call's results goes in as further text of the last result, as the CLI
+resumes no message after it. The CLI's own `WebSearch` is offered for the
+provider's search; the judge reads its whole result, the summary the model
+read included, and a later turn resumes it as the CLI's call and result.
+
+A claude-cli count is compared only with the subscription baseline below,
+never with the DeepSeek one, and the reverse. `test_responses.py` covers this
+backend's turn offline with a stand-in for the CLI.
+
 ## The filament chat's cases (2026-09-29)
 
 A filament chat about Bambu PLA Basic @BBL X1C, a filament OrcaSlicer ships
@@ -317,7 +362,65 @@ before it was told to say "settings", 5 of 20 replies said "preset" or
 "profile". `--prompt-rev` does not apply to these cases before the commit
 that adds `filamentInstructions.ts`.
 
-## Current baseline: after offering the settings tools (2026-09-29)
+## Current baseline: web search offered (2026-11-03)
+
+Recorded at Kenneth's request on 2026-11-03. `claude/tool-results-truth` at
+3e662278ea with this suite's search changes uncommitted (both were then folded
+with this baseline into the one commit that carries them, so that hash is not
+on the branch): the connection skills, the reworded add-then-connect
+sentence, the provider's own web search on every request and the prompt's
+rule to search before naming a menu, a setting or a cause; the judge sees every search. All 39
+cases, three runs each, on both backends; they are separate baselines and
+are never compared with each other.
+
+| Case | DeepSeek V4 Flash, OpenAI judge | Opus 5.5 on the subscription, Opus judge |
+|---|---|---|
+| `add-full-list` | 2 | 3 |
+| `add-many-fit` | 1 | 2 |
+| `add-named-model` | 2 | 3 |
+| `add-then-undo` | 2 | 3 |
+| `add-unshipped-nozzle` | 3 | 2 |
+| `change-stock-copy` | 2 | 3 |
+| `connect-code-ruled-out` | 1 | 2 |
+| `connect-host-no-response` | 1 | 3 |
+| `connect-port-went-quiet` | 2 | 3 |
+| `connect-right-code-silent-port` | 1 | 2 |
+| `connect-screen-says-disconnected` | 0 | 2 |
+| `connect-unforeseen-failure` | 0 | 2 |
+| `connect-verified-close` | 0 | 3 |
+| `filament-other-settings` | 2 | 3 |
+| every other case, together | 75/75 | 75/75 |
+| **Total** | **94/117** | **111/117** |
+
+DeepSeek is pinned to Alibaba, Novita, Baidu and AtlasCloud. The same tree
+with the earlier judge transcript (at most five pages a search, no searches
+in a later turn's history) scored 88 of 117 the same day; the moves are
+single runs in either direction, except the connection cases, where the
+judge can now see the pages a reply cites. Read beside it:
+
+- DeepSeek's connection misses are mostly a menu path or a cause given as
+  fact with no search behind it (`connect-code-ruled-out`,
+  `connect-host-no-response`, `connect-right-code-silent-port`,
+  `connect-screen-says-disconnected`), the VPN stated as the cause in
+  `connect-unforeseen-failure`, and sending the person back to LAN Only Mode
+  after they said it was on.
+- `connect-verified-close` fails 3 of 3 on DeepSeek with an empty reply after
+  the app's note that the printer is connected: the model answers the note
+  with nothing. It happens without this branch too (0 of 20 on
+  `jusprin-newui` at 74a0e9b61c, 19 of them empty), and Opus passes it 3 of 3.
+- On the subscription, 4 of the 6 misses are a "Sources:" list after the
+  `Choices:` line, which the CLI's own search asks for (see "Running on the
+  Claude subscription"); the app's search does not. The other two are judged:
+  `add-many-fit` asked for the exact model instead of a narrowing question,
+  and `connect-right-code-silent-port` took "same code" as an answer about
+  the address.
+
+## Baseline history
+
+Earlier baselines, kept for audit only. Do not compare a new run against
+them.
+
+### After offering the settings tools (2026-09-29)
 
 The printer panel now also offers `settings_search`, `settings_get`,
 `settings_preview_patch` and `settings_apply_patch`, answered by
@@ -349,11 +452,6 @@ such calls in a row, while a later batch of 80 conversations had one, which
 the model then sent correctly. The registry now says so when it happens
 ("target must be a JSON object, not a string holding one"); too few string
 targets have been seen since to measure whether that ends the bursts.
-
-## Baseline history
-
-Earlier baselines, kept for audit only. Do not compare a new run against
-them.
 
 ### Before removing the dialog and finish tools (2026-09-28)
 

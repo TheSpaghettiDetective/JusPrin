@@ -259,12 +259,14 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
     CHECK(body["system"] == json::array({json{{"type", "text"},
                                               {"text", "You are the project assistant, as the page wrote it."},
                                               {"cache_control", json{{"type", "ephemeral"}}}}}));
-    // The project chat's tools, in the registry's order, with only the last
-    // carrying the breakpoint.
+    // The project chat's tools, in the registry's order, then Anthropic's web
+    // search, which as the last carries the breakpoint.
     const json& tools = body["tools"];
     const std::vector<std::string> offered = JusPrinTest::project_chat_tool_names();
-    REQUIRE(tools.size() == offered.size());
-    for (std::size_t i = 0; i < tools.size(); ++i) {
+    REQUIRE(tools.size() == offered.size() + 1);
+    CHECK(tools.back() == json{{"type", "web_search_20250305"}, {"name", "web_search"}, {"max_uses", 5},
+                               {"cache_control", json{{"type", "ephemeral"}}}});
+    for (std::size_t i = 0; i < offered.size(); ++i) {
         CAPTURE(tools[i]["name"]);
         CHECK(tools[i]["name"] == offered[i]);
         const ToolDefinition* definition = ToolRegistry::instance().find(tools[i]["name"].get<std::string>());
@@ -272,7 +274,7 @@ TEST_CASE("an Anthropic request: the key header, the version, a cached system bl
         CHECK(tools[i]["description"] == definition->description);
         CHECK(tools[i]["input_schema"] == anthropic_strict_schema(definition->input_schema));
         CHECK(tools[i]["strict"].is_boolean());
-        CHECK(tools[i].contains("cache_control") == (i + 1 == tools.size()));
+        CHECK_FALSE(tools[i].contains("cache_control"));
     }
 
     // The earlier conversation, then this turn's message: the person's words,
@@ -347,7 +349,7 @@ TEST_CASE("the strict tools of each chat stay inside Anthropic's per-request lim
         const json tools  = agent.fake->last_body()["tools"];
         int        strict = 0, unions = 0;
         for (const json& tool : tools) {
-            if (tool["strict"] != true)
+            if (tool.value("strict", false) != true)
                 continue;
             ++strict;
             unions += static_cast<int>(count_keyword(tool["input_schema"], "anyOf") + count_keyword(tool["input_schema"], "oneOf"));
@@ -598,6 +600,41 @@ TEST_CASE("a fired skill clears at the next user message, except through JusPrin
         // The record keeps the skill's lifetime all the same.
         CHECK(std::any_of(recorded.begin(), recorded.end(), [](const RecordItem& item) { return item.clears; }));
     }
+}
+
+TEST_CASE("a skill that stays is sent once, kept for good, and never cleared", "[agent][anthropic][skills]")
+{
+    std::vector<RecordItem> recorded;
+    AgentSkillUse stays = file_loaded_skill("The connection skill.");
+    stays.stays         = true;
+    AgentRequest request = request_fixture();
+    request.attachments.clear();
+    request.skills      = {stays};
+    request.on_recorded = [&recorded](const std::string&, std::vector<RecordItem> items) {
+        recorded.insert(recorded.end(), items.begin(), items.end());
+    };
+
+    Agent agent;
+    REQUIRE(agent.service->start(request));
+    const json messages = json::parse(agent.fake->requests.back().body)["messages"];
+    CHECK(messages.back() == json{{"role", "system"}, {"content", "The connection skill."}});
+    agent.fake->data(stream(json::array({text("Done.")}), "end_turn"));
+    REQUIRE(agent.poll_until(AgentEventKind::Completed));
+    const auto skill = std::find_if(recorded.begin(), recorded.end(), [](const RecordItem& item) { return item.text == "The connection skill."; });
+    REQUIRE(skill != recorded.end());
+    CHECK_FALSE(skill->clears);
+
+    // Offered again on the next turn, whose record already holds it.
+    AgentRequest next = request_fixture();
+    next.attachments.clear();
+    next.record.items.insert(next.record.items.end(), recorded.begin(), recorded.end());
+    next.source    = "m-9";
+    next.user_text = "Thanks.";
+    next.skills    = {stays};
+    REQUIRE(agent.service->start(next));
+    const std::string body = agent.fake->requests.back().body;
+    CHECK(body.find("The connection skill.") == body.rfind("The connection skill."));
+    CHECK(body.find("clear_at") == std::string::npos);
 }
 
 TEST_CASE("the stream becomes typed events: text, calls with split arguments, and usage with the cache", "[agent][anthropic][stream]")

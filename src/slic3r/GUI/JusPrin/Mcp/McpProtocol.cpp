@@ -256,6 +256,9 @@ json activity_result(const Agent::ToolActivity& activity, const Workspace::Works
             throw std::logic_error("Tool activity has no result to report: " + activity.tool);
         result = tool_result(tool_error(activity.error->code, activity.error->message, json::parse(activity.error->details_json)), true);
     }
+    // The app's dialogs this call answered instead of showing them.
+    if (!activity.app_dialogs_json.empty())
+        result["content"].push_back({{"type", "text"}, {"text", json{{"appDialogs", json::parse(activity.app_dialogs_json)}}.dump()}});
     result["_meta"]["io.jusprin/activity"] = {{"actionId", activity.action_id},
                                               {"sessionId", std::to_string(snapshot.session.value())},
                                               {"revision", snapshot.revision}};

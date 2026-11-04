@@ -162,7 +162,7 @@ CommandResult OrcaWorkspaceAdapter::render_view(const RenderRequest& request, Re
         return CommandResult::failure(WorkspaceError::Failed, "The app rendered nothing");
     const auto png = GCodeThumbnails::compress_thumbnail(data, GCodeThumbnailsFormat::PNG);
     if (!png || png->size == 0 || png->size > kImageBytes)
-        return CommandResult::failure(WorkspaceError::Failed, "The rendered picture could not be encoded");
+        return CommandResult::failure(WorkspaceError::Failed, "The rendered picture could not be encoded, or is over the size limit");
     image.plate  = PlateId(m_session, plates.get_plate(index)->id().id);
     image.view   = request.view;
     image.width  = int(data.width);
@@ -304,7 +304,7 @@ CommandResult OrcaWorkspaceAdapter::check_export(const ExportRequest& request) c
     const bool folder = request.kind == "presets";
     const fs::path directory = folder ? path : path.parent_path();
     if (!fs::is_directory(directory, error))
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "The folder " + directory.generic_string() + " does not exist");
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The path " + directory.generic_string() + " is not a folder" + (error ? ": " + error.message() : std::string()));
     // The app's own folders are not export destinations.
     if (inside(path, fs::path(data_dir())) || inside(path, fs::path(auxiliary_data_dir())))
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The app's own data folders are not an export destination");
@@ -328,7 +328,7 @@ CommandResult OrcaWorkspaceAdapter::check_export(const ExportRequest& request) c
             return CommandResult::failure(WorkspaceError::NotFound, "That plate is not in the open project. Read workspace_inspect for the plate ids.");
         PartPlate* plate = plates.get_plate(index);
         if (!plate->is_slice_result_valid() || plate->get_slice_result() == nullptr || m_plater.is_background_process_slicing())
-            return CommandResult::failure(WorkspaceError::NeedsStep, "Slice the plate first; it has no current G-code");
+            return CommandResult::failure(WorkspaceError::NeedsStep, "The plate has no current G-code; it needs a finished slice first");
     }
     if (request.kind == "stl") {
         for (ObjectId id : request.objects)
@@ -387,8 +387,11 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
                 part.transform(instance->get_matrix());
                 mesh.merge(part);
             }
-        if (!store_stl(path.string().c_str(), &mesh, true))
-            return CommandResult::failure(WorkspaceError::Failed, "The STL could not be written");
+        // store_stl returns true whatever happens, and write_binary sees only a
+        // file it could not open; a full disk shows in the size.
+        boost::system::error_code size_error;
+        if (!mesh.write_binary(path.string().c_str()) || fs::file_size(path, size_error) != 84 + 50 * std::uintmax_t(mesh.facets_count()))
+            return CommandResult::failure(WorkspaceError::Failed, "The STL could not be written to " + path.generic_string());
     } else {
         // Orca's export of the presets in use, as edited, system ones
         // included (Orca's menu leaves those out, and in use they usually
@@ -400,8 +403,13 @@ CommandResult OrcaWorkspaceAdapter::export_file(const ExportRequest& request, Ex
             return CommandResult::failure(WorkspaceError::InvalidArgument,
                                           "Nothing was written; the preset files exist in that folder (pass overwrite to replace them)");
         boost::system::error_code error;
-        for (const std::string& file : result.files)
-            result.bytes += fs::file_size(fs::path(file), error);
+        // export_current_configs lists a file whether or not it was written.
+        for (const std::string& file : result.files) {
+            const std::uintmax_t size = fs::file_size(fs::path(file), error);
+            if (error || size == 0)
+                return CommandResult::failure(WorkspaceError::Failed, "The preset file " + file + " could not be written");
+            result.bytes += size;
+        }
         return CommandResult::success();
     }
     boost::system::error_code error;

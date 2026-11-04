@@ -384,7 +384,7 @@ wxString change_named_printer_nozzle(Plater& plater, const std::string& name, co
     // Not const: Preset::save takes its parent's config by pointer.
     Preset*       new_parent = printers.find_preset(system_preset, false, true);
     if (old_parent == nullptr || new_parent == nullptr || !new_parent->is_system)
-        return _L("This printer does not come with that nozzle size.");
+        return _L("The app has no preset of this printer with that nozzle size.");
     if (old_parent == new_parent)
         return {};
 

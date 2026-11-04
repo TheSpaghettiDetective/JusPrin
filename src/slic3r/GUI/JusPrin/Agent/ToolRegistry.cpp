@@ -50,16 +50,25 @@ json printer_connection_schema()
 {
     return object_schema(
         json{{"provider", {{"type", "string"}, {"enum", json::array({"bambu", "host", "unavailable"})}}},
-             {"state", string_schema()},
+             {"state", {{"type", "string"}, {"enum", json::array({"not_configured", "unknown", "connecting", "verified", "failed", "unavailable"})}}},
              {"message", string_schema()},
              {"candidates", {{"type", "array"},
                              {"items", object_schema(json{{"deviceId", string_schema()}, {"name", string_schema()},
                                                           {"address", string_schema()}},
                                                      json::array({"deviceId", "name", "address"}))}}},
+             {"seen", {{"type", "array"},
+                       {"items", object_schema(json{{"name", string_schema()}, {"address", string_schema()},
+                                                    {"reason", {{"type", "string"}, {"enum", json::array({"cloud_mode", "account_only", "other_model", "linked_elsewhere", "other_device", "occupied"})}}},
+                                                    {"detail", string_schema()}},
+                                               json::array({"name", "address", "reason"}))}}},
+             {"search", object_schema(json{{"state", {{"type", "string"},
+                                                      {"enum", json::array({"not_applicable", "not_started", "started", "listening", "port_taken", "not_listening"})}}},
+                                           {"secondsAgo", {{"type", "integer"}}}},
+                                      json::array({"state"}))},
              {"address", string_schema()},
              {"hostType", string_schema()},
              {"nozzleMismatch", boolean_schema()}},
-        json::array({"provider", "state", "message", "candidates", "address", "hostType", "nozzleMismatch"}));
+        json::array({"provider", "state", "message", "candidates", "seen", "search", "address", "hostType", "nozzleMismatch"}));
 }
 
 bool has_only(const json& value, std::initializer_list<std::string_view> allowed)
@@ -745,6 +754,16 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
                    optional_text(decision, "alternative") && !decision["topic"].get_ref<const std::string&>().empty() &&
                    !decision["statement"].get_ref<const std::string&>().empty();
         });
+    }
+
+    // The issue's own words: a title GitHub shows in a list, and a summary
+    // that the tool cuts to fit the link.
+    if (definition.handler == ToolHandler::IssueReportOpen) {
+        const auto given = [&arguments](const char* key, std::size_t limit) {
+            return arguments.contains(key) && arguments[key].is_string() && !arguments[key].get_ref<const std::string&>().empty() &&
+                   arguments[key].get_ref<const std::string&>().size() <= limit;
+        };
+        return has_only(arguments, {"title", "body"}) && given("title", kToolLabelLimit) && given("body", 4 * kToolTextLimit);
     }
 
     if (definition.handler == ToolHandler::SkillRead)
@@ -1590,8 +1609,15 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_connection_status",
          "Check a printer's connection",
          "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it "
-         "also lists the printers of that model in LAN mode on the network now, and starts looking for them if it was not "
-         "already.",
+         "starts the network search if it has not started, and reports what it has found of that model so far. candidates "
+         "are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt "
+         "shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN "
+         "Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. While "
+         "search.state is started, an empty list says nothing yet: the app posts a note when a printer appears, or after "
+         "about 15 seconds with none. listening with nothing listed means nothing has been heard so far, and the search "
+         "goes on. port_taken means another app on this computer holds the port printers announce on, so nothing can be "
+         "found, whatever mode the printer is in. not_listening means nothing holds that port and this app takes it only "
+         "as it starts.",
          object_schema(json::object()),
          printer_connection_schema(),
          ActionClass::ReadOnly,
@@ -1603,7 +1629,8 @@ std::vector<ToolDefinition> make_definitions()
          "Connects the printer this conversation is about. It opens a local form where the person types the access code or API "
          "key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from "
          "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
-         "until they give one, ask for it instead of calling this. The app reports the connection outcome in a note.",
+         "until they give one, ask for it instead of calling this. Only a printer in the status check's candidates can be "
+         "connected; one in cloud mode cannot, because LAN Only is off on it. The app reports the connection outcome in a note.",
          object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
                             {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
                                           {"description", "Moonraker or OctoPrint only, together with address."}}},
@@ -1616,6 +1643,31 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterConnect},
+        // Offered only with the skill for a printer's connection type
+        // (PrinterConversation::connection_skill), never on a session's own
+        // list, so a chat that only adds a printer never has it. It posts
+        // nothing: the person submits the page on GitHub themselves.
+        {"issue_report_open",
+         "Open an issue for the developers",
+         "Opens a new issue for the JusPrin developers on GitHub in the person's browser, filled in with your title and body. "
+         "Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to "
+         "know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub "
+         "account, which they need. Write the body as a short summary for a developer: the printer model, what was tried, what "
+         "the app reported, and what the person said. Leave out the access code. The app adds its version, the connection "
+         "type and the printer, removes printer serials and IP addresses, and cuts a body too long for the link.",
+         object_schema(json{{"title", {{"type", "string"}, {"maxLength", kToolLabelLimit},
+                                       {"description", "One line naming the problem, such as the printer and what failed."}}},
+                            {"body", {{"type", "string"}, {"maxLength", 4 * kToolTextLimit},
+                                      {"description", "Plain text or Markdown, a few short paragraphs."}}}},
+                       json::array({"title", "body"})),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"opened"})}}},
+                            {"shortened", boolean_schema()},
+                            {"message", string_schema()}},
+                       json::array({"state", "shortened", "message"})),
+         ActionClass::ReadOnly,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::IssueReportOpen},
     };
     std::sort(definitions.begin(), definitions.end(),
               [](const ToolDefinition& lhs, const ToolDefinition& rhs) { return lhs.name < rhs.name; });

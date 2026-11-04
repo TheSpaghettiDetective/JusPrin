@@ -86,6 +86,7 @@ public:
 
 private:
     // IConversationHost
+    nlohmann::json chat_record() const override;
     std::string post_note(const std::string& text) override;
     std::string post_opening(const std::string& text) override;
     void        start_turn() override;
@@ -93,6 +94,8 @@ private:
     void profile_changed() override;
     void close_panel() override;
     void printers_changed(const std::string& added) override;
+    bool open_in_browser(const std::string& url) override;
+    std::string app_version() const override;
     void build_runtime();
     void tear_down_runtime();
     void on_pump(wxTimerEvent& event);

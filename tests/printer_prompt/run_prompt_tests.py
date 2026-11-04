@@ -30,6 +30,8 @@ Usage:
   OPENROUTER_API_KEY=... OPENAI_API_KEY=... tests/printer_prompt/run_prompt_tests.py
       [--runs N] [--must-pass N] [--case NAME] [--jobs 5] [--verbose]
       [--model NAME [--endpoint URL] [--key-env NAME] [--provider HOST]...]
+  tests/printer_prompt/run_prompt_tests.py --backend claude-cli --judge claude-cli
+      [--claude-model M] [--claude-effort E] [other flags as above]
 
 Prompt changes are evaluated on DeepSeek V4 Flash through OpenRouter, pinned to
 the hosts that answer an app note (MODEL, PROVIDERS; decided 2026-09-28), and
@@ -37,6 +39,10 @@ on nothing else. --model tries another model through a Responses API endpoint,
 with its key in the variable --key-env names, for comparing models, not for
 judging a prompt change. The judge stays on OpenAI
 (OPENAI_API_KEY) whichever model answers, so counts are judged alike.
+--backend claude-cli runs every turn on the locally installed Claude Code CLI,
+on the developer's Claude subscription, as the project suite's claude-cli
+backend does (tests/project_prompt/claude_cli.py); --judge claude-cli moves
+the judge there too. Its counts are compared only with its own baseline.
 
 Without --runs, the cases run share RUN_BUDGET conversations: 5 runs each for
 20 cases, fewer when there are more, never more than MAX_RUNS for one case.
@@ -60,6 +66,8 @@ import urllib.error
 import urllib.request
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "project_prompt"))
+import claude_cli  # noqa: E402
 # The model prompts are judged on (decided 2026-09-28): DeepSeek V4 Flash on
 # OpenRouter, served only by the hosts that answer an app note -- the others
 # render the app's developer messages so that the model replies with nothing
@@ -71,9 +79,17 @@ PROVIDERS = ["Alibaba", "Novita", "Baidu", "AtlasCloud"]
 # The judge stays on OpenAI whichever model answers, so counts are judged alike.
 JUDGE_ENDPOINT = "https://api.openai.com/v1/responses"
 JUDGE_MODEL = "gpt-5.5-2026-04-23"  # pinned, so a count moves only when the prompt does
+# --backend claude-cli and --judge claude-cli: (model, effort), pinned as the
+# project suite's are.
+CLAUDE_MODEL, CLAUDE_EFFORT = "claude-opus-5-5", "medium"
+CLAUDE = None
+CLAUDE_JUDGE = None
 # UTF-8 throughout: on Windows, Python otherwise reads text as the system code
 # page and garbles "×" and curly quotes before the model sees them.
 TOOLS = json.loads((HERE / "printer_tools.json").read_text(encoding="utf-8"))
+# The body of the file: what the page sends and the app adds (skillParser.ts).
+CONNECTION_SKILLS = {kind: (HERE / f"../../src/slic3r/GUI/JusPrin/AgentUI/src/skills/connect-{kind}/SKILL.md").read_text(
+    encoding="utf-8").split("\n---\n", 1)[1].strip() for kind in ("bambu", "moonraker", "octoprint")}
 MAX_REQUESTS_PER_TURN = 8
 # Conversations one invocation runs by default, shared by the cases it runs,
 # and the most one case gets from that share.
@@ -92,7 +108,16 @@ def render(session, revision=None):
     return json.loads(result.stdout)
 
 
+def web_search(endpoint):
+    """The provider's own web search, which the app offers after its tools on
+    every reply request (ProviderProfile::web_search_type): OpenRouter's
+    spelling there, OpenAI's elsewhere."""
+    return {"type": "openrouter:web_search" if "openrouter.ai" in endpoint else "web_search"}
+
+
 def post(body, key, endpoint=ENDPOINT):
+    if "tools" in body:
+        body = {**body, "tools": body["tools"] + [web_search(endpoint)]}
     request = urllib.request.Request(endpoint, data=json.dumps(body).encode(), method="POST",
                                      headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
     for attempt in range(5):
@@ -113,10 +138,14 @@ def judge(log, question):
     for what no string test can check. Returns (yes, why)."""
     schema = {"type": "object", "additionalProperties": False, "required": ["answer", "why"],
               "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}, "why": {"type": "string"}}}
-    response = post({"model": JUDGE_MODEL, "store": False,
-                     "instructions": "You read a chat between a 3D printing app's assistant and a person, and answer one "
-                                     "question about it strictly as written, judging only what the messages say.",
-                     "input": "\n".join(log) + "\n\nQuestion: " + question,
+    instructions = ("You read a chat between a 3D printing app's assistant and a person, and answer one question "
+                    "about it strictly as written, judging only what the messages say. A \"web search:\" line is a "
+                    "search the assistant ran, with the pages it found.")
+    prompt = "\n".join(log) + "\n\nQuestion: " + question
+    if CLAUDE_JUDGE:
+        verdict, _ = claude_cli.judge(instructions, prompt, schema, *CLAUDE_JUDGE)
+        return verdict["answer"] == "yes", verdict["why"]
+    response = post({"model": JUDGE_MODEL, "store": False, "instructions": instructions, "input": prompt,
                      "text": {"format": {"type": "json_schema", "name": "verdict", "strict": True, "schema": schema}}},
                     os.environ["OPENAI_API_KEY"], JUDGE_ENDPOINT)
     text = "".join(output_text(item) for item in response.get("output", []) if item.get("type") == "message")
@@ -207,11 +236,58 @@ def succeeded(result):
 
 def not_run(failed):
     """The result the app gives a call after one in the same response did not
-    succeed (OpenAIResponsesAgent::next_call), word for word. failed is that
+    succeed (ProviderAgent::next_call), word for word. failed is that
     call as "tool (call_id)"."""
     return {"state": "failed", "error": {"code": "not_run", "message":
             f"Not run: an earlier call in the same response, {failed}, did not succeed. "
             "Nothing was queued. Call it again if it is still needed."}}
+
+
+class ApiTurn:
+    """One turn on a Responses API endpoint: every request carries the turn
+    so far, the results and a skill after them included."""
+
+    def __init__(self, conversation, turn):
+        self.conversation, self.turn = conversation, turn
+
+    def next(self):
+        conversation = self.conversation
+        return post({"model": conversation.model, "store": False, "parallel_tool_calls": True,
+                     "instructions": conversation.instructions, "tools": getattr(conversation.case, "tools", TOOLS),
+                     "input": self.turn, **conversation.routing},
+                    conversation.key, conversation.endpoint).get("output", [])
+
+    def answer(self, calls, results, skill):
+        pass  # already in the turn the next request sends
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+
+class ClaudeTurn(ApiTurn):
+    """One turn on the Claude Code CLI (claude_cli.Run): the turn so far goes
+    in once, and the results of each response's calls are its tool results.
+    A skill the app adds after them goes in as further text of the last
+    result, as the project suite gives the app's notes after a result."""
+
+    def __init__(self, conversation, turn):
+        super().__init__(conversation, turn)
+        self.run = claude_cli.Run(conversation.instructions, getattr(conversation.case, "tools", TOOLS), list(turn),
+                                  *CLAUDE)
+
+    def next(self):
+        return self.run.next_response()[0]
+
+    def answer(self, calls, results, skill):
+        if skill:
+            results = results[:-1] + [[results[-1], claude_cli.developer_block(skill)["text"]]]
+        self.run.answer(calls, results)
+
+    def __exit__(self, *_):
+        self.run.close()
 
 
 class Conversation:
@@ -226,13 +302,38 @@ class Conversation:
         self.routing = {"provider": {"order": providers, "allow_fallbacks": False}} if providers else {}
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
+        self.skills_sent = set()
+        self.host_type = ""
 
     def say(self, words):
         """One turn: the person's words, then the model until it stops."""
         self.log.append("person: " + words)
         turn = self.history + [{"role": "user", "content": [{"type": "input_text", "text": words}]}]
         self.history.append({"role": "user", "content": words})
+        if getattr(self.case, "session", {}).get("mode") == "connect":
+            self.add_connection_skill(turn)
         self.respond(turn)
+
+    def add_connection_skill(self, turn):
+        """PrinterConversation::connection_skill: once the person has tried to
+        connect, the skill for the connection type follows the message or the
+        results of that moment, once, and stays. A print host's type is the
+        saved one, or else the one the first printer_connect names."""
+        printer = getattr(self.case, "printer", None) or getattr(self.case, "session", {}).get("context", {}).get("printer") or {}
+        # An add case names its printer by catalogue id, the vendor first.
+        if isinstance(printer, str):
+            bambu = printer.startswith("BBL/")
+        else:
+            bambu = printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu")
+        kind = "bambu" if bambu else self.host_type
+        if kind not in CONNECTION_SKILLS or kind in self.skills_sent:
+            return None
+        self.skills_sent.add(kind)
+        self.log.append(f"app: (the connect-{kind} skill)")
+        message = {"role": "developer", "content": CONNECTION_SKILLS[kind]}
+        turn.append(message)
+        self.history.append(message)
+        return message["content"]
 
     def note(self, text):
         """The app's own line, as the developer, then the turn it starts
@@ -248,37 +349,49 @@ class Conversation:
         succeed, the calls after it in that response are answered not_run
         without running."""
         refused = 0
-        for _ in range(MAX_REQUESTS_PER_TURN):
-            response = post({"model": self.model, "store": False, "parallel_tool_calls": True,
-                             "instructions": self.instructions, "tools": getattr(self.case, "tools", TOOLS), "input": turn,
-                             **self.routing},
-                            self.key, self.endpoint)
-            output = response.get("output", [])
-            turn += output
-            for reply in (output_text(item) for item in output if item.get("type") == "message"):
-                if reply:
-                    self.history.append({"role": "assistant", "content": reply})
-                    self.log.append("assistant: " + reply)
-            calls = [item for item in output if item.get("type") == "function_call"]
-            if not calls:
-                break
-            failed = None  # "tool (call_id)" of the first call that did not succeed
-            for call in calls:
-                arguments = json.loads(call.get("arguments") or "{}")
-                self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
-                if failed:
-                    result, recorded = not_run(failed), False
-                elif (problem := invalid_arguments(call["name"], arguments)) and refused < 2:
-                    refused += 1
-                    result, recorded = {"state": "failed", "error": problem}, False
-                else:
-                    (result, _), recorded = self.case.tool(call["name"], arguments), True
-                if not failed and not succeeded(result):
-                    failed = f"{call['name']} ({call['call_id']})"
-                self.log.append("  -> " + dump(result))
-                turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
-                if recorded:
-                    self.history += self.replayed(call, result)
+        with (ClaudeTurn if CLAUDE else ApiTurn)(self, turn) as model:
+            for _ in range(MAX_REQUESTS_PER_TURN):
+                output = model.next()
+                turn += output
+                for item in output:
+                    if searched := claude_cli.web_search_line(item):
+                        # Kept, as the app sends a response's items back.
+                        self.history.append(item)
+                        self.log.append(searched)
+                    elif item.get("type") == "message" and (reply := output_text(item)):
+                        self.history.append({"role": "assistant", "content": reply})
+                        self.log.append("assistant: " + reply)
+                calls = [item for item in output if item.get("type") == "function_call"]
+                if not calls:
+                    break
+                failed = None  # "tool (call_id)" of the first call that did not succeed
+                results = []
+                for call in calls:
+                    arguments = json.loads(call.get("arguments") or "{}")
+                    self.log.append(f"tool: {call['name']} {json.dumps(arguments)}")
+                    if failed:
+                        result, recorded = not_run(failed), False
+                    elif (problem := invalid_arguments(call["name"], arguments)) and refused < 2:
+                        refused += 1
+                        result, recorded = {"state": "failed", "error": problem}, False
+                    else:
+                        (result, _), recorded = self.case.tool(call["name"], arguments), True
+                        if call["name"] == "printer_connect" and arguments.get("hostType"):
+                            self.host_type = arguments["hostType"]
+                        elif (call["name"] == "printer_connection_status" and result.get("provider") == "host"
+                              and result.get("address") and not self.host_type):
+                            self.host_type = result.get("hostType", "")
+                    if not failed and not succeeded(result):
+                        failed = f"{call['name']} ({call['call_id']})"
+                    self.log.append("  -> " + dump(result))
+                    results.append(dump(result))
+                    turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
+                    if recorded:
+                        self.history += self.replayed(call, result)
+                skill = None
+                if any(call["name"] in ("printer_connect", "printer_connection_status") for call in calls):
+                    skill = self.add_connection_skill(turn)
+                model.answer(calls, results, skill)
 
     @staticmethod
     def replayed(call, result):
@@ -306,6 +419,7 @@ class ConnectBambu:
     }
     # printer_connection_status as the app answered it for the fake printer.
     status = {"address": "", "candidates": [{"address": "127.0.0.1", "deviceId": "FAKE001", "name": "JusPrin Fake A1 mini"}],
+              "seen": [], "search": {"state": "listening", "secondsAgo": 3},
               "hostType": "", "message": "", "nozzleMismatch": False, "provider": "bambu", "state": "not_configured"}
 
     def __init__(self):
@@ -570,6 +684,106 @@ class ConnectOutcome(Finishing, ConnectBambu):
         return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
 
 
+def ended_badly(conversation, truth):
+    """What is wrong with where the chat left the person, or "": Kenneth's test
+    for a tool result, a person told something false or useless with the right
+    step hidden, asked of the whole chat. The truth is what the scenario knows
+    and the assistant cannot, so a wrong guess marked as a guess still passes
+    when its next step would lead them there. The prompt has the model search
+    before it says where a menu or setting is and say what came from the
+    web (LOOK_IT_UP), so what a search shown in the chat found counts as
+    given, when the assistant says it came from the web."""
+    yes, why = judge(conversation.log, "The truth in this scenario, which the assistant cannot know for certain: " + truth +
+                                       " Reading the whole chat as that person, are all of these true? Every cause the "
+                                       "assistant gave is stated in the app's or the person's messages, or said to come "
+                                       "from a web search the chat shows, or marked as a guess. It did not send them back "
+                                       "to something they had already done or ruled out, unless something had changed. "
+                                       "It gave no menu, screen or setting path as fact unless the messages gave it or it "
+                                       "said the path came from a web search the chat shows. Its last message leaves "
+                                       "them with a concrete next thing to look at, try or answer that moves them toward "
+                                       "the truth.")
+    return "" if yes else "LEFT STUCK: " + why
+
+
+class ConnectWorkedOut(ConnectOutcome):
+    """A failure the person cannot get past by following a line in the skill.
+    Passes by where the chat leaves the person (ended_badly)."""
+
+    truth = ""
+    failure = ""
+    person = ()
+
+    def run(self, conversation):
+        if self.connect(conversation, "failed: " + self.failure) is None:
+            return False, "NO CARD"
+        for words in self.person:
+            last_reply(conversation, words)
+        return verdict([ended_badly(conversation, self.truth)], "worked it out with them")
+
+
+class ConnectRightCodeSilentPort(ConnectWorkedOut):
+    """Kenneth's P1S, 2026-11-02: the right code, and a network too slow to
+    reach the port. The model blamed the code."""
+
+    name = "connect-right-code-silent-port"
+    truth = "The access code is right. The Wi-Fi between this computer and the printer is badly overloaded."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, nothing answered within "
+               "5 seconds. Right after it failed, nothing answered within 5 seconds.")
+    person = ("I compared them, it's the same code. What else could it be?",)
+
+
+class ConnectPortWentQuiet(ConnectWorkedOut):
+    """The real P1S on 2026-11-02: the port answered, a failed attempt, then
+    nothing for minutes. Trying again at once says nothing about the code."""
+
+    name = "connect-port-went-quiet"
+    truth = "The printer stopped answering after the failed attempt, and will answer again in several minutes or after a restart."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 73 ms. "
+               "Right after it failed, nothing answered within 5 seconds.")
+    person = ("should I just try again right now?",)
+
+
+class ConnectCodeRuledOut(ConnectWorkedOut):
+    """The port answers, so the code is the first guess, and the person then
+    rules it out. Not seen on a real printer: the skill was not written from it."""
+
+    name = "connect-code-ruled-out"
+    truth = "The access code is right. The printer has been running for weeks and needs a restart."
+    failure = ("Bambu's network plug-in reported code -1 24 seconds after being asked to connect, which does not say why. "
+               "The app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, it answered in 14 ms. "
+               "Right after it failed, it answered in 16 ms.")
+    person = ("I checked twice, it's the same code.",)
+
+
+class ConnectUnforeseenFailure(ConnectWorkedOut):
+    """A code and an answer the skill never mentions, and a cause the person
+    brings up. Passes only by reasoning: no line in the skill covers it."""
+
+    name = "connect-unforeseen-failure"
+    truth = "This computer is on a work VPN, which blocks the local network."
+    failure = ("Bambu's network plug-in reported code -3 2 seconds after being asked to connect, which does not say why. The "
+               "app also tried the printer's port 8883 at 192.168.0.198. Just before the attempt, the app could not try, as "
+               "this computer said \"No route to host\". Right after it failed, the app could not try, as this computer said "
+               "\"No route to host\".")
+    person = ("hm, I'm on my work VPN today, does that matter?",)
+
+
+class ConnectScreenSaysDisconnected(ConnectOutcome):
+    """Nothing is heard, and the person reads the printer's screen. Passes when
+    the model takes what they see as the likely cause."""
+
+    name = "connect-screen-says-disconnected"
+    status = {**ConnectBambu.status, "candidates": [], "search": {"state": "listening", "secondsAgo": 40}}
+
+    def run(self, conversation):
+        conversation.say("Yes, it is")
+        last_reply(conversation, "the printer's screen says Wi-Fi disconnected")
+        problem = ended_badly(conversation, "The printer lost its Wi-Fi settings and has to be joined to the network again.")
+        return verdict(["OPENED THE FORM" if self.card else "", problem], "took what they see as the cause")
+
+
 class ConnectVerifiedClose(ConnectOutcome):
     """Passes when the reply to a verified connection says they can close the chat."""
 
@@ -660,7 +874,8 @@ VORON = {"name": "Voron 2.4 350", "model": "Voron 2.4 350", "nozzle": 0.4, "nozz
          "connected": False}
 # printer_connection_status for a print host with no address saved, as
 # OrcaPrinterBackend reports it; Orca's default host type is OctoPrint.
-HOST_NOT_CONFIGURED = {"address": "", "candidates": [], "hostType": "octoprint", "message": "", "nozzleMismatch": False,
+HOST_NOT_CONFIGURED = {"address": "", "candidates": [], "seen": [], "search": {"state": "not_applicable"},
+                       "hostType": "octoprint", "message": "", "nozzleMismatch": False,
                        "provider": "host", "state": "not_configured"}
 
 
@@ -808,10 +1023,15 @@ class SavedPrinterCase:
                 return {"error": {"code": "address_needed", "message": "Pass hostType and the address the person gave."}}, False
             return {"state": "credential_requested",
                     "message": "The app is waiting for the person to enter the printer credential locally."}, False
-        listed = [c for c in self.status.get("candidates", []) if arguments.get("deviceId") in (c["deviceId"], c["name"])]
+        candidates = self.status.get("candidates", [])
+        listed = [c for c in candidates if arguments.get("deviceId") in (c["deviceId"], c["name"])]
         if not listed:
-            return {"error": {"code": "unknown_device", "message": "No printer in LAN mode is on the network now; check again "
-                                                                   "with printer_connection_status."}}, False
+            # PrinterConversation::unknown_device_text, for a status with nothing in cloud mode.
+            lan = ", ".join(f'{c["deviceId"]} ({c["name"]})' for c in candidates)
+            message = ("Pass the deviceId of one of these printers in LAN mode: " + lan + "." if lan else
+                       "The network search has listened for 20 seconds and has found no printer of this model in LAN "
+                       "mode. The app posts a note if one appears.")
+            return {"error": {"code": "unknown_device", "message": message}}, False
         return {"state": "credential_requested",
                 "message": "The app is waiting for the person to enter the printer credential locally."}, False
 
@@ -1058,29 +1278,9 @@ class ConnectHostAddress(SavedPrinterCase):
                         "" if cards else f"NO MOONRAKER CARD {self.called('printer_connect')}"], "card for voron.local")
 
 
-class ConnectBambuNotFound(SavedPrinterCase):
-    """No Bambu Lab printer in LAN mode is on the network. Passes when the
-    status is checked, no card opens, and the reply points to LAN mode on the
-    printer or asks what they see."""
-
-    name = "connect-bambu-not-found"
-    mode = "connect"
-    provider = "bambu"
-    printer = A1_MINI
-    status = {"address": "", "candidates": [], "hostType": "", "message": "", "nozzleMismatch": False,
-              "provider": "bambu", "state": "not_configured"}
-
-    def run(self, conversation):
-        last_reply(conversation, "Yes, it is")
-        yes, why = judge(conversation.log, "Does the assistant's last message tell the person where to turn LAN mode on, or "
-                                           "ask what they see on the printer's screen?")
-        return verdict([self.forbidden(), "" if self.called("printer_connection_status") else "NO STATUS CHECK",
-                        "" if yes else "NO LAN MODE GUIDANCE: " + why], "checked; pointed to LAN mode")
-
-
 class ConnectAskWhy(SavedPrinterCase):
     """A question before connecting. Passes when nothing runs and the reply
-    says the printer prepares prints without a connection."""
+    says they can prepare prints for it without a connection."""
 
     name = "connect-ask-why"
     mode = "connect"
@@ -1089,7 +1289,7 @@ class ConnectAskWhy(SavedPrinterCase):
     def run(self, conversation):
         last_reply(conversation, "do I have to connect it? what do I get from that?")
         yes, why = judge(conversation.log, "Does the assistant's last message make clear that connecting is optional, or that "
-                                           "the printer can already be used to prepare prints without a connection?")
+                                           "the person can already prepare prints for the printer without a connection?")
         return verdict([self.forbidden(), "" if yes else "NOT SAID OPTIONAL: " + why], "said it is optional")
 
 
@@ -1199,11 +1399,12 @@ class ChangeAskLoadedNotConnected(SavedPrinterCase):
                                              "is loaded in the printer?")], "claimed nothing loaded")
 
 
-class ConnectFailedWaysForward(SavedPrinterCase):
+class ConnectHostNoResponse(SavedPrinterCase):
     """A print host is given and the app reports no response. Passes when the
-    failure reply names the three ways forward."""
+    person is left with a guess at why and something to look at or try, not
+    only a list of ways out."""
 
-    name = "connect-failed-ways-forward"
+    name = "connect-host-no-response"
     mode = "connect"
     printer = VORON
 
@@ -1215,11 +1416,8 @@ class ConnectFailedWaysForward(SavedPrinterCase):
             return False, "NO CREDENTIAL REQUEST"
         last_reply(conversation, note="Connection to Voron 2.4 350 failed: The printer did not respond. Check that it is on "
                                       "the network and try again.")
-        yes, why = judge(conversation.log, "Does the assistant's last message offer all three of these: trying again with the "
-                                           "same address; setting up the connection manually in the app; and leaving "
-                                           "it for now because the printer can still prepare prints?")
-        return verdict([self.forbidden(ADDING + ("printer_change",)),
-                        "" if yes else "NOT THE THREE WAYS: " + why], "named the three ways")
+        problem = ended_badly(conversation, "The printer is switched off.")
+        return verdict([self.forbidden(ADDING + ("printer_change",)), problem], "left with a guess and a next step")
 
 
 class ConnectBambuNoPlugin(SavedPrinterCase):
@@ -1234,10 +1432,11 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
     printer = A1_MINI
     needs_plugin = True
     # OrcaPrinterBackend::connection without the plug-in.
-    status = {"address": "", "candidates": [], "hostType": "", "nozzleMismatch": False, "provider": "bambu",
+    status = {"address": "", "candidates": [], "seen": [], "search": {"state": "not_started"},
+              "hostType": "", "nozzleMismatch": False, "provider": "bambu",
               "state": "unavailable",
               "message": "Connecting a Bambu Lab printer needs Bambu's network plug-in, which is not installed or not turned "
-                         "on. The printer can already prepare prints without it."}
+                         "on. The person can already prepare prints for this printer without it."}
 
     def run(self, conversation):
         last_reply(conversation, "ok, connect it")
@@ -1250,8 +1449,8 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
 
 # Session payloads for the saved-printer cases.
 for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
-              ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectBambuNotFound, ConnectAskWhy,
-              ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin, ChangeEditStartGcode,
+              ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectAskWhy,
+              ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin, ChangeEditStartGcode,
               ChangeStockCopy, ChangeBedSize):
     _case.session = _case.session_for()
 
@@ -1259,10 +1458,12 @@ CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFrom
                                       ConnectVerifiedClose, ConnectLeaveClose, ChangeNozzleClose,
                                       ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate,
                                       ChangeUnshippedNozzle, ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress,
-                                      ConnectBambuNotFound, ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
+                                      ConnectAskWhy, AddVagueDescription, AddUnsupportedPrinter,
                                       AddManyFit, AddNameStartsTwo, AddUnshippedNozzle, AddFullList,
-                                      ChangeAskLoadedNotConnected, ConnectFailedWaysForward, ConnectBambuNoPlugin,
-                                      ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize)}
+                                      ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin,
+                                      ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize,
+                                      ConnectRightCodeSilentPort, ConnectPortWentQuiet, ConnectCodeRuledOut, ConnectUnforeseenFailure,
+                                      ConnectScreenSaysDisconnected)}
 
 
 # --- The filament chat ---------------------------------------------------------
@@ -1475,19 +1676,37 @@ def main():
                         help="run the prompt as the page's source had it at this git revision, e.g. HEAD, to compare "
                              "an uncommitted edit with the one before it")
     parser.add_argument("--verbose", action="store_true", help="print every run's conversation, not only failures")
+    parser.add_argument("--backend", choices=("api", "claude-cli"), default="api",
+                        help="api: the model through a Responses API endpoint (default); claude-cli: the Claude Code "
+                             "CLI on the developer's subscription")
+    parser.add_argument("--judge", choices=("openai", "claude-cli"), default="openai",
+                        help=f"openai: {JUDGE_MODEL} (default); claude-cli: --claude-model on the subscription")
+    parser.add_argument("--claude-model", default=CLAUDE_MODEL, help=f"claude-cli's model (default {CLAUDE_MODEL})")
+    parser.add_argument("--claude-effort", default=CLAUDE_EFFORT, help=f"claude-cli's effort (default {CLAUDE_EFFORT})")
     args = parser.parse_args()
+    global CLAUDE, CLAUDE_JUDGE
+    if args.backend == "claude-cli":
+        CLAUDE = (args.claude_model, args.claude_effort)
+    if args.judge == "claude-cli":
+        CLAUDE_JUDGE = (args.claude_model, args.claude_effort)
     # Hosts are pinned per model: another model starts unpinned.
     model, endpoint, key_env = args.model or MODEL, args.endpoint or ENDPOINT, args.key_env or KEY_ENV
     providers = args.provider or (PROVIDERS if model == MODEL else None)
     args.key_env = key_env
     key = os.environ.get(args.key_env)
-    if not key or not os.environ.get("OPENAI_API_KEY"):
-        sys.exit(f"{args.key_env} is required, and OPENAI_API_KEY for the judge")
+    if not CLAUDE and not key:
+        sys.exit(f"{args.key_env} is required")
+    if not CLAUDE_JUDGE and not os.environ.get("OPENAI_API_KEY"):
+        sys.exit("OPENAI_API_KEY is required for the judge, or --judge claude-cli")
     names = args.case or sorted(CASES)
     if args.runs is None:
         args.runs = max(1, min(MAX_RUNS, RUN_BUDGET // len(names)))
     must_pass = args.runs if args.must_pass is None else args.must_pass
-    print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else "") +
+    if CLAUDE:
+        print(f"model {CLAUDE[0]} (effort {CLAUDE[1]}) through the Claude Code CLI", end="")
+    else:
+        print(f"model {model} at {endpoint}" + (f", hosts {', '.join(providers)}" if providers else ""), end="")
+    print(f"; judge {CLAUDE_JUDGE[0] + ' through the Claude Code CLI' if CLAUDE_JUDGE else JUDGE_MODEL}"
           f"; prompt from {args.prompt_rev or 'the checkout'}")
 
     ok = True

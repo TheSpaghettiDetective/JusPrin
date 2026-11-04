@@ -28,7 +28,7 @@ bool has_closed_required_objects(const json& schema)
     return !schema.contains("items") || has_closed_required_objects(schema["items"]);
 }
 
-json tools_json(const std::vector<OfferedTool>& tools)
+json tools_json(const std::vector<OfferedTool>& tools, const ProviderProfile& profile)
 {
     json items = json::array();
     for (const OfferedTool& tool : tools)
@@ -40,6 +40,10 @@ json tools_json(const std::vector<OfferedTool>& tools)
                              // schema; native validation still owns acceptance.
                              {"strict", has_closed_required_objects(tool.definition->input_schema)},
                              {"parameters", tool.definition->input_schema}});
+    // The provider's own web search, which the instructions tell the model
+    // to use before it guesses. The provider runs it inside the response, so
+    // its call and the cited text come back among the output items.
+    items.push_back(json{{"type", profile.web_search_type}});
     return items;
 }
 
@@ -107,7 +111,7 @@ ProviderRequest ResponsesCodec::build(const TurnTranscript& transcript, const Pr
     // some models send several whatever this says (ProviderAgent runs them
     // all, in order).
     request.body = json{{"model", profile.model}, {"store", false}, {"stream", true}, {"parallel_tool_calls", true},
-                        {"instructions", transcript.instructions}, {"tools", tools_json(transcript.tools)}, {"input", std::move(input)}};
+                        {"instructions", transcript.instructions}, {"tools", tools_json(transcript.tools, profile)}, {"input", std::move(input)}};
     // OpenAI and OpenRouter read the same field.
     if (!profile.effort.empty())
         request.body["reasoning"] = json{{"effort", profile.effort}};

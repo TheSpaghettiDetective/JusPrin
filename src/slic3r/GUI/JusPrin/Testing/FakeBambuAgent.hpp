@@ -74,6 +74,15 @@ public:
     // next print or storage upload is refused as an upload failure, so
     // OrcaSlicer's send dialog shows its error and reports no success.
     static bool control_send_fails(const std::string& json_text);
+    // The code the control file asks connections to fail with ("connect_fails":
+    // "5"), or empty: while it is set, every connect_printer reports
+    // ConnectStatusFailed with that code to the local-connect callback, as the
+    // plug-in does for a printer that refuses the connection, and nothing is
+    // connected. Upstream reads "5" as a wrong access code.
+    static std::string control_connect_failure(const std::string& json_text);
+    // The next connect_printer alone fails with `code`, whatever the control
+    // file says.
+    void fail_next_connect(std::string code);
 
     void        set_scenario(std::vector<FakeBambuStatusStep> steps);
     void        push_status(const FakeBambuStatusStep& step);
@@ -159,6 +168,8 @@ private:
     std::vector<FakeBambuStatusStep>   m_scenario;
     bool                               m_offline{false};
     bool                               m_send_fails{false};
+    std::string                        m_control_connect_failure; // from the control file, while it says so
+    std::string                        m_next_connect_failure;    // one connect, from fail_next_connect
     bool                               m_announced{false};
     bool                               m_control_file_present{false};
     std::int64_t                       m_control_mtime{0};

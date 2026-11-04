@@ -121,6 +121,7 @@
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
 #include "JusPrin/Brand/BrandPalette.hpp"
+#include "JusPrin/Printers/ConnectionEvents.hpp"
 #include "JusPrin/Testing/FakeBambuAgent.hpp"
 #include "JusPrin/V1Import/V1Import.hpp"
 #include "Widgets/Label.hpp"
@@ -2077,6 +2078,8 @@ void GUI_App::init_networking_callbacks()
                     if (is_closing()) {
                         return;
                     }
+                    // JusPrin: the printer panel reads the plug-in's answer here; this handler posts it only to Select Machine.
+                    JusPrin::Printers::record_connection_event(state, dev_id, msg);
                     /* request_pushing */
                     MachineObject* obj = m_device_manager->get_my_machine(dev_id);
                     wxCommandEvent event(EVT_CONNECT_LAN_MODE_PRINT);

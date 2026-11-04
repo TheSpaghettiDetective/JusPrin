@@ -70,7 +70,7 @@ class Responses(unittest.TestCase):
                 kept.append(self)
 
         runner.post = Scripted(*outputs)
-        passed, detail, log = runner.run_once(Kept, PROMPT, "key", "model")
+        passed, detail, self.log = runner.run_once(Kept, PROMPT, "key", "model")
         bodies = runner.post.bodies
         self.assertTrue(all(body["parallel_tool_calls"] is True for body in bodies))
         self.assertEqual(runner.post.outputs, [], "every scripted output is used")
@@ -79,6 +79,96 @@ class Responses(unittest.TestCase):
     @staticmethod
     def results(body):
         return {item["call_id"]: json.loads(item["output"]) for item in body["input"] if item.get("type") == "function_call_output"}
+
+    # --- The connection skill ----------------------------------------------
+
+    def test_a_print_host_gets_its_skill_once_the_kind_is_named(self):
+        """Connecting a Klipper printer: no skill while its kind is unknown,
+        then the Moonraker one with the results of the printer_connect that
+        names it, as PrinterConversation::connection_skill gives it."""
+        passed, detail, case, bodies = self.run_case(
+            runner.ConnectHostAddress,
+            [call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+            [reply("Type its API key into the form if it asks for one.")])
+        self.assertTrue(passed, detail)
+        skills = [[item["content"] for item in body["input"] if item.get("role") == "developer"
+                   and item.get("content") in runner.CONNECTION_SKILLS.values()] for body in bodies]
+        self.assertEqual(skills, [[], [runner.CONNECTION_SKILLS["moonraker"]]])
+
+    def test_an_add_chat_that_checks_the_connection_does_not_crash(self):
+        """An add case names its printer by catalogue id, a string. A
+        connection check there once crashed the runner looking the printer's
+        vendor up as if it were a saved printer."""
+        passed, detail, case, bodies = self.run_case(
+            runner.AddThenUndo, [call("printer_connection_status", {})], [reply("Which printer do you have?")])
+        self.assertFalse(passed)
+        self.assertTrue(detail.startswith("setup:"), detail)
+
+    def test_a_search_is_in_the_transcript_the_judge_reads(self):
+        """The provider's own search is an output item of its own; the
+        transcript shows its query and pages before the reply that uses it."""
+        search = {"type": "openrouter:web_search", "status": "completed",
+                  "action": {"type": "search", "query": "Moonraker API key location",
+                             "sources": [{"type": "url", "url": "https://docs.example/moonraker"}]}}
+        _, _, _, bodies = self.run_case(
+            runner.ConnectHostAddress,
+            [call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+            [search, reply("Type its API key into the form if it asks for one.")])
+        log = self.log
+        at = log.index("web search: Moonraker API key location -> https://docs.example/moonraker")
+        self.assertTrue(log[at + 1].startswith("assistant: Type its API key"), log[at:at + 2])
+
+    def test_the_next_turn_replays_a_search(self):
+        """A search stays in the history the next turn sends, where the
+        response put it, as the app sends a response's items back."""
+        search = {"type": "openrouter:web_search", "status": "completed",
+                  "action": {"type": "search", "query": "A1 mini LAN Only Mode",
+                             "sources": [{"type": "url", "url": "https://wiki.example/lan"}]}}
+        passed, detail, _, bodies = self.run_case(
+            runner.ConnectBambu,
+            [search, reply("Is it in LAN Only Mode? It is under Settings on its screen, says Bambu's wiki.\n"
+                           "Choices: Yes | No")],
+            [call("printer_connection_status", {}, "call-s"), call("printer_connect", {"deviceId": "FAKE001"}, "call-ok")],
+            [reply("Enter the access code from the printer's screen in the form.")])
+        self.assertTrue(passed, detail)
+        next_turn = bodies[1]["input"]
+        at = next_turn.index(search)
+        self.assertEqual(next_turn[at + 1]["role"], "assistant")
+        self.assertTrue(next_turn[at + 1]["content"].startswith("Is it in LAN Only Mode?"))
+
+    def test_on_the_cli_a_skill_follows_the_results_as_their_text(self):
+        """--backend claude-cli: the turn goes in once, each response's
+        results are its tool results, and the skill that follows them is
+        further text of the last one, as the app's notes after a result."""
+        outputs = [[call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+                   [reply("Type its API key into the form if it asks for one.")]]
+        answered = []
+
+        class Run:
+            def __init__(self, instructions, tools, items, model, effort):
+                answered.append(("start", items[-1]["content"]))
+
+            def next_response(self):
+                return outputs.pop(0), {}
+
+            def answer(self, calls, results):
+                answered.append(("answer", [call["name"] for call in calls], results))
+
+            def close(self):
+                pass
+
+        real_run, runner.claude_cli.Run, runner.CLAUDE = runner.claude_cli.Run, Run, ("claude-opus-5-5", "medium")
+        try:
+            passed, detail, _ = runner.run_once(runner.ConnectHostAddress, PROMPT, "key", "model")
+        finally:
+            runner.claude_cli.Run, runner.CLAUDE = real_run, None
+        self.assertTrue(passed, detail)
+        self.assertEqual(outputs, [])
+        [(_, names, results)] = [entry for entry in answered if entry[0] == "answer"]
+        self.assertEqual(names, ["printer_connect"])
+        result, skill = results[-1]
+        self.assertEqual(json.loads(result)["state"], "credential_requested")
+        self.assertEqual(skill, runner.claude_cli.developer_block(runner.CONNECTION_SKILLS["moonraker"])["text"])
 
     # --- Every call of a response runs -------------------------------------
 
@@ -191,7 +281,7 @@ class Responses(unittest.TestCase):
 
     def test_the_unrun_result_is_the_apps_own(self):
         """The runner's "not run" text is the app's, word for word."""
-        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/OpenAIResponsesAgent.cpp").read_text(encoding="utf-8")
+        source = (HERE.parents[1] / "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp").read_text(encoding="utf-8")
         block = source[source.index('"Not run:'):source.index('still needed."') + len('still needed."')]
         head, *rest = re.findall(r'"((?:[^"\\]|\\.)*)"', block)
         expected = {"state": "failed", "error": {"code": "not_run", "message": head + "printer_add (call-p)" + "".join(rest)}}

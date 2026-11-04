@@ -105,6 +105,10 @@ struct ToolActivity
     // MCP only: the client's own name for itself, as mcp_client_name() read
     // it; empty when the client gave none.
     std::string  client;
+    // The app's dialogs that opened while this call ran and were answered
+    // instead of shown, as {"items": [...]} in the shape of a load report's
+    // messages; empty when none opened.
+    std::string  app_dialogs_json;
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

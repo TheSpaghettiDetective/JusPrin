@@ -79,6 +79,7 @@ fake rereads it about once a second.
 | `offline` | `true` stops `push_status`; after ~30 s the menu first row is Offline |
 | `spools` | loaded AMS spools; see below. Absent leaves whatever was last set |
 | `send_fails` | `true` makes the next print or storage upload fail as an upload failure (read at the moment of Send), so OrcaSlicer's send dialog shows its error and reports no success |
+| `connect_fails` | a code such as `"5"` (or `true`, which is `"5"`) makes every connect report `ConnectStatusFailed` with that code to the app, as the plug-in does for a printer that refuses; upstream reads `"5"` as a wrong access code and erases the saved one. Nothing connects while it is set. Tests can also call `fail_next_connect(code)` on the agent for one connect |
 
 No `spools` (or an empty array) reports no AMS at all, same as before this
 field existed. A non-empty array reports one AMS unit (id `"0"`) with one
@@ -125,6 +126,30 @@ for Print.
 
 Logs: `<datadir>/log/debug_*.log`. This machine's default `grep` may be ugrep;
 use `/usr/bin/grep -a` on app logs.
+
+## A real printer, no model
+
+The printer tools are not exposed over MCP, so `probe.call` cannot reach them.
+`shell_integration_harness --printer-network-check <dir> <address> <version>`
+drives them with a scripted stand-in for the model, on Bambu's real plug-in:
+copy `plugins/` from a data folder that has it into `<dir>` first, and pass the
+version in its `libbambu_networking_<version>.dylib` name. It expects a P1S in
+cloud mode at `<address>`, prints each tool result and note as
+`HARNESS NETWORK` lines, and sends the printer nothing. `--simulate-announce` after
+the version hands the app that announcement itself 25 seconds in, for when no
+printer is on; it tests everything after the plug-in, not the plug-in. Printers announce on UDP
+2021. While another program holds that port the plug-in hears nothing, and
+`printer_connection_status` reports `port_taken`, so quit whatever
+`lsof -nP -iUDP:2021` names first. The plug-in takes the port only as the app
+starts, so once that program lets go the status reports `not_listening` until a
+restart. Holding the port from a small script is how to test both states.
+
+`--printer-connect-skill <dir> <address> <version>` runs the same chats for
+the connection skill; pass `none` as the version to run without the plug-in.
+`--open-issue` after the version also calls `issue_report_open`, which opens
+the default browser on a filled-in GitHub issue page. Nothing is filed unless
+someone presses Submit there, so close the tab. That run keeps its data
+folder; the link is in `log/debug_*.log` under "opening an issue page".
 
 ## Unit tests
 

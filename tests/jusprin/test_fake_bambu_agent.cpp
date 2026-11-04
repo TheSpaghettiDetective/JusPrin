@@ -270,3 +270,61 @@ TEST_CASE("FakeBambuAgent refuses a send while the control file asks it to fail"
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
 }
+
+// The real plug-in can answer a connect with ConnectStatusFailed and a code,
+// which upstream's handler reads ("5" is a wrong access code). Until this the
+// fake only ever said ConnectStatusOk, so no test could reach the app's
+// handling of a refused connection.
+TEST_CASE("FakeBambuAgent reports a refused connection with its code, once or while the control file says so", "[FakeBambuAgent]")
+{
+    CHECK(Slic3r::FakeBambuAgent::control_connect_failure(R"({"connect_fails":"5"})") == "5");
+    CHECK(Slic3r::FakeBambuAgent::control_connect_failure(R"({"connect_fails":true})") == "5");
+    CHECK(Slic3r::FakeBambuAgent::control_connect_failure(R"({"connect_fails":"7"})") == "7");
+    CHECK(Slic3r::FakeBambuAgent::control_connect_failure(R"({"connect_fails":false})").empty());
+    CHECK(Slic3r::FakeBambuAgent::control_connect_failure(R"({"state":"idle"})").empty());
+
+    Slic3r::FakeBambuAgent agent("");
+    std::vector<std::pair<int, std::string>> reported;
+    int                                      statuses = 0;
+    agent.set_on_local_connect_fn([&reported](int state, std::string, std::string msg) { reported.emplace_back(state, msg); });
+    agent.set_on_local_message_fn([&statuses](std::string, std::string) { ++statuses; });
+
+    agent.fail_next_connect("5");
+    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "wrong", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    REQUIRE(reported.size() == 1);
+    CHECK(reported[0].first == Slic3r::ConnectStatusFailed);
+    CHECK(reported[0].second == "5");
+    // A refused connection pushes no status: nothing is connected.
+    CHECK(statuses == 0);
+
+    // One connect only: the next succeeds as before.
+    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "right", false) == BAMBU_NETWORK_SUCCESS);
+    REQUIRE(reported.size() == 2);
+    CHECK(reported[1].first == Slic3r::ConnectStatusOk);
+    CHECK(statuses == 1);
+}
+
+TEST_CASE("FakeBambuAgent control file makes every connect fail while it asks to", "[FakeBambuAgent]")
+{
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / ("jusprin-fake-bambu-" + std::to_string(std::random_device{}()));
+    std::filesystem::create_directories(dir / "jusprin");
+    {
+        std::ofstream out((dir / "jusprin" / "fake_printer.json").string());
+        out << R"({"state":"idle","connect_fails":"7"})";
+    }
+
+    Slic3r::FakeBambuAgent agent(dir.string());
+    REQUIRE(agent.reload_control_file());
+    std::vector<std::string> codes;
+    agent.set_on_local_connect_fn([&codes](int state, std::string, std::string msg) {
+        if (state == Slic3r::ConnectStatusFailed)
+            codes.push_back(msg);
+    });
+    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "code", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "code", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    CHECK(codes == std::vector<std::string>{"7", "7"});
+
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}

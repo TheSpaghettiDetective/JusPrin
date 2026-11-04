@@ -638,6 +638,11 @@ tool list, MCP config and the CLI's event stream for reading afterwards.
   through it, and the step rules above apply unchanged: a read is answered
   with the recorded answer, a change ends the run (the runner stops the CLI;
   nothing is answered), a response of reads decides or is answered whole.
+- **Web search**: the CLI's own `WebSearch` is offered before the stub's
+  tools, as the app offers its provider's own search after its tools on every
+  reply request (since 2026-11-03). The CLI runs a search itself inside the
+  response, so the runner sees only its query and the pages it found; a
+  response whose only calls are searches is read on to the reply that follows.
 - **History**: the request's items before its last turn are written as a
   session file the CLI resumes (`--resume <file>`), so earlier messages,
   calls and results reach the model as its own turns, tool calls and tool
@@ -653,7 +658,7 @@ tool list, MCP config and the CLI's event stream for reading afterwards.
 
 Nothing from the developer's own Claude Code setup reaches the model: no
 CLAUDE.md, auto-memory, settings, hooks, output style, skills, other MCP
-servers or built-in tools, a minimal environment, and an empty temporary
+servers or built-in tools other than `WebSearch`, a minimal environment, and an empty temporary
 working directory. `test_claude_cli.py` checks that, and the shapes above,
 by running the installed CLI against a fake Messages endpoint on localhost
 (no login, nothing sent; about 10 seconds). Run it after a CLI update: the
@@ -679,12 +684,23 @@ What differs from the app's request, beyond the model:
   that follow the result there (the setup skill in `after-intent`, the
   slice-failed skill in `slice-refused-by-tool`) are further text blocks of
   that same tool result, since the CLI resumes no message after it.
+- **The CLI's search result** ends with its own instruction, "You MUST
+  include the sources above in your response to the user using markdown
+  hyperlinks." The app's provider searches add none. Replies after a search
+  on this backend often end with a "Sources:" list, which the app's would
+  not; in the printer suite one after a `Choices:` line fails the reply rule
+  (4 of 117 runs on 2026-11-03). The CLI runs the search inside its own
+  process, so the runner cannot take the sentence out.
 - **Pictures** reach the model, unlike on the pinned DeepSeek hosts, so
   `model-opened-unnamed`, `model-imported-by-tool` and `model-opened-by-tool`
   can be measured here.
 
 The usage the runner logs is the CLI's token count; on the subscription it is
 not billed per token.
+
+On both backends a search the model ran shows in the transcript the judge
+reads as a `web search: <query> -> <pages>` line, before the reply that uses
+it.
 
 ## Judging a prompt or skill change
 
@@ -886,7 +902,71 @@ followed by "ok, print it", was removed. It expected the model to know an
 OrcaSlicer slice-time rule that the setup preview does not report, and it
 failed the slice the prompt asks for before a print is called ready.
 
-## Current subscription baseline: the hook and the plan followed (2026-10-30)
+## Current subscription baseline: web search offered (2026-11-03)
+
+Recorded as the subscription baseline at Kenneth's request on 2026-11-03;
+its counts are `baseline-claude-cli.json`, recorded from the saved run with
+`--compare --record-baseline`. Compare later claude-cli runs with it, never
+with `baseline.json`. The same tree as the DeepSeek baseline below, with the
+CLI's `WebSearch` offered for the provider's search. All 27 cases, three runs
+each, `claude-opus-5-5` at effort `medium` for both model and judge, `--jobs
+5`, CLI 2.1.283 on macOS. 125 model requests, 2,730,699 input tokens
+(2,595,098 cached) and 45,985 output, plus 41 judge requests, 189,838 input
+and 12,451 output, all on the subscription.
+
+79 of 81 runs passed; none was unobserved and none searched. Against the
+2026-10-30 baseline no case moved by two runs or more. The two failures are
+single judged runs:
+
+- `after-slice` run 2 said the slice was still running but ended on
+  choices to print one plate or both, which the judge read as calling it
+  ready.
+- `model-opened-unnamed` run 3 said the printer removes supports
+  afterwards.
+
+## Current baseline: web search offered (2026-11-03)
+
+Recorded as the baseline at Kenneth's request on 2026-11-03; its counts are
+`baseline.json`, recorded from the saved run with `--compare
+--record-baseline`. `claude/tool-results-truth` at 3e662278ea with this
+suite's search changes uncommitted (both were then folded with this baseline
+into the one commit that carries them, so that hash is not on the branch): the
+provider's own web search is offered after the app's tools on every request,
+the project prompt shares the printer prompt's rule to search before naming a
+menu, a setting or a cause, and a search shows in the judged transcript. All 27 cases, three
+runs each, DeepSeek V4 Flash pinned to Alibaba, Novita, Baidu and AtlasCloud
+and the pinned OpenAI judge. 56 passed, 3 failed and 7 unobserved in the 22
+cases measured; the five picture cases are unmeasured as before (HTTP 404, no
+host takes images). Usage: 105 model requests, 1,494,443 input tokens
+(1,333,632 cached), 32,681 output; 36 judge requests, 90,354 input, 6,072
+output.
+
+Against the 2026-10-29 baseline one case moved by two runs or more:
+`slice-refused-by-tool`, 3 of 3 to 1 of 3, marked WORSE. Its two failures are
+the judge's reading of the refusal: one reply did not say the plate was left
+unsliced, the other added a cause the app did not give (PETG needs a hotter
+bed than a Cool Plate takes). Neither run searched. The same tree passed 3 of
+3 in a run earlier the same day, so this is read as three-run noise, 4 of 6
+over the two runs. Read beside it:
+
+- Only `troubleshoot-first-layer` run 1 searched (twice, Bambu's wiki on a
+  first layer that does not stick to a textured PEI plate); its three runs
+  were unobserved, as two of three were before, on settings reads the
+  recording does not hold. The run was made before the judge's transcript
+  showed every page of a search (it showed five); no judged run searched, so
+  the counts are the same under the final test code.
+- `after-slice` run 3 failed on calling the plate ready to print while saying
+  the slice was still running.
+- The other unobserved runs (`advice-infill` 3, `reply-in-german` 1,
+  `calibration-symptom` 1 and 2) asked for settings by names OrcaSlicer does
+  not have or searched settings with wordings the recording does not hold.
+
+## Baseline history
+
+Earlier baselines, kept for audit only. Do not compare a new run against
+them.
+
+### The hook and the plan followed: subscription baseline (2026-10-30)
 
 Confirmed as the subscription baseline by Kenneth on 2026-10-30; its counts
 are `baseline-claude-cli.json`, recorded from the saved run with `--compare
@@ -914,7 +994,7 @@ had no counts. Read beside it:
   before this one, on two questions in a reply and on `"215,215"` where `215` is
   expected. Neither came up here, and three runs is too few to say they are gone.
 
-## Current baseline: the chat record (2026-10-29)
+### The chat record (2026-10-29)
 
 Confirmed as the baseline by Kenneth on 2026-10-30; its counts are
 `baseline.json`, recorded from the saved run with `--compare
@@ -958,11 +1038,6 @@ change. Read beside it:
   gets HTTP 404 like the three picture cases. The case still tests the
   prompt's sentence on file contents; measuring it again needs a model that
   accepts pictures.
-
-## Baseline history
-
-Earlier baselines, kept for audit only. Do not compare a new run against
-them.
 
 ### The subscription baseline without setup_record's fields (2026-10-25)
 

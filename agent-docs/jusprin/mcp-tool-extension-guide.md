@@ -173,6 +173,8 @@ The conclusion is that a definition adds cost to the *first* request of each con
 
 **The printer panel follows the same rule with its own set of tools.** The printer panel on Home runs its own conversation, `PrinterConversation`. That conversation is offered the five printer tools and the four settings tools. The list is the same in every mode (Add, Change, or Connect), so it stays byte-identical through a conversation and between conversations of the same mode.
 
+One tool is added during a conversation, on purpose. `issue_report_open` comes with the Bambu connection skill (`PrinterConversation::connection_skill`, carried as `AgentSkillUse::tools`). It is offered from the request where the skill is first sent, including the continuation after the tool result that brought the skill, and on every request after that. A chat where the person never tries to connect never has it. Adding it costs that chat one prompt-cache miss, and that cost was accepted. The list stays the same from then on. This is not deferral: no tool search, no `defer_loading`, and no toolsets. The app decides when the tool is offered, and the model never asks for it.
+
 What a call may do depends on the conversation. `PrinterConversation::preflight_tool` refuses every call that is not allowed, before any card is shown, with an error that says where to go instead. The rules are:
 
 - Finding and adding a printer (`printer_identify`, `printer_add`) is allowed only in an Add conversation. A Change or Connect conversation is about a printer the person already has. An add there would save another printer and move the conversation onto it.
@@ -389,6 +391,38 @@ The settings tools return these correction details, each limited in size:
 
 A failure that should be impossible (a broken invariant) must stay visible to diagnostics and to Sentry. Catch an error at the boundary between two layers only to recover from it, to translate a known error, or to add context that is essential.
 
+### A reason travels with every refusal and every empty result
+
+Added 2026-11-01, narrowed 2026-11-02. On 2026-10-31 a Bambu Lab P1S failed to connect through the printer chat: the person gave its address, the app had heard the printer in cloud mode, and the result said "No printer in LAN mode is on the network now". The right next step, turning LAN Only on, was in the app's hands and in nobody else's. The four rules above are about the code; this one is about the person on the other side of the model:
+
+**A refusal or an empty result is wrong when it leaves a person stuck: told something false or useless at that moment, with the right next step hidden, at a cost beyond one more tool call.**
+
+That is the whole test, and it is applied per case, not per code shape. A sweep on 2026-11-01 found eleven places where a result said less than the app knew. Judged by this test, three were real and were fixed; the other eight were not, and their fixes were taken out again (Kenneth, 2026-11-02: "fixing a non-problem is a lot worse than not fixing a real problem"). The model recovering the truth with its next ordinary call (`slice_report` after a bare `valid: false`, a search without a scope after an empty page) is not a stuck person, and every field added for such a case is text every model reads on every call. The three that were real:
+
+1. **A wrong Bambu access code.** Upstream's handler erases the saved code and clears the selection; a backend that read the selection said "The selected printer changed" or "The printer is no longer available", and the person, who had mistyped the code from the printer's screen, was sent to refresh a list. `Printers/ConnectionEvents` records the plug-in's answer at the moment it arrives, and the backend reads that before it reads the selection.
+2. **A print host that answered.** A Klipper owner who types the Mainsail port instead of Moonraker's, or picks Moonraker for an OctoPrint host, was told "Could not reach the print host. Check its address, API key and network." The host was reached and said what it was. One line of the host's own answer travels with the failure.
+3. **A heard printer the connection does not offer.** A person retrying after a failed add, with the printer's serial already linked to the first saved entry, was told "no printer of this model is on the network" while it was being heard. Every printer the search heard is in `seen` with a `reason` (`other_model`, `linked_elsewhere`, `other_device`, `occupied`, `cloud_mode`, `account_only`), and the refusal names it.
+
+What they share: the fork read what OrcaSlicer's event left behind (a cleared selection, a pass-or-fail flag, a filtered list) instead of the event itself, and the fakes could not produce the failing answer, so no test ever showed the sentence a person would read. The guard for a case that passes the test is a state table: arrange each state, read the tools that report it, and assert the results differ (`tests/agent/test_printer_conversation.cpp` "reports every printer it heard", the `--printer-setup` harness checks named `*_are_told_apart`), with the fake taught to produce every failure the real owner can (`FakeBambuAgent::fail_next_connect`, the harness's `StandInHost` with a status and body). Where a table deliberately leaves two states reading the same, a one-line comment at that assertion says why. Kenneth's rule of 2026-10-15 stands as it was: a rare failure the app has nothing more to say about gets one generic error.
+
+### How to fix a result that hides the failure
+
+Added 2026-11-02. The fix is mechanical, and a new check is almost never part of it. Four rules, in order (Kenneth, 2026-11-02):
+
+1. **The source gives an error: forward it.** Pass on the `what()`, the reason string or the list the code already holds, and keep any instruction the sentence carried, such as "Do not repeat the call".
+2. **The source gives nothing: say what the code tested or saw, and delete any guessed cause.** Do not add a check or a branch to tell causes apart. If the code does not know something, the sentence stops claiming it, and there is nothing further to investigate.
+3. **A comment says a lower layer's message misleads the model: keep the replacement.** `generate_calibration` drops the load report on purpose, because the over-the-build-volume warning is about the test model before the generator cut it. A replacement with no such comment is not protected by this rule.
+4. **The fix needs a file OrcaSlicer owns: skip the entry.** Kenneth approves any upstream change one by one.
+
+A forwarded error reaches the model, so it must not name Orca or OrcaSlicer, and `AgentUI/src/wording.test.ts` does not see those strings.
+
+False successes are the exception to rule 1, because the source reports nothing. These OrcaSlicer calls do not say when they failed, so check the outcome yourself:
+
+- `store_stl` always returns true. `TriangleMesh::write_binary` returns false only when the file will not open, so a full disk shows only in the file size (84 + 50 per facet).
+- `PresetBundle::export_current_configs` lists a file whether or not it was written.
+- `Plater::split_object` returns nothing and only shows a dialog, and the model is unchanged.
+- `ModelObject::split` splits a multi-volume object only by volume, so one solid part with a modifier stays whole however many shells it has.
+
 ## Read, mutation, and destructive policy
 
 Decide what a tool may do from its action class in the registry, not from its name:
@@ -423,7 +457,7 @@ By default, offer a tool through both adapters when both can supply the same inp
 - Import from an attachment (`object_import`) is in-app only, and import from a path (`object_import_file`) is MCP only. In the first case the file reaches the app through the conversation. In the second it arrives as an explicit path. These are two separate definitions that each say exactly what they do, both built on one workspace command. They are not one tool that behaves differently for different callers.
 - `setup_record` is in-app only. The purpose and the pinned plan belong to the in-app chat. An external agent keeps what its user said, and its own plan, in its own conversation. MCP clients can still read the plan through `workspace_inspect`. For the same reason, the in-app assistant's print guidance, which names these tools, is not part of the MCP server's instructions. That guidance is the "Intent and setup", "Preparation" and "Verification" paragraphs of the in-app prompt, written on the page in `AgentUI/src/projectInstructions.ts`.
 - A future MCP diagnostics tool may be MCP only, if its purpose is to establish the external connection.
-- The printer panel's five own tools carry only the `Printer` exposure. Neither adapter lists them. The panel's conversation offers all of them in every mode and refuses the calls that do not fit the conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). What the model reads back from one of these tools is the tool's own result. It is not wrapped in the host's workspace envelope.
+- The printer panel's own tools, the five printer tools and `issue_report_open`, carry only the `Printer` exposure. Neither adapter lists them. The panel's conversation offers all of them in every mode and refuses the calls that do not fit the conversation (see [Tool budget and tool shape](#tool-budget-and-tool-shape)). What the model reads back from one of these tools is the tool's own result. It is not wrapped in the host's workspace envelope.
 
 Write the reason for a restricted exposure next to the registry definition, and test it. Do not use exposure to make one tool behave differently for different callers. If two adapters need different behavior, either improve the shared command or create two separate definitions that each say what they really do.
 

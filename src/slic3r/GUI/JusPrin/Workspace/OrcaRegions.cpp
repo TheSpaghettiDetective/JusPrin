@@ -137,7 +137,7 @@ CommandResult OrcaWorkspaceAdapter::plan_regions(const std::vector<RegionRequest
             index = region_object(*existing);
             if (!index)
                 return CommandResult::failure(WorkspaceError::StaleId,
-                                              "Region " + existing->id + "'s object is no longer in the project; annotate it again with an objectId");
+                                              "Region " + existing->id + "'s object is not in the project; annotate it again with an objectId");
         } else {
             return CommandResult::failure(WorkspaceError::InvalidArgument, "A new region needs an objectId");
         }
@@ -272,7 +272,7 @@ CommandResult OrcaWorkspaceAdapter::plan_regions(const std::vector<RegionRequest
                 continue;
             artifact.facets = facets_of(parts[record.part]->mesh().its, record.geometry);
             if (artifact.facets.empty())
-                return CommandResult::failure(WorkspaceError::StaleId, "No facet of " + object.name + " matches that face any more");
+                return CommandResult::failure(WorkspaceError::StaleId, "No facet of " + object.name + " matches that face");
         }
         record.label = region_label(record);
         planned.push_back(std::move(record));

@@ -645,8 +645,11 @@
                 // The suite sends its own copies; they must be what the app sends.
                 const std::string case_name = reply["record"];
                 // Every request of the project chat offers the same tools,
-                // whatever its message attaches.
-                check(request.body.at("tools") == tools, case_name + "_tools_match_project_tools_json");
+                // whatever its message attaches, then the provider's own
+                // search, which the suite adds itself (web_search()).
+                json offered = tools;
+                offered.push_back(json{{"type", "web_search"}});
+                check(request.body.at("tools") == offered, case_name + "_tools_match_project_tools_json");
                 check(request.body.at("instructions") == instructions, case_name + "_instructions_are_the_page_prompt");
                 json kept = request.body;
                 kept.erase("tools");

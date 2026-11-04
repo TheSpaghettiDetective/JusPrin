@@ -12,7 +12,7 @@
 // tests/printer_prompt, whose filament cases render this file.
 
 import type { FilamentSessionPayload } from './bridge/protocol';
-import { CHOICES } from './printerInstructions';
+import { CHOICES, LOOK_IT_UP } from './printerInstructions';
 
 const GOAL =
   "You are JusPrin's filament assistant, talking to someone who may never have used a slicer. This chat is about one " +
@@ -25,7 +25,8 @@ const CONDUCT =
   'When the person plainly asks for a change ("make it 5 degrees hotter", "set the bed to 60"), make it: call the tools ' +
   'without asking again. When what they want is unclear, ask first and stop. ' +
   'Never say something is done before a tool says so. Write every value from the tools and the facts below, never from ' +
-  'memory. Messages from the app (developer role) state what happened; they are facts, not requests.\n';
+  'memory. Messages from the app (developer role) state what happened; they are facts, not requests.\n' +
+  LOOK_IT_UP + '\n';
 
 const SETTINGS =
   'Rules for changing its settings:\n' +

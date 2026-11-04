@@ -528,7 +528,7 @@ bool ProjectAutosave::capture(bool wait_for_commit)
         const int result = m_plater.export_3mf(boost_path(metadata),
                                                 SaveStrategy::Backup | SaveStrategy::Silence);
         if (result < 0)
-            throw std::runtime_error("OrcaSlicer could not capture project metadata");
+            throw std::runtime_error("The app could not capture project metadata");
         protect_saved_settings(metadata);
         const wxString source = m_plater.get_project_filename(".3mf");
         auto frozen = m_store->freeze(m_plater.model(), id, ++m_revision, m_persistence.document().dump(),
@@ -766,6 +766,8 @@ std::optional<std::vector<ProjectAutosave::SourceMatch>> ProjectAutosave::projec
             return std::nullopt;
         if (!digest_now)
             digest_now = file_digest(source);
+        if (digest_now->empty())
+            return std::nullopt;
         return *digest_now != digest;
     };
     std::vector<std::pair<std::filesystem::file_time_type, SourceMatch>> matches;
@@ -1121,7 +1123,7 @@ bool ProjectAutosave::restore_impl(const std::string& version_id, const std::str
                 strategy = strategy | LoadStrategy::AllowEmpty;
             const auto loaded = load_managed_checkpoint(m_plater, *materialized, strategy);
             if (loaded.empty() && !materialized->empty)
-                throw std::runtime_error("OrcaSlicer could not restore the selected model");
+                throw std::runtime_error("The app could not restore the selected model");
             if (materialized->empty && !m_plater.model().objects.empty())
                 throw std::runtime_error("the empty project version restored geometry unexpectedly");
             m_plater.set_project_filename(wxString::FromUTF8(version->source_path));

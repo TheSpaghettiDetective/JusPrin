@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
-import { printerInstructions } from './printerInstructions';
+import { LOOK_IT_UP, printerInstructions } from './printerInstructions';
 import { splitChoices } from './replyChoices';
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
@@ -67,7 +67,7 @@ describe('the instructions', () => {
   it('state that the printer cannot be reached without the plug-in, when the app says so', () => {
     const printer = { ...change.context.printer!, needsNetworkPlugin: true };
     const text = printerInstructions({ ...change, context: { ...change.context, printer } });
-    expect(text).toContain("Bambu's network plug-in: not installed, so nothing can reach this printer yet.");
+    expect(text).toContain("Bambu's network plug-in: not loaded, so nothing can reach this printer yet.");
     expect(text).not.toMatch(/button/);
   });
 
@@ -83,9 +83,16 @@ describe('the instructions', () => {
     expect(printerInstructions(empty)).toContain('Loaded, as the printer reports it: nothing\n');
   });
 
+  it('do not say a connected print host has nothing loaded, as it never reports it', () => {
+    const host = session({ ...change, context: { printer: { ...change.context.printer!, spools: [], provider: 'host' } } });
+    const text = printerInstructions(host);
+    expect(text).toContain('Loaded, as the printer reports it: not known, as a Moonraker or OctoPrint connection does not report it\n');
+    expect(text).not.toContain('reports it: nothing');
+  });
+
   it('name what is on the network', () => {
     const text = printerInstructions(session({ context: { printers: [], network: [{ name: 'Workshop', serial: '01P00A3B' }] } }));
-    expect(text).toContain('On the network now: Workshop (01P00A3B)\n');
+    expect(text).toContain('Printers the app knows of now: Workshop (01P00A3B)\n');
   });
 
   it('keep the rules that encode real constraints', () => {
@@ -101,14 +108,12 @@ describe('the instructions', () => {
       'Never ask for a password, access code or API key in chat',
       'a timeout means no response, not a wrong code',
       'answer anything the person says meanwhile',
-      'name the three ways forward:',
-      'try again with the same address',
-      'set up the connection manually in the app',
-      'Do not claim to open settings for them',
+      'give the likeliest explanation and say it is your guess',
+      'do not send them back to a step already done or already failed',
       'browse the full list manually in the app',
       'If the person asks to see the full printer list',
       'do not recite the list in chat or claim to open it for them',
-      'leave it for now, as the printer can prepare prints without a connection',
+      'leave it for now, as they can prepare prints for it without a connection',
       'nozzle mismatch reported by the printer',
       'when someone says what they loaded there is nothing to save',
       'call the tool without asking again',
@@ -147,6 +152,14 @@ describe('the instructions', () => {
     expect(printerInstructions(add)).toContain('Rules for finding the printer');
   });
 
+  it('tell the model in every session that it has web search, and drop the old guess-only rule', () => {
+    const connect = session({ ...change, mode: 'connect' });
+    for (const text of [printerInstructions(add), printerInstructions(change), printerInstructions(connect)]) {
+      expect(text.split(LOOK_IT_UP)).toHaveLength(2);
+      expect(text).not.toContain('only as a guess, unless a tool or the person told you');
+    }
+  });
+
   it('keep the rule for a refused nozzle size in every session, since printer_change refuses one too', () => {
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(add), printerInstructions(change), printerInstructions(connect)])
@@ -158,7 +171,7 @@ describe('the instructions', () => {
     // the printer it was about (2026-09-28).
     const connect = session({ ...change, mode: 'connect' });
     for (const text of [printerInstructions(change), printerInstructions(connect)])
-      expect(text).toContain('This printer is already set up in this app: it can prepare prints now, connected or not.');
+      expect(text).toContain('This printer is already set up in this app: they can prepare prints for it now, connected or not.');
     expect(printerInstructions(add)).not.toContain('already set up in this app');
   });
 

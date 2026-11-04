@@ -383,27 +383,42 @@ json project_section_result(const Workspace::WorkspaceSnapshot& snapshot, const 
             {"backupCurrent", details.backup_current}, {"truncated", truncated}};
 }
 
+namespace {
+// Adds one thing the app said, unless the list is full or already says it:
+// Orca repeats some notices while one load runs (the plate boundary error
+// comes two or three times); once says it.
+void add_message_row(json& items, const Workspace::OrcaMessage& message, bool& truncated)
+{
+    if (items.size() == kReportedMessageLimit) {
+        truncated = true;
+        return;
+    }
+    json row{{"source", message.source}, {"title", label(message.title, truncated)},
+             {"text", bounded(message.text, 4000, truncated)}, {"buttons", message.buttons},
+             {"answer", message.answer}};
+    if (!message.recognized)
+        row["recognized"] = false;
+    if (std::find(items.begin(), items.end(), row) == items.end())
+        items.push_back(std::move(row));
+}
+} // namespace
+
 json orca_messages_result(const Workspace::LoadReport& report)
 {
     bool truncated = false;
     json items = json::array();
     for (const Workspace::FileLoadRecord& load : report.loads)
-        for (const Workspace::OrcaMessage& message : load.messages) {
-            if (items.size() == kReportedMessageLimit) {
-                truncated = true;
-                break;
-            }
-            json row{{"source", message.source}, {"title", label(message.title, truncated)},
-                     {"text", bounded(message.text, 4000, truncated)}, {"buttons", message.buttons},
-                     {"answer", message.answer}};
-            if (!message.recognized)
-                row["recognized"] = false;
-            // Orca repeats some notices while one load runs (the plate
-            // boundary error comes two or three times); once says it.
-            if (std::find(items.begin(), items.end(), row) != items.end())
-                continue;
-            items.push_back(std::move(row));
-        }
+        for (const Workspace::OrcaMessage& message : load.messages)
+            add_message_row(items, message, truncated);
+    return {{"items", std::move(items)}, {"truncated", truncated}};
+}
+
+json app_dialogs_result(const std::vector<Workspace::OrcaMessage>& messages)
+{
+    bool truncated = false;
+    json items = json::array();
+    for (const Workspace::OrcaMessage& message : messages)
+        add_message_row(items, message, truncated);
     return {{"items", std::move(items)}, {"truncated", truncated}};
 }
 

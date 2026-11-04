@@ -22,6 +22,7 @@
 // supply fakes.
 
 #include "PrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentService.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 
@@ -46,6 +47,8 @@ class IConversationHost
 public:
     virtual ~IConversationHost() = default;
 
+    // The chat so far, for a report; see connection_chat_record.
+    virtual nlohmann::json chat_record() const = 0;
     // A line in the thread stating what happened, which the model reads as
     // the app's own words. Returns its message id.
     virtual std::string post_note(const std::string& text) = 0;
@@ -59,10 +62,31 @@ public:
     virtual void profile_changed() = 0;
     // The panel is done: restore its originating workspace.
     virtual void close_panel() = 0;
+    // Opens `url` in the person's default browser. False when none opened.
+    virtual bool open_in_browser(const std::string& url) = 0;
+    // This app's version, as an issue report gives it.
+    virtual std::string app_version() const = 0;
     // Home's printer list is out of date. `added` names a printer this
     // session just added, which Home leads with; empty for any other change.
     virtual void printers_changed(const std::string& added = {}) = 0;
 };
+
+// What a connection report says of a chat: its messages as {role, text} under
+// "turns", and its connection tools' calls under "tools". The access code or
+// API key goes into a form of its own and is in neither.
+nlohmann::json connection_chat_record(const std::vector<Agent::ConversationMessage>& messages,
+                                      const std::vector<Agent::ToolActivity>&        activities);
+
+// The GitHub page for a new JusPrin issue, filled in with `title` and `body`
+// and ending in the app's own `footer`. A body that would take the link past
+// kIssueLinkLimit bytes is cut, never the footer, and `shortened` says so.
+inline constexpr std::size_t kIssueLinkLimit = 8000;
+struct IssueLink
+{
+    std::string url;
+    bool        shortened{false};
+};
+IssueLink issue_link(const std::string& title, const std::string& body, const std::string& footer);
 
 class PrinterConversation
 {
@@ -88,18 +112,26 @@ public:
     bool handle_page_message(const std::string& type, const nlohmann::json& payload);
 
     // Checks printer_connect before its input form is shown, and titles it.
-    std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity) const;
+    std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity);
     // The session's own tools. Returns an unhandled result for any other
     // handler, so the host's own extensions still run.
     Agent::ToolExecutionCoordinator::ExtensionResult execute_tool(Agent::ToolHandler         handler,
                                                                  const Agent::ToolActivity& activity);
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
+    // The skill for this printer's connection type, once the person has
+    // tried to connect it, and the tool that comes with it: issue_report_open,
+    // for someone stuck who wants the developers to know. Nothing before
+    // that, so someone who only picks a printer and prepares prints never
+    // gets either, and nothing for a connection type that has no skill yet.
+    std::optional<Agent::SessionSkill> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once
     // they are read. While a connection is being verified, looks at most once
     // a second, and once it settles says how in a note and has the model
-    // answer.
+    // answer. Does the same for a network search: when it first finds a
+    // printer, and when it has found none after about 15 seconds, or cannot
+    // hear any because this app does not hold the port they announce on.
     void tick(std::chrono::steady_clock::time_point now);
 
     // A settings tool this session ran has settled. A copy of the printer
@@ -118,13 +150,25 @@ private:
     Result change(const nlohmann::json& arguments);
     Result connection_status(const std::string& name, const std::string& message_id);
     Result request_credential(const nlohmann::json& arguments, const std::string& action_id);
+    Result open_issue(const nlohmann::json& arguments);
     void   connect(const nlohmann::json& arguments, const std::string& credential);
+    // Why printer_connect refused `asked`, from what the app has observed.
+    std::string    unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const;
+    // How far the network search has got, for a refusal and for the status.
+    std::string    search_text() const;
+    nlohmann::json search_json(const PrinterConnectionInfo& info) const;
+    void           watch_search(std::chrono::steady_clock::time_point now);
     // The notice that Bambu's network plug-in is missing, under this message:
     // drawn by the app, once a session, whatever the model says around it.
     void show_plugin_needed(const std::string& message_id);
     // Its Install button: runs the installer, and tells the model if the
     // plug-in is there afterwards.
     void install_network_plugin();
+    // A connection attempt failed; `message_id` is the note that says so.
+    // The second failure in a session puts the report card under it.
+    void connection_failed(const std::string& message_id);
+    // The person's answer on that card.
+    void answer_report(const std::string& block_id, bool send);
     // Drops a connection attempt still waiting, so what the printer answers
     // later is never read.
     void abandon_connection();
@@ -165,11 +209,33 @@ private:
 
     // What this session added, by catalogue id: the saved printer's name.
     std::map<std::string, std::string> m_added;
-    // The printer discovery was started for this session.
+    // The printer discovery was started for this session -- once: starting
+    // again switches the printer agent and restarts discovery, so a model that
+    // checks again would never let it find anything.
     std::string m_prepared;
+    // That search, from when it could run. `said_none`, `port` and `found`
+    // record what the model has been told, by a note or by reading the status;
+    // once it has been told of a printer there is nothing left to watch for.
+    struct NetworkSearch
+    {
+        std::chrono::steady_clock::time_point started;
+        std::chrono::steady_clock::time_point last_look{};
+        bool                                  said_none{false};
+        DiscoveryPort                         port{DiscoveryPort::Ours};
+        bool                                  found{false};
+    };
+    std::optional<NetworkSearch> m_search;
     // The printer this is about cannot be reached until Bambu's network
     // plug-in is installed.
     bool m_needs_plugin{false};
+    // The person has tried to connect the printer this is about: opened the
+    // chat for that, had the model call a connection tool, or linked a printer
+    // found on the network in the form.
+    bool m_connect_tried{false};
+    // A print host's kind, "moonraker" or "octoprint", once the saved
+    // connection or a connection attempt names one; it picks the skill.
+    std::string m_host_type;
+    int  m_failed_connections{0};
     // The local credential form and the call it will complete. The secret is
     // passed directly to connect and is never stored here.
     std::string    m_credential_action;

@@ -167,10 +167,11 @@ public:
         std::optional<EarlierProject> project;
         bool                          unreadable{false};
     };
-    // Finds, opens, and tells the owner which file the new project came
-    // from. Without them every file opens as a new project.
+    // Finds, opens (answering what went wrong, or nothing), and tells the owner
+    // which file the new project came from. Without them every file opens as a
+    // new project.
     void set_earlier_projects(std::function<EarlierLookup(const std::string& path)> find,
-                              std::function<bool(const std::string& id)> open,
+                              std::function<std::string(const std::string& id)> open,
                               std::function<void(const std::string& path)> opened_from)
     {
         m_find_earlier = std::move(find);
@@ -323,8 +324,9 @@ private:
     // The action whose project save, after it ran, is not done yet: its
     // outcome is held back from subscribers until it is (see pump()).
     std::string                      m_saving_after;
+    std::string                      m_announce_after; // the call pump() is running, announced when it is done
     std::function<EarlierLookup(const std::string&)> m_find_earlier;
-    std::function<bool(const std::string&)>                          m_open_earlier;
+    std::function<std::string(const std::string&)>                   m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;
     std::function<void(const Workspace::LoadReport&)>                m_agent_project_opened;
     CalibrationProject                                               m_calibration;

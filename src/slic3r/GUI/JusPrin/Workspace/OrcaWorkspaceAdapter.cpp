@@ -711,6 +711,25 @@ void OrcaWorkspaceAdapter::file_open_started()
     m_open_answers = std::make_unique<ScopedLeastChangeAnswers>(/*prefer_cancel=*/true);
 }
 
+std::uint64_t OrcaWorkspaceAdapter::open_tool_call_dialogs()
+{
+    wxASSERT(wxIsMainThread());
+    const std::uint64_t token = ++m_next_tool_call_dialogs;
+    m_tool_call_dialogs.emplace(token, std::make_unique<ScopedLeastChangeAnswers>());
+    return token;
+}
+
+std::vector<OrcaMessage> OrcaWorkspaceAdapter::close_tool_call_dialogs(std::uint64_t token)
+{
+    wxASSERT(wxIsMainThread());
+    const auto found = m_tool_call_dialogs.find(token);
+    if (found == m_tool_call_dialogs.end())
+        throw std::logic_error("A tool call's dialog listener was closed twice");
+    std::vector<OrcaMessage> messages = found->second->take_messages();
+    m_tool_call_dialogs.erase(found);
+    return messages;
+}
+
 void OrcaWorkspaceAdapter::file_open_finished()
 {
     wxASSERT(wxIsMainThread());
@@ -951,6 +970,7 @@ void OrcaWorkspaceAdapter::on_slice_status_changed(wxCommandEvent& event)
     if (!slicing && m_failed_run_plate) {
         record_slice_failure(SliceFailureKind::Failed);
         m_failed_run_plate.reset();
+        m_failed_run_message.clear();
     }
     publish_change(WorkspaceChangeReasons::Slicing);
 }
@@ -961,8 +981,10 @@ void OrcaWorkspaceAdapter::on_process_completed(SlicingProcessCompletedEvent& ev
     wxASSERT(wxIsMainThread());
     if (!event.error())
         return;
-    if (const PartPlate* current = m_plater.get_partplate_list().get_curr_plate())
-        m_failed_run_plate = current->id().id;
+    if (const PartPlate* current = m_plater.get_partplate_list().get_curr_plate()) {
+        m_failed_run_plate   = current->id().id;
+        m_failed_run_message = event.format_error_message().first;
+    }
 }
 
 void OrcaWorkspaceAdapter::on_slice_declined()
@@ -993,7 +1015,7 @@ bool OrcaWorkspaceAdapter::record_slice_failure(SliceFailureKind kind)
         failure.kind     = kind;
         failure.severity = "blocker";
         failure.message  = kind == SliceFailureKind::Refused ? "The app did not start slicing this plate." :
-                                                               "The slice stopped with an error.";
+                               m_failed_run_message.empty() ? "The slice stopped with an error." : m_failed_run_message;
     }
     const auto known = m_slice_failures.find(plate);
     if (known != m_slice_failures.end() && known->second.same_reason(failure))
@@ -2730,7 +2752,7 @@ CommandResult OrcaWorkspaceAdapter::import_objects(const ImportRequest& request,
     const boost::filesystem::path path(request.path);
     boost::system::error_code error;
     if (!path.is_absolute() || !boost::filesystem::is_regular_file(path, error) || boost::filesystem::file_size(path, error) == 0)
-        return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file does not exist");
+        return CommandResult::failure(WorkspaceError::InvalidArgument, "The model file must be an absolute path to a file with content");
     static const std::set<std::string> importable{".3mf", ".stl", ".obj", ".step", ".stp", ".amf", ".drc"};
     if (importable.count(boost::algorithm::to_lower_copy(path.extension().string())) == 0)
         return CommandResult::failure(WorkspaceError::InvalidArgument, "The app imports .stl, .obj, .step, .amf, .drc and .3mf files");
@@ -3169,7 +3191,7 @@ void check_persist(const SettingsPatch& patch, const PresetOwner& owner, Setting
         if (!preset.can_overwrite()) {
             const std::string copy = copy_name(collection, preset);
             result.issues.push_back({"", "read_only_preset",
-                                     "\"" + preset.name + "\" comes with the app and cannot be overwritten. Save the change "
+                                     "\"" + preset.name + "\" cannot be overwritten. Save the change "
                                      "as a copy: pass persistAs \"" + copy + "\".", {}, {copy}});
         }
     } else if (preset_name_in_use(collection, name)) {

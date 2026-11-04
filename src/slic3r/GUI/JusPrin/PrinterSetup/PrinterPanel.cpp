@@ -7,6 +7,7 @@
 #include "OrcaPrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
 #include "libslic3r/Utils.hpp"
+#include "libslic3r_version.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
@@ -15,8 +16,10 @@
 #include "libslic3r/PresetBundle.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <wx/sizer.h>
+#include <wx/utils.h>
 
 #include <optional>
 
@@ -101,6 +104,7 @@ void PrinterPanel::build_runtime()
             return m_conversation->preflight_tool(handler, activity);
         });
         host.set_session_tool_output([this](const Agent::ToolActivity& activity) { return m_conversation->tool_output(activity); });
+        host.set_session_skill([this] { return m_conversation->connection_skill(); });
         host.tools().set_version_callbacks(m_callbacks.version_before, m_callbacks.version_after);
         // Ids from this panel's own document would start again at the
         // first one each opening and be refused by the project's history.
@@ -180,6 +184,7 @@ void PrinterPanel::tear_down_runtime()
         host.set_session_state_provider({});
         host.set_page_message_handler({});
         host.set_session_tool_executor({});
+        host.set_session_skill({});
         m_retired.push_back({std::move(m_persistence), std::move(m_web_view)});
         m_release_timer.StartOnce(kReleaseRetryMs);
         return;
@@ -410,6 +415,14 @@ void PrinterPanel::on_pump(wxTimerEvent&)
 
 // -- What the conversation asks of its panel ---------------------------------
 
+nlohmann::json PrinterPanel::chat_record() const
+{
+    const Agent::ProjectStateDocument& document = m_persistence->document();
+    nlohmann::json record = connection_chat_record(document.messages(document.active_conversation_id()), m_web_view->host().tools().activities());
+    record["app"] = SLIC3R_VERSION;
+    return record;
+}
+
 std::string PrinterPanel::post_note(const std::string& text)
 {
     return m_web_view ? m_web_view->host().post_note(text) : std::string();
@@ -449,5 +462,13 @@ void PrinterPanel::printers_changed(const std::string& added)
     if (m_callbacks.printers_changed)
         m_callbacks.printers_changed(added);
 }
+
+bool PrinterPanel::open_in_browser(const std::string& url)
+{
+    BOOST_LOG_TRIVIAL(info) << "Printer chat: opening an issue page, " << url.size() << " bytes: " << url;
+    return wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+}
+
+std::string PrinterPanel::app_version() const { return SLIC3R_VERSION; }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

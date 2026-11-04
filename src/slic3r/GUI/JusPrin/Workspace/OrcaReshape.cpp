@@ -137,7 +137,7 @@ CommandResult check_divide(const ModelObject& object, const DivideRequest& reque
         return CommandResult::failure(WorkspaceError::Refused, object.name + " has no instance to divide");
     if (object.is_cut())
         return CommandResult::failure(WorkspaceError::Refused,
-                                      object.name + " was cut with connectors; divide it with the app's cut tool");
+                                      object.name + " is a cut object; divide it with the app's cut tool");
     if (request.mode == DivideRequest::Mode::Plane) {
         const Vec3d normal(request.normal[0], request.normal[1], request.normal[2]);
         if (normal.norm() < 1e-9)
@@ -169,6 +169,11 @@ CommandResult check_divide(const ModelObject& object, const DivideRequest& reque
     // Split to objects also separates the parts of a multi-part object.
     if (!splittable && !(parts > 1 && !request.as_parts))
         return CommandResult::failure(WorkspaceError::InvalidArgument, object.name + " is one shell and cannot be split");
+    // ModelObject::split takes a multi-volume object part by part, so one solid
+    // part stays whole however many shells it has.
+    if (!request.as_parts && parts == 1 && object.volumes.size() > 1)
+        return CommandResult::failure(WorkspaceError::InvalidArgument,
+                                      object.name + " has one solid part and a modifier or other volume, so it cannot be split into objects; shells parts can split it");
     return CommandResult::success();
 }
 
@@ -242,7 +247,8 @@ CommandResult OrcaWorkspaceAdapter::divide_object(ObjectId id, const DivideReque
         // upstream but never defined.)
         m_plater.select_object(resolved->index);
         m_plater.split_object(false);
-        if (model.objects.size() < count_before)
+        // A split replaces the object with at least two.
+        if (model.objects.size() <= count_before)
             return CommandResult::failure(WorkspaceError::Failed, "The app did not split " + object.name);
         added = model.objects.size() - count_before + 1;
     } else {

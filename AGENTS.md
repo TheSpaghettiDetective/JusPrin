@@ -65,7 +65,7 @@ Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu i
 - `#pragma once` for headers. Smart pointers and RAII preferred
 - Parallelization via TBB — be mindful of shared state
 - Wording: a file or object is "opened", "imported", "loaded" or "added", never "arrived". "Arrive" is fine for messages, responses, events and lists. `AgentUI/src/wording.test.ts` guards the text the model reads.
-- Wording the model reads calls the product "the app", never Orca or OrcaSlicer: the model speaks as the app, and a second name reads as a second program. `AgentUI/src/wording.test.ts` guards this too. Throws and log lines may name Orca; they never reach the model.
+- Wording the model reads calls the product "the app", never Orca or OrcaSlicer: the model speaks as the app, and a second name reads as a second program. `AgentUI/src/wording.test.ts` guards this too. Log lines may name Orca. A throw may only if it never reaches the model: tool results forward save and open errors as they are, and the guard does not see those strings.
 
 ## Key Entry Points
 
