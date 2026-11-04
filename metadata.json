@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6HZS0K2RXXMMNR03X576HKT",
   "strategy": "manual-commit",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "tests/printer_prompt/README.md",
     "tests/printer_prompt/run_prompt_tests.py",
@@ -29,14 +29,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 16,
-    "cache_creation_tokens": 54329,
-    "cache_read_tokens": 1123335,
-    "output_tokens": 3004,
-    "api_call_count": 8,
+    "input_tokens": 158,
+    "cache_creation_tokens": 159057,
+    "cache_read_tokens": 17980993,
+    "output_tokens": 49976,
+    "api_call_count": 79,
     "subagent_tokens": {
       "input_tokens": 34,
       "cache_creation_tokens": 164668,
