@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6MWAJJ8855CT2Q451J286QK",
+  "strategy": "manual-commit",
+  "branch": "claude/connection-help",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "tests/printer_hosts/README.md",
+    "tests/printer_hosts/docker-compose.yml",
+    "tests/printer_hosts/octoprint/start.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 94,
+    "cache_creation_tokens": 127345,
+    "cache_read_tokens": 7070629,
+    "output_tokens": 28854,
+    "api_call_count": 47
+  }
+}

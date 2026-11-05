@@ -1,0 +1,93 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6MWAJJ8855CT2Q451J286QK",
+  "session_id": "0a0ef6e2-11ee-4f78-82f6-2d34c6a3a9e5",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-05T03:34:03.517242Z",
+  "branch": "claude/connection-help",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    "tests/printer_hosts/README.md",
+    "tests/printer_hosts/docker-compose.yml",
+    "tests/printer_hosts/octoprint/start.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "c20ca854e7b1",
+  "checkpoint_transcript_start": 1438,
+  "transcript_lines_at_start": 1438,
+  "compact_transcript_start": 213,
+  "token_usage": {
+    "input_tokens": 94,
+    "cache_creation_tokens": 127345,
+    "cache_read_tokens": 7070629,
+    "output_tokens": 28854,
+    "api_call_count": 47
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_016bUTrqRkSjWy3m3h3YhYVz",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "c20ca854e7b1",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1760,
+        "end": 1761,
+        "entry_ids": [
+          "e63b6a72-3c00-4929-a0ca-c65d4c70d384"
+        ],
+        "tool_use_id": "toolu_016bUTrqRkSjWy3m3h3YhYVz"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_016bUTrqRkSjWy3m3h3YhYVz"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-05T03:34:03.301528Z",
+    "agent_lines": 66,
+    "agent_removed": 7,
+    "human_added": 41,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 107,
+    "total_lines_changed": 114,
+    "agent_percentage": 64.03508771929825,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

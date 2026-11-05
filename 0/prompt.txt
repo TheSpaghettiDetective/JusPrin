@@ -1,0 +1,5 @@
+Yes, push it
+
+---
+
+Now, add another container to the cluster so that the simulated printer will start serving camera feed. And make sure those camera feeds has the url can be viewed from the browser on the same host computer
