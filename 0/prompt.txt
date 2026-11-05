@@ -1,0 +1,1 @@
+Also, if the user choose default printer, they will land on the page that says assumed with a warning sign. It's fucking confusing.
