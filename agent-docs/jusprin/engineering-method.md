@@ -105,8 +105,9 @@ agent while a real Bambu Lab **system** preset stays selected. How to turn it
 on, the JSON control file, isolated-instance rules for agents, and acceptance
 checks: [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md).
 
-The Klipper/Moonraker network simulator lives on `jusprin-newui-fakeprinter`
-under `tests/printer_sim/` and covers print-host paths. Do not add a fake
+Print-host paths (Moonraker and OctoPrint) run against the real host software
+in Docker, with simulated printer boards:
+[print hosts README](../../tests/printer_hosts/README.md). Do not add a fake
 Bambu network layer (MQTT/FTPS/discovery) without an explicit request.
 
 ### Platform matrix

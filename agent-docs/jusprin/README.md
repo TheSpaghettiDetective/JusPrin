@@ -14,7 +14,7 @@ Read these documents in order:
 8. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, execution and verification requirements.
 9. [Local autosave and version history](autosave-version-history.md) — managed project storage, migration, restore, export, retention, and failure behavior.
 
-Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Print-host (Klipper/Moonraker) simulation stays on `jusprin-newui-fakeprinter`.
+Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Moonraker and OctoPrint without hardware (Docker, real host software, simulated boards): [print hosts README](../../tests/printer_hosts/README.md).
 
 ## Governing decisions
 

@@ -4,9 +4,9 @@ Substitutes `FakeBambuAgent` for Bambu's closed network plugin so header menu,
 Select Machine, and print can run without hardware. It is not a network fake:
 MQTT, FTPS, and discovery are not implemented.
 
-The Klipper/Moonraker simulator lives on `jusprin-newui-fakeprinter` under
-`tests/printer_sim/` and covers print-host printers. Do not add a Bambu network
-fake unless asked.
+Moonraker and OctoPrint printers run against the real host software in Docker
+([print hosts README](../../../../../tests/printer_hosts/README.md)). Do not
+add a Bambu network fake unless asked.
 
 This file is the operator guide for humans and AI agents.
 

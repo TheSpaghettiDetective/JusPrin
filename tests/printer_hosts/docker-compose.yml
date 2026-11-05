@@ -1,0 +1,107 @@
+# Print hosts for testing without a printer: a Klipper printer behind two
+# Moonrakers (one open, one that wants an API key) and an OctoPrint with its
+# built-in virtual printer, each with a camera. All of it is the real
+# software; only the printer boards and the cameras' pictures are simulated.
+# See README.md.
+name: jusprin-printer-hosts
+
+services:
+  # The Klipper printer's board, simulated by simulavr (see simulavr/Dockerfile).
+  # Nobody publishes this image, so the first `up` builds it. KLIPPER_TAG, in
+  # .env, picks the Klipper for both this board and the klipper service.
+  simulavr:
+    image: jusprin-test-simulavr:${KLIPPER_TAG}
+    build:
+      context: ./simulavr
+      args:
+        KLIPPER_TAG: ${KLIPPER_TAG}
+    restart: unless-stopped
+    # The simulated serial port is a pty under /dev/pts; Klipper opens it
+    # through a link in the shared run volume, so both see the same /dev.
+    privileged: true
+    volumes:
+      - /dev:/dev
+      - run:/opt/printer_data/run
+
+  klipper:
+    image: mkuf/klipper:${KLIPPER_TAG}
+    restart: unless-stopped
+    privileged: true
+    depends_on: [simulavr]
+    command: >
+      -I printer_data/run/klipper.tty
+      -a printer_data/run/klipper.sock
+      printer_data/config/printer.cfg
+      -l printer_data/logs/klippy.log
+    volumes:
+      - /dev:/dev
+      - ./klipper/printer.cfg:/opt/printer_data/config/printer.cfg:ro
+      - run:/opt/printer_data/run
+      - gcodes:/opt/printer_data/gcodes
+      - klipper-logs:/opt/printer_data/logs
+
+  # Answers without a key, like a printer on a home network that trusts it.
+  moonraker-open:
+    image: mkuf/moonraker:v0.11.0-4-gb559b9a
+    restart: unless-stopped
+    depends_on: [klipper]
+    ports:
+      - "7130:7125"
+    volumes:
+      - ./moonraker/open.conf:/opt/printer_data/config/moonraker.conf:ro
+      - run:/opt/printer_data/run
+      - gcodes:/opt/printer_data/gcodes
+      - moonraker-open-db:/opt/printer_data/database
+
+  # Same printer, but every request from outside the container needs the API
+  # key (HTTP 401 without it). ./keys.sh prints the key.
+  moonraker-key:
+    image: mkuf/moonraker:v0.11.0-4-gb559b9a
+    restart: unless-stopped
+    depends_on: [klipper]
+    ports:
+      - "7131:7125"
+    volumes:
+      - ./moonraker/key.conf:/opt/printer_data/config/moonraker.conf:ro
+      - run:/opt/printer_data/run
+      - gcodes:/opt/printer_data/gcodes
+      - moonraker-key-db:/opt/printer_data/database
+
+  # OctoPrint with its bundled virtual printer connected; every request needs
+  # the API key (HTTP 403 without it).
+  octoprint:
+    image: octoprint/octoprint:1.11.2-minimal
+    restart: unless-stopped
+    ports:
+      - "5030:5000"
+    environment:
+      OCTOPRINT_API_KEY: JUSPRINTESTOCTOPRINTKEY000000000
+      # Set on every start (start.sh). OctoPrint's server also fetches the
+      # snapshot address itself (for timelapses), and inside its container
+      # 127.0.0.1 is not the host, so that fetch fails; a browser on the host
+      # shows both.
+      WEBCAM_STREAM: http://127.0.0.1:7140/api/stream.mjpeg?src=octoprint
+      WEBCAM_SNAPSHOT: http://127.0.0.1:7140/api/frame.jpeg?src=octoprint
+    entrypoint: ["sh", "/seed/start.sh"]
+    volumes:
+      - ./octoprint:/seed:ro
+      - octoprint-data:/octoprint
+
+  # One camera per printer, filming a test pattern (camera/go2rtc.yaml). The
+  # hosts above give these addresses to their clients, so a browser on this
+  # computer shows them.
+  camera:
+    image: alexxit/go2rtc:1.9.14
+    restart: unless-stopped
+    ports:
+      - "7140:1984"
+    volumes:
+      - ./camera/go2rtc.yaml:/config/go2rtc.yaml:ro
+
+volumes:
+  run:
+  gcodes:
+  klipper-logs:
+  moonraker-open-db:
+  moonraker-key-db:
+  octoprint-data:

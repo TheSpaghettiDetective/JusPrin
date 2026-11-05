@@ -1,0 +1,23 @@
+# Two cameras that film a test pattern, one per printer, each labelled with
+# its printer and a clock (UTC) so a frozen feed shows. go2rtc runs ffmpeg for
+# a camera only while something is watching it.
+#
+# Every camera answers at http://127.0.0.1:7140/api/stream.mjpeg?src=<name>
+# (MJPEG) and /api/frame.jpeg?src=<name> (one JPEG). Only that MJPEG/JPEG API
+# is served: RTSP and WebRTC are off.
+api:
+  listen: ":1984"
+rtsp:
+  listen: ""
+webrtc:
+  listen: ""
+
+streams:
+  klipper: >-
+    exec:ffmpeg -hide_banner -loglevel error -re -f lavfi
+    -i "testsrc=size=640x480:rate=10,drawtext=text='Klipper camera %{gmtime} UTC':x=10:y=h-th-10:fontsize=24:fontcolor=white:box=1:boxcolor=black"
+    -c:v mjpeg -q:v 5 -f mjpeg -
+  octoprint: >-
+    exec:ffmpeg -hide_banner -loglevel error -re -f lavfi
+    -i "testsrc2=size=640x480:rate=10,drawtext=text='OctoPrint camera %{gmtime} UTC':x=10:y=h-th-10:fontsize=24:fontcolor=white:box=1:boxcolor=black"
+    -c:v mjpeg -q:v 5 -f mjpeg -

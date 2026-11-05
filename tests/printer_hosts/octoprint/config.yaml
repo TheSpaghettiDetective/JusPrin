@@ -1,0 +1,19 @@
+# Copied into the data volume on the first start only; OctoPrint rewrites its
+# copy from then on.
+server:
+  firstRun: false
+  onlineCheck:
+    enabled: false
+  pluginBlacklist:
+    enabled: false
+plugins:
+  virtual_printer:
+    enabled: true
+  tracking:
+    enabled: false
+  softwareupdate:
+    check_overlay_urls: []
+serial:
+  autoconnect: true
+  port: VIRTUAL
+  baudrate: 0

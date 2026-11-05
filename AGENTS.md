@@ -57,7 +57,7 @@ ctest --test-dir ./tests/libslic3r              # individual suite
 ctest --test-dir ./tests/fff_print
 ```
 
-Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu in-process fake). Isolated `--datadir`; do not drive another JusPrin instance.
+Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu in-process fake); Moonraker and OctoPrint: `tests/printer_hosts/README.md` (Docker). Isolated `--datadir`; do not drive another JusPrin instance.
 
 ## Code Style
 
