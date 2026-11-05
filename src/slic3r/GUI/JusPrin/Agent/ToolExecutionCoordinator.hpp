@@ -361,6 +361,9 @@ private:
     // outcome is held back from subscribers until it is (see pump()).
     std::string                      m_saving_after;
     std::string                      m_announce_after; // the call pump() is running, announced when it is done
+    // That call, if it closed its project: its record is forgotten once
+    // pump() has announced it (see forget_if_closed()).
+    std::string                      m_forget_after_announce;
     std::function<EarlierLookup(const std::string&)> m_find_earlier;
     std::function<std::string(const std::string&)>                   m_open_earlier;
     std::function<void(const std::string&)>                          m_opened_from;

@@ -15,6 +15,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -1091,7 +1092,12 @@ void ToolExecutionCoordinator::forget_if_closed(const std::string& action_id)
 {
     // The record belongs to the project that was closed. Its subscribers have
     // had the terminal result; the new project's action ids start again, and
-    // must not meet it.
+    // must not meet it. A call pump() is running is announced only once it is
+    // done, so its record waits for that.
+    if (!m_announce_after.empty() && action_id == m_announce_after) {
+        m_forget_after_announce = action_id;
+        return;
+    }
     const std::uint64_t session = m_workspace.snapshot().session.value();
     m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(),
                                       [&](const ToolActivity& activity) {
@@ -1202,6 +1208,8 @@ void ToolExecutionCoordinator::pump()
             m_announce_after.clear();
             if (done != nullptr && tool_state_terminal(done->state))
                 notify(*done);
+            if (!m_forget_after_announce.empty())
+                forget_if_closed(std::exchange(m_forget_after_announce, {}));
         }
         // One activity per tick keeps event ordering deterministic.
         return;
