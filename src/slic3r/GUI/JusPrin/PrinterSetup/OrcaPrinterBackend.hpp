@@ -8,18 +8,30 @@
 #include "PrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
 #include "libslic3r/Preset.hpp"
+#include "slic3r/GUI/GUI_Utils.hpp"
 #include <atomic>
 #include <chrono>
 #include <memory>
 
-namespace Slic3r::GUI { class Plater; }
+namespace Slic3r::GUI { class Plater; class BoostThreadWorker; }
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
+
+// What a print host's test saw: whether it passed, the HTTP status it was
+// answered with (0 for none), and what the host or curl said, or on a
+// Moonraker pass Klipper's state.
+struct HostAnswer
+{
+    bool        passed{false};
+    unsigned    status{0};
+    std::string said;
+};
 
 class OrcaPrinterBackend : public IPrinterBackend
 {
 public:
     OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog);
+    ~OrcaPrinterBackend() override;
 
     const std::vector<CatalogPrinter>& catalog() const override { return m_models; }
     std::vector<DiscoveredPrinter> network_printers() const override;
@@ -46,8 +58,8 @@ public:
     std::string keep_connection_report(const std::string& text) override;
     std::string connect_printer(const std::string& name, const std::string& device_id,
                                const std::string& access_code) override;
-    std::string connect_host(const std::string& name, const std::string& host_type,
-                            const std::string& address, const std::string& api_key) override;
+    std::string connect_host(const std::string& name, const std::string& host_type, const std::string& address,
+                             const std::string& api_key, std::function<void(const HostTestOutcome&)> tested) override;
     void cancel_connection(const std::string& name) override;
 
 private:
@@ -93,25 +105,23 @@ private:
     void report_failure(PrinterConnectionInfo& info, const std::string& failure, bool look);
     // What a deferred reselection checks before touching this backend.
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
-    // A print host is tested on a thread of its own, which writes its verdict
-    // into `verdict` and keeps it alive. Dropping or replacing the attempt is
-    // what leaves a late verdict unread.
-    enum class HostVerdict { Testing, Passed, Failed };
+    // The print host test last started: "connecting" while its Job runs, then
+    // what it came to, which connection() reports.
     struct HostAttempt {
         std::string name, host_type, address, api_key;
-        std::chrono::steady_clock::time_point started;
-        std::shared_ptr<std::atomic<HostVerdict>> verdict;
-        // What the host's test said, written before the verdict: the HTTP
-        // status and body, Moonraker's "doesn't look like Moonraker", or
-        // curl's reason the host was not reached.
-        std::shared_ptr<std::string> detail;
         std::string state;
         std::string message;
     };
-    // Reads a waiting attempt's verdict, and saves the settings it tested
-    // once the host has answered.
-    void settle(HostAttempt& attempt);
+    // Saves the settings a passed test used, and words the outcome. `key_sent`
+    // is "typed", "saved" or "none".
+    HostTestOutcome settle(const HostAnswer& answer, const std::string& key_sent);
     std::optional<HostAttempt> m_host_attempt;
+    // Print host tests run here, one at a time, from the first test on. Last,
+    // so the worker is stopped before anything its Jobs' ends read: its
+    // destructor waits up to 10 seconds for a test still running, and the
+    // test itself gives up after kConnectionWait.
+    std::unique_ptr<BoostThreadWorker> m_host_worker;
+    EventGuard                         m_host_worker_events;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

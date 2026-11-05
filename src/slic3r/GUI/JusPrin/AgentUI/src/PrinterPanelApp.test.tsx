@@ -89,9 +89,11 @@ describe('the printer panel page', () => {
     expect((sent()[0].payload as { text: string }).text).toContain('BBL/Bambu Lab A1 mini | Bambu Lab A1 mini | 180 × 180 × 180 mm');
     // The panel has its own assistant; the project's prompt is not sent here.
     expect(host.received.some((envelope) => envelope.type === 'project_instructions')).toBe(false);
-    // The skills go to the app, which adds one when the person tries to connect.
+    // The skills go to the app, which adds one once the chat has a saved
+    // printer, by its vendor.
     const skills = host.received.find((envelope) => envelope.type === 'skills')?.payload as { skills: { trigger?: string }[] };
     expect(skills.skills.some((skill) => skill.trigger === 'connect_bambu')).toBe(true);
+    expect(skills.skills.some((skill) => skill.trigger === 'connect_print_host')).toBe(true);
 
     // A new card changes nothing the model is told.
     host.deliver('printer_session', session({ blocks: [{ id: 'b1', seq: 1, afterMessageId: 'm-1', kind: 'tip' }],
@@ -306,24 +308,40 @@ describe('the printer panel page', () => {
     expect(receipt.querySelector('button')).toBeNull();
   });
 
-  it('asks for the access code locally, and sends it only with Connect', async () => {
+  it('asks for the access code locally while its call waits, sends it only with Connect, and can end the call without it', async () => {
     const connect: ToolActivityInfo = {
-      actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_connect', title: 'Connect to Workshop',
+      actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_bambu_connect',
+      title: 'Waiting for the access code for Workshop',
       arguments: { printerName: 'Lab Printer', deviceId: '01P00A3B', provider: 'bambu' }, actionClass: 'mutation',
-      sessionId: '1', expectedRevision: 1, state: 'succeeded', progress: { current: 1, total: 1 },
+      sessionId: '1', expectedRevision: 1, state: 'running', progress: { current: 1, total: 1 },
     };
-    const identify = { ...connect, actionId: 't-identify', tool: 'printer_identify', title: 'Show the printers you mean' };
+    const identify = { ...connect, actionId: 't-identify', tool: 'printer_identify', title: 'Show the printers you mean', state: 'succeeded' as const };
     const host = open(state({ toolActivities: [identify, connect], session: session({
       credentialRequest: { actionId: 't-connect', target: 'Workshop', provider: 'bambu' },
     }) }));
-    // Only the local form is drawn.
+    // Only the local form is drawn, under the waiting call's title.
     expect(screen.queryByText('Show the printers you mean')).toBeNull();
-    expect(screen.getByText('Connect to Workshop')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for the access code for Workshop')).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText('Access code'), 'secretcode');
     expect(JSON.stringify(host.received)).not.toContain('secretcode');
+    await userEvent.click(screen.getByRole('button', { name: 'Help me find the code' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'credential_help', actionId: 't-connect' });
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'credential_dismissed', actionId: 't-connect' });
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'connect', actionId: 't-connect', credential: 'secretcode' });
+  });
+
+  it('shows the call as checking once the form is submitted', () => {
+    const checking: ToolActivityInfo = {
+      actionId: 't-connect', correlationId: 'm-1', server: 'jusprin', tool: 'printer_bambu_connect', title: 'Checking Workshop',
+      arguments: { printerName: 'Lab Printer', deviceId: '01P00A3B', provider: 'bambu' }, actionClass: 'mutation',
+      sessionId: '1', expectedRevision: 1, state: 'running', progress: { current: 1, total: 1 },
+    };
+    open(state({ toolActivities: [checking], session: session({}) }));
+    expect(screen.getByText('Checking Workshop')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Access code')).toBeNull();
   });
 });
 

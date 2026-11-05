@@ -887,7 +887,7 @@ export interface PrinterSessionPayload {
   blocks: PrinterBlock[];
   // The facts the model's instructions state (printerInstructions.ts).
   context: PrinterContext;
-  // A printer credential requested by a completed tool call. The page sends
+  // A printer credential the open connection call waits for. The page sends
   // the secret straight back to the printer session, never through chat.
   credentialRequest?: PrinterCredentialRequest;
   // The printer form, while it is open (printer_action manual_setup opens

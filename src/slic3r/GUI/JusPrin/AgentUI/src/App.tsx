@@ -305,6 +305,9 @@ export function App({
   const connectPrinter = (actionId: string, credential: string) => {
     client.send('printer_action', { action: 'connect', actionId, credential });
   };
+  const closeCredentialForm = (actionId: string, help: boolean) => {
+    client.send('printer_action', { action: help ? 'credential_help' : 'credential_dismissed', actionId });
+  };
 
   const sendToolCancel = (actionId: string) => {
     client.send('tool_cancel', { actionId });
@@ -581,9 +584,13 @@ export function App({
               onSend={sendMessage}
               replyDisabled={unavailable || streaming}
               toolActivities={state.toolActivities.filter((activity) => activity.tool === 'settings_apply_patch' ||
-                activity.actionId === session?.credentialRequest?.actionId)}
+                // These stay open while the app tests, listens or waits for
+                // the form: their cards say which meanwhile.
+                activity.tool === 'printer_host_connect' || activity.tool === 'printer_bambu_connect' ||
+                activity.tool === 'printer_connection_status')}
               renderActivity={(activity) => activity.actionId !== session?.credentialRequest?.actionId ? undefined : (
-                <PrinterCredentialForm request={session.credentialRequest} onConnect={connectPrinter} />
+                <PrinterCredentialForm request={session.credentialRequest} title={activity.title}
+                  onConnect={connectPrinter} onClose={closeCredentialForm} />
               )}
               gcodeMarkers={[]}
               changes={[]}

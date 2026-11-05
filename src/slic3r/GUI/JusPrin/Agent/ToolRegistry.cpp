@@ -63,7 +63,8 @@ json printer_connection_schema()
                                                json::array({"name", "address", "reason"}))}}},
              {"search", object_schema(json{{"state", {{"type", "string"},
                                                       {"enum", json::array({"not_applicable", "not_started", "started", "listening", "port_taken", "not_listening"})}}},
-                                           {"secondsAgo", {{"type", "integer"}}}},
+                                           {"secondsAgo", {{"type", "integer"}}},
+                                           {"message", string_schema()}},
                                       json::array({"state"}))},
              {"address", string_schema()},
              {"hostType", string_schema()},
@@ -637,21 +638,16 @@ bool valid_arguments(const ToolDefinition& definition, const json& arguments)
     if (definition.handler == ToolHandler::PrinterAdd)
         return has_only(arguments, {"catalogId", "nozzle"}) && arguments.contains("catalogId") && optional_text(arguments, "catalogId") &&
                valid_nozzle();
-    // printer_connect reaches a printer one way: a Bambu Lab printer found on
-    // the network, or a print host at the address the person gave. Anything
-    // less is refused before a card is drawn, so the model asks instead.
-    if (definition.handler == ToolHandler::PrinterConnect) {
-        if (!has_only(arguments, {"deviceId", "hostType", "address"}) || !optional_text(arguments, "deviceId") ||
-            !optional_text(arguments, "address"))
-            return false;
-        const auto given = [&arguments](const char* key) {
-            return arguments.contains(key) && !arguments[key].get_ref<const std::string&>().empty();
-        };
-        if (arguments.contains("deviceId"))
-            return arguments.size() == 1 && given("deviceId");
-        return arguments.size() == 2 && given("address") &&
-               (arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
-    }
+    // A print host is reached at an address, a Bambu Lab printer by the device
+    // the network search found. Anything less is refused before it runs.
+    const auto given = [&arguments](const char* key) {
+        return arguments.contains(key) && arguments[key].is_string() && !arguments[key].get_ref<const std::string&>().empty();
+    };
+    if (definition.handler == ToolHandler::PrinterHostConnect)
+        return has_only(arguments, {"hostType", "address"}) && optional_text(arguments, "address") && given("address") &&
+               arguments.contains("hostType") && (arguments["hostType"] == "moonraker" || arguments["hostType"] == "octoprint");
+    if (definition.handler == ToolHandler::PrinterBambuConnect)
+        return has_only(arguments, {"deviceId"}) && optional_text(arguments, "deviceId") && given("deviceId");
 
     if (definition.handler == ToolHandler::PrinterChange) {
         return has_only(arguments, {"printerName", "nozzle"}) && names_printer() && arguments.contains("nozzle") &&
@@ -1540,8 +1536,10 @@ std::vector<ToolDefinition> make_definitions()
         // project conversation has no printer to add, change or connect.
         // None decides anything: the model does, from what the person says,
         // and these check its decision against the printer data and carry it
-        // out. printer_connect opens a local form where the person types a
-        // credential the model must never see.
+        // out. A credential the model must never see is typed in a local form
+        // that printer_bambu_connect opens, and printer_host_connect when the
+        // host refuses its test; the call waits for the form, and the attempt
+        // after it, and returns that outcome.
         {"printer_identify",
          "Show the printers you mean",
          "You decide which printer this is. This tool checks the printers you name against the app's printer list, shows them "
@@ -1609,13 +1607,13 @@ std::vector<ToolDefinition> make_definitions()
         {"printer_connection_status",
          "Check a printer's connection",
          "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it "
-         "starts the network search if it has not started, and reports what it has found of that model so far. candidates "
+         "starts the network search if it has not started and, until a printer of that model is heard, listens during this "
+         "call for up to 30 seconds, then reports what it has found of that model. candidates "
          "are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt "
          "shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN "
-         "Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. While "
-         "search.state is started, an empty list says nothing yet: the app posts a note when a printer appears, or after "
-         "about 15 seconds with none. listening with nothing listed means nothing has been heard so far, and the search "
-         "goes on. port_taken means another app on this computer holds the port printers announce on, so nothing can be "
+         "Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. search.state "
+         "listening with nothing listed means nothing was heard in the time search.secondsAgo gives, not that the printer is "
+         "absent: the search goes on, and the app posts a note if a printer of this model is heard later. port_taken means another app on this computer holds the port printers announce on, so nothing can be "
          "found, whatever mode the printer is in. not_listening means nothing holds that port and this app takes it only "
          "as it starts.",
          object_schema(json::object()),
@@ -1624,28 +1622,50 @@ std::vector<ToolDefinition> make_definitions()
          ToolExposure::Printer,
          ToolAvailability::Always,
          ToolHandler::PrinterConnectionStatus},
-        {"printer_connect",
-         "Connect this printer",
-         "Connects the printer this conversation is about. It opens a local form where the person types the access code or API "
-         "key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from "
-         "printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and "
-         "until they give one, ask for it instead of calling this. Only a printer in the status check's candidates can be "
-         "connected; one in cloud mode cannot, because LAN Only is off on it. The app reports the connection outcome in a note.",
-         object_schema(json{{"deviceId", {{"type", "string"}, {"description", "Bambu Lab only, alone: from printer_connection_status."}}},
-                            {"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})},
-                                          {"description", "Moonraker or OctoPrint only, together with address."}}},
+        {"printer_host_connect",
+         "Connect a print host",
+         "Connects the printer this conversation is about to the Moonraker or OctoPrint at an address, and saves that "
+         "address as its connection once the host accepts the test. The call returns once the connection has an outcome. "
+         "It first tests with the API key the app already holds for that address and type, or with none, for at most 30 "
+         "seconds. If the host refuses that test (Moonraker with HTTP 401, OctoPrint with HTTP 403), the app opens a form in "
+         "this chat where the person types an API key themselves, never in chat, and the call waits for them: when they "
+         "submit it, the app tests again with that key. The result is verified (connected and saved; for Moonraker it gives "
+         "Klipper's state, which Moonraker reports whether or not Klipper can reach the printer's board), failed (with the "
+         "host's or the network's own words), help_requested (the person tapped \"Help me find the key\" in the form and wants help finding it) or dismissed "
+         "(they closed the form). It says what each host answered and which API key each test sent. Pass hostType and the "
+         "address with its port when it has one. For a Bambu Lab printer use printer_bambu_connect instead.",
+         object_schema(json{{"hostType", {{"type", "string"}, {"enum", json::array({"moonraker", "octoprint"})}}},
                             {"address", {{"type", "string"}, {"maxLength", 256},
-                                         {"description", "The address the person gave, as they open the printer in a browser."}}}}),
-         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"credential_requested"})}}},
+                                         {"description", "The print host's address, an IP address or a name, with its port when it has one."}}}},
+                       json::array({"hostType", "address"})),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"verified", "failed", "help_requested", "dismissed"})}}},
                             {"message", string_schema()}},
                        json::array({"state", "message"})),
          ActionClass::Mutation,
          ToolExposure::Printer,
          ToolAvailability::Always,
-         ToolHandler::PrinterConnect},
+         ToolHandler::PrinterHostConnect},
+        {"printer_bambu_connect",
+         "Connect a Bambu Lab printer",
+         "Connects the Bambu Lab printer this conversation is about in LAN mode. The app opens a form in this chat where the "
+         "person types the printer's access code themselves, never in chat, and the call waits for them. When they submit "
+         "it, the app connects and the call returns the outcome: verified (connected) or failed (with what Bambu's network "
+         "plug-in reported), saying whether a code was typed or the one the app already holds was used; help_requested (the "
+         "person tapped \"Help me find the code\" in the form and wants help finding it); or dismissed (they closed the form). Pass the deviceId of a "
+         "printer in printer_connection_status's candidates; one in cloud mode cannot be connected, because LAN Only is off "
+         "on it. For Moonraker or OctoPrint use printer_host_connect instead.",
+         object_schema(json{{"deviceId", {{"type", "string"}, {"description", "From printer_connection_status's candidates."}}}},
+                       json::array({"deviceId"})),
+         object_schema(json{{"state", {{"type", "string"}, {"enum", json::array({"verified", "failed", "help_requested", "dismissed"})}}},
+                            {"message", string_schema()}},
+                       json::array({"state", "message"})),
+         ActionClass::Mutation,
+         ToolExposure::Printer,
+         ToolAvailability::Always,
+         ToolHandler::PrinterBambuConnect},
         // Offered only with the skill for a printer's connection type
         // (PrinterConversation::connection_skill), never on a session's own
-        // list, so a chat that only adds a printer never has it. It posts
+        // list, so a chat with no saved Bambu Lab printer never has it. It posts
         // nothing: the person submits the page on GitHub themselves.
         {"issue_report_open",
          "Open an issue for the developers",
@@ -1807,9 +1827,9 @@ ToolValidationResult ToolRegistry::validate_call(const ToolDefinition& definitio
                 if (arguments.is_object() && arguments.contains("target") && arguments["target"].is_string())
                     message += " target must be a JSON object, not a string holding one: \"target\": {\"preset\": \"<name>\"}.";
             }
-            if (definition.handler == ToolHandler::PrinterConnect)
-                message += " Give deviceId alone, or hostType with the address the person gave. Without an address, ask the "
-                           "person for the one they open the printer with in a browser, and call this once they give it.";
+            if (definition.handler == ToolHandler::PrinterHostConnect)
+                message += " Give hostType and the print host's address. Without an address, ask the person for it, and "
+                           "call this once there is one.";
         }
         return {{}, ToolError{"invalid_arguments", message}};
     }

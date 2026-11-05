@@ -3133,8 +3133,8 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         if (std::optional<AgentSkillUse> skill = fire_print_issues(continuation.conversation_id, current_workspace, false))
             result.skills.push_back(std::move(*skill));
     }
-    // A connection tool call is the moment a printer chat's skill comes into
-    // force: the model reads it right after that call's result.
+    // A printer_add is the moment a printer chat's skill comes into force:
+    // the model reads it right after that call's result.
     if (std::optional<AgentSkillUse> skill = session_skill())
         result.skills.push_back(std::move(*skill));
     result.call_id     = continuation.call_id;

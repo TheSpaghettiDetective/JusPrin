@@ -211,17 +211,17 @@ inline constexpr const char* kSetupChanged = "setup_changed";
 // turn that note starts, so the model has the calibration skill without
 // choosing it.
 inline constexpr const char* kCalibrationStarted = "calibration_started";
-// The person tried to connect a Bambu Lab printer in the printer chat, by
-// opening the chat to connect it, by a connection tool call, or by linking a
-// printer found on the network in the printer form. There is one such trigger
-// per connection type, chosen by the app from the printer, and the skill stays
-// in that conversation from then on, with issue_report_open offered beside it
+// A printer chat has a saved Bambu Lab printer to connect: one added in it
+// (with printer_add's result, or the printer form's), or the one a chat about
+// a saved printer is opened for (with its first request). The trigger is
+// chosen by the app from the printer's vendor, and the skill stays in that
+// conversation from then on, with issue_report_open offered beside it
 // (PrinterConversation::connection_skill).
 inline constexpr const char* kConnectBambu = "connect_bambu";
-// The same for a print host, once the saved connection or the first
-// connection attempt says which kind it is.
-inline constexpr const char* kConnectMoonraker = "connect_moonraker";
-inline constexpr const char* kConnectOctoPrint = "connect_octoprint";
+// The same for any other printer, which connects through a print host. The
+// app cannot know which kind until the person says, so one skill covers
+// Moonraker and OctoPrint.
+inline constexpr const char* kConnectPrintHost = "connect_print_host";
 } // namespace SkillTrigger
 
 } // namespace Protocol

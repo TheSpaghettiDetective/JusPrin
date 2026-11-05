@@ -82,18 +82,31 @@ class Responses(unittest.TestCase):
 
     # --- The connection skill ----------------------------------------------
 
-    def test_a_print_host_gets_its_skill_once_the_kind_is_named(self):
-        """Connecting a Klipper printer: no skill while its kind is unknown,
-        then the Moonraker one with the results of the printer_connect that
-        names it, as PrinterConversation::connection_skill gives it."""
+    def test_a_print_host_chat_has_its_skill_from_the_first_request(self):
+        """A chat about a saved Klipper printer: the print host skill is in
+        the first request, before anything is called, and is not sent again,
+        as PrinterConversation::connection_skill gives it."""
         passed, detail, case, bodies = self.run_case(
             runner.ConnectHostAddress,
-            [call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+            [call("printer_host_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
             [reply("Type its API key into the form if it asks for one.")])
         self.assertTrue(passed, detail)
         skills = [[item["content"] for item in body["input"] if item.get("role") == "developer"
                    and item.get("content") in runner.CONNECTION_SKILLS.values()] for body in bodies]
-        self.assertEqual(skills, [[], [runner.CONNECTION_SKILLS["moonraker"]]])
+        self.assertEqual(skills, [[runner.CONNECTION_SKILLS["print-host"]]] * 2)
+
+    def test_an_added_printer_brings_its_skill_with_the_add_result(self):
+        """An add chat: no skill before printer_add, then the one for the
+        added printer's vendor right after its result."""
+        passed, detail, case, bodies = self.run_case(
+            runner.AddNamedModel,
+            [call("printer_add", {"catalogId": "BBL/Bambu Lab A1 mini"})],
+            [reply("I set it up with the 0.4 mm nozzle.\n" + runner.CONNECT_OFFER)])
+        self.assertTrue(passed, detail)
+        first, second = [[item.get("content") for item in body["input"] if item.get("role") == "developer"] for body in bodies]
+        self.assertNotIn(runner.CONNECTION_SKILLS["bambu"], first)
+        self.assertEqual(second[-1], runner.CONNECTION_SKILLS["bambu"])
+        self.assertEqual(bodies[1]["input"][-2]["type"], "function_call_output")
 
     def test_an_add_chat_that_checks_the_connection_does_not_crash(self):
         """An add case names its printer by catalogue id, a string. A
@@ -112,7 +125,7 @@ class Responses(unittest.TestCase):
                              "sources": [{"type": "url", "url": "https://docs.example/moonraker"}]}}
         _, _, _, bodies = self.run_case(
             runner.ConnectHostAddress,
-            [call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
+            [call("printer_host_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
             [search, reply("Type its API key into the form if it asks for one.")])
         log = self.log
         at = log.index("web search: Moonraker API key location -> https://docs.example/moonraker")
@@ -128,7 +141,7 @@ class Responses(unittest.TestCase):
             runner.ConnectBambu,
             [search, reply("Is it in LAN Only Mode? It is under Settings on its screen, says Bambu's wiki.\n"
                            "Choices: Yes | No")],
-            [call("printer_connection_status", {}, "call-s"), call("printer_connect", {"deviceId": "FAKE001"}, "call-ok")],
+            [call("printer_connection_status", {}, "call-s"), call("printer_bambu_connect", {"deviceId": "FAKE001"}, "call-ok")],
             [reply("Enter the access code from the printer's screen in the form.")])
         self.assertTrue(passed, detail)
         next_turn = bodies[1]["input"]
@@ -140,8 +153,8 @@ class Responses(unittest.TestCase):
         """--backend claude-cli: the turn goes in once, each response's
         results are its tool results, and the skill that follows them is
         further text of the last one, as the app's notes after a result."""
-        outputs = [[call("printer_connect", {"hostType": "moonraker", "address": "http://voron.local"})],
-                   [reply("Type its API key into the form if it asks for one.")]]
+        outputs = [[call("printer_add", {"catalogId": "BBL/Bambu Lab A1 mini"})],
+                   [reply("I set it up with the 0.4 mm nozzle.\n" + runner.CONNECT_OFFER)]]
         answered = []
 
         class Run:
@@ -159,16 +172,16 @@ class Responses(unittest.TestCase):
 
         real_run, runner.claude_cli.Run, runner.CLAUDE = runner.claude_cli.Run, Run, ("claude-opus-5-5", "medium")
         try:
-            passed, detail, _ = runner.run_once(runner.ConnectHostAddress, PROMPT, "key", "model")
+            passed, detail, _ = runner.run_once(runner.AddNamedModel, PROMPT, "key", "model")
         finally:
             runner.claude_cli.Run, runner.CLAUDE = real_run, None
         self.assertTrue(passed, detail)
         self.assertEqual(outputs, [])
         [(_, names, results)] = [entry for entry in answered if entry[0] == "answer"]
-        self.assertEqual(names, ["printer_connect"])
+        self.assertEqual(names, ["printer_add"])
         result, skill = results[-1]
-        self.assertEqual(json.loads(result)["state"], "credential_requested")
-        self.assertEqual(skill, runner.claude_cli.developer_block(runner.CONNECTION_SKILLS["moonraker"])["text"])
+        self.assertIn("printer", json.loads(result))
+        self.assertEqual(skill, runner.claude_cli.developer_block(runner.CONNECTION_SKILLS["bambu"])["text"])
 
     # --- Every call of a response runs -------------------------------------
 
@@ -229,14 +242,14 @@ class Responses(unittest.TestCase):
         self.assertIn("printer_details (call-x)", results["call-y"]["error"]["message"])
 
     def test_calls_after_a_success_keep_running(self):
-        """credential_requested is a success: nothing after it is held back."""
+        """A connection's outcome is a success: nothing after it is held back."""
         passed, detail, case, bodies = self.run_case(
             runner.ConnectBambu,
-            [call("printer_connect", {"deviceId": "FAKE001"}, "call-c"), call("printer_connection_status", {}, "call-s")],
+            [call("printer_bambu_connect", {"deviceId": "FAKE001"}, "call-c"), call("printer_connection_status", {}, "call-s")],
             [reply("Enter the access code from the printer's screen in the form.")])
         self.assertTrue(passed, detail)
         results = self.results(bodies[1])
-        self.assertEqual(results["call-c"]["state"], "credential_requested")
+        self.assertEqual(results["call-c"], runner.ConnectBambu.outcome)
         self.assertEqual(results["call-s"], runner.ConnectBambu.status)
 
     # --- What later turns replay -------------------------------------------
@@ -247,10 +260,10 @@ class Responses(unittest.TestCase):
         ran or recorded it."""
         passed, detail, case, bodies = self.run_case(
             runner.ConnectBambu,
-            [call("printer_connection_status", {}, "call-s"), call("printer_connect", {"deviceId": "<from_status>"}, "call-bad"),
-             call("printer_connect", {"deviceId": "FAKE001"}, "call-unrun")],
+            [call("printer_connection_status", {}, "call-s"), call("printer_bambu_connect", {"deviceId": "<from_status>"}, "call-bad"),
+             call("printer_bambu_connect", {"deviceId": "FAKE001"}, "call-unrun")],
             [reply("I couldn't find it. Is it in LAN mode?\nChoices: Yes | No")],
-            [call("printer_connect", {"deviceId": "FAKE001"}, "call-ok")],
+            [call("printer_bambu_connect", {"deviceId": "FAKE001"}, "call-ok")],
             [reply("Enter the access code from the printer's screen in the form.")])
         self.assertTrue(passed, detail)
         self.assertEqual(case.refused, ["<from_status>"])
@@ -288,11 +301,51 @@ class Responses(unittest.TestCase):
         self.assertEqual(runner.dump(runner.not_run("printer_add (call-p)")), runner.dump(expected))
 
     def test_what_counts_as_succeeded(self):
-        self.assertTrue(runner.succeeded({"state": "credential_requested", "message": "waiting"}))
+        self.assertTrue(runner.succeeded({"state": "dismissed", "message": "The person closed the form."}))
+        # A test that ran and failed is a call that succeeded: the app counts
+        # the call's own state, not the test's.
+        self.assertTrue(runner.succeeded({"state": "failed", "message": "The print host test failed: HTTP 404: Not Found"}))
         self.assertTrue(runner.succeeded({"printers": []}))
         self.assertFalse(runner.succeeded({"error": {"code": "unknown_device", "message": "..."}}))
         self.assertFalse(runner.succeeded({"state": "failed", "error": {"code": "invalid_arguments"}}))
         self.assertFalse(runner.succeeded({"state": "cancelled"}))
+
+    def test_a_source_list_after_the_choices_line_does_not_count(self):
+        # As the CLI's search had the model write it after a search, 2026-11-04.
+        reply = ("Do you open a Mainsail or Fluidd page to control it?\n\n"
+                 "Choices: Yes, I have Rinkhals | No, it's stock | Not sure\n\n"
+                 "Sources:\n"
+                 "- [Rinkhals on GitHub](https://github.com/rinkhals-community/Rinkhals/)\n"
+                 "- [SimplyPrint: Setting Up Your Anycubic Kobra 3](https://simplyprint.io/setup-guide/anycubic/kobra-3.md)\n")
+        self.assertEqual(runner.reply_problems(reply), [])
+        self.assertEqual(runner.reply_problems("Done?\nChoices: Yes | No\n**Sources:** [Bambu Wiki](https://wiki.bambulab.com/)"), [])
+        self.assertTrue(runner.offers_done("All set.\nChoices: Done\n\nSources:\n- [Bambu Wiki](https://wiki.bambulab.com/)"))
+
+    def test_other_text_after_the_choices_line_still_counts(self):
+        for after in ("Let me know which.",
+                      "Sources: Rinkhals on GitHub",
+                      "- [Rinkhals](https://github.com/rinkhals-community/Rinkhals/) says it adds Moonraker."):
+            with self.subTest(after=after):
+                reply = "Do you open a Mainsail page?\nChoices: Yes | No\n" + after
+                self.assertEqual(runner.reply_problems(reply), ["CHOICES NOT ON THE LAST LINE"])
+
+    def test_a_leak_is_a_tool_name_field_or_result_the_tools_use(self):
+        # Klipper's own folder was failed as a tool name before, 2026-11-04.
+        keys = runner.result_keys(["tool: printer_host_connect {}", '  -> {"message":"Refused.","state":"failed"}'])
+        self.assertEqual(keys, {"message", "state"})
+        # Moonraker's own page, as a DeepSeek reply quoted it, 2026-09-28.
+        for reply in ("The file is ~/printer_data/config/moonraker.conf.",
+                      "Check the address field in Mainsail.",
+                      "Macros use {braces} for parameters.",
+                      'The page shows your key as {"result": "8ce6ae5d..."}.'):
+            with self.subTest(reply=reply):
+                self.assertEqual(runner.reply_problems(reply, keys), [])
+        for reply, leaked in (("I ran printer_host_connect for you.", "printer_host_connect"),
+                              ("Its deviceId is 01P00A.", "deviceId"),
+                              ("Connect with hostType moonraker.", "hostType"),
+                              ('The app said {"state": "failed"}.', '{"state":')):
+            with self.subTest(reply=reply):
+                self.assertEqual(runner.reply_problems(reply, keys), ["LEAK " + repr(leaked)])
 
 
 if __name__ == "__main__":

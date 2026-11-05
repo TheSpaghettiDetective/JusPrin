@@ -330,6 +330,82 @@ TEST_CASE("cancellation stops an action before anything durable happens", "[tool
     CHECK_FALSE(harness.workspace.snapshot().can_undo);
 }
 
+TEST_CASE("a call its surface leaves pending runs once and ends with the outcome it is given", "[tools][lifecycle]")
+{
+    // A surface's tool whose work goes on in a Job: the call stays running
+    // while it does, and its outcome is announced once, when the Job ends it.
+    Harness harness;
+    int     runs = 0;
+    harness.coordinator.set_extension_executor([&runs](ToolHandler, const ToolActivity&) {
+        ++runs;
+        ToolExecutionCoordinator::ExtensionResult result;
+        result.handled = true;
+        result.pending = true;
+        return result;
+    });
+    const std::string action_id = harness.coordinator.submit(ToolRequest{"printer_connection_status", "{}"}, "m-2").action_id;
+    for (int i = 0; i < 5; ++i)
+        harness.coordinator.pump();
+    CHECK(runs == 1);
+    CHECK(harness.coordinator.find(action_id)->state == ToolState::Running);
+    CHECK(harness.coordinator.any_running());
+
+    ToolExecutionCoordinator::ExtensionResult outcome;
+    outcome.handled     = true;
+    outcome.result_json = json{{"state", "heard"}}.dump();
+    REQUIRE(harness.coordinator.finish_pending(action_id, outcome));
+    CHECK(harness.coordinator.find(action_id)->state == ToolState::Succeeded);
+    CHECK(json::parse(harness.coordinator.find(action_id)->result_json) == json{{"state", "heard"}});
+    CHECK(harness.states_of(action_id) == std::vector<ToolState>{ToolState::Running, ToolState::Succeeded});
+    // Ended once: a second outcome is not taken.
+    CHECK_FALSE(harness.coordinator.finish_pending(action_id, outcome));
+
+    SECTION("a cancelled call is not finished by its Job") {
+        const std::string cancelled = harness.coordinator.submit(ToolRequest{"printer_connection_status", "{}"}, "m-3").action_id;
+        harness.coordinator.pump();
+        REQUIRE(harness.coordinator.cancel(cancelled));
+        CHECK_FALSE(harness.coordinator.finish_pending(cancelled, outcome));
+        CHECK(harness.coordinator.find(cancelled)->state == ToolState::Cancelled);
+    }
+    SECTION("a Job's error fails the call") {
+        const std::string failing = harness.coordinator.submit(ToolRequest{"printer_connection_status", "{}"}, "m-3").action_id;
+        harness.coordinator.pump();
+        ToolExecutionCoordinator::ExtensionResult refused;
+        refused.handled = true;
+        refused.error   = ToolError{"failed", "It went wrong."};
+        REQUIRE(harness.coordinator.finish_pending(failing, refused));
+        CHECK(harness.coordinator.find(failing)->state == ToolState::Failed);
+        CHECK(harness.coordinator.find(failing)->error->message == "It went wrong.");
+    }
+    SECTION("a waiting call is retitled, and lists the app's dialogs only from when its own work runs") {
+        const std::string waiting = harness.coordinator.submit(ToolRequest{"printer_connection_status", "{}"}, "m-3").action_id;
+        harness.coordinator.pump();
+        // The person may be using the app while the call waits for them.
+        harness.workspace.dialog_opened({"Theirs", "A dialog the person opened.", {"ok"}, "ok"});
+        REQUIRE(harness.coordinator.retitle_pending(waiting, "Checking Workshop"));
+        CHECK(harness.events.back().title == "Checking Workshop");
+        CHECK(harness.events.back().state == ToolState::Running);
+        REQUIRE(harness.coordinator.answer_dialogs_while_pending(waiting));
+        harness.workspace.dialog_opened({"Connect failed", "Incorrect password.", {"ok"}, "ok"});
+        REQUIRE(harness.coordinator.finish_pending(waiting, outcome));
+        const json dialogs = json::parse(harness.coordinator.find(waiting)->app_dialogs_json);
+        REQUIRE(dialogs.at("items").size() == 1);
+        CHECK(dialogs.dump().find("Incorrect password.") != std::string::npos);
+        // A call that no longer waits has no title or dialogs to change.
+        CHECK_FALSE(harness.coordinator.retitle_pending(waiting, "Again"));
+        CHECK_FALSE(harness.coordinator.answer_dialogs_while_pending(waiting));
+        // Nothing is listening for it any more.
+        harness.workspace.dialog_opened({"Later", "After the call.", {"ok"}, "ok"});
+        CHECK(harness.coordinator.find(waiting)->app_dialogs_json == dialogs.dump());
+    }
+    SECTION("a call the project took with it is not finished") {
+        const std::string gone = harness.coordinator.submit(ToolRequest{"printer_connection_status", "{}"}, "m-3").action_id;
+        harness.coordinator.pump();
+        harness.coordinator.clear();
+        CHECK_FALSE(harness.coordinator.finish_pending(gone, outcome));
+    }
+}
+
 TEST_CASE("an execution failure is reported and changes nothing", "[tools][failure]")
 {
     Harness harness;

@@ -433,6 +433,19 @@ std::string PrinterPanel::post_opening(const std::string& text)
     return m_web_view ? m_web_view->host().post_assistant_message(text) : std::string();
 }
 
+bool PrinterPanel::finish_tool(const std::string& action_id, const Agent::ToolExecutionCoordinator::ExtensionResult& outcome)
+{
+    return m_web_view && m_web_view->host().tools().finish_pending(action_id, outcome);
+}
+
+bool PrinterPanel::update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs)
+{
+    if (!m_web_view)
+        return false;
+    Agent::ToolExecutionCoordinator& tools = m_web_view->host().tools();
+    return tools.retitle_pending(action_id, title) && (!answer_dialogs || tools.answer_dialogs_while_pending(action_id));
+}
+
 void PrinterPanel::start_turn()
 {
     if (m_web_view)

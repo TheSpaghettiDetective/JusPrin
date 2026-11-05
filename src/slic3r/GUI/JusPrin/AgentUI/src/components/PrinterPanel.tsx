@@ -1,5 +1,5 @@
 // The printer panel's cards: the pictures the thread draws, and the one card
-// that asks for something -- the credential printer_connect needs, typed here
+// that asks for something -- the access code or API key a connection needs, typed here
 // so it never passes through the conversation -- and Undo on an added
 // printer's receipt. Everything else the person does in this panel is a
 // message.
@@ -160,16 +160,25 @@ export const PrinterBlockView = memo(function PrinterBlockView({
   );
 });
 
-// Local input for printer_connect. The completed tool call identifies the
-// target, but the credential goes directly to the printer session.
+// Local input for printer_bambu_connect, and for printer_host_connect when
+// the host refused its test. The call waits for this form, so each way out
+// ends it: Connect starts the attempt, and the person can also say they have
+// no credential, or close the form. The credential goes directly to the
+// printer session, never into the call.
 export function PrinterCredentialForm({
   request,
+  title,
   onConnect,
+  onClose,
 }: {
   request: PrinterCredentialRequest;
+  // The waiting call's title, which names what it waits for.
+  title: string;
   onConnect: (actionId: string, credential: string) => void;
+  onClose: (actionId: string, missing: boolean) => void;
 }) {
   const [credential, setCredential] = useState('');
+  const bambu = request.provider === 'bambu';
   return (
     <form
       className="printer-credential"
@@ -181,10 +190,10 @@ export function PrinterCredentialForm({
     >
       <div className="printer-notice-heading">
         <PrinterGlyph className="printer-credential-glyph" />
-        <span className="tool-title">Connect to {request.target}</span>
+        <span className="tool-title">{title}</span>
       </div>
       <label className="printer-credential-field">
-        <span>{request.provider === 'bambu' ? 'Access code' : 'API key (if the printer asks for one)'}</span>
+        <span>{bambu ? 'Access code' : 'API key'}</span>
         <input
           type="password"
           className="printer-credential-input"
@@ -194,8 +203,14 @@ export function PrinterCredentialForm({
         />
       </label>
       <p className="printer-credential-note">Stays on this computer.</p>
-      {/* Enabled while empty: a printer that already has its code needs none. */}
-      <button type="submit" className="primary">Connect</button>
+      <span className="printer-credential-actions">
+        {/* Enabled while empty: a printer that already has its code needs none. */}
+        <button type="submit" className="primary">Connect</button>
+        <button type="button" className="link" onClick={() => onClose(request.actionId, true)}>
+          {bambu ? 'Help me find the code' : 'Help me find the key'}
+        </button>
+        <button type="button" className="link" onClick={() => onClose(request.actionId, false)}>Cancel</button>
+      </span>
     </form>
   );
 }

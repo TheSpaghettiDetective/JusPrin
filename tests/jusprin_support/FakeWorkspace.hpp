@@ -1466,6 +1466,28 @@ public:
         return m_changes.commit(m_session);
     }
 
+    // One of the app's dialogs opens: the newest tool call listener open
+    // now answers it, as the innermost does in the app; with none, it is
+    // shown to the person and no call lists it.
+    void dialog_opened(OrcaMessage message)
+    {
+        if (!m_dialog_listeners.empty())
+            m_dialog_listeners.rbegin()->second.push_back(std::move(message));
+    }
+
+protected:
+    std::uint64_t open_tool_call_dialogs() override
+    {
+        m_dialog_listeners[++m_next_dialog_listener];
+        return m_next_dialog_listener;
+    }
+    std::vector<OrcaMessage> close_tool_call_dialogs(std::uint64_t token) override
+    {
+        std::vector<OrcaMessage> answered = std::move(m_dialog_listeners.at(token));
+        m_dialog_listeners.erase(token);
+        return answered;
+    }
+
 private:
     static ProjectSessionId next_session()
     {
@@ -1675,6 +1697,8 @@ private:
     bool                           m_settings_available{true};
     std::string                    m_process_preset{"Fixture process"};
     std::string                    m_currency{"USD"};
+    std::map<std::uint64_t, std::vector<OrcaMessage>> m_dialog_listeners;
+    std::uint64_t                                     m_next_dialog_listener{0};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Workspace

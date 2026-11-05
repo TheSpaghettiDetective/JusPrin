@@ -265,7 +265,7 @@
 //              no model and no fake: against a real Bambu Lab P1S in cloud
 //              mode at <address>, on this network, with Bambu's real network
 //              plug-in copied to <fixture-directory>/plugins beforehand. Saves
-//              a P1S, opens its Connect chat and runs printer_connect and
+//              a P1S, opens its Connect chat and runs printer_bambu_connect and
 //              printer_connection_status with a scripted stand-in for the
 //              model, printing each result and each note the app posts. Sends
 //              nothing to the printer: it only listens for its announcements
@@ -305,10 +305,15 @@
 //              connecting a print host through the live model, from a script
 //              (see queue_printer_live_host). Prints every message, tool call
 //              and note with its timing. Costs one live chat each run.
-//   --print-host-check <cases-file>
-//              no model: the app's own print host test against each line of
-//              "<moonraker|octoprint> <address> [<variable holding the key>]",
-//              printing what the printer chat would be told.
+//   --print-host-check <cases-file> [<catalogue id>]
+//              no model: a printer chat's connection tool called once per
+//              line of "<moonraker|octoprint> <address> [<variable holding the
+//              key> | MISSING | CANCEL]", printing what the model reads back.
+//              When the host asks for a key the call waits on the form, which
+//              is submitted with that variable's value (or empty), or answered
+//              with its "no key" or Cancel button. For the printer named
+//              (such as "Elegoo/Elegoo Neptune 4 Pro") or the first one not
+//              made by Bambu Lab.
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -856,13 +861,18 @@ private:
 
 // A model that answers the first message by calling `tool` with `arguments`,
 // and anything after that with a line of text.
+// The printer chat's tool that connects a Moonraker or OctoPrint host.
+constexpr const char* kHostConnectTool = "printer_host_connect";
+
 class ToolCallingAgent final : public Agent::IAgentService
 {
 public:
     // `tool` empty answers in words alone. `skills`, when given, collects every
-    // skill the app adds for this model, on a request or with a tool's result.
-    ToolCallingAgent(std::string tool, nlohmann::json arguments, std::vector<Agent::AgentSkillUse>* skills = nullptr)
-        : m_tool(std::move(tool)), m_arguments(std::move(arguments)), m_skills(skills) {}
+    // skill the app adds for this model, on a request or with a tool's result;
+    // `results`, what the model reads back for its call.
+    ToolCallingAgent(std::string tool, nlohmann::json arguments, std::vector<Agent::AgentSkillUse>* skills = nullptr,
+                     std::vector<std::string>* results = nullptr)
+        : m_tool(std::move(tool)), m_arguments(std::move(arguments)), m_skills(skills), m_results(results) {}
 
     bool ready() const override { return true; }
     bool busy() const override { return m_active; }
@@ -884,6 +894,8 @@ public:
     {
         if (m_skills != nullptr)
             m_skills->insert(m_skills->end(), result.skills.begin(), result.skills.end());
+        if (m_results != nullptr)
+            m_results->push_back(result.output_json);
         m_events.push_back(Agent::AgentEvent::delta("Checking."));
         m_events.push_back(Agent::AgentEvent::completed());
         return true;
@@ -908,6 +920,7 @@ private:
     std::string                   m_tool;
     nlohmann::json                m_arguments;
     std::vector<Agent::AgentSkillUse>* m_skills{nullptr};
+    std::vector<std::string>*          m_results{nullptr};
     std::deque<Agent::AgentEvent> m_events;
     bool                          m_active{false};
     bool                          m_called{false};
@@ -1310,6 +1323,8 @@ struct HarnessState
     // --printer-connect-skill: what the same run shows about the skill.
     bool        connect_skill_check{false};
     std::string host_check_cases;
+    // --print-host-check's optional printer, by catalogue id.
+    std::string host_check_model;
     // --open-issue after it: the issue tool that comes with the skill opens
     // the person's browser on a filled-in GitHub page.
     bool        open_issue{false};
@@ -4245,7 +4260,7 @@ private:
         // Lab printer: the code goes in on the card, never in the thread.
         static constexpr const char* kCode = "13572468";
         const auto card = [this]() -> const Agent::ToolActivity* {
-            const auto calls = live_calls("printer_connect");
+            const auto calls = live_calls("printer_bambu_connect");
             return calls.empty() ? nullptr : calls.back();
         };
         const auto credential = [this]() {
@@ -4302,7 +4317,7 @@ private:
                                                                           {"credential", kCode}});
                                     },
                                     [this, card] {
-                                        const auto calls = live_calls("printer_connect");
+                                        const auto calls = live_calls("printer_bambu_connect");
                                         return !calls.empty() && live_note_after(calls.back()->correlation_id) && live_settled();
                                     },
                                     [this, verified_check] {
@@ -4405,7 +4420,7 @@ private:
 
     const Agent::ToolActivity* last_connect() const
     {
-        const auto calls = live_calls("printer_connect");
+        const auto calls = live_calls("printer_bambu_connect");
         return calls.empty() ? nullptr : calls.back();
     }
 
@@ -4673,11 +4688,11 @@ private:
         return notices;
     }
 
-    // A printer_connect the model tried anyway was refused with the plug-in
+    // A printer_bambu_connect the model tried anyway was refused with the plug-in
     // as the reason, not as an unknown printer.
     bool live_connect_refusals_name_the_plugin() const
     {
-        for (const Agent::ToolActivity* call : live_calls("printer_connect"))
+        for (const Agent::ToolActivity* call : live_calls("printer_bambu_connect"))
             if (call->error && call->error->code != "connection_unavailable")
                 return false;
         return true;
@@ -4965,7 +4980,7 @@ private:
                                     p1s_watch();
                                     check(!live_calls("printer_connection_status").empty(), "live_p1s_status_was_called");
                                     check(p1s_printer_reported(), "live_p1s_the_app_reported_the_printer");
-                                    const auto connects = live_calls("printer_connect");
+                                    const auto connects = live_calls("printer_bambu_connect");
                                     check(std::none_of(connects.begin(), connects.end(),
                                                        [](const Agent::ToolActivity* call) { return call->state == Agent::ToolState::Succeeded; }),
                                           "live_p1s_no_connect_succeeded");
@@ -5064,7 +5079,7 @@ private:
                                         },
                                         [this, sent, attempts] {
                                             return !*sent || (!live_panel()->session_json().contains("credentialRequest") && p1s_quiet() &&
-                                                              p1s_notes_with(" verified.") + p1s_notes_with(" failed: ") >= attempts);
+                                                              p1s_outcomes("verified") + p1s_outcomes("failed") >= attempts);
                                         },
                                         [this] { p1s_watch(); }});
             } else if (!line.empty())
@@ -5108,12 +5123,17 @@ private:
 
     bool p1s_form_open() const { return live_panel()->session_json().contains("credentialRequest"); }
 
-    int p1s_notes_with(const std::string& words) const
+    // The connect calls that ended in `state`: their outcome is the call's
+    // result, never a note.
+    int p1s_outcomes(const std::string& state) const
     {
-        const auto messages = live_messages();
-        return static_cast<int>(std::count_if(messages.begin(), messages.end(), [&words](const Agent::ConversationMessage& message) {
-            return message.role == Agent::MessageRole::Note && message.text.find(words) != std::string::npos;
-        }));
+        int count = 0;
+        for (const char* tool : {"printer_bambu_connect", "printer_host_connect"})
+            for (const Agent::ToolActivity* call : live_calls(tool))
+                if (call->state == Agent::ToolState::Succeeded &&
+                    nlohmann::json::parse(call->result_json, nullptr, false).value("state", "") == state)
+                    ++count;
+        return count;
     }
 
     std::vector<nlohmann::json> p1s_report_cards() const
@@ -5150,7 +5170,7 @@ private:
                                                                      {"actionId", state.at("credentialRequest").at("actionId")},
                                                                      {"credential", code}});
                                 },
-                                [this, failure] { return p1s_quiet() && p1s_notes_with(" failed: ") >= failure; },
+                                [this, failure] { return p1s_quiet() && p1s_outcomes("failed") >= failure; },
                                 [this] { p1s_watch(); }});
     }
 
@@ -5246,21 +5266,21 @@ private:
                                     },
                                     [this, started = std::chrono::steady_clock::now()] {
                                         p1s_watch();
-                                        const bool told = p1s_notes_with(" verified.") + p1s_notes_with(" failed: ") > 0;
+                                        const bool told = p1s_outcomes("verified") + p1s_outcomes("failed") > 0;
                                         return (p1s_quiet() && told) || std::chrono::steady_clock::now() - started >= 15min;
                                     },
                                     [this] {
                                         p1s_watch();
                                         // Reported, not judged: these chats are judged by where they leave
                                         // the person, and a printer may fail for reasons outside the app.
-                                        std::cerr << p1s_stamp() << "connection verified: " << (p1s_notes_with(" verified.") == 1 ? "yes" : "no") << '\n';
+                                        std::cerr << p1s_stamp() << "connection verified: " << (p1s_outcomes("verified") == 1 ? "yes" : "no") << '\n';
                                     }});
             // A failure with the right code: what the model makes of it when
             // the person has already ruled the code out.
             m_live_steps.push_back({"say, if it failed: it is the same code",
                                     [this] {
                                         m_p1s_quiet_since.reset();
-                                        if (p1s_notes_with(" verified.") == 0)
+                                        if (p1s_outcomes("verified") == 0)
                                             say("I compared them, it's the same code. What else could it be?");
                                     },
                                     [this] { return p1s_quiet(); },
@@ -5355,13 +5375,14 @@ private:
         timer.Bind(wxEVT_TIMER, [&outcome](wxTimerEvent&) { ++outcome.ticks; });
         timer.Start(100);
         const auto        start   = std::chrono::steady_clock::now();
-        const std::string problem = backend.connect_host(name, kind, address, "");
-        outcome.state             = problem.empty() ? backend.connection(name).state : "refused: " + problem;
-        while (outcome.state == "connecting" && std::chrono::steady_clock::now() - start < limit) {
-            wxYield();
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            outcome.state = backend.connection(name).state;
-        }
+        bool              tested  = false;
+        const std::string problem = backend.connect_host(name, kind, address, "",
+                                                         [&tested](const PrinterSetup::HostTestOutcome&) { tested = true; });
+        // The test's end is delivered on an idle event, which an event loop
+        // sends and wxYield does not.
+        if (problem.empty())
+            wait_for([&tested] { return tested; }, limit);
+        outcome.state = problem.empty() ? backend.connection(name).state : "refused: " + problem;
         timer.Stop();
         outcome.took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
         std::cout << "HARNESS host connect to " << address << ": " << outcome.state << " after " << outcome.took.count()
@@ -5562,7 +5583,7 @@ private:
         {
             // Would answer in two seconds; cancelled first.
             StandInHost late(2000ms, /*answer=*/true);
-            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "").empty() &&
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "", [](const PrinterSetup::HostTestOutcome&) {}).empty() &&
                       backend.connection(kAddedPrinter).state == "connecting",
                   "host_attempt_starts_waiting");
             backend.cancel_connection(kAddedPrinter);
@@ -5573,7 +5594,7 @@ private:
         {
             // Replaced by a second attempt, to a closed port, before it answers.
             StandInHost late(2000ms, /*answer=*/true);
-            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "").empty(), "host_first_attempt_starts");
+            check(backend.connect_host(kAddedPrinter, "moonraker", late.address(), "", [](const PrinterSetup::HostTestOutcome&) {}).empty(), "host_first_attempt_starts");
             const HostOutcome second = connect_host_and_wait(backend, kAddedPrinter, "http://127.0.0.1:1", 20s);
             wait_for([] { return false; }, 3000ms);
             check(second.state == "failed" && backend.connection(kAddedPrinter).state == "failed" && saved_address() == answered,
@@ -5586,7 +5607,7 @@ private:
             check(outcome.state == "failed" && outcome.took >= PrinterSetup::kConnectionWait &&
                       outcome.took < PrinterSetup::kConnectionWait + 5s,
                   "host_that_never_answers_fails_at_the_wait");
-            check(backend.connection(kAddedPrinter).message.find("did not respond") != std::string::npos,
+            check(backend.connection(kAddedPrinter).message.find("had no answer") != std::string::npos,
                   "host_silence_is_reported_as_no_response");
             check(saved_address() == answered, "host_silence_leaves_the_profile");
         }
@@ -5711,7 +5732,7 @@ private:
         const bool made = wait_for([&] {
             const auto& activities = host->tools().activities();
             return activities.size() > before && activities.back().state != Agent::ToolState::Running;
-        }, 10s);
+        }, 45s); // a status call listens up to 30 seconds
         check(made, name + "_tool_called");
         if (!made)
             return {};
@@ -5732,8 +5753,10 @@ private:
         using namespace std::chrono_literals;
         PrinterSetup::OrcaPrinterBackend backend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()));
         const auto& catalog = backend.catalog();
-        const auto  model   = std::find_if(catalog.begin(), catalog.end(),
-                                           [](const PrinterSetup::CatalogPrinter& printer) { return printer.vendor_id != "BBL"; });
+        const std::string& wanted = m_state->host_check_model;
+        const auto  model   = std::find_if(catalog.begin(), catalog.end(), [&wanted](const PrinterSetup::CatalogPrinter& printer) {
+            return wanted.empty() ? printer.vendor_id != "BBL" : printer.id == wanted;
+        });
         check(model != catalog.end(), "host_check_has_a_printer_to_save");
         if (model == catalog.end())
             return finish();
@@ -5748,28 +5771,84 @@ private:
                       << ", address " << info.address << ")\n";
         };
         print_state("before any attempt", backend.connection(added.name));
-        std::ifstream cases(m_state->host_check_cases);
-        std::string   line;
+        // Each case is a Connect chat on that printer whose model calls the
+        // connection tool once, as a model would. When the host asks for a
+        // key, the call waits on the form, which is answered with the key in
+        // the named variable (or empty), or with MISSING or CANCEL for the
+        // form's other ways out. What the model reads back is printed.
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        std::ifstream               cases(m_state->host_check_cases);
+        std::string                 line;
         while (std::getline(cases, line)) {
             std::istringstream words(line);
             std::string        kind, address, key_variable;
             if (!(words >> kind >> address))
                 continue;
             words >> key_variable;
-            const char*       key   = key_variable.empty() ? nullptr : std::getenv(key_variable.c_str());
-            const auto        start = std::chrono::steady_clock::now();
-            const std::string refused = backend.connect_host(added.name, kind, address, key ? key : "");
-            PrinterSetup::PrinterConnectionInfo info = backend.connection(added.name);
-            while (refused.empty() && info.state == "connecting" && std::chrono::steady_clock::now() - start < 60s) {
-                wxYield();
-                std::this_thread::sleep_for(10ms);
-                info = backend.connection(added.name);
+            const char*       key  = key_variable.empty() ? nullptr : std::getenv(key_variable.c_str());
+            const std::string name = kind + ' ' + address + (key_variable.empty() ? "" : " form " + key_variable);
+            panel->open(PrinterSetup::ConversationMode::Connect, added.name);
+            const bool loaded = wait_for([panel] {
+                return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+            }, 60s);
+            check(loaded, "host_check_page_loaded");
+            if (!loaded)
+                return finish();
+            Agent::AgentHost*        host = panel->host();
+            std::vector<std::string> results;
+            host->set_agent(std::make_unique<ToolCallingAgent>(kHostConnectTool, nlohmann::json{{"hostType", kind}, {"address", address}},
+                                                               nullptr, &results),
+                            Agent::AgentAvailability::Ready);
+            const auto notes = [panel] {
+                std::vector<std::string>         found;
+                const Agent::ProjectPersistence* persistence = panel->persistence();
+                for (const auto& message : persistence->document().messages(persistence->document().active_conversation_id()))
+                    if (message.role == Agent::MessageRole::Note)
+                        found.push_back(message.text);
+                return found;
+            };
+            const auto start = std::chrono::steady_clock::now();
+            const auto since = [&start] {
+                return std::to_string(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
+            };
+            host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                 {"version", Agent::Protocol::kVersion},
+                                                 {"id", "host-check"},
+                                                 {"type", "user_message"},
+                                                 {"payload", {{"clientMessageId", "host-check-c"}, {"text", "connect it"}}}}
+                                      .dump());
+            // The call ends with the test, or waits on the key form when the
+            // host asks for a key.
+            const auto form = [panel] { return panel->session_json().value("credentialRequest", nlohmann::json::object()); };
+            const auto card = [host] { return host->tools().activities().empty() ? std::string() : host->tools().activities().back().title; };
+            check(wait_for([&] { return !results.empty() || !form().empty(); }, 60s), "host_check_tool_answered");
+            if (const nlohmann::json request = form(); !request.empty()) {
+                check(results.empty(), "host_check_call_waits_for_the_form");
+                const bool        missing  = key_variable == "MISSING";
+                const bool        closed   = key_variable == "CANCEL";
+                std::cerr << "HARNESS HOST " << name << " -> after " << since() << " ms the call waits on the key form, card \""
+                          << card() << "\"; " << (missing ? std::string("saying there is no key") : closed ? std::string("closing it") :
+                                                    "submitting it " + (key ? "with " + key_variable : std::string("empty")))
+                          << '\n';
+                const nlohmann::json payload = missing || closed ?
+                    nlohmann::json{{"action", missing ? "credential_help" : "credential_dismissed"}, {"actionId", request.value("actionId", "")}} :
+                    nlohmann::json{{"action", "connect"}, {"actionId", request.value("actionId", "")}, {"credential", key ? key : ""}};
+                host->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                     {"version", Agent::Protocol::kVersion},
+                                                     {"id", "host-check-form"},
+                                                     {"type", "printer_action"},
+                                                     {"payload", payload}}
+                                          .dump());
+                if (!missing && !closed)
+                    std::cerr << "HARNESS HOST " << name << " -> card after Connect: \"" << card() << "\"\n";
+                check(wait_for([&results] { return !results.empty(); }, 60s), "host_check_form_outcome_in_the_call");
             }
-            const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-            std::cerr << "HARNESS HOST " << kind << ' ' << address << (key_variable.empty() ? "" : " with " + key_variable) << " -> "
-                      << (refused.empty() ? info.state + " after " + std::to_string(took.count()) + " ms: " + info.message
-                                          : "refused: " + refused)
-                      << '\n';
+            std::cerr << "HARNESS HOST " << name << " -> the model reads after " << since()
+                      << " ms: " << (results.empty() ? std::string("nothing") : results.front()) << '\n';
+            check(notes().empty(), "host_check_posts_no_note");
+            panel->close();
+            wait_for([panel] { return panel->host() == nullptr; }, 5s);
         }
         // As the next chat finds it: saved by the last attempt, untested since.
         print_state("in a new session", PrinterSetup::OrcaPrinterBackend(*m_plater, PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()))
@@ -5824,12 +5903,12 @@ private:
         const auto said = [](const nlohmann::json& output) { return output.at("error").at("message").get<std::string>(); };
 
         // Nothing has looked: the refusal must not claim anything was found.
-        const std::string before = said(network_check_call("printer_connect", {{"deviceId", address}}, "before_search"));
+        const std::string before = said(network_check_call("printer_bambu_connect", {{"deviceId", address}}, "before_search"));
         check(before.find("No network search has run") != std::string::npos, "network_check_refusal_before_the_search_says_so");
         const nlohmann::json first = network_check_call("printer_connection_status", nlohmann::json::object(), "first_read");
         check(first.value("provider", "") == "bambu", "network_check_first_read_is_bambu");
         check(first.at("search").at("state") != "not_started", "network_check_search_started");
-        network_check_call("printer_connect", {{"deviceId", address}}, "during_search");
+        network_check_call("printer_bambu_connect", {{"deviceId", address}}, "during_search");
 
         // A printer that answers ends this, whatever was said at 15 seconds.
         const auto names_it = [&address](const std::string& note) { return note.find(address) != std::string::npos; };
@@ -5864,7 +5943,7 @@ private:
         const std::string name = reported->at("name");
         for (const nlohmann::json& arguments : {nlohmann::json{{"deviceId", address}}, nlohmann::json{{"deviceId", name}},
                                                 nlohmann::json{{"hostType", "moonraker"}, {"address", address}}}) {
-            const std::string refusal = said(network_check_call("printer_connect", arguments, "refused_" + std::to_string(++m_network_check_refusals)));
+            const std::string refusal = said(network_check_call("printer_bambu_connect", arguments, "refused_" + std::to_string(++m_network_check_refusals)));
             check(refusal.find(address) != std::string::npos && refusal.find("seen on the network with LAN Only off") != std::string::npos,
                   "network_check_refusal_says_so_" + std::to_string(m_network_check_refusals));
         }
@@ -5889,14 +5968,23 @@ private:
                                              {"type", "user_message"},
                                              {"payload", {{"clientMessageId", name + "-c"}, {"text", "go on"}}}}
                                   .dump());
+        // The Bambu Lab connect call waits on the access code form.
+        const auto form_up = [] { return installed_shell()->printer_panel()->session_json().contains("credentialRequest"); };
         const bool settled = wait_for([&] {
+            if (tool == "printer_bambu_connect" && form_up())
+                return true;
             if (!tool.empty() && (host->tools().activities().size() == before || host->tools().activities().back().state == Agent::ToolState::Running))
                 return false;
             return !host->stream_active();
-        }, 20s);
+        }, 45s); // a status call listens up to 30 seconds
         check(settled, name + "_settled");
         if (!settled || tool.empty())
             return {};
+        if (tool == "printer_bambu_connect" && form_up()) {
+            std::cerr << "HARNESS SKILL " << tool << ' ' << arguments.dump() << " -> waits on the form, card \""
+                      << host->tools().activities().back().title << "\"\n";
+            return nlohmann::json{{"state", "waiting_on_form"}};
+        }
         const Agent::ToolActivity& activity = host->tools().activities().back();
         const nlohmann::json       output   = activity.error ?
                   nlohmann::json{{"error", {{"code", activity.error->code}, {"message", activity.error->message}}}} :
@@ -5926,7 +6014,9 @@ private:
 
     // Goes on past the form with no model, to see what the app's note says on
     // the real printer. The code is never printed.
-    void connect_skill_try_code(const std::string& code, std::vector<Agent::AgentSkillUse>& skills)
+    // Answers the form the connect call waits on, with the code or with its
+    // Cancel, and prints the call's outcome.
+    void connect_skill_try_code(const std::string& code, bool cancel, std::vector<Agent::AgentSkillUse>& skills)
     {
         using namespace std::chrono_literals;
         // Upstream's "Incorrect password" dialog would hold the run.
@@ -5944,16 +6034,17 @@ private:
         const nlohmann::json state = panel->session_json();
         check(state.contains("credentialRequest"), "connect_skill_form_is_up");
         if (state.contains("credentialRequest")) {
-            const auto start = std::chrono::steady_clock::now();
-            live_send("printer_action", {{"action", "connect"}, {"actionId", state.at("credentialRequest").at("actionId")}, {"credential", code}});
+            const auto        start  = std::chrono::steady_clock::now();
+            const std::string action = state.at("credentialRequest").at("actionId");
+            live_send("printer_action", cancel ? nlohmann::json{{"action", "credential_dismissed"}, {"actionId", action}} :
+                                                 nlohmann::json{{"action", "connect"}, {"actionId", action}, {"credential", code}});
             std::string outcome;
             check(wait_for([&] {
-                const Agent::ProjectPersistence* persistence = panel->persistence();
-                for (const auto& message : persistence->document().messages(persistence->document().active_conversation_id()))
-                    if (message.role == Agent::MessageRole::Note &&
-                        (message.text.find(" failed: ") != std::string::npos || message.text.find(" verified.") != std::string::npos))
-                        outcome = message.text;
-                return !outcome.empty();
+                const Agent::ToolActivity* call = panel->host()->tools().find(action);
+                if (call == nullptr || call->state == Agent::ToolState::Running)
+                    return false;
+                outcome = call->error ? call->error->message : call->result_json;
+                return true;
             }, 120s), "connect_skill_attempt_settled");
             std::cerr << "HARNESS SKILL attempt, after "
                       << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count()
@@ -5989,15 +6080,17 @@ private:
             return loaded;
         };
 
-        // A chat that only sets up a printer: printer_add, then a word. None.
+        // A chat that adds a printer: none before printer_add, the skill with
+        // its result.
         if (!open(PrinterSetup::ConversationMode::Add, {}))
             return finish();
         std::vector<Agent::AgentSkillUse> adding;
+        connect_skill_turn({}, nlohmann::json::object(), "skill_add_before", adding);
+        check(adding.empty(), "connect_skill_none_before_a_printer_is_added");
         connect_skill_turn("printer_add", {{"catalogId", model->id}}, "skill_add", adding);
-        connect_skill_turn({}, nlohmann::json::object(), "skill_add_after", adding);
         const std::string added = panel->session_json().value("printerName", "");
         check(!added.empty(), "connect_skill_printer_added");
-        check(adding.empty(), "connect_skill_none_for_a_chat_that_only_adds");
+        check(named(adding), "connect_skill_comes_with_printer_add");
         std::cerr << "HARNESS SKILL add chat: " << adding.size() << " skills on its requests and results\n";
         // close() hides at once and tears the session down from a CallAfter,
         // which would take the next one with it.
@@ -6006,16 +6099,15 @@ private:
         if (added.empty())
             return finish();
 
-        // A chat about the printer, until it calls a connection tool.
+        // A chat about the printer: on its first request, before any
+        // connection tool.
         if (!open(PrinterSetup::ConversationMode::Change, added))
             return finish();
         std::vector<Agent::AgentSkillUse> changing;
         connect_skill_turn({}, nlohmann::json::object(), "skill_change", changing);
-        check(changing.empty(), "connect_skill_none_before_trying");
-        std::cerr << "HARNESS SKILL change chat before trying: " << changing.size() << " skills\n";
+        check(named(changing), "connect_skill_on_a_change_chats_first_request");
+        std::cerr << "HARNESS SKILL change chat, first request: " << changing.size() << " skills\n";
         const nlohmann::json first = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_change_status", changing);
-        check(named(changing), "connect_skill_comes_with_the_first_connection_tool");
-        std::cerr << "HARNESS SKILL change chat after its first status read: " << changing.size() << " skills\n";
         check(first.value("provider", "") == "bambu", "connect_skill_type_is_bambu");
         panel->close();
         wait_for([panel] { return panel->host() == nullptr; }, 5s);
@@ -6056,12 +6148,13 @@ private:
             const nlohmann::json later = connect_skill_turn("printer_connection_status", nlohmann::json::object(), "skill_later_read", connecting);
             connect_skill_lines(later, text);
             if (!later.at("candidates").empty()) {
-                // Stops at the app's access code request: nothing goes to the printer.
-                const nlohmann::json asked = connect_skill_turn("printer_connect", {{"deviceId", later.at("candidates").front().at("deviceId")}},
+                // Waits on the app's access code form: nothing goes to the
+                // printer unless a code to try is given, and Cancel ends it.
+                const nlohmann::json asked = connect_skill_turn("printer_bambu_connect", {{"deviceId", later.at("candidates").front().at("deviceId")}},
                                                                 "skill_connect_call", connecting);
-                check(asked.value("state", "") == "credential_requested", "connect_skill_stops_at_the_access_code_request");
-                if (const char* code = std::getenv("JUSPRIN_P1S_TRY_CODE"); code != nullptr)
-                    connect_skill_try_code(code, connecting);
+                check(asked.value("state", "") == "waiting_on_form", "connect_skill_waits_on_the_access_code_form");
+                const char* code = std::getenv("JUSPRIN_P1S_TRY_CODE");
+                connect_skill_try_code(code != nullptr ? code : std::string(), code == nullptr, connecting);
             }
         } else {
             check(early.value("state", "") == "unavailable", "connect_skill_no_plugin_is_unavailable");
@@ -6091,9 +6184,10 @@ private:
     }
 
     // Opens the panel on `printer` with a model that answers the first
-    // message by calling `tool`, sends that message, and returns the call.
+    // message by calling `tool`, sends that message, and returns the call once
+    // it has ended, or with `started` once it has begun.
     const Agent::ToolActivity* call_in_panel(const std::string& printer, const std::string& tool, const nlohmann::json& arguments,
-                                             const std::string& name)
+                                             const std::string& name, bool started = false)
     {
         using namespace std::chrono_literals;
         PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
@@ -6121,7 +6215,7 @@ private:
         };
         const bool made = wait_for([&] {
             const auto* activity = call();
-            return activity != nullptr && activity->state != Agent::ToolState::Running;
+            return activity != nullptr && (started || activity->state != Agent::ToolState::Running);
         }, 10s);
         check(made, name + "_tool_called");
         return made ? call() : nullptr;
@@ -6135,22 +6229,14 @@ private:
         using namespace std::chrono_literals;
         PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
         StandInHost                 late(2000ms, /*answer=*/true);
-        const Agent::ToolActivity*  card = call_in_panel(kAddedPrinter, "printer_connect",
+        const Agent::ToolActivity*  card = call_in_panel(kAddedPrinter, kHostConnectTool,
                                                          nlohmann::json{{"hostType", "moonraker"}, {"address", late.address()}},
-                                                         "panel_close_fixture");
-        const auto request = panel->session_json().value("credentialRequest", nlohmann::json::object());
-        check(card != nullptr && request.value("actionId", "") == card->action_id,
-              "panel_close_fixture_credential_requested");
+                                                         "panel_close_fixture", /*started=*/true);
         if (card == nullptr)
             return;
-        const std::string action = card->action_id;
-        panel->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
-                                                      {"version", Agent::Protocol::kVersion},
-                                                      {"id", "close-decision"},
-                                                      {"type", "printer_action"},
-                                                      {"payload", {{"action", "connect"}, {"actionId", action}, {"credential", ""}}}}
-                                           .dump());
+        // The test runs during the call, which stays open until the host answers.
         check(wait_for([&] { return late.requests() == 1; }, 10s), "panel_close_fixture_is_connecting");
+        check(card->state == Agent::ToolState::Running, "panel_close_fixture_call_waits_for_the_test");
         panel->close();
         wait_for([] { return false; }, 3000ms);
         check(!panel->IsShown() && late.requests() == 1, "panel_close_mid_test_closes");
@@ -15099,6 +15185,8 @@ int main(int argc, char** argv)
             }
             state->mode             = HarnessState::Mode::PrintHostCheck;
             state->host_check_cases = fs::absolute(argv[index]).string();
+            if (index + 1 < argc && std::string(argv[index + 1]).rfind("--", 0) != 0)
+                state->host_check_model = argv[++index];
         }
         else if (argument == "--printer-connect-skill") {
             if (index + 3 >= argc) {

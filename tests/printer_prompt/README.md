@@ -71,9 +71,18 @@ whose own case improves while no other case drops.
 Every reply in every case is also held to the rules the prompt sets for all
 replies: a `Choices:` line the page draws as intended (on the last line, two
 to four choices under 30 characters; read as
-`replyChoices.ts` reads it), and none of the internal words the prompt rules
-out (profile, preset, catalog, a tool's name). A reply that breaks one fails
-its run, whatever the case checks.
+`replyChoices.ts` reads it), and no leak of the tools themselves: a tool's
+exact name from `printer_tools.json`, a camelCase field from their arguments
+(`catalogId`, `deviceId`), or a JSON object pasted from a result. Exact names,
+so Klipper's `printer_data` folder passes. The prompt's other internal words
+(profile, preset, catalog) are not checked: a person may say them, and a
+grader question for them in every chat would add about 30% to a run's cost
+(Sonnet 5.5, 2026-11-04). The run's last line gives the tokens the model and
+the judge used. A reply that breaks one fails
+its run, whatever the case checks. A list of sources after the `Choices:`
+line (a "Sources:" heading, lines of markdown links, or both) does not count
+against it: the CLI's own search demands one (see "Running on the Claude
+subscription"), and the app's search does not.
 
 A few checks are about what a reply says, which no string test can read.
 Those ask a stronger model (`JUDGE_MODEL`, pinned) one narrow yes-or-no
@@ -128,7 +137,7 @@ app is configured with (see "Which model").
 ## Cases
 
 - `connect-bambu`: connect a saved Bambu Lab A1 mini that is on the network.
-  Passes when the model opens `printer_connect`'s credential form for it. Before the app
+  Passes when the model opens `printer_bambu_connect`'s form for it. Before the app
   replayed earlier tool results, it failed about a third of the time: the model
   looked up the printer's id in one turn, and on "connect it" in the next it had
   no id and invented one, such as `<from_status>`.
@@ -155,9 +164,9 @@ app is configured with (see "Which model").
   decide -- the person turns down connecting, the app's note says the
   connection is verified, they leave a failed connection for now, a nozzle
   change is saved. Each passes when that reply says the person can close the
-  chat and offers no reply choices. The connect cases tap
-  Submit the credential form and deliver the app's note as the app does: a developer
-  message and no user message.
+  chat and offers no reply choices. The connect cases return the attempt's
+  outcome as `printer_bambu_connect`'s result, as the app does once the person
+  submits the form: the call stays open through the form and the attempt.
 The cases above follow the main paths. The ones below are the rest of what
 people say in each session -- questions the tools cannot answer, facts that
 need nothing saved, requests that belong to another session -- and each checks
@@ -362,9 +371,49 @@ before it was told to say "settings", 5 of 20 replies said "preset" or
 "profile". `--prompt-rev` does not apply to these cases before the commit
 that adds `filamentInstructions.ts`.
 
-## Current baseline: web search offered (2026-11-03)
+## Current subscription baseline: the connection skill from the start (2026-11-04)
 
-Recorded at Kenneth's request on 2026-11-03. `claude/tool-results-truth` at
+Recorded at Kenneth's request on 2026-11-04, on the subscription only
+(`--backend claude-cli --judge claude-cli`). The DeepSeek baseline is still
+the 2026-11-03 one below. `claude/connection-help` with the change that sends
+the printer chat its connection skill from the moment it has a saved printer
+(with `printer_add`'s result in an Add chat, on the first request of a chat
+about one), merges the Moonraker and OctoPrint skills into
+`connect-print-host`, and moves the standing prompt's connecting steps into
+the skills.
+
+All 39 cases, ten runs each, beside the code before that change
+(e27c962864) in the same hour. Both were then counted again with this suite's
+two changes of that day, not by running the models again: the `Choices:`
+check now ignores a list of sources after it, and the judge's menu-path
+condition in `ended_badly()` fails only a specific path on the printer or in
+another program stated as fact with no search or guess marker. The runs the
+judge had failed for leaving the person stuck (5 before, 18 after) were judged
+again on their saved transcripts; runs that had passed were not.
+
+| Case | Before (e27c962864) | This baseline |
+|---|---|---|
+| `add-many-fit` | 5 | 8 |
+| `connect-code-ruled-out` | 9 | 7 |
+| `connect-host-no-response` | 10 | 9 |
+| `connect-right-code-silent-port` | 8 | 6 |
+| `connect-unforeseen-failure` | 10 | 9 |
+| every other case, together | 340/340 | 340/340 |
+| **Total** | **382/390** | **379/390** |
+
+As first counted, before the two suite changes, they scored 371 and 355. The
+cases that differ move by one to three runs of ten. The remaining misses
+after the change are a specific path stated from memory (a Mac's Local
+Network setting, the printer's network page, Developer Mode "on the same LAN
+Only screen") or a misreading, such as "it's the same code" taken as an
+answer about the address. The suite has no case where the person connects
+during an Add chat, which is what the change is for, so it shows only that
+nothing else got worse.
+
+## DeepSeek baseline: web search offered (2026-11-03)
+
+Recorded at Kenneth's request on 2026-11-03. Its subscription column is
+superseded by the 2026-11-04 baseline above. `claude/tool-results-truth` at
 3e662278ea with this suite's search changes uncommitted (both were then folded
 with this baseline into the one commit that carries them, so that hash is not
 on the branch): the connection skills, the reworded add-then-connect
@@ -406,7 +455,8 @@ judge can now see the pages a reply cites. Read beside it:
   after they said it was on.
 - `connect-verified-close` fails 3 of 3 on DeepSeek with an empty reply after
   the app's note that the printer is connected: the model answers the note
-  with nothing. It happens without this branch too (0 of 20 on
+  with nothing. (Measured when the outcome came as a note; it now comes as the
+  call's result, and DeepSeek has not been run since.) It happens without this branch too (0 of 20 on
   `jusprin-newui` at 74a0e9b61c, 19 of them empty), and Opus passes it 3 of 3.
 - On the subscription, 4 of the 6 misses are a "Sources:" list after the
   `Choices:` line, which the CLI's own search asks for (see "Running on the

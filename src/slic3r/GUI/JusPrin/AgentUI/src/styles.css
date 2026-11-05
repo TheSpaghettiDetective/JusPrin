@@ -2789,7 +2789,8 @@ p.agent-row-note {
   overflow-wrap: anywhere;
   font: var(--font-code);
 }
-.printer-report-actions {
+.printer-report-actions,
+.printer-credential-actions {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2892,7 +2893,7 @@ p.agent-row-note {
 .printer-card-picture-empty { display: grid; place-items: center; }
 .printer-card-glyph { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); color: var(--text-secondary); }
 
-/* printer_connect's local credential form. */
+/* The printer chat's local credential form. */
 .printer-credential { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .printer-credential-glyph { color: var(--text-primary); }
 

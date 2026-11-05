@@ -23,6 +23,25 @@
     "type": "function"
   },
   {
+    "description": "Connects the Bambu Lab printer this conversation is about in LAN mode. The app opens a form in this chat where the person types the printer's access code themselves, never in chat, and the call waits for them. When they submit it, the app connects and the call returns the outcome: verified (connected) or failed (with what Bambu's network plug-in reported), saying whether a code was typed or the one the app already holds was used; help_requested (the person tapped \"Help me find the code\" in the form and wants help finding it); or dismissed (they closed the form). Pass the deviceId of a printer in printer_connection_status's candidates; one in cloud mode cannot be connected, because LAN Only is off on it. For Moonraker or OctoPrint use printer_host_connect instead.",
+    "name": "printer_bambu_connect",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {
+        "deviceId": {
+          "description": "From printer_connection_status's candidates.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "deviceId"
+      ],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
     "description": "Saves a new nozzle size on a saved printer, after the person confirmed it. Returns what changed and the printer as it now is. When the open project uses this printer, its unsaved edits are dropped and their keys listed in discarded; the version saved before the change keeps them.",
     "name": "printer_change",
     "parameters": {
@@ -46,22 +65,29 @@
     "type": "function"
   },
   {
-    "description": "Connects the printer this conversation is about. It opens a local form where the person types the access code or API key themselves, never in chat. For a Bambu Lab printer pass only the deviceId from printer_connection_status; for Moonraker or OctoPrint pass only hostType and the address the person gave, and until they give one, ask for it instead of calling this. Only a printer in the status check's candidates can be connected; one in cloud mode cannot, because LAN Only is off on it. The app reports the connection outcome in a note.",
-    "name": "printer_connect",
+    "description": "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it starts the network search if it has not started and, until a printer of that model is heard, listens during this call for up to 30 seconds, then reports what it has found of that model. candidates are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. search.state listening with nothing listed means nothing was heard in the time search.secondsAgo gives, not that the printer is absent: the search goes on, and the app posts a note if a printer of this model is heard later. port_taken means another app on this computer holds the port printers announce on, so nothing can be found, whatever mode the printer is in. not_listening means nothing holds that port and this app takes it only as it starts.",
+    "name": "printer_connection_status",
+    "parameters": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "strict": true,
+    "type": "function"
+  },
+  {
+    "description": "Connects the printer this conversation is about to the Moonraker or OctoPrint at an address, and saves that address as its connection once the host accepts the test. The call returns once the connection has an outcome. It first tests with the API key the app already holds for that address and type, or with none, for at most 30 seconds. If the host refuses that test (Moonraker with HTTP 401, OctoPrint with HTTP 403), the app opens a form in this chat where the person types an API key themselves, never in chat, and the call waits for them: when they submit it, the app tests again with that key. The result is verified (connected and saved; for Moonraker it gives Klipper's state, which Moonraker reports whether or not Klipper can reach the printer's board), failed (with the host's or the network's own words), help_requested (the person tapped \"Help me find the key\" in the form and wants help finding it) or dismissed (they closed the form). It says what each host answered and which API key each test sent. Pass hostType and the address with its port when it has one. For a Bambu Lab printer use printer_bambu_connect instead.",
+    "name": "printer_host_connect",
     "parameters": {
       "additionalProperties": false,
       "properties": {
         "address": {
-          "description": "The address the person gave, as they open the printer in a browser.",
+          "description": "The print host's address, an IP address or a name, with its port when it has one.",
           "maxLength": 256,
           "type": "string"
         },
-        "deviceId": {
-          "description": "Bambu Lab only, alone: from printer_connection_status.",
-          "type": "string"
-        },
         "hostType": {
-          "description": "Moonraker or OctoPrint only, together with address.",
           "enum": [
             "moonraker",
             "octoprint"
@@ -69,19 +95,10 @@
           "type": "string"
         }
       },
-      "required": [],
-      "type": "object"
-    },
-    "strict": false,
-    "type": "function"
-  },
-  {
-    "description": "Reads whether the printer this conversation is about can be reached over the network. For a Bambu Lab printer it starts the network search if it has not started, and reports what it has found of that model so far. candidates are printers it knows in LAN mode, heard on the network or saved from an earlier connection, and only an attempt shows whether one answers. seen cannot be connected: reason cloud_mode means the printer is on the network and LAN Only is off on it. Reason account_only means it is on the person's Bambu account and has not been seen on the network. The app also lists every other printer it knows of and does not offer, so none is hidden: other_model is a printer of another model (detail names it); linked_elsewhere is a printer of this model already set up as another saved printer (detail names that printer); other_device is a printer of this model that is not the one this printer was set up from (detail is that device id); occupied is a printer in LAN mode whose bind state is not free. While search.state is started, an empty list says nothing yet: the app posts a note when a printer appears, or after about 15 seconds with none. listening with nothing listed means nothing has been heard so far, and the search goes on. port_taken means another app on this computer holds the port printers announce on, so nothing can be found, whatever mode the printer is in. not_listening means nothing holds that port and this app takes it only as it starts.",
-    "name": "printer_connection_status",
-    "parameters": {
-      "additionalProperties": false,
-      "properties": {},
-      "required": [],
+      "required": [
+        "hostType",
+        "address"
+      ],
       "type": "object"
     },
     "strict": true,

@@ -83,7 +83,8 @@ enum class ToolHandler : std::uint8_t {
     PrinterAdd,
     PrinterChange,
     PrinterConnectionStatus,
-    PrinterConnect,
+    PrinterHostConnect,
+    PrinterBambuConnect,
     IssueReportOpen,
     SkillRead
 };

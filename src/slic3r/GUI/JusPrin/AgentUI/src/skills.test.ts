@@ -8,8 +8,7 @@ describe('project skills', () => {
     expect(skills.map((skill) => [skill.name, skill.trigger])).toEqual([
       ['calibration', 'calibration_started'],
       ['connect-bambu', 'connect_bambu'],
-      ['connect-moonraker', 'connect_moonraker'],
-      ['connect-octoprint', 'connect_octoprint'],
+      ['connect-print-host', 'connect_print_host'],
       ['file-loaded', 'file_loaded'],
       ['print-issues', 'print_issues'],
       ['project-setup-changed', 'setup_changed'],
@@ -341,5 +340,58 @@ describe('the print-issues skill points material symptoms at calibration', () =>
   it('names the calibration skill once', () => {
     const text = skills.find((skill) => skill.trigger === 'print_issues')!.text;
     expect(text.match(/the calibration skill/g)).toHaveLength(1);
+  });
+});
+
+describe('the connection skills', () => {
+  const bambu = skills.find((skill) => skill.trigger === 'connect_bambu')!.text;
+  const host = skills.find((skill) => skill.trigger === 'connect_print_host')!.text;
+
+  it('come before the person asks, so each offers to connect only right after adding and only when not yet asked', () => {
+    // The app adds them with printer_add's result (PrinterConversation::connection_skill);
+    // the measured offer moved here from the standing prompt.
+    for (const text of [bambu, host]) {
+      expect(text).toMatch(/^# [^\n]+\n\nThe rules above still apply\./);
+      expect(text).toContain('so it does not mean the person wants to connect');
+      expect(text).toContain('Start connecting only once they say they want to.');
+      expect(text).toContain('unless they have already said whether they want it connected, offer it once: end that reply with ' +
+        'exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"');
+      expect(text).toContain('When they have already asked to connect it, go straight on.');
+      expect(text).toContain('Never ask for');
+      // The form stays inside the connect call, so no note follows it.
+      expect(text).toContain('The form has three ways out: Connect,');
+      expect(text).not.toContain('Answer anything they say meanwhile.');
+      expect(encoder.encode(text).length).toBeLessThanOrEqual(16 * 1024);
+    }
+  });
+
+  it('tell Moonraker and OctoPrint apart from what the person sees and from the first error', () => {
+    expect(host).toContain('ask what the page they open to control the printer is called');
+    expect(host).toContain('a test for the wrong one got HTTP 404 both ways');
+  });
+
+  it('tell a person with no key what helps, labelled by where it comes from', () => {
+    expect(host).toContain('A first try without a key is fine: the answer says whether one is needed');
+    expect(host).toContain('after a 401 do not ask them to type one');
+    expect(host).toContain('`trusted_clients`, under `[authorization]` in `moonraker.conf`');
+    expect(host).toContain("Mainsail's own FAQ");
+    expect(host).toContain('That this is their cause is a guess.');
+    expect(host).toContain("Moonraker's installation documentation gives the key page as `http://{moonraker-host}/access/api_key`, with no port");
+    expect(host).toContain('`http://192.168.1.50:7125/access/api_key`');
+    expect(host).toContain('`~/moonraker/scripts/fetch-apikey.sh`');
+    expect(host).toContain('Do not send the person looking for one.');
+    expect(host).toContain("OctoPrint's API documentation says a user's own key is shown in their user settings");
+    // The premise that sent the model to "Mainsail's settings page" (2026-11-04).
+    expect(host).not.toContain('where Mainsail or Fluidd show the key');
+  });
+
+  it('let the model try an address it worked out once the person agrees', () => {
+    expect(host).toContain('is a guess: say so. When they say to try it, call printer_host_connect with it at once, without asking again.');
+  });
+
+  it('say what a verified host test does not show', () => {
+    expect(host).toContain('That means Moonraker answered, and nothing more');
+    expect(host).toContain('do not say the printer is ready to print');
+    expect(host).toContain('That means OctoPrint answered and took the key, and nothing more');
   });
 });

@@ -53,6 +53,7 @@ npm install (src/slic3r/GUI/JusPrin/AgentUI/node_modules) for esbuild.
 """
 
 import argparse
+import collections
 import concurrent.futures
 import json
 import os
@@ -61,6 +62,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -89,7 +91,7 @@ CLAUDE_JUDGE = None
 TOOLS = json.loads((HERE / "printer_tools.json").read_text(encoding="utf-8"))
 # The body of the file: what the page sends and the app adds (skillParser.ts).
 CONNECTION_SKILLS = {kind: (HERE / f"../../src/slic3r/GUI/JusPrin/AgentUI/src/skills/connect-{kind}/SKILL.md").read_text(
-    encoding="utf-8").split("\n---\n", 1)[1].strip() for kind in ("bambu", "moonraker", "octoprint")}
+    encoding="utf-8").split("\n---\n", 1)[1].strip() for kind in ("bambu", "print-host")}
 MAX_REQUESTS_PER_TURN = 8
 # Conversations one invocation runs by default, shared by the cases it runs,
 # and the most one case gets from that share.
@@ -133,6 +135,18 @@ def post(body, key, endpoint=ENDPOINT):
         time.sleep(2 ** attempt)
 
 
+# The run's token use, by who spent it, for the line main prints at the end.
+USAGE = {"model": collections.Counter(), "judge": collections.Counter()}
+JUDGE_CALLS = collections.Counter()
+USAGE_LOCK = threading.Lock()
+
+
+def spent(who, usage):
+    """Adds a response's token counts (the numbers in its usage) to the run's."""
+    with USAGE_LOCK:
+        USAGE[who].update({name: value for name, value in (usage or {}).items() if isinstance(value, int)})
+
+
 def judge(log, question):
     """A yes or no about the conversation's last reply, from a stronger model,
     for what no string test can check. Returns (yes, why)."""
@@ -142,27 +156,83 @@ def judge(log, question):
                     "about it strictly as written, judging only what the messages say. A \"web search:\" line is a "
                     "search the assistant ran, with the pages it found.")
     prompt = "\n".join(log) + "\n\nQuestion: " + question
+    with USAGE_LOCK:
+        JUDGE_CALLS["calls"] += 1
     if CLAUDE_JUDGE:
-        verdict, _ = claude_cli.judge(instructions, prompt, schema, *CLAUDE_JUDGE)
+        verdict, usage = claude_cli.judge(instructions, prompt, schema, *CLAUDE_JUDGE)
+        spent("judge", usage)
         return verdict["answer"] == "yes", verdict["why"]
     response = post({"model": JUDGE_MODEL, "store": False, "instructions": instructions, "input": prompt,
                      "text": {"format": {"type": "json_schema", "name": "verdict", "strict": True, "schema": schema}}},
                     os.environ["OPENAI_API_KEY"], JUDGE_ENDPOINT)
+    spent("judge", response.get("usage"))
     text = "".join(output_text(item) for item in response.get("output", []) if item.get("type") == "message")
     verdict = json.loads(text)
     return verdict["answer"] == "yes", verdict["why"]
 
 
 # What every reply of every case must hold to, whatever the case checks.
-INTERNAL_TERMS = re.compile(r"\b(profiles?|presets?|catalog(ue)?|catalogId|deviceId|printer_[a-z_]+)\b", re.IGNORECASE)
+def argument_names(schema):
+    """Every property name in a tool's parameters, nested ones included."""
+    if isinstance(schema, list):
+        return {name for item in schema for name in argument_names(item)}
+    if not isinstance(schema, dict):
+        return set()
+    names = set(schema.get("properties", {})) if isinstance(schema.get("properties"), dict) else set()
+    return names | {name for value in schema.values() for name in argument_names(value)}
 
 
-def reply_problems(reply):
-    """How a reply breaks the prompt's rules for every reply: a "Choices:" line
-    the page would show as text or draw wrongly (replyChoices.ts), or internal
-    words."""
-    problems = []
+# A leak of the model's own machinery: one of its tools by its exact name, a
+# camelCase field from their arguments (catalogId, deviceId), or a JSON object
+# pasted from a tool result. Exact names, so Klipper's printer_data folder or
+# a plain word such as "address" passes; no reply has reason to hold these.
+LEAKED_NAMES = {tool["name"] for tool in TOOLS} | {name for name in argument_names(TOOLS) if re.search(r"[a-z][A-Z]", name)}
+LEAK = re.compile(r"\b(?:" + "|".join(sorted(map(re.escape, LEAKED_NAMES), key=len, reverse=True)) + r")\b")
+# A JSON object in a reply, by its first key. It is a leak only when a tool
+# result of the same chat has that key: Moonraker's own page shows an API key
+# as {"result": ...}, and a reply may quote it (DeepSeek, 2026-09-28).
+JSON_OBJECT = re.compile(r'\{\s*"([^"\n]+)"\s*:')
+
+
+def result_keys(log):
+    """Every key in the tool results of a conversation's log."""
+    def keys(value):
+        if isinstance(value, dict):
+            return set(value) | {key for item in value.values() for key in keys(item)}
+        if isinstance(value, list):
+            return {key for item in value for key in keys(item)}
+        return set()
+    return {key for line in log if line.startswith("  -> ") for key in keys(json.loads(line[len("  -> "):]))}
+# The prompt's other internal words (profile, preset, catalog) are not
+# checked: a person may say them, and grading each chat for them would add
+# about 30% to a run's cost (Sonnet 5.5), so they were dropped (decided 2026-11-04).
+
+
+# A list of sources: a "Sources:" heading, lines of markdown links, or both on one line.
+HEADING = r"\s*(?:#+\s*)?(?:\*\*)?Sources:?(?:\*\*)?:?\s*"
+SOURCES_HEADING = re.compile(HEADING, re.IGNORECASE)
+SOURCE_LINE = re.compile(r"\s*(?:[-*]\s+|\d+\.\s+)?(?:" + HEADING + r")?(?:\[[^\]]*\]\([^)\s]+\)[\s,;·|]*)+",
+                         re.IGNORECASE)
+
+
+def without_sources(reply):
+    """The reply without a list of sources at its end: a "Sources:" heading
+    and lines of markdown links, after a search on --backend claude-cli. The
+    CLI's search result ends by demanding such a list, the app's provider
+    search does not, and the app asks for none, so a list after the Choices
+    line is the test backend's, not the prompt's."""
     lines = reply.rstrip().splitlines()
+    while lines and (not lines[-1].strip() or SOURCE_LINE.fullmatch(lines[-1]) or SOURCES_HEADING.fullmatch(lines[-1])):
+        lines.pop()
+    return "\n".join(lines)
+
+
+def reply_problems(reply, tool_result_keys=frozenset()):
+    """How a reply breaks the prompt's rules for every reply: a "Choices:" line
+    the page would show as text or draw wrongly (replyChoices.ts), or a leak
+    of a tool's name, field or result."""
+    problems = []
+    lines = without_sources(reply).splitlines()
     found = re.search(r"(^|\s)Choices:(.*)$", lines[-1]) if lines else None
     if found is None and "Choices:" in reply:
         problems.append("CHOICES NOT ON THE LAST LINE")
@@ -172,8 +242,11 @@ def reply_problems(reply):
             problems.append(f"{len(choices)} CHOICES")
         if any(len(choice) >= 30 for choice in choices):
             problems.append("LONG CHOICE")
-    if INTERNAL_TERMS.search(reply):
-        problems.append("INTERNAL TERM " + repr(INTERNAL_TERMS.search(reply).group(0)))
+    if LEAK.search(reply):
+        problems.append("LEAK " + repr(LEAK.search(reply).group(0)))
+    pasted = [found.group(0) for found in JSON_OBJECT.finditer(reply) if found.group(1) in tool_result_keys]
+    if pasted:
+        problems.append("LEAK " + repr(pasted[0]))
     return problems
 
 
@@ -193,16 +266,16 @@ def invalid_arguments(tool, arguments):
         return {"code": "unknown_tool", "message": f'There is no tool named "{tool}" here. Nothing was queued. Use one of the listed tools.'}
     missing = [name for name in schema.get("required", []) if name not in arguments]
     extra = [name for name in arguments if name not in schema.get("properties", {})]
-    # ToolRegistry's valid_arguments for printer_connect: deviceId alone, or
-    # hostType with a non-empty address.
-    if tool == "printer_connect" and not extra and not (
-            (set(arguments) == {"deviceId"} and arguments["deviceId"]) or
-            (set(arguments) == {"hostType", "address"} and arguments["address"] and
-             arguments["hostType"] in ("moonraker", "octoprint"))):
+    # ToolRegistry's valid_arguments for the connection tools: a non-empty
+    # address with a known hostType, and a non-empty deviceId.
+    if tool == "printer_host_connect" and not extra and not (
+            arguments.get("address") and arguments.get("hostType") in ("moonraker", "octoprint")):
         return {"code": "invalid_arguments",
-                "message": "The tool arguments do not match the registered contract. Give deviceId alone, or hostType with "
-                           "the address the person gave. Without an address, ask the person for the one they open the "
-                           "printer with in a browser, and call this once they give it."}
+                "message": "The tool arguments do not match the registered contract. Give hostType and the print host's "
+                           "address. Without an address, ask the person for it, and call this once there is one."}
+    if tool == "printer_bambu_connect" and not extra and not arguments.get("deviceId"):
+        return {"code": "invalid_arguments",
+                "message": "The tool arguments do not match the registered contract."}
     if missing or extra:
         return {"code": "invalid_arguments",
                 "message": f"Missing {missing}, unexpected {extra}. Nothing was queued. "
@@ -231,7 +304,7 @@ def succeeded(result):
     printer panel words a failed call as {"error": ...} with no state
     (PrinterConversation::tool_output); a refusal before running says
     "state": "failed"."""
-    return "error" not in result and result.get("state") not in ("failed", "cancelled")
+    return "error" not in result and result.get("state") != "cancelled"
 
 
 def not_run(failed):
@@ -252,10 +325,12 @@ class ApiTurn:
 
     def next(self):
         conversation = self.conversation
-        return post({"model": conversation.model, "store": False, "parallel_tool_calls": True,
-                     "instructions": conversation.instructions, "tools": getattr(conversation.case, "tools", TOOLS),
-                     "input": self.turn, **conversation.routing},
-                    conversation.key, conversation.endpoint).get("output", [])
+        response = post({"model": conversation.model, "store": False, "parallel_tool_calls": True,
+                         "instructions": conversation.instructions, "tools": getattr(conversation.case, "tools", TOOLS),
+                         "input": self.turn, **conversation.routing},
+                        conversation.key, conversation.endpoint)
+        spent("model", response.get("usage"))
+        return response.get("output", [])
 
     def answer(self, calls, results, skill):
         pass  # already in the turn the next request sends
@@ -279,7 +354,9 @@ class ClaudeTurn(ApiTurn):
                                   *CLAUDE)
 
     def next(self):
-        return self.run.next_response()[0]
+        items, usage = self.run.next_response()
+        spent("model", usage)
+        return items
 
     def answer(self, calls, results, skill):
         if skill:
@@ -303,30 +380,26 @@ class Conversation:
         self.history = [{"role": "assistant", "content": prompt["opening"]}]  # the page's opening line
         self.log = ["assistant: " + prompt["opening"]]
         self.skills_sent = set()
-        self.host_type = ""
 
     def say(self, words):
         """One turn: the person's words, then the model until it stops."""
         self.log.append("person: " + words)
         turn = self.history + [{"role": "user", "content": [{"type": "input_text", "text": words}]}]
         self.history.append({"role": "user", "content": words})
-        if getattr(self.case, "session", {}).get("mode") == "connect":
-            self.add_connection_skill(turn)
+        session = getattr(self.case, "session", {})
+        printer = session.get("context", {}).get("printer") or {}
+        if session.get("mode") in ("change", "connect") and printer and not printer.get("stock"):
+            self.add_connection_skill(turn, printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu"))
         self.respond(turn)
 
-    def add_connection_skill(self, turn):
-        """PrinterConversation::connection_skill: once the person has tried to
-        connect, the skill for the connection type follows the message or the
-        results of that moment, once, and stays. A print host's type is the
-        saved one, or else the one the first printer_connect names."""
-        printer = getattr(self.case, "printer", None) or getattr(self.case, "session", {}).get("context", {}).get("printer") or {}
-        # An add case names its printer by catalogue id, the vendor first.
-        if isinstance(printer, str):
-            bambu = printer.startswith("BBL/")
-        else:
-            bambu = printer.get("provider") == "bambu" or str(printer.get("model", "")).startswith("Bambu")
-        kind = "bambu" if bambu else self.host_type
-        if kind not in CONNECTION_SKILLS or kind in self.skills_sent:
+    def add_connection_skill(self, turn, bambu):
+        """PrinterConversation::connection_skill: once the chat has a saved
+        printer -- the one a change or connect chat is about, or one
+        printer_add has just added -- the skill for its vendor follows the
+        message or the results of that moment, once, and stays. A Bambu Lab
+        printer gets the Bambu skill; any other the print host one."""
+        kind = "bambu" if bambu else "print-host"
+        if kind in self.skills_sent:
             return None
         self.skills_sent.add(kind)
         self.log.append(f"app: (the connect-{kind} skill)")
@@ -365,6 +438,7 @@ class Conversation:
                 if not calls:
                     break
                 failed = None  # "tool (call_id)" of the first call that did not succeed
+                added = None  # the catalogue id a printer_add of this response added
                 results = []
                 for call in calls:
                     arguments = json.loads(call.get("arguments") or "{}")
@@ -376,11 +450,8 @@ class Conversation:
                         result, recorded = {"state": "failed", "error": problem}, False
                     else:
                         (result, _), recorded = self.case.tool(call["name"], arguments), True
-                        if call["name"] == "printer_connect" and arguments.get("hostType"):
-                            self.host_type = arguments["hostType"]
-                        elif (call["name"] == "printer_connection_status" and result.get("provider") == "host"
-                              and result.get("address") and not self.host_type):
-                            self.host_type = result.get("hostType", "")
+                        if call["name"] == "printer_add" and succeeded(result):
+                            added = str(arguments.get("catalogId", ""))  # the vendor first
                     if not failed and not succeeded(result):
                         failed = f"{call['name']} ({call['call_id']})"
                     self.log.append("  -> " + dump(result))
@@ -388,9 +459,7 @@ class Conversation:
                     turn.append({"type": "function_call_output", "call_id": call["call_id"], "output": dump(result)})
                     if recorded:
                         self.history += self.replayed(call, result)
-                skill = None
-                if any(call["name"] in ("printer_connect", "printer_connection_status") for call in calls):
-                    skill = self.add_connection_skill(turn)
+                skill = self.add_connection_skill(turn, added.startswith("BBL/")) if added is not None else None
                 model.answer(calls, results, skill)
 
     @staticmethod
@@ -405,8 +474,10 @@ class Conversation:
 class ConnectBambu:
     """Connect a saved Bambu Lab A1 mini that is on the network in LAN mode.
 
-    Passes when the model opens printer_connect's credential form for that
-    printer.
+    Passes when the model opens printer_bambu_connect's form for that
+    printer. The call waits on the form; `outcome` is what it returns once
+    the person has answered it, as PrinterConversation::end_connect_call
+    words it.
     """
 
     name = "connect-bambu"
@@ -421,6 +492,8 @@ class ConnectBambu:
     status = {"address": "", "candidates": [{"address": "127.0.0.1", "deviceId": "FAKE001", "name": "JusPrin Fake A1 mini"}],
               "seen": [], "search": {"state": "listening", "secondsAgo": 3},
               "hostType": "", "message": "", "nozzleMismatch": False, "provider": "bambu", "state": "not_configured"}
+    outcome = {"state": "verified",
+               "message": "The app connected to Bambu Lab A1 mini. The app sent the access code typed in the form."}
 
     def __init__(self):
         self.card = False
@@ -430,13 +503,16 @@ class ConnectBambu:
     def tool(self, name, arguments):
         if name == "printer_connection_status":
             return self.status, False
-        if name == "printer_connect":
+        if name == "printer_host_connect":
+            return {"error": {"code": "unknown_device",
+                              "message": "This is a Bambu Lab printer, connected with printer_bambu_connect. Pass the "
+                                         "deviceId of one of these printers in LAN mode: FAKE001 (JusPrin Fake A1 mini)."}}, False
+        if name == "printer_bambu_connect":
             # The app accepts a listed printer's id or its name (preflight_tool).
             device = arguments.get("deviceId", "")
             if device in ("FAKE001", "JusPrin Fake A1 mini"):
                 self.card = True
-                return {"state": "credential_requested",
-                        "message": "The app is waiting for the person to enter the printer credential locally."}, False
+                return self.outcome, False
             self.refused.append(device)
             return {"error": {"code": "unknown_device",
                               "message": "Pass the deviceId of one of these printers in LAN mode: FAKE001 (JusPrin Fake A1 mini)."}}, False
@@ -542,7 +618,7 @@ class AddCase:
     def outcome(self, printer, reply):
         # Space at a line's end is not shown, the page trims each choice, and a
         # blank line before the choices draws the same chips.
-        offered = "\n".join(line.rstrip() for line in reply.rstrip().splitlines() if line.strip()).endswith(CONNECT_OFFER)
+        offered = "\n".join(line.rstrip() for line in without_sources(reply).splitlines() if line.strip()).endswith(CONNECT_OFFER)
         passed = self.added == [printer] and offered
         detail = ("added" if self.added == [printer] else f"added {self.added or 'nothing'}") + \
                  ("; offered to connect" if offered else "; NO CONNECT OFFER: " + repr(reply[-120:]))
@@ -634,7 +710,7 @@ def offers_done(reply):
     """Whether the page draws Done as the reply's one chip, reading the reply
     as splitChoices (replyChoices.ts) does: "Choices:" starting a word on the
     last line, with something said before it."""
-    lines = reply.rstrip().splitlines()
+    lines = without_sources(reply).splitlines()
     found = re.search(r"(^|\s)Choices:(.*)$", lines[-1]) if lines else None
     if found is None:
         return False
@@ -673,15 +749,19 @@ class AddNotNowClose(Finishing, AddCase):
 
 
 class ConnectOutcome(Finishing, ConnectBambu):
-    """Connect the saved A1 mini, as connect-bambu does, then the person taps
-    Connect on the card and the app reports the outcome in a note."""
+    """Connect the saved A1 mini, as connect-bambu does: the person types the
+    code in the form, and the call returns the attempt's outcome."""
 
-    def connect(self, conversation, outcome):
-        """The model's reply to the app's note, or None when no card came."""
+    CODE_SENT = " The app sent the access code typed in the form."
+
+    def connect(self, conversation):
+        """The model's reply to the call's outcome, or None when no form came."""
+        start = len(conversation.log)
         ConnectBambu.run(self, conversation)
         if not self.card:
             return None
-        return last_reply(conversation, note="Connection to Bambu Lab A1 mini " + outcome)
+        replies = [line for line in conversation.log[start:] if line.startswith("assistant: ")]
+        return replies[-1][len("assistant: "):] if replies else ""
 
 
 def ended_badly(conversation, truth):
@@ -692,14 +772,20 @@ def ended_badly(conversation, truth):
     when its next step would lead them there. The prompt has the model search
     before it says where a menu or setting is and say what came from the
     web (LOOK_IT_UP), so what a search shown in the chat found counts as
-    given, when the assistant says it came from the web."""
+    given. Only a specific path on the printer or in another program fails:
+    the judge reads the chat alone, not the skill, so a general fact the skill
+    gives ("the code is on the printer's screen") or this app's own menus
+    read as unsourced to it (Kenneth, 2026-11-04)."""
     yes, why = judge(conversation.log, "The truth in this scenario, which the assistant cannot know for certain: " + truth +
                                        " Reading the whole chat as that person, are all of these true? Every cause the "
                                        "assistant gave is stated in the app's or the person's messages, or said to come "
                                        "from a web search the chat shows, or marked as a guess. It did not send them back "
                                        "to something they had already done or ruled out, unless something had changed. "
-                                       "It gave no menu, screen or setting path as fact unless the messages gave it or it "
-                                       "said the path came from a web search the chat shows. Its last message leaves "
+                                       "It gave no specific menu or screen path on the printer or in another program, "
+                                       "such as \"Settings → WLAN → LAN Only Mode\", as fact, unless the messages or a web "
+                                       "search the chat shows gave it, or it marked the path as a guess. A general "
+                                       "statement, such as that the code is on the printer's screen, is fine. Paths in "
+                                       "this app itself are given to the assistant and count as sourced. Its last message leaves "
                                        "them with a concrete next thing to look at, try or answer that moves them toward "
                                        "the truth.")
     return "" if yes else "LEFT STUCK: " + why
@@ -713,8 +799,12 @@ class ConnectWorkedOut(ConnectOutcome):
     failure = ""
     person = ()
 
+    @property
+    def outcome(self):
+        return {"state": "failed", "message": self.failure + self.CODE_SENT}
+
     def run(self, conversation):
-        if self.connect(conversation, "failed: " + self.failure) is None:
+        if self.connect(conversation) is None:
             return False, "NO CARD"
         for words in self.person:
             last_reply(conversation, words)
@@ -775,7 +865,11 @@ class ConnectScreenSaysDisconnected(ConnectOutcome):
     the model takes what they see as the likely cause."""
 
     name = "connect-screen-says-disconnected"
-    status = {**ConnectBambu.status, "candidates": [], "search": {"state": "listening", "secondsAgo": 40}}
+    # PrinterConversation::search_json once the call has listened 30 seconds.
+    status = {**ConnectBambu.status, "candidates": [],
+              "search": {"state": "listening", "secondsAgo": 30,
+                         "message": "Nothing heard in 30 seconds. The search is still listening, and the app posts a "
+                                    "note if a printer of this model is heard."}}
 
     def run(self, conversation):
         conversation.say("Yes, it is")
@@ -790,7 +884,7 @@ class ConnectVerifiedClose(ConnectOutcome):
     name = "connect-verified-close"
 
     def run(self, conversation):
-        reply = self.connect(conversation, "verified.")
+        reply = self.connect(conversation)
         if reply is None:
             return False, "NO CARD"
         return self.end(reply, "verified")
@@ -801,9 +895,11 @@ class ConnectLeaveClose(ConnectOutcome):
     reply to that says they can close the chat."""
 
     name = "connect-leave-close"
+    outcome = {"state": "failed",
+               "message": "The printer did not respond. Check that it is on the network and try again." + ConnectOutcome.CODE_SENT}
 
     def run(self, conversation):
-        reply = self.connect(conversation, "failed: The printer did not respond. Check that it is on the network and try again.")
+        reply = self.connect(conversation)
         if reply is None:
             return False, "NO CARD"
         reply = last_reply(conversation, "Leave it for now")
@@ -852,7 +948,9 @@ class ChangeNozzleClose(Finishing):
 
 # What the model must never do while talking about a printer it already has.
 ADDING = ("printer_identify", "printer_add")
-MUTATIONS = ADDING + ("printer_change", "printer_connect", "settings_apply_patch")
+# The two connection tools: a print host's test, and a Bambu Lab printer's form.
+CONNECT = ("printer_host_connect", "printer_bambu_connect")
+MUTATIONS = ADDING + ("printer_change",) + CONNECT + ("settings_apply_patch",)
 SETTINGS = ("settings_search", "settings_get", "settings_preview_patch", "settings_apply_patch")
 
 # A printer's settings as the settings tools read them: value, writable, type,
@@ -909,7 +1007,7 @@ class SavedPrinterCase:
             return self.settings(name, arguments)
         # PrinterConversation::preflight_tool: a stock profile holds no nozzle
         # or connection of the person's own.
-        if self.stock and name in ("printer_change", "printer_connect", "printer_connection_status"):
+        if self.stock and name in ("printer_change", "printer_connection_status") + CONNECT:
             return {"error": {"code": "stock_profile",
                               "message": f'"{self.printer["name"]}" is the settings JusPrin comes with for this model, not a '
                                          "printer the person has added, so its nozzle and connection are not saved. Its other "
@@ -927,8 +1025,8 @@ class SavedPrinterCase:
             return self.change(arguments), False
         if name == "printer_connection_status":
             return self.status, False
-        if name == "printer_connect":
-            return self.connect(arguments)
+        if name in CONNECT:
+            return self.connect(name, arguments)
         return {"error": {"code": "not_in_this_test", "message": "This test does not answer " + name + "."}}, False
 
     def settings(self, name, arguments):
@@ -1014,26 +1112,38 @@ class SavedPrinterCase:
         before, self.printer["nozzle"] = self.printer["nozzle"], nozzle
         return {"changed": [{"field": "nozzle", "before": before, "after": nozzle}], "printer": dict(self.printer)}
 
-    def connect(self, arguments):
-        """PrinterConversation::preflight_tool, then local credentials are collected."""
+    # What printer_host_connect returns for this case's host, once its test
+    # and any key form are done: by default a Moonraker that wants a key, as
+    # the one in Docker answered, and the right key typed in the form.
+    host_answer = ("verified", "Moonraker at {address} refused the test: HTTP 401: Unauthorized The test sent no API key. "
+                               "The person typed a key in the form, and the app tested again: Moonraker at {address} "
+                               "accepted the test, and this printer now connects there. The test sent the API key typed in "
+                               "the form. Moonraker reports Klipper's state as ready.")
+
+    def connect(self, name, arguments):
+        """PrinterConversation::preflight_tool, then the host's test or the access code form."""
         if self.needs_plugin:
             return {"error": {"code": "connection_unavailable", "message": self.status["message"]}}, False
         if self.provider == "host":
-            if "hostType" not in arguments:
-                return {"error": {"code": "address_needed", "message": "Pass hostType and the address the person gave."}}, False
-            return {"state": "credential_requested",
-                    "message": "The app is waiting for the person to enter the printer credential locally."}, False
+            if name == "printer_bambu_connect":
+                return {"error": {"code": "address_needed",
+                                  "message": "This printer connects through Moonraker or OctoPrint, not as a Bambu Lab device: "
+                                             "call printer_host_connect with hostType and the print host's address."}}, False
+            state, message = self.host_answer
+            return {"state": state, "message": message.format(address=arguments.get("address", ""))}, False
+        if name == "printer_host_connect":
+            return {"error": {"code": "unknown_device",
+                              "message": "This is a Bambu Lab printer, connected with printer_bambu_connect."}}, False
         candidates = self.status.get("candidates", [])
         listed = [c for c in candidates if arguments.get("deviceId") in (c["deviceId"], c["name"])]
         if not listed:
             # PrinterConversation::unknown_device_text, for a status with nothing in cloud mode.
             lan = ", ".join(f'{c["deviceId"]} ({c["name"]})' for c in candidates)
             message = ("Pass the deviceId of one of these printers in LAN mode: " + lan + "." if lan else
-                       "The network search has listened for 20 seconds and has found no printer of this model in LAN "
-                       "mode. The app posts a note if one appears.")
+                       "The network search has listened for 20 seconds and has heard no printer of this model in LAN "
+                       "mode. It goes on, and the app posts a note if one is heard.")
             return {"error": {"code": "unknown_device", "message": message}}, False
-        return {"state": "credential_requested",
-                "message": "The app is waiting for the person to enter the printer credential locally."}, False
+        return ConnectBambu.outcome, False
 
     def called(self, *names):
         return [(name, arguments) for name, arguments in self.calls if name in names]
@@ -1094,7 +1204,7 @@ class ChangeEditStartGcode(SavedPrinterCase):
         applied = [a for a in self.applied()
                    if a.get("persistAs") == own and "G29" in str(a.get("changes", {}).get("machine_start_gcode", "")) and
                    str(a["changes"]["machine_start_gcode"]).find("G28") < str(a["changes"]["machine_start_gcode"]).find("G29")]
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
+        return verdict([self.forbidden(ADDING + ("printer_change",) + CONNECT),
                         "" if applied else f"CHANGE NOT APPLIED {self.applied()}"],
                        "applied the change and saved it in place")
 
@@ -1123,7 +1233,7 @@ class ChangeStockCopy(SavedPrinterCase):
         copy = self.printer["name"] + " - Copy"
         applied = [a for a in self.applied() if a.get("persistAs") == copy and
                    str(a.get("changes", {}).get("retraction_length", "")).strip() in ("1", "1.0", "1.00")]
-        return verdict([self.forbidden(ADDING + ("printer_change", "printer_connect")),
+        return verdict([self.forbidden(ADDING + ("printer_change",) + CONNECT),
                         "" if applied else f"COPY NOT APPLIED {self.applied()}"],
                        "saved as a copy")
 
@@ -1197,7 +1307,7 @@ class ChangeUnshippedNozzle(SavedPrinterCase):
     def run(self, conversation):
         reply = last_reply(conversation, "I put a 0.3 nozzle on it")
         saved = self.printer["nozzle"] != KOBRA["nozzle"]
-        return verdict([self.forbidden(ADDING + ("printer_connect",)),
+        return verdict([self.forbidden(ADDING + CONNECT),
                         f"SAVED {self.printer['nozzle']}" if saved else ""] +
                        refused_nozzle_problems(conversation, reply, KOBRA["nozzles"]),
                        "saved nothing; named the sizes and asked")
@@ -1215,7 +1325,7 @@ class ChangeAddAnother(SavedPrinterCase):
         last_reply(conversation, "I also have a Prusa MK4S, can you add it too?")
         yes, why = judge(conversation.log, "Does the assistant's last message tell the person that another printer is "
                                            "added from Home, for example with + Add printer?")
-        return verdict([self.forbidden(("printer_change", "printer_connect")),
+        return verdict([self.forbidden(("printer_change",) + CONNECT),
                         "" if yes else "DID NOT SAY WHERE: " + why,
                         judged(conversation, "Does the assistant's last message say or imply that the Prusa MK4S has been "
                                              "added or set up?")],
@@ -1232,14 +1342,14 @@ class ChangeThenConnect(SavedPrinterCase):
 
     def run(self, conversation):
         last_reply(conversation, "can you connect it so I can send prints to it?")
-        early = self.called("printer_connect")
+        early = self.called("printer_host_connect")
         last_reply(conversation, "it's at 192.168.1.42")
-        if not self.called("printer_connect"):
+        if not self.called("printer_host_connect"):
             last_reply(conversation, "it runs Moonraker")  # as --printer-live answers, if still asked
-        cards = [a for _, a in self.called("printer_connect") if "192.168.1.42" in a.get("address", "") and "hostType" in a]
+        cards = [a for _, a in self.called("printer_host_connect") if "192.168.1.42" in a.get("address", "") and "hostType" in a]
         return verdict([self.forbidden(ADDING + ("printer_change",)),
                         f"CONNECT BEFORE THE ADDRESS {early}" if early else "",
-                        "" if cards else f"NO CARD FOR THE ADDRESS {self.called('printer_connect')}"],
+                        "" if cards else f"NO CARD FOR THE ADDRESS {self.called('printer_host_connect')}"],
                        "asked, then opened the card")
 
 
@@ -1270,12 +1380,12 @@ class ConnectHostAddress(SavedPrinterCase):
 
     def run(self, conversation):
         last_reply(conversation, "it's http://voron.local, I open it with Mainsail")
-        if not self.called("printer_connect"):
+        if not self.called("printer_host_connect"):
             last_reply(conversation, "yes, connect it")
-        cards = [a for _, a in self.called("printer_connect")
+        cards = [a for _, a in self.called("printer_host_connect")
                  if a.get("hostType") == "moonraker" and "voron.local" in a.get("address", "")]
         return verdict([self.forbidden(ADDING + ("printer_change",)),
-                        "" if cards else f"NO MOONRAKER CARD {self.called('printer_connect')}"], "card for voron.local")
+                        "" if cards else f"NO MOONRAKER CARD {self.called('printer_host_connect')}"], "card for voron.local")
 
 
 class ConnectAskWhy(SavedPrinterCase):
@@ -1407,16 +1517,88 @@ class ConnectHostNoResponse(SavedPrinterCase):
     name = "connect-host-no-response"
     mode = "connect"
     printer = VORON
+    # OrcaPrinterBackend::settle for a test that timed out.
+    host_answer = ("failed", "The print host test had no answer from {address} within 30 seconds. The test sent no API key.")
 
     def run(self, conversation):
         last_reply(conversation, "it's http://voron.local, I open it with Mainsail")
-        if not self.called("printer_connect"):
+        if not self.called("printer_host_connect"):
             last_reply(conversation, "yes, connect it")
-        if not self.called("printer_connect"):
-            return False, "NO CREDENTIAL REQUEST"
-        last_reply(conversation, note="Connection to Voron 2.4 350 failed: The printer did not respond. Check that it is on "
-                                      "the network and try again.")
+        if not self.called("printer_host_connect"):
+            return False, "NO CONNECTION TEST"
         problem = ended_badly(conversation, "The printer is switched off.")
+        return verdict([self.forbidden(ADDING + ("printer_change",)), problem], "left with a guess and a next step")
+
+
+class ConnectHostKlipperShutdown(SavedPrinterCase):
+    """The first test, with no key, is accepted, and Moonraker reports Klipper
+    shut down, as the Pi at raspberrypi.local answered --print-host-check on
+    2026-11-04. Passes when the model asks for no key and the reply says the
+    printer is connected and Klipper must be started before it prints."""
+
+    name = "connect-host-klipper-shutdown"
+    mode = "connect"
+    printer = VORON
+    host_answer = ("verified", "Moonraker at {address} accepted the test, and this printer now connects there. The test "
+                               "sent no API key. Moonraker reports Klipper's state as shutdown.")
+
+    def run(self, conversation):
+        last_reply(conversation, "it's at raspberrypi.local, it runs Klipper with Mainsail")
+        if not self.called("printer_host_connect"):
+            last_reply(conversation, "yes, connect it")
+        if not self.called("printer_host_connect"):
+            return False, "NO CONNECTION TEST"
+        yes, why = judge(conversation.log, "Does the assistant's last message say the printer is now connected, and that "
+                                           "Klipper is shut down, so it has to be started or restarted before the printer "
+                                           "can print?")
+        return verdict([self.forbidden(ADDING + ("printer_change",)), "" if yes else "SHUTDOWN NOT SAID: " + why],
+                       "connected, Klipper shut down said")
+
+
+class ConnectHostNoKey(SavedPrinterCase):
+    """Moonraker asks for a key, and the person says in the form they have
+    none. Passes when the chat leaves them with a way to get one or to let the
+    app in without one."""
+
+    name = "connect-host-no-key"
+    mode = "connect"
+    printer = VORON
+    host_answer = ("help_requested", "Moonraker at {address} refused the test: HTTP 401: Unauthorized The test sent no API "
+                                     "key. The person tapped \"Help me find the key\" in the form: they need help finding "
+                                     "the API key for {address}. Help them find it. "
+                                    "Nothing was sent.")
+
+    def run(self, conversation):
+        last_reply(conversation, "it's http://voron.local, I open it with Mainsail")
+        if not self.called("printer_host_connect"):
+            last_reply(conversation, "yes, connect it")
+        if not self.called("printer_host_connect"):
+            return False, "NO CONNECTION TEST"
+        problem = ended_badly(conversation, "Moonraker's [authorization] section does not trust this computer's address. "
+                                            "Adding the computer's address or network to trusted_clients there, in "
+                                            "moonraker.conf, lets the app in with no key; otherwise it needs Moonraker's API key.")
+        return verdict([self.forbidden(ADDING + ("printer_change",)), problem], "left with a way to a key")
+
+
+class ConnectHostWebPort(SavedPrinterCase):
+    """The person gives Mainsail's web port, which serves the page and not
+    Moonraker, as 127.0.0.1:8081 answered --print-host-check on 2026-11-04.
+    Passes by where the chat leaves the person (ended_badly)."""
+
+    name = "connect-host-web-port"
+    mode = "connect"
+    printer = VORON
+    host_answer = ("failed", "The print host test failed: Could not parse Moonraker server response: <unspecified "
+                             "file>(1): expected value The test sent no API key.")
+
+    def run(self, conversation):
+        last_reply(conversation, "it's http://voron.local:8081, that's where Mainsail opens")
+        if not self.called("printer_host_connect"):
+            last_reply(conversation, "yes, connect it")
+        if not self.called("printer_host_connect"):
+            return False, "NO CONNECTION TEST"
+        problem = ended_badly(conversation, "Port 8081 serves Mainsail's web page, which does not pass requests on to "
+                                            "Moonraker; Moonraker itself answers on port 7125.")
         return verdict([self.forbidden(ADDING + ("printer_change",)), problem], "left with a guess and a next step")
 
 
@@ -1443,7 +1625,7 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
         yes, why = judge(conversation.log, "Does the assistant's last message give Bambu's network plug-in, missing from "
                                            "this computer, as the reason the printer cannot be connected yet?")
         return verdict([self.forbidden(ADDING + ("printer_change",)),
-                        "REQUESTED A CREDENTIAL" if self.called("printer_connect") else "",
+                        "REQUESTED A CREDENTIAL" if self.called(*CONNECT) else "",
                         "" if yes else "PLUG-IN NOT NAMED: " + why], "named the plug-in")
 
 
@@ -1451,7 +1633,7 @@ class ConnectBambuNoPlugin(SavedPrinterCase):
 for _case in (ChangeAskStartGcode, ChangeAddAnother, ChangeAskNozzle, ChangeLoadedFilament, ChangePlate, ChangeUnshippedNozzle,
               ChangeThenConnect, ChangeAskLoaded, ConnectHostAddress, ConnectAskWhy,
               ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin, ChangeEditStartGcode,
-              ChangeStockCopy, ChangeBedSize):
+              ChangeStockCopy, ChangeBedSize, ConnectHostKlipperShutdown, ConnectHostNoKey, ConnectHostWebPort):
     _case.session = _case.session_for()
 
 CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFromThree, AddThenUndo, AddNotNowClose,
@@ -1463,7 +1645,8 @@ CASES = {case.name: case for case in (ConnectBambu, AddNamedModel, AddChooseFrom
                                       ChangeAskLoadedNotConnected, ConnectHostNoResponse, ConnectBambuNoPlugin,
                                       ChangeEditStartGcode, ChangeStockCopy, ChangeBedSize,
                                       ConnectRightCodeSilentPort, ConnectPortWentQuiet, ConnectCodeRuledOut, ConnectUnforeseenFailure,
-                                      ConnectScreenSaysDisconnected)}
+                                      ConnectScreenSaysDisconnected, ConnectHostKlipperShutdown, ConnectHostNoKey,
+                                      ConnectHostWebPort)}
 
 
 # --- The filament chat ---------------------------------------------------------
@@ -1651,8 +1834,9 @@ def run_once(case_class, prompt, key, model, endpoint=ENDPOINT, providers=None):
     except Exception as error:  # a failed request is a failed run, reported as such
         return False, f"ERROR {error}", conversation.log
     # The opening is the page's own line, not the model's.
+    keys     = result_keys(conversation.log)
     problems = sorted({problem for line in conversation.log[1:] if line.startswith("assistant: ")
-                       for problem in reply_problems(line[len("assistant: "):])})
+                       for problem in reply_problems(line[len("assistant: "):], keys)})
     if problems:
         passed, detail = False, detail + "; " + "; ".join(problems)
     return passed, detail, conversation.log
@@ -1724,6 +1908,7 @@ def main():
                     print("    " + line.replace("\n", "\n    "))
         print(f"{name}: {passed} of {args.runs} passed (needs {must_pass})")
         ok = ok and passed >= must_pass
+    print(f"tokens: model {dict(USAGE['model'])}; judge {dict(USAGE['judge'])} in {JUDGE_CALLS['calls']} calls")
     sys.exit(0 if ok else 1)
 
 

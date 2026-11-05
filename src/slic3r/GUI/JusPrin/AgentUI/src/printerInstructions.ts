@@ -139,12 +139,6 @@ const FINDING =
   '- When the app says the person undid adding a printer, that printer is removed: say so in a few words and ask ' +
   'which printer they have, unless they already said. Do not add the same model again unless they ask for it.\n';
 
-// The offer after adding stays where it was measured (0a4d56a797), in the
-// connecting rules, and only while adding.
-const OFFER_AFTER_ADDING =
-  '; after adding, offer it once: end the reply to a successful printer_add with exactly ' +
-  '"Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"';
-
 // While adding, the nozzle rule is among the finding rules.
 const changing = (adding: boolean) =>
   'Rules for changing a printer:\n' +
@@ -157,23 +151,20 @@ const changing = (adding: boolean) =>
   '- printer_change saves the nozzle only. What is loaded comes from the printer itself when it is connected, and the ' +
   'filament a print uses is picked in the project, so when someone says what they loaded there is nothing to save.\n';
 
-const connecting = (adding: boolean) =>
+// How a connection works, the offer after adding included, is in the
+// connection skill, which the app adds once there is a printer to connect
+// (PrinterConversation::connection_skill). Steps written here came before the
+// skills and outranked them: an exact offer after the person had already
+// asked, "use that form" to someone with no key (2026-11-04).
+const CONNECTING =
   'Rules for connecting a printer:\n' +
   '- The connection tools act on the printer this is about, named below; a printer found on the network is only ever ' +
   'a deviceId.\n' +
-  `- Connecting is optional${adding ? OFFER_AFTER_ADDING : ''}. For a Bambu Lab printer, once the person wants to connect, call printer_connection_status; ` +
-  'the app then adds how that connection works. For Moonraker or OctoPrint, ask for the address they ' +
-  'open it with in a browser, including its port when there is one, then call printer_connect, and the app adds how ' +
-  'the connection you picked works.\n' +
-  '- Never ask for a password, access code or API key in chat, and never repeat one: printer_connect opens a local form ' +
-  'where the person types it. When the tool reports credential_requested, say briefly to use that form.\n' +
-  '- After the form is submitted, the app checks the printer for about 30 seconds. Answer anything the person says meanwhile; the app\'s ' +
-  'note says how it went. A failure that is a timeout means no response, not a wrong code.\n' +
-  '- After a failed connection, say what the app saw in the person\'s terms and work out why. Whenever they would ' +
-  'rather stop, they can leave it for now, as they can prepare prints ' +
-  'for it without a connection. If they ' +
-  'leave it, say again that they can prepare prints for it, that Connect… in its menu on Home is there for later, and that ' +
-  'they can close this chat now.\n';
+  '- Connecting is optional. Never ask for a password, access code or API key in chat, and never repeat one: the app ' +
+  'asks for it in a form of its own.\n' +
+  '- Whenever they would rather stop, they can leave it for now, as they can prepare prints for it without a ' +
+  'connection. If they leave it, say again that they can prepare prints for it, that Connect… in its menu on Home is ' +
+  'there for later, and that they can close this chat now.\n';
 
 const FINISHING =
   'Rules for finishing:\n' +
@@ -182,7 +173,7 @@ const FINISHING =
   'is verified, after they leave connecting for now, and after a successful printer_change. ' +
   'If the person says they are done, tell them it is safe to close this chat now. ' +
   'For example:\n' +
-  'It is connected, so you can send prints straight to it. You can close this chat now.\n';
+  'You can prepare prints for it now, and Connect… in its menu on Home is there for later. You can close this chat now.\n';
 
 export function printerInstructions(session: PrinterSessionPayload): string {
   const { context } = session;
@@ -193,7 +184,7 @@ export function printerInstructions(session: PrinterSessionPayload): string {
     (adding ? FINDING_EXAMPLES + FINDING : '\n') +
     changing(adding) +
     (adding ? '' : SETTINGS) +
-    connecting(adding) +
+    CONNECTING +
     FINISHING;
   if (session.mode === 'add') text += '\nThe person is adding a printer.\n';
   // Said outright: left to the facts, "Connected to this app: no" read as not

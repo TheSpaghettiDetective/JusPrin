@@ -90,6 +90,8 @@ private:
     std::string post_note(const std::string& text) override;
     std::string post_opening(const std::string& text) override;
     void        start_turn() override;
+    bool        finish_tool(const std::string& action_id, const Agent::ToolExecutionCoordinator::ExtensionResult& outcome) override;
+    bool        update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs) override;
     void session_changed() override;
     void profile_changed() override;
     void close_panel() override;

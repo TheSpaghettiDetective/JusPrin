@@ -97,6 +97,11 @@ public:
         bool                     handled{false};
         std::string              result_json;
         std::optional<ToolError> error;
+        // The call's work goes on after the executor returns, on a Job of its
+        // own: the call stays running, and the chat shows it in progress,
+        // until finish_pending() gives its outcome, which reaches the model
+        // in the same turn.
+        bool pending{false};
     };
     // Typed native extensions still execute inside this coordinator and its
     // state machine. The host uses this for durable manufacturing
@@ -268,6 +273,17 @@ public:
                                const std::string& call_id = {}, const std::string& client = {});
 
     bool cancel(const std::string& action_id);
+    // Ends a call its executor left pending, with the outcome its work came
+    // to. False when the call no longer waits for one: it was cancelled, or
+    // went with its project.
+    bool finish_pending(const std::string& action_id, ExtensionResult outcome);
+    // Renames a pending call while it waits, as what it waits for changes:
+    // the chat's card and the turn's line show the new title.
+    bool retitle_pending(const std::string& action_id, std::string title);
+    // From now until it finishes, the app's dialogs are answered as during
+    // any call and listed in its result. Not while it waits for the person,
+    // who may be using the app meanwhile: only once its own work runs.
+    bool answer_dialogs_while_pending(const std::string& action_id);
 
     // Advances every Running activity by one deterministic tick: progress
     // first, then the native command on the final tick. The owner paces this
@@ -314,6 +330,14 @@ private:
     // so in another project the handle names nothing.
     Workspace::ProjectSessionId      m_slice_session;
     std::string                      m_executing;
+    // Calls whose executor left them pending, which pump() no longer runs:
+    // the dialogs answered so far, and the listener answering them now.
+    struct Pending
+    {
+        std::vector<Workspace::OrcaMessage>                     answered;
+        std::unique_ptr<Workspace::IWorkspace::ToolCallDialogs> dialogs;
+    };
+    std::map<std::string, Pending>   m_pending;
     ExtensionExecutor                m_extension_executor;
     ExtensionPreflight               m_extension_preflight;
     std::function<std::string()>     m_action_id_allocator;

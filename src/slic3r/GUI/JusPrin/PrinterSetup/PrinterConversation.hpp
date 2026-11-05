@@ -6,8 +6,10 @@
 // The conversation is the whole panel. The model does the understanding --
 // which printer someone has, what changed on one they own, how to reach it --
 // and acts through the session's tools, which check requests against the
-// printer data and carry them out. printer_connect collects its credential in
-// a local form so it never passes through the model. The other things to tap
+// printer data and carry them out. printer_host_connect tests a print host
+// during its call and, when the host wants a key, collects it in a local form;
+// printer_bambu_connect collects a Bambu Lab printer's code the same
+// way. Neither credential passes through the model. The other things to tap
 // are Undo on an added printer's receipt and the printer form, where the
 // person picks a printer from the lists themselves; the model hears about
 // either in a note.
@@ -60,6 +62,14 @@ public:
     virtual void session_changed() = 0;
     // The page sent new instructions for the model.
     virtual void profile_changed() = 0;
+    // Ends a tool call this session left pending (Result::pending) with its
+    // outcome, which the model reads in the same turn. False when the call no
+    // longer waits: it was cancelled, or its chat is gone.
+    virtual bool finish_tool(const std::string&                                       action_id,
+                             const Agent::ToolExecutionCoordinator::ExtensionResult& outcome) = 0;
+    // Renames that call's card as what it waits for changes, and with
+    // `answer_dialogs` from then on answers the app's dialogs as its own.
+    virtual bool update_tool(const std::string& action_id, const std::string& title, bool answer_dialogs) = 0;
     // The panel is done: restore its originating workspace.
     virtual void close_panel() = 0;
     // Opens `url` in the person's default browser. False when none opened.
@@ -111,7 +121,7 @@ public:
     // not one of ours.
     bool handle_page_message(const std::string& type, const nlohmann::json& payload);
 
-    // Checks printer_connect before its input form is shown, and titles it.
+    // Checks a connection tool's call before it runs, and titles it.
     std::optional<Agent::ToolError> preflight_tool(Agent::ToolHandler handler, Agent::ToolActivity& activity);
     // The session's own tools. Returns an unhandled result for any other
     // handler, so the host's own extensions still run.
@@ -119,24 +129,29 @@ public:
                                                                  const Agent::ToolActivity& activity);
     // What the model reads back for a call to this session's tools.
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
-    // The skill for this printer's connection type, once the person has
-    // tried to connect it, and the tool that comes with it: issue_report_open,
-    // for someone stuck who wants the developers to know. Nothing before
-    // that, so someone who only picks a printer and prepares prints never
-    // gets either, and nothing for a connection type that has no skill yet.
+    // The skill for this printer's connection type, chosen by its vendor,
+    // from the moment the chat has a saved printer: added in it, or the one it
+    // was opened for. A Bambu Lab printer's comes with issue_report_open, for
+    // someone stuck who wants the developers to know.
     std::optional<Agent::SessionSkill> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once
-    // they are read. While a connection is being verified, looks at most once
-    // a second, and once it settles says how in a note and has the model
-    // answer. Does the same for a network search: when it first finds a
-    // printer, and when it has found none after about 15 seconds, or cannot
-    // hear any because this app does not hold the port they announce on.
+    // they are read. While a Bambu Lab printer is being connected, looks at
+    // most once a second, and once it settles ends the open connection call
+    // with how it went. Watches the network search: a printer_connection_status
+    // call waiting on it ends when a printer of the model is heard, or after
+    // kSearchWait with what was heard; a printer heard after that is told in
+    // a note.
     void tick(std::chrono::steady_clock::time_point now);
 
-    // A settings tool this session ran has settled. A copy of the printer
-    // saved in place of a stock profile is the printer from then on.
+    // A tool call of this session changed state. A copy of the printer saved
+    // by a settings tool in place of a stock profile is the printer from then
+    // on, and a waiting connection call that was cancelled stops its wait.
     void tool_settled(const Agent::ToolActivity& activity);
+
+    // A test still running is dropped, so its end never reaches a session
+    // that is gone.
+    ~PrinterConversation();
 
     // The printer panel's own tools, and the settings tools a session also
     // offers for the printer it is about.
@@ -148,30 +163,53 @@ private:
     Result identify(const nlohmann::json& arguments, const std::string& message_id);
     Result add(const nlohmann::json& arguments, const std::string& message_id);
     Result change(const nlohmann::json& arguments);
-    Result connection_status(const std::string& name, const std::string& message_id);
-    Result request_credential(const nlohmann::json& arguments, const std::string& action_id);
+    Result connection_status(const std::string& name, const Agent::ToolActivity& activity);
+    // The two connection tools leave their call open until it has an
+    // outcome: printer_bambu_connect opens the form at once, and
+    // printer_host_connect tests first and opens it only for a host that
+    // asks for a key. The person's answer in the form, and the attempt it
+    // starts, end the same call.
+    Result request_credential(const nlohmann::json& arguments, const Agent::ToolActivity& activity);
+    Result host_connect(const nlohmann::json& arguments, const Agent::ToolActivity& activity);
+    void   host_tested(const std::string& action_id, const nlohmann::json& arguments, const HostTestOutcome& outcome);
+    // The test with the key typed in the form.
+    void   form_tested(const HostTestOutcome& outcome);
     Result open_issue(const nlohmann::json& arguments);
+    // The form's Connect: starts the attempt with what was typed.
     void   connect(const nlohmann::json& arguments, const std::string& credential);
-    // Why printer_connect refused `asked`, from what the app has observed.
+    // The form's other ways out: the person has no credential, or closed it.
+    void   close_credential(bool help);
+    void   open_connect_call(const Agent::ToolActivity& activity);
+    void   ask_credential(const nlohmann::json& arguments);
+    void   end_connect_call(const std::string& state, std::string message);
+    static Result pending();
+    // Why a connection tool refused `asked`, from what the app has observed.
     std::string    unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const;
     // How far the network search has got, for a refusal and for the status.
     std::string    search_text() const;
     nlohmann::json search_json(const PrinterConnectionInfo& info) const;
     void           watch_search(std::chrono::steady_clock::time_point now);
+    // Ends the printer_connection_status call listening for the search, if
+    // there is one, with what the app knows now.
+    void answer_status_call(const PrinterConnectionInfo& info);
     // The notice that Bambu's network plug-in is missing, under this message:
     // drawn by the app, once a session, whatever the model says around it.
     void show_plugin_needed(const std::string& message_id);
     // Its Install button: runs the installer, and tells the model if the
     // plug-in is there afterwards.
     void install_network_plugin();
-    // A connection attempt failed; `message_id` is the note that says so.
-    // The second failure in a session puts the report card under it.
-    void connection_failed(const std::string& message_id);
+    // A connection attempt failed with `failure`; `message_id` is the message
+    // that made the call. The second failure in a session puts the report card
+    // under it, and returns the sentence that tells the model so. The report
+    // holds the failure itself: the call it ends is still open, so the chat it
+    // records has no outcome for it yet.
+    std::string connection_failed(const std::string& message_id, const std::string& failure);
     // The person's answer on that card.
     void answer_report(const std::string& block_id, bool send);
     // Drops a connection attempt still waiting, so what the printer answers
-    // later is never read.
-    void abandon_connection();
+    // later is never read, and its form. The connection call still open
+    // ends cancelled, saying `why`.
+    void abandon_connection(const std::string& why);
     // Undo on an added printer's receipt: removes that printer.
     void undo_add(const std::string& block_id);
     // The printer form: opened from the header, then asked for one model's
@@ -228,21 +266,36 @@ private:
     // The printer this is about cannot be reached until Bambu's network
     // plug-in is installed.
     bool m_needs_plugin{false};
-    // The person has tried to connect the printer this is about: opened the
-    // chat for that, had the model call a connection tool, or linked a printer
-    // found on the network in the form.
-    bool m_connect_tried{false};
+    // The printer_connection_status call listening for the search, and when
+    // it stops listening.
+    struct StatusCall
+    {
+        std::string                           action_id;
+        std::chrono::steady_clock::time_point until;
+    };
+    std::optional<StatusCall> m_status_call;
     // A print host's kind, "moonraker" or "octoprint", once the saved
-    // connection or a connection attempt names one; it picks the skill.
+    // connection or a connection attempt names one; a report names it.
     std::string m_host_type;
     int  m_failed_connections{0};
     // The local credential form and the call it will complete. The secret is
     // passed directly to connect and is never stored here.
     std::string    m_credential_action;
     nlohmann::json m_credential_arguments = nlohmann::json::object();
-    // The connection waiting for the printer to answer.
+    // The Bambu Lab connection waiting for the printer to answer.
     std::string                           m_connecting;
     std::chrono::steady_clock::time_point m_last_look{};
+    // Whether that attempt sent a typed access code or the one the app holds,
+    // said in its note.
+    std::string m_code_sent;
+    // The printer whose print host test is running.
+    std::string m_host_testing;
+    // The connection call still open: the message that made it, the printer
+    // it connects, and what the host said before the form opened.
+    std::string m_connect_call;
+    std::string m_connect_message;
+    std::string m_connect_printer;
+    std::string m_connect_said;
 
     // The printer form while it is open. Its options are read off the GUI
     // thread, one model and nozzle at a time; a read still running when the

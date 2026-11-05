@@ -89,21 +89,39 @@ describe('the cards the agent draws', () => {
 });
 
 describe('the local credential form', () => {
-  it('asks a host printer for an optional API key, and connects with or without one', async () => {
+  it('asks a host printer for an API key under the waiting call\'s title, and connects with or without one', async () => {
     const input = vi.fn();
-    render(<PrinterCredentialForm request={{ actionId: 't1', target: '192.168.1.42', provider: 'host' }} onConnect={input} />);
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: '192.168.1.42', provider: 'host' }}
+      title="Waiting for an API key for 192.168.1.42" onConnect={input} onClose={vi.fn()} />);
+    expect(screen.getByText('Waiting for an API key for 192.168.1.42')).toBeInTheDocument();
     expect(screen.getByText('Stays on this computer.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
     expect(input).toHaveBeenLastCalledWith('t1', '');
-    await userEvent.type(screen.getByLabelText('API key (if the printer asks for one)'), 'key123{Enter}');
+    await userEvent.type(screen.getByLabelText('API key'), 'key123{Enter}');
     expect(input).toHaveBeenLastCalledWith('t1', 'key123');
   });
 
   it('asks a Bambu Lab printer for its access code in a field that hides it', () => {
-    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu' }} onConnect={vi.fn()} />);
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu' }}
+      title="Waiting for the access code for Studio A1" onConnect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByLabelText('Access code')).toHaveAttribute('type', 'password');
   });
 
+  it('ends the waiting call when the person has no credential or closes the form, and sends nothing typed', async () => {
+    const connect = vi.fn();
+    const close = vi.fn();
+    render(<PrinterCredentialForm request={{ actionId: 't1', target: 'Studio A1', provider: 'bambu' }}
+      title="Waiting for the access code for Studio A1" onConnect={connect} onClose={close} />);
+    await userEvent.type(screen.getByLabelText('Access code'), '12345678');
+    await userEvent.click(screen.getByRole('button', { name: 'Help me find the code' }));
+    expect(close).toHaveBeenLastCalledWith('t1', true);
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(close).toHaveBeenLastCalledWith('t1', false);
+    expect(connect).not.toHaveBeenCalled();
+  });
+});
+
+describe('the report card', () => {
   it('asks about a report with what it holds to read, and tells the answer without claiming it was sent', () => {
     const answer = vi.fn();
     const report = '{"trigger":"failed_twice"}';

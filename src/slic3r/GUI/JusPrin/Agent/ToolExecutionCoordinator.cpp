@@ -295,7 +295,8 @@ bool changes_printable_project(const ToolDefinition& definition, const ToolActiv
     case ToolHandler::PrinterIdentify:
     case ToolHandler::PrinterAdd:
     case ToolHandler::PrinterConnectionStatus:
-    case ToolHandler::PrinterConnect:
+    case ToolHandler::PrinterHostConnect:
+    case ToolHandler::PrinterBambuConnect:
     case ToolHandler::IssueReportOpen: // opens a browser page; the person files it
     case ToolHandler::SkillRead:
         return false;
@@ -1023,13 +1024,64 @@ bool ToolExecutionCoordinator::cancel(const std::string& action_id)
     // Terminal records never change.
     if (activity->state != ToolState::Running)
         return false;
+    m_pending.erase(action_id);
     activity->state = ToolState::Cancelled;
     notify(*activity);
     return true;
 }
 
+bool ToolExecutionCoordinator::finish_pending(const std::string& action_id, ExtensionResult outcome)
+{
+    const auto waiting = m_pending.find(action_id);
+    if (waiting == m_pending.end())
+        return false;
+    Pending pending = std::move(waiting->second);
+    m_pending.erase(waiting);
+    ToolActivity* activity = find_mutable(action_id);
+    if (activity == nullptr)
+        return false;
+    if (outcome.pending || !outcome.handled)
+        throw std::logic_error("A pending call to " + activity->tool + " was finished without an outcome");
+    if (pending.dialogs)
+        for (Workspace::OrcaMessage& answered : pending.dialogs->finish())
+            pending.answered.push_back(std::move(answered));
+    if (!pending.answered.empty())
+        activity->app_dialogs_json = app_dialogs_result(pending.answered).dump();
+    if (outcome.error) {
+        fail(*activity, std::move(outcome.error->code), std::move(outcome.error->message));
+        return true;
+    }
+    activity->result_json = std::move(outcome.result_json);
+    activity->state       = ToolState::Succeeded;
+    notify(*activity);
+    return true;
+}
+
+bool ToolExecutionCoordinator::retitle_pending(const std::string& action_id, std::string title)
+{
+    ToolActivity* activity = m_pending.count(action_id) != 0 ? find_mutable(action_id) : nullptr;
+    if (activity == nullptr)
+        return false;
+    activity->title = std::move(title);
+    notify(*activity);
+    return true;
+}
+
+bool ToolExecutionCoordinator::answer_dialogs_while_pending(const std::string& action_id)
+{
+    const auto waiting = m_pending.find(action_id);
+    if (waiting == m_pending.end())
+        return false;
+    if (!waiting->second.dialogs)
+        waiting->second.dialogs = std::make_unique<Workspace::IWorkspace::ToolCallDialogs>(m_workspace);
+    return true;
+}
+
 void ToolExecutionCoordinator::clear()
 {
+    for (const ToolActivity& activity : m_activities)
+        if (activity.action_id != m_executing)
+            m_pending.erase(activity.action_id);
     m_activities.erase(std::remove_if(m_activities.begin(), m_activities.end(),
                                       [this](const ToolActivity& activity) { return activity.action_id != m_executing; }),
                        m_activities.end());
@@ -1073,7 +1125,8 @@ bool targets_sliced(const Workspace::WorkspaceSnapshot& snapshot, const std::opt
 void ToolExecutionCoordinator::pump()
 {
     for (ToolActivity& activity : m_activities) {
-        if (activity.state != ToolState::Running) {
+        // A pending call has run; its Job finishes it.
+        if (activity.state != ToolState::Running || m_pending.count(activity.action_id) != 0) {
             continue;
         }
         if (activity.progress_current + 1 < activity.progress_total) {
@@ -1113,7 +1166,7 @@ void ToolExecutionCoordinator::pump()
             const std::string ran = activity.action_id;
             struct Announced { std::string& id; ~Announced() { id.clear(); } } announced{m_announce_after};
             m_announce_after = ran;
-            Workspace::IWorkspace::ToolCallDialogs dialogs(m_workspace);
+            auto dialogs = std::make_unique<Workspace::IWorkspace::ToolCallDialogs>(m_workspace);
             execute(activity);
             std::optional<std::string> save_error;
             if (versioned) {
@@ -1138,7 +1191,12 @@ void ToolExecutionCoordinator::pump()
             m_saving_after.clear();
             // A call that replaced the project may have moved its record.
             ToolActivity* done = find_mutable(ran);
-            const std::vector<Workspace::OrcaMessage> answered = dialogs.finish();
+            // A pending call's dialogs are listed when it finishes.
+            if (const auto waiting = m_pending.find(ran); waiting != m_pending.end()) {
+                waiting->second.answered = dialogs->finish();
+                return;
+            }
+            const std::vector<Workspace::OrcaMessage> answered = dialogs->finish();
             if (done != nullptr && !answered.empty())
                 done->app_dialogs_json = app_dialogs_result(answered).dump();
             m_announce_after.clear();
@@ -2379,6 +2437,10 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             throw std::logic_error(activity.tool + " is a surface's own tool, and no surface executes them here");
         ExtensionResult result = m_extension_executor(definition->handler, activity);
         if (result.handled) {
+            if (result.pending) {
+                m_pending.emplace(activity.action_id, Pending{});
+                return;
+            }
             if (result.error) {
                 fail(activity, std::move(result.error->code), std::move(result.error->message));
                 return;

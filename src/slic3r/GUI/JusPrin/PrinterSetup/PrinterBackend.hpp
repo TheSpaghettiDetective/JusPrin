@@ -11,6 +11,7 @@
 #include "PrinterSetupTypes.hpp"
 
 #include <chrono>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -194,6 +195,18 @@ struct PrinterConnectionInfo
 // stopping and starting discovery nor reloading the plug-in takes it up.
 enum class DiscoveryPort { Ours, Taken, Free };
 
+// What a print host test came to, worded for the model. `state` is
+// "verified" (the host accepted the test, and the address is saved as the
+// printer's connection), "needs_credential" (Moonraker answered HTTP 401 or
+// OctoPrint 403) or "failed". Every message says which API key was sent, and
+// `key` names it: "typed", "saved" (the one held for that address) or "none".
+struct HostTestOutcome
+{
+    std::string state;
+    std::string message;
+    std::string key;
+};
+
 struct ManualPrinterResult
 {
     bool applied{false};
@@ -253,10 +266,13 @@ public:
 
     // Connection is a separate operation against an existing saved printer.
     // Credentials are input-only and never part of a snapshot or conversation.
-    // connect_printer and connect_host start an attempt and return at once;
-    // connection() reports it as connecting until it settles, and a new
-    // attempt replaces one still waiting. connect_host saves the address only
-    // once the printer has answered.
+    // connect_printer starts an attempt and returns at once; connection()
+    // reports it as connecting until it settles. connect_host tests the host
+    // in a Job and returns at once; once the test ends, `tested` runs on the
+    // GUI thread with its outcome, unless cancel_connection or a later
+    // connect_host dropped the attempt first. It saves the address only once
+    // the host has accepted the test. Either returns a refusal, and starts
+    // nothing, when the request cannot be tried.
     virtual PrinterConnectionInfo connection(const std::string& name) { return {}; }
     virtual void prepare_connection(const std::string& name) {}
     virtual DiscoveryPort discovery_port() { return DiscoveryPort::Ours; }
@@ -271,8 +287,11 @@ public:
     virtual std::string keep_connection_report(const std::string& text) { return {}; }
     virtual std::string connect_printer(const std::string& name, const std::string& device_id,
                                        const std::string& access_code) { return "Connection is unavailable."; }
-    virtual std::string connect_host(const std::string& name, const std::string& host_type,
-                                    const std::string& address, const std::string& api_key) { return "Connection is unavailable."; }
+    virtual std::string connect_host(const std::string& name, const std::string& host_type, const std::string& address,
+                                     const std::string& api_key, std::function<void(const HostTestOutcome&)> tested)
+    {
+        return "Connection is unavailable.";
+    }
     // Abandons this printer's attempt if it is still waiting: whatever the
     // printer answers afterwards is dropped.
     virtual void cancel_connection(const std::string& name) {}

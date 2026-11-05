@@ -106,8 +106,6 @@ describe('the instructions', () => {
       'undid adding a printer, that printer is removed',
       'Do not add the same model again unless they ask for it',
       'Never ask for a password, access code or API key in chat',
-      'a timeout means no response, not a wrong code',
-      'answer anything the person says meanwhile',
       'give the likeliest explanation and say it is your guess',
       'do not send them back to a step already done or already failed',
       'browse the full list manually in the app',
@@ -119,17 +117,27 @@ describe('the instructions', () => {
       'call the tool without asking again',
       'use read-only tools to identify or show candidates as needed',
       'ask and wait for the person\'s answer before adding, changing or connecting one',
-      // Measured: without the exact words, the offer came in 27-77% of replies
-      // and its choices were mostly a bare "Yes | No".
-      'end the reply to a successful printer_add with exactly "Want to connect it so you can send prints straight to it?" and then "Choices: Connect it | Not now"',
       'Do not add a Choices line',
       'it is safe to close this chat now',
       'after the person turns down connecting, after the app says the connection is verified, after they leave connecting for now, and after a successful printer_change',
       'they can close this chat now',
       'now slices for 0.6 mm.") and say they can close this chat now',
-      'printer_connect opens a local form',
+      'the app asks for it in a form of its own',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
+  });
+
+  it('leave how to connect to the connection skill, so no older sentence outranks it', () => {
+    // 2026-11-04: an exact offer here was repeated to a person who had already
+    // asked to connect, "use that form" sent a person with no key to type one,
+    // and "It is connected, so you can send prints straight to it" beat the
+    // skill's "verified means Moonraker answered" with Klipper down.
+    for (const mode of ['add', 'change', 'connect'] as const) {
+      const text = printerInstructions(session({ ...change, mode }));
+      for (const moved of ['Want to connect it', 'credential_requested', 'needs_credential', 'form_opened', 'printer_connection_status', 'use that form',
+        'send prints straight', 'ask for the address', 'set up manually', 'manual connection'])
+        expect(text).not.toContain(moved);
+    }
   });
 
   it('offer no dialog or finish tool in any printer conversation', () => {

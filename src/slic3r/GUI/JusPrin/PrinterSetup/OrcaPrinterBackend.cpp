@@ -25,9 +25,15 @@
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp"
 #include "slic3r/Utils/PrintHost.hpp"
+#include "slic3r/Utils/Http.hpp"
+#include "slic3r/Utils/Moonraker.hpp"
+#include "slic3r/Utils/OctoPrint.hpp"
+#include "slic3r/GUI/Jobs/BoostThreadWorker.hpp"
 #include "slic3r/Utils/NetworkAgentFactory.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -87,6 +93,93 @@ std::string one_line(std::string text)
     return out;
 }
 
+// Records a failed request as the host or curl gave it.
+void record_error(HostAnswer& answer, const std::string& body, const std::string& error, unsigned status)
+{
+    answer.passed = false;
+    answer.status = status;
+    answer.said   = status != 0 ? "HTTP " + std::to_string(status) + ": " + one_line(body) : one_line(error);
+}
+
+// OrcaSlicer's Moonraker and OctoPrint tests, each copied with two changes.
+// The request gives up after kConnectionWait: upstream's has no upper limit
+// (Http's DEFAULT_TIMEOUT_MAX is 0), so a host that accepts the connection and
+// never replies would hold the test, and the chat's tool call, for good. And
+// the HTTP status and the host's own words come back, where upstream returns
+// a message that puts a cause on curl's error and only logs Klipper's state.
+// The requests and checks are upstream's: when Moonraker::test or
+// OctoPrint::test changes, change these.
+class MoonrakerTest : public Moonraker
+{
+public:
+    using Moonraker::Moonraker;
+
+    HostAnswer answer() const
+    {
+        HostAnswer answer{true};
+        auto       http = Http::get(make_url("server/info"));
+        set_auth(http);
+        http.timeout_max(kConnectionWait.count())
+            .on_error([&](std::string body, std::string error, unsigned status) { record_error(answer, body, error, status); })
+            .on_complete([&](std::string body, unsigned) {
+                try {
+                    std::stringstream           stream(body);
+                    boost::property_tree::ptree tree;
+                    boost::property_tree::read_json(stream, tree);
+                    const auto klippy_state = tree.get_optional<std::string>("result.klippy_state");
+                    if (!klippy_state) {
+                        answer = {false, 0, "The host responded but it doesn't look like Moonraker (missing result.klippy_state)."};
+                        return;
+                    }
+                    answer.said = *klippy_state;
+                } catch (const std::exception& ex) {
+                    answer = {false, 0, std::string("Could not parse Moonraker server response: ") + ex.what()};
+                }
+            })
+#ifdef WIN32
+            .ssl_revoke_best_effort(m_ssl_revoke_best_effort)
+#endif
+            .perform_sync();
+        return answer;
+    }
+};
+
+class OctoPrintTest : public OctoPrint
+{
+public:
+    using OctoPrint::OctoPrint;
+
+    HostAnswer answer() const
+    {
+        HostAnswer answer{true};
+        auto       http = Http::get(make_url("api/version"));
+        set_auth(http);
+        http.timeout_max(kConnectionWait.count())
+            .on_error([&](std::string body, std::string error, unsigned status) { record_error(answer, body, error, status); })
+            .on_complete([&](std::string body, unsigned) {
+                try {
+                    std::stringstream           stream(body);
+                    boost::property_tree::ptree tree;
+                    boost::property_tree::read_json(stream, tree);
+                    if (!tree.get_optional<std::string>("api")) {
+                        answer = {false, 0, "The host responded but its answer has no OctoPrint API version."};
+                        return;
+                    }
+                    const auto text = tree.get_optional<std::string>("text");
+                    if (!validate_version_text(text))
+                        answer = {false, 0, "Mismatched type of print host: " + (text ? *text : std::string(get_name()))};
+                } catch (const std::exception&) {
+                    answer = {false, 0, "Could not parse server response."};
+                }
+            })
+#ifdef WIN32
+            .ssl_revoke_best_effort(m_ssl_revoke_best_effort)
+#endif
+            .perform_sync();
+        return answer;
+    }
+};
+
 } // namespace
 
 namespace {
@@ -107,6 +200,8 @@ OrcaPrinterBackend::OrcaPrinterBackend(Plater& plater, PrinterCatalog catalog)
 {
     m_models = m_catalog.panel_printers();
 }
+
+OrcaPrinterBackend::~OrcaPrinterBackend() = default;
 
 std::vector<DiscoveredPrinter> OrcaPrinterBackend::network_printers() const { return discover_printers(); }
 
@@ -473,8 +568,6 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         const Preset* preset = wxGetApp().preset_bundle->printers.find_preset(name, false, true);
         if (!preset)
             throw std::logic_error("A saved printer has no preset");
-        if (m_host_attempt && m_host_attempt->name == name && m_host_attempt->state == "connecting")
-            settle(*m_host_attempt);
         const auto type = preset->config.opt_enum<PrintHostType>("host_type");
         info.address = preset->config.opt_string("print_host");
         info.host_type = type == htMoonraker ? "moonraker" : type == htOctoPrint ? "octoprint" : "other";
@@ -483,8 +576,15 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
         if (info.state == "unknown")
             info.message = "A connection is saved. Test it to check access; live printer status is not available here.";
         if (info.host_type == "other") {
-            info.state = "unavailable";
-            info.message = "Configure this connection type in Printer settings. You can still prepare prints and export a file.";
+            // The type the printer is saved with, as OrcaSlicer labels it.
+            const ConfigOptionDef* types = preset->config.def()->get("host_type");
+            const std::string      saved = preset->config.option("host_type")->serialize();
+            const auto             found = std::find(types->enum_values.begin(), types->enum_values.end(), saved);
+            const std::string      label = found == types->enum_values.end() ? saved :
+                                                                                types->enum_labels[found - types->enum_values.begin()];
+            info.state   = "unavailable";
+            info.message = "This printer is saved with the " + label + " connection type, which this chat does not connect: it "
+                           "connects Moonraker and OctoPrint. You can still prepare prints and export a file.";
         }
         if (m_host_attempt && m_host_attempt->name == name) {
             auto& attempt = *m_host_attempt;
@@ -605,7 +705,7 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
     return info;
 }
 
-// On a thread of its own, as a print host's test is: a printer that does not
+// On a thread of its own: a printer that does not
 // answer would hold the app for the whole limit.
 std::shared_ptr<OrcaPrinterBackend::PortLook> OrcaPrinterBackend::start_port_look(const std::string& address)
 {
@@ -715,8 +815,8 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
     return {};
 }
 
-std::string OrcaPrinterBackend::connect_host(const std::string& name, const std::string& host_type,
-                                            const std::string& address, const std::string& api_key)
+std::string OrcaPrinterBackend::connect_host(const std::string& name, const std::string& host_type, const std::string& address,
+                                             const std::string& api_key, std::function<void(const HostTestOutcome&)> tested)
 {
     const auto info = connection(name);
     if (info.provider != "host" || info.state == "unavailable")
@@ -733,77 +833,104 @@ std::string OrcaPrinterBackend::connect_host(const std::string& name, const std:
     // Reuse a saved secret only for the same endpoint and provider.
     const std::string key = api_key.empty() && address == info.address && host_type == info.host_type ?
         preset->config.opt_string("printhost_apikey") : api_key;
+    // A 401 reads the same for no key and a wrong one, so every outcome says
+    // which was sent.
+    const std::string key_sent = !api_key.empty() ? "typed" : !key.empty() ? "saved" : "none";
     // Tested on a copy: the printer's own settings change only once the host
-    // has answered (settle).
+    // has accepted the test.
     DynamicPrintConfig config = preset->config;
     config.set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(host_type == "moonraker" ? htMoonraker : htOctoPrint));
     config.set_key_value("print_host", new ConfigOptionString(address));
     config.set_key_value("printhost_apikey", new ConfigOptionString(key));
-    std::unique_ptr<PrintHost> host(PrintHost::get_print_host(&config));
-    if (!host)
-        throw std::logic_error("A supported print host has no adapter");
-    // PrintHost::test blocks until the host answers, and a host that accepts
-    // the connection and never replies holds it with no upper bound (Http's
-    // DEFAULT_TIMEOUT_MAX is 0). So it runs on a thread of its own, as
-    // upstream's upload queue runs these adapters. Nothing waits for it:
-    // joining could hold the panel's close for as long as the host dawdles,
-    // and kConnectionWait reports the failure meanwhile. The adapter keeps
-    // copies of what it read from `config`.
-    auto verdict = std::make_shared<std::atomic<HostVerdict>>(HostVerdict::Testing);
-    auto detail  = std::make_shared<std::string>();
-    std::thread([host = std::move(host), verdict, detail] {
-        wxString said;
-        const bool passed = host->test(said);
-        // Written before the verdict, which the reader loads first.
-        *detail = said.ToUTF8().data();
-        verdict->store(passed ? HostVerdict::Passed : HostVerdict::Failed);
-    }).detach();
-    m_host_attempt = HostAttempt{name, host_type, address, key, std::chrono::steady_clock::now(), std::move(verdict), std::move(detail),
-                                 "connecting", {}};
+    std::function<HostAnswer()> test;
+    if (host_type == "moonraker")
+        test = [host = std::make_shared<MoonrakerTest>(&config)] { return host->answer(); };
+    else
+        test = [host = std::make_shared<OctoPrintTest>(&config)] { return host->answer(); };
+
+    // The test blocks until the host answers or kConnectionWait passes, so it
+    // runs on a worker of its own: the plater's is shared with arrange and
+    // orient, and replace_job there would drop theirs. The worker is started
+    // by the first test; most panels never test a host.
+    if (!m_host_worker) {
+        m_host_worker = std::make_unique<BoostThreadWorker>(nullptr, "jusprin_host_test");
+        // Upstream's PlaterWorker delivers its jobs' ends from the plater's
+        // idle events too; it is not used because it puts up a busy cursor
+        // for every job. The panel's pump keeps idle events coming while a
+        // chat is open.
+        m_host_worker_events = EventGuard(&m_plater, wxEVT_IDLE, [this](wxIdleEvent& event) {
+            event.Skip();
+            m_host_worker->process_events();
+        });
+    }
+    m_host_attempt = HostAttempt{name, host_type, address, key, "connecting", {}};
+    auto answer    = std::make_shared<HostAnswer>();
+    // A test still running is dropped: its end comes back canceled.
+    replace_job(
+        *m_host_worker,
+        [test = std::move(test), answer](Job::Ctl&) {
+            *answer = test();
+            wxWakeUpIdle();
+        },
+        [this, answer, key_sent, tested = std::move(tested)](bool canceled, std::exception_ptr& failure) {
+            // An exception from the test goes on to the worker, which rethrows it.
+            if (canceled || failure)
+                return;
+            tested(settle(*answer, key_sent));
+        });
     return {};
 }
 
-void OrcaPrinterBackend::settle(HostAttempt& attempt)
+HostTestOutcome OrcaPrinterBackend::settle(const HostAnswer& answer, const std::string& key_sent)
 {
-    switch (attempt.verdict->load()) {
-    case HostVerdict::Passed: {
+    HostAttempt&      attempt = *m_host_attempt;
+    const std::string host    = attempt.host_type == "moonraker" ? "Moonraker" : "OctoPrint";
+    const std::string key     = key_sent == "typed" ? "The test sent the API key typed in the form." :
+                                key_sent == "saved" ? "The test sent the API key saved for this printer." :
+                                                      "The test sent no API key.";
+    HostTestOutcome   outcome{"failed", {}, key_sent};
+    if (answer.passed) {
         const wxString problem = Printers::configure_named_printer_host(
             attempt.name, attempt.host_type == "moonraker" ? htMoonraker : htOctoPrint, attempt.address, attempt.api_key);
-        attempt.state   = problem.empty() ? "verified" : "failed";
-        attempt.message = problem.ToStdString();
-        // The test's answer is Home's first word on this host.
-        if (problem.empty())
+        if (problem.empty()) {
+            // The test's answer is Home's first word on this host.
             Printers::note_host_answered(attempt.name);
-        break;
+            outcome.state   = "verified";
+            outcome.message = host + " at " + attempt.address + " accepted the test, and this printer now connects there. " + key;
+            // Moonraker answers while Klipper is shut down or in error, so a
+            // pass says what state it reported.
+            if (attempt.host_type == "moonraker")
+                outcome.message += " Moonraker reports Klipper's state as " + answer.said + ".";
+        } else
+            outcome.message = host + " at " + attempt.address + " accepted the test, but the app could not save it as this "
+                              "printer's connection: " + problem.ToStdString();
+    } else if (answer.status == (attempt.host_type == "moonraker" ? 401u : 403u)) {
+        outcome.state   = "needs_credential";
+        outcome.message = host + " at " + attempt.address + " refused the test: " + answer.said + " " + key;
+    } else if (answer.status == 0 && boost::starts_with(answer.said, "curl:Timeout was reached")) {
+        // What the app saw, without a cause: a name this computer cannot look
+        // up can wait here as long as a host that never answers.
+        outcome.message = "The print host test had no answer from " + attempt.address + " within " +
+                          std::to_string(kConnectionWait.count()) + " seconds. " + key;
+    } else {
+        // The host's own answer travels with the failure: an HTTP status is
+        // the host answering, "doesn't look like Moonraker" another kind of
+        // host, and curl's words the host not reached.
+        outcome.message = (answer.said.empty() ? "The print host test failed, and it gave no reason." :
+                                                 "The print host test failed: " + answer.said) + " " + key;
     }
-    case HostVerdict::Failed: {
-        // The host's own answer travels with the failure: "HTTP 401" is the
-        // key refused, "doesn't look like Moonraker" is another kind of
-        // host, and curl's reason is the host not reached. One sentence for
-        // all three sent people to check the network when the host had
-        // answered.
-        attempt.state          = "failed";
-        const std::string said = one_line(*attempt.detail);
-        attempt.message        = said.empty() ? "The print host test failed, and it gave no reason." :
-                                                "The print host test failed: " + said;
-        break;
-    }
-    case HostVerdict::Testing:
-        if (std::chrono::steady_clock::now() - attempt.started > kConnectionWait) {
-            attempt.state   = "failed";
-            // What the app saw, without a cause: a name this computer cannot
-            // look up waits here as long as a host that never answers.
-            attempt.message = "The print host test had no answer from " + attempt.address + " after " +
-                              std::to_string(kConnectionWait.count()) + " seconds.";
-        }
-        break;
-    }
+    // connection() reports a refused key as the failed test it was.
+    attempt.state   = outcome.state == "verified" ? "verified" : "failed";
+    attempt.message = outcome.message;
+    return outcome;
 }
 
 void OrcaPrinterBackend::cancel_connection(const std::string& name)
 {
-    if (m_host_attempt && m_host_attempt->name == name && m_host_attempt->state == "connecting")
+    if (m_host_attempt && m_host_attempt->name == name && m_host_attempt->state == "connecting") {
         m_host_attempt.reset();
+        m_host_worker->cancel_all();
+    }
     // A Bambu Lab printer stays linked to the device and selected, as after a
     // failure; undoing both is separate work.
     if (m_connection_attempt && m_connection_attempt->name == name)
