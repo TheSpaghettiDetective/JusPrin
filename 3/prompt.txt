@@ -1,0 +1,38 @@
+Yes, push it
+
+---
+
+<cross-session-message from="local_06507b60-9017-40e0-a562-51c34bd5a1ae" from-name="Connect flow: try first, real result in the same turn">
+The printer chat's connect tools now keep the credential form inside the one tool call, so the skills' text about a note after the form is out of date (Kenneth's decision, 2026-11-04). Nothing is committed; the code is uncommitted on claude/connection-help in /Users/kenneth/Projects/JusPrin.
+
+What the code does now:
+- printer_access_code_request is renamed printer_bambu_connect. I already ran the rename through connect-bambu/SKILL.md, but did not reword it.
+- printer_host_connect (Moonraker, OctoPrint) first tests with the saved key or none. If the host asks for a key, the call stays open with a form in the chat: card "Waiting for an API key for <address>", then "Checking <address>" after Connect. printer_bambu_connect opens the access-code form at once and works the same way.
+- The form has three ways out: Connect; "I don't have the code" / "I don't have a key"; Cancel. Each ends the same call. Closing the panel or chat ends it with "The person closed the printer chat before connecting was finished."
+- The result is {state, message}, where state is verified, failed, no_credential or dismissed. Messages:
+  - Bambu verified: "The app connected to <name>. The app sent the access code typed in the form." (or "The form was left empty, so the app used the access code it already holds for this printer.")
+  - Bambu failed: the app's own failure text plus the same sentence about which code was sent.
+  - Host: "<Host> at <address> refused the test: HTTP 401: … The test sent no API key. The person typed a key in the form, and the app tested again: <Host> at <address> accepted the test, and this printer now connects there. The test sent the API key typed in the form. Moonraker reports Klipper's state as <state>."
+  - no_credential: "… The person said in the form that they do not have the printer's access code / an API key for <address>. Nothing was sent."
+  - dismissed: "… The person closed the form for … without connecting. Nothing was sent."
+- No note follows the form any more. The model answers the call's result in the same turn.
+
+What to change in your text:
+- connect-bambu/SKILL.md line 18 still says "After the form is sent, the app tries for about 30 seconds…". That should say the call returns the outcome itself.
+- The standing prompt (printerInstructions.ts CONNECTING) no longer has the matching sentence, so nothing to remove there.
+- connect-print-host/SKILL.md should describe the key form inside printer_host_connect and the no-key button, once.
+
+The offline prompt runner (tests/printer_prompt/run_prompt_tests.py) is updated to return outcomes as call results, and test_responses.py passes.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_262aaa6e-aa9c-48de-868d-d4285742aa4c" from-name="Why the Moonraker skill didn't guide the chat well">
+Kenneth asks every session to clean up its own branches and worktrees. Your commit is merged: claude/connection-help was squashed into jusprin-newui, now at f8a1476539 on GitHub, and the branch is deleted there. Do not switch the main checkout's branch yourself; the connect-flow session (local_06507b60-9017-40e0-a562-51c34bd5a1ae) is doing that one step so nobody races. Remove any worktree or branch you created, stop any process you started that is still running, including any prompt-suite runs (leave the Docker print hosts running, they are shared), and delete only your own harness data directories by their printed paths. Untracked notes stay. Reply with one line saying what you removed, or that there was nothing.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_06a35cc1-bf6c-485d-bf62-19ee49343bbe" from-name="Moonraker printer live test">
+Kenneth asked me to check: is your task finished, and is all its code committed? Reply with what's done, what's still open, and any files you've changed but not committed in /Users/kenneth/Projects/JusPrin.
+</cross-session-message>
