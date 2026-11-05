@@ -2232,6 +2232,48 @@ Workspace::SliceFailure bed_refusal()
 
 } // namespace
 
+TEST_CASE("the turn that started a slice is told not to poll it; anyone else may read it", "[tools][slicing]")
+{
+    Harness h;
+    FakeProductState store;
+    h.coordinator.set_product_state(&store);
+    const auto ask = [&h](const char* tool, const char* arguments, const char* correlation, ToolSource source) {
+        const std::string action = h.coordinator.submit({tool, arguments}, correlation, ToolExecutionPacing{}, source, "").action_id;
+        h.pump_to_completion(action);
+        return *h.coordinator.find(action);
+    };
+    REQUIRE(ask("slice_start", "{}", "m-1", ToolSource::Agent).state == ToolState::Succeeded);
+    REQUIRE(h.workspace.snapshot().slicing.running);
+
+    SECTION("the same turn: slicing section and slice report are refused, other sections are not")
+    {
+        const ToolActivity inspect = ask("workspace_inspect", R"({"sections":["slicing"]})", "m-1", ToolSource::Agent);
+        REQUIRE(inspect.error);
+        CHECK(inspect.error->code == "busy");
+        CHECK(inspect.error->message == "The slice is still running. This turn has nothing left to do: the app starts a new turn with the outcome. Finish your reply.");
+        CHECK(ask("slice_report", "{}", "m-1", ToolSource::Agent).error->code == "busy");
+        CHECK_FALSE(h.coordinator.slice_poll_limit_reached());
+        CHECK(ask("workspace_inspect", R"({"sections":["objects"]})", "m-1", ToolSource::Agent).state == ToolState::Succeeded);
+        CHECK(ask("workspace_inspect", R"({"sections":["slicing","objects"]})", "m-1", ToolSource::Agent).error->code == "busy");
+        CHECK(h.coordinator.slice_poll_limit_reached());
+    }
+    SECTION("an MCP client polls: nothing else tells it")
+    {
+        CHECK(ask("workspace_inspect", R"({"sections":["slicing"]})", "mcp-1", ToolSource::Mcp).state == ToolState::Succeeded);
+    }
+    SECTION("a later turn may look")
+    {
+        CHECK(ask("workspace_inspect", R"({"sections":["slicing"]})", "m-2", ToolSource::Agent).state == ToolState::Succeeded);
+    }
+    SECTION("once the run has ended, the same turn reads the outcome")
+    {
+        h.workspace.finish_slice_for_testing(true);
+        h.coordinator.pump();
+        CHECK(ask("workspace_inspect", R"({"sections":["slicing"]})", "m-1", ToolSource::Agent).state == ToolState::Succeeded);
+        CHECK_FALSE(ask("slice_report", "{}", "m-1", ToolSource::Agent).error);
+    }
+}
+
 TEST_CASE("slice_start says whether OrcaSlicer began a run, had nothing to slice, or refused the plate", "[tools][slicing]")
 {
     Harness h;

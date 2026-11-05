@@ -33,6 +33,7 @@ import {
   PrinterSessionPayload,
   PreferencesPayload,
   SettingsCatalogPayload,
+  CreditAccount,
 } from '../bridge/protocol';
 import { ConnectionState } from '../bridge/client';
 
@@ -52,6 +53,11 @@ export interface AgentUiState {
   // absent from hosts without the model_choice capability.
   modelCatalog?: ModelCatalogPayload;
   chatModel?: ChatModelChoice;
+  // The signed-in account's credits; null with no account or before it answers.
+  creditAccount: CreditAccount | null;
+  // Words the gateway refused, back for the message box. The count tells a new
+  // return from one the box has already taken.
+  returnedDraft: { text: string; count: number };
   conversations: ConversationInfo[];
   activeConversationId: string;
   viewedConversationId: string;
@@ -132,6 +138,8 @@ export const initialState: AgentUiState = {
   setup: { phase: 'idle' },
   savedKeys: [],
   account: { phase: 'idle' },
+  creditAccount: null,
+  returnedDraft: { text: '', count: 0 },
   mcpCatalog: null,
   mcpPreview: null,
   mcpStatus: { phase: 'idle' },
@@ -265,6 +273,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
       return { ...state, savedKeys: (envelope.payload as SetupKeysPayload).keys };
     case 'account_status':
       return { ...state, account: envelope.payload as AccountStatusPayload };
+    case 'account':
+      return { ...state, creditAccount: (payload.account as CreditAccount | null) ?? null };
     case 'model_catalog':
       return { ...state, modelCatalog: envelope.payload as ModelCatalogPayload };
     case 'chat_model': {
@@ -327,6 +337,8 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         ...state,
         messages: upsert(state.messages, { ...message, state: 'failed', error }),
         streamingMessageId: state.streamingMessageId === id ? null : state.streamingMessageId,
+        returnedDraft: typeof payload.returnedText === 'string'
+          ? { text: payload.returnedText, count: state.returnedDraft.count + 1 } : state.returnedDraft,
       };
     }
     case 'assistant_stopped': {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import type { HistoryEntry } from './bridge/protocol';
@@ -6,9 +6,12 @@ import { ProjectCard } from './components/ProjectCard';
 import { PrinterCard } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PrintHistory } from './components/PrintHistory';
+import { PrintReportForm } from './components/PrintReportForm';
 import type { PrintHistoryActions } from './components/PrintHistory';
 import type { PrinterActions } from './components/PrinterMenu';
 import { ChevronDownGlyph, ChevronRightGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { Onboarding } from './components/Onboarding';
+import { AgentGroup } from './components/AgentGroup';
 import { initialState, reduce } from './state/store';
 import type { Screen } from './state/store';
 import { applyAppearance } from './tokens';
@@ -42,6 +45,8 @@ function readAsDataUrl(file: File): Promise<string> {
 export function App({ getTransport }: { getTransport: () => Transport | null }) {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [query, setQuery] = useState('');
+  // The G-code whose print report form is open.
+  const [reporting, setReporting] = useState<string>();
   const [sort, setSort] = useState<SortOrder>('recent');
 
   const client = useMemo(
@@ -110,6 +115,11 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [client]);
+  // As with the printer actions, a new request clears the last refusal.
+  const onboardingAction = useCallback((type: string, payload: object = {}) => {
+    dispatch({ kind: 'onboarding_action' });
+    client.send(type, payload);
+  }, [client]);
 
   if (state.connection !== 'connected' && !state.loaded) {
     return (
@@ -122,6 +132,19 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
             <p className="footnote">{state.connectionDetail}</p>
           </details>
         )}
+      </div>
+    );
+  }
+
+  if (state.onboarding?.visible) {
+    return (
+      <div className="app">
+        <Onboarding
+          onboarding={state.onboarding}
+          appearance={state.appearance}
+          error={state.onboardingError}
+          onAction={onboardingAction}
+        />
       </div>
     );
   }
@@ -140,9 +163,31 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
       onPrintAgain: (entry: HistoryEntry) => client.send('print_again', { projectId: entry.projectId, hash: entry.hash }),
       onExport: (entry: HistoryEntry, beside?: string) =>
         client.send('export_gcode', { projectId: entry.projectId, hash: entry.hash, ...(beside ? { beside } : {}) }),
+      onReport: (entry: HistoryEntry) => {
+        dispatch({ kind: 'report_form_reset' });
+        setReporting(entry.hash);
+      },
     };
+    const reportedEntry = state.history?.find((entry) => entry.hash === reporting);
     return (
-      <PrintHistory key={screenKey(screen)} screen={screen} entries={state.history} printers={state.printers} actions={actions} />
+      <>
+        <PrintHistory key={screenKey(screen)} screen={screen} entries={state.history} printers={state.printers}
+          reportsOffered={Boolean(state.reportsOffered)} actions={actions} />
+        {reportedEntry && (
+          <PrintReportForm
+            entry={reportedEntry}
+            photo={state.reportPhoto}
+            result={state.reportResult?.hash === reportedEntry.hash ? state.reportResult : undefined}
+            onChoosePhoto={() => client.send('print_report_choose_photo', {})}
+            onRemovePhoto={() => dispatch({ kind: 'report_form_reset' })}
+            onSend={(form) => {
+              dispatch({ kind: 'report_sending' });
+              client.send('print_report_send', { projectId: reportedEntry.projectId, hash: reportedEntry.hash, ...form });
+            }}
+            onClose={() => setReporting(undefined)}
+          />
+        )}
+      </>
     );
   }
 
@@ -178,6 +223,8 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   // actions itself, so the header has none and Open… stays the only primary.
   const firstRun = !state.projectsProblem && state.projects.length === 0;
   const firstPrinter = state.printers[0]?.name;
+  // Without an agent nobody asks what the part is for.
+  const agentReady = state.onboarding?.agentConfigured ?? true;
 
   return (
     <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
@@ -240,8 +287,10 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               <div className="first-run-text">
                 <h2>Drop a model or project to start</h2>
                 <p>
-                  {FORMATS.slice(0, -1).join(', ')} or {FORMATS[FORMATS.length - 1]}. JusPrin asks what the part is for, then
-                  plans the print{firstPrinter ? ` for your ${firstPrinter}` : ''}.
+                  {FORMATS.slice(0, -1).join(', ')} or {FORMATS[FORMATS.length - 1]}.{' '}
+                  {agentReady
+                    ? `JusPrin asks what the part is for, then plans the print${firstPrinter ? ` for your ${firstPrinter}` : ''}.`
+                    : `JusPrin slices it${firstPrinter ? ` for your ${firstPrinter}` : ''}.`}
                 </p>
               </div>
               <div className="first-run-actions">
@@ -273,6 +322,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           )}
         </main>
         <aside className="printer-column">
+          {state.onboarding && <AgentGroup onboarding={state.onboarding} onAction={onboardingAction} />}
           <span className="section-label">Printers</span>
           {state.printerError && (
             <p className="printer-error" role="alert">

@@ -72,7 +72,7 @@ struct Folders
 
 } // namespace
 
-TEST_CASE("a first launch copies v1's setup and carries its sign-in over", "[v1_import]")
+TEST_CASE("a first launch copies v1's setup but not its sign-in", "[v1_import]")
 {
     Folders f;
     const std::optional<V1Import::Report> report = V1Import::import_if_first_launch(f.v2, f.v1, "JusPrin2");
@@ -95,17 +95,14 @@ TEST_CASE("a first launch copies v1's setup and carries its sign-in over", "[v1_
     CHECK_FALSE(fs::exists(f.v2 / "system"));
     CHECK_FALSE(fs::exists(f.v2 / "user_backup-v1.4.0"));
 
-    // v1's settings as JusPrin 2's, its sign-in now the account provider's.
+    // v1's settings as JusPrin 2's, without v1's sign-in: v1 signed in with an
+    // Obico account, and JusPrin 2 accounts are JusPrin's own.
     REQUIRE(report->preferences);
-    CHECK(report->signed_in);
     const json settings = json::parse(read(f.v2 / "JusPrin2.conf"));
     CHECK(settings["app"]["language"] == "de_DE");
     CHECK(settings["presets"]["machine"] == "MyKlipper 0.4 nozzle");
-    CHECK(settings["jusprin_server"] == json{{"base_url", "https://jusprin.test"}});
-    CHECK(settings["jusprin_agent"]["jusprin_api_key"] == "v1-token");
-    CHECK(settings["jusprin_agent"]["provider"] == "jusprin");
-    CHECK(settings["jusprin_agent"]["enabled"] == "true");
-    CHECK(settings["jusprin_agent"]["cloud_consent"] == "true");
+    CHECK_FALSE(settings.contains("jusprin_server"));
+    CHECK_FALSE(settings.contains("jusprin_agent"));
 
     // v1's folder is only read.
     CHECK(json::parse(read(f.v1 / "JusPrin.conf"))["jusprin_server"]["access_token"] == "v1-token");
@@ -125,7 +122,6 @@ TEST_CASE("v1 without a sign-in imports everything else", "[v1_import]")
     write(f.v1 / "JusPrin.conf", json{{"app", {{"units", "in"}}}}.dump());
     const std::optional<V1Import::Report> report = V1Import::import_if_first_launch(f.v2, f.v1, "JusPrin2");
     REQUIRE(report.has_value());
-    CHECK_FALSE(report->signed_in);
     CHECK_FALSE(json::parse(read(f.v2 / "JusPrin2.conf")).contains("jusprin_agent"));
 }
 

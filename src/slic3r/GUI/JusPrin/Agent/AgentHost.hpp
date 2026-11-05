@@ -61,6 +61,10 @@ public:
         (void) model;
         return {};
     }
+    // The signed-in account's credits, plan and usage, later, on the host's
+    // thread; nothing when no account is signed in or it could not be read.
+    using AccountDone = std::function<void(std::optional<nlohmann::json> account)>;
+    virtual void fetch_account(AccountDone done) { done(std::nullopt); }
 };
 
 class AgentHost
@@ -379,6 +383,8 @@ private:
     // reply started.
     bool accept_user_message(ConversationMessage message, const std::string& correlation_id, bool from_composer);
     void handle_stop(const std::string& payload_json);
+    // Ends the running reply now, in that state: the person's Stop, or the host's own.
+    void end_stream(MessageState state, const char* envelope);
     void handle_retry(const std::string& envelope_id, const std::string& payload_json);
     void handle_tool_cancel(const std::string& envelope_id, const std::string& payload_json);
     void handle_save_proposal(const std::string& envelope_id, const std::string& payload_json);
@@ -414,9 +420,19 @@ private:
     // Fetches the lists not yet held, then sends what is known.
     void request_model_lists();
     void send_model_catalog();
+    void request_account();
+    void send_account();
+    bool person_started(const ConversationMessage& assistant) const;
+    ChatModelChoice app_turn_model(const ChatModelChoice& chat) const;
+    // What a chat that has no model of its own is on.
+    ChatModelChoice new_chat_model() const;
+    void send_active_chat_model();
+    bool model_reads_pictures(const ChatModelChoice& choice) const;
+    // The message's words, once it is back in the message box.
+    std::string return_message_to_composer(const std::string& conversation_id, const std::string& message_id);
     // Puts m_agent on the chat's choice before a turn; false when that
     // provider has no key (the turn then fails with a reason).
-    bool use_chat_model(const std::string& conversation_id);
+    bool use_chat_model(const std::string& conversation_id, bool by_person);
     // Checks and stores one file's contents on a staged record, then records
     // it and tells the page. Shared by files the page read and files the
     // native picker chose, so both are judged by the same rules.
@@ -670,6 +686,7 @@ private:
     std::shared_ptr<IChatModelSource>       m_model_source;
     std::optional<ChatModelChoice>          m_agent_choice;
     std::map<std::string, ProviderModels>   m_models;
+    std::optional<nlohmann::json>           m_account;
     FilePickerFn                    m_file_picker;
     std::string                     m_mcp_discovery_path;
     std::string                     m_mcp_edit_tool;

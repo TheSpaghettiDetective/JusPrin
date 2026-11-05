@@ -99,6 +99,8 @@ json project_json(const ProjectEntry& project)
     set_if_present(out, "updatedAt", project.updated_at);
     if (!project.history.empty())
         out["history"] = summary_json(project.history);
+    if (project.report_due)
+        out["reportDue"] = true;
     return out;
 }
 
@@ -148,7 +150,38 @@ json printer_json(const PrinterEntry& printer)
     set_if_present(out, "modelText", printer.model_text);
     if (!printer.history.empty())
         out["history"] = summary_json(printer.history);
+    if (printer.assumed)
+        out["assumed"] = true;
     return out;
+}
+
+} // namespace
+
+namespace {
+
+json email_step_json(const std::optional<Snapshot::Onboarding::EmailStep>& step)
+{
+    if (!step)
+        return nullptr;
+    return {{"step", step->step},
+            {"email", step->email},
+            {"busy", step->busy},
+            {"refusal", step->refusal},
+            {"codeResent", step->code_resent}};
+}
+
+json import_result_json(const std::optional<std::vector<Snapshot::Onboarding::ImportItem>>& items)
+{
+    if (!items)
+        return nullptr;
+    json lines = json::array();
+    for (const Snapshot::Onboarding::ImportItem& item : *items)
+        lines.push_back({{"kind", item.kind},
+                         {"name", item.name},
+                         {"renamedTo", item.renamed_to},
+                         {"imported", item.imported},
+                         {"reason", item.reason}});
+    return lines;
 }
 
 } // namespace
@@ -163,12 +196,36 @@ json state_payload(const Snapshot& snapshot)
     for (const PrinterEntry& printer : snapshot.printers)
         printers.push_back(printer_json(printer));
 
+    const auto& onboarding = snapshot.onboarding;
     return json{
         {"appearance", snapshot.dark ? "dark" : "light"},
         {"projects", std::move(projects)},
         {"projectsProblem", snapshot.projects_problem},
         {"printers", std::move(printers)},
         {"highlightPrinter", snapshot.highlight_printer},
+        {"onboarding",
+         json{
+             {"visible", onboarding.step != OnboardingStep::Hidden},
+             {"step", to_string(onboarding.step)},
+             {"printersScreen", to_string(onboarding.printers_screen)},
+             {"signIn", onboarding.sign_in},
+             {"email", email_step_json(onboarding.email_step)},
+             {"v1Imported", onboarding.facts.v1_imported},
+             {"signInError", onboarding.sign_in_error},
+             {"accountEmail", onboarding.account_email},
+             {"agentConfigured", onboarding.agent_configured},
+             {"orca",
+              json{
+                  {"source", onboarding.orca_source},
+                  {"printers", onboarding.orca_printers},
+                  {"filamentCount", onboarding.orca_filaments},
+                  {"found", onboarding.facts.orca_printers},
+                  {"importResult", import_result_json(onboarding.import_result)},
+              }},
+             {"printerForm", onboarding.printer_form},
+             {"agentCard", to_string(onboarding.agent_card)},
+             {"account", onboarding.account},
+         }},
     };
 }
 

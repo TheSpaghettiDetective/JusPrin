@@ -60,6 +60,8 @@ WelcomeBackWindow::WelcomeBackWindow(wxWindow* parent, const ShellTheme& theme, 
     m_view = new AgentWebView(this, theme, workspace, *m_persistence, runtime.availability, {}, runtime.setup,
                               AgentPageMode::WelcomeBack);
     m_view->SetName(_L("Welcome back"));
+    // The account says whether the person keeps a v1 price (board 1d).
+    m_view->enable_chat_model_choice(wxGetApp().app_config);
     GetSizer()->Add(m_view, 1, wxEXPAND);
 
     Agent::AgentHost& host = m_view->host();

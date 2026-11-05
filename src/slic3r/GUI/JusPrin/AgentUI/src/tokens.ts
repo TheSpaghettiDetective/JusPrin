@@ -19,6 +19,7 @@ const shared = (tokens as unknown as { component: Record<string, Section> }).com
 const SECTIONS: [string, string][] = [
   ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
   ['focus', 'focus'], ['field-search', 'fieldSearch'], ['select', 'select'], ['checkbox', 'checkbox'], ['form-row', 'formRow'],
+  ['credits', 'credits'], ['model-menu', 'modelMenu'],
 ];
 
 function lengths(section: Section): Record<string, number> {

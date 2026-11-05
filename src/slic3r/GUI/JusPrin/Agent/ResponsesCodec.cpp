@@ -1,4 +1,5 @@
 #include "ResponsesCodec.hpp"
+#include "RecordConversion.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -71,8 +72,14 @@ json input_items(const TurnTranscript& transcript)
         // An app note or a fired skill, in the app's voice.
         case RecordItem::Kind::Operator: input.push_back(json{{"role", "developer"}, {"content", item.text}}); break;
         case RecordItem::Kind::Assistant:
-            // The response's own items, reasoning included, exactly as sent.
-            input.insert(input.end(), item.output.begin(), item.output.end());
+            // The response's own items, reasoning included, exactly as sent; a
+            // turn another format holds, as this format reads it.
+            if (item.output_format.empty() || item.output_format == kFormatResponses)
+                input.insert(input.end(), item.output.begin(), item.output.end());
+            else {
+                const json output = assistant_output_as(item.output, item.output_format, kFormatResponses);
+                input.insert(input.end(), output.begin(), output.end());
+            }
             break;
         case RecordItem::Kind::Results:
             for (const RecordResult& result : item.results)

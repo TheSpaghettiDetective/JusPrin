@@ -33,6 +33,14 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
     applyAppearance(state.appearance);
   }, [state.appearance]);
 
+  // A window opened for one task closes itself once it is done.
+  const closeWhenDone = Boolean(state.preferences?.closeWhenDone);
+  const finish = (done: 'key' | 'tool') => client.send('shell_action', { action: 'close', done });
+  useEffect(() => {
+    if (closeWhenDone && state.setup.phase === 'verified') finish('key');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeWhenDone, state.setup.phase]);
+
   const actions = useMemo<PreferencesActions>(
     () => ({
       set: (name, value) => client.send('preferences_action', { action: 'set', name, value }),
@@ -71,6 +79,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         mcpPreview={state.mcpPreview}
         mcpStatus={state.mcpStatus}
         actions={actions}
+        onToolDone={closeWhenDone ? () => finish('tool') : undefined}
       />
     </div>
   );

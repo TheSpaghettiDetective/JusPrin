@@ -1285,6 +1285,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             };
             sections = {asked("summary"), asked("plan"), asked("slicing"), asked("printer"), asked("project"), asked("objects"), asked("activities")};
         }
+        if (sections.slicing && refuse_slice_poll(activity))
+            return;
         if ((sections.plan || sections.printer) && m_product_state == nullptr)
             throw std::logic_error("workspace_inspect reached a coordinator with no product state");
         json result = workspace_inspection(m_workspace.snapshot(), sections);
@@ -2113,6 +2115,8 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
     }
 
     if (definition->handler == ToolHandler::SliceReportRead) {
+        if (refuse_slice_poll(activity))
+            return;
         const auto arguments = json::parse(activity.arguments_json);
         const auto snapshot  = m_workspace.snapshot();
         // The active plate is what "check this print" means when the caller
@@ -2221,6 +2225,7 @@ void ToolExecutionCoordinator::execute(ToolActivity& activity)
             // the result appears when the slicer is done.
             m_slice_handle  = activity.action_id;
             m_slice_running = true;
+            m_refused_slice_polls = 0;
             m_slice_session = snapshot.session;
             result["note"]  = activity.source == ToolSource::Agent ?
                 "Slicing has started in the background. The person sees its progress in a card in the chat, below this "
@@ -2474,6 +2479,22 @@ json ToolExecutionCoordinator::regions_unbound(const std::set<std::string>& boun
         if (!bound.count(id))
             lost.push_back(id);
     return lost;
+}
+
+bool ToolExecutionCoordinator::refuse_slice_poll(ToolActivity& activity)
+{
+    if (activity.source != ToolSource::Agent || !m_slice_running)
+        return false;
+    const ToolActivity* started = find(m_slice_handle);
+    if (started == nullptr || started->source != ToolSource::Agent)
+        return false;
+    const bool same_turn = m_same_turn ? m_same_turn(started->correlation_id, activity.correlation_id)
+                                       : started->correlation_id == activity.correlation_id;
+    if (!same_turn)
+        return false;
+    ++m_refused_slice_polls;
+    fail(activity, "busy", "The slice is still running. This turn has nothing left to do: the app starts a new turn with the outcome. Finish your reply.");
+    return true;
 }
 
 void ToolExecutionCoordinator::fail(ToolActivity& activity, std::string code, std::string message, std::string details_json)

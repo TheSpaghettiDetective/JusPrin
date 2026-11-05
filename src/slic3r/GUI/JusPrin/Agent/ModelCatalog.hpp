@@ -23,6 +23,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -42,12 +43,20 @@ struct ModelOption
     // for this account (kFormatAnthropic or kFormatResponses). Empty for every
     // other provider, whose row decides the format.
     std::string              format;
+    // An account provider's alias: "basic" or "expert", what a message costs
+    // on it, and whether its model reads pictures. Other providers have no
+    // price and leave these as they are.
+    std::string              tier;
+    std::optional<int>       credits;
+    bool                     images{true};
 };
 
 // Where a provider's list is, beside its request endpoint (an override
 // moves both): the last path segment becomes "models", with the query the
 // provider needs.
 std::string model_list_url(const ProviderProfile& profile, const std::string& endpoint_override);
+// Where an account's credits, plan and usage are, beside its model list.
+std::string account_url(const ProviderProfile& profile, const std::string& endpoint_override);
 
 // One page of a provider's answer, in the provider's order (OpenAI's newest
 // first). `next_after` is set when Anthropic says there is another page.

@@ -84,6 +84,7 @@ inline constexpr const char* kPickAttachment     = "pick_attachment";
 // The active chat's provider, model and thinking level, from the composer's
 // pickers: {provider, model, effort}. It applies from the next turn. Added
 // additively; the model_choice capability advertises it.
+inline constexpr const char* kRefreshAccount      = "refresh_account";
 inline constexpr const char* kSetChatModel       = "set_chat_model";
 // The All settings panel asks for every setting in force, in one message;
 // the host answers with settings_catalog. Added additively; the all_settings
@@ -145,6 +146,7 @@ inline constexpr const char* kRevealItem         = "reveal_item";
 // each list arrives: {defaultProvider, providers: [{id, label, state, models:
 // [{id, label, efforts, defaultEffort}]}]}. model_choice capability.
 inline constexpr const char* kModelCatalog       = "model_catalog";
+inline constexpr const char* kAccount            = "account";
 // The active chat's choice after a set_chat_model: {conversationId, chatModel}.
 inline constexpr const char* kChatModel          = "chat_model";
 // Every setting in force, for the All settings panel, in answer to
@@ -273,6 +275,10 @@ struct ConversationMessage
     // the freshness of the evidence (JSON), which the model reads beside the
     // text and the page does not draw.
     std::string               issue_context;
+    // User messages: the gateway refused the turn for lack of credits, so the
+    // words went back to the message box. The page does not draw it and the
+    // model is not sent it.
+    bool                      returned{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin::Agent

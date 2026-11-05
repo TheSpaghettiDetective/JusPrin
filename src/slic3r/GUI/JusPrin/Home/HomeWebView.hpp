@@ -47,6 +47,9 @@ public:
     // card changed. Polled, because upstream announces no device update, and
     // a printer going Offline is time passing rather than a message. The
     // shell makes Home live exactly while it is the selected screen.
+    // While live, first run's sign-in, the account's credits and the
+    // add-printer form are also polled, ten times a second: each answers on
+    // its own schedule and the page waits on them.
     void set_live(bool live);
 
     HomeHost&        host() { return *m_host; }
@@ -58,6 +61,7 @@ private:
     void on_load_error(wxWebViewEvent& event);
     void show_page_error(const wxString& reason);
     void on_live_tick(wxTimerEvent& event);
+    void on_poll_tick(wxTimerEvent& event);
 
     const ShellTheme&                 m_theme;
     // The backend outlives the host that reads through it.
@@ -66,6 +70,7 @@ private:
     wxWebView*                m_webview{nullptr};
     wxStaticText*             m_error{nullptr};
     wxTimer                   m_live_timer;
+    wxTimer                   m_poll_timer;
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

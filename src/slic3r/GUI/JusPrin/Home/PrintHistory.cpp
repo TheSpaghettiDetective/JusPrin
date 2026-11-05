@@ -141,6 +141,8 @@ json entry_json(const HistoryProject& project, const GcodeRecord& record, const 
     for (const GcodePrint& print : record.prints)
         prints.push_back(print_json(print, facts, live));
     out["prints"] = std::move(prints);
+    if (record.report)
+        out["report"] = json{{"sentAt", record.report->sent_at}, {"credits", record.report->credits}};
     return out;
 }
 
@@ -156,6 +158,51 @@ HistorySummary summarize(const std::vector<GcodeRecord>& records, const std::vec
             count_print(summary, print, live);
     }
     return summary;
+}
+
+bool report_due(const std::vector<GcodeRecord>& records, const std::string& finished_since, const std::vector<LivePrint>& live)
+{
+    const auto latest = std::max_element(records.begin(), records.end(),
+                                         [](const GcodeRecord& a, const GcodeRecord& b) { return a.seq < b.seq; });
+    if (latest == records.end() || latest->report)
+        return false;
+    bool finished = false;
+    for (const GcodePrint& print : latest->prints) {
+        if (live_print(print, live) != nullptr)
+            return false;
+        finished = finished || (!print.finished_at.empty() && print.finished_at >= finished_since);
+    }
+    return finished;
+}
+
+PrintReportAnswer print_report_answer(unsigned status, const std::string& body)
+{
+    PrintReportAnswer answer;
+    const json parsed = json::parse(body, nullptr, false);
+    if (status == 201 && parsed.is_object()) {
+        answer.state   = PrintReportAnswer::State::Sent;
+        answer.credits = parsed.value("credits", 0);
+    } else if (status == 409 && parsed.is_object() && parsed.contains("error") && parsed["error"].is_object() &&
+               parsed["error"].value("code", std::string()) == "already_reported") {
+        // Sent from this account before, from another computer or another copy
+        // of the project: the entry says sent, with nothing to add.
+        answer.state = PrintReportAnswer::State::AlreadySent;
+    }
+    return answer;
+}
+
+json report_facts(const std::string& project_name, const GcodeRecord& record, const HistoryFacts& facts)
+{
+    json out{{"project", project_name},
+             {"plate", record.plate_name},
+             {"manufacturing_input_hash", record.manufacturing_input_hash},
+             {"print_time_seconds", record.statistics.print_time_seconds},
+             {"material_grams", record.statistics.material_grams},
+             {"layer_count", record.statistics.layer_count}};
+    set_if_present(out, "printer", facts.printer_label(record.printer));
+    set_if_present(out, "material", facts.material_label(record.material));
+    set_if_present(out, "process", facts.process_label(record.process));
+    return out;
 }
 
 HistorySummary summarize_printer(const std::vector<HistoryProject>& projects, const std::string& card_id,

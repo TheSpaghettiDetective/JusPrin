@@ -115,12 +115,14 @@ describe('Preferences', () => {
   it('signs in to a JusPrin account through the browser and points to Agent', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
-    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Free · sign in with your browser');
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with JusPrin' }));
+    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Your first month: 500 credits');
+    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('An Expert message is 5 credits. Your own API key stays free.');
+    expect(screen.getByTestId('first-month-offer').textContent).not.toMatch(/trial|\$/i);
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in for 500 credits' }));
     expect(host.lastOfType('account_sign_in')?.payload).toEqual({});
 
     // Waiting on the browser: what to do there, a way to copy the page, and Cancel.
-    host.deliver('account_status', { phase: 'browser', url: 'https://app.obico.io/o/authorize/?client_id=JusPrin2' });
+    host.deliver('account_status', { phase: 'browser', url: 'https://jusprinv2.obico.io/o/authorize/?client_id=JusPrin2' });
     expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Finish signing in in your browser');
     expect(screen.getByText(/A JusPrin tab just opened/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();

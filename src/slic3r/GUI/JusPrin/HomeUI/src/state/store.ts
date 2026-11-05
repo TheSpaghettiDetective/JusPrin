@@ -14,6 +14,9 @@ import type {
   ProjectInfo,
   ScreenPayload,
   StatePayload,
+  OnboardingState,
+  PrintReportPhoto,
+  PrintReportResult,
 } from '../bridge/protocol';
 
 // Home's two screens. Print history is always a leaf: Back returns to the
@@ -48,8 +51,14 @@ export interface HomeState {
   // the first arrives. The page asks again each time the screen opens and
   // each time the host's state changes under it.
   history?: HistoryEntry[];
+  reportsOffered?: boolean;
+  // The print report form's photo and the server's answer, while it is open.
+  reportPhoto?: PrintReportPhoto;
+  reportResult?: PrintReportResult;
   // Counts the host's state pushes, so the open history can follow them.
   stateCount: number;
+  onboarding?: OnboardingState;
+  onboardingError?: string;
 }
 
 export const initialState: HomeState = {
@@ -67,7 +76,10 @@ export type HomeAction =
   | { kind: 'envelope'; envelope: Envelope }
   | { kind: 'printer_action' }
   | { kind: 'confirmation_answered' }
-  | { kind: 'show'; screen: Screen };
+  | { kind: 'show'; screen: Screen }
+  | { kind: 'report_form_reset' }
+  | { kind: 'report_sending' }
+  | { kind: 'onboarding_action' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -81,6 +93,15 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   }
   if (action.kind === 'show') {
     return { ...state, screen: action.screen };
+  }
+  if (action.kind === 'report_form_reset') {
+    return { ...state, reportPhoto: undefined, reportResult: undefined };
+  }
+  if (action.kind === 'report_sending') {
+    return { ...state, reportResult: undefined };
+  }
+  if (action.kind === 'onboarding_action') {
+    return { ...state, onboardingError: undefined };
   }
   const { type, payload } = action.envelope;
   switch (type) {
@@ -96,6 +117,7 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
         error: undefined,
         highlightPrinter: next.highlightPrinter || undefined,
         stateCount: state.stateCount + 1,
+        onboarding: next.onboarding,
       };
     }
     case 'screen': {
@@ -109,7 +131,16 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       };
     }
     case 'history':
-      return { ...state, history: (payload as HistoryPayload).entries ?? [] };
+      return {
+        ...state,
+        history: (payload as HistoryPayload).entries ?? [],
+        reportsOffered: (payload as HistoryPayload).reportsOffered,
+      };
+    case 'print_report_photo':
+      // Cancelling the file dialog keeps the photo already there.
+      return { ...state, reportPhoto: (payload as { photo?: PrintReportPhoto }).photo ?? state.reportPhoto };
+    case 'print_report_result':
+      return { ...state, reportResult: payload as PrintReportResult };
     case 'projects':
       return { ...state, projects: (payload as { projects: ProjectInfo[] }).projects ?? [] };
     case 'printers':
@@ -120,6 +151,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       return { ...state, printerError: payload as PrinterErrorPayload };
     case 'confirm':
       return { ...state, confirmation: payload as ConfirmPayload };
+    case 'onboarding_error':
+      return { ...state, onboardingError: (payload as { message?: string }).message };
     case 'bridge_error':
       return { ...state, error: (payload as { message?: string }).message };
     default:

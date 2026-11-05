@@ -13,6 +13,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,6 +36,7 @@ public:
     virtual bool                      dark() const              = 0;
     virtual ProjectList               recent_projects() const   = 0;
     virtual std::vector<PrinterEntry> printers() const          = 0;
+    virtual Snapshot::Onboarding onboarding()                   = 0;
 
     // Actions. Each is the whole product gesture, not a step of one, so the
     // adapter can use whichever upstream entry point already performs it.
@@ -64,6 +67,59 @@ public:
     virtual void export_gcode(const std::string& project_id, const std::string& hash, const std::string& beside) {}
     // OrcaSlicer's send dialog for the kept file of a recorded G-code.
     virtual void print_again(const std::string& project_id, const std::string& hash) {}
+
+    // Print reports (boards 8a to 8d), which need the person's account.
+    virtual bool reports_offered() const { return false; }
+    // The OS file dialog; nothing when the person cancels.
+    virtual std::optional<PrintReportPhoto> choose_report_photo() { return std::nullopt; }
+    // Sends the report and writes what the server answered onto the G-code's
+    // record; `done` runs later, on the main thread.
+    virtual void send_print_report(const PrintReportForm& form, std::function<void(const PrintReportAnswer&)> done) {}
+
+    // First-run onboarding, Welcome → Printers → Home (OnboardingModel.hpp).
+    // Called on Home's poll: whether a sign-in, the account's credits, a
+    // closed Preferences window or the add-printer form changed what the
+    // page shows since the last call.
+    virtual bool poll_onboarding() { return false; }
+    // The welcome's doors. Signing in opens the browser and the card waits;
+    // the page leaves the welcome once it lands.
+    virtual void start_sign_in()                  = 0;
+    virtual void cancel_sign_in()                 = 0;
+    // The email door: the address, then the person picks an emailed code or
+    // types the password, and a new code on request. The address alone sends
+    // nothing; each of the others waits on the server, and the poll brings
+    // its answer.
+    virtual void sign_in_with_email(const std::string& email)       = 0;
+    virtual void submit_sign_in_code(const std::string& code)       = 0;
+    virtual void submit_sign_in_password(const std::string& password) = 0;
+    virtual void send_sign_in_code()              = 0;
+    // The browser wait's "Open the browser again": the same sign-in's page.
+    virtual void reopen_sign_in_browser()         = 0;
+    // A page in the browser: "reset_password" on the account's server,
+    // "terms" or "privacy".
+    virtual void open_sign_in_link(const std::string& link) = 0;
+    // Preferences › Agent over the welcome, for "key" or "tool": closed with
+    // a verified key or with Done on an AI tool, the welcome is left.
+    virtual void open_agent_door(const std::string& door) = 0;
+    // "Just slice for now", and the end of a sign-in.
+    virtual void leave_welcome()                  = 0;
+    // The Printers step.
+    virtual void back_to_welcome()                = 0;
+    virtual void start_fresh()                    = 0;
+    // Each returns a message for the person when it could not finish.
+    virtual std::string import_orca_printers()    = 0;
+    virtual std::string assume_default_printer()  = 0;
+    // The import's result: the items that failed, imported again, and
+    // Continue, which leaves for the add-printer form when no printer came.
+    virtual void retry_orca_import()              = 0;
+    virtual void finish_orca_import()             = 0;
+    // A folder picker for an OrcaSlicer folder when none was found beside
+    // JusPrin's; returns a message for the person when it holds no printers.
+    virtual std::string choose_orca_folder()      = 0;
+    // The add-printer form's own requests: form_options and form_finish.
+    virtual void printer_form_message(const nlohmann::json& payload) = 0;
+    // Home's Agent group: the account's credits are shown once.
+    virtual void dismiss_account_card()           = 0;
 
     // The printer card's menu. Each returns an empty string when the action
     // ran or the person cancelled it, and otherwise a message for the person,

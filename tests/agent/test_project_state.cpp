@@ -147,9 +147,18 @@ TEST_CASE("a chat's record keeps every item as sent, in one format, and appends 
     CHECK(record->items[3].kind == RecordItem::Kind::Operator);
     CHECK(record->items[3].text == "Slice ready.");
 
-    SECTION("another format is refused") {
-        CHECK_THROWS_AS(document.append_chat_record(chat, "responses", {note}), std::logic_error);
-        CHECK(document.chat_record(chat)->items.size() == 4);
+    SECTION("a turn in another format keeps the format it was written in") {
+        RecordItem expert{RecordItem::Kind::Assistant, "m-3"};
+        expert.output = json::array({json{{"type", "message"}}});
+        document.append_chat_record(chat, "responses", {expert});
+        ProjectStateDocument again;
+        REQUIRE(again.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+        const std::optional<ChatRecord> mixed = again.chat_record(chat);
+        REQUIRE(mixed);
+        CHECK(mixed->format == "anthropic");
+        REQUIRE(mixed->items.size() == 5);
+        CHECK(mixed->items[1].output_format.empty());
+        CHECK(mixed->items[4].output_format == "responses");
     }
     SECTION("a record is in a format from its start") {
         const std::string other = document.create_conversation("Other", kT);
@@ -1544,4 +1553,27 @@ TEST_CASE("a ledger subscription outliving its persistence does nothing", "[pers
         survivor = persistence.subscribe_ledger([]() {});
     }
     REQUIRE_NOTHROW(survivor.reset());
+}
+
+TEST_CASE("a G-code's report is kept with its record, and an older document has none", "[project-state][gcode]")
+{
+    ProjectStateDocument document;
+    document.initialize_identity("p", "l", kT);
+    GcodeRecord facts;
+    facts.hash = "a71f";
+    GcodeDestination exported;
+    exported.kind = GcodeDestination::Kind::Export;
+    exported.path = "/tmp/a.gcode";
+    document.add_gcode_destination(facts, exported, kT);
+    CHECK_FALSE(document.gcode_record("a71f")->report.has_value());
+
+    document.set_gcode_report("a71f", {"2026-11-02T16:10:00Z", 25});
+    ProjectStateDocument loaded;
+    REQUIRE(loaded.load(document.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const auto report = loaded.gcode_record("a71f")->report;
+    REQUIRE(report.has_value());
+    CHECK(report->sent_at == "2026-11-02T16:10:00Z");
+    CHECK(report->credits == 25);
+
+    CHECK_THROWS_AS(document.set_gcode_report("unknown", {"2026-11-02T16:10:00Z", 0}), std::logic_error);
 }

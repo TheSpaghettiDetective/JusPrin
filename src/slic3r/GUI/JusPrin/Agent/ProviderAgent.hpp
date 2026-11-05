@@ -70,6 +70,7 @@ private:
     };
 
     void begin_transcript(const AgentRequest& request);
+    bool m_app_started{false};
     void push_skills(const std::vector<AgentSkillUse>& skills, std::vector<RecordItem> notes = {});
     // The part with its blob written, ahead of the request that first sends it.
     RecordPart kept(RecordPart part);
@@ -84,7 +85,7 @@ private:
     bool next_call();
     void answer_call(const std::string& call_id, const nlohmann::json& output);
     void fail(AgentError error);
-    AgentError http_error(unsigned status, const std::string& detail) const;
+    AgentError http_error(unsigned status, const std::string& detail, const std::string& body = {}) const;
 
     ProviderAgentConfig                   m_config;
     std::unique_ptr<IProviderCodec>       m_codec;

@@ -94,6 +94,12 @@ struct AgentRequest
 {
     enum class Purpose { Reply, ConversationTitle };
     Purpose                              purpose{Purpose::Reply};
+    // The app started this turn on its own note, not the person: the gateway
+    // does not charge it the way it charges a message.
+    bool                                 app_started{false};
+    // False on a model that cannot read pictures: the tools that return them
+    // are not offered, so it never calls one whose result it cannot read.
+    bool                                 model_reads_pictures{true};
     std::string                           request_id;
     // The same on every request of one chat and different for every other
     // chat: what a provider routes its prompt cache by. Empty for a title.

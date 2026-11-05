@@ -11,6 +11,8 @@ import {
   folderOf,
   matches,
   printSpan,
+  REPORT_OFFER,
+  reportSentDetail,
   rowTime,
   shortHash,
   statsLine,
@@ -21,6 +23,7 @@ import {
   ChevronLeftGlyph,
   CloseGlyph,
   DownloadGlyph,
+  MessageGlyph,
   PlusGlyph,
   PrinterGlyph,
   SendGlyph,
@@ -35,6 +38,7 @@ export interface PrintHistoryActions {
   onExport: (entry: HistoryEntry, beside?: string) => void;
   // OrcaSlicer's send dialog for the kept file; the person presses Send there.
   onPrintAgain: (entry: HistoryEntry) => void;
+  onReport: (entry: HistoryEntry) => void;
 }
 
 type HistoryScreen = Extract<Screen, { kind: 'history' }>;
@@ -126,7 +130,10 @@ function printAgainNote(entry: HistoryEntry) {
   }
 }
 
-function Entry({ entry, showProject, focused, actions }: { entry: HistoryEntry; showProject: boolean; focused: boolean; actions: PrintHistoryActions }) {
+function Entry({ entry, showProject, focused, reportsOffered, actions }: { entry: HistoryEntry; showProject: boolean; focused: boolean; reportsOffered: boolean; actions: PrintHistoryActions }) {
+  // One report per G-code, and none while it is still printing. An export-only
+  // entry is offered too: a print from USB never reports back.
+  const canReport = reportsOffered && !entry.report && !entry.prints.some((print) => print.live);
   const stats = statsLine(entry);
   const made = [entry.printer, entry.material, entry.process].filter(Boolean).join(' · ');
   return (
@@ -167,6 +174,9 @@ function Entry({ entry, showProject, focused, actions }: { entry: HistoryEntry; 
             <PrintRow key={row.print.id} entry={entry} print={row.print} />
           ),
         )}
+        {entry.report && (
+          <HistoryRow icon={<MessageGlyph />} label="Report sent" detail={reportSentDetail(entry.report, entry.createdAt)} />
+        )}
       </ul>
       <div className="history-actions">
         {entry.printAgain === 'ready' && (
@@ -179,6 +189,11 @@ function Entry({ entry, showProject, focused, actions }: { entry: HistoryEntry; 
           <button type="button" className="button-secondary button-secondary-small" onClick={() => actions.onExport(entry)}>
             <DownloadGlyph />
             Export…
+          </button>
+        )}
+        {canReport && (
+          <button type="button" className="button-secondary button-secondary-small" onClick={() => actions.onReport(entry)}>
+            {REPORT_OFFER}
           </button>
         )}
         {printAgainNote(entry)}
@@ -195,11 +210,13 @@ export function PrintHistory({
   screen,
   entries,
   printers,
+  reportsOffered,
   actions,
 }: {
   screen: HistoryScreen;
   entries?: HistoryEntry[];
   printers: PrinterInfo[];
+  reportsOffered: boolean;
   actions: PrintHistoryActions;
 }) {
   const [projectId, setProjectId] = useState(screen.projectId);
@@ -309,7 +326,7 @@ export function PrintHistory({
                 <h2 className="history-day-label">{group.label}</h2>
                 {group.entries.map((entry) => (
                   <Entry key={`${entry.projectId}-${entry.hash}`} entry={entry} showProject={!projectId}
-                    focused={entry.hash === screen.focus} actions={actions} />
+                    focused={entry.hash === screen.focus} reportsOffered={reportsOffered} actions={actions} />
                 ))}
               </section>
             ))

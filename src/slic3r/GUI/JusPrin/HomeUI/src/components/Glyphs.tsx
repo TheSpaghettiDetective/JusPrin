@@ -62,6 +62,22 @@ export function DownloadGlyph() {
   return <span className="glyph glyph-download" aria-hidden="true" />;
 }
 
+export function MessageGlyph() {
+  return <span className="glyph glyph-message" aria-hidden="true" />;
+}
+
 export function SendGlyph() {
   return <span className="glyph glyph-send" aria-hidden="true" />;
+}
+
+export function FolderGlyph() {
+  return <span className="glyph glyph-folder" aria-hidden="true" />;
+}
+
+export function ConnectedGlyph() {
+  return <span className="glyph glyph-connected" aria-hidden="true" />;
+}
+
+export function WarningGlyph() {
+  return <span className="glyph glyph-warning" aria-hidden="true" />;
 }

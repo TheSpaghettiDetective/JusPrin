@@ -27,6 +27,8 @@ export function AgentPaneToggle({ onCollapse }: { onCollapse: () => void }) {
 
 export interface MenuItem {
   label: string;
+  // A second line under the label: what the option is for.
+  detail?: string;
   onSelect: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -223,7 +225,12 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
                 aria-checked={item.current === undefined ? undefined : item.current}
                 disabled={item.disabled} onClick={() => pick(item)}
                 onMouseEnter={search && !item.disabled ? () => setActiveKey(rowKey(item)) : undefined}>
-                <span className="chat-menu-label">{item.label}</span>
+                {item.detail
+                  ? <span className="chat-menu-text">
+                      <span className="chat-menu-label">{item.label}</span>
+                      <span className="chat-menu-detail">{item.detail}</span>
+                    </span>
+                  : <span className="chat-menu-label">{item.label}</span>}
                 {item.current && <span className="jp-icon jp-icon-check" aria-hidden="true" />}
               </button>)}
         </div>}

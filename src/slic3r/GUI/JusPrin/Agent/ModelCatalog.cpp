@@ -143,6 +143,12 @@ std::string model_list_url(const ProviderProfile& profile, const std::string& en
     return base + "/models";
 }
 
+std::string account_url(const ProviderProfile& profile, const std::string& endpoint_override)
+{
+    const std::string endpoint = endpoint_override.empty() ? profile.endpoint : endpoint_override;
+    return endpoint.substr(0, endpoint.rfind('/')) + "/account";
+}
+
 ModelListPage parse_model_list(const ProviderProfile& profile, const json& response)
 {
     ModelListPage page;
@@ -155,6 +161,10 @@ ModelListPage parse_model_list(const ProviderProfile& profile, const json& respo
             option.format         = model.at("format").get<std::string>();
             option.efforts        = model.value("efforts", std::vector<std::string>{});
             option.default_effort = model.value("default_effort", "");
+            option.tier           = model.value("tier", "");
+            if (model.contains("credits"))
+                option.credits = model.at("credits").get<int>();
+            option.images = model.value("images", true);
             page.models.push_back(std::move(option));
         }
     } else if (profile.family == ProviderFamily::Anthropic) {

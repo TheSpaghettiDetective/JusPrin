@@ -227,3 +227,80 @@ TEST_CASE("an entry whose copy is gone says so, and one with no chat has no link
     CHECK_FALSE(entry.contains("conversationId"));
     CHECK_FALSE(entry.contains("markerId"));
 }
+
+TEST_CASE("a project card asks for a report only on its latest G-code, once it has finished", "[print-history]")
+{
+    const std::string since = "2026-11-01T00:00:00Z";
+    GcodeRecord older = gcode("older", "2026-11-02T08:00:00Z");
+    older.seq = 1;
+    add_send(older, "01S", "X1C");
+    add_print(older, "01S", "job-1", "2026-11-02T09:00:00Z");
+    CHECK(report_due({older}, since, {}));
+
+    SECTION("not while it is still printing") {
+        GcodeRecord printing = older;
+        add_print(printing, "01S", "job-2");
+        CHECK_FALSE(report_due({printing}, since, {{"01S", "job-2", 38, 5700}}));
+    }
+    SECTION("not when nothing finished") {
+        GcodeRecord exported = gcode("exported", "2026-11-02T08:00:00Z");
+        add_export(exported, "/tmp/a.gcode");
+        CHECK_FALSE(report_due({exported}, since, {}));
+    }
+    SECTION("not after the two weeks") {
+        CHECK_FALSE(report_due({older}, "2026-11-03T00:00:00Z", {}));
+    }
+    SECTION("not after a report") {
+        GcodeRecord reported = older;
+        reported.report = Agent::GcodeReport{"2026-11-02T10:00:00Z", 25};
+        CHECK_FALSE(report_due({reported}, since, {}));
+    }
+    SECTION("not when a newer G-code has not finished") {
+        GcodeRecord newer = gcode("newer", "2026-11-02T12:00:00Z");
+        newer.seq = 2;
+        add_send(newer, "01S", "X1C");
+        CHECK_FALSE(report_due({older, newer}, since, {}));
+    }
+    SECTION("nothing to ask about without a G-code") {
+        CHECK_FALSE(report_due({}, since, {}));
+    }
+}
+
+TEST_CASE("an entry carries its report as that it was sent and what it earned", "[print-history]")
+{
+    GcodeRecord record = gcode("a71f", "2026-11-02T08:00:00Z");
+    add_export(record, "/tmp/a.gcode");
+    const auto entry = [&] { return history_entries({{"p1", "Garage bracket", {record}}}, facts(), {}).at(0); };
+    CHECK_FALSE(entry().contains("report"));
+    record.report = Agent::GcodeReport{"2026-11-02T10:00:00Z", 25};
+    CHECK(entry().at("report") == nlohmann::json{{"sentAt", "2026-11-02T10:00:00Z"}, {"credits", 25}});
+}
+
+TEST_CASE("a report's facts name the project the Account row is titled by", "[print-history]")
+{
+    GcodeRecord record = gcode("a71f", "2026-11-02T08:00:00Z");
+    record.manufacturing_input_hash = "input";
+    record.statistics.layer_count   = 181;
+    const nlohmann::json out = report_facts("Garage bracket", record, facts());
+    CHECK(out.at("project") == "Garage bracket");
+    CHECK(out.at("plate") == "Plate 1");
+    CHECK(out.at("manufacturing_input_hash") == "input");
+    CHECK(out.at("layer_count") == 181);
+    CHECK(out.contains("printer"));
+}
+
+TEST_CASE("the server's answer to a report", "[print-history]")
+{
+    using State = PrintReportAnswer::State;
+    const PrintReportAnswer earned = print_report_answer(201, R"({"id": 7, "credits": 25})");
+    CHECK(earned.state == State::Sent);
+    CHECK(earned.credits == 25);
+
+    const auto refused = [](const std::string& code) { return R"({"type": "error", "error": {"code": ")" + code + R"(", "message": "x"}})"; };
+    CHECK(print_report_answer(409, refused("already_reported")).state == State::AlreadySent);
+    CHECK(print_report_answer(409, refused("something_else")).state == State::Failed);
+    CHECK(print_report_answer(400, refused("photo_unreadable")).state == State::Failed);
+    CHECK(print_report_answer(413, refused("request_too_large")).state == State::Failed);
+    CHECK(print_report_answer(0, "").state == State::Failed);
+    CHECK(print_report_answer(502, "<html>bad gateway</html>").state == State::Failed);
+}

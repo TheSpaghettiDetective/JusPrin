@@ -77,6 +77,14 @@ struct GcodePrint
     std::string finished_at;
 };
 
+// The report the person sent on how the G-code came out: only that one exists
+// and what it earned, never how the print went. One per G-code.
+struct GcodeReport
+{
+    std::string sent_at;
+    int         credits{0};
+};
+
 struct GcodeRecord
 {
     // SHA-256 of the plate's sliced G-code bytes: the record's identity. The
@@ -99,6 +107,7 @@ struct GcodeRecord
     SliceStatistics statistics;
     std::vector<GcodeDestination> destinations;
     std::vector<GcodePrint>       prints;
+    std::optional<GcodeReport>    report;
 };
 
 // The entry's name: the latest exported file's name, else the plate's.

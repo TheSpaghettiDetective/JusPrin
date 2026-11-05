@@ -47,6 +47,7 @@ describe('protocol constants', () => {
       'reveal_path',
       'pick_attachment',
       'set_chat_model',
+      'refresh_account',
       'printer_action',
       'printer_instructions',
       'printer_opening',

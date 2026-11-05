@@ -44,6 +44,7 @@ add_executable(agent_bridge_tests
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProviderFactory.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ModelCatalog.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/RecordConversion.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ResponsesCodec.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp

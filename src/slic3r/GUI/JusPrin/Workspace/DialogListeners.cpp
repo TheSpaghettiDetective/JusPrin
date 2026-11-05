@@ -63,7 +63,7 @@ class ListenerHook : public wxModalDialogHook
             return wxID_NONE;
         if (int answer = wxID_NONE; dispatch_dialog(*dialog, answer)) {
             BOOST_LOG_TRIVIAL(info) << "JusPrin answered the dialog \"" << dialog->GetTitle().ToUTF8().data() << "\" with " << answer
-                                    << (std::find(dialogStack.begin(), dialogStack.end(), dialog) == dialogStack.end() ? " (not an OrcaSlicer DPIAware dialog)" : "");
+                                    << (std::find(dialogStack.begin(), dialogStack.end(), dialog) == dialogStack.end() ? " (not a DPIAware dialog)" : "");
             return answer;
         }
         // A copy: an observer may unregister itself.

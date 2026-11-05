@@ -377,6 +377,8 @@ TEST_CASE("the Print history list width is explicit", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("printHistory"),
         {{"listWidth", 920}}, "component.printHistory");
+    require_exact_table<int>(load_tokens().at("component").at("printReport"),
+        {{"thumbnailSize", 40}}, "component.printReport");
 }
 
 // The printer column is a fixed rail, not a share of the window: the gallery
@@ -404,6 +406,18 @@ TEST_CASE("printer setup has a readable conversation width", "[brand]")
 {
     require_exact_table<int>(load_tokens().at("component").at("printerSetup"),
         {{"contentWidth", 720}}, "component.printerSetup");
+}
+
+// The first launch's frames: the welcome's row of clip and words, the clip,
+// the corner lockup (43 tall draws it 120 wide, the design system's minimum),
+// the Printers step's column, and one cell of the sign-in code, the design
+// system's Field/Verification Code (48 square).
+TEST_CASE("onboarding follows the approved first-run frames", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("onboarding"),
+        {{"contentWidth", 1120}, {"clipWidth", 620}, {"clipHeight", 388}, {"lockupHeight", 43}, {"stepWidth", 520},
+         {"codeCell", 48}},
+        "component.onboarding");
 }
 
 // Replies in the Agent thread use the standard control radius. Their height
@@ -473,9 +487,19 @@ TEST_CASE("the link, segmented control and tooltip geometry is explicit", "[bran
     CHECK(segmented.at("height").get<int>() ==
           2 * (segmented.at("borderWidth").get<int>() + segmented.at("padding").get<int>()) +
               segmented.at("segmentHeight").get<int>());
-    require_exact_table<int>(component.at("tooltip"), {{"height", 24}, {"paddingX", 8}, {"paddingY", 4}, {"radius", 4}},
+    require_exact_table<int>(component.at("tooltip"), {{"height", 24}, {"paddingX", 8}, {"paddingY", 4}, {"radius", 4}, {"maxWidth", 320}},
                              "component.tooltip", {"textRole"});
     CHECK(component.at("tooltip").at("textRole") == "metadata");
+}
+
+// The composer's credits ring and its panel (board 2a), and the model menu
+// wide enough for a tier's clause (board 2b).
+TEST_CASE("the credits ring, panel and model menu geometry is explicit", "[brand]")
+{
+    const auto component = load_tokens().at("component");
+    require_exact_table<int>(component.at("credits"),
+        {{"ringSize", 16}, {"ringButton", 24}, {"panelWidth", 300}, {"panelPadding", 12}, {"barHeight", 4}}, "component.credits");
+    require_exact_table<int>(component.at("modelMenu"), {{"width", 320}}, "component.modelMenu");
 }
 
 TEST_CASE("the reply chip geometry is explicit", "[brand]")

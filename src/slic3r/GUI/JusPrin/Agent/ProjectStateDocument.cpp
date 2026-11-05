@@ -86,6 +86,10 @@ void write_message_fields(json& entry, const ConversationMessage& message)
     entry["state"]   = message_state_name(message.state);
     entry["text"]    = message.text;
     entry["attempt"] = message.attempt;
+    if (message.returned)
+        entry["returned"] = true;
+    else
+        entry.erase("returned");
     if (!message.client_message_id.empty())
         entry["clientMessageId"] = message.client_message_id;
     if (!message.in_reply_to.empty())
@@ -132,6 +136,7 @@ ConversationMessage read_message(const json& entry)
     message.state             = message_state_from(entry.value("state", "complete"));
     message.text              = entry.value("text", "");
     message.attempt           = entry.value("attempt", 1);
+    message.returned          = entry.value("returned", false);
     message.client_message_id = entry.value("clientMessageId", "");
     message.in_reply_to       = entry.value("inReplyTo", "");
     message.created_at        = entry.value("createdAt", "");
@@ -325,6 +330,8 @@ GcodeRecord read_gcode(const json& entry)
     if (const auto prints = entry.find("prints"); prints != entry.end() && prints->is_array())
         for (const json& print : *prints)
             record.prints.push_back(read_print(print));
+    if (const auto report = entry.find("report"); report != entry.end() && report->is_object())
+        record.report = GcodeReport{report->value("sentAt", ""), report->value("credits", 0)};
     return record;
 }
 
@@ -505,7 +512,24 @@ void from_json(const json& entry, RecordResult& result)
     if (!entry.at("image").is_null())
         result.image = entry.at("image").get<RecordPart>();
 }
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RecordItem, kind, source, parts, text, output, results, clears)
+void to_json(json& entry, const RecordItem& item)
+{
+    entry = json{{"kind", item.kind}, {"source", item.source}, {"parts", item.parts}, {"text", item.text},
+                 {"output", item.output}, {"results", item.results}, {"clears", item.clears}};
+    if (!item.output_format.empty())
+        entry["output_format"] = item.output_format;
+}
+void from_json(const json& entry, RecordItem& item)
+{
+    entry.at("kind").get_to(item.kind);
+    entry.at("source").get_to(item.source);
+    entry.at("parts").get_to(item.parts);
+    entry.at("text").get_to(item.text);
+    entry.at("output").get_to(item.output);
+    entry.at("results").get_to(item.results);
+    entry.at("clears").get_to(item.clears);
+    item.output_format = entry.value("output_format", "");
+}
 
 ProjectStateDocument::ProjectStateDocument() : m_doc(fresh_document()) {}
 
@@ -798,10 +822,12 @@ void ProjectStateDocument::append_chat_record(const std::string& conversation_id
     json& stored = (*conversation)["record"];
     if (stored.is_null())
         stored = json{{"format", format}, {"items", json::array()}};
-    if (stored.at("format") != format)
-        throw std::logic_error("a chat recorded in " + stored.at("format").get<std::string>() + " cannot take items in " + format);
-    for (const RecordItem& item : items)
-        stored["items"].push_back(item);
+    const bool foreign = stored.at("format") != format;
+    for (RecordItem item : items) {
+        if (foreign && item.kind == RecordItem::Kind::Assistant)
+            item.output_format = format;
+        stored["items"].push_back(std::move(item));
+    }
     touch();
 }
 
@@ -1046,6 +1072,17 @@ std::optional<std::string> ProjectStateDocument::remove_staged_attachment(const 
     return std::nullopt;
 }
 
+void ProjectStateDocument::mark_attachments_staged(const std::vector<std::string>& attachment_ids)
+{
+    for (const std::string& id : attachment_ids)
+        for (json& entry : m_doc["attachments"])
+            if (entry.value("id", "") == id && entry.value("state", "") == "sent") {
+                entry["state"] = "staged";
+                touch();
+                break;
+            }
+}
+
 std::vector<std::string> ProjectStateDocument::mark_attachments_sent(const std::vector<std::string>& attachment_ids)
 {
     std::vector<std::string> sent;
@@ -1149,6 +1186,15 @@ void ProjectStateDocument::finish_gcode_print(const std::string& hash, const std
         return;
     }
     throw std::logic_error("finished print " + print_id + " is not a print of " + hash);
+}
+
+void ProjectStateDocument::set_gcode_report(const std::string& hash, const GcodeReport& report)
+{
+    json* entry = gcode_json(hash);
+    if (entry == nullptr)
+        throw std::logic_error("a report must be on a recorded G-code; " + hash + " is not one");
+    (*entry)["report"] = json{{"sentAt", report.sent_at}, {"credits", report.credits}};
+    touch();
 }
 
 std::vector<GcodeRecord> ProjectStateDocument::gcode_records() const

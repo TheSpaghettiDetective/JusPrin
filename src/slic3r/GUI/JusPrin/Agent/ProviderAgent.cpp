@@ -157,6 +157,8 @@ std::vector<OfferedTool> offered_tools(const AgentRequest& request)
     for (const ToolDefinition& definition : ToolRegistry::instance().definitions()) {
         if (!available_in_app(definition, !request.skill_index.empty(), request.session.tool_names))
             continue;
+        if (!request.model_reads_pictures && (definition.name == "view_render" || definition.name == "project_attachment_read"))
+            continue;
         // skill_read carries the list it reads from, as one line per skill.
         std::string description = definition.description;
         if (definition.handler == ToolHandler::SkillRead) {
@@ -245,6 +247,7 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     m_transcript.request_id   = request.request_id;
     m_transcript.chat_key     = request.chat_key;
     m_transcript.instructions = request.session.instructions;
+    m_app_started             = request.app_started;
     m_on_recorded             = request.on_recorded;
     m_keep_blob               = request.keep_blob;
     m_unkept                  = false;
@@ -263,6 +266,10 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
         throw std::logic_error("a reply request with nowhere to keep what it sends");
     items      = request.record.items;
     m_recorded = items.size();
+    // Each turn says what it is in, for a model served in another format.
+    for (RecordItem& item : items)
+        if (item.kind == RecordItem::Kind::Assistant && item.output_format.empty())
+            item.output_format = request.record.format;
     m_transcript.tools = offered_tools(request);
     bring_tools(m_transcript.tools, request.skills);
 
@@ -433,7 +440,7 @@ bool ProviderAgent::post()
     request.headers.insert(request.headers.end(), built.headers.begin(), built.headers.end());
     if (m_config.profile.account_sign_in) {
         request.headers.push_back({"X-JusPrin-Turn", m_transcript.request_id});
-        request.headers.push_back({"X-JusPrin-Request", m_kind == RequestKind::ConversationTitle ? "title" : "reply"});
+        request.headers.push_back({"X-JusPrin-Request", m_kind == RequestKind::ConversationTitle ? "title" : m_app_started ? "note" : "reply"});
         // The gateway keeps each chat whole, named by this. A copied project
         // gets a new project id, so its chats get new names too.
         if (!m_transcript.chat_key.empty())
@@ -627,7 +634,7 @@ void ProviderAgent::parse_available()
                 parse_sse_frame(frame);
             }
         } else if (event.kind == AgentHttpEvent::Kind::Error) {
-            fail(http_error(event.status, event.error));
+            fail(http_error(event.status, event.error, event.data));
         } else if (!m_terminal_seen) {
             // A valid SSE stream may close immediately after its final data
             // line without a trailing blank-line delimiter. Consume that
@@ -652,11 +659,18 @@ std::optional<AgentEvent> ProviderAgent::poll()
     return event;
 }
 
-AgentError ProviderAgent::http_error(unsigned status, const std::string& detail) const
+AgentError ProviderAgent::http_error(unsigned status, const std::string& detail, const std::string& body) const
 {
     const std::string& name = m_config.profile.display_name;
     if (m_config.profile.account_sign_in && (status == 401 || status == 403))
         return {"invalid_credentials", "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.", false};
+    if (m_config.profile.account_sign_in && status == 402) {
+        // The gateway's own words.
+        const nlohmann::json answer = nlohmann::json::parse(body, nullptr, false);
+        if (answer.is_object() && answer.contains("error") && answer["error"].value("code", "") == "credits_exhausted") {
+            return {"credits_exhausted", answer["error"].value("message", ""), false};
+        }
+    }
     if (m_config.profile.account_sign_in && status == 402)
         return {"quota_exhausted", "Your JusPrin account has used its Agent allowance for now. See your account for more.", false};
     if (status == 401 || status == 403)

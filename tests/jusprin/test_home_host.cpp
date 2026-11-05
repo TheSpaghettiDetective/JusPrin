@@ -33,10 +33,15 @@ public:
     int                      file_opens{0};
     std::vector<DroppedFile> dropped;
     int                      wizards{0};
-
+    // Each onboarding action, in the order the page sent them.
+    std::vector<std::string> onboarding_calls;
+    std::vector<json>        form_messages;
+    bool                     onboarding_changed{false};
     bool                      dark() const override { return is_dark; }
     ProjectList               recent_projects() const override { return {projects, projects_problem}; }
     std::vector<PrinterEntry> printers() const override { return machines; }
+    Snapshot::Onboarding onboarding_state;
+    Snapshot::Onboarding onboarding() override { return onboarding_state; }
 
     void open_project(const std::string& id) override { opened.push_back(id); }
     void new_project() override { ++new_projects; }
@@ -48,7 +53,51 @@ public:
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
     void open_preferences() override { ++preferences_opened; }
+
+    bool reports_offered() const override { return offers_reports; }
+    std::optional<PrintReportPhoto> choose_report_photo() override { return report_photo; }
+    void send_print_report(const PrintReportForm& form, std::function<void(const PrintReportAnswer&)> done) override
+    {
+        report_forms.push_back(form);
+        report_done = std::move(done);
+    }
+    bool offers_reports{false};
+    std::optional<PrintReportPhoto> report_photo;
+    std::vector<PrintReportForm> report_forms;
+    std::function<void(const PrintReportAnswer&)> report_done;
     int  preferences_opened{0};
+    bool poll_onboarding() override { return std::exchange(onboarding_changed, false); }
+    void start_sign_in() override { onboarding_calls.push_back("sign_in"); }
+    void cancel_sign_in() override { onboarding_calls.push_back("sign_in_cancel"); }
+    void sign_in_with_email(const std::string& email) override { onboarding_calls.push_back("email:" + email); }
+    void submit_sign_in_code(const std::string& code) override { onboarding_calls.push_back("code:" + code); }
+    void submit_sign_in_password(const std::string& password) override { onboarding_calls.push_back("password:" + password); }
+    void send_sign_in_code() override { onboarding_calls.push_back("send_code"); }
+    void reopen_sign_in_browser() override { onboarding_calls.push_back("reopen"); }
+    void open_sign_in_link(const std::string& link) override { onboarding_calls.push_back("link:" + link); }
+    void open_agent_door(const std::string& door) override { onboarding_calls.push_back("door:" + door); }
+    void leave_welcome() override { onboarding_calls.push_back("leave_welcome"); }
+    void back_to_welcome() override { onboarding_calls.push_back("back"); }
+    void start_fresh() override { onboarding_calls.push_back("start_fresh"); }
+    std::string import_orca_printers() override
+    {
+        onboarding_calls.push_back("import");
+        return refusal;
+    }
+    std::string assume_default_printer() override
+    {
+        onboarding_calls.push_back("assume_default");
+        return refusal;
+    }
+    void retry_orca_import() override { onboarding_calls.push_back("import_retry"); }
+    void finish_orca_import() override { onboarding_calls.push_back("import_continue"); }
+    std::string choose_orca_folder() override
+    {
+        onboarding_calls.push_back("choose_orca_folder");
+        return refusal;
+    }
+    void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
+    void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         connections_opened;
@@ -116,8 +165,7 @@ std::string page_message(const std::string& type, const json& payload = json::ob
 
 std::string hello(int version = 1)
 {
-    return page_message("hello",
-                        json{{"protocolVersions", json::array({version})}, {"capabilities", json::array()}});
+    return page_message("hello", json{{"protocolVersions", json::array({version})}, {"capabilities", json::array()}});
 }
 
 ProjectEntry a_project(const std::string& id, const std::string& name)
@@ -263,6 +311,112 @@ TEST_CASE("dropped files reach the backend with their bytes", "[home]")
 
     host.on_page_message(page_message("open_dropped_files", json{{"files", json::array({json{{"name", "x.stl"}, {"dataBase64", "?"}}})}}));
     CHECK(backend.dropped.size() == 1); // nothing decodable, nothing opened
+}
+
+TEST_CASE("first-launch messages reach the backend and refresh the screen", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states = wire.of_type("state").size();
+
+    host.on_page_message(page_message("onboarding_sign_in"));
+    host.on_page_message(page_message("onboarding_sign_in_cancel"));
+    host.on_page_message(page_message("onboarding_leave_welcome"));
+    host.on_page_message(page_message("onboarding_back"));
+    host.on_page_message(page_message("onboarding_start_fresh"));
+    host.on_page_message(page_message("onboarding_import"));
+    host.on_page_message(page_message("onboarding_assume_default"));
+    host.on_page_message(page_message("agent_card_dismiss"));
+    host.on_page_message(page_message("onboarding_printer_form", json{{"action", "form_options"}, {"catalogId", "c1"}, {"nozzle", 0.4}}));
+
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"sign_in", "sign_in_cancel", "leave_welcome", "back", "start_fresh",
+                                                               "import", "assume_default", "dismiss_account_card"});
+    REQUIRE(backend.form_messages.size() == 1);
+    CHECK(backend.form_messages.front().at("catalogId") == "c1");
+    CHECK(wire.of_type("state").size() == states + 9);
+}
+
+// Preferences opens on the frame's next turn and is modal, so the page hears
+// how it closed from the poll, not from this message.
+TEST_CASE("the email door's messages reach the backend with what was typed", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states = wire.of_type("state").size();
+
+    host.on_page_message(page_message("onboarding_sign_in_email", json{{"email", "alex@example.com"}}));
+    host.on_page_message(page_message("onboarding_sign_in_code", json{{"code", "418203"}}));
+    host.on_page_message(page_message("onboarding_sign_in_password", json{{"password", "correct horse"}}));
+    host.on_page_message(page_message("onboarding_sign_in_send_code"));
+    host.on_page_message(page_message("onboarding_sign_in_reopen"));
+    host.on_page_message(page_message("onboarding_open_link", json{{"link", "terms"}}));
+
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"email:alex@example.com", "code:418203", "password:correct horse",
+                                                               "send_code", "reopen", "link:terms"});
+    CHECK(wire.of_type("state").size() == states + 6);
+}
+
+TEST_CASE("the free doors open Preferences and the poll brings back how it closed", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states = wire.of_type("state").size();
+
+    host.on_page_message(page_message("onboarding_open_preferences", json{{"door", "key"}}));
+    host.on_page_message(page_message("onboarding_open_preferences", json{{"door", "tool"}}));
+    host.on_page_message(page_message("onboarding_open_preferences", json{{"door", "somewhere"}}));
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"door:key", "door:tool"});
+    CHECK(wire.of_type("state").size() == states);
+
+    CHECK_FALSE(host.poll());
+    backend.onboarding_changed = true;
+    CHECK(host.poll());
+    CHECK(wire.of_type("state").size() == states + 1);
+}
+
+TEST_CASE("a printer the first launch could not bring says why and keeps the step", "[home][onboarding]")
+{
+    FakeBackend backend;
+    backend.refusal = "JusPrin couldn't bring these printers. OrcaSlicer was not changed. Start fresh instead.";
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("onboarding_import"));
+
+    const auto errors = wire.of_type("onboarding_error");
+    REQUIRE(errors.size() == 1);
+    CHECK(errors.front().at("payload").at("message") == backend.refusal);
+    CHECK(wire.of_type("state").size() == 2);
+}
+
+TEST_CASE("the import result's buttons and the folder picker reach the backend", "[home][onboarding]")
+{
+    FakeBackend backend;
+    Wire wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+    const size_t states = wire.of_type("state").size();
+
+    host.on_page_message(page_message("onboarding_import_retry"));
+    host.on_page_message(page_message("onboarding_import_continue"));
+    host.on_page_message(page_message("onboarding_choose_orca_folder"));
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"import_retry", "import_continue", "choose_orca_folder"});
+    CHECK(wire.of_type("state").size() == states + 3);
+    CHECK(wire.of_type("onboarding_error").empty());
+
+    // A picked folder with no printers says so.
+    backend.refusal = "JusPrin found no OrcaSlicer printers in that folder.";
+    host.on_page_message(page_message("onboarding_choose_orca_folder"));
+    const auto errors = wire.of_type("onboarding_error");
+    REQUIRE(errors.size() == 1);
+    CHECK(errors.front().at("payload").at("message") == backend.refusal);
 }
 
 // Adding a printer changes what the rail should show, so the screen is pushed
@@ -562,4 +716,70 @@ TEST_CASE("a live refresh keeps the added printer leading and highlighted", "[ho
     payload = wire.of_type("state").back().at("payload");
     CHECK(payload.at("printers").at(0).at("name") == "Existing Printer");
     CHECK(payload.at("highlightPrinter") == "");
+}
+
+TEST_CASE("the page chooses a report's photo through the host and hears back on it", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    HomeHost    host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("print_report_choose_photo"));
+    CHECK_FALSE(wire.of_type("print_report_photo").back().at("payload").contains("photo"));
+
+    backend.report_photo = PrintReportPhoto{"1", "bracket.jpg", 2400000, "data:image/png;base64,AA"};
+    host.on_page_message(page_message("print_report_choose_photo"));
+    const json photo = wire.of_type("print_report_photo").back().at("payload").at("photo");
+    CHECK(photo.at("id") == "1");
+    CHECK(photo.at("name") == "bracket.jpg");
+    CHECK(photo.at("sizeBytes") == 2400000);
+    CHECK(photo.at("thumbnail") == "data:image/png;base64,AA");
+}
+
+TEST_CASE("a print report's answer reaches the page later, with the history as it now stands", "[home]")
+{
+    FakeBackend backend;
+    backend.offers_reports = true;
+    Wire     wire;
+    HomeHost host(backend, wire.sink());
+    host.on_page_message(hello());
+
+    host.on_page_message(page_message("history_request"));
+    CHECK(wire.of_type("history").back().at("payload").at("reportsOffered") == true);
+
+    host.on_page_message(page_message("print_report_send", json{{"projectId", "p1"}, {"hash", "a71f"}, {"outcome", "partly"},
+                                                             {"text", "It curled."}, {"photoId", "1"}}));
+    REQUIRE(backend.report_forms.size() == 1);
+    CHECK(backend.report_forms[0].project_id == "p1");
+    CHECK(backend.report_forms[0].outcome == "partly");
+    CHECK(backend.report_forms[0].photo_id == "1");
+    const std::size_t before = wire.of_type("history").size();
+
+    PrintReportAnswer sent;
+    sent.state   = PrintReportAnswer::State::Sent;
+    sent.credits = 25;
+    backend.report_done(sent);
+    const json result = wire.of_type("print_report_result").back().at("payload");
+    CHECK(result.at("hash") == "a71f");
+    CHECK(result.at("state") == "sent");
+    CHECK(result.at("credits") == 25);
+    CHECK(wire.of_type("history").size() == before + 1);
+}
+
+TEST_CASE("a print report answered after the host is gone goes nowhere", "[home]")
+{
+    FakeBackend backend;
+    Wire        wire;
+    std::function<void(const PrintReportAnswer&)> done;
+    std::size_t sent = 0;
+    {
+        HomeHost host(backend, wire.sink());
+        host.on_page_message(hello());
+        host.on_page_message(page_message("print_report_send", json{{"hash", "a71f"}}));
+        done = backend.report_done;
+        sent = wire.sent.size();
+    }
+    done(PrintReportAnswer{});
+    CHECK(wire.sent.size() == sent);
 }

@@ -77,6 +77,8 @@ public:
     // Writes the kept copy to `target` and records that export of the G-code.
     // Throws when the project keeps no copy or the file cannot be written.
     void export_kept_copy(const std::string& project_id, const std::string& hash, const std::filesystem::path& target);
+    // The person's report on the G-code reached the server, sent now.
+    void record_report(const std::string& project_id, const std::string& hash, int credits);
     // Whether the kept copy is there and still holds the G-code's bytes.
     bool kept_copy_intact(const std::string& project_id, const std::string& hash) const;
 

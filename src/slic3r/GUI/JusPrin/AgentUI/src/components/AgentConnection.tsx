@@ -29,6 +29,22 @@ export function providerLabel(id: string | undefined): string {
   return PROVIDERS.find((provider) => provider.id === id)?.label ?? 'your provider';
 }
 
+// The first-month offer, the headline wherever someone can sign in for the
+// first time (canvas "JusPrin v2", boards 1a to 1c). The button names what
+// signing in gets; `note` is what a surface adds under the offer.
+export function FirstMonthOffer({ note, onSignIn }: { note?: string; onSignIn: () => void }) {
+  return (
+    <div className="credit-offer" data-testid="first-month-offer">
+      <div className="credit-offer-copy">
+        <h2 className="credit-offer-title">Your first month: 500 credits</h2>
+        <p>An Expert message is 5 credits. Your own API key stays free.</p>
+        {note && <p className="credit-offer-note">{note}</p>}
+      </div>
+      <button type="button" className="primary credit-offer-action" onClick={onSignIn}>Sign in for 500 credits</button>
+    </div>
+  );
+}
+
 export interface AccountRowProps {
   // The signed-in account, from setup_keys; absent when signed out.
   account?: SavedKeyInfo;
@@ -67,7 +83,14 @@ export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: A
       </span>
     );
   } else {
-    line = 'Free · sign in with your browser · nothing to install';
+    return (
+      <div className="agent-account-offer" data-testid="agent-account">
+        <span className="agent-account-eyebrow">JusPrin account</span>
+        <FirstMonthOffer onSignIn={onSignIn} />
+        {status.error && <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>}
+        {status.warning && <p className="agent-row-note">{status.warning}</p>}
+      </div>
+    );
   }
   return (
     <div className="agent-account" data-testid="agent-account">
@@ -81,7 +104,7 @@ export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: A
       ) : account && !ended ? (
         <button type="button" className="agent-row-action" onClick={onSignOut}>Sign out</button>
       ) : (
-        <button type="button" className="primary" onClick={onSignIn}>{ended ? 'Sign in again' : 'Continue with JusPrin'}</button>
+        <button type="button" className="primary" onClick={onSignIn}>Sign in again</button>
       )}
       <div className="agent-account-detail">
       {status.phase === 'browser' && (

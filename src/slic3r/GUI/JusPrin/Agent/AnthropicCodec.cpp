@@ -1,4 +1,5 @@
 #include "AnthropicCodec.hpp"
+#include "RecordConversion.hpp"
 
 #include <algorithm>
 #include <array>
@@ -202,13 +203,16 @@ std::vector<Message> conversation(const TurnTranscript& transcript, bool clears)
         }
         case RecordItem::Kind::Operator: push_system(messages, item.text, item.clears && clears); break;
         case RecordItem::Kind::Assistant:
-            // The response's own content, thinking included, exactly as it came.
-            push(messages, "assistant", item.output);
+            // The response's own content, thinking included, exactly as it came;
+            // a turn another format holds, as this format reads it.
+            if (json output = assistant_output_as(item.output, item.output_format.empty() ? kFormatAnthropic : item.output_format, kFormatAnthropic);
+                !output.empty())
+                push(messages, "assistant", std::move(output));
             break;
         case RecordItem::Kind::Results: {
             json results = json::array();
             for (const RecordResult& result : item.results) {
-                json block{{"type", "tool_result"}, {"tool_use_id", result.call_id}};
+                json block{{"type", "tool_result"}, {"tool_use_id", anthropic_tool_id(result.call_id)}};
                 json parts = json::array({text_block(result.output_json)});
                 if (result.image)
                     parts.push_back(part_block(*result.image));

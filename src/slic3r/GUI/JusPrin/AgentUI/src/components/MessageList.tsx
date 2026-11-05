@@ -57,6 +57,8 @@ interface Props {
   onSaveProposal?: (actionId: string) => void;
   // Undo on a saved preset's receipt, by the receipt note's id.
   onUndoReceipt?: (messageId: string) => void;
+  // The actions on a message the gateway refused for want of credits.
+  creditActions?: { onGetMore: () => void };
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
   replyDisabled?: boolean;
@@ -176,6 +178,7 @@ export function MessageList({
   restorePoints = [],
   onRevert,
   onRetry,
+  creditActions,
   onToolCancel,
   onSaveProposal,
   onUndoReceipt,
@@ -394,6 +397,8 @@ export function MessageList({
           {message.state === 'failed' && message.error && (
             <div className="message-failure">
               <div className="error">{message.error.message}</div>
+              {message.error.code === 'credits_exhausted' && creditActions &&
+                <button className="primary" onClick={creditActions.onGetMore}>Get more credits</button>}
               {message.error.retryable && !readOnly && (
                 <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
               )}

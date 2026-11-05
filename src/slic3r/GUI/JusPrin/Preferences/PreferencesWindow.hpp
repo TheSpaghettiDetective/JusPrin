@@ -37,6 +37,9 @@ struct OpenRequest
 {
     // account, agent, appearance, view3d, projects or updates.
     std::string section;
+    // Opened for one task: the window closes itself once a verified key is
+    // saved or Done is pressed on an AI tool.
+    bool close_when_done{false};
 };
 
 // What to do once the window is gone.
@@ -44,6 +47,9 @@ struct AfterClose
 {
     enum class Kind { Nothing, Restart, OrcaPreferences };
     Kind kind{Kind::Nothing};
+    // For a window opened to close when done: "key" or "tool" when it closed
+    // itself, empty when the person closed it first.
+    std::string done;
 };
 
 class PreferencesWindow : public wxDialog

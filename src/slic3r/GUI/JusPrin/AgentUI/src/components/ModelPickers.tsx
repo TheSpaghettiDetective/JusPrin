@@ -6,8 +6,14 @@
 // applies from its next turn. A model menu of more than SEARCH_FROM models
 // (OpenRouter's runs to hundreds) starts with a search field, and a provider
 // with that many shows its count beside its name.
+//
+// An account's models carry their price and what they are for; models on the
+// person's own key name no price. A chat keeps the model and thinking level it
+// started with, so once the person has sent a message both pickers are greyed,
+// and hovering either says why and what a message costs.
 
-import { ChatModelChoice, ModelCatalogPayload, ModelOptionInfo } from '../bridge/protocol';
+import { ChatModelChoice, CreditAccount, ModelCatalogPayload, ModelOptionInfo } from '../bridge/protocol';
+import { messageCostSentence, priceWords } from '../credits';
 import { ActionMenu, MenuItem, MenuSearch, MenuSection } from './ChatNavigation';
 
 const EFFORT_LABELS: Record<string, string> = {
@@ -17,6 +23,11 @@ const EFFORT_LABELS: Record<string, string> = {
 };
 
 export const SEARCH_FROM = 12;
+
+const TIER_USES: Record<string, string> = {
+  basic: 'setting up an ordinary print',
+  expert: 'troubleshooting, tricky models, anything you’d ask a person',
+};
 
 const MODEL_SEARCH: MenuSearch = { label: 'Search models', noMatch: (query) => `No models match “${query}”.` };
 
@@ -37,7 +48,7 @@ export function switchModel(choice: ChatModelChoice, provider: string, model: Mo
 }
 
 export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
-  onChoose: (choice: ChatModelChoice) => void): (MenuItem | MenuSection)[] {
+  onChoose: (choice: ChatModelChoice) => void, account?: CreditAccount | null): (MenuItem | MenuSection)[] {
   const grouped = catalog.providers.length > 1;
   const entries: (MenuItem | MenuSection)[] = [];
   for (const provider of catalog.providers) {
@@ -49,14 +60,17 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
     // the list leaves it out.
     if (provider.id === choice.provider && !models.some((model) => model.id === choice.model))
       models.unshift({ id: choice.model, label: choice.model, efforts: [] });
-    for (const model of models)
+    for (const model of models) {
+      const price = priceWords(model, account);
       entries.push({
         key: `${provider.id}/${model.id}`,
-        label: model.label,
+        label: price ? `${model.label} · ${price}` : model.label,
+        detail: model.tier ? TIER_USES[model.tier] : undefined,
         current: provider.id === choice.provider && model.id === choice.model,
         matches: [model.label, provider.label],
         onSelect: () => onChoose(switchModel(choice, provider.id, model)),
       });
+    }
     if (provider.state === 'loading')
       entries.push({ key: `${provider.id}/loading`, label: 'Loading models…', disabled: true,
         matches: [provider.label], onSelect: () => {} });
@@ -67,10 +81,13 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
   return entries;
 }
 
-export function ModelPickers({ catalog, choice, disabled, onChoose }: {
+export function ModelPickers({ catalog, choice, disabled, locked = false, account, onChoose }: {
   catalog: ModelCatalogPayload;
   choice: ChatModelChoice;
   disabled: boolean;
+  // The person has sent a message in this chat.
+  locked?: boolean;
+  account?: CreditAccount | null;
   onChoose: (choice: ChatModelChoice) => void;
 }) {
   const model = findModel(catalog, choice);
@@ -78,14 +95,17 @@ export function ModelPickers({ catalog, choice, disabled, onChoose }: {
   // An unset level shows the model's own default where the provider names
   // it; where it does not, it reads "Default".
   const shownEffort = choice.effort || model?.defaultEffort || '';
-  const models = modelMenu(catalog, choice, onChoose);
+  const models = modelMenu(catalog, choice, onChoose, account);
+  const cost = messageCostSentence(model, account);
+  const priced = catalog.providers.some((provider) => provider.models.some((option) => option.credits !== undefined));
   const modelCount = models.filter((entry) => !('section' in entry) && !entry.disabled).length;
   // Only the model picker gives up width in a narrow pane; the thinking
   // picker drops its "Thinking:" instead (Composer measures which).
-  return <>
-    <ActionMenu label="Model" className="composer-model-menu" text={model?.label ?? choice.model} above
-      disabled={disabled} items={models} search={modelCount > SEARCH_FROM ? MODEL_SEARCH : undefined} />
-    {efforts.length > 0 && <ActionMenu label="Thinking" above disabled={disabled} prefixed
+  return <div className={locked ? 'composer-pickers composer-pickers--locked' : 'composer-pickers'}>
+    <ActionMenu label="Model" className={priced ? 'composer-model-menu composer-model-menu--priced' : 'composer-model-menu'}
+      text={model?.label ?? choice.model} above
+      disabled={disabled || locked} items={models} search={modelCount > SEARCH_FROM ? MODEL_SEARCH : undefined} />
+    {efforts.length > 0 && <ActionMenu label="Thinking" above disabled={disabled || locked} prefixed
       text={shownEffort ? effortLabel(shownEffort) : 'Default'}
       items={efforts.map((effort) => ({
         key: effort,
@@ -93,5 +113,9 @@ export function ModelPickers({ catalog, choice, disabled, onChoose }: {
         current: effort === shownEffort,
         onSelect: () => onChoose({ ...choice, effort }),
       }))} />}
-  </>;
+    {locked && <div className="composer-pickers-tooltip" role="tooltip">
+      <p>A chat keeps the model and thinking level it started with. Start a new chat to change them.</p>
+      {cost && <p>{cost}</p>}
+    </div>}
+  </div>;
 }

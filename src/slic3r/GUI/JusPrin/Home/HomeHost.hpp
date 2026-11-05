@@ -12,6 +12,8 @@
 
 #include "HomeBackend.hpp"
 
+#include <memory>
+
 #include <nlohmann/json_fwd.hpp>
 
 #include <functional>
@@ -46,6 +48,9 @@ public:
     // read becoming readable: while the page shows that problem, the
     // projects are re-read on every refresh too. Returns whether it sent.
     bool refresh_if_changed();
+    // First run's own sources: sends the whole state when the backend says
+    // something it shows changed. Returns whether it sent.
+    bool poll();
     void push_appearance(bool dark);
     // Which screen the page shows: {screen: "home"}, or {screen: "history",
     // projectId?, focus?, back: "project"} for a Print history the project
@@ -68,11 +73,12 @@ public:
     unsigned long long messages_received() const { return m_received; }
 
 private:
-    Snapshot collect() const;
+    Snapshot collect();
     // The backend's printers, led by `m_added` when it is listed.
     std::vector<PrinterEntry> ordered_printers() const;
     void     send_state(Snapshot snapshot);
     void     send(const std::string& type, const nlohmann::json& payload, const std::string& correlation = {});
+    nlohmann::json history_payload();
 
     IHomeBackend&      m_backend;
     Send               m_send;
@@ -90,6 +96,8 @@ private:
     ConfirmationListener m_confirmation_listener;
     // Why the last state sent had no projects, when they could not be read.
     std::string        m_sent_projects_problem;
+    // A print report is answered after the host may be gone.
+    std::shared_ptr<void> m_alive{std::make_shared<int>(0)};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

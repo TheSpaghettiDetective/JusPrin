@@ -13,6 +13,9 @@ const shared = fileURLToPath(new URL('../WebShared', import.meta.url));
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   resolve: {
+    // The first launch draws the Agent page's add-printer form, whose files
+    // would otherwise find the Agent page's own copy of React.
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@resources': resources,
       '@shared': shared,

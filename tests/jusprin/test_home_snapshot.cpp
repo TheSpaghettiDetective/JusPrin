@@ -54,6 +54,80 @@ TEST_CASE("the payload carries the fields the page reads, empty when there is no
     CHECK(payload.at("projects").empty());
     CHECK(payload.at("projectsProblem") == "");
     CHECK(payload.at("highlightPrinter") == "");
+    CHECK(payload.at("onboarding").at("visible") == false);
+    CHECK(payload.at("onboarding").at("step") == "hidden");
+}
+
+TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
+{
+    Snapshot snapshot;
+    snapshot.onboarding.step             = OnboardingStep::Printers;
+    snapshot.onboarding.printers_screen  = PrintersScreen::OrcaImport;
+    snapshot.onboarding.sign_in          = "browser";
+    snapshot.onboarding.sign_in_error    = "That sign-in expired. Try again.";
+    snapshot.onboarding.account_email    = "kim@example.com";
+    snapshot.onboarding.agent_configured = true;
+    snapshot.onboarding.orca_source      = "/tmp/orca";
+    snapshot.onboarding.orca_printers    = {"Voron 2.4 0.4 nozzle"};
+    snapshot.onboarding.orca_filaments   = 3;
+    snapshot.onboarding.agent_card       = HomeAgentCard::Account;
+    snapshot.onboarding.account          = json{{"credits", json{{"total", 500}}}};
+
+    const json state = state_payload(snapshot).at("onboarding");
+    CHECK(state.at("visible") == true);
+    CHECK(state.at("step") == "printers");
+    CHECK(state.at("printersScreen") == "orca_import");
+    CHECK(state.at("signIn") == "browser");
+    CHECK(state.at("signInError") == "That sign-in expired. Try again.");
+    CHECK(state.at("accountEmail") == "kim@example.com");
+    CHECK(state.at("agentConfigured") == true);
+    CHECK(state.at("orca").at("source") == "/tmp/orca");
+    CHECK(state.at("orca").at("printers") == json::array({"Voron 2.4 0.4 nozzle"}));
+    CHECK(state.at("orca").at("filamentCount") == 3);
+    // No form is open on the OrcaSlicer screen.
+    CHECK(state.at("printerForm").is_null());
+    CHECK(state.at("agentCard") == "account");
+    CHECK(state.at("account").at("credits").at("total") == 500);
+}
+
+TEST_CASE("an import's result lists each item for the page", "[home][onboarding]")
+{
+    Snapshot snapshot;
+    snapshot.onboarding.step            = OnboardingStep::Printers;
+    snapshot.onboarding.printers_screen = PrintersScreen::ImportResult;
+    CHECK(state_payload(snapshot).at("onboarding").at("orca").at("importResult").is_null());
+
+    snapshot.onboarding.facts.orca_printers = true;
+    snapshot.onboarding.import_result       = std::vector<Snapshot::Onboarding::ImportItem>{
+        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, ""},
+        {"filament", "Broken PLA", "", false, "the file couldn't be read"},
+    };
+    const json state = state_payload(snapshot).at("onboarding");
+    CHECK(state.at("printersScreen") == "import_result");
+    CHECK(state.at("orca").at("found") == true);
+    const json& items = state.at("orca").at("importResult");
+    REQUIRE(items.size() == 2);
+    CHECK(items.at(0) == json{{"kind", "printer"}, {"name", "Shop X1C"}, {"renamedTo", "Shop X1C (Orca copy)"},
+                              {"imported", true}, {"reason", ""}});
+    CHECK(items.at(1).at("imported") == false);
+    CHECK(items.at(1).at("reason") == "the file couldn't be read");
+}
+
+TEST_CASE("only the first launch's default printer is marked assumed", "[home][onboarding]")
+{
+    Snapshot snapshot;
+    PrinterEntry chosen;
+    chosen.id   = "a";
+    chosen.name = "Prusa MK4";
+    PrinterEntry assumed = chosen;
+    assumed.id      = "b";
+    assumed.name    = "Generic Klipper Printer";
+    assumed.assumed = true;
+    snapshot.printers = {chosen, assumed};
+
+    const json printers = state_payload(snapshot).at("printers");
+    CHECK_FALSE(printers.at(0).contains("assumed"));
+    CHECK(printers.at(1).at("assumed") == true);
 }
 
 TEST_CASE("appearance is the page's own vocabulary, not a boolean", "[home]")

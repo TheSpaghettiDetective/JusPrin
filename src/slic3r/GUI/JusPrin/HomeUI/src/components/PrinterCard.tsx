@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PrinterCamera, PrinterInfo, PrinterStatus, SpoolInfo } from '../bridge/protocol';
 import { printerHistoryLine } from '../history';
-import { HistoryGlyph, MonitorGlyph, PrinterGlyph } from './Glyphs';
+import { HistoryGlyph, MonitorGlyph, PrinterGlyph, WarningGlyph } from './Glyphs';
 import { PrinterActions, PrinterMenu } from './PrinterMenu';
 
 // Every card is the same list of fields, top to bottom, and shows each one
@@ -60,6 +60,17 @@ function materials(spools: SpoolInfo[]): string {
     if (spool.material && !names.includes(spool.material)) names.push(spool.material);
   }
   return names.join(', ');
+}
+
+// The default the first launch put in place when the person skipped
+// choosing a printer. It stays marked until they add or pick their own.
+function AssumedMark() {
+  return (
+    <span className="printer-assumed" title="JusPrin set up this printer when you skipped choosing one. Add yours any time.">
+      <WarningGlyph />
+      assumed
+    </span>
+  );
 }
 
 // How often a camera with only a picture is asked for the next one.
@@ -192,6 +203,7 @@ export function PrinterCard({
         </span>
         {hasActions && <PrinterMenu printer={printer} otherNames={otherNames} actions={actions} />}
       </div>
+      {printer.assumed && <AssumedMark />}
       <div className="printer-status">
         {!quiet && <span className={`status-dot ${printer.status}`} aria-hidden="true" />}
         <span className="printer-status-text">

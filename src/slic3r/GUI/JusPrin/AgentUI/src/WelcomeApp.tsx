@@ -56,7 +56,7 @@ export function WelcomeApp({ getTransport }: { getTransport: () => Transport | n
   return (
     <div className="app app--welcome">
       <WelcomeBack report={state.welcomeBack} account={state.savedKeys.find((key) => key.provider === 'jusprin')}
-        status={state.account} actions={actions} />
+        status={state.account} actions={actions} subscription={state.creditAccount?.v1_subscription} />
     </div>
   );
 }

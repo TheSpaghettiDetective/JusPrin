@@ -201,6 +201,7 @@ json PreferencesWindow::state() const
 {
     json payload = snapshot(*wxGetApp().app_config, current_facts());
     payload["section"] = m_request.section.empty() ? "account" : m_request.section;
+    payload["closeWhenDone"] = m_request.close_when_done;
     return payload;
 }
 
@@ -218,7 +219,14 @@ void PreferencesWindow::push_state()
 bool PreferencesWindow::on_page_message(const std::string& type, const json& payload)
 {
     if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "close") {
-        CallAfter([this] { close_for({}); });
+        // The page closes a window opened for one task once it is done. A key
+        // counts only once one is stored and the agent is on.
+        AfterClose after;
+        const std::string done = payload.value("done", std::string());
+        if (m_request.close_when_done &&
+            (done == "tool" || (done == "key" && wxGetApp().app_config->get("jusprin_agent", "enabled") == "true")))
+            after.done = done;
+        CallAfter([this, after] { close_for(after); });
         return true;
     }
     if (type != Agent::Protocol::kPreferencesAction)

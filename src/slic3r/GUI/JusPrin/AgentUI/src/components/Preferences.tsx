@@ -68,6 +68,8 @@ export interface PreferencesProps {
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
   actions: PreferencesActions;
+  // Done on an AI tool, for a window opened to close once one is connected.
+  onToolDone?: () => void;
 }
 
 // The JusPrin account row, as Account and Agent both draw it.
@@ -193,7 +195,7 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
       <Group title="New chats start with">
         {agent.newChatChoices.length > 0 ? (
-          <Row title="Model" detail="Any chat can switch from its message box.">
+          <Row title="Model" detail="A chat keeps the model it started with.">
             <Select label="Model" value={agent.newChatProvider} onChange={(provider) => actions.set('newChatProvider', provider)}
               options={agent.newChatChoices.map((choice) => ({ value: choice.provider, label: `${choice.model} · ${choice.label}` }))} />
           </Row>
@@ -455,7 +457,7 @@ function rememberedSection(): PreferencesSection | null {
   }
 }
 
-export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog, mcpPreview, mcpStatus, actions }: PreferencesProps) {
+export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog, mcpPreview, mcpStatus, actions, onToolDone }: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
   const [section, setSection] = useState<PreferencesSection>(() => rememberedSection() ?? preferences.section);
   // The AI tool being connected, which takes the Agent section's place.
@@ -504,7 +506,10 @@ export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog
             onConnect={actions.connectTool}
             onReveal={actions.revealTool}
             onBack={() => setTool(null)}
-            onDone={() => setTool(null)}
+            onDone={() => {
+              setTool(null);
+              onToolDone?.();
+            }}
           />
         ) : (
           <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} account={account} mcpCatalog={mcpCatalog}

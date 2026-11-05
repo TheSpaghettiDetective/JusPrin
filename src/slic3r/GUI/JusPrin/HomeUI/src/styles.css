@@ -104,6 +104,606 @@ body {
   color: var(--text-secondary);
 }
 
+/* The first launch takes the whole window: no Home header, the JusPrin
+   lockup in the top-left corner, and the content centred in what is left.
+   Each rule is a layer of the first-run boards on the canvas's "On boarding
+   experience" page. */
+.onboarding {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 48px 24px;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+.onboarding p,
+.onboarding h1,
+.onboarding ul,
+.onboarding figure {
+  margin: 0;
+}
+
+.onboarding h1 {
+  font: var(--font-page-title);
+}
+
+.onboarding-lockup {
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  height: var(--onboarding-lockup-height);
+}
+
+.onboarding-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-lead {
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+.onboarding-error {
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
+.onboarding-link {
+  align-self: flex-start;
+  padding: 4px 0;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.onboarding-link:hover:not(:disabled) {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
+}
+
+.onboarding-link:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+/* Welcome: the clip on the left, the words and doors on the right. */
+.onboarding-welcome {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  width: 100%;
+  max-width: var(--onboarding-content-width);
+}
+
+.onboarding-clip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: var(--onboarding-clip-width);
+}
+
+.onboarding-clip video {
+  display: block;
+  width: var(--onboarding-clip-width);
+  height: var(--onboarding-clip-height);
+  object-fit: cover;
+  border-radius: var(--radius-medium);
+  box-shadow: var(--elevation-medium);
+}
+
+/* The CC BY 2.0 credit the clip's photos need, one tap away. */
+.onboarding-credits {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-credits summary {
+  cursor: pointer;
+}
+
+.onboarding-credits p {
+  margin-top: 4px;
+}
+
+.onboarding-pitch {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.onboarding-doors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-doors-label {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* The one primary door: the first-month offer, selected. */
+.onboarding-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  background: var(--surface-selected);
+  border-radius: var(--radius-medium);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.onboarding-door-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-section);
+}
+
+.onboarding-door-detail {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.onboarding-door-button {
+  margin-top: 8px;
+}
+
+/* The sign-in door (canvas boards first-run-01, 04, 12 to 16): Google in the
+   browser, or an address that stays in the app, then its code or password. */
+.onboarding-door-note {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.onboarding-google {
+  align-self: stretch;
+  justify-content: center;
+  min-height: var(--button-primary-height);
+  margin-top: 8px;
+  font: var(--font-body-small-bold);
+  background: var(--surface-raised);
+}
+
+.onboarding-google img {
+  width: var(--glyph-size);
+  height: var(--glyph-size);
+}
+
+/* "or" between two rules. */
+.onboarding-or {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: 12px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.onboarding-or::before,
+.onboarding-or::after {
+  content: '';
+  flex: 1 1 auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.onboarding-email-row {
+  display: flex;
+  align-self: stretch;
+  gap: 12px;
+  margin: 0;
+}
+
+.onboarding-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--button-primary-height);
+  padding: 0 var(--field-padding-x);
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--field-radius);
+}
+
+.onboarding-field:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.onboarding-email-row .button-primary,
+.onboarding-email-row .button-secondary {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+/* The email door's choice: the code button spans the card. */
+.onboarding-code-button {
+  align-self: stretch;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* A link inside a sentence: the sentence's own type, in the link colour. */
+.onboarding-link.inline {
+  display: inline;
+  padding: 0;
+  font: inherit;
+}
+
+.onboarding-link-row {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.onboarding-link-dot {
+  padding: 0 4px;
+  color: var(--text-secondary);
+}
+
+/* The design system's Field/Verification Code: six cells, one input. */
+.code-field {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.code-field input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: 0;
+  outline: none;
+  opacity: 0;
+}
+
+.code-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--onboarding-code-cell);
+  height: var(--onboarding-code-cell);
+  font: var(--font-section);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.code-cell.active {
+  box-shadow: inset 0 0 0 2px var(--action-primary);
+}
+
+.code-field.refused .code-cell {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}
+
+/* The free doors: a name and what it costs. */
+.onboarding-door {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  text-align: left;
+  background: var(--surface-subtle);
+  border: 0;
+  border-radius: var(--radius-medium);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
+}
+
+.onboarding-door:hover:not(:disabled) {
+  background: var(--surface-raised-hover);
+}
+
+.onboarding-door:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.onboarding-door-name {
+  font: var(--font-body-bold);
+}
+
+.onboarding-door-cost {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.onboarding-door:disabled .onboarding-door-cost {
+  color: var(--action-disabled-text);
+}
+
+.onboarding-spinner {
+  flex: 0 0 auto;
+  width: var(--glyph-size-large);
+  height: var(--glyph-size-large);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
+  animation: onboarding-spin var(--onboarding-spin-duration) linear infinite;
+}
+
+@keyframes onboarding-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Printers: one column under the lockup. */
+.onboarding-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: var(--onboarding-step-width);
+}
+
+.onboarding-printers {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  list-style: none;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-medium);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.onboarding-printers li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font: var(--font-body);
+}
+
+.onboarding-printers li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.onboarding-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -12px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-source-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* The import's result: a line per item, the outcome under its name. */
+.onboarding-import-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.onboarding-import-status,
+.onboarding-import-count {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.onboarding-printers .glyph-check {
+  background: var(--status-success);
+}
+
+.onboarding-printers .glyph-warning {
+  background: var(--status-warning);
+}
+
+.onboarding-add-printer {
+  max-width: var(--printer-dialog-width);
+}
+
+.onboarding-nav {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Below the width of the welcome row its two columns stack. */
+@media (max-width: 1168px) {
+  .onboarding-welcome {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Home's Agent group: the doors, or the account just signed in to. */
+.agent-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.agent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-medium);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.agent-card .onboarding-door {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: var(--surface-raised);
+}
+
+.agent-card .onboarding-door-title {
+  font: var(--font-body-bold);
+}
+
+.agent-card .button-primary {
+  justify-content: center;
+}
+
+/* The sign-in door's paragraphs, which the welcome's .onboarding reset
+   does not reach here; the card's gap spaces them. */
+.agent-card p {
+  margin: 0;
+}
+
+/* The column is too narrow for a field beside its button: the button goes
+   under the field, each the card's width. */
+.agent-card .onboarding-email-row {
+  flex-direction: column;
+}
+
+/* Six full-size code cells are wider than the column: they share its width
+   and stay square. */
+.agent-card .code-cell {
+  flex: 1 1 0;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+/* The links wrap here; without the dots a wrapped line does not start with one. */
+.agent-card .onboarding-links {
+  column-gap: 12px;
+}
+
+.agent-card .onboarding-link-dot {
+  display: none;
+}
+
+/* A spent code's "Send a new code" takes the card's width, its links under it. */
+.agent-card .onboarding-new-code-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.agent-card-heading {
+  font: var(--font-body-bold);
+}
+
+.agent-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.agent-card-head .glyph-connected {
+  margin-top: 4px;
+  background: var(--status-success);
+}
+
+.agent-card-title {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.agent-card-title strong {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.agent-card-close {
+  display: flex;
+  padding: 4px;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.agent-card-close:hover {
+  background: var(--surface-raised-hover);
+}
+
+.agent-card-lot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-card-lot-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.agent-card-lot-line strong {
+  font: var(--font-label-bold);
+  color: var(--text-primary);
+}
+
+.agent-card-bar {
+  height: var(--progress-height);
+  background: var(--border-subtle);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+
+.agent-card-bar span {
+  display: block;
+  height: 100%;
+  background: var(--action-primary);
+}
+
+.agent-card-date {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
 .footnote {
   font: var(--font-label);
   color: var(--text-secondary);
@@ -358,6 +958,37 @@ body {
   padding: 4px 0 0;
 }
 
+/* A project card's lines under its footer (boards history-05 and 8d). */
+.project-history-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 12px 12px;
+}
+
+.project-history-lines .project-history {
+  padding: 0;
+}
+
+.project-report {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  font: var(--font-body-small-bold);
+  color: var(--action-primary);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.project-report:hover {
+  text-decoration: underline;
+}
+
 .project-history-text {
   min-width: 0;
   white-space: nowrap;
@@ -526,6 +1157,20 @@ body {
   border: 1px solid var(--border-subtle);
   border-radius: var(--printer-card-radius);
   box-shadow: var(--elevation-subtle);
+}
+
+/* The first launch's default printer: the mark takes a line of its own
+   under the card's header. */
+.printer-assumed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-primary);
+}
+
+.printer-assumed .glyph-warning {
+  background: var(--status-warning);
 }
 
 .printer-head {
@@ -806,12 +1451,18 @@ body {
 .glyph-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
 .glyph-close { -webkit-mask-image: url('@resources/jusprin/ui/icons/x.svg'); mask-image: url('@resources/jusprin/ui/icons/x.svg'); }
 .glyph-download { -webkit-mask-image: url('@resources/jusprin/ui/icons/download.svg'); mask-image: url('@resources/jusprin/ui/icons/download.svg'); }
+.glyph-message { -webkit-mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); mask-image: url('@resources/jusprin/ui/icons/message-circle.svg'); }
 .glyph-send { -webkit-mask-image: url('@resources/jusprin/ui/icons/send.svg'); mask-image: url('@resources/jusprin/ui/icons/send.svg'); }
+.glyph-folder { -webkit-mask-image: url('@resources/jusprin/ui/icons/folder.svg'); mask-image: url('@resources/jusprin/ui/icons/folder.svg'); }
+.glyph-connected { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-check.svg'); }
+.glyph-warning { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
 
 .glyph-large {
   width: var(--glyph-size-large);
   height: var(--glyph-size-large);
 }
+.glyph-box { -webkit-mask-image: url('@resources/jusprin/ui/icons/box.svg'); mask-image: url('@resources/jusprin/ui/icons/box.svg'); }
+.glyph-x { -webkit-mask-image: url('@resources/jusprin/ui/icons/x.svg'); mask-image: url('@resources/jusprin/ui/icons/x.svg'); }
 
 .printer-name-row {
   display: flex;
@@ -1004,6 +1655,97 @@ body {
   background: var(--surface-canvas);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-small);
+}
+
+/* The print report form (board 8b). */
+.print-report-head,
+.print-report-field,
+.printer-dialog label.print-report-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.print-report-head > span,
+.print-report-hint {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.print-report-label {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.print-report-field textarea {
+  width: 100%;
+  padding: 8px;
+  font: var(--font-body);
+  color: var(--text-primary);
+  resize: vertical;
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+}
+
+.print-report-photo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.print-report-photo img,
+.print-report-photo-empty {
+  flex: none;
+  width: var(--print-report-thumbnail-size);
+  height: var(--print-report-thumbnail-size);
+  object-fit: cover;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-small);
+}
+
+.print-report-photo-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.print-report-photo .history-link {
+  margin-left: auto;
+}
+
+/* The design system's segmented control. */
+.print-report-outcomes {
+  display: flex;
+  align-self: flex-start;
+  box-sizing: border-box;
+  height: var(--segmented-height);
+  padding: var(--segmented-padding);
+  background: var(--surface-subtle);
+  border: var(--segmented-border-width) solid var(--border-subtle);
+  border-radius: var(--segmented-radius);
+}
+
+.print-report-outcome {
+  height: var(--segmented-segment-height);
+  padding: var(--segmented-segment-padding-y) var(--segmented-segment-padding-x);
+  font: var(--font-label);
+  color: var(--text-primary);
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: var(--segmented-radius);
+  cursor: pointer;
+}
+
+.print-report-outcome.selected {
+  color: var(--action-primary-text);
+  background: var(--action-primary);
 }
 
 .printer-dialog-buttons {

@@ -20,8 +20,14 @@ file(GLOB_RECURSE _jusprin_web_shared_glob CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/resources/jusprin/ui/icons/*)
 list(APPEND _jusprin_web_shared_inputs ${_jusprin_web_shared_glob})
 
+# Any further arguments are folders of another page whose source this page
+# imports, so a change there rebuilds this bundle too.
 function(jusprin_web_bundle name project_dir output)
     file(GLOB_RECURSE _src CONFIGURE_DEPENDS ${project_dir}/src/*)
+    foreach(_imported ${ARGN})
+        file(GLOB_RECURSE _imported_src CONFIGURE_DEPENDS ${_imported}/*)
+        list(APPEND _src ${_imported_src})
+    endforeach()
     set(_stamp ${CMAKE_CURRENT_BINARY_DIR}/${name}-node_modules.stamp)
     # npm ci writes node_modules/.package-lock.json. Listing it as OUTPUT
     # means deleting node_modules retriggers the install; the stamp in the
@@ -44,7 +50,9 @@ function(jusprin_web_bundle name project_dir output)
 endfunction()
 
 jusprin_web_bundle(agent ${CMAKE_CURRENT_SOURCE_DIR}/../AgentUI ${CMAKE_SOURCE_DIR}/resources/jusprin/agent/index.html)
-jusprin_web_bundle(home  ${CMAKE_CURRENT_SOURCE_DIR}/../HomeUI  ${CMAKE_SOURCE_DIR}/resources/jusprin/home/index.html)
+# Home's first launch draws the Agent page's add-printer form.
+jusprin_web_bundle(home  ${CMAKE_CURRENT_SOURCE_DIR}/../HomeUI  ${CMAKE_SOURCE_DIR}/resources/jusprin/home/index.html
+                   ${CMAKE_CURRENT_SOURCE_DIR}/../AgentUI/src)
 
 add_custom_target(jusprin_web ALL DEPENDS
     ${CMAKE_SOURCE_DIR}/resources/jusprin/agent/index.html

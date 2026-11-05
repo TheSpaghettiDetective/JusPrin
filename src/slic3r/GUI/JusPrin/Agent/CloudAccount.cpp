@@ -45,7 +45,7 @@ bool refused(const CloudHttpResult& result) { return result.status == 401 || res
 // somewhere harmless to go.
 struct CloudSignIn::Inbox
 {
-    enum class Kind { Authorized, Who, Models };
+    enum class Kind { Authorized, Who, Models, Auth };
     struct Item
     {
         std::uint64_t            generation{0};
@@ -95,7 +95,7 @@ std::string CloudSignIn::browser_url() const
     return m_phase == CloudSignInPhase::Browser ? m_authorization.authorize_url : std::string();
 }
 
-bool CloudSignIn::start()
+bool CloudSignIn::start(CloudBrowserStart where)
 {
     if (m_phase != CloudSignInPhase::Idle)
         return false;
@@ -111,14 +111,20 @@ bool CloudSignIn::start()
     authorization.token_url     = m_server + "/o/token/";
     authorization.success_url   = m_server + "/ent/jusprin/v2/signed_in/";
     authorization.failure_url   = m_server + "/ent/jusprin/v2/sign_in_failed/";
-    authorization.authorize_url = m_server + "/o/authorize/?" +
-                                  query({{"response_type", "code"},
-                                         {"client_id", authorization.client_id},
-                                         {"redirect_uri", authorization.redirect_uri},
-                                         {"scope", authorization.scope},
-                                         {"state", state},
-                                         {"code_challenge", challenge},
-                                         {"code_challenge_method", "S256"}});
+    const std::string authorize = "/o/authorize/?" + query({{"response_type", "code"},
+                                                            {"client_id", authorization.client_id},
+                                                            {"redirect_uri", authorization.redirect_uri},
+                                                            {"scope", authorization.scope},
+                                                            {"state", state},
+                                                            {"code_challenge", challenge},
+                                                            {"code_challenge_method", "S256"}});
+    // Google's sign-in comes back to the server, which then sends the browser
+    // on to /o/authorize/, now signed in. Opened directly, /o/authorize/ first
+    // shows the server's sign-in page.
+    authorization.authorize_url = where == CloudBrowserStart::Google ?
+                                      m_server + "/accounts/google/login/?" +
+                                          query({{"process", "login"}, {"next", authorize}}) :
+                                      m_server + authorize;
 
     const std::uint64_t generation = ++m_generation;
     std::weak_ptr<Inbox> inbox     = m_inbox;
@@ -174,6 +180,111 @@ void CloudSignIn::ask_models(std::uint64_t generation)
     });
 }
 
+std::optional<CloudEmailStep> CloudSignIn::email_step() const
+{
+    if (m_phase != CloudSignInPhase::Email)
+        return std::nullopt;
+    return m_email;
+}
+
+void CloudSignIn::ask_server(const std::string& endpoint, const json& body, const std::string& session)
+{
+    m_asked             = endpoint;
+    m_email.busy        = true;
+    m_email.refusal.clear();
+    std::weak_ptr<Inbox> inbox = m_inbox;
+    const std::uint64_t generation = m_generation;
+    m_deps.post(m_server + "/ent/jusprin/v2/auth/" + endpoint, body.dump(), session,
+                [inbox, generation](CloudHttpResult result) {
+                    if (const auto target = inbox.lock())
+                        target->push({generation, Inbox::Kind::Auth, {}, std::move(result)});
+                });
+}
+
+bool CloudSignIn::start_email(const std::string& email)
+{
+    if (m_phase != CloudSignInPhase::Idle || email.empty())
+        return false;
+    ++m_generation;
+    m_phase       = CloudSignInPhase::Email;
+    m_email       = CloudEmailStep{};
+    m_email.email = email;
+    m_session.clear();
+    return true;
+}
+
+bool CloudSignIn::send_code()
+{
+    if (m_phase != CloudSignInPhase::Email || m_email.busy)
+        return false;
+    // A new request rather than allauth's resend: a resent code keeps the
+    // first one's deadline and is refused once that code is spent. The
+    // pending code's session stays until the new one's arrives, in case the
+    // server refuses to send another.
+    ask_server("code/request", {{"email", m_email.email}}, {});
+    return true;
+}
+
+bool CloudSignIn::submit_code(const std::string& code)
+{
+    if (m_phase != CloudSignInPhase::Email || m_email.busy || m_email.step != CloudEmailStep::Step::Code)
+        return false;
+    ask_server("code/confirm", {{"code", code}}, m_session);
+    return true;
+}
+
+bool CloudSignIn::submit_password(const std::string& password)
+{
+    if (m_phase != CloudSignInPhase::Email || m_email.busy || m_email.step != CloudEmailStep::Step::Choose)
+        return false;
+    // The server signs in by username; allauth matches it against addresses too.
+    ask_server("login", {{"username", m_email.email}, {"password", password}}, {});
+    return true;
+}
+
+// What an auth endpoint answered, in allauth's shapes: 200 once signed in,
+// with the token in "meta"; 401 while a code is pending, with the session
+// token to carry; 400 with "errors"; 409 once the pending code is gone. A
+// token goes on to the same check as the browser's; a refusal the person can
+// act on stays on the step; anything else ends the sign-in with one generic
+// error.
+std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
+{
+    m_email.busy = false;
+    const json body   = json::parse(http.body, nullptr, false);
+    const auto errors = [&](const char* code) {
+        if (!body.is_object() || !body.contains("errors") || !body["errors"].is_array())
+            return false;
+        return std::any_of(body["errors"].begin(), body["errors"].end(),
+                           [code](const json& error) { return error.is_object() && error.value("code", "") == code; });
+    };
+    const std::string session = body.is_object() ? body.value("/meta/session_token"_json_pointer, std::string()) : std::string();
+    const std::string token   = body.is_object() ? body.value("/meta/access_token"_json_pointer, std::string()) : std::string();
+
+    if (m_asked == "code/request" && http.status == 401 && !session.empty()) {
+        m_email.code_resent = m_email.step == CloudEmailStep::Step::Code;
+        m_email.step        = CloudEmailStep::Step::Code;
+        m_session           = session;
+        return std::nullopt;
+    }
+    if (http.status == 200 && !token.empty()) {
+        m_session.clear();
+        begin_check(token);
+        return std::nullopt;
+    }
+    if (http.status == 400 && m_asked == "code/request" && errors("too_many_login_attempts"))
+        m_email.refusal = "too_many_codes";
+    else if (http.status == 400 && m_asked == "code/confirm" && errors("incorrect_code"))
+        m_email.refusal = "wrong_code";
+    else if (http.status == 409 && m_asked == "code/confirm")
+        m_email.refusal = "expired_code";
+    else if (http.status == 400 && m_asked == "login")
+        m_email.refusal = errors("too_many_login_attempts") ? "too_many_tries" : "wrong_password";
+    else
+        return failed("sign_in_failed", "JusPrin couldn't sign you in. Try again.", true);
+    return std::nullopt;
+}
+
 void CloudSignIn::cancel()
 {
     if (m_phase == CloudSignInPhase::Browser && m_deps.cancel_authorize)
@@ -181,6 +292,7 @@ void CloudSignIn::cancel()
     ++m_generation;
     m_phase = CloudSignInPhase::Idle;
     m_token.clear();
+    m_session.clear();
     m_who.reset();
     m_models.reset();
 }
@@ -199,6 +311,12 @@ std::optional<CloudSignInOutcome> CloudSignIn::poll()
             if (!item->authorization.ok || item->authorization.access_token.empty())
                 return failed("sign_in_failed", "Signing in didn't finish. Nothing was saved. Try again.", true);
             begin_check(std::move(item->authorization.access_token));
+            break;
+        case Inbox::Kind::Auth:
+            if (m_phase != CloudSignInPhase::Email)
+                continue;
+            if (std::optional<CloudSignInOutcome> outcome = answered(std::move(item->http)))
+                return outcome;
             break;
         case Inbox::Kind::Who: m_who = std::move(item->http); break;
         case Inbox::Kind::Models: m_models = std::move(item->http); break;

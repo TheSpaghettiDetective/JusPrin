@@ -43,6 +43,13 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config);
 // Signing in to a JusPrin account: the account is stored where the Agent's
 // keys are, and signing in makes it the Agent's provider.
 CloudSignInPtr make_cloud_sign_in(AppConfig* config);
+// Where "Get more credits" goes, on the server the account signs in to.
+std::string cloud_pricing_url(const AppConfig* config);
+// The server's "Forgot password" page.
+std::string cloud_password_reset_url(const AppConfig* config);
+// Where a print report goes, and the account's token; empty when signed out.
+std::string cloud_print_reports_url(const AppConfig* config);
+std::string cloud_account_token(const AppConfig* config);
 
 // The docked Agent's per-chat models: every provider with a stored key, the
 // default provider setup recorded, agents built from those keys, and each

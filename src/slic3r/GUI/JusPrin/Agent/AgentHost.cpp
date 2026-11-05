@@ -84,6 +84,8 @@ json message_json(const ConversationMessage& message)
         result["error"] = error_json(*message.error);
     if (!message.attachment_ids.empty())
         result["attachments"] = message.attachment_ids;
+    if (message.returned)
+        result["returned"] = true;
     if (!message.swatch.empty())
         result["swatch"] = message.swatch;
     if (!message.file_report.empty()) {
@@ -638,6 +640,11 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
     m_tools.set_saves_need_approval(true);
     m_tools.set_proposal_saved([this](const ToolActivity& apply) { m_saved_proposals.push_back(apply.action_id); });
     m_tools.set_slice_ended([this](const std::string& action_id) { m_ended_slices.push_back(action_id); });
+    m_tools.set_same_turn([this](const std::string& first, const std::string& second) {
+        const std::optional<ConversationMessage> a = find_stored_message(first);
+        const std::optional<ConversationMessage> b = find_stored_message(second);
+        return a && b && a->in_reply_to == b->in_reply_to;
+    });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
         // A failed call, the in-app Agent's or an MCP client's, leaves a line
         // in the app log; the chat shows it only to the person who opens it.
@@ -1014,6 +1021,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_reveal_path(envelope_id, payload);
     else if (type == Protocol::kPickAttachment)
         handle_pick_attachment(envelope_id, payload);
+    else if (type == Protocol::kRefreshAccount)
+        request_account();
     else if (type == Protocol::kSetChatModel)
         handle_set_chat_model(envelope_id, payload);
     else if (type == Protocol::kSkills)
@@ -1240,6 +1249,7 @@ void AgentHost::handle_hello(const std::string& envelope_id, const std::string& 
     send_setup_keys();
     if (m_model_source) {
         send_model_catalog();
+        request_account();
         request_model_lists();
     }
     if (!m_held_confirmation.empty())
@@ -1863,15 +1873,20 @@ void AgentHost::handle_stop(const std::string& payload_json)
     // Stopping an already-finished stream is a benign race; ignore silently.
     if (!m_stream || m_stream->message.id != message_id)
         return;
+    end_stream(MessageState::Stopped, Protocol::kAssistantStopped);
+}
+
+void AgentHost::end_stream(MessageState state, const char* envelope)
+{
     ActiveStream stream = std::move(*m_stream);
     m_stream.reset();
     if (m_agent)
         m_agent->cancel();
-    stream.message.state = MessageState::Stopped;
+    stream.message.state = state;
     m_persistence.document().update_message(stream.conversation_id, stream.message);
     m_persistence.flush();
     if (m_turn_boundary_callback) m_turn_boundary_callback();
-    send_envelope(Protocol::kAssistantStopped, json{{"messageId", stream.message.id}}.dump());
+    send_envelope(envelope, json{{"messageId", stream.message.id}}.dump());
     start_next_queued_reply();
     send_conversations();
 }
@@ -2531,7 +2546,7 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
         send_account_status("checking", envelope_id);
         return;
     }
-    if (!cloud->start()) {
+    if (!cloud->start(CloudBrowserStart::SignInPage)) {
         send_account_status("idle", envelope_id,
                             AgentError{"sign_in_failed", "JusPrin couldn't start signing in. Try again.", true});
         return;
@@ -2570,6 +2585,7 @@ void AgentHost::pump_account()
                                              "This sign-in could not be saved, so you will have to sign in again next time JusPrin starts.");
         send_setup_keys();
         set_agent(std::move(outcome->service), AgentAvailability::Ready);
+        request_account();
         break;
     case CloudSignInOutcome::Kind::Expired:
         for (const SavedKey& saved : m_setup->saved_keys())
@@ -2770,19 +2786,25 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     send_envelope(Protocol::kAssistantStarted,
                   json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
 
-    if (!use_chat_model(conversation_id))
+    const bool by_person = person_started(assistant);
+    if (!use_chat_model(conversation_id, by_person))
         return;
     // A chat that has talked keeps the wire format its record is in: a model
     // in another format cannot read it. The chat's choice may have changed
-    // under it, and a provider whose key is gone leaves it on the default.
+    // under it, and a provider whose key is gone leaves it on the default. An
+    // account's aliases are the exception: the app's own turns run on Expert in
+    // whatever chat, so its chats can hold both formats (RecordConversion).
     std::optional<ChatRecord> record  = m_persistence.document().chat_record(conversation_id);
     const ProviderProfile*    profile = m_agent_choice ? profile_for(m_agent_choice->provider) : nullptr;
-    if (record && profile && record->format != (profile->account_sign_in ? m_agent_choice->format : wire_format(profile->family))) {
+    if (record && profile && !profile->account_sign_in && record->format != wire_format(profile->family)) {
         fail_stream(AgentError{"chat_format_fixed",
                                "This chat's history is kept in a form that model can't read. Start a new chat to use it.", false});
         return;
     }
     AgentRequest request = make_agent_request(assistant, conversation_id, record ? std::move(*record) : ChatRecord{});
+    request.app_started  = !by_person;
+    if (m_agent_choice)
+        request.model_reads_pictures = model_reads_pictures(*m_agent_choice);
     request.on_recorded  = [this, conversation_id](const std::string& format, std::vector<RecordItem> items) {
         m_persistence.document().append_chat_record(conversation_id, format, items);
         m_persistence.commit();
@@ -2816,6 +2838,8 @@ std::string note_text(const ConversationMessage& note) { return note.for_model.e
 // on the person's side, the app's note in the operator's voice.
 std::optional<RecordItem> as_sent(const ConversationMessage& message)
 {
+    if (message.returned)
+        return std::nullopt;
     RecordItem item{RecordItem::Kind::User, message.id};
     if (!message.file_report.empty())
         item.parts.push_back({RecordPart::Kind::Text, file_report_text(message.file_report)});
@@ -3013,6 +3037,7 @@ void AgentHost::complete_stream()
     start_next_queued_reply();
     send_conversations();
     start_conversation_title(stream.conversation_id);
+    request_account();
 }
 
 void AgentHost::fail_stream(AgentError error)
@@ -3024,12 +3049,35 @@ void AgentHost::fail_stream(AgentError error)
     stream.message.state = MessageState::Failed;
     stream.message.error = std::move(error);
     m_persistence.document().update_message(stream.conversation_id, stream.message);
+    json failed{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}};
+    // Nothing typed is lost: a message the credits could not pay for goes back
+    // to the message box, and the model never reads it as a message it missed.
+    if (stream.message.error->code == "credits_exhausted")
+        if (const std::string returned = return_message_to_composer(stream.conversation_id, stream.message.in_reply_to);
+            !returned.empty())
+            failed["returnedText"] = returned;
     m_persistence.flush();
     if (m_turn_boundary_callback) m_turn_boundary_callback();
-    send_envelope(Protocol::kAssistantFailed,
-                  json{{"messageId", stream.message.id}, {"error", error_json(*stream.message.error)}}.dump());
+    send_envelope(Protocol::kAssistantFailed, failed.dump());
     start_next_queued_reply();
     send_conversations();
+    request_account();
+}
+
+std::string AgentHost::return_message_to_composer(const std::string& conversation_id, const std::string& message_id)
+{
+    std::optional<ConversationMessage> message = find_stored_message(message_id);
+    if (!message || message->role != MessageRole::User)
+        return {};
+    ProjectStateDocument& document = m_persistence.document();
+    message->returned = true;
+    document.update_message(conversation_id, *message);
+    document.mark_attachments_staged(message->attachment_ids);
+    // Words typed while the turn ran stay, after the returned ones.
+    const std::string draft = m_persistence.draft().empty() ? message->text : message->text + "\n\n" + m_persistence.draft();
+    m_persistence.set_draft(draft);
+    send_state();
+    return draft;
 }
 
 void AgentHost::handle_agent_tool_call(AgentToolCall call)
@@ -3147,6 +3195,11 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
         return;
     }
     begin_tool_followup(continuation);
+    // A model that keeps polling its own slice costs a request each time and
+    // learns nothing. The result is in the record; the turn ends as a Stop
+    // would, and the note turn carries on when the run ends.
+    if (activity.error && activity.error->code == "busy" && m_tools.slice_poll_limit_reached())
+        end_stream(MessageState::Complete, Protocol::kAssistantCompleted);
 }
 
 void AgentHost::begin_tool_followup(const PendingToolContinuation& continuation)
@@ -3374,7 +3427,37 @@ ChatModelChoice AgentHost::chat_model_choice(const std::string& conversation_id)
                 chosen->format = m_model_source->model_format(chosen->provider, chosen->model);
             return *chosen;
         }
-    return default_chat_model();
+    return new_chat_model();
+}
+
+ChatModelChoice AgentHost::new_chat_model() const
+{
+    ChatModelChoice choice = default_chat_model();
+    const ProviderProfile* profile = profile_for(choice.provider);
+    if (!profile || !profile->account_sign_in || !m_account)
+        return choice;
+    // On the account: Expert during the first month, Standard after it (board 6a).
+    // The first-month lot stays in the answer until it expires, spent or not.
+    const json& lots = m_account->at("credits").at("lots");
+    if (std::any_of(lots.begin(), lots.end(), [](const json& lot) { return lot.at("kind") == "signup"; }))
+        return choice;
+    if (const auto held = m_models.find(choice.provider); held != m_models.end())
+        for (const ModelOption& option : held->second.models)
+            if (option.tier == "basic") {
+                choice.model  = option.id;
+                choice.effort = option.default_effort;
+                choice.format = m_model_source->model_format(choice.provider, choice.model);
+                break;
+            }
+    return choice;
+}
+
+void AgentHost::send_active_chat_model()
+{
+    if (!m_handshake)
+        return;
+    const std::string active = m_persistence.document().active_conversation_id();
+    send_envelope(Protocol::kChatModel, json{{"conversationId", active}, {"chatModel", chat_model_json(active)}}.dump());
 }
 
 json AgentHost::chat_model_json(const std::string& conversation_id) const
@@ -3396,6 +3479,7 @@ void AgentHost::request_model_lists()
             entry.models = std::move(models);
             if (m_handshake)
                 send_model_catalog();
+            send_active_chat_model();
         });
     }
 }
@@ -3417,6 +3501,12 @@ void AgentHost::send_model_catalog()
                 json model{{"id", option.id}, {"label", option.label}, {"efforts", option.efforts}};
                 if (!option.default_effort.empty())
                     model["defaultEffort"] = option.default_effort;
+                if (!option.tier.empty())
+                    model["tier"] = option.tier;
+                if (option.credits)
+                    model["credits"] = *option.credits;
+                if (!option.images)
+                    model["images"] = false;
                 models.push_back(std::move(model));
             }
         providers.push_back(json{{"id", provider}, {"label", profile->display_name}, {"defaultModel", profile->model},
@@ -3452,12 +3542,79 @@ void AgentHost::handle_set_chat_model(const std::string& envelope_id, const std:
                   envelope_id);
 }
 
-bool AgentHost::use_chat_model(const std::string& conversation_id)
+bool AgentHost::person_started(const ConversationMessage& assistant) const
+{
+    const std::optional<ConversationMessage> source = find_stored_message(assistant.in_reply_to);
+    return !source || source->role != MessageRole::Note;
+}
+
+// The app's own turns read the plate picture, so they run on the account's
+// Expert alias whatever the chat's model is or will be.
+ChatModelChoice AgentHost::app_turn_model(const ChatModelChoice& chat) const
+{
+    ChatModelChoice expert;
+    expert.provider = chat.provider;
+    if (const auto held = m_models.find(chat.provider); held != m_models.end())
+        for (const ModelOption& option : held->second.models)
+            if (option.tier == "expert") {
+                expert.model  = option.id;
+                expert.effort = option.default_effort;
+                break;
+            }
+    if (expert.model.empty())
+        if (const ProviderProfile* profile = profile_for(chat.provider))
+            expert.model = profile->model;
+    expert.format = m_model_source->model_format(chat.provider, expert.model);
+    return expert;
+}
+
+bool AgentHost::model_reads_pictures(const ChatModelChoice& choice) const
+{
+    const auto held = m_models.find(choice.provider);
+    if (held == m_models.end())
+        return true;
+    for (const ModelOption& option : held->second.models)
+        if (option.id == choice.model)
+            return option.images;
+    return true;
+}
+
+void AgentHost::request_account()
+{
+    if (!m_model_source)
+        return;
+    m_model_source->fetch_account([this](std::optional<json> account) {
+        // One that could not be read keeps the last answer; signing out clears it.
+        const std::vector<std::string> configured = m_model_source->configured_providers();
+        const bool signed_in = std::any_of(configured.begin(), configured.end(), [](const std::string& provider) {
+            const ProviderProfile* profile = profile_for(provider);
+            return profile != nullptr && profile->account_sign_in;
+        });
+        if (account)
+            m_account = std::move(account);
+        else if (!signed_in)
+            m_account.reset();
+        else
+            return;
+        send_account();
+        send_active_chat_model();
+    });
+}
+
+void AgentHost::send_account()
+{
+    if (m_handshake)
+        send_envelope(Protocol::kAccount, json{{"account", m_account ? *m_account : json()}}.dump());
+}
+
+bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_person)
 {
     if (!m_model_source)
         return true;
-    const ChatModelChoice choice = chat_model_choice(conversation_id);
+    ChatModelChoice choice = chat_model_choice(conversation_id);
     if (const ProviderProfile* profile = profile_for(choice.provider); profile != nullptr && profile->account_sign_in) {
+        if (!by_person)
+            choice = app_turn_model(choice);
         if (choice.format.empty()) {
             // The account's model list has not named this model; it is asked
             // for again, and the person can send once it has.
@@ -3466,9 +3623,10 @@ bool AgentHost::use_chat_model(const std::string& conversation_id)
                                    "JusPrin hasn't loaded the Agent models for your account yet. Try again in a moment.", true});
             return false;
         }
-        // The first request fixes the chat to the format it is served in.
+        // The person's first message fixes the chat to its model and the format
+        // that is served in. A turn the app started fixes nothing.
         ProjectStateDocument& document = m_persistence.document();
-        if (document.chat_model(conversation_id) != choice) {
+        if (by_person && document.chat_model(conversation_id) != choice) {
             document.set_chat_model(conversation_id, choice);
             m_persistence.commit();
         }

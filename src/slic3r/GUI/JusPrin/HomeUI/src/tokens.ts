@@ -17,10 +17,18 @@
 //   --printer-dialog-scrim  the scrim's strength, a percentage for color-mix()
 // and the Print history screen's list width:
 //   --print-history-list-width
+// and the print report form, whose outcome is the design system's segmented
+// control:
+//   --print-report-thumbnail-size, --segmented-<name>
 // and the gallery header's search and sort, the design system's field and
 // select at the Main Page board's width:
 //   --field-<name>, --select-<name>  height, radius, horizontal padding
 //   --project-gallery-search-width
+// and the first launch:
+//   --onboarding-<name>     the welcome's row and clip, the corner lockup's
+//                           height, and the Printers step's column
+//   --onboarding-spin-duration  one turn of the sign-in card's spinner, the
+//                           Agent page's working glyph's
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
@@ -39,6 +47,8 @@ interface CardTokens {
     projectGallery: Record<string, number>;
     homeHeader: Record<string, number>;
     printHistory: Record<string, number>;
+    printReport: Record<string, number>;
+    segmented: Record<string, number | string>;
     field: Record<string, number | string>;
     select: Record<string, number | string>;
     printerCard: Record<string, number>;
@@ -50,6 +60,8 @@ interface CardTokens {
     popover: Record<string, number>;
     printerDialog: { width: number; radius: number; scrimAlpha: number };
     confirmationDialog: Record<string, number>;
+    onboarding: Record<string, number>;
+    turnActivity: { spinMs: number };
   };
 }
 
@@ -65,6 +77,7 @@ const ASPECT = '--project-card-thumbnail-aspect';
 const GLYPH = '--glyph-size';
 // The drop target's upload glyph is the largest size on the same scale.
 const GLYPH_LARGE = '--glyph-size-large';
+const SPIN = '--onboarding-spin-duration';
 
 // A field's text role is a name, not a length; only its sizes become variables.
 function pixels(section: Record<string, number | string>): Record<string, number> {
@@ -97,6 +110,8 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('project-gallery', component.projectGallery),
     ...pixelVariableNames('home-header', component.homeHeader),
     ...pixelVariableNames('print-history', component.printHistory),
+    ...pixelVariableNames('print-report', component.printReport),
+    ...pixelVariableNames('segmented', pixels(component.segmented)),
     ...pixelVariableNames('field', pixels(component.field)),
     ...pixelVariableNames('select', pixels(component.select)),
     ...pixelVariableNames('printer-card', component.printerCard),
@@ -107,9 +122,11 @@ export function staticVariableNames(): string[] {
     ...pixelVariableNames('popover', component.popover),
     ...Object.keys(printerDialog()).map((name) => `--printer-dialog-${name}`),
     ...pixelVariableNames('confirmation-dialog', component.confirmationDialog),
+    ...pixelVariableNames('onboarding', component.onboarding),
     ...elevationVariableNames(),
     GLYPH,
     GLYPH_LARGE,
+    SPIN,
   ];
 }
 
@@ -124,6 +141,8 @@ export function applyStaticTokens(): void {
   applyPixelTokens('project-gallery', component.projectGallery);
   applyPixelTokens('home-header', component.homeHeader);
   applyPixelTokens('print-history', component.printHistory);
+  applyPixelTokens('print-report', component.printReport);
+  applyPixelTokens('segmented', pixels(component.segmented));
   applyPixelTokens('field', pixels(component.field));
   applyPixelTokens('select', pixels(component.select));
   applyPixelTokens('printer-card', component.printerCard);
@@ -136,6 +155,8 @@ export function applyStaticTokens(): void {
     document.documentElement.style.setProperty(`--printer-dialog-${name}`, value);
   }
   applyPixelTokens('confirmation-dialog', component.confirmationDialog);
+  applyPixelTokens('onboarding', component.onboarding);
+  document.documentElement.style.setProperty(SPIN, `${component.turnActivity.spinMs}ms`);
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
   document.documentElement.style.setProperty(GLYPH_LARGE, `${Math.max(...component.icon.sizes)}px`);
 }

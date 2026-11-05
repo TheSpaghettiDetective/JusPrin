@@ -10,9 +10,13 @@
 // empty string: the page distinguishes "the host has nothing to say" from "the
 // host says it is empty", and a serialised null would read as the latter.
 
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
+
+#include "OnboardingModel.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -43,6 +47,33 @@ struct HistorySummary
 // { gcodes, exports, sends, prints, printingNow, lastFinishedAt? }
 nlohmann::json summary_json(const HistorySummary& summary);
 
+// A photo the person chose for a print report. `id` is how the page names it
+// back; the path stays on this side.
+struct PrintReportPhoto
+{
+    std::string   id;
+    std::string   name;
+    std::uint64_t size_bytes{0};
+    std::string   thumbnail; // a data URL; empty when the file could not be drawn
+};
+
+// What the person filled in on the print report form.
+struct PrintReportForm
+{
+    std::string project_id;
+    std::string hash;
+    std::string outcome; // worked|partly|failed
+    std::string text;
+    std::string photo_id;
+};
+
+struct PrintReportAnswer
+{
+    enum class State { Sent, AlreadySent, Failed };
+    State       state{State::Failed};
+    int         credits{0};
+};
+
 struct ProjectEntry
 {
     std::string        id;
@@ -56,6 +87,8 @@ struct ProjectEntry
     std::string        status_text;
     // The card's print-history line; an empty one draws none.
     HistorySummary     history;
+    // The card asks how the latest print came out (board 8d).
+    bool               report_due{false};
 };
 
 // A spool the printer holds, as a connected printer reports its tray. Either
@@ -141,6 +174,9 @@ struct PrinterEntry
     // The card's print-history line: what was made for, sent to and printed
     // on this printer, across projects. An empty one draws none.
     HistorySummary          history;
+    // The default first run installed for a person who skipped choosing a
+    // printer: the card marks it "assumed" until it is changed.
+    bool                    assumed{false};
 };
 
 // The project gallery: the saved projects, or why they could not be listed.
@@ -161,10 +197,61 @@ struct Snapshot
     // A printer the conversation just added: the page leads with it and
     // draws attention to its card once. Empty for any other push.
     std::string               highlight_printer;
+    struct Onboarding
+    {
+        OnboardingProgress progress;
+        OnboardingFacts facts;
+        OnboardingStep step{OnboardingStep::Hidden};
+        PrintersScreen printers_screen{PrintersScreen::AddPrinter};
+        // The welcome's doors. A sign-in in progress: "idle", "browser" while
+        // the browser has the authorize page, "email" while the email door
+        // runs, "checking" once either brought a token.
+        std::string sign_in{"idle"};
+        // The email door while sign_in is "email" (Agent::CloudEmailStep).
+        struct EmailStep
+        {
+            std::string step; // "choose" or "code"
+            std::string email;
+            bool        busy{false};
+            std::string refusal;
+            bool        code_resent{false};
+        };
+        std::optional<EmailStep> email_step;
+        // Why the last sign-in did not finish, already in the person's words.
+        std::string sign_in_error;
+        // The JusPrin account this computer is signed in to; empty when none.
+        std::string account_email;
+        bool agent_configured{false};
+        // The OrcaSlicer screen: the folder and the printers it holds, and
+        // how many filaments come with them.
+        std::string orca_source;
+        std::vector<std::string> orca_printers;
+        int orca_filaments{0};
+        // What the import brought, file by file, while its result is on
+        // screen: kind is "printer", "filament" or "process"; renamed_to is
+        // set for a copy imported under a new name, and reason, already in
+        // the person's words, for an item not imported.
+        struct ImportItem
+        {
+            std::string kind;
+            std::string name;
+            std::string renamed_to;
+            bool        imported{false};
+            std::string reason;
+        };
+        std::optional<std::vector<ImportItem>> import_result;
+        // The add-printer form, as the printer panel's page receives it;
+        // null while the form is not open.
+        nlohmann::json printer_form;
+        // Home's Agent group, and the account's credits it shows: the gateway's
+        // answer as it came, or null until it is read.
+        HomeAgentCard agent_card{HomeAgentCard::None};
+        nlohmann::json account;
+    } onboarding;
+
 };
 
-// The `state` payload: { appearance, projects, projectsProblem, printers, highlightPrinter }.
+// The `state` payload: { appearance, projects, projectsProblem, printers, highlightPrinter, onboarding }.
 nlohmann::json state_payload(const Snapshot& snapshot);
-
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

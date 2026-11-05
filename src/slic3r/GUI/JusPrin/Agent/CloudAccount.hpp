@@ -6,7 +6,10 @@
 //
 // Sign-in is the authorization code flow with PKCE in the system browser,
 // answered on a loopback port (RFC 8252); the server accepts any port on its
-// http://127.0.0.1/callback redirect. Finishing a sign-in, and checking a
+// http://127.0.0.1/callback redirect. Or it stays in the app: the person
+// types an address and picks a code the server emails or the account's
+// password. The server's auth endpoints are django-allauth's API for apps,
+// and answer either with the same kind of token. Finishing a sign-in, and checking a
 // token the app already holds (one imported from JusPrin v1, or the stored
 // one), are the same step: ask the server who the account is and which
 // models it serves this account, in which wire format. A token that passes
@@ -19,6 +22,8 @@
 
 #include "AgentService.hpp"
 #include "ModelCatalog.hpp"
+
+#include <nlohmann/json.hpp>
 
 #include <functional>
 #include <memory>
@@ -82,6 +87,11 @@ struct CloudAccountDeps
     std::function<void()> pump;
     // A GET with the token as bearer; `done` is called once.
     std::function<void(const std::string& url, const std::string& token, std::function<void(CloudHttpResult)> done)> get;
+    // A POST of a JSON body, with no bearer token; `session` is sent as
+    // allauth's X-Session-Token when not empty. `done` is called once.
+    std::function<void(const std::string& url, const std::string& body, const std::string& session,
+                       std::function<void(CloudHttpResult)> done)>
+        post;
     // Revokes a token on the server, best effort: nothing waits for it.
     std::function<void(const std::string& url, const std::string& client_id, const std::string& token)> revoke;
     // A PKCE verifier, its S256 challenge and a state value, fresh each call.
@@ -107,7 +117,38 @@ struct CloudAccountStore
     std::function<bool()> erase;
 };
 
-enum class CloudSignInPhase { Idle, Browser, Checking };
+enum class CloudSignInPhase { Idle, Browser, Email, Checking };
+
+// Where the browser starts: Google's sign-in, which comes back to the server
+// and on to the app, or the server's own sign-in page, which offers email and
+// Google both.
+enum class CloudBrowserStart { Google, SignInPage };
+
+// The email sign-in, while the phase is Email.
+struct CloudEmailStep
+{
+    // Choose: the person picks a code or types the password. Code: a code
+    // was sent and the app waits for it.
+    enum class Step { Choose, Code };
+    Step        step{Step::Choose};
+    std::string email;
+    // A code, a password or a request for a code is with the server.
+    bool        busy{false};
+    // The server's refusal of the last try: "wrong_code", "expired_code"
+    // (the code no longer works: it expired or was tried too often),
+    // "too_many_codes", "wrong_password" or "too_many_tries" (passwords).
+    // Empty when there is none.
+    std::string refusal;
+    // A new code went out because the person asked for one.
+    bool        code_resent{false};
+
+    bool operator==(const CloudEmailStep& other) const
+    {
+        return step == other.step && email == other.email && busy == other.busy && refusal == other.refusal &&
+               code_resent == other.code_resent;
+    }
+    bool operator!=(const CloudEmailStep& other) const { return !(*this == other); }
+};
 
 struct CloudSignInOutcome
 {
@@ -132,15 +173,24 @@ public:
     // person whose browser did not open.
     virtual std::string browser_url() const = 0;
 
-    // Opens the browser. False while a sign-in or check is running, or when
-    // the loopback port could not be opened.
-    virtual bool start() = 0;
+    // Opens the browser at `where`. False while a sign-in or check is running,
+    // or when the loopback port could not be opened.
+    virtual bool start(CloudBrowserStart where) = 0;
     // Checks the token already stored: the account's email and model formats
     // are refreshed, or the token turns out to have expired. False when no
     // token is stored or something is already running.
     virtual bool check_stored() = 0;
     virtual void cancel() = 0;
     virtual std::optional<CloudSignInOutcome> poll() = 0;
+
+    // Signing in by email. Each is false when the step does not take it.
+    virtual std::optional<CloudEmailStep> email_step() const = 0;
+    // From Idle: the address the person typed; nothing is sent yet.
+    virtual bool start_email(const std::string& email) = 0;
+    // Asks the server to email a code, or a new one from the code step.
+    virtual bool send_code() = 0;
+    virtual bool submit_code(const std::string& code) = 0;
+    virtual bool submit_password(const std::string& password) = 0;
 
     // The stored account, or nothing when signed out.
     virtual std::optional<CloudAccountRecord> account() const = 0;
@@ -159,7 +209,7 @@ public:
     using AgentFactory = std::function<AgentServicePtr(const std::string& token, const std::string& model,
                                                        const std::string& format)>;
 
-    // `server` is the JusPrin server's base URL, as "https://app.obico.io";
+    // `server` is the JusPrin server's base URL, as "https://jusprinv2.obico.io";
     // `gateway` is the provider's request endpoint, whose sibling "models"
     // lists the account's models.
     CloudSignIn(std::string server, std::string gateway, std::string default_model, CloudAccountDeps deps,
@@ -168,10 +218,15 @@ public:
 
     CloudSignInPhase                  phase() const override { return m_phase; }
     std::string                       browser_url() const override;
-    bool                              start() override;
+    bool                              start(CloudBrowserStart where) override;
     bool                              check_stored() override;
     void                              cancel() override;
     std::optional<CloudSignInOutcome> poll() override;
+    std::optional<CloudEmailStep>     email_step() const override;
+    bool                              start_email(const std::string& email) override;
+    bool                              submit_code(const std::string& code) override;
+    bool                              submit_password(const std::string& password) override;
+    bool                              send_code() override;
     std::optional<CloudAccountRecord> account() const override;
     bool                              sign_out() override;
 
@@ -179,6 +234,8 @@ private:
     struct Inbox;
 
     void begin_check(std::string token);
+    void ask_server(const std::string& endpoint, const nlohmann::json& body, const std::string& session);
+    std::optional<CloudSignInOutcome> answered(CloudHttpResult http);
     void ask_who(std::uint64_t generation);
     void ask_models(std::uint64_t generation);
     std::optional<CloudSignInOutcome> finish_check();
@@ -197,6 +254,11 @@ private:
     // The check in progress: the token being checked, and what the server
     // has said so far.
     std::string                    m_token;
+    CloudEmailStep                 m_email;
+    // allauth's session token between the email steps.
+    std::string                    m_session;
+    // The auth endpoint the request in flight went to.
+    std::string                    m_asked;
     std::optional<CloudHttpResult> m_who;
     std::optional<CloudHttpResult> m_models;
 };

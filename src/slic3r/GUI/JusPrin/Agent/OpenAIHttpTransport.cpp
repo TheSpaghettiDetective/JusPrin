@@ -56,13 +56,13 @@ public:
                     locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Data, body.substr(locked->seen), {}, status});
                 locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Complete, {}, {}, status});
             })
-            .on_error([weak = std::weak_ptr<State>(state)](std::string, std::string error, unsigned status) {
+            .on_error([weak = std::weak_ptr<State>(state)](std::string body, std::string error, unsigned status) {
                 const auto locked = weak.lock();
                 if (!locked)
                     return;
                 std::lock_guard<std::mutex> guard(locked->mutex);
                 if (!locked->cancelled)
-                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Error, {}, std::move(error), status});
+                    locked->event(AgentHttpEvent{AgentHttpEvent::Kind::Error, std::move(body), std::move(error), status});
             });
         state->http = http.perform();
         return state->http != nullptr;

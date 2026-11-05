@@ -42,6 +42,15 @@ const LivePrint* live_print(const Agent::GcodePrint& print, const std::vector<Li
 // A project's history.
 HistorySummary summarize(const std::vector<Agent::GcodeRecord>& records, const std::vector<LivePrint>& live);
 
+// Whether a project's card asks how its latest G-code came out: that G-code has
+// a print the printer reported finished at `finished_since` or later, nothing
+// of it is printing now and no report was sent.
+bool report_due(const std::vector<Agent::GcodeRecord>& records, const std::string& finished_since,
+                const std::vector<LivePrint>& live);
+
+// What the server's answer to a print report means.
+PrintReportAnswer print_report_answer(unsigned status, const std::string& body);
+
 // What the application knows that the records do not.
 struct HistoryFacts
 {
@@ -71,5 +80,8 @@ HistorySummary summarize_printer(const std::vector<HistoryProject>& projects, co
 // without asking again.
 nlohmann::json history_entries(const std::vector<HistoryProject>& projects, const HistoryFacts& facts,
                                const std::vector<LivePrint>& live);
+
+// What a print report says about its G-code without the person typing it.
+nlohmann::json report_facts(const std::string& project_name, const Agent::GcodeRecord& record, const HistoryFacts& facts);
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

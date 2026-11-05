@@ -9,6 +9,7 @@
 // the device facts and the translations.
 
 import protocolJson from '@resources/jusprin/home/protocol.json';
+import type { CreditAccount, PrinterFormInfo } from '../../../AgentUI/src/bridge/protocol';
 
 export const PROTOCOL_NAME: string = protocolJson.name;
 export const PROTOCOL_VERSION: number = protocolJson.version;
@@ -34,7 +35,28 @@ export type PageMessageType =
   | 'history_back'
   | 'open_in_chat'
   | 'export_gcode'
-  | 'print_again';
+  | 'print_again'
+  | 'print_report_choose_photo'
+  | 'print_report_send'
+  | 'onboarding_sign_in'
+  | 'onboarding_sign_in_cancel'
+  | 'onboarding_sign_in_email'
+  | 'onboarding_sign_in_code'
+  | 'onboarding_sign_in_password'
+  | 'onboarding_sign_in_send_code'
+  | 'onboarding_sign_in_reopen'
+  | 'onboarding_open_link'
+  | 'onboarding_open_preferences'
+  | 'onboarding_leave_welcome'
+  | 'onboarding_back'
+  | 'onboarding_start_fresh'
+  | 'onboarding_import'
+  | 'onboarding_import_retry'
+  | 'onboarding_import_continue'
+  | 'onboarding_choose_orca_folder'
+  | 'onboarding_assume_default'
+  | 'onboarding_printer_form'
+  | 'agent_card_dismiss';
 
 export type HostMessageType =
   | 'hello_ack'
@@ -44,10 +66,13 @@ export type HostMessageType =
   | 'printers'
   | 'appearance'
   | 'printer_error'
+  | 'onboarding_error'
   | 'bridge_error'
   | 'confirm'
   | 'screen'
-  | 'history';
+  | 'history'
+  | 'print_report_photo'
+  | 'print_report_result';
 
 export type Appearance = 'light' | 'dark';
 
@@ -91,6 +116,8 @@ export interface ProjectInfo {
   status: ProjectStatus;
   // Absent when nothing ever left the project.
   history?: HistorySummary;
+  // The card asks how its latest finished print came out.
+  reportDue?: boolean;
 }
 
 // What a card says the printer is doing, in one word. Each rests on
@@ -163,6 +190,9 @@ export interface PrinterInfo {
   connectionLabel?: string;
   address?: string;
   modelText?: string;
+  // The default the first launch put in place when the person skipped
+  // choosing: the card marks it "assumed".
+  assumed?: boolean;
   spools: SpoolInfo[];
   action: PrinterAction;
   // What was made for, sent to and printed on this printer, across projects;
@@ -236,10 +266,31 @@ export interface HistoryEntry {
   printerIds: string[];
   destinations: HistoryDestination[];
   prints: HistoryPrint[];
+  // The report the person sent: that it exists and what it earned, never how
+  // the print went.
+  report?: { sentAt: string; credits: number };
 }
 
 export interface HistoryPayload {
   entries: HistoryEntry[];
+  // Reports earn credits, so they need the person's account.
+  reportsOffered?: boolean;
+}
+
+export interface PrintReportPhoto {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  // A data URL; absent when the host could not draw the file.
+  thumbnail?: string;
+}
+
+export type PrintReportOutcome = 'worked' | 'partly' | 'failed';
+
+export interface PrintReportResult {
+  hash: string;
+  state: 'sent' | 'already_sent' | 'failed';
+  credits: number;
 }
 
 // A printer action the host understood but could not carry out, such as a
@@ -270,6 +321,74 @@ export interface StatePayload {
   printers: PrinterInfo[];
   // A printer the conversation just added; empty for any other push.
   highlightPrinter?: string;
+  onboarding: OnboardingState;
+}
+
+// The first launch: the welcome, then the Printers step, then Home. The host
+// decides which is in front; the page only draws it.
+export type OnboardingStep = 'hidden' | 'welcome' | 'printers';
+
+// The sign-in the welcome's first door started: 'browser' while the person
+// finishes it there, 'email' while the email door runs, 'checking' while the
+// app reads the account either one brought.
+export type SignInPhase = 'idle' | 'browser' | 'email' | 'checking';
+
+// The server's refusal of the last code, password or request for a code.
+export type EmailRefusal = '' | 'wrong_code' | 'expired_code' | 'too_many_tries' | 'too_many_codes' | 'wrong_password';
+
+// The email door while signIn is 'email': the person picks an emailed code
+// or the password ('choose'), or the app waits for the code ('code').
+// 'expired_code' is a code that no longer works: it expired or was tried too
+// often.
+export interface EmailSignIn {
+  step: 'choose' | 'code';
+  email: string;
+  // A code, a password or a request for a code is with the server.
+  busy: boolean;
+  refusal: EmailRefusal;
+  // A new code went out because the person asked for one.
+  codeResent: boolean;
+}
+
+// One file an OrcaSlicer import brought, or could not. renamedTo is set for
+// a copy imported under a new name because JusPrin had the name; reason,
+// already worded, for one not imported.
+export interface ImportResultItem {
+  kind: 'printer' | 'filament' | 'process';
+  name: string;
+  renamedTo: string;
+  imported: boolean;
+  reason: string;
+}
+
+export interface OnboardingState {
+  visible: boolean;
+  step: OnboardingStep;
+  // Bring OrcaSlicer's printers, what that import brought, or the
+  // add-printer form.
+  printersScreen: 'orca_import' | 'import_result' | 'add_printer';
+  signIn: SignInPhase;
+  email: EmailSignIn | null;
+  // A JusPrin v1 import ran: the offer says v1 subscribers keep their price.
+  v1Imported: boolean;
+  // Why the last sign-in did not finish, already worded.
+  signInError: string;
+  // Set once the sign-in is saved: the welcome's card says who signed in.
+  accountEmail: string;
+  agentConfigured: boolean;
+  // The OrcaSlicer folder the Printers step offers to bring printers from;
+  // found is false when none with printers was found, and importResult is
+  // set while the import's result is on screen.
+  orca: { source: string; printers: string[]; filamentCount: number; found: boolean;
+    importResult: ImportResultItem[] | null };
+  // The add-printer form, as the printer conversation describes it; null
+  // until its catalogue is read.
+  printerForm: PrinterFormInfo | null;
+  // What Home's Agent group shows: the three doors while no agent is set
+  // up, the account and its credits once after signing in, else nothing.
+  agentCard: 'doors' | 'account' | 'none';
+  // The account and its credits; null until the gateway answers.
+  account: CreditAccount | null;
 }
 
 export interface Envelope<T = unknown> {

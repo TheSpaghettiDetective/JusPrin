@@ -1761,6 +1761,229 @@ input[type='radio']:checked {
   max-width: none;
 }
 
+/* The pickers' wrapper leaves the layout to the choices row. */
+.composer-pickers {
+  display: contents;
+}
+
+/* A greyed button takes no pointer events of its own, so hovering it counts as
+   hovering the row and the tooltip shows. */
+.composer-pickers--locked .composer-picker {
+  pointer-events: none;
+}
+
+.composer-pickers-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  left: var(--composer-padding);
+  bottom: calc(100% + 4px);
+  box-sizing: border-box;
+  max-width: min(var(--tooltip-max-width), 100%);
+  padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
+  border-radius: var(--tooltip-radius);
+  color: var(--surface-canvas);
+  background: var(--text-primary);
+  box-shadow: var(--elevation-subtle);
+  font: var(--font-metadata);
+}
+
+.composer-pickers-tooltip p {
+  margin: 0;
+}
+
+.composer-pickers-tooltip p + p {
+  margin-top: 4px;
+}
+
+.composer-pickers--locked .chat-actions:hover ~ .composer-pickers-tooltip {
+  display: block;
+}
+
+/* Model names with a price and a clause (board 2b). */
+.chat-actions--above.composer-model-menu--priced .chat-menu {
+  width: var(--model-menu-width);
+}
+
+.chat-actions--above.composer-model-menu--priced .chat-menu button {
+  height: auto;
+  min-height: var(--menu-row-height);
+  padding: 8px 12px;
+}
+
+.credit-balance {
+  flex: 0 0 auto;
+}
+
+.composer-choices .credit-ring-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--credits-ring-button);
+  height: var(--credits-ring-button);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+}
+
+.composer-choices .credit-ring-button:hover,
+.composer-choices .credit-ring-button[aria-expanded='true'] {
+  background: var(--surface-subtle);
+}
+
+.credit-ring {
+  width: var(--credits-ring-size);
+  height: var(--credits-ring-size);
+}
+
+.credit-ring-track {
+  stroke: var(--surface-selected);
+}
+
+.credit-ring-fill {
+  stroke: var(--action-primary);
+}
+
+.credit-ring--low .credit-ring-fill {
+  stroke: var(--status-warning);
+}
+
+.credit-panel {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: var(--credits-panel-width);
+  max-width: 100%;
+  border: var(--popover-border-width) solid var(--border-subtle);
+  border-radius: var(--popover-radius);
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-medium);
+}
+
+.credit-panel-total,
+.credit-panel-lots,
+.credit-panel-actions {
+  padding: var(--credits-panel-padding);
+}
+
+.credit-panel-total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.credit-panel-total strong,
+.credit-lot-line strong {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.credit-panel-lots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.credit-lot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.credit-lot-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.credit-lot-bar {
+  height: var(--credits-bar-height);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--surface-selected);
+}
+
+.credit-lot-fill {
+  height: 100%;
+  background: var(--action-primary);
+}
+
+.credit-panel-rule {
+  margin: 0;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.credit-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.composer-credits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-selected);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  font: var(--font-body-small);
+}
+
+.composer-credits-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* Board 3e: the warning colour is on the glyph only, because it is hard to read
+   as text on the light surface. */
+.attachment-not-sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font: var(--font-label);
+  color: var(--text-primary);
+  white-space: normal;
+}
+
+.attachment-not-sent .jp-icon {
+  flex: none;
+  color: var(--status-warning);
+}
+
+/* Board 3a: one line, the action and the close button at its end. */
+.composer-credits--low {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.composer-credits--low > span {
+  flex: 1;
+}
+
+.composer-credits-close {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
 .chat-actions--above .chat-menu {
   top: auto;
   right: auto;
@@ -1843,6 +2066,23 @@ input[type='radio']:checked {
 
 /* A row's label takes the width; the current choice's tick sits at the end
    (Menu/Row, Current). */
+.chat-menu-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chat-menu-detail {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: normal;
+}
+
+.chat-menu-text .chat-menu-label {
+  flex: none;
+}
+
 .chat-menu-label {
   flex: 1;
   min-width: 0;
@@ -2334,6 +2574,54 @@ p.agent-group-intro {
 /* The account's button drops under its text in a narrow dock. */
 .agent-account {
   flex-wrap: wrap;
+}
+
+.agent-account-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-account-eyebrow {
+  font: var(--font-label-bold);
+  color: var(--text-secondary);
+}
+
+/* The first-month offer: a headline on the selected surface, boards 1a to 1c. */
+.credit-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-medium);
+  background: var(--surface-selected);
+}
+
+.credit-offer-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.credit-offer-copy p {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.credit-offer-copy p.credit-offer-note {
+  font: var(--font-body-small-bold);
+}
+
+h2.credit-offer-title {
+  margin: 0;
+  font: var(--font-section);
+  color: var(--text-primary);
+}
+
+.credit-offer-action {
+  align-self: stretch;
 }
 
 /* What the account row says under its line: the browser it is waiting on,
@@ -4183,6 +4471,12 @@ p.welcome-intro {
   padding: 12px;
   border-radius: var(--radius-small);
   background: var(--surface-canvas);
+}
+
+.welcome-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .welcome-account-line,

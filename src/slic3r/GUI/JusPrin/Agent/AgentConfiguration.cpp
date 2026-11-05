@@ -18,8 +18,9 @@ namespace {
 
 constexpr const char* kSection = "jusprin_agent";
 
-// JusPrin v1 kept the server it signs in to here; a self-hosted or staging
-// server named there is the one JusPrin 2 signs in to as well.
+// A server named here, such as a staging or self-hosted one, is the one the
+// account signs in to instead of the default. JusPrin v1 kept its own server
+// here too; the v1 import leaves that behind.
 constexpr const char* kServerSection = "jusprin_server";
 
 std::string api_key_item_for(const std::string& provider) { return provider + "_api_key"; }
@@ -172,6 +173,26 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
                                               make_cloud_sign_in(config));
 }
 
+std::string cloud_pricing_url(const AppConfig* config)
+{
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/pricing/";
+}
+
+std::string cloud_password_reset_url(const AppConfig* config)
+{
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/accounts/password/reset/";
+}
+
+std::string cloud_print_reports_url(const AppConfig* config)
+{
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/print_reports";
+}
+
+std::string cloud_account_token(const AppConfig* config)
+{
+    return load_provider_api_key(config, account_provider().id);
+}
+
 CloudSignInPtr make_cloud_sign_in(AppConfig* config)
 {
     const ProviderProfile& row     = account_provider();
@@ -262,6 +283,21 @@ public:
     std::string model_format(const std::string& provider, const std::string& model) const override
     {
         return stored_format(m_config, provider, model);
+    }
+
+    void fetch_account(AccountDone done) override
+    {
+        for (const std::string& provider : configured_providers()) {
+            const ProviderProfile* profile = profile_for(provider);
+            if (profile == nullptr || !profile->account_sign_in)
+                continue;
+            Agent::fetch_account(*profile, load_provider_api_key(m_config, provider), endpoint_for(m_config, *profile), m_cancelled,
+                                 [post = m_post, done = std::move(done)](std::optional<nlohmann::json> account) {
+                                     post([done, account = std::move(account)]() mutable { done(std::move(account)); });
+                                 });
+            return;
+        }
+        done(std::nullopt);
     }
 
     void list_models(const std::string& provider, ModelsDone done) override

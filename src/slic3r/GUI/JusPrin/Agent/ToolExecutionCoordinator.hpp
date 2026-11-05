@@ -191,6 +191,12 @@ public:
     // The run a slice_start began has ended in the project it started in,
     // by that call's action id, whether it sliced, failed or was stopped.
     void set_slice_ended(std::function<void(const std::string& action_id)> listener) { m_slice_ended = std::move(listener); }
+    // Whether two calls' correlation ids belong to one turn of the chat. A turn
+    // spans several messages, which only the owner of the chat can tell.
+    void set_same_turn(std::function<bool(const std::string&, const std::string&)> same_turn) { m_same_turn = std::move(same_turn); }
+    // The turn that started the slice now in flight has polled for it this many
+    // times and been told not to; the owner ends the turn at the limit.
+    bool slice_poll_limit_reached() const { return m_refused_slice_polls >= 3; }
     // The action id of the slice_start whose run is in flight, or empty.
     std::string slice_in_flight() const { return m_slice_running ? m_slice_handle : std::string(); }
     void set_agent_project_opened(std::function<void(const Workspace::LoadReport&)> listener)
@@ -299,6 +305,10 @@ private:
     ToolActivity* find_mutable(const std::string& action_id);
     void          start_running(ToolActivity& activity);
     void          execute(ToolActivity& activity);
+    // A model checking on the slice its own turn started: answered with `busy`,
+    // since the app starts a new turn with the outcome. An MCP client has no
+    // such turn, so it polls, and a slice from an earlier turn may be read.
+    bool refuse_slice_poll(ToolActivity& activity);
     void          fail(ToolActivity& activity, std::string code, std::string message, std::string details_json = "{}");
     // The ids of the regions whose geometry is still found, and, after a
     // change, those of them that no longer are: what a place, divide or
@@ -326,6 +336,8 @@ private:
     // Whether the run m_slice_handle started is still in flight. A later run
     // is the person's, and activity_cancel does not stop it.
     bool                             m_slice_running{false};
+    int                              m_refused_slice_polls{0};
+    std::function<bool(const std::string&, const std::string&)> m_same_turn;
     // The project that run belongs to. Action ids restart with each project,
     // so in another project the handle names nothing.
     Workspace::ProjectSessionId      m_slice_session;

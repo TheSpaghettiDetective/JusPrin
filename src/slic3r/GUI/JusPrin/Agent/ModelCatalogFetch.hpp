@@ -9,7 +9,10 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
@@ -22,6 +25,11 @@ struct ModelListResult
 
 // Fetches every page of the list on Http's own thread and calls `done` there
 // once. Setting `*cancelled` stops it; `done` is then not called.
+// The signed-in account's credits, plan and usage; nothing when they could not
+// be read. `done` runs on the request's thread.
+void fetch_account(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
+                   std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<nlohmann::json>)> done);
+
 void fetch_model_list(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
                       std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(ModelListResult)> done);
 

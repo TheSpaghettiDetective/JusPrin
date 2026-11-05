@@ -24,10 +24,6 @@ constexpr const char* kV1Key = "JusPrin";
 // Where JusPrin 2 keeps what it writes for itself inside its data folder.
 constexpr const char* kReportPath = "jusprin/v1-import.json";
 
-// The Agent section JusPrin 2 keeps its provider choices in, and the account
-// provider's items there (AgentConfiguration.cpp reads them).
-constexpr const char* kAgentSection = "jusprin_agent";
-constexpr const char* kAccountProvider = "jusprin";
 
 std::string now_utc()
 {
@@ -99,29 +95,14 @@ std::vector<std::string> preset_names(const fs::path& folder)
 
 // v1's settings as JusPrin 2's: everything carries over as it is (OrcaSlicer
 // reads an older settings file the way it reads its own from an earlier
-// version), and v1's JusPrin sign-in becomes the account provider's token.
-// v1 signed in to the server in jusprin_server/base_url, which stays, so a
-// self-hosted server keeps being the one signed in to.
-json carried_settings(json settings, bool& signed_in)
+// version), except v1's JusPrin sign-in. v1 signed in with an Obico account,
+// and JusPrin 2 accounts are JusPrin's own, on JusPrin's server, so v1's token
+// and the server it signed in to (jusprin_server) stay behind and the person
+// signs up again.
+json carried_settings(json settings)
 {
-    signed_in = false;
-    if (!settings.is_object())
-        return settings;
-    json& server = settings["jusprin_server"];
-    if (server.is_object() && server.contains("access_token")) {
-        const std::string token = server.value("access_token", "");
-        server.erase("access_token");
-        if (!token.empty()) {
-            json& agent = settings[kAgentSection];
-            if (!agent.is_object())
-                agent = json::object();
-            agent[std::string(kAccountProvider) + "_api_key"] = token;
-            agent["provider"]                               = kAccountProvider;
-            agent["enabled"]                                = "true";
-            agent["cloud_consent"]                          = "true";
-            signed_in                                       = true;
-        }
-    }
+    if (settings.is_object())
+        settings.erase("jusprin_server");
     return settings;
 }
 
@@ -131,7 +112,7 @@ json to_json(const Report& report)
 {
     return json{{"source", report.source},           {"importedAt", report.imported_at}, {"printers", report.printers},
                 {"presets", report.presets},         {"connections", report.connections},
-                {"preferences", report.preferences}, {"signedIn", report.signed_in},     {"failed", report.failed},
+                {"preferences", report.preferences}, {"failed", report.failed},
                 {"pending", report.pending}};
 }
 
@@ -144,7 +125,6 @@ Report report_from_json(const json& json)
     report.presets     = json.value("presets", std::vector<std::string>{});
     report.connections = json.value("connections", std::vector<std::string>{});
     report.preferences = json.value("preferences", false);
-    report.signed_in   = json.value("signedIn", false);
     report.failed      = json.value("failed", std::vector<std::string>{});
     report.pending     = json.value("pending", false);
     return report;
@@ -199,7 +179,7 @@ std::optional<Report> import_if_first_launch(const fs::path& data_dir, const fs:
     // The settings file last: its presence is what says the import is done,
     // so a crash before this point imports again next launch.
     if (const std::optional<json> settings = read_json(v1_settings)) {
-        const json carried = carried_settings(*settings, report.signed_in);
+        const json carried = carried_settings(*settings);
         report.preferences = write_text(settings_file, carried.dump(4));
         if (!report.preferences)
             report.failed.push_back(std::string(kV1Key) + ".conf");

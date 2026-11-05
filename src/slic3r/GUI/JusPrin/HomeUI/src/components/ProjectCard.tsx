@@ -1,5 +1,5 @@
 import type { ProjectInfo } from '../bridge/protocol';
-import { projectHistoryLine } from '../history';
+import { projectHistoryLine, REPORT_OFFER } from '../history';
 import { savedDate } from '../savedDate';
 import { HistoryGlyph } from './Glyphs';
 
@@ -10,7 +10,9 @@ import { HistoryGlyph } from './Glyphs';
 //
 // A project that ever sent or exported G-code has a print-history line under
 // the footer (board history-05). It opens the history filtered to the project,
-// so it is a control of its own beside the one that opens the project.
+// so it is a control of its own beside the one that opens the project. When
+// its latest G-code has finished and has no report, a second line under it asks
+// how the print came out (board 8d) and opens the same history.
 export function ProjectCard({
   project,
   onOpen,
@@ -47,10 +49,17 @@ export function ProjectCard({
         </span>
       </button>
       {project.history && (
-        <button type="button" className="project-history" onClick={() => onHistory(project.id)}>
-          <HistoryGlyph />
-          <span className="project-history-text">{projectHistoryLine(project.history)}</span>
-        </button>
+        <div className="project-history-lines">
+          <button type="button" className="project-history" onClick={() => onHistory(project.id)}>
+            <HistoryGlyph />
+            <span className="project-history-text">{projectHistoryLine(project.history)}</span>
+          </button>
+          {project.reportDue && (
+            <button type="button" className="project-report" onClick={() => onHistory(project.id)}>
+              {REPORT_OFFER}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

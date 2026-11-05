@@ -7,6 +7,8 @@ import { AttachmentInfo } from '../bridge/protocol';
 interface Props {
   attachment: AttachmentInfo;
   onRemove?: (id: string) => void;
+  // The chat's model cannot see pictures: the row says this one will not be sent.
+  notSent?: boolean;
 }
 
 const kindLabel: Record<string, string> = {
@@ -25,7 +27,7 @@ function sizeLabel(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AttachmentChip({ attachment, onRemove }: Props) {
+export function AttachmentChip({ attachment, onRemove, notSent }: Props) {
   const errored = attachment.state === 'error';
   const label = kindLabel[attachment.kind] ?? 'File';
   const title = attachment.name || attachment.summary || label;
@@ -46,7 +48,12 @@ export function AttachmentChip({ attachment, onRemove }: Props) {
         )}
         <span className="attachment-meta">
           <span className="attachment-name">{title}</span>
-          <span className="attachment-sub">{format} · {sizeLabel(attachment.sizeBytes)}</span>
+          {notSent
+            ? <span className="attachment-not-sent">
+                <span className="jp-icon jp-icon-triangle-alert" aria-hidden="true" />
+                <span>Standard can’t see pictures, so this one will not be sent.</span>
+              </span>
+            : <span className="attachment-sub">{format} · {sizeLabel(attachment.sizeBytes)}</span>}
         </span>
         {onRemove && (
           <button

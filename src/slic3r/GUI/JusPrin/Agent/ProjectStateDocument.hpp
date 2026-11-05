@@ -94,6 +94,8 @@ struct RecordItem
     // Operator: a fired skill, which the model reads on the request that
     // sent it only where the provider can clear it (Anthropic's clear_at).
     bool                      clears{false};
+    // Assistant: the wire format of `output`, where it is not the record's own.
+    std::string               output_format;
 };
 
 // Everything one chat has sent to the model, in order, in one wire format
@@ -331,6 +333,7 @@ public:
     // Flips the given staged attachments to "sent". IDs that are missing or
     // not staged are ignored; returns the IDs that were actually sent.
     std::vector<std::string> mark_attachments_sent(const std::vector<std::string>& attachment_ids);
+    void mark_attachments_staged(const std::vector<std::string>& attachment_ids);
 
     // -- Manufacturing history --------------------------------------------
     // One record per G-code that left the project, keyed by the hash of its
@@ -346,6 +349,8 @@ public:
     // The printer reported the print finished. A repeat report keeps the first
     // time; an unknown hash or print is a logic error.
     void        finish_gcode_print(const std::string& hash, const std::string& print_id, const std::string& timestamp);
+    // The person sent a report on the G-code; an unknown hash is a logic error.
+    void        set_gcode_report(const std::string& hash, const GcodeReport& report);
     // Oldest first.
     std::vector<GcodeRecord>   gcode_records() const;
     std::optional<GcodeRecord> gcode_record(const std::string& hash) const;

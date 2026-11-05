@@ -33,6 +33,7 @@ export type PageMessageType =
   | 'reveal_path'
   | 'pick_attachment'
   | 'set_chat_model'
+  | 'refresh_account'
   | 'printer_action'
   | 'printer_instructions'
   | 'printer_opening'
@@ -81,6 +82,7 @@ export type HostMessageType =
   | 'confirm'
   | 'setup_keys'
   | 'account_status'
+  | 'account'
   | 'preferences';
 
 // A question the host asks before an action it cannot take back, drawn as
@@ -133,6 +135,9 @@ export interface WireMessage {
   // a turn's activity line without its elapsed time.
   createdAt?: string;
   error?: AgentErrorInfo;
+  // The gateway refused it for want of credits: its words are back in the
+  // message box, and the thread leaves it out.
+  returned?: boolean;
   attachments?: string[]; // sent attachment IDs, resolved against StatePayload.attachments
   swatch?: string; // notes: a colour, '#RRGGBB', that leads the line
   // Notes: what the app knows once a file the person brought in has loaded.
@@ -235,6 +240,31 @@ export interface ModelOptionInfo {
   // Levels the model accepts, lowest first; empty when it has none.
   efforts: string[];
   defaultEffort?: string;
+  // An account's models only: its tier ('basic' reads "Standard"), what a
+  // message costs, and false where it cannot see pictures.
+  tier?: string;
+  credits?: number;
+  images?: boolean;
+}
+
+// One lot of credits in GET /account, with what is left and what it started as.
+export interface CreditLot {
+  kind: string;
+  credits: number;
+  granted: number;
+  expires_at: string | null;
+}
+
+// The part of the account's answer the message box reads.
+export interface CreditAccount {
+  credits: { total: number; lots: CreditLot[] };
+  plan: {
+    id: string;
+    name: string;
+    renews_at: string | null;
+    unlimited_basic: boolean;
+  } | null;
+  v1_subscription: { plan_id: string; cents: number; period: 'month' | 'year' } | null;
 }
 
 export interface ProviderModelsInfo {
@@ -816,7 +846,6 @@ export interface WelcomeBackPayload {
   presets: string[]; // filament and process presets
   connections: string[]; // printers with a network connection
   preferences: boolean;
-  signedIn: boolean; // v1's JusPrin sign-in came along
   failed: string[]; // files that could not be copied
   unusable: string[]; // imported presets OrcaSlicer could not load
 }
@@ -831,6 +860,9 @@ export interface PreferencesPayload {
   kind: 'preferences';
   // Where the window was opened; the page goes there once, on load.
   section: PreferencesSection;
+  // Opened for one task (first run's key or AI tool door): the page closes
+  // the window once a key is verified or Done is pressed on an AI tool.
+  closeWhenDone?: boolean;
   agent: {
     // The provider a new chat talks to, and those it can be: each with a key
     // stored, and with the one model the app uses for it for now.

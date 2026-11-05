@@ -490,6 +490,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 request_preferences(payload.value("section", std::string()));
                 return true;
             }
+            if (action == "open_pricing") {
+                wxLaunchDefaultBrowser(wxString::FromUTF8(Agent::cloud_pricing_url(wxGetApp().app_config)));
+                return true;
+            }
             if (action == "collapse_agent_pane") {
                 // Hiding a wxWebView from inside its own script-message
                 // callback can stall its platform message pump. Collapse on
@@ -1428,7 +1432,7 @@ void ShellController::open_welcome_back()
         reload_agent_config();
 }
 
-void ShellController::open_preferences(const std::string& section)
+void ShellController::open_preferences(const std::string& section, PreferencesClosed closed)
 {
     if (!m_installed || m_preferences_open)
         return;
@@ -1438,37 +1442,44 @@ void ShellController::open_preferences(const std::string& section)
     Preferences::AfterClose after;
     {
         Preferences::PreferencesWindow window(m_frame, *m_theme, *m_workspace, m_agent_pane->web_view().host(),
-                                              Preferences::OpenRequest{section});
+                                              Preferences::OpenRequest{section, bool(closed)});
         window.ShowModal();
         after = window.after_close();
     }
     m_preferences_open = false;
 
     // Reloading cancels whatever the docked agent is doing, so only when the
-    // window changed its settings. An open printer or filament chat runs on
-    // an agent of its own, read when it opened; it looks again too, so a chat
-    // that was waiting for an agent continues where it was.
-    if (agent_settings() != agent_before) {
-        reload_agent_config();
-        if (m_task_open && m_printer_panel != nullptr)
-            m_printer_panel->reload_agent_config();
-    }
+    // window changed its settings.
+    if (agent_settings() != agent_before)
+        reload_agent_settings();
     apply_current_appearance();
     // What OrcaSlicer does after its own dialog: the 3D view settings are
     // read as it draws, so a redraw shows them.
     if (m_plater != nullptr)
         m_plater->set_current_canvas_as_dirty();
+    if (closed)
+        closed(after.done);
     Preferences::run_after_close(after);
 }
 
-void ShellController::request_preferences(const std::string& section)
+void ShellController::reload_agent_settings()
+{
+    // An open printer or filament chat runs on an agent of its own, read when
+    // it opened; it looks again too, so a chat that was waiting for an agent
+    // continues where it was.
+    reload_agent_config();
+    if (m_task_open && m_printer_panel != nullptr)
+        m_printer_panel->reload_agent_config();
+}
+
+void ShellController::request_preferences(const std::string& section, PreferencesClosed closed)
 {
     if (m_preferences_requested)
         return;
     m_preferences_requested = true;
-    m_frame->CallAfter([this, section] {
+    m_frame->CallAfter([this, section, closed = std::move(closed)] {
         m_preferences_requested = false;
-        open_preferences(section);
+        open_preferences(section, closed);
     });
 }
 

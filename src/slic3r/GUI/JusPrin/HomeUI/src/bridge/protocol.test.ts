@@ -37,6 +37,27 @@ describe('protocol constants come from the shared file', () => {
       'open_in_chat',
       'export_gcode',
       'print_again',
+      'print_report_choose_photo',
+      'print_report_send',
+      'onboarding_sign_in',
+      'onboarding_sign_in_cancel',
+      'onboarding_sign_in_email',
+      'onboarding_sign_in_code',
+      'onboarding_sign_in_password',
+      'onboarding_sign_in_send_code',
+      'onboarding_sign_in_reopen',
+      'onboarding_open_link',
+      'onboarding_open_preferences',
+      'onboarding_leave_welcome',
+      'onboarding_back',
+      'onboarding_start_fresh',
+      'onboarding_import',
+      'onboarding_import_retry',
+      'onboarding_import_continue',
+      'onboarding_choose_orca_folder',
+      'onboarding_assume_default',
+      'onboarding_printer_form',
+      'agent_card_dismiss',
     ];
     const host: HostMessageType[] = [
       'hello_ack',
@@ -46,10 +67,13 @@ describe('protocol constants come from the shared file', () => {
       'printers',
       'appearance',
       'printer_error',
+      'onboarding_error',
       'bridge_error',
       'confirm',
       'screen',
       'history',
+      'print_report_photo',
+      'print_report_result',
     ];
     expect([...page].sort()).toEqual([...protocolJson.pageMessageTypes].sort());
     expect([...host].sort()).toEqual([...protocolJson.hostMessageTypes].sort());
@@ -58,7 +82,7 @@ describe('protocol constants come from the shared file', () => {
 
 describe('isEnvelope', () => {
   it('accepts a well-formed envelope of this protocol', () => {
-    expect(isEnvelope({ protocol: PROTOCOL_NAME, version: 1, id: 'h-1', type: 'state', payload: {} })).toBe(true);
+    expect(isEnvelope({ protocol: PROTOCOL_NAME, version: PROTOCOL_VERSION, id: 'h-1', type: 'state', payload: {} })).toBe(true);
   });
 
   it('rejects anything else', () => {

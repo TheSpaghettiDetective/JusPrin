@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WelcomeApp } from './WelcomeApp';
+import { WelcomeBack, WelcomeBackProps } from './components/WelcomeBack';
 import { Envelope, PROTOCOL_NAME, PROTOCOL_VERSION, StatePayload, WelcomeBackPayload } from './bridge/protocol';
 
 class MockHost {
@@ -29,7 +30,6 @@ function report(overrides: Partial<WelcomeBackPayload> = {}): WelcomeBackPayload
     presets: ['Generic PLA', 'Silk PETG', '0.20 mm Strong', 'Fast draft'],
     connections: ['Prusa MK4S'],
     preferences: true,
-    signedIn: true,
     failed: [],
     unusable: [],
     ...overrides,
@@ -92,17 +92,66 @@ describe('Welcome back', () => {
     expect(screen.getByTestId('welcome-account')).toHaveTextContent('Your JusPrin v1 sign-in for alex@example.com has expired.');
     await userEvent.click(screen.getByRole('button', { name: 'Continue with JusPrin' }));
     expect(host.ofType('account_sign_in')).toHaveLength(1);
-    host.deliver('account_status', { phase: 'browser', url: 'https://app.obico.io/o/authorize/' });
+    host.deliver('account_status', { phase: 'browser', url: 'https://jusprinv2.obico.io/o/authorize/' });
     expect(screen.getByText('Finish signing in in your browser')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(host.ofType('account_cancel')).toHaveLength(1);
   });
 
-  it('offers signing in when v1 was not signed in, and checks nothing', () => {
+  it('1c: offers the first month when v1 was not signed in, and checks nothing', () => {
     render(<WelcomeApp getTransport={() => host.transport} />);
-    connect(host, report({ signedIn: false }), []);
+    connect(host, report(), []);
     expect(host.ofType('account_check')).toHaveLength(0);
-    expect(screen.getByTestId('welcome-account')).toHaveTextContent('JusPrin v1 wasn’t signed in on this computer.');
-    expect(screen.getByRole('button', { name: 'Continue with JusPrin' })).toBeInTheDocument();
+    expect(screen.getByTestId('welcome-account')).toHaveTextContent('Your first month: 500 credits');
+    expect(screen.getByTestId('welcome-account')).not.toHaveTextContent('original price');
+    expect(screen.getByRole('button', { name: 'Sign in for 500 credits' })).toHaveClass('primary');
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('secondary');
+  });
+
+  const account = (v1_subscription: unknown) => ({ account: { credits: { total: 500, lots: [] }, plan: null, v1_subscription } });
+
+  // Until billing moves v1 subscribers to Hobby (step 3 of the pricing plan),
+  // the gateway reporting a subscription must not make the app promise a price.
+  it('1d: promises no kept price yet, even when the account reports a v1 subscription', () => {
+    render(<WelcomeApp getTransport={() => host.transport} />);
+    connect(host, report(), [signedIn]);
+    host.deliver('account', account({ plan_id: 'jusprin-unlimited-monthly', cents: 699, period: 'month' }));
+    expect(screen.queryByTestId('welcome-kept-price')).toBeNull();
+    expect(screen.getByTestId('welcome-back')).not.toHaveTextContent('Hobby');
+    expect(screen.getByTestId('welcome-back')).not.toHaveTextContent('original');
+  });
+
+  describe('once the price carries over', () => {
+    const actions = { checkAccount: () => {}, signIn: () => {}, cancelSignIn: () => {}, close: () => {} };
+    const carriedOver = (subscription: WelcomeBackProps['subscription'], account: WelcomeBackProps['account']) =>
+      render(<WelcomeBack report={report()} account={account} status={{ phase: 'idle' }} actions={actions}
+        subscription={subscription} priceCarriesOver />);
+    const signedInKey = { provider: 'jusprin', account: 'kenneth@example.com' } as WelcomeBackProps['account'];
+
+    it('1d: a v1 subscriber is told they keep their price, with nothing to choose', () => {
+      carriedOver({ plan_id: 'jusprin-unlimited-monthly', cents: 699, period: 'month' }, signedInKey);
+      const box = screen.getByTestId('welcome-kept-price');
+      expect(box).toHaveTextContent('Hobby, at your original $6.99 a month');
+      expect(box).toHaveTextContent('750 credits a month.');
+      expect(box).toHaveTextContent('Plus 500 more for your first month.');
+      expect(box).toHaveTextContent('New subscribers pay $10. You keep this price while subscribed.');
+      expect(box.querySelector('button')).toBeNull();
+    });
+
+    it('1d: the annual plan names its own price', () => {
+      carriedOver({ plan_id: 'jusprin-unlimited-annual', cents: 5999, period: 'year' }, signedInKey);
+      expect(screen.getByTestId('welcome-kept-price')).toHaveTextContent('Hobby, at your original $59.99 a year');
+    });
+
+    it('1d: anyone else sees no price', () => {
+      carriedOver(null, signedInKey);
+      expect(screen.queryByTestId('welcome-kept-price')).toBeNull();
+    });
+
+    it('1c: tells someone not signed in what signing in means for a v1 subscriber', () => {
+      carriedOver(undefined, undefined);
+      expect(screen.getByTestId('welcome-account')).toHaveTextContent(
+        'Subscribed to JusPrin v1? You get these 500 credits and keep your original price, on the $10 Hobby plan.');
+    });
   });
 });

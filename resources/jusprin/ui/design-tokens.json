@@ -387,7 +387,18 @@
       "paddingX": 8,
       "paddingY": 4,
       "radius": 4,
+      "maxWidth": 320,
       "textRole": "metadata"
+    },
+    "credits": {
+      "ringSize": 16,
+      "ringButton": 24,
+      "panelWidth": 300,
+      "panelPadding": 12,
+      "barHeight": 4
+    },
+    "modelMenu": {
+      "width": 320
     },
     "timelineRevert": {
       "width": 320
@@ -477,6 +488,9 @@
     "printHistory": {
       "listWidth": 920
     },
+    "printReport": {
+      "thumbnailSize": 40
+    },
     "printerDialog": {
       "width": 500,
       "radius": 12,
@@ -487,6 +501,14 @@
     },
     "printerSetup": {
       "contentWidth": 720
+    },
+    "onboarding": {
+      "contentWidth": 1120,
+      "clipWidth": 620,
+      "clipHeight": 388,
+      "lockupHeight": 43,
+      "stepWidth": 520,
+      "codeCell": 48
     },
     "replyChip": {
       "height": 28,

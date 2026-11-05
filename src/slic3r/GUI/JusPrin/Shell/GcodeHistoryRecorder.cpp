@@ -455,6 +455,13 @@ void GcodeHistoryRecorder::export_kept_copy(const std::string& project_id, const
     });
 }
 
+void GcodeHistoryRecorder::record_report(const std::string& project_id, const std::string& hash, int credits)
+{
+    update_project(project_id, [&](Agent::ProjectStateDocument& document) {
+        document.set_gcode_report(hash, {m_persistence.timestamp(), credits});
+    });
+}
+
 std::vector<Home::LivePrint> live_prints()
 {
     std::vector<Home::LivePrint> live;

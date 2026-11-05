@@ -22,6 +22,11 @@ HomeHost::HomeHost(IHomeBackend& backend, Send send) : m_backend(backend), m_sen
 
 void HomeHost::reset_page() { m_connected = false; }
 
+json HomeHost::history_payload()
+{
+    return json{{"entries", m_backend.print_history()}, {"reportsOffered", m_backend.reports_offered()}};
+}
+
 void HomeHost::send(const std::string& type, const json& payload, const std::string& correlation)
 {
     json envelope{
@@ -38,7 +43,7 @@ void HomeHost::send(const std::string& type, const json& payload, const std::str
         m_send(envelope.dump());
 }
 
-Snapshot HomeHost::collect() const
+Snapshot HomeHost::collect()
 {
     Snapshot snapshot;
     snapshot.dark     = m_backend.dark();
@@ -46,6 +51,7 @@ Snapshot HomeHost::collect() const
     snapshot.projects = std::move(listed.projects);
     snapshot.projects_problem = std::move(listed.problem);
     snapshot.printers = ordered_printers();
+    snapshot.onboarding = m_backend.onboarding();
     return snapshot;
 }
 
@@ -110,7 +116,16 @@ bool HomeHost::refresh_if_changed()
     // Read again: a printer card's history line counts the projects' records,
     // which the backend reads with the projects.
     snapshot.printers = ordered_printers();
+    snapshot.onboarding = m_backend.onboarding();
     send_state(std::move(snapshot));
+    return true;
+}
+
+bool HomeHost::poll()
+{
+    if (!m_backend.poll_onboarding() || !m_connected)
+        return false;
+    send_state(collect());
     return true;
 }
 
@@ -215,7 +230,7 @@ void HomeHost::on_page_message(const std::string& text)
     else if (type == "open_preferences")
         m_backend.open_preferences();
     else if (type == "history_request")
-        send("history", json{{"entries", m_backend.print_history()}}, correlation);
+        send("history", history_payload(), correlation);
     else if (type == "history_back")
         m_backend.leave_print_history();
     else if (type == "open_in_chat")
@@ -228,10 +243,90 @@ void HomeHost::on_page_message(const std::string& text)
                                payload.value("beside", std::string()));
         // The export is a new row, and the file it was beside is checked
         // again with the rest.
-        send("history", json{{"entries", m_backend.print_history()}}, correlation);
+        send("history", history_payload(), correlation);
+    }
+    else if (type == "print_report_choose_photo") {
+        json reply = json::object();
+        if (const std::optional<PrintReportPhoto> photo = m_backend.choose_report_photo()) {
+            reply["photo"] = json{{"id", photo->id}, {"name", photo->name}, {"sizeBytes", photo->size_bytes}};
+            if (!photo->thumbnail.empty())
+                reply["photo"]["thumbnail"] = photo->thumbnail;
+        }
+        send("print_report_photo", reply, correlation);
+    }
+    else if (type == "print_report_send") {
+        const PrintReportForm form{payload.value("projectId", std::string()), payload.value("hash", std::string()),
+                                   payload.value("outcome", std::string()), payload.value("text", std::string()),
+                                   payload.value("photoId", std::string())};
+        m_backend.send_print_report(form, [this, alive = std::weak_ptr<void>(m_alive), hash = form.hash](const PrintReportAnswer& answer) {
+            if (alive.expired() || !m_connected)
+                return;
+            const char* state = answer.state == PrintReportAnswer::State::Sent        ? "sent" :
+                                answer.state == PrintReportAnswer::State::AlreadySent ? "already_sent" : "failed";
+            send("print_report_result", json{{"hash", hash}, {"state", state}, {"credits", answer.credits}});
+            send("history", history_payload());
+        });
     }
     else if (type == "add_printer") {
         m_backend.add_printer();
+        push_state();
+    }
+    else if (type == "onboarding_sign_in" || type == "onboarding_sign_in_cancel" || type == "onboarding_leave_welcome" ||
+             type == "onboarding_back" || type == "onboarding_start_fresh" || type == "agent_card_dismiss") {
+        if (type == "onboarding_sign_in")
+            m_backend.start_sign_in();
+        else if (type == "onboarding_sign_in_cancel")
+            m_backend.cancel_sign_in();
+        else if (type == "onboarding_leave_welcome")
+            m_backend.leave_welcome();
+        else if (type == "onboarding_back")
+            m_backend.back_to_welcome();
+        else if (type == "onboarding_start_fresh")
+            m_backend.start_fresh();
+        else
+            m_backend.dismiss_account_card();
+        push_state();
+    }
+    else if (type == "onboarding_sign_in_email" || type == "onboarding_sign_in_code" || type == "onboarding_sign_in_password" ||
+             type == "onboarding_sign_in_send_code" || type == "onboarding_sign_in_reopen" || type == "onboarding_open_link") {
+        if (type == "onboarding_sign_in_email")
+            m_backend.sign_in_with_email(payload.value("email", std::string()));
+        else if (type == "onboarding_sign_in_code")
+            m_backend.submit_sign_in_code(payload.value("code", std::string()));
+        else if (type == "onboarding_sign_in_password")
+            m_backend.submit_sign_in_password(payload.value("password", std::string()));
+        else if (type == "onboarding_sign_in_send_code")
+            m_backend.send_sign_in_code();
+        else if (type == "onboarding_sign_in_reopen")
+            m_backend.reopen_sign_in_browser();
+        else
+            m_backend.open_sign_in_link(payload.value("link", std::string()));
+        push_state();
+    }
+    else if (type == "onboarding_open_preferences") {
+        // Preferences opens on the frame's next turn; how it closed comes
+        // back through poll().
+        const std::string door = payload.value("door", std::string());
+        if (door == "key" || door == "tool")
+            m_backend.open_agent_door(door);
+    }
+    else if (type == "onboarding_import" || type == "onboarding_assume_default" || type == "onboarding_choose_orca_folder") {
+        const std::string problem = type == "onboarding_import"           ? m_backend.import_orca_printers()
+                                    : type == "onboarding_assume_default" ? m_backend.assume_default_printer()
+                                                                          : m_backend.choose_orca_folder();
+        if (!problem.empty())
+            send("onboarding_error", json{{"message", problem}}, correlation);
+        push_state();
+    }
+    else if (type == "onboarding_import_retry" || type == "onboarding_import_continue") {
+        if (type == "onboarding_import_retry")
+            m_backend.retry_orca_import();
+        else
+            m_backend.finish_orca_import();
+        push_state();
+    }
+    else if (type == "onboarding_printer_form") {
+        m_backend.printer_form_message(payload);
         push_state();
     }
     else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer" ||

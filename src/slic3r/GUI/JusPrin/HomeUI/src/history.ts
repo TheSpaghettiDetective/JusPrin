@@ -61,6 +61,30 @@ export function projectHistoryLine(history: HistorySummary, now: Date = new Date
   return `${history.exports === 1 ? 'Exported once' : `Exported ${history.exports} times`} · never printed`;
 }
 
+// What a print report earns, in the words of the button and the card's line.
+// The gateway's JUSPRIN_V2_REPORT_CREDITS decides what is granted; it has no way
+// to tell this page before a report is sent.
+export const REPORT_CREDITS = 25;
+export const REPORT_OFFER = `Tell us how it printed · ${REPORT_CREDITS} credits`;
+export const REPORT_MIN_TEXT = 200;
+
+// "Plate 1 · a71f 8c04 → Bambu X1C": what the report form is about. A G-code
+// that only went to a file names no printer.
+export function reportSubject(entry: HistoryEntry): string {
+  const sends = entry.destinations.filter((row) => row.kind === 'send');
+  const printer = entry.prints[entry.prints.length - 1]?.printerName ?? sends[sends.length - 1]?.printerName;
+  return `${entry.name} · ${shortHash(entry.hash)}${printer ? ` → ${printer}` : ''}`;
+}
+
+export function reportSentDetail(report: NonNullable<HistoryEntry['report']>, createdAt: string): string {
+  const when = rowTime(report.sentAt, createdAt);
+  return report.credits > 0 ? `${when} · ${report.credits} credits added` : when;
+}
+
+export function fileSize(bytes: number): string {
+  return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1_000))} KB`;
+}
+
 // A printer card's line: "12 prints · 1 printing now", "7 prints · last
 // finished Sun".
 export function printerHistoryLine(history: HistorySummary, now: Date = new Date()): string {

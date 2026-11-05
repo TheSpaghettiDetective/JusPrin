@@ -35,7 +35,6 @@ struct Report
     std::vector<std::string> presets;     // user filament and process presets
     std::vector<std::string> connections; // printers with a network connection
     bool                     preferences{false};
-    bool                     signed_in{false}; // v1's sign-in came along
     // Files that could not be copied, by their path inside v1's folder.
     std::vector<std::string> failed;
     // Still to be shown on the welcome-back screen.

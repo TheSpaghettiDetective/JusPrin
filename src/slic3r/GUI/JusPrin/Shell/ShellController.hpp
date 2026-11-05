@@ -161,11 +161,19 @@ public:
     // it is closed. `section` names where it opens (empty: Account). Its
     // Agent section is the one place the agent is set up: every surface that
     // finds none opens it there, and picks the agent up when it closes.
-    void open_preferences(const std::string& section = {});
+    // `closed`, when given, opens it for one task and hears how it ended: the
+    // window then closes itself once a verified key is saved ("key") or Done
+    // is pressed on an AI tool ("tool"), and `closed` gets that word, or an
+    // empty one when the person closed it first.
+    using PreferencesClosed = std::function<void(const std::string& done)>;
+    void open_preferences(const std::string& section = {}, PreferencesClosed closed = {});
     // Opens it on the frame's next turn, for a caller that must not run a
     // modal window itself (a web view's message handler, a key handler).
     // Requests that arrive before it opens open it once.
-    void request_preferences(const std::string& section = {});
+    void request_preferences(const std::string& section = {}, PreferencesClosed closed = {});
+    // The agent settings changed outside Preferences (Home's sign-in): the
+    // docked agent, and an open printer chat, pick them up.
+    void reload_agent_settings();
     // The window shown once after JusPrin v1's setup was imported at this
     // start (V1Import.hpp); returns once it is closed. Nothing when there is
     // no import still to show.

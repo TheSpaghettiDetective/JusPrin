@@ -34,6 +34,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ProviderAgent.hpp
     GUI/JusPrin/Agent/ProviderCodec.hpp
     GUI/JusPrin/Agent/ModelCatalog.cpp
+    GUI/JusPrin/Agent/RecordConversion.cpp
+    GUI/JusPrin/Agent/RecordConversion.hpp
     GUI/JusPrin/Agent/ModelCatalog.hpp
     GUI/JusPrin/Agent/ModelCatalogFetch.cpp
     GUI/JusPrin/Agent/ModelCatalogFetch.hpp
@@ -91,11 +93,15 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/ProjectStatus.hpp
     GUI/JusPrin/Home/PrintHistory.cpp
     GUI/JusPrin/Home/PrintHistory.hpp
+    GUI/JusPrin/Home/OnboardingModel.cpp
+    GUI/JusPrin/Home/OnboardingModel.hpp
     GUI/JusPrin/Home/HomeBackend.hpp
     GUI/JusPrin/Home/HomeHost.cpp
     GUI/JusPrin/Home/HomeHost.hpp
     GUI/JusPrin/Home/OrcaHomeBackend.cpp
     GUI/JusPrin/Home/OrcaHomeBackend.hpp
+    GUI/JusPrin/Home/OrcaImport.cpp
+    GUI/JusPrin/Home/OrcaImport.hpp
     GUI/JusPrin/Home/HomeWebView.cpp
     GUI/JusPrin/Home/HomeWebView.hpp
     GUI/JusPrin/Home/MonitorWindow.cpp

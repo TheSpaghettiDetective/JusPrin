@@ -68,6 +68,32 @@ void request_page(std::shared_ptr<Fetch> fetch, const std::string& after)
 
 } // namespace
 
+void fetch_account(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
+                   std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<nlohmann::json>)> done)
+{
+    auto finished = std::make_shared<std::function<void(std::optional<nlohmann::json>)>>(std::move(done));
+    auto http     = Slic3r::Http::get(account_url(profile, endpoint_override));
+    http.header("Authorization", "Bearer " + api_key);
+    for (const AgentHttpHeader& header : profile.headers)
+        http.header(header.name, header.value);
+    http.header("Accept", "application/json")
+        .tls_verify(true)
+        .timeout_connect(10)
+        .timeout_max(30)
+        .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
+        .on_complete([cancelled, finished](std::string body, unsigned status) {
+            if (*cancelled)
+                return;
+            nlohmann::json response = nlohmann::json::parse(body, nullptr, false);
+            (*finished)(status == 200 && response.is_object() ? std::optional<nlohmann::json>(std::move(response)) : std::nullopt);
+        })
+        .on_error([cancelled, finished](std::string, std::string, unsigned) {
+            if (!*cancelled)
+                (*finished)(std::nullopt);
+        })
+        .perform();
+}
+
 void fetch_model_list(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
                       std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(ModelListResult)> done)
 {

@@ -7,7 +7,7 @@ import { SetupCard } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
-import { Composer } from './components/Composer';
+import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
 import { AddPrinterForm } from './components/AddPrinterForm';
 import { printerInstructions } from './printerInstructions';
@@ -106,6 +106,7 @@ export function App({
   // replaces it can start from there.
   const offerRef = useRef<HTMLDivElement>(null);
   const offerRect = useRef<DOMRect | null>(null);
+  const [lowNoticeDone, setLowNoticeDone] = useState(false);
   useLayoutEffect(() => { offerRect.current = offerRef.current?.getBoundingClientRect() ?? null; });
 
   const client = useMemo(() => {
@@ -138,6 +139,13 @@ export function App({
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
+
+  // Coming back from the browser, where credits may have been bought.
+  useEffect(() => {
+    const refresh = () => client.send('refresh_account', {});
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [client]);
 
   // The shell's own Ctrl+, cannot see keys while this page has the focus.
   // The printer conversation has no shell behind it that would answer.
@@ -393,7 +401,9 @@ export function App({
   // inert composer instead.
   const setupBar = unavailable && !notConfigured;
   const streaming = state.streamingMessageId !== null;
-  const started = state.messages.some((message) => message.role === 'user');
+  // A message the gateway refused is back in the box, not in the thread.
+  const threadMessages = state.messages.filter((message) => !message.returned);
+  const started = threadMessages.some((message) => message.role === 'user');
   const choicesOffered = openChoices(state.messages).length > 0;
   const busy = streaming || state.conversationBusy || state.projectChatBlocked;
   const viewedChat = state.conversations.find((chat) => chat.id === viewedId);
@@ -460,6 +470,15 @@ export function App({
     state.messages.some((message) => message.id === activity.correlationId) &&
     activity.state === 'running');
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
+  const getMoreCredits = () => client.send('shell_action', { action: 'open_pricing' });
+  const creditActions = { onGetMore: getMoreCredits };
+  const composerCredits: ComposerCredits = {
+    account: state.creditAccount,
+    lowNoticeDone,
+    onLowNoticeDone: () => setLowNoticeDone(true),
+    onGetMore: getMoreCredits,
+    onSeeUsage: () => client.send('shell_action', { action: 'open_preferences', section: 'account' }),
+  };
   // A marker's history link opens the Print history at its G-code.
   const markerActions = {
     onHistory: (hash: string) => client.send('shell_action', { action: 'open_print_history', hash }),
@@ -497,7 +516,8 @@ export function App({
       return (
         <MessageList
           key={`messages-${state.context?.sessionId}-${viewedId}`}
-          messages={state.messages}
+          messages={threadMessages}
+          creditActions={creditActions}
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
@@ -578,7 +598,8 @@ export function App({
             body()
           ) : (
             <MessageList
-              messages={state.messages}
+              messages={threadMessages}
+          creditActions={creditActions}
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
               onSend={sendMessage}
@@ -625,6 +646,8 @@ export function App({
               models={state.modelCatalog}
               chatModel={state.chatModel}
               onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
+              credits={composerCredits}
+              returnedDraft={state.returnedDraft}
             />
           )}
         </div>
@@ -705,6 +728,8 @@ export function App({
         models={state.modelCatalog}
         chatModel={state.chatModel}
         onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
+              credits={composerCredits}
+              returnedDraft={state.returnedDraft}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}

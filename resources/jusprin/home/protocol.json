@@ -6,7 +6,8 @@
     "printers",
     "appearance",
     "project_actions",
-    "printer_actions"
+    "printer_actions",
+    "onboarding"
   ],
   "pageMessageTypes": [
     "hello",
@@ -28,7 +29,28 @@
     "history_back",
     "open_in_chat",
     "export_gcode",
-    "print_again"
+    "print_again",
+    "print_report_choose_photo",
+    "print_report_send",
+    "onboarding_sign_in",
+    "onboarding_sign_in_cancel",
+    "onboarding_sign_in_email",
+    "onboarding_sign_in_code",
+    "onboarding_sign_in_password",
+    "onboarding_sign_in_send_code",
+    "onboarding_sign_in_reopen",
+    "onboarding_open_link",
+    "onboarding_open_preferences",
+    "onboarding_leave_welcome",
+    "onboarding_back",
+    "onboarding_start_fresh",
+    "onboarding_import",
+    "onboarding_import_retry",
+    "onboarding_import_continue",
+    "onboarding_choose_orca_folder",
+    "onboarding_assume_default",
+    "onboarding_printer_form",
+    "agent_card_dismiss"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -38,9 +60,12 @@
     "printers",
     "appearance",
     "printer_error",
+    "onboarding_error",
     "bridge_error",
     "confirm",
     "screen",
-    "history"
+    "history",
+    "print_report_photo",
+    "print_report_result"
   ]
 }

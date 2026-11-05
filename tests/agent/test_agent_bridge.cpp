@@ -339,7 +339,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
@@ -359,7 +359,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
-                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus});
+                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
@@ -2106,6 +2106,8 @@ struct FakeModelSource final : IChatModelSource
         return std::make_unique<DeterministicMockAgent>();
     }
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
+    AccountDone account_done;
+    void fetch_account(AccountDone done) override { account_done = std::move(done); }
     // An account's aliases and the format each is served in now.
     std::map<std::string, std::string> formats;
     std::string model_format(const std::string& provider, const std::string& model) const override
@@ -2346,6 +2348,215 @@ TEST_CASE("a chat that has talked refuses a model in another wire format", "[age
         CHECK(h.last_of_type("assistant_failed") == nullptr);
         CHECK(source->built.back().provider == "anthropic");
     }
+}
+
+namespace {
+
+// The account's two aliases, as GET /models lists them.
+std::vector<ModelOption> account_aliases()
+{
+    ModelOption standard{"slicer-basic", "Standard", {}, ""};
+    standard.tier    = "basic";
+    standard.credits = 1;
+    standard.images  = false;
+    ModelOption expert{"slicer-1", "Expert", {"fast", "thorough"}, "thorough"};
+    expert.tier    = "expert";
+    expert.credits = 5;
+    return {standard, expert};
+}
+
+// The newest request of a built agent's that is a turn of the chat: a finished
+// turn also asks for a title.
+const AgentRequest& last_reply(const FakeModelSource& source)
+{
+    const std::vector<AgentRequest>& requests = source.built_recording.back()->requests;
+    return *std::find_if(requests.rbegin(), requests.rend(),
+                         [](const AgentRequest& request) { return request.purpose == AgentRequest::Purpose::Reply; });
+}
+
+std::shared_ptr<FakeModelSource> account_source()
+{
+    auto source       = std::make_shared<FakeModelSource>();
+    source->providers = {"jusprin"};
+    source->fallback  = "jusprin";
+    source->recording = true;
+    source->formats["slicer-1"]     = "anthropic";
+    source->formats["slicer-basic"] = "responses";
+    return source;
+}
+
+} // namespace
+
+TEST_CASE("a turn the app started runs on Expert and does not fix the chat's model", "[agent][models][account]")
+{
+    Harness h;
+    auto source = account_source();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    source->asked["jusprin"](true, account_aliases());
+    const std::string chat = h.persistence.document().active_conversation_id();
+
+    SECTION("in a fresh chat the next message from the person sets it")
+    {
+        h.host.on_file_loaded(prusa_open());
+        h.pump_all();
+        REQUIRE_FALSE(source->built.empty());
+        CHECK(source->built.back() == ChatModelChoice{"jusprin", "slicer-1", "thorough", "anthropic"});
+        REQUIRE_FALSE(source->built_recording.empty());
+        CHECK(last_reply(*source).app_started);
+        CHECK(last_reply(*source).model_reads_pictures);
+        CHECK_FALSE(h.persistence.document().chat_model(chat));
+
+        h.deliver("set_chat_model", json{{"provider", "jusprin"}, {"model", "slicer-basic"}, {"effort", "fast"}});
+        h.send_user_message("Set it up", "c-1");
+        h.pump_all();
+        CHECK(source->built.back() == ChatModelChoice{"jusprin", "slicer-basic", "fast", "responses"});
+        CHECK_FALSE(last_reply(*source).app_started);
+        CHECK(h.persistence.document().chat_model(chat) == ChatModelChoice{"jusprin", "slicer-basic", "fast", "responses"});
+    }
+    SECTION("a chat on Standard stays on Standard, and its messages leave out the picture tools")
+    {
+        h.deliver("set_chat_model", json{{"provider", "jusprin"}, {"model", "slicer-basic"}, {"effort", "fast"}});
+        h.send_user_message("Set it up", "c-1");
+        h.pump_all();
+        CHECK_FALSE(last_reply(*source).model_reads_pictures);
+        const std::optional<ChatModelChoice> kept = h.persistence.document().chat_model(chat);
+
+        h.host.on_file_loaded(prusa_open());
+        h.pump_all();
+        CHECK(source->built.back().model == "slicer-1");
+        CHECK(last_reply(*source).app_started);
+        CHECK(h.persistence.document().chat_model(chat) == kept);
+
+        h.send_user_message("And now?", "c-2");
+        h.pump_all();
+        CHECK(h.last_of_type("assistant_failed") == nullptr);
+        CHECK(source->built.back().model == "slicer-basic");
+    }
+}
+
+TEST_CASE("a new chat on the account is on Expert in the first month and on Standard after it", "[agent][models][account]")
+{
+    Harness h;
+    auto source = account_source();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    source->asked["jusprin"](true, account_aliases());
+    REQUIRE(source->account_done);
+    const auto account = [](const char* kind) {
+        return json{{"credits", {{"total", 50}, {"lots", json::array({json{{"kind", kind}, {"credits", 50}}})}}}};
+    };
+    const auto shown = [&h] { return (*h.last_of_type("chat_model"))["payload"]["chatModel"]; };
+    const std::string chat = h.persistence.document().active_conversation_id();
+
+    SECTION("in the first month")
+    {
+        source->account_done(account("signup"));
+        CHECK(shown()["model"] == "slicer-1");
+    }
+    SECTION("after it, the page is told and the first message fixes it")
+    {
+        source->account_done(account("free"));
+        CHECK(shown() == json{{"provider", "jusprin"}, {"model", "slicer-basic"}, {"effort", ""}});
+        h.send_user_message("hello", "c-1");
+        REQUIRE(h.persistence.document().chat_model(chat));
+        CHECK(h.persistence.document().chat_model(chat)->model == "slicer-basic");
+        CHECK(h.persistence.document().chat_model(chat)->format == "responses");
+    }
+    SECTION("a chat already on a model keeps it")
+    {
+        h.deliver("set_chat_model", json{{"provider", "jusprin"}, {"model", "slicer-1"}, {"effort", "thorough"}});
+        source->account_done(account("free"));
+        CHECK(shown()["model"] == "slicer-1");
+    }
+}
+
+TEST_CASE("the catalog carries an account model's tier, price and whether it sees pictures", "[agent][models][account]")
+{
+    Harness h;
+    auto source = account_source();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    source->asked["jusprin"](true, account_aliases());
+    const json* catalog = h.last_of_type("model_catalog");
+    REQUIRE(catalog != nullptr);
+    const json& models = (*catalog)["payload"]["providers"][0]["models"];
+    CHECK(models[0]["tier"] == "basic");
+    CHECK(models[0]["credits"] == 1);
+    CHECK(models[0]["images"] == false);
+    CHECK(models[1]["tier"] == "expert");
+    CHECK(models[1]["credits"] == 5);
+    CHECK_FALSE(models[1].contains("images"));
+}
+
+namespace {
+
+// The gateway's answer when the credits ran out between the check and the send.
+class CreditRefusingAgent final : public IAgentService
+{
+public:
+    bool ready() const override { return true; }
+    bool busy() const override { return !events.empty(); }
+    bool start(const AgentRequest& request) override
+    {
+        requests.push_back(request);
+        if (refuse)
+            events.push_back(AgentEvent::failed(AgentError{"credits_exhausted", "This message needs 5 credits; you have 3.", false}));
+        else
+            events.push_back(AgentEvent::completed());
+        return true;
+    }
+    bool continue_after_tool(const AgentToolResult&) override { return false; }
+    void cancel() override { events.clear(); }
+    std::optional<AgentEvent> poll() override
+    {
+        if (events.empty())
+            return std::nullopt;
+        AgentEvent event = std::move(events.front());
+        events.pop_front();
+        return event;
+    }
+
+    bool                      refuse{true};
+    std::vector<AgentRequest> requests;
+    std::deque<AgentEvent>    events;
+};
+
+} // namespace
+
+TEST_CASE("a message the credits could not pay for goes back to the message box", "[agent][account]")
+{
+    auto owner = std::make_unique<CreditRefusingAgent>();
+    CreditRefusingAgent* agent = owner.get();
+    Harness h{AgentServicePtr(std::move(owner))};
+    h.handshake();
+    const std::string chat = h.persistence.document().active_conversation_id();
+
+    h.send_user_message("The tip curled up", "c-1");
+    h.pump_all();
+
+    const json* failed = h.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["message"] == "This message needs 5 credits; you have 3.");
+    CHECK((*failed)["payload"]["returnedText"] == "The tip curled up");
+    CHECK(h.persistence.draft() == "The tip curled up");
+
+    const std::vector<ConversationMessage> messages = h.persistence.document().messages(chat);
+    const auto person = std::find_if(messages.begin(), messages.end(),
+                                     [](const ConversationMessage& message) { return message.role == MessageRole::User; });
+    REQUIRE(person != messages.end());
+    CHECK(person->returned);
+
+    // The model never reads it as a message it missed.
+    agent->refuse = false;
+    h.send_user_message("Try again", "c-2");
+    h.pump_all();
+    const auto reply = std::find_if(agent->requests.rbegin(), agent->requests.rend(), [](const AgentRequest& request) {
+        return request.purpose == AgentRequest::Purpose::Reply;
+    });
+    REQUIRE(reply != agent->requests.rend());
+    CHECK(reply->unsent.empty());
+    CHECK(reply->user_text == "Try again");
 }
 
 TEST_CASE("a turn whose provider cannot be built fails with the reason", "[agent][models]")
@@ -4033,9 +4244,9 @@ public:
     bool continue_after_tool(const AgentToolResult& result) override
     {
         results.push_back(result);
-        // Optionally one more call before the reply.
-        if (then_call && !then_called) {
-            then_called = true;
+        // Optionally more calls before the reply.
+        if (then_call && then_called < then_times) {
+            ++then_called;
             JusPrinTest::keep(turn, {JusPrinTest::kept_result(result),
                                      JusPrinTest::kept_call("call-then", then_call->tool, then_call->arguments_json)});
             events.push_back(AgentEvent::tool_call({"call-then", *then_call, true}));
@@ -4065,7 +4276,8 @@ public:
     bool                         active{false};
     bool                         called{false};
     std::optional<ToolRequest>   then_call;
-    bool                         then_called{false};
+    int                          then_called{0};
+    int                          then_times{1};
 };
 
 // A model file in a folder of its own, removed with it even when a REQUIRE
@@ -4823,6 +5035,37 @@ TEST_CASE("a slice that ends during the model's turn is told when the turn ends,
         CHECK(chat.notes().empty());
         CHECK(chat.app_turns().empty());
     }
+}
+
+TEST_CASE("a model polling the slice its turn started is told to finish, and the third time the turn ends", "[agent][slicing]")
+{
+    ModelSlice chat;
+    chat.agent->then_call  = ToolRequest{"workspace_inspect", R"({"sections":["slicing"]})"};
+    chat.agent->then_times = 5;
+    chat.harness->send_user_message("Slice it.", "c-slice");
+    for (int round = 0; round < 8; ++round) {
+        chat.harness->host.pump_stream();
+        pump_tools_to_completion(*chat.harness);
+    }
+    chat.harness->pump_all();
+
+    // slice_start, then three refused polls; the fourth poll never ran.
+    REQUIRE(chat.agent->results.size() == 4);
+    for (int refused = 1; refused <= 3; ++refused) {
+        const json output = json::parse(chat.agent->results[refused].output_json);
+        CHECK(output["error"]["code"] == "busy");
+        CHECK_THAT(output["error"]["message"].get<std::string>(), Catch::Matchers::ContainsSubstring("Finish your reply."));
+    }
+    CHECK_FALSE(chat.harness->host.stream_active());
+    CHECK(chat.harness->workspace.snapshot().slicing.running);
+
+    // The note turn still runs when the slice ends.
+    CHECK(chat.notes().empty());
+    chat.harness->workspace.finish_slice_for_testing(true);
+    chat.tick();
+    chat.tick();
+    CHECK(chat.notes().size() == 1);
+    CHECK(chat.app_turns().size() == 1);
 }
 
 TEST_CASE("a slice that ends during another turn is told after it", "[agent][slicing]")

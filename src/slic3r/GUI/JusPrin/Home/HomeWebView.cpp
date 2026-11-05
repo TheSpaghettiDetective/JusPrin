@@ -45,9 +45,10 @@ wxString home_page_url()
 } // namespace
 
 HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& frame)
-    : wxPanel(parent, wxID_ANY), m_theme(theme), m_live_timer(this)
+    : wxPanel(parent, wxID_ANY), m_theme(theme), m_live_timer(this), m_poll_timer(this)
 {
     Bind(wxEVT_TIMER, &HomeWebView::on_live_tick, this, m_live_timer.GetId());
+    Bind(wxEVT_TIMER, &HomeWebView::on_poll_tick, this, m_poll_timer.GetId());
     m_backend = std::make_unique<OrcaHomeBackend>(frame);
     m_host    = std::make_unique<HomeHost>(*m_backend, [this](const std::string& envelope) {
         if (m_webview == nullptr)
@@ -93,6 +94,7 @@ HomeWebView::~HomeWebView()
     // destruction order; drop the host first so it cannot run script against a
     // dying view, then the backend it reads through.
     m_live_timer.Stop();
+    m_poll_timer.Stop();
     m_host.reset();
     m_backend.reset();
 }
@@ -110,11 +112,16 @@ void HomeWebView::refresh(const std::string& added) { m_host->push_state(added);
 
 void HomeWebView::set_live(bool live)
 {
-    if (!live)
+    if (!live) {
         m_live_timer.Stop();
-    else if (!m_live_timer.IsRunning())
+        m_poll_timer.Stop();
+    } else if (!m_live_timer.IsRunning()) {
         m_live_timer.Start(1000);
+        m_poll_timer.Start(100);
+    }
 }
+
+void HomeWebView::on_poll_tick(wxTimerEvent&) { m_host->poll(); }
 
 void HomeWebView::on_live_tick(wxTimerEvent&)
 {

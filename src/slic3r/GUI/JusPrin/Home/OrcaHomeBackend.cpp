@@ -14,26 +14,46 @@
 #include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/V1Import/V1Import.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/SelectMachinePop.hpp"
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PrinterOrigin.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.hpp"
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
+#include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/V1Import/V1Import.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
+#include "libslic3r_version.h"
+#include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
+#include "slic3r/Utils/Http.hpp"
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
 #include <wx/datetime.h>
+#include <wx/dirdlg.h>
 #include <wx/filedlg.h>
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <nlohmann/json.hpp>
+#include <wx/base64.h>
+#include <wx/image.h>
+#include <wx/log.h>
+#include <wx/mstream.h>
 #include <wx/msgdlg.h>
+#include <wx/utils.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
@@ -44,6 +64,13 @@
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
 namespace {
+
+// How long a project card keeps asking how a finished print came out (board
+// 8d). The design session's guess; open in the design doc.
+constexpr int  kReportOfferDays       = 14;
+constexpr int  kReportThumbnailPixels = 96;
+// A photo of tens of megabytes over a slow uplink.
+constexpr long kReportUploadSeconds   = 300;
 
 // Upstream's own predicate, not a copy of it. The first version of this listed
 // RUNNING, PAUSE and SLICING and left out PREPARE, so a printer that was
@@ -67,6 +94,71 @@ const wxString& middle_dot()
 // whether a name is a printer or a device serial.
 const std::string kNamedPrefix  = "named:";
 const std::string kDevicePrefix = "device:";
+const char* const kOnboardingSection = "jusprin_onboarding";
+
+bool config_true(const AppConfig* config, const char* key)
+{
+    if (config == nullptr)
+        return false;
+    const std::string value = config->get(kOnboardingSection, key);
+    return value == "true" || value == "1";
+}
+
+// The printer first run installed for a person who skipped choosing one, by
+// the name it was saved under; Home marks its card "assumed".
+const char* const kAssumedPrinter = "assumed_printer";
+// Home's Agent group showed the account's credits and the person closed it.
+const char* const kAccountCardDismissed = "account_card_dismissed";
+
+// The OrcaSlicer folder the Printers step offers: the one the person picked,
+// or OrcaSlicer's own data folder beside JusPrin's.
+struct OrcaProfileSource
+{
+    std::string     root;
+    OrcaPresetFiles presets;
+};
+
+OrcaProfileSource detect_orca_profiles(const std::optional<std::filesystem::path>& picked)
+{
+    namespace fs = std::filesystem;
+    OrcaProfileSource source;
+    std::optional<fs::path> account;
+    if (picked) {
+        source.root = picked->u8string();
+        account     = orca_account_folder_for_pick(*picked);
+    } else {
+        const fs::path data = fs::u8path(data_dir());
+        const fs::path root = data.parent_path() / "OrcaSlicer";
+        std::error_code error;
+        if (!fs::is_directory(root, error) || root == data)
+            return source;
+        source.root = root.u8string();
+        account     = orca_account_folder(root);
+    }
+    if (account)
+        source.presets = scan_orca_presets(*account);
+    return source;
+}
+
+PresetCollection& preset_collection(PresetBundle& presets, OrcaImportItem::Kind kind)
+{
+    switch (kind) {
+    case OrcaImportItem::Kind::Filament: return presets.filaments;
+    case OrcaImportItem::Kind::Process: return presets.prints;
+    case OrcaImportItem::Kind::Printer: break;
+    }
+    return presets.printers;
+}
+
+const char* to_string(OrcaImportItem::Kind kind)
+{
+    switch (kind) {
+    case OrcaImportItem::Kind::Filament: return "filament";
+    case OrcaImportItem::Kind::Process: return "process";
+    case OrcaImportItem::Kind::Printer: break;
+    }
+    return "printer";
+}
 
 // The rest of `id` after `prefix`, or nothing when it has another prefix.
 std::optional<std::string> strip(const std::string& id, const std::string& prefix)
@@ -358,6 +450,526 @@ OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame)
 
 bool OrcaHomeBackend::dark() const { return wxGetApp().dark_mode(); }
 
+OnboardingProgress OrcaHomeBackend::onboarding_progress() const
+{
+    OnboardingProgress progress;
+    const AppConfig* config = wxGetApp().app_config;
+    if (config == nullptr)
+        return progress;
+    // "dismissed" is the earlier onboarding's way out, and as done as finishing.
+    const std::string status = config->get(kOnboardingSection, "status");
+    progress.status          = status == "completed" || status == "dismissed" ? OnboardingStatus::Completed :
+                                                                                OnboardingStatus::Unfinished;
+    progress.welcome_left   = config_true(config, "welcome_left");
+    progress.fresh_start    = config_true(config, "fresh_start");
+    progress.printer_chosen = config_true(config, "printer_chosen");
+    return progress;
+}
+
+void OrcaHomeBackend::set_autosave(Workspace::ProjectAutosave* autosave)
+{
+    m_autosave = autosave;
+    AppConfig* config = wxGetApp().app_config;
+    if (m_autosave == nullptr || config == nullptr || !config->get(kOnboardingSection, "status").empty())
+        return;
+    // Someone who used JusPrin before first run existed has nothing to be
+    // welcomed to. Decided here, before a file opened at launch is saved as
+    // a project; a JusPrin v1 import is welcomed like a new install.
+    const auto managed = m_autosave->projects();
+    if (managed && !managed->empty() && !V1Import::read_report(std::filesystem::u8path(data_dir())).has_value())
+        complete_onboarding();
+}
+
+OnboardingFacts OrcaHomeBackend::onboarding_facts() const
+{
+    OnboardingFacts facts;
+    facts.v1_imported = V1Import::read_report(std::filesystem::u8path(data_dir())).has_value();
+    if (const PresetBundle* presets = wxGetApp().preset_bundle)
+        facts.printer_from_file = Printers::printer_from_file(presets->printers.get_selected_preset());
+    facts.import_result_open = m_import_result.has_value();
+    return facts;
+}
+
+bool OrcaHomeBackend::agent_configured() const
+{
+    const AppConfig* config = wxGetApp().app_config;
+    return config != nullptr && (config->get("jusprin_agent", "enabled") == "true" || config_true(config, "tool_connected"));
+}
+
+void OrcaHomeBackend::save_onboarding(const OnboardingProgress& progress)
+{
+    AppConfig* config = wxGetApp().app_config;
+    if (config == nullptr)
+        return;
+    // AppConfig::set takes a string or a bool, and a const char* goes to the bool.
+    config->set(kOnboardingSection, "status", std::string(to_string(progress.status)));
+    config->set(kOnboardingSection, "welcome_left", progress.welcome_left);
+    config->set(kOnboardingSection, "fresh_start", progress.fresh_start);
+    config->set(kOnboardingSection, "printer_chosen", progress.printer_chosen);
+    config->save();
+}
+
+void OrcaHomeBackend::complete_onboarding()
+{
+    OnboardingProgress progress = onboarding_progress();
+    if (progress.status != OnboardingStatus::Unfinished)
+        return;
+    progress.status = OnboardingStatus::Completed;
+    save_onboarding(progress);
+}
+
+// The add-printer form on the Printers step: the printer panel's own form and
+// the conversation that owns it, with no thread around it. What the form
+// would tell the model has no one to read it here, and no turn starts.
+class OrcaHomeBackend::PrinterFormSession final : public PrinterSetup::IConversationHost
+{
+public:
+    explicit PrinterFormSession(OrcaHomeBackend& owner)
+        : m_owner(owner)
+        , m_backend(*wxGetApp().plater(), PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()))
+        , m_conversation(m_backend, *this)
+    {
+        m_conversation.start(PrinterSetup::ConversationMode::Add);
+        m_conversation.handle_page_message("printer_action", nlohmann::json{{"action", "manual_setup"}});
+    }
+
+    PrinterSetup::PrinterConversation& conversation() { return m_conversation; }
+    nlohmann::json form() const { return m_conversation.state_json().value("form", nlohmann::json()); }
+
+    // No thread and no model: no messages, and no tool call to finish.
+    nlohmann::json chat_record() const override
+    {
+        nlohmann::json record = PrinterSetup::connection_chat_record({}, {});
+        record["app"]         = SLIC3R_VERSION;
+        return record;
+    }
+    bool finish_tool(const std::string&, const Agent::ToolExecutionCoordinator::ExtensionResult&) override { return false; }
+    bool update_tool(const std::string&, const std::string&, bool) override { return false; }
+    bool open_in_browser(const std::string& url) override { return wxLaunchDefaultBrowser(wxString::FromUTF8(url)); }
+    std::string app_version() const override { return SLIC3R_VERSION; }
+    std::string post_note(const std::string&) override { return "home-note-" + std::to_string(++m_notes); }
+    std::string post_opening(const std::string&) override { return "home-note-" + std::to_string(++m_notes); }
+    void        start_turn() override {}
+    void        session_changed() override { m_owner.m_onboarding_changed = true; }
+    void        profile_changed() override {}
+    void        close_panel() override {}
+    void        printers_changed(const std::string& added) override
+    {
+        if (!added.empty())
+            m_owner.printer_chosen();
+    }
+
+private:
+    OrcaHomeBackend&                  m_owner;
+    PrinterSetup::OrcaPrinterBackend  m_backend;
+    PrinterSetup::PrinterConversation m_conversation;
+    unsigned                          m_notes{0};
+};
+
+void OrcaHomeBackend::printer_chosen()
+{
+    OnboardingProgress progress = onboarding_progress();
+    progress.printer_chosen     = true;
+    save_onboarding(progress);
+    m_onboarding_changed = true;
+}
+
+Agent::ICloudSignIn& OrcaHomeBackend::sign_in()
+{
+    if (!m_sign_in)
+        m_sign_in = Agent::make_cloud_sign_in(wxGetApp().app_config);
+    return *m_sign_in;
+}
+
+void OrcaHomeBackend::request_account()
+{
+    if (!m_models) {
+        std::weak_ptr<void> alive = m_alive;
+        m_models = Agent::make_chat_model_source(wxGetApp().app_config, [alive](std::function<void()> run) {
+            wxGetApp().CallAfter([alive, run = std::move(run)] {
+                if (!alive.expired())
+                    run();
+            });
+        });
+    }
+    m_account_requested = true;
+    m_models->fetch_account([this](std::optional<nlohmann::json> account) {
+        m_account            = account ? std::move(*account) : nlohmann::json();
+        m_onboarding_changed = true;
+    });
+}
+
+Snapshot::Onboarding OrcaHomeBackend::onboarding()
+{
+    Snapshot::Onboarding state;
+    state.progress = onboarding_progress();
+    state.facts    = onboarding_facts();
+    state.step     = next_onboarding_step(state.progress, state.facts);
+    // Home is on screen: the sequence is over.
+    if (state.step == OnboardingStep::Hidden && state.progress.status == OnboardingStatus::Unfinished) {
+        complete_onboarding();
+        state.progress.status = OnboardingStatus::Completed;
+    }
+
+    if (state.step == OnboardingStep::Printers) {
+        // Read only on the Printers step: this runs on every Home refresh.
+        OrcaProfileSource source   = detect_orca_profiles(m_picked_orca);
+        state.facts.orca_printers  = !source.presets.printers.empty();
+        state.printers_screen      = printers_screen(state.progress, state.facts);
+        if (state.printers_screen == PrintersScreen::OrcaImport) {
+            state.orca_source    = source.root;
+            state.orca_printers  = std::move(source.presets.printers);
+            state.orca_filaments = int(source.presets.filaments.size());
+        }
+        if (m_import_result)
+            state.import_result = import_result_lines(*m_import_result);
+    }
+    const bool form_shown = state.step == OnboardingStep::Printers && state.printers_screen == PrintersScreen::AddPrinter;
+    if (form_shown && !m_printer_form)
+        m_printer_form = std::make_unique<PrinterFormSession>(*this);
+    else if (!form_shown)
+        m_printer_form.reset();
+    if (m_printer_form)
+        state.printer_form = m_printer_form->form();
+
+    const AppConfig* config = wxGetApp().app_config;
+    const auto account      = sign_in().account();
+    state.account_email     = account ? account->email : std::string();
+    switch (sign_in().phase()) {
+    case Agent::CloudSignInPhase::Browser: state.sign_in = "browser"; break;
+    case Agent::CloudSignInPhase::Email: state.sign_in = "email"; break;
+    case Agent::CloudSignInPhase::Checking: state.sign_in = "checking"; break;
+    case Agent::CloudSignInPhase::Idle: state.sign_in = "idle"; break;
+    }
+    if (const std::optional<Agent::CloudEmailStep> email = sign_in().email_step()) {
+        using Step = Agent::CloudEmailStep::Step;
+        state.email_step = Snapshot::Onboarding::EmailStep{email->step == Step::Code ? "code" : "choose", email->email,
+                                                            email->busy, email->refusal, email->code_resent};
+    }
+    state.sign_in_error    = m_sign_in_error;
+    state.agent_configured = agent_configured();
+    state.agent_card       = home_agent_card(state.agent_configured, !state.account_email.empty(),
+                                             config_true(config, kAccountCardDismissed));
+    // The credits the welcome's card and Home's account group show.
+    if (!state.account_email.empty() && !m_account_requested)
+        request_account();
+    state.account = m_account;
+    return state;
+}
+
+bool OrcaHomeBackend::poll_onboarding()
+{
+    if (m_sign_in && m_sign_in->phase() != Agent::CloudSignInPhase::Idle) {
+        const Agent::CloudSignInPhase before = m_sign_in->phase();
+        // The email steps move within one phase: a code asked for, refused, sent again.
+        const std::optional<Agent::CloudEmailStep> email_before = m_sign_in->email_step();
+        const std::optional<Agent::CloudSignInOutcome> outcome = m_sign_in->poll();
+        m_onboarding_changed = m_onboarding_changed || m_sign_in->phase() != before || m_sign_in->email_step() != email_before;
+        if (outcome) {
+            m_onboarding_changed = true;
+            switch (outcome->kind) {
+            case Agent::CloudSignInOutcome::Kind::SignedIn:
+                m_sign_in_error = outcome->saved ? std::string() :
+                                                   utf8(_L("This sign-in could not be saved, so you will have to sign in again next time "
+                                                           "JusPrin starts."));
+                // The docked agent runs on the account from now on.
+                if (ShellController* shell = installed_shell())
+                    shell->reload_agent_settings();
+                request_account();
+                break;
+            case Agent::CloudSignInOutcome::Kind::Expired:
+                m_sign_in_error = utf8(_L("That sign-in expired. Try again."));
+                break;
+            case Agent::CloudSignInOutcome::Kind::Failed:
+                m_sign_in_error = outcome->error.message.empty() ? utf8(_L("JusPrin couldn't sign you in. Try again.")) :
+                                                                   outcome->error.message;
+                break;
+            }
+        }
+    }
+    if (m_printer_form)
+        m_printer_form->conversation().tick(std::chrono::steady_clock::now());
+    return std::exchange(m_onboarding_changed, false);
+}
+
+void OrcaHomeBackend::start_sign_in()
+{
+    m_sign_in_error.clear();
+    Agent::ICloudSignIn& cloud = sign_in();
+    if (cloud.phase() != Agent::CloudSignInPhase::Idle)
+        return; // A second click while the browser has the first.
+    if (!cloud.start(Agent::CloudBrowserStart::Google))
+        m_sign_in_error = utf8(_L("JusPrin couldn't start signing in. Try again."));
+}
+
+void OrcaHomeBackend::sign_in_with_email(const std::string& email)
+{
+    m_sign_in_error.clear();
+    Agent::ICloudSignIn& cloud = sign_in();
+    if (cloud.phase() != Agent::CloudSignInPhase::Idle)
+        return; // A second click while the first is with the server.
+    if (!cloud.start_email(email))
+        m_sign_in_error = utf8(_L("JusPrin couldn't sign you in. Try again."));
+}
+
+// The page offers each of these only on the step that takes it; one sent as
+// the step changes under it (a double click) is refused by the sign-in and
+// changes nothing.
+void OrcaHomeBackend::submit_sign_in_code(const std::string& code)
+{
+    if (m_sign_in)
+        m_sign_in->submit_code(code);
+}
+
+void OrcaHomeBackend::submit_sign_in_password(const std::string& password)
+{
+    if (m_sign_in)
+        m_sign_in->submit_password(password);
+}
+
+void OrcaHomeBackend::send_sign_in_code()
+{
+    if (m_sign_in)
+        m_sign_in->send_code();
+}
+
+void OrcaHomeBackend::reopen_sign_in_browser()
+{
+    if (const std::string url = sign_in().browser_url(); !url.empty())
+        wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+}
+
+void OrcaHomeBackend::open_sign_in_link(const std::string& link)
+{
+    // JusPrin accounts are Obico accounts; the Terms and Privacy Policy are Obico's.
+    const std::string url = link == "reset_password" ? Agent::cloud_password_reset_url(wxGetApp().app_config)
+                            : link == "terms"        ? std::string("https://www.obico.io/terms.html")
+                            : link == "privacy"      ? std::string("https://www.obico.io/privacy.html")
+                                                     : std::string();
+    if (url.empty())
+        throw std::invalid_argument("Home asked to open an unknown sign-in link: " + link);
+    wxLaunchDefaultBrowser(wxString::FromUTF8(url));
+}
+
+void OrcaHomeBackend::cancel_sign_in()
+{
+    // Cancelling one that already finished is a benign race.
+    if (m_sign_in && m_sign_in->phase() != Agent::CloudSignInPhase::Idle)
+        m_sign_in->cancel();
+}
+
+// Both doors open Preferences on its Agent section, which holds the keys and
+// the AI tools alike.
+void OrcaHomeBackend::open_agent_door(const std::string& /*door*/)
+{
+    ShellController* shell = installed_shell();
+    if (shell == nullptr)
+        return;
+    // Preferences only closes; what it was closed with decides whether the
+    // welcome is left. Closed unfinished, nothing was chosen.
+    std::weak_ptr<void> alive = m_alive;
+    shell->request_preferences("agent", [this, alive](const std::string& done) {
+        if (alive.expired())
+            return;
+        // Whatever was saved there shows on Home's Agent group.
+        m_onboarding_changed = true;
+        if (done.empty())
+            return;
+        AppConfig* config = wxGetApp().app_config;
+        if (done == "tool" && config != nullptr) {
+            config->set(kOnboardingSection, "tool_connected", true);
+            config->save();
+        }
+        OnboardingProgress progress = onboarding_progress();
+        if (next_onboarding_step(progress, onboarding_facts()) == OnboardingStep::Welcome) {
+            progress.welcome_left = true;
+            save_onboarding(progress);
+        }
+    });
+}
+
+void OrcaHomeBackend::leave_welcome()
+{
+    OnboardingProgress progress = onboarding_progress();
+    progress.welcome_left       = true;
+    save_onboarding(progress);
+}
+
+void OrcaHomeBackend::back_to_welcome()
+{
+    OnboardingProgress progress = onboarding_progress();
+    progress.welcome_left       = false;
+    progress.fresh_start        = false;
+    save_onboarding(progress);
+}
+
+void OrcaHomeBackend::start_fresh()
+{
+    OnboardingProgress progress = onboarding_progress();
+    progress.fresh_start        = true;
+    save_onboarding(progress);
+}
+
+void OrcaHomeBackend::printer_form_message(const nlohmann::json& payload)
+{
+    const std::string action = payload.value("action", std::string());
+    // The form's own steps; its Cancel is the step's Back.
+    if (m_printer_form && (action == "form_options" || action == "form_finish"))
+        m_printer_form->conversation().handle_page_message("printer_action", payload);
+}
+
+void OrcaHomeBackend::dismiss_account_card()
+{
+    if (AppConfig* config = wxGetApp().app_config) {
+        config->set(kOnboardingSection, kAccountCardDismissed, true);
+        config->save();
+    }
+}
+
+std::string OrcaHomeBackend::import_orca_printers()
+{
+    const OrcaProfileSource source = detect_orca_profiles(m_picked_orca);
+    if (source.presets.printers.empty())
+        return utf8(_L("JusPrin found no OrcaSlicer printers to bring. Start fresh instead."));
+    m_import_result = import_orca_files(source.presets.files);
+    return {};
+}
+
+void OrcaHomeBackend::retry_orca_import()
+{
+    if (!m_import_result)
+        throw std::logic_error("Home retried an OrcaSlicer import with no result on screen");
+    std::vector<std::string> failed;
+    for (const OrcaImportItem& item : *m_import_result)
+        if (item.outcome == OrcaImportItem::Outcome::NotImported)
+            failed.push_back(item.source);
+    // Each failed item is replaced by its new outcome, in place.
+    std::vector<OrcaImportItem> again = import_orca_files(failed);
+    auto next = again.begin();
+    for (OrcaImportItem& item : *m_import_result)
+        if (item.outcome == OrcaImportItem::Outcome::NotImported)
+            item = std::move(*next++);
+}
+
+void OrcaHomeBackend::finish_orca_import()
+{
+    if (!m_import_result)
+        throw std::logic_error("Home continued from an OrcaSlicer import with no result on screen");
+    const bool brought_printer = std::any_of(m_import_result->begin(), m_import_result->end(), [](const OrcaImportItem& item) {
+        return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
+    });
+    m_import_result.reset();
+    // Nothing to print with yet: the add-printer form.
+    if (!brought_printer)
+        start_fresh();
+}
+
+std::string OrcaHomeBackend::choose_orca_folder()
+{
+    wxDirDialog dialog(&m_frame, _L("Choose your OrcaSlicer folder"), wxEmptyString, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK)
+        return {};
+    const std::filesystem::path picked = std::filesystem::u8path(utf8(dialog.GetPath()));
+    if (detect_orca_profiles(picked).presets.printers.empty())
+        return utf8(_L("JusPrin found no OrcaSlicer printers in that folder."));
+    m_picked_orca = picked;
+    OnboardingProgress progress = onboarding_progress();
+    progress.fresh_start        = false;
+    save_onboarding(progress);
+    return {};
+}
+
+std::vector<OrcaImportItem> OrcaHomeBackend::import_orca_files(const std::vector<std::string>& files)
+{
+    namespace fs = std::filesystem;
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    AppConfig* config     = wxGetApp().app_config;
+    Plater* plater        = wxGetApp().plater();
+    if (presets == nullptr || config == nullptr || plater == nullptr)
+        throw std::logic_error("Home imported printers before the app finished starting");
+
+    OrcaImportCatalog catalog;
+    catalog.has = [presets](OrcaImportItem::Kind kind, const std::string& name) {
+        return preset_collection(*presets, kind).find_preset(name, false) != nullptr;
+    };
+    catalog.has_base = [presets](OrcaImportItem::Kind kind, const std::string& base) {
+        return preset_collection(*presets, kind).find_preset2(base, true) != nullptr;
+    };
+    // Renamed copies live here only until import_presets has copied them.
+    const fs::path staging = fs::temp_directory_path() / ("jusprin-orca-import-" + std::to_string(wxGetProcessId()));
+    fs::remove_all(staging);
+    fs::create_directories(staging);
+    std::vector<OrcaImportItem> items = plan_orca_import(files, catalog, staging);
+
+    std::vector<std::string> pending;
+    for (const OrcaImportItem& item : items)
+        if (item.outcome == OrcaImportItem::Outcome::Pending)
+            pending.push_back(item.file);
+    if (!pending.empty()) {
+        // Every taken name was renamed above, so import_presets has nothing
+        // to ask. Were it asked, the answer is no and that item says it was
+        // not imported.
+        presets->import_presets(pending, [](const std::string&) { return 0; }, ForwardCompatibilitySubstitutionRule::Enable,
+                                *config);
+        wxGetApp().load_current_presets();
+        presets->update_compatible(PresetSelectCompatibleType::Always);
+        m_frame.update_side_preset_ui();
+    }
+    // import_presets leaves in `pending` what it imported.
+    settle_orca_import(items, pending);
+    fs::remove_all(staging);
+
+    for (const OrcaImportItem& item : items)
+        if (item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported) {
+            SetupCommands::select_printer_preset(*plater, item.renamed_to.empty() ? item.name : item.renamed_to);
+            printer_chosen();
+            break;
+        }
+    return items;
+}
+
+std::vector<Snapshot::Onboarding::ImportItem> OrcaHomeBackend::import_result_lines(const std::vector<OrcaImportItem>& items)
+{
+    using Reason = OrcaImportItem::Reason;
+    std::vector<Snapshot::Onboarding::ImportItem> lines;
+    for (const OrcaImportItem& item : items) {
+        Snapshot::Onboarding::ImportItem line{to_string(item.kind), item.name, item.renamed_to,
+                                              item.outcome == OrcaImportItem::Outcome::Imported, {}};
+        switch (item.reason) {
+        case Reason::Unreadable: line.reason = utf8(_L("the file couldn't be read")); break;
+        case Reason::NoVersion: line.reason = utf8(_L("the file has no version")); break;
+        case Reason::NotAPreset: line.reason = utf8(_L("it isn't a printer, filament or process preset")); break;
+        case Reason::MissingBase:
+            line.reason = utf8(wxString::Format(_L("its base profile, %s, isn't in JusPrin"), wxString::FromUTF8(item.base)));
+            break;
+        case Reason::NotLoaded: line.reason = utf8(_L("JusPrin couldn't load it")); break;
+        case Reason::None: break;
+        }
+        lines.push_back(std::move(line));
+    }
+    return lines;
+}
+
+std::string OrcaHomeBackend::assume_default_printer()
+{
+    Plater* plater = wxGetApp().plater();
+    AppConfig* config = wxGetApp().app_config;
+    if (plater == nullptr || config == nullptr)
+        throw std::logic_error("Home installed a printer before the app finished starting");
+    // A fresh install has no printer, and the person named none. They get
+    // the bundled printer that belongs to no manufacturer, saved under its
+    // own name like any other printer installed here.
+    const Printers::VendorMap before = config->vendors();
+    std::string problem;
+    if (!SetupCommands::install_and_select_printer(*plater, "Custom", "Generic Klipper Printer", "0.4", "Generic PLA @System", problem))
+        return problem;
+    const std::vector<std::string> named = Printers::name_installed_printers(*plater, before);
+    config->set(kOnboardingSection, kAssumedPrinter,
+                named.empty() ? wxGetApp().preset_bundle->printers.get_selected_preset_name() : named.front());
+    printer_chosen();
+    return {};
+}
+
 ProjectList OrcaHomeBackend::recent_projects() const
 {
     if (m_autosave == nullptr)
@@ -384,6 +996,8 @@ ProjectList OrcaHomeBackend::recent_projects() const
 
     ProjectList listed;
     const std::vector<LivePrint> live = live_prints();
+    const bool        offers_reports      = reports_offered();
+    const std::string report_offers_since = Workspace::utc_timestamp(std::chrono::system_clock::now() - std::chrono::hours(24 * kReportOfferDays));
     m_history.clear();
     for (const auto& saved : *managed) {
         ProjectEntry project;
@@ -392,6 +1006,7 @@ ProjectList OrcaHomeBackend::recent_projects() const
             utf8(_L("Untitled project")) : saved.name;
         if (saved.gcodes) {
             project.history = summarize(*saved.gcodes, live);
+            project.report_due = offers_reports && report_due(*saved.gcodes, report_offers_since, live);
             m_history.push_back({project.id, project.name, *saved.gcodes});
         }
         project.path = saved.store_path;
@@ -441,6 +1056,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
     // printer whose hardware was changed says so.
     std::vector<PrinterEntry> printers;
     std::set<std::string>     represented;
+    const std::string         assumed = wxGetApp().app_config->get(kOnboardingSection, kAssumedPrinter);
     for (const Printers::NamedPrinter& named : Printers::named_printers()) {
         PrinterEntry printer;
         printer.id                = kNamedPrefix + named.name;
@@ -452,6 +1068,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         // With nothing else to say, it has no connection to show.
         printer.message = utf8(_L("No network connection is set up."));
         printer.action  = PrinterAction::Connect;
+        printer.assumed           = !assumed.empty() && named.name == assumed;
         std::string model;
         // What a Moonraker host last said its multi-filament unit holds.
         std::optional<std::vector<Printers::HostLane>> host_loaded;
@@ -686,6 +1303,93 @@ void OrcaHomeBackend::export_gcode(const std::string& project_id, const std::str
     }
 }
 
+bool OrcaHomeBackend::reports_offered() const
+{
+    return !Agent::cloud_account_token(wxGetApp().app_config).empty();
+}
+
+std::optional<PrintReportPhoto> OrcaHomeBackend::choose_report_photo()
+{
+    std::string path;
+    if (m_choose_report_photo) {
+        path = m_choose_report_photo();
+    } else {
+        wxFileDialog dialog(&m_frame, _L("Choose a photo of the printed object"), wxEmptyString, wxEmptyString,
+                            "Photos (*.jpg;*.jpeg;*.png;*.webp)|*.jpg;*.jpeg;*.png;*.webp", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        if (dialog.ShowModal() == wxID_OK)
+            path = utf8(dialog.GetPath());
+    }
+    if (path.empty())
+        return std::nullopt;
+    const std::filesystem::path file = std::filesystem::u8path(path);
+    PrintReportPhoto            photo;
+    photo.id         = std::to_string(m_report_photos.size() + 1);
+    photo.name       = file.filename().u8string();
+    photo.size_bytes = std::filesystem::file_size(file);
+    m_report_photos[photo.id] = path;
+
+    // Only for the form's row: a file wxImage cannot read still uploads, and
+    // the server decides whether it is a photo.
+    wxLogNull no_log;
+    wxImage   image;
+    if (image.LoadFile(wxString::FromUTF8(path))) {
+        const double scale = double(kReportThumbnailPixels) / std::max(image.GetWidth(), image.GetHeight());
+        image.Rescale(std::max(1, int(image.GetWidth() * scale)), std::max(1, int(image.GetHeight() * scale)), wxIMAGE_QUALITY_HIGH);
+        wxMemoryOutputStream stream;
+        if (image.SaveFile(stream, wxBITMAP_TYPE_PNG)) {
+            wxMemoryBuffer buffer(stream.GetSize());
+            stream.CopyTo(buffer.GetWriteBuf(stream.GetSize()), stream.GetSize());
+            buffer.UngetWriteBuf(stream.GetSize());
+            photo.thumbnail = "data:image/png;base64," + utf8(wxBase64Encode(buffer));
+        }
+    }
+    return photo;
+}
+
+void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::function<void(const PrintReportAnswer&)> done)
+{
+    const Agent::GcodeRecord* record = nullptr;
+    std::string               project_name;
+    for (const HistoryProject& project : m_history)
+        if (project.id == form.project_id)
+            for (const Agent::GcodeRecord& candidate : project.records)
+                if (candidate.hash == form.hash) {
+                    record       = &candidate;
+                    project_name = project.name;
+                }
+    if (record == nullptr)
+        throw std::logic_error("a print report names G-code " + form.hash + ", which project " + form.project_id + " does not hold");
+    const std::filesystem::path photo = std::filesystem::u8path(m_report_photos.at(form.photo_id));
+
+    AppConfig* config  = wxGetApp().app_config;
+    const auto finish  = [this, alive = std::weak_ptr<void>(m_alive), form, done = std::move(done)](unsigned status, const std::string& body) {
+        PrintReportAnswer answer = print_report_answer(status, body);
+        if (answer.state == PrintReportAnswer::State::Failed)
+            BOOST_LOG_TRIVIAL(warning) << "Print report for G-code " << form.hash << " answered " << status;
+        wxGetApp().CallAfter([this, alive, form, done, answer] {
+            if (alive.expired())
+                return;
+            ShellController* shell = installed_shell();
+            if (answer.state != PrintReportAnswer::State::Failed && shell != nullptr && shell->gcode_history() != nullptr)
+                shell->gcode_history()->record_report(form.project_id, form.hash, answer.credits);
+            done(answer);
+        });
+    };
+    Http::post(Agent::cloud_print_reports_url(config))
+        .header("Authorization", "Bearer " + Agent::cloud_account_token(config))
+        .form_add("gcode_hash", form.hash)
+        .form_add("outcome", form.outcome)
+        .form_add("text", form.text)
+        .form_add("facts", report_facts(project_name, *record, history_facts()).dump())
+        .form_add_file("photos", boost::filesystem::path(photo.native()))
+        .tls_verify(true)
+        .timeout_connect(10)
+        .timeout_max(kReportUploadSeconds)
+        .on_complete([finish](std::string body, unsigned status) { finish(status, body); })
+        .on_error([finish](std::string body, std::string, unsigned status) { finish(status, body); })
+        .perform();
+}
+
 void OrcaHomeBackend::open_project(const std::string& project_id)
 {
     if (project_id.empty() || m_autosave == nullptr)
@@ -693,10 +1397,10 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
     if (m_project_opening)
         m_project_opening();
     if (!m_autosave->open_managed_project(project_id)) {
-        wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
-                     wxOK | wxICON_ERROR, &m_frame);
+        wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"), wxOK | wxICON_ERROR, &m_frame);
         return;
     }
+    complete_onboarding();
     m_frame.select_tab(size_t(MainFrame::tp3DEditor));
 }
 
@@ -771,7 +1475,8 @@ void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
 void OrcaHomeBackend::open_as_new_project(const wxArrayString& files)
 {
     if (ShellController* shell = installed_shell())
-        shell->open_files_as_new_project(files);
+        if (shell->open_files_as_new_project(files))
+            complete_onboarding();
 }
 
 void OrcaHomeBackend::launch_monitor(const std::string& printer_id)

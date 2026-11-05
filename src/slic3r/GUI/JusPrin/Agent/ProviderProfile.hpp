@@ -65,11 +65,10 @@ inline const std::vector<ProviderProfile>& provider_profiles()
         // gateway maps to a provider's model, and each alias says which wire
         // format it is served in; account_profile() turns this row into the
         // one a chat talks to. max_tokens serves the Anthropic format.
-        // BEFORE PRODUCTION: JusPrin may get a domain of its own instead of
-        // app.obico.io. This endpoint, the server the account signs in to
-        // (derived from it), and the v1 import's carried jusprin_server/base_url
-        // all move with that decision; see the rollout notes in the ops repo.
-        {"jusprin", ProviderFamily::Responses, "https://app.obico.io/ent/jusprin/v2/responses", AuthStyle::Bearer,
+        // The server the account signs in to is derived from this endpoint.
+        // It is JusPrin's host, not Obico's: the server decides by host which
+        // brand's accounts a sign-in uses, and JusPrin's are its own.
+        {"jusprin", ProviderFamily::Responses, "https://jusprinv2.obico.io/ent/jusprin/v2/responses", AuthStyle::Bearer,
          "slicer-1", "JusPrin", {}, 64000, {}, true},
         {"openai", ProviderFamily::Responses, "https://api.openai.com/v1/responses", AuthStyle::Bearer, "gpt-5.4-mini", "OpenAI", {}, 0},
         // OpenRouter serves the Responses API. The default is the model the

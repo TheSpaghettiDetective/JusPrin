@@ -14,13 +14,19 @@
 // pasting an image; staged attachments render as removable rows, and a
 // message may be sent with attachments and no text. The host owns decoding
 // and storage -- the composer only hands it files.
+//
+// With an account (the `credits` prop): the credits ring beside the pickers,
+// and Send disabled with one line above the box when the next message cannot
+// be paid (boards 2a, 3a, 3b, 3e).
 
 import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AttachmentInfo, AttachmentPickKind, AttachmentSource, ChatModelChoice, ModelCatalogPayload } from '../bridge/protocol';
+import { AttachmentInfo, AttachmentPickKind, AttachmentSource, ChatModelChoice, CreditAccount, ModelCatalogPayload } from '../bridge/protocol';
+import { lowNotice, sendBlock } from '../credits';
 import { composerInputMaxHeight } from '../tokens';
 import { AttachmentChip } from './AttachmentChip';
+import { BalancePanel } from './BalancePanel';
 import { ActionMenu } from './ChatNavigation';
-import { ModelPickers } from './ModelPickers';
+import { findModel, ModelPickers } from './ModelPickers';
 
 // What the + menu offers: the four kinds the design names. In the app each
 // opens the operating system's file dialog through the host, which filters
@@ -35,6 +41,16 @@ export const ATTACHMENT_CHOICES: readonly { label: string; kind: AttachmentPickK
   { label: 'G-code', kind: 'gcode', accept: '.gcode,.g,.gco' },
   { label: 'Document (PDF)', kind: 'pdf', accept: '.pdf' },
 ];
+
+export interface ComposerCredits {
+  account: CreditAccount | null;
+  // "About 25 credits left" is said once: it stands until the person sends a
+  // message past it or closes it.
+  lowNoticeDone: boolean;
+  onLowNoticeDone: () => void;
+  onGetMore: () => void;
+  onSeeUsage: () => void;
+}
 
 interface Props {
   disabled: boolean;
@@ -79,6 +95,9 @@ interface Props {
   models?: ModelCatalogPayload;
   chatModel?: ChatModelChoice;
   onChooseModel?: (choice: ChatModelChoice) => void;
+  credits?: ComposerCredits;
+  // Words the gateway refused, back in the field once per count.
+  returnedDraft?: { text: string; count: number };
 }
 
 export function Composer({
@@ -105,6 +124,8 @@ export function Composer({
   models,
   chatModel,
   onChooseModel,
+  credits,
+  returnedDraft,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
   const [dragging, setDragging] = useState(false);
@@ -156,6 +177,14 @@ export function Composer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialText]);
 
+  const takenReturn = useRef(returnedDraft?.count ?? 0);
+  useEffect(() => {
+    if (!returnedDraft || returnedDraft.count === takenReturn.current) return;
+    takenReturn.current = returnedDraft.count;
+    setText(returnedDraft.text);
+    latestText.current = returnedDraft.text;
+  }, [returnedDraft]);
+
   useEffect(() => {
     return () => {
       if (draftTimer.current !== null) clearTimeout(draftTimer.current);
@@ -172,10 +201,19 @@ export function Composer({
   };
 
   const hasSendable = attachments.some((a) => a.state === 'staged');
-  const canSend = (!!text.trim() || hasSendable) && !disabled && !streaming;
+  const chosenModel = models && chatModel ? findModel(models, chatModel) : undefined;
+  const account = credits?.account;
+  const block = sendBlock(account, chosenModel);
+  const canSend = (!!text.trim() || hasSendable) && !disabled && !streaming && !block;
+  // A picture a model without eyes would never see.
+  const blind = chosenModel?.images === false;
+  const low = lowNotice(account, chosenModel);
+  const lowShown = !!low && !block && !credits?.lowNoticeDone;
+  const ring = account && chosenModel?.credits !== undefined;
 
   const send = () => {
     if (!canSend) return;
+    if (lowShown) credits?.onLowNoticeDone();
     if (draftTimer.current !== null) clearTimeout(draftTimer.current);
     pendingDraft.current = false;
     onSend(text.trim());
@@ -238,11 +276,25 @@ export function Composer({
       onDrop={handleDrop}
     >
       {notice}
+      {block && <div className="composer-credits" role="status">
+        <span>{block}</span>
+        <div className="composer-credits-actions">
+          <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
+        </div>
+      </div>}
+      {lowShown && <div className="composer-credits composer-credits--low" role="status">
+        <span>{low}</span>
+        <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
+        <button type="button" className="composer-credits-close" aria-label="Close" onClick={() => credits?.onLowNoticeDone()}>
+          <span className="jp-icon jp-icon-close" aria-hidden="true" />
+        </button>
+      </div>}
       <div className="composer-box">
         {attachments.length > 0 && (
           <div className="composer-attachments" aria-label="Staged attachments">
             {attachments.map((attachment) => (
-              <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment} />
+              <AttachmentChip key={attachment.id} attachment={attachment} onRemove={onRemoveAttachment}
+                notSent={blind && attachment.kind === 'image' && attachment.state === 'staged'} />
             ))}
           </div>
         )}
@@ -288,8 +340,10 @@ export function Composer({
             )}
             {models && chatModel && onChooseModel && (
               <ModelPickers catalog={models} choice={chatModel} disabled={disabled || streaming}
-                onChoose={onChooseModel} />
+                locked={started} account={account} onChoose={onChooseModel} />
             )}
+            {ring && <BalancePanel account={account!} low={!!low}
+              onGetMore={credits!.onGetMore} onSeeUsage={credits!.onSeeUsage} />}
           </div>
           {streaming ? (
             <button type="button" className="composer-send composer-stop" onClick={onStop} aria-label="Stop generating">

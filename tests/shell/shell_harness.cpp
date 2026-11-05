@@ -11,6 +11,11 @@
 //   (default)  automated shell checks, exits with the result
 //   --stock    automated stock-mode checks (shell disabled via app config),
 //              then back into JusPrin through the classic view banner
+//   --fresh-example
+//              a data directory with no printer runs the first launch:
+//              the welcome, "Just slice for now", Back, the add-printer
+//              form, then "Skip, use a default" through to Home, where the
+//              agent card signs in by email against a stand-in server
 //   --classic-switch
 //              switches to classic view and back twice, once through the View
 //              menu row and once through the banner
@@ -406,6 +411,7 @@
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "slic3r/GUI/JusPrin/Printers/ConnectionEvents.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
+#include "slic3r/GUI/JusPrin/Printers/PrinterOrigin.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Home/PrinterWindow.hpp"
@@ -859,6 +865,104 @@ private:
     std::thread                    m_thread;
 };
 
+// The JusPrin server's email sign-in, on a loopback port, in allauth's API
+// shapes: every address gets a code and the session kSession, kCode is the
+// only right one and is taken only with that session, and the account check
+// that follows any sign-in answers for alex@example.com with one model.
+class StandInGateway
+{
+public:
+    static constexpr const char* kCode    = "418203";
+    static constexpr const char* kSession = "harness-session";
+
+    StandInGateway() : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+    {
+        m_thread = std::thread([this] { serve(); });
+    }
+    ~StandInGateway()
+    {
+        m_stopping = true;
+        boost::system::error_code    ignored;
+        boost::asio::ip::tcp::socket wake(m_io);
+        wake.connect(m_acceptor.local_endpoint(), ignored);
+        m_thread.join();
+    }
+    std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+    // "POST /ent/jusprin/v2/auth/code/confirm {...}", one per request, in order.
+    std::vector<std::string> requests() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_requests;
+    }
+
+private:
+    void serve()
+    {
+        for (;;) {
+            boost::system::error_code    error;
+            boost::asio::ip::tcp::socket socket(m_io);
+            m_acceptor.accept(socket, error);
+            if (m_stopping || error)
+                return;
+            boost::asio::streambuf request;
+            const size_t           head = boost::asio::read_until(socket, request, "\r\n\r\n", error);
+            const std::string      text(boost::asio::buffers_begin(request.data()), boost::asio::buffers_begin(request.data()) + head);
+            request.consume(head);
+            const std::string method = text.substr(0, text.find(' '));
+            const size_t      start  = text.find(' ') + 1;
+            const std::string path   = text.substr(start, text.find(' ', start) - start);
+            size_t            length = 0;
+            if (const size_t at = text.find("Content-Length: "); at != std::string::npos)
+                length = std::stoul(text.substr(at + 16));
+            if (request.size() < length)
+                boost::asio::read(socket, request, boost::asio::transfer_exactly(length - request.size()), error);
+            const std::string body(boost::asio::buffers_begin(request.data()), boost::asio::buffers_end(request.data()));
+            const nlohmann::json asked = nlohmann::json::parse(body.empty() ? "{}" : body, nullptr, false);
+
+            const bool  in_session = text.find(std::string("X-Session-Token: ") + kSession + "\r\n") != std::string::npos;
+            unsigned    status     = 200;
+            std::string reply;
+            if (path == "/ent/jusprin/v2/auth/code/request") {
+                status = 401;
+                reply  = std::string(R"({"status":401,"data":{"flows":[{"id":"login_by_code","is_pending":true}]},)") +
+                        R"("meta":{"is_authenticated":false,"session_token":")" + kSession + R"("}})";
+            } else if (path == "/ent/jusprin/v2/auth/code/confirm" && !in_session) {
+                status = 409;
+                reply  = R"({"status":409})";
+            } else if (path == "/ent/jusprin/v2/auth/code/confirm" && asked.value("code", std::string()) == kCode) {
+                reply = R"({"status":200,"data":{},"meta":{"is_authenticated":true,"access_token":"harness-email-token",)"
+                        R"("refresh_token":"r","expires_in":3600,"token_type":"Bearer","scope":"read write"}})";
+            } else if (path == "/ent/jusprin/v2/auth/code/confirm") {
+                status = 400;
+                reply  = R"({"status":400,"errors":[{"message":"Incorrect code.","code":"incorrect_code","param":"code"}]})";
+            } else if (path == "/jusprin/api/me/") {
+                reply = R"({"user":{"email":"alex@example.com"},"ai_credits":{"total":500}})";
+            } else if (path == "/ent/jusprin/v2/models") {
+                reply = R"({"data":[{"id":"jusprin-standard","label":"Standard","format":"responses"}]})";
+            } else {
+                status = 404;
+                reply  = R"({"type":"error","error":{"code":"not_found","message":"Not Found"}})";
+            }
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_requests.push_back(method + " " + path + (body.empty() ? "" : " " + body));
+            }
+            const std::string response = "HTTP/1.1 " + std::to_string(status) + (status == 200 ? " OK" : " Refused") +
+                                         "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(reply.size()) +
+                                         "\r\nConnection: close\r\n\r\n" + reply;
+            boost::asio::write(socket, boost::asio::buffer(response), error);
+            socket.close(error);
+        }
+    }
+
+    boost::asio::io_context        m_io;
+    boost::asio::ip::tcp::acceptor m_acceptor;
+    std::atomic<bool>              m_stopping{false};
+    mutable std::mutex             m_mutex;
+    std::vector<std::string>       m_requests;
+    std::thread                    m_thread;
+};
+
 // A model that answers the first message by calling `tool` with `arguments`,
 // and anything after that with a line of text.
 // The printer chat's tool that connects a Moonraker or OctoPrint host.
@@ -1236,6 +1340,7 @@ struct HarnessState
         Shell,
         PrinterNetworkCheck,
         PrintHostCheck,
+        FreshExample,
         Stock,
         Manual,
         ManualLiveAgent,
@@ -1338,6 +1443,8 @@ struct HarnessState
     bool settings_live{false};
     bool filament_settings_live{false};
     bool keep_data{false};
+    // --fresh-example signs in by email against it.
+    std::shared_ptr<StandInGateway> gateway;
     std::shared_ptr<JusPrinTest::StdioClient> bridge;
 };
 
@@ -1385,6 +1492,10 @@ public:
             // which is how the three visual modes handed over a Home screen
             // while reporting failures=0. On a software renderer the first
             // idle arrived seconds after the fixture had finished slicing.
+            // A fresh data directory would otherwise open on the first launch,
+            // which covers the Home screen every other mode drives.
+            if (m_state->mode != HarnessState::Mode::FreshExample)
+                m_app.app_config->set("jusprin_onboarding", "status", std::string("completed"));
             wait_until_settled("startup_post_init_complete",
                                [self = shared_from_this()] { self->run_mode(); });
         } catch (const std::exception& error) {
@@ -1404,6 +1515,12 @@ public:
                 return;
             }
             verify_shell_installed();
+            if (m_state->mode == HarnessState::Mode::FreshExample) {
+                verify_fresh_install_example();
+                verify_email_sign_in_from_home([self = shared_from_this()] { self->finish(); });
+                return;
+            }
+            verify_onboarding_saves_its_values();
             if (m_state->mode == HarnessState::Mode::ClassicSwitch) {
                 verify_uninstall_restores_stock([self = shared_from_this()] { self->finish(); });
                 return;
@@ -1414,6 +1531,154 @@ public:
         } catch (...) {
             fail("unknown exception");
         }
+    }
+
+    // The first launch on a data directory with no printer: the welcome, its
+    // "Just slice for now", Back from the Printers step, then the add-printer
+    // form and "Skip, use a default", which puts the bundled printer that
+    // belongs to no manufacturer in place and marks it assumed. Each step is
+    // the backend's own call, as the page's message makes it.
+    void verify_fresh_install_example()
+    {
+        const auto& printers = wxGetApp().preset_bundle->printers;
+        check(std::none_of(printers.begin(), printers.end(), [](const Preset& preset) { return preset.is_visible && !preset.is_default; }),
+              "fresh_example_starts_with_no_printer");
+        auto& backend = installed_shell()->home_view()->backend();
+        check(m_notebook->GetSelection() == MainFrame::tpHome, "first_launch_opens_on_home");
+        check(backend.onboarding().step == Home::OnboardingStep::Welcome, "first_launch_shows_the_welcome");
+
+        backend.leave_welcome(); // Just slice for now
+        check(backend.onboarding().step == Home::OnboardingStep::Printers, "just_slice_moves_to_printers");
+        backend.back_to_welcome();
+        check(backend.onboarding().step == Home::OnboardingStep::Welcome, "back_returns_to_the_welcome");
+        backend.leave_welcome();
+        // An OrcaSlicer folder on this computer would offer its printers first.
+        backend.start_fresh();
+        const auto printers_step = backend.onboarding();
+        check(printers_step.step == Home::OnboardingStep::Printers &&
+                  printers_step.printers_screen == Home::PrintersScreen::AddPrinter,
+              "start_fresh_shows_the_add_printer_form");
+        check(printers_step.printer_form.is_object() && !printers_step.printer_form.value("catalog", nlohmann::json::array()).empty(),
+              "add_printer_form_lists_the_catalogue");
+        check(m_app.app_config->get("jusprin_onboarding", "status") == "unfinished", "first_launch_unfinished_until_home");
+
+        const std::string assumed = backend.assume_default_printer();
+        check(assumed.empty(), "skip_use_a_default: " + assumed);
+        check(selected_printer() == "Generic Klipper Printer", "fresh_example_printer_installed: " + selected_printer());
+        check(!Printers::printer_from_file(printers.get_selected_preset()), "fresh_example_printer_not_marked_from_the_file");
+        const auto listed = backend.printers();
+        check(std::any_of(listed.begin(), listed.end(), [](const Home::PrinterEntry& entry) { return entry.assumed; }),
+              "default_printer_marked_assumed");
+        const auto home = backend.onboarding();
+        check(home.step == Home::OnboardingStep::Hidden, "default_printer_reaches_home");
+        check(home.agent_card == Home::HomeAgentCard::Doors, "home_offers_the_agent_doors");
+        check(m_app.app_config->get("jusprin_onboarding", "status") == "completed", "fresh_example_finishes_onboarding");
+        check(installed_shell()->autosave()->save_now(), "fresh_example_printer_choice_saved");
+        const auto before_opening = installed_shell()->autosave()->projects();
+        check(before_opening && before_opening->empty(), "printer_choice_on_empty_plate_lists_no_project");
+
+        // A chat on an empty plate does not save the project, so it stays unlisted.
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "chat_on_empty_plate_new_project");
+        persistence().resolve_pending_boundary(); // As a chat does before it writes.
+        Agent::ConversationMessage message;
+        auto& document     = persistence().document();
+        message.id         = document.allocate_message_id();
+        message.role       = Agent::MessageRole::User;
+        message.state      = Agent::MessageState::Complete;
+        message.text       = "What can I print first?";
+        document.append_message(document.active_conversation_id(), message, persistence().timestamp());
+        check(installed_shell()->autosave()->save_now(), "chat_on_empty_plate_saved");
+        const auto with_chat = installed_shell()->autosave()->projects();
+        check(with_chat && with_chat->empty(), "chat_on_empty_plate_lists_no_project: " + std::to_string(with_chat ? with_chat->size() : 0));
+    }
+
+    // Home's "Set up the agent" card, once the first launch is over, signs in
+    // by email against the stand-in server: the address, which sends nothing,
+    // then a code asked for, a wrong code that stays on the step, then the
+    // right one, which brings the account.
+    void verify_email_sign_in_from_home(std::function<void()> then)
+    {
+        Home::HomeWebView& view    = *installed_shell()->home_view();
+        auto&              backend = view.backend();
+        Home::HomeHost&    host    = view.host();
+        // Only this check polls, so the poll that brings each step is the one
+        // that must send it to the page; the email steps keep one phase.
+        view.set_live(false);
+        check(backend.onboarding().agent_card == Home::HomeAgentCard::Doors, "email_sign_in_starts_from_home_doors");
+        backend.sign_in_with_email("alex@example.com");
+        const auto email_step = [&backend] { return backend.onboarding().email_step; };
+        const auto chosen     = email_step();
+        const std::vector<std::string> before = m_state->gateway->requests();
+        check(chosen && chosen->step == "choose" && !chosen->busy &&
+                  std::none_of(before.begin(), before.end(),
+                               [](const std::string& line) { return line.find("/auth/") != std::string::npos; }),
+              "email_sign_in_offers_the_choice_first");
+        backend.send_sign_in_code();
+        wait_until(
+            [&host, email_step] {
+                const bool sent = host.poll();
+                const auto step = email_step();
+                return sent && step && step->step == "code" && !step->busy;
+            },
+            "email_sign_in_asks_for_the_code",
+            [this, &host, &backend, email_step, then] {
+                check(backend.onboarding().sign_in == "email", "email_sign_in_phase_is_email");
+                backend.submit_sign_in_code("000000");
+                wait_until(
+                    [&host, email_step] {
+                        const bool sent = host.poll();
+                        const auto step = email_step();
+                        return sent && step && !step->busy && !step->refusal.empty();
+                    },
+                    "email_sign_in_wrong_code_answered",
+                    [this, &host, &backend, email_step, then] {
+                        const auto step = email_step();
+                        check(step && step->step == "code" && step->refusal == "wrong_code",
+                              "email_sign_in_wrong_code_stays_on_the_step");
+                        backend.submit_sign_in_code(StandInGateway::kCode);
+                        wait_until(
+                            [&host, &backend] {
+                                const bool sent = host.poll();
+                                return sent && backend.onboarding().account_email == "alex@example.com";
+                            },
+                            "email_sign_in_brings_the_account",
+                            [this, &backend, then] {
+                                const auto home = backend.onboarding();
+                                check(home.sign_in == "idle" && !home.email_step && home.sign_in_error.empty(),
+                                      "email_sign_in_ends_without_an_error: " + home.sign_in_error);
+                                check(home.agent_card == Home::HomeAgentCard::Account, "email_sign_in_shows_the_account");
+                                const std::vector<std::string> asked = m_state->gateway->requests();
+                                const auto sent = [&asked](const std::string& prefix) {
+                                    return std::any_of(asked.begin(), asked.end(),
+                                                       [&prefix](const std::string& line) { return line.rfind(prefix, 0) == 0; });
+                                };
+                                check(sent(R"(POST /ent/jusprin/v2/auth/code/request {"email":"alex@example.com"})"),
+                                      "email_sign_in_asked_for_a_code");
+                                // The stand-in takes the code only with the session the request started.
+                                check(sent(std::string(R"(POST /ent/jusprin/v2/auth/code/confirm {"code":")") + StandInGateway::kCode),
+                                      "email_sign_in_sent_the_code");
+                                check(sent("GET /jusprin/api/me/") && sent("GET /ent/jusprin/v2/models"),
+                                      "email_sign_in_checked_the_account");
+                                then();
+                            });
+                    });
+            });
+    }
+
+    // Each field of the first-run progress keeps its own value once saved.
+    void verify_onboarding_saves_its_values()
+    {
+        installed_shell()->home_view()->backend().leave_welcome();
+        const auto saved = [this](const char* key) { return m_app.app_config->get("jusprin_onboarding", key); };
+        check(saved("status") == "completed" && saved("welcome_left") == "true" && saved("fresh_start") == "false" &&
+                  saved("printer_chosen") == "false",
+              "onboarding_saves_each_value");
+        // Someone who dismissed the earlier onboarding is not welcomed again.
+        m_app.app_config->set("jusprin_onboarding", "status", std::string("dismissed"));
+        m_app.app_config->set("jusprin_onboarding", "welcome_left", false);
+        check(installed_shell()->home_view()->backend().onboarding().step == Home::OnboardingStep::Hidden,
+              "dismissed_onboarding_stays_done");
+        m_app.app_config->set("jusprin_onboarding", "status", std::string("completed"));
     }
 
     void run_shell_mode()
@@ -7092,17 +7357,45 @@ private:
     // Each read has a tag of its own: the script runs later than this call
     // returns, so a title an earlier read left could otherwise be taken for
     // this one's answer.
+    // A read comes back through the page's title, which macOS cuts at about
+    // 1000 characters and which collapses spaces, so it travels in pieces and
+    // as ASCII with no spaces.
     void read_page(wxWebView* view, const std::string& name_of_read, const std::string& ready, const std::string& expression,
                    const std::string& name, std::function<void(const nlohmann::json&)> then)
     {
         const std::string tag = name_of_read + "-" + std::to_string(++m_page_reads);
         WebView::RunScript(view, wxString::FromUTF8("(function(){ document.title = ''; var tries = 0;"
                                                     " var timer = setInterval(function(){ if (!(" + ready + ") && ++tries < 150) return;"
-                                                    " clearInterval(timer); document.title = '" + tag + ":' + JSON.stringify(" +
-                                                    expression + "); }, 100); })()"));
-        print_history_wait([view, tag] { return view->GetCurrentTitle().StartsWith(wxString::FromUTF8(tag + ":")); }, name,
-                           [view, tag, then] {
-                               then(nlohmann::json::parse(view->GetCurrentTitle().Mid(tag.size() + 1).ToUTF8().data(), nullptr, false));
+                                                    " clearInterval(timer); window.__harnessRead = JSON.stringify(" + expression + ")"
+                                                    ".replace(/[\\s\\u0080-\\uffff]/g, function (c) {"
+                                                    " return '\\\\u' + ('000' + c.charCodeAt(0).toString(16)).slice(-4); });"
+                                                    " document.title = '" + tag + ":'; }, 100); })()"));
+        print_history_wait([view, tag] { return view->GetCurrentTitle() == wxString::FromUTF8(tag + ":"); }, name,
+                           [self = shared_from_this(), view, tag, name, then] {
+                               self->read_page_piece(view, tag, name, 0, std::string(), then);
+                           });
+    }
+
+    void read_page_piece(wxWebView* view, const std::string& tag, const std::string& name, size_t index, const std::string& so_far,
+                         std::function<void(const nlohmann::json&)> then)
+    {
+        constexpr size_t kPiece = 800;
+        const std::string piece_tag = tag + "-" + std::to_string(index) + ":";
+        WebView::RunScript(view, wxString::FromUTF8("document.title = '" + piece_tag + "' + window.__harnessRead.slice(" +
+                                                    std::to_string(index * kPiece) + ", " + std::to_string((index + 1) * kPiece) + ")"));
+        print_history_wait([view, piece_tag] { return view->GetCurrentTitle().StartsWith(wxString::FromUTF8(piece_tag)); }, name,
+                           [self = shared_from_this(), view, tag, name, index, so_far, piece_tag, then] {
+                               const std::string piece = view->GetCurrentTitle().Mid(piece_tag.size()).ToUTF8().data();
+                               if (piece.size() == kPiece) {
+                                   self->read_page_piece(view, tag, name, index + 1, so_far + piece, then);
+                                   return;
+                               }
+                               const nlohmann::json read = nlohmann::json::parse(so_far + piece, nullptr, false);
+                               self->check(!read.is_discarded(), name + "_readable");
+                               if (read.is_discarded())
+                                   self->finish();
+                               else
+                                   then(read);
                            });
     }
 
@@ -7202,6 +7495,8 @@ private:
         });
         m_preferences_closer->Start(250);
 
+#ifndef __APPLE__
+        // macOS has no title bar menu: the frame builds no top bar there.
         wxMenu*     menu = m_frame->topbar()->GetTopMenu();
         wxMenuItem* item = nullptr;
         for (wxMenuItem* candidate : menu->GetMenuItems())
@@ -7217,6 +7512,7 @@ private:
             check(menu->ProcessEvent(pick), "print_history_title_bar_menu_item_handled");
         }
         check(m_preferences_seen == std::vector<std::string>{"jusprin"}, "print_history_title_bar_menu_opens_jusprins_preferences");
+#endif
 
         m_preferences_seen.clear();
         WebView::RunScript(home_page(), "window.dispatchEvent(new KeyboardEvent('keydown', { key: ',', ctrlKey: true }))");
@@ -7232,14 +7528,89 @@ private:
     std::unique_ptr<wxTimer> m_preferences_closer;
     std::vector<std::string> m_preferences_seen;
 
+    // A print report needs the account. A run with JUSPRIN_HARNESS_GATEWAY and
+    // JUSPRIN_HARNESS_GATEWAY_TOKEN, a local gateway stack and an account on it,
+    // signs in to that; without them the report's checks are left out.
+    static const char* report_gateway() { return std::getenv("JUSPRIN_HARNESS_GATEWAY"); }
+
+    // Sends a report from the entry, with the photo the file dialog would give,
+    // and sees the entry's row replace the button (boards 8a, 8b and 8c).
+    void print_history_report(std::function<void()> then)
+    {
+        if (report_gateway() == nullptr) {
+            then();
+            return;
+        }
+        installed_shell()->home_view()->backend().set_report_photo_chooser(
+            [] { return std::string(JUSPRIN_SOURCE_DIR) + "/resources/images/OrcaSlicer.png"; });
+        WebView::RunScript(home_page(), "window.__button = function (t) { return Array.prototype.filter.call(document.querySelectorAll('button'),"
+                                        " function (b) { return b.textContent === t; })[0]; }");
+        installed_shell()->home_view()->refresh();
+        const std::string offer = "__button('Tell us how it printed \\u00b7 25 credits')";
+        read_page(home_page(), "report", "!!" + offer, "(function () { var b = " + offer + "; return b ? b.closest('.history-entry').id.replace('history-', '') : ''; })()",
+                  "print_report_offered", [self = shared_from_this(), offer, then](const nlohmann::json& hash) {
+            self->check(hash.is_string() && !hash.get<std::string>().empty(), "print_report_button_on_the_entry");
+            self->capture_history("print-report-offered");
+            WebView::RunScript(self->home_page(), wxString::FromUTF8(offer + ".click()"));
+            self->read_page(self->home_page(), "report-form", "!!__button('Send report')", "document.querySelector('.print-report-head').textContent",
+                            "print_report_form_opens", [self, hash, then](const nlohmann::json& head) {
+                std::cerr << "HARNESS NOTE print_report_form_names " << head.dump() << '\n';
+                self->check(head.is_string() && head.get<std::string>().rfind("Tell us how it printed", 0) == 0, "print_report_form_names_the_entry");
+                WebView::RunScript(self->home_page(), wxString::FromUTF8("__button('Choose a photo\\u2026').click()"));
+                self->read_page(self->home_page(), "report-photo", "!!document.querySelector('.print-report-photo')",
+                                "{ name: document.querySelector('.print-report-photo-name').textContent,"
+                                "  drawn: (document.querySelector('.print-report-photo img') || { src: '' }).src.indexOf('data:image/png') === 0 }",
+                                "print_report_photo_chosen", [self, hash, then](const nlohmann::json& photo) {
+                    self->check(photo.value("name", "") == "OrcaSlicer.png" && photo.value("drawn", false), "print_report_photo_row_shows_the_file");
+                    // React reads a textarea's value through its own setter.
+                    WebView::RunScript(self->home_page(), wxString::FromUTF8(
+                        "(function () { var a = document.querySelector('.print-report-field textarea');"
+                        " Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(a, new Array(30).join('The left corner lifted. '));"
+                        " a.dispatchEvent(new Event('input', { bubbles: true }));"
+                        " __button('Partly').click(); })()"));
+                    self->read_page(self->home_page(), "report-ready", "!__button('Send report').disabled", "true", "print_report_send_enabled",
+                                    [self, hash, then](const nlohmann::json&) {
+                        self->capture_history("print-report-form");
+                        WebView::RunScript(self->home_page(), "__button('Send report').click()");
+                        const std::string gcode = hash.get<std::string>();
+                        const auto reported = [self, gcode] {
+                            const auto record = self->persistence().document().gcode_record(gcode);
+                            return record && record->report.has_value();
+                        };
+                        self->print_history_wait(reported, "print_report_recorded_on_the_gcode", [self, gcode, then] {
+                            const int credits = self->persistence().document().gcode_record(gcode)->report->credits;
+                            std::cerr << "HARNESS NOTE print_report_credits " << credits << '\n';
+                            self->read_page(self->home_page(), "report-sent", "document.body.textContent.indexOf('Report sent') >= 0", kHistoryRead,
+                                            "print_report_row_drawn", [self, credits, then](const nlohmann::json& screen) {
+                                self->check(any_row(screen, "Report sent"), "print_report_row_on_the_entry");
+                                self->check(credits == 0 || any_row(screen, std::to_string(credits) + " credits added"), "print_report_row_says_what_it_earned");
+                                self->capture_history("print-report-sent");
+                                then();
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     // Home: the project card's line, then the header's unfiltered way in.
     void print_history_from_home()
     {
+        if (report_gateway() != nullptr) {
+            AppConfig* config = wxGetApp().app_config;
+            config->set("jusprin_server", "base_url", std::string(report_gateway()));
+            config->set("jusprin_agent", "jusprin_api_key", std::string(std::getenv("JUSPRIN_HARNESS_GATEWAY_TOKEN")));
+        }
         m_frame->select_tab(size_t(MainFrame::tpHome));
         read_page(home_page(), "cards", "!document.querySelector('.history-title') && document.querySelectorAll('.project-history-text').length > 0",
-                  "Array.prototype.map.call(document.querySelectorAll('.project-history-text'), function (t) { return t.textContent; })",
-                  "print_history_home_card_drawn", [self = shared_from_this()](const nlohmann::json& lines) {
-                      std::cerr << "HARNESS NOTE print_history_card_lines " << lines.dump() << '\n';
+                  "Array.prototype.map.call(document.querySelectorAll('.project-history-text, .project-report'), function (t) { return t.textContent; })",
+                  "print_history_home_card_drawn", [self = shared_from_this()](const nlohmann::json& all) {
+                      std::cerr << "HARNESS NOTE print_history_card_lines " << all.dump() << '\n';
+                      // The card asks how the print came out once it can earn (board 8d).
+                      self->check(!report_gateway() || (all.size() == 2 && all[1].get<std::string>() == "Tell us how it printed \xC2\xB7 25 credits"),
+                                  "print_report_line_on_the_project_card");
+                      const nlohmann::json lines = nlohmann::json::array({all.at(0)});
                       self->check(lines.is_array() && lines.size() == 1 &&
                                       lines[0].get<std::string>().rfind("2 prints \xC2\xB7 finished today", 0) == 0,
                                   "print_history_card_line_counts_the_prints");
@@ -7269,6 +7640,11 @@ private:
         check(screen.value("chips", nlohmann::json::array()).empty() && count.find("all projects, all printers") != std::string::npos,
               "print_history_unfiltered_from_home");
         capture_history("print-history-all");
+        print_history_report([self = shared_from_this()] { self->print_history_export_copy(); });
+    }
+
+    void print_history_export_copy()
+    {
         m_print_history_copy = (fs::temp_directory_path() / fs::unique_path("jusprin-history-copy-%%%%.gcode")).string();
         installed_shell()->home_view()->backend().set_export_chooser([path = m_print_history_copy](const std::string&) { return path; });
         WebView::RunScript(home_page(), "Array.prototype.filter.call(document.querySelectorAll('.history-entry .history-actions button'),"
@@ -7573,9 +7949,18 @@ private:
     void write_home_live_control(const std::string& json)
     {
         boost::filesystem::create_directories(boost::filesystem::path(m_home_live_control).parent_path());
-        boost::nowide::ofstream out(m_home_live_control);
-        out << json;
+        {
+            boost::nowide::ofstream out(m_home_live_control);
+            out << json;
+        }
+        // The fake printer goes by the file's time in whole seconds, so a second
+        // write within the same second would never be read.
+        const std::time_t written = boost::filesystem::last_write_time(m_home_live_control);
+        m_home_live_control_time  = std::max(written, m_home_live_control_time + 1);
+        boost::filesystem::last_write_time(m_home_live_control, m_home_live_control_time);
     }
+
+    std::time_t m_home_live_control_time{0};
 
     bool still_on_home() const
     {
@@ -15078,6 +15463,8 @@ int main(int argc, char** argv)
             state->mode        = HarnessState::Mode::LeftPaneSlicedCapture;
             state->capture_dir = fs::absolute(argv[index]);
         }
+        else if (argument == "--fresh-example")
+            state->mode = HarnessState::Mode::FreshExample;
         else if (argument == "--classic-switch")
             state->mode = HarnessState::Mode::ClassicSwitch;
         else if (argument == "--classic-switch-capture") {
@@ -15480,6 +15867,15 @@ int main(int argc, char** argv)
             config.replace(config.find(anchor), anchor.size(),
                            anchor + "\n    \"installed_networking\": true,\n    \"network_plugin_version\": \"" +
                                state->network_check_plugin_version + "\",");
+        }
+        if (state->mode == HarnessState::Mode::FreshExample) {
+            // A fresh install: the base config's printer and its selection go.
+            const std::size_t printer = config.find(",\n  \"models\"");
+            config.replace(printer, config.rfind("\n}") - printer, "");
+            // The email sign-in goes to a stand-in server.
+            state->gateway = std::make_shared<StandInGateway>();
+            config.replace(config.find('{') + 1, 0,
+                           "\n  \"jusprin_server\": {\n    \"base_url\": \"" + state->gateway->address() + "\"\n  },");
         }
         if (state->mode == HarnessState::Mode::StartupRequests) {
             // A person's data folder: OrcaSlicer's setup guide finished,

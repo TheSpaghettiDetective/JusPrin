@@ -5,7 +5,8 @@
 // start that imported it.
 
 import { useEffect, useRef, useState } from 'react';
-import { AccountStatusPayload, SavedKeyInfo, WelcomeBackPayload } from '../bridge/protocol';
+import { AccountStatusPayload, CreditAccount, SavedKeyInfo, WelcomeBackPayload } from '../bridge/protocol';
+import { FirstMonthOffer } from './AgentConnection';
 
 export interface WelcomeBackActions {
   checkAccount: () => void;
@@ -20,7 +21,16 @@ export interface WelcomeBackProps {
   account?: SavedKeyInfo;
   status: AccountStatusPayload;
   actions: WelcomeBackActions;
+  // The JusPrin v1 subscription the person keeps the price of, once the
+  // account has been read (board 1d).
+  subscription?: CreditAccount['v1_subscription'];
+  priceCarriesOver?: boolean;
 }
+
+// Billing moves JusPrin v1 subscribers to Hobby at their original price in
+// step 3 of the pricing plan. Until it does, nothing here promises that price,
+// whatever the account reports.
+const V1_PRICE_CARRIES_OVER = false;
 
 // "Generic PLA, Silk PETG, 0.20 mm Strong and 7 more".
 function someOf(names: string[], shown: number, separator: string): string {
@@ -44,7 +54,7 @@ function ImportedRow({ title, detail, count, partial = false }: {
   );
 }
 
-function AccountBox({ account, status, actions }: Pick<WelcomeBackProps, 'account' | 'status' | 'actions'>) {
+function AccountBox({ account, status, actions, priceCarriesOver }: Pick<WelcomeBackProps, 'account' | 'status' | 'actions' | 'priceCarriesOver'>) {
   const [copied, setCopied] = useState(false);
   if (status.phase === 'browser') {
     return (
@@ -89,16 +99,25 @@ function AccountBox({ account, status, actions }: Pick<WelcomeBackProps, 'accoun
       </div>
     );
   }
+  // Until they sign in, a v1 subscriber can't be told from anyone else, so the
+  // offer also says what signing in means for them (board 1c).
+  if (!account) {
+    return (
+      <div className="welcome-offer" data-testid="welcome-account">
+        <FirstMonthOffer note={priceCarriesOver ? "Subscribed to JusPrin v1? You get these 500 credits and keep your original price, on the $10 Hobby plan." : undefined}
+          onSignIn={actions.signIn} />
+        {status.error && <p className="agent-key-error" role="alert">{status.error.message}</p>}
+      </div>
+    );
+  }
   return (
     <div className="welcome-account" data-testid="welcome-account">
       <div className="welcome-account-line">
         <span className="jp-icon jp-icon-triangle-alert welcome-icon--warning" aria-hidden="true" />
         <div className="welcome-row-copy">
-          <span className="welcome-account-title">{account ? 'Sign in again to use the agent' : 'Sign in to use the agent'}</span>
+          <span className="welcome-account-title">Sign in again to use the agent</span>
           <span className="welcome-row-detail">
-            {account
-              ? `Your JusPrin v1 sign-in${account.account ? ` for ${account.account}` : ''} has expired.`
-              : 'JusPrin v1 wasn’t signed in on this computer.'}
+            {`Your JusPrin v1 sign-in${account.account ? ` for ${account.account}` : ''} has expired.`}
           </span>
         </div>
       </div>
@@ -108,7 +127,21 @@ function AccountBox({ account, status, actions }: Pick<WelcomeBackProps, 'accoun
   );
 }
 
-export function WelcomeBack({ report, account, status, actions }: WelcomeBackProps) {
+// Nothing to choose and no upgrade prompt: they stay on the price they pay.
+function KeptPrice({ subscription }: { subscription: NonNullable<CreditAccount['v1_subscription']> }) {
+  return (
+    <div className="credit-offer" data-testid="welcome-kept-price">
+      <div className="credit-offer-copy">
+        <h2 className="credit-offer-title">Hobby, at your original ${(subscription.cents / 100).toFixed(2)} a {subscription.period}</h2>
+        <p>750 credits a month.</p>
+        <p>Plus 500 more for your first month.</p>
+        <p>New subscribers pay $10. You keep this price while subscribed.</p>
+      </div>
+    </div>
+  );
+}
+
+export function WelcomeBack({ report, account, status, actions, subscription, priceCarriesOver = V1_PRICE_CARRIES_OVER }: WelcomeBackProps) {
   // The sign-in v1 left is checked once, when the window opens: it may have
   // been revoked or ended since v1 last used it.
   const checked = useRef(false);
@@ -134,7 +167,8 @@ export function WelcomeBack({ report, account, status, actions }: WelcomeBackPro
           <p className="welcome-intro">We copied it from JusPrin v1 on this computer. JusPrin v1 itself is unchanged.</p>
         </div>
 
-        <AccountBox account={account} status={status} actions={actions} />
+        <AccountBox account={account} status={status} actions={actions} priceCarriesOver={priceCarriesOver} />
+        {priceCarriesOver && subscription && account && !account.rejected && <KeptPrice subscription={subscription} />}
 
         <div className="welcome-list" aria-label="Imported">
           <span className="welcome-eyebrow">IMPORTED</span>
@@ -158,7 +192,8 @@ export function WelcomeBack({ report, account, status, actions }: WelcomeBackPro
           </p>
         </div>
 
-        <button type="button" className="primary welcome-continue" onClick={actions.close}>Continue</button>
+        {/* Signing in is the screen's primary button while the offer stands (board 1c). */}
+        <button type="button" className={`${account ? 'primary' : 'secondary'} welcome-continue`} onClick={actions.close}>Continue</button>
         <p className="agent-row-note">Imported presets are in your printer and filament menus. Rename or delete them there.</p>
       </div>
     </div>
