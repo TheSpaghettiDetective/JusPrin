@@ -1,4 +1,5 @@
 #include "SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.hpp"
 
@@ -274,11 +275,23 @@ PrinterConnection printer_connection()
     PrinterConnection connection;
     // Non-const: use_bbl_network() is not a const member on PresetBundle.
     PresetBundle* presets = wxGetApp().preset_bundle;
-    // Only the Bambu network path reports a live machine state. Every other
-    // print host is "not connected" here, which is a statement about what
-    // JusPrin can observe, not a claim about the machine.
-    if (presets == nullptr || !presets->use_bbl_network())
+    if (presets == nullptr)
         return connection;
+    // A named printer on a print host is read as its card on Home reads it,
+    // and its monitor is the host's own page. Any other printer off the
+    // Bambu network is "not connected" here, which is a statement about what
+    // JusPrin can observe, not a claim about the machine.
+    if (!presets->use_bbl_network()) {
+        const std::string& name = presets->printers.get_edited_preset().name;
+        if (const auto status = Printers::host_status(name)) {
+            connection.print_host_printer = name;
+            connection.monitor_available  = true;
+            connection.state = status->link == Printers::HostLink::Reachable   ? ConnectionState::Idle :
+                               status->link == Printers::HostLink::Unreachable ? ConnectionState::Offline :
+                                                                                 ConnectionState::Checking;
+        }
+        return connection;
+    }
     auto* devices = wxGetApp().getDeviceManager();
     if (devices == nullptr)
         return connection;
@@ -597,10 +610,18 @@ bool sync_from_printer(Plater& plater)
     return false;
 }
 
-void open_monitor()
+std::string monitored_device()
 {
-    if (auto* frame = wxGetApp().mainframe; frame != nullptr)
-        frame->select_tab(size_t(MainFrame::tpMonitor));
+    const PresetBundle* presets = wxGetApp().preset_bundle;
+    if (presets == nullptr)
+        return {};
+    const std::string& selected = presets->printers.get_edited_preset().name;
+    for (const Printers::NamedPrinter& named : Printers::named_printers())
+        if (named.name == selected && !named.device_id.empty())
+            return named.device_id;
+    auto*          devices = wxGetApp().getDeviceManager();
+    MachineObject* machine = devices != nullptr ? devices->get_selected_machine() : nullptr;
+    return machine != nullptr ? machine->get_dev_id() : std::string();
 }
 
 } // namespace Slic3r::GUI::JusPrin::SetupCommands

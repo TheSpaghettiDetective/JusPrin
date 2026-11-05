@@ -345,8 +345,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                 printer.connection_text    = utf8(_L("Connected") + middle_dot() + wxString::FromUTF8(printer.address));
                 printer.can_launch_monitor = true;
             }
-            // A Moonraker host is read, so the line says whether it answers
-            // now. Other hosts are not, and keep the saved address's word.
+            // The host is read, so the line says whether it answers now.
             if (const auto status = Printers::host_status(named.name)) {
                 if (status->link == Printers::HostLink::Reachable) {
                     host_loaded = status->loaded;
@@ -673,13 +672,23 @@ void OrcaHomeBackend::launch_monitor(const std::string& printer_id)
     }
     if (device_id.empty())
         return; // the card changed under the click; the refreshed rail says so
-    // Upstream's own path to the Monitor, as the device popup and the
-    // multi-machine page use. Selecting the tab and the machine by hand
-    // instead left Home on screen: jump_to_monitor also guards on the Monitor
-    // panel existing and selects the machine inside it. Upstream may still
-    // decline the switch -- it vetoes the Monitor tab when the network plugin
-    // is missing -- and that refusal is upstream's to make.
-    m_frame.jump_to_monitor(device_id);
+    open_monitor_window(device_id);
+}
+
+void OrcaHomeBackend::open_monitor_window(const std::string& device_id)
+{
+    // One window per printer: a second click brings it back rather than
+    // opening another beside it. A window that stopped updating is left to
+    // its own Close, and the printer gets a new one.
+    for (const auto& window : m_monitor_windows)
+        if (window && !window->closing() && !window->outdated() && window->device_id() == device_id) {
+            window->bring_forward();
+            return;
+        }
+    m_monitor_windows.erase(std::remove_if(m_monitor_windows.begin(), m_monitor_windows.end(),
+                                           [](const wxWeakRef<MonitorWindow>& window) { return !window; }),
+                            m_monitor_windows.end());
+    m_monitor_windows.emplace_back(new MonitorWindow(device_id));
 }
 
 void OrcaHomeBackend::open_printer_window(const std::string& name)
@@ -688,10 +697,9 @@ void OrcaHomeBackend::open_printer_window(const std::string& name)
     if (preset == nullptr || preset->config.opt_string("print_host").empty())
         return; // the card changed under the click; the refreshed rail says so
     // One window per printer: a second click brings it back rather than
-    // opening another beside it.
+    // opening another beside it, at the address saved now.
     if (auto open = m_printer_windows.find(name); open != m_printer_windows.end() && open->second && !open->second->closing()) {
-        open->second->Iconize(false);
-        open->second->Raise();
+        open->second->show_printer(name, preset->config);
         return;
     }
     m_printer_windows[name] = new PrinterWindow(name, preset->config);
@@ -702,6 +710,9 @@ OrcaHomeBackend::~OrcaHomeBackend()
     // The windows have no parent, so they would outlive the app's main
     // window; they go with it, as the Device tab they stand in for does.
     for (auto& [name, window] : m_printer_windows)
+        if (window)
+            window->close();
+    for (auto& window : m_monitor_windows)
         if (window)
             window->close();
 }
@@ -773,8 +784,22 @@ std::string OrcaHomeBackend::rename_printer(const std::string& printer_id, const
     Plater* plater = wxGetApp().plater();
     if (plater == nullptr)
         return gone();
-    if (const auto name = strip(printer_id, kNamedPrefix))
-        return utf8(Printers::rename_named_printer(*plater, *name, new_name));
+    if (const auto name = strip(printer_id, kNamedPrefix)) {
+        const wxString problem = Printers::rename_named_printer(*plater, *name, new_name);
+        // An open window goes with its printer to the new name. An empty
+        // answer is also a cancelled Orca prompt, which renamed nothing.
+        const auto open = m_printer_windows.find(*name);
+        if (problem.empty() && open != m_printer_windows.end() &&
+            wxGetApp().preset_bundle->printers.find_preset(new_name, false, true) != nullptr) {
+            wxWeakRef<PrinterWindow> window = open->second;
+            m_printer_windows.erase(open);
+            if (window && !window->closing()) {
+                window->SetTitle(wxString::FromUTF8(new_name));
+                m_printer_windows[new_name] = window;
+            }
+        }
+        return utf8(problem);
+    }
     // A device keeps its own name. Upstream's dialog, as the device list
     // opens it, validates and sends the new one.
     MachineObject* machine = my_machine(strip(printer_id, kDevicePrefix).value_or(std::string()));

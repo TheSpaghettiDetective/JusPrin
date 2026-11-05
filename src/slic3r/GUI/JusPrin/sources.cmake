@@ -98,6 +98,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/OrcaHomeBackend.hpp
     GUI/JusPrin/Home/HomeWebView.cpp
     GUI/JusPrin/Home/HomeWebView.hpp
+    GUI/JusPrin/Home/MonitorWindow.cpp
+    GUI/JusPrin/Home/MonitorWindow.hpp
+    GUI/JusPrin/Home/PopOutWindow.cpp
+    GUI/JusPrin/Home/PopOutWindow.hpp
     GUI/JusPrin/Home/PrinterWindow.cpp
     GUI/JusPrin/Home/PrinterWindow.hpp
     GUI/JusPrin/Preferences/PreferencesSettings.cpp
@@ -151,6 +155,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Mcp/McpConfigFile.hpp
     GUI/JusPrin/Shell/ClassicView.cpp
     GUI/JusPrin/Shell/ClassicView.hpp
+    GUI/JusPrin/Shell/NoticeRow.cpp
+    GUI/JusPrin/Shell/NoticeRow.hpp
     GUI/JusPrin/Shell/ShellController.cpp
     GUI/JusPrin/Shell/ShellController.hpp
     GUI/JusPrin/Shell/ShellTheme.cpp

@@ -16,7 +16,7 @@ class MainFrame;
 
 namespace Slic3r::GUI::JusPrin {
 
-class ClassicViewBanner;
+class NoticeRow;
 class ShellTheme;
 
 // What JusPrin adds to stock OrcaSlicer while the shell is off: a banner above
@@ -58,7 +58,7 @@ private:
     const ShellTheme& m_theme;
     std::function<void()> m_on_return;
     bool m_installed{false};
-    ClassicViewBanner* m_banner{nullptr};
+    NoticeRow* m_banner{nullptr};
     wxMenu* m_view_menu{nullptr};
     wxMenuItem* m_menu_separator{nullptr};
     wxMenuItem* m_menu_row{nullptr};

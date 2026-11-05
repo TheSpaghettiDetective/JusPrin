@@ -6,9 +6,11 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/Utils/Http.hpp"
 #include "slic3r/Utils/Moonraker.hpp"
+#include "slic3r/Utils/PrintHost.hpp"
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <thread>
 #include <utility>
@@ -108,6 +110,29 @@ private:
     std::shared_ptr<Reads> m_reads;
 };
 
+// Any other print host -- OctoPrint, PrusaLink and the like -- is asked only
+// whether it answers at the page its printer window loads: any HTTP reply
+// counts, a login page or a refused key included, since the page is there.
+// What is loaded is not asked; each host says it differently, if at all.
+HostReading probe_page(const DynamicPrintConfig& config, const std::shared_ptr<Reads>& in_flight)
+{
+    // Http reports an HTTP error with its status and a failure to get any
+    // reply with status zero; a reply it reports neither way (a final 3xx)
+    // is still a reply.
+    bool answered = true;
+    // get_print_host_webui takes a mutable config; it only reads it.
+    DynamicPrintConfig copy = config;
+    Http::get(PrintHost::get_print_host_webui(&copy))
+        .timeout_connect(5)
+        .timeout_max(10)
+        .on_error([&](std::string, std::string, unsigned code) { answered = code != 0; })
+        .on_progress([&](Http::Progress, bool& cancel) { cancel = in_flight->stopping; })
+        .perform_sync();
+    HostReading reading;
+    reading.reached = answered;
+    return reading;
+}
+
 // Shared with the reads in flight, which may finish after the app has
 // started to exit.
 const std::shared_ptr<HostReadings>& readings()
@@ -116,8 +141,8 @@ const std::shared_ptr<HostReadings>& readings()
     return shared;
 }
 
-// The named printer's saved profile, when it is connected to a Moonraker host.
-const Preset* moonraker_printer(const std::string& name)
+// The named printer's saved profile, when it is connected to a print host.
+const Preset* host_printer(const std::string& name)
 {
     PresetBundle* bundle = wxGetApp().preset_bundle;
     if (bundle == nullptr)
@@ -125,10 +150,15 @@ const Preset* moonraker_printer(const std::string& name)
     const Preset* preset = bundle->printers.find_preset(name, false, true);
     if (preset == nullptr || !is_named_printer(*preset))
         return nullptr;
-    const auto* type = preset->config.option<ConfigOptionEnum<PrintHostType>>("host_type");
-    if (type == nullptr || type->value != htMoonraker || preset->config.opt_string("print_host").empty())
+    if (preset->config.opt_string("print_host").empty())
         return nullptr;
     return preset;
+}
+
+bool is_moonraker(const DynamicPrintConfig& config)
+{
+    const auto* type = config.option<ConfigOptionEnum<PrintHostType>>("host_type");
+    return type != nullptr && type->value == htMoonraker;
 }
 
 // A reading belongs to the settings it was taken with: a printer given
@@ -145,7 +175,7 @@ std::string host_key(const std::string& name, const DynamicPrintConfig& config)
 
 std::optional<HostStatus> host_status(const std::string& name)
 {
-    const Preset* preset = moonraker_printer(name);
+    const Preset* preset = host_printer(name);
     if (preset == nullptr)
         return std::nullopt;
     const std::string key = host_key(name, preset->config);
@@ -154,9 +184,15 @@ std::optional<HostStatus> host_status(const std::string& name)
     static StopReadsAtExit stop_at_exit;
     if (!reads()->stopping && readings()->begin(key, now)) {
         ++reads()->running;
-        auto reader = std::make_shared<const LaneReader>(preset->config, reads());
-        std::thread([shared = readings(), in_flight = reads(), key, reader] {
-            shared->finish(key, reader->read(), HostReadings::Clock::now());
+        std::function<HostReading()> read;
+        if (is_moonraker(preset->config)) {
+            auto reader = std::make_shared<const LaneReader>(preset->config, reads());
+            read        = [reader] { return reader->read(); };
+        } else {
+            read = [config = preset->config, in_flight = reads()] { return probe_page(config, in_flight); };
+        }
+        std::thread([shared = readings(), in_flight = reads(), key, read = std::move(read)] {
+            shared->finish(key, read(), HostReadings::Clock::now());
             --in_flight->running;
         }).detach();
     }
@@ -171,7 +207,7 @@ void refresh_host_readings()
 
 void note_host_answered(const std::string& name)
 {
-    if (const Preset* preset = moonraker_printer(name))
+    if (const Preset* preset = host_printer(name))
         readings()->note_answered(host_key(name, preset->config), HostReadings::Clock::now());
 }
 

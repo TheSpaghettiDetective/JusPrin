@@ -108,7 +108,8 @@ enum class ConnectionState
     NotConnected, // no network printer, or a host Orca does not report state for
     Idle,
     Printing,
-    Offline
+    Offline,
+    Checking // a print host not read lately, being asked now
 };
 
 struct PrinterConnection
@@ -116,6 +117,9 @@ struct PrinterConnection
     ConnectionState state{ConnectionState::NotConnected};
     // Whether the monitor tab has a machine to show.
     bool            monitor_available{false};
+    // The named printer whose print host's own page is its monitor; empty
+    // for a Bambu Lab printer, whose monitor is Orca's.
+    std::string     print_host_printer;
 };
 PrinterConnection printer_connection();
 
@@ -176,7 +180,9 @@ void open_filament_library();
 // Orca's own "Sync filaments" dialog, for the printer the project is set up
 // for. Returns false when there is no connected printer to read.
 bool sync_from_printer(Plater& plater);
-// The monitor tab, when a machine is connected.
-void open_monitor();
+// The device the selected printer's monitor shows: the one the named printer
+// was connected to, or else the machine Orca has selected, which the printer
+// menu's first row describes. Empty when there is neither.
+std::string monitored_device();
 
 } // namespace Slic3r::GUI::JusPrin::SetupCommands

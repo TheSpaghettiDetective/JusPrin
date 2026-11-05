@@ -10,6 +10,7 @@
 // a rebase and nothing else.
 
 #include "HomeBackend.hpp"
+#include "MonitorWindow.hpp"
 #include "PrintHistory.hpp"
 #include "PrinterWindow.hpp"
 
@@ -20,6 +21,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <vector>
 
 namespace Slic3r { namespace GUI {
 class MainFrame;
@@ -83,10 +85,16 @@ public:
     // path it returns is the one chosen, empty for Cancel. Unset, the dialog.
     void set_export_chooser(std::function<std::string(const std::string& name)> choose) { m_choose_export = std::move(choose); }
 
-private:
+    // A Bambu Lab printer's monitor in a window of its own, showing the
+    // device `device_id`; the header's printer menu opens it too.
+    void open_monitor_window(const std::string& device_id);
+
     // A print host's own page (Mainsail, Fluidd, OctoPrint) in a window of
-    // its own; the project's selected printer stays as it is.
+    // its own, for the named printer `name`; the project's selected printer
+    // stays as it is. The header's printer menu opens it too.
     void open_printer_window(const std::string& name);
+
+private:
     // Through the shell, which opens the files in a new project.
     void open_as_new_project(const wxArrayString& files);
     // What only the application knows about the records: preset names as the
@@ -112,6 +120,7 @@ private:
     std::function<wxArrayString()>                     m_choose_files;
     std::function<std::string(const std::string&)>     m_choose_export;
     std::map<std::string, wxWeakRef<PrinterWindow>>    m_printer_windows; // by printer name
+    std::vector<wxWeakRef<MonitorWindow>>              m_monitor_windows;
     // The records read with the projects, for the printer cards' lines,
     // which the live refresh reads every second.
     mutable std::vector<HistoryProject>                m_history;

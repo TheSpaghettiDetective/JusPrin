@@ -57,7 +57,8 @@ std::optional<UnitReport> parse_happy_hare(const std::string& body);
 // What one attempt to read a host found.
 struct HostReading
 {
-    // The host answered as Moonraker does.
+    // The host answered: as Moonraker does, for a Moonraker host; with any
+    // HTTP reply at its page, for any other.
     bool reached{false};
     // What is loaded, when the host said: empty for a unit with nothing loaded
     // and for a printer with no unit alike -- both are the printer saying

@@ -1,89 +1,18 @@
 #include "ClassicView.hpp"
-
-#include "ShellRecipes.hpp"
-#include "ShellTheme.hpp"
+#include "NoticeRow.hpp"
 
 #include "slic3r/GUI/BBLTopbar.hpp"
-#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 
-#include <wx/dcbuffer.h>
 #include <wx/menu.h>
-#include <wx/panel.h>
 #include <wx/sizer.h>
-#include <wx/stattext.h>
 
 #include <stdexcept>
 
 namespace Slic3r::GUI::JusPrin {
-
-// One row across the window: the sentence on the left, the way back on the
-// right. Not dismissible: it is the mode indicator, and the way back goes
-// with it.
-class ClassicViewBanner : public wxPanel
-{
-public:
-    ClassicViewBanner(wxWindow* parent, const ShellTheme& theme, std::function<void()> on_back)
-        : wxPanel(parent, wxID_ANY), m_theme(theme)
-    {
-        SetName("Classic view banner");
-        SetBackgroundStyle(wxBG_STYLE_PAINT);
-        m_text = new wxStaticText(this, wxID_ANY, _L("You're in the classic OrcaSlicer view."));
-        m_back = new Button(this, _L("Back to JusPrin"));
-        m_back->SetName(_L("Back to JusPrin"));
-
-        // The button's own height plus 8 above and below sets the row's.
-        auto* row = new wxBoxSizer(wxHORIZONTAL);
-        row->AddSpacer(FromDIP(16));
-        row->Add(m_text, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
-        row->Add(m_back, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, FromDIP(8));
-        row->AddSpacer(FromDIP(16));
-        SetSizer(row);
-
-        // Disabled at once: a second press queued before the first runs would
-        // ask for a return the first has already made.
-        m_back->Bind(wxEVT_BUTTON, [this, on_back = std::move(on_back)](wxCommandEvent&) {
-            m_back->Disable();
-            on_back();
-        });
-        Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
-            wxAutoBufferedPaintDC dc(this);
-            const ShellPalette& p = m_theme.palette(m_dark);
-            dc.SetBackground(wxBrush(p.surface_canvas));
-            dc.Clear();
-            dc.SetPen(wxPen(p.border_subtle));
-            dc.DrawLine(0, GetClientSize().y - 1, GetClientSize().x, GetClientSize().y - 1);
-        });
-        Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& event) {
-            apply_appearance(GUI_App::dark_mode());
-            event.Skip();
-        });
-        apply_appearance(GUI_App::dark_mode());
-    }
-
-    Button* back_button() const { return m_back; }
-
-    void apply_appearance(bool dark)
-    {
-        m_dark = dark;
-        const ShellPalette& palette = m_theme.palette(dark);
-        // Before the button: its resting fill is whatever it sits on.
-        SetBackgroundColour(palette.surface_canvas);
-        style_label(*m_text, m_theme, TextRole::Body, palette.text_secondary);
-        style_button(*m_back, m_theme, palette, m_theme.metrics().button.secondary);
-        Layout();
-        Refresh();
-    }
-
-private:
-    const ShellTheme& m_theme;
-    wxStaticText* m_text{nullptr};
-    Button* m_back{nullptr};
-    bool m_dark{false};
-};
 
 ClassicViewReturn::ClassicViewReturn(MainFrame& frame, Notebook& tabpanel, wxSizer& main_sizer, const ShellTheme& theme,
                                      std::function<void()> on_return)
@@ -117,7 +46,10 @@ void ClassicViewReturn::install()
     m_frame.Bind(wxEVT_DESTROY, &ClassicViewReturn::on_frame_destroy, this);
     m_installed = true;
 
-    m_banner = new ClassicViewBanner(&m_frame, m_theme, [this] { m_frame.CallAfter(m_on_return); });
+    // Not dismissible: it is the mode indicator, and the way back goes with it.
+    m_banner = new NoticeRow(&m_frame, m_theme, _L("You're in the classic OrcaSlicer view."), _L("Back to JusPrin"),
+                             [this] { m_frame.CallAfter(m_on_return); });
+    m_banner->SetName("Classic view banner");
     m_main_sizer.Insert(at, m_banner, 0, wxEXPAND);
     m_frame.Layout();
 
@@ -149,7 +81,7 @@ void ClassicViewReturn::uninstall()
 
 wxWindow* ClassicViewReturn::banner() const { return m_banner; }
 
-Button* ClassicViewReturn::back_button() const { return m_banner != nullptr ? m_banner->back_button() : nullptr; }
+Button* ClassicViewReturn::back_button() const { return m_banner != nullptr ? m_banner->button() : nullptr; }
 
 wxMenu* ClassicViewReturn::find_view_menu() const
 {

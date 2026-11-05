@@ -112,6 +112,13 @@ void PrinterMenu::show_root(const Ptr& self)
         machine.decoration.status_word = _L("Offline");
         machine.decoration.trailing    = HeaderIcon::Monitor;
         break;
+    case SetupCommands::ConnectionState::Checking:
+        // A print host not read lately: its window can open meanwhile, and
+        // says so itself when the page does not load.
+        machine.decoration.status      = StatusTone::Neutral;
+        machine.decoration.status_word = _L("Checking connection") + wxString::FromUTF8("\xE2\x80\xA6");
+        machine.decoration.trailing    = HeaderIcon::Monitor;
+        break;
     case SetupCommands::ConnectionState::NotConnected:
         machine.decoration.status      = StatusTone::Neutral;
         machine.decoration.status_word = _L("Not connected");
@@ -122,8 +129,19 @@ void PrinterMenu::show_root(const Ptr& self)
         machine.decoration.sub_label_faint = true;
         break;
     }
-    if (connection.monitor_available && !printer.from_file)
-        machine.invoke = [] { SetupCommands::open_monitor(); };
+    if (!connection.print_host_printer.empty() && !printer.from_file)
+        machine.invoke = [name = connection.print_host_printer] {
+            // The same window as the printer's card on Home: the host's own page.
+            if (ShellController* shell = installed_shell())
+                shell->home_view()->backend().open_printer_window(name);
+        };
+    else if (connection.monitor_available && !printer.from_file)
+        machine.invoke = [] {
+            // The same window as the printer's card on Home.
+            const std::string device = SetupCommands::monitored_device();
+            if (ShellController* shell = installed_shell(); shell != nullptr && !device.empty())
+                shell->home_view()->backend().open_monitor_window(device);
+        };
     rows.push_back(std::move(machine));
     rows.push_back(separator());
 
