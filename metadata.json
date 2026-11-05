@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6PMS85KHE14Y8M9VB57QF73",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1204,
+    "cache_creation_tokens": 1173690,
+    "cache_read_tokens": 131526411,
+    "output_tokens": 317818,
+    "api_call_count": 603
+  }
+}
