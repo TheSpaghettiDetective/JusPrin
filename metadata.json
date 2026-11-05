@@ -2,8 +2,8 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6MDZR5QT06B8CCDJ0JRWKDV",
   "strategy": "manual-commit",
-  "branch": "claude/connection-help",
-  "checkpoints_count": 27,
+  "branch": "claude/connection-help-squashed",
+  "checkpoints_count": 43,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Home/MonitorWindow.cpp",
     "src/slic3r/GUI/JusPrin/Home/MonitorWindow.hpp",
@@ -46,6 +46,13 @@
       "compact_transcript": "/2/transcript.jsonl",
       "content_hash": "/2/content_hash.txt",
       "prompt": "/2/prompt.txt"
+    },
+    {
+      "metadata": "/3/metadata.json",
+      "transcript": "/3/full.jsonl",
+      "compact_transcript": "/3/transcript.jsonl",
+      "content_hash": "/3/content_hash.txt",
+      "prompt": "/3/prompt.txt"
     }
   ],
   "token_usage": {
