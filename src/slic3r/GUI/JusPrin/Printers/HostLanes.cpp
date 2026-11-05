@@ -37,6 +37,40 @@ std::optional<json> parse(const std::string& body)
     return parsed;
 }
 
+double number_field(const json& object, const char* key)
+{
+    const auto found = object.find(key);
+    return found != object.end() && found->is_number() ? found->get<double>() : 0.;
+}
+
+// The reply's `result` object, or nothing.
+std::optional<json> result_of(const std::string& body)
+{
+    auto reply = parse(body);
+    if (!reply)
+        return std::nullopt;
+    const auto result = reply->find("result");
+    if (result == reply->end() || !result->is_object())
+        return std::nullopt;
+    return *result;
+}
+
+// `url` made absolute. Moonraker's own sample paths ("/webcam/?action=stream")
+// are relative to the web server in front of it, which Mainsail and Fluidd
+// load from, on the default port: so a path keeps the host's scheme and name
+// and drops a port such as Moonraker's 7125.
+std::string camera_url(const std::string& url, const std::string& web_origin)
+{
+    if (url.empty() || url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0)
+        return url;
+    const size_t scheme = web_origin.find("://");
+    const size_t start  = scheme == std::string::npos ? 0 : scheme + 3;
+    std::string  origin = web_origin.substr(0, web_origin.find('/', start));
+    if (const size_t port = origin.find(':', start); port != std::string::npos && origin.find(']', start) == std::string::npos)
+        origin = origin.substr(0, port);
+    return origin + (url.front() == '/' ? "" : "/") + url;
+}
+
 } // namespace
 
 std::string lane_colour(const std::string& raw)
@@ -136,6 +170,98 @@ std::optional<UnitReport> parse_happy_hare(const std::string& body)
     return report;
 }
 
+std::optional<KlipperState> parse_klipper_state(const std::string& body)
+{
+    const auto result = result_of(body);
+    if (!result)
+        return std::nullopt;
+    const auto status = result->find("status");
+    if (status == result->end() || !status->is_object())
+        return std::nullopt;
+    const auto object = [&status](const char* key) {
+        const auto found = status->find(key);
+        return found != status->end() && found->is_object() ? *found : json::object();
+    };
+    // Klipper always answers for webhooks; a reply without it is not this
+    // query's.
+    if (const auto webhooks = status->find("webhooks"); webhooks == status->end() || !webhooks->is_object())
+        return std::nullopt;
+    const json webhooks = object("webhooks"), print_stats = object("print_stats"), display = object("display_status");
+    KlipperState state;
+    state.klippy         = string_field(webhooks, "state");
+    // Klipper's message runs on into advice over several lines; its first
+    // line is the reason.
+    state.klippy_message = string_field(webhooks, "state_message");
+    state.klippy_message = state.klippy_message.substr(0, state.klippy_message.find('\n'));
+    state.print          = string_field(print_stats, "state");
+    state.filename       = string_field(print_stats, "filename");
+    state.message        = string_field(print_stats, "message");
+    state.print_duration = number_field(print_stats, "print_duration");
+    if (const auto progress = display.find("progress"); progress != display.end() && progress->is_number())
+        state.progress = std::clamp(progress->get<double>(), 0., 1.);
+    return state;
+}
+
+std::optional<HostJob> parse_last_job(const std::string& body)
+{
+    const auto result = result_of(body);
+    if (!result)
+        return std::nullopt;
+    const auto jobs = result->find("jobs");
+    if (jobs == result->end() || !jobs->is_array() || jobs->empty() || !jobs->front().is_object())
+        return std::nullopt;
+    const json& newest = jobs->front();
+    HostJob     job;
+    job.filename = string_field(newest, "filename");
+    job.status   = string_field(newest, "status");
+    job.end_time = number_field(newest, "end_time");
+    if (const auto metadata = newest.find("metadata"); metadata != newest.end() && metadata->is_object())
+        job.estimated_time = number_field(*metadata, "estimated_time");
+    return job;
+}
+
+std::optional<HostCamera> parse_webcams(const std::string& body, const std::string& web_origin)
+{
+    const auto result = result_of(body);
+    if (!result)
+        return std::nullopt;
+    const auto webcams = result->find("webcams");
+    if (webcams == result->end() || !webcams->is_array())
+        return std::nullopt;
+    for (const json& webcam : *webcams) {
+        if (!webcam.is_object())
+            continue;
+        if (const auto enabled = webcam.find("enabled"); enabled != webcam.end() && enabled->is_boolean() && !enabled->get<bool>())
+            continue;
+        // The services that serve a stream as MJPEG; WebRTC, HLS and the
+        // like need a player, so only their snapshot can show. The adaptive
+        // MJPEG service is Mainsail refreshing the snapshot itself.
+        const std::string service = string_field(webcam, "service");
+        const bool        mjpeg   = service.empty() || service == "mjpegstreamer" || service == "uv4l-mjpeg";
+        HostCamera        camera;
+        camera.stream_url   = mjpeg ? camera_url(string_field(webcam, "stream_url"), web_origin) : std::string();
+        camera.snapshot_url = camera_url(string_field(webcam, "snapshot_url"), web_origin);
+        if (!camera.stream_url.empty() || !camera.snapshot_url.empty())
+            return camera;
+    }
+    return std::nullopt;
+}
+
+HostActivity host_activity(const KlipperState& state)
+{
+    if (state.klippy == "startup")
+        return HostActivity::Starting;
+    // A print stopped by a shutdown still says "paused" or "printing": with
+    // Klipper down, nothing is.
+    if (state.klippy != "ready")
+        return HostActivity::KlipperDown;
+    if (state.print == "printing")
+        return HostActivity::Printing;
+    if (state.print == "paused")
+        return HostActivity::Paused;
+    return HostActivity::Ready;
+}
+
 HostStatus HostReadings::status(const std::string& key, Clock::time_point now) const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -145,9 +271,13 @@ HostStatus HostReadings::status(const std::string& key, Clock::time_point now) c
     const Entry& entry    = found->second;
     const auto   is_fresh = [now](const std::optional<Clock::time_point>& at) { return at && now - *at < kHostReadingFresh; };
     HostStatus   status;
+    status.last_connected = entry.connected_wall;
     if (is_fresh(entry.answered)) {
-        status.link   = HostLink::Reachable;
-        status.loaded = entry.loaded;
+        status.link     = HostLink::Reachable;
+        status.loaded   = entry.loaded;
+        status.klipper  = entry.klipper;
+        status.last_job = entry.last_job;
+        status.camera   = entry.camera;
     } else if (is_fresh(entry.failed) && (!entry.answered || *entry.failed > *entry.answered)) {
         status.link = HostLink::Unreachable;
     }
@@ -165,14 +295,20 @@ bool HostReadings::begin(const std::string& key, Clock::time_point now)
     return true;
 }
 
-void HostReadings::finish(const std::string& key, HostReading reading, Clock::time_point now)
+void HostReadings::finish(const std::string& key, HostReading reading, Clock::time_point now, Wall::time_point wall)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     Entry& entry    = m_entries[key];
     entry.in_flight = false;
     if (reading.reached) {
         entry.answered = now;
-        entry.loaded   = std::move(reading.loaded);
+        if (!reading.klipper || (host_activity(*reading.klipper) != HostActivity::KlipperDown &&
+                                 host_activity(*reading.klipper) != HostActivity::Starting))
+            entry.connected_wall = wall;
+        entry.loaded        = std::move(reading.loaded);
+        entry.klipper       = std::move(reading.klipper);
+        entry.last_job      = std::move(reading.last_job);
+        entry.camera        = std::move(reading.camera);
     } else {
         entry.failed = now;
     }

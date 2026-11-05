@@ -1,7 +1,8 @@
 #pragma once
 
 // Reads whether a named printer's print host answers, and what a Moonraker
-// host says its multi-filament unit holds, off the UI thread, and keeps the
+// host says about its printer -- what it is doing, its last job, its camera
+// and what its multi-filament unit holds -- off the UI thread, and keeps the
 // latest reading for Home's printer cards, the header's printer menu and the
 // printer conversation. Only printers connected to a print host are read; the
 // printer agent Orca has selected is not involved, so a Bambu printer's live

@@ -18,14 +18,41 @@ const char* to_string(ProjectStatusKind kind)
     return "unknown";
 }
 
-const char* to_string(PrinterState state)
+const char* to_string(PrinterStatus status)
 {
-    switch (state) {
-    case PrinterState::Printing: return "printing";
-    case PrinterState::Offline: return "offline";
-    case PrinterState::Idle: break;
+    switch (status) {
+    case PrinterStatus::Connecting: return "connecting";
+    case PrinterStatus::Connected: return "connected";
+    case PrinterStatus::Ready: return "ready";
+    case PrinterStatus::Printing: return "printing";
+    case PrinterStatus::Paused: return "paused";
+    case PrinterStatus::NeedsAttention: return "attention";
+    case PrinterStatus::NotConnected: break;
     }
-    return "idle";
+    return "not_connected";
+}
+
+const char* to_string(LastPrint last)
+{
+    switch (last) {
+    case LastPrint::Finished: return "finished";
+    case LastPrint::Failed: return "failed";
+    case LastPrint::Cancelled: return "cancelled";
+    case LastPrint::Unknown: break;
+    }
+    return "unknown";
+}
+
+const char* to_string(PrinterAction action)
+{
+    switch (action) {
+    case PrinterAction::Monitor: return "monitor";
+    case PrinterAction::PrinterWindow: return "printer_window";
+    case PrinterAction::Reconnect: return "reconnect";
+    case PrinterAction::Connect: return "connect";
+    case PrinterAction::None: break;
+    }
+    return "none";
 }
 
 const char* to_string(PrinterKind kind)
@@ -35,17 +62,6 @@ const char* to_string(PrinterKind kind)
     case PrinterKind::Named: break;
     }
     return "named";
-}
-
-const char* to_string(ConnectionState state)
-{
-    switch (state) {
-    case ConnectionState::Online: return "online";
-    case ConnectionState::Offline: return "offline";
-    case ConnectionState::Connected: return "connected";
-    case ConnectionState::None: break;
-    }
-    return "none";
 }
 
 namespace {
@@ -100,24 +116,36 @@ json printer_json(const PrinterEntry& printer)
         {"id", printer.id},
         {"name", printer.name},
         {"kind", to_string(printer.kind)},
-        {"state", to_string(printer.state)},
-        {"connectionState", to_string(printer.connection_state)},
+        {"status", to_string(printer.status)},
         {"spools", std::move(spools)},
-        {"canLaunchMonitor", printer.can_launch_monitor},
+        {"action", to_string(printer.action)},
         {"canOpenSettings", printer.can_open_settings},
         {"canRename", printer.can_rename},
         {"canRemove", printer.can_remove},
     };
-    set_if_present(out, "statusText", printer.status_text);
-    set_if_present(out, "connectionText", printer.connection_text);
-    set_if_present(out, "connectionKind", printer.connection_kind);
-    set_if_present(out, "connectionAction", printer.connection_action);
+    set_if_present(out, "job", printer.job);
+    // A bar and a time left belong to a job that is running or paused; a
+    // finished or idle printer sends none rather than a zero.
+    const bool job_running = printer.status == PrinterStatus::Printing || printer.status == PrinterStatus::Paused ||
+                             printer.status == PrinterStatus::NeedsAttention;
+    if (job_running && printer.progress_percent >= 0)
+        out["progressPercent"] = printer.progress_percent;
+    if (job_running && printer.seconds_left > 0)
+        out["secondsLeft"] = printer.seconds_left;
+    set_if_present(out, "message", printer.message);
+    if (printer.status == PrinterStatus::Ready && printer.last_print != LastPrint::Unknown)
+        out["lastPrint"] = to_string(printer.last_print);
+    if (printer.status == PrinterStatus::NotConnected)
+        set_if_present(out, "lastConnectedAt", printer.last_connected_at);
+    if (!printer.camera_stream_url.empty() || !printer.camera_snapshot_url.empty()) {
+        json camera = json::object();
+        set_if_present(camera, "streamUrl", printer.camera_stream_url);
+        set_if_present(camera, "snapshotUrl", printer.camera_snapshot_url);
+        out["camera"] = std::move(camera);
+    }
+    set_if_present(out, "connectionLabel", printer.connection_label);
     set_if_present(out, "address", printer.address);
     set_if_present(out, "modelText", printer.model_text);
-    // A bar belongs to a running job; a finished or idle printer sends none
-    // rather than a zero-width one.
-    if (printer.state == PrinterState::Printing && printer.progress_percent >= 0)
-        out["progressPercent"] = printer.progress_percent;
     if (!printer.history.empty())
         out["history"] = summary_json(printer.history);
     return out;

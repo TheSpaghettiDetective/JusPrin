@@ -476,15 +476,24 @@ body {
   background: var(--status-success);
 }
 
-/* A printer card's dot is its connection: reachable, or known and silent. A
-   printer with nothing verified draws no dot at all. */
-.status-dot.online,
-.status-dot.connected {
+/* A printer card's dot is its status, as the boards draw it: success for a
+   printer that is printing or ready, warning for a paused one, danger for one
+   that needs attention, a faint dot for one that answers without saying what
+   it is doing. A printer that is not connected, or connecting, has none. */
+.status-dot.ready {
   background: var(--status-success);
 }
 
-.status-dot.offline {
+.status-dot.paused {
   background: var(--status-warning);
+}
+
+.status-dot.attention {
+  background: var(--status-danger);
+}
+
+.status-dot.connected {
+  background: var(--text-tertiary);
 }
 
 /* Read by a screen reader, not drawn. */
@@ -519,52 +528,6 @@ body {
   box-shadow: var(--elevation-subtle);
 }
 
-/* An idle printer on one line. With the swatch at its token size, the 8 DIP
-   padding gives the board's 42 DIP chip without a height of its own. */
-.printer-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  font: var(--font-body-small);
-  color: var(--text-primary);
-  text-align: left;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-medium);
-  cursor: pointer;
-}
-
-.printer-chip:hover {
-  background: var(--surface-raised-hover);
-}
-
-.printer-chip-name {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.printer-chip-status {
-  flex: 0 0 auto;
-  font: var(--font-label);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.printer-chip-loaded {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  font: var(--font-label);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .printer-head {
   display: flex;
   align-items: center;
@@ -577,15 +540,81 @@ body {
   color: var(--text-primary);
 }
 
-.printer-job {
+/* The camera heads the card while it answers, at the boards' height; the
+   picture fills the frame, cropped rather than letterboxed. */
+.printer-camera {
+  position: relative;
+  height: var(--printer-card-camera-height);
+  margin-bottom: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-medium);
+  background: var(--surface-subtle);
+  overflow: hidden;
+}
+
+.printer-camera img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.printer-camera-live {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  font: var(--font-metadata-bold);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-chip);
+}
+
+/* The one status: its dot, its word, and what follows it. */
+.printer-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font: var(--font-body-small);
-  color: var(--status-success);
+}
+
+.printer-status-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.printer-status-word {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.printer-status-word.quiet {
+  color: var(--text-secondary);
+}
+
+.printer-status-detail {
+  color: var(--text-secondary);
+}
+
+.printer-job {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .printer-progress {
   height: var(--progress-height);
   border-radius: var(--radius-full);
-  background: var(--border-subtle);
+  background: var(--surface-subtle);
   overflow: hidden;
 }
 
@@ -595,30 +624,28 @@ body {
   background: var(--status-success);
 }
 
-/* Connection, Model, Loaded: a label column and a value column, the same on
-   every card. */
-.printer-facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 12px;
-  row-gap: 4px;
-  margin: 4px 0 0;
+.printer-progress.paused > span {
+  background: var(--status-warning);
 }
 
-.printer-fact {
-  display: contents;
-}
-
-.printer-fact dt {
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.printer-fact dd {
+/* The printer's own words, or why it is not connected. */
+.printer-message {
   margin: 0;
-  min-width: 0;
   font: var(--font-body-small);
   color: var(--text-primary);
+}
+
+.printer-since {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+/* How it is reached, its address, model and nozzle, on one line. */
+/* Wraps rather than cutting off the model and nozzle behind an address. */
+.printer-facts {
+  font: var(--font-label);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 /* Four swatches, one AMS, fit beside the material on one line. */
@@ -631,6 +658,8 @@ body {
 
 .printer-material {
   margin-right: 4px;
+  font: var(--font-label-bold);
+  color: var(--text-primary);
 }
 
 /* Without the border the black spool vanishes on the dark card and the white
@@ -795,14 +824,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* The header row ends in the status dot and the printer's actions menu. */
-.printer-head-end {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .printer-actions {

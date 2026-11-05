@@ -5517,8 +5517,9 @@ private:
             // Finding 04 of the setup walkthrough: Home said "Sends files over
             // Wi-Fi" right after this. The card now says only what is verified.
             const auto card = home_card(kAddedPrinter);
-            check(address_before.empty() && card && card->connection_state == Home::ConnectionState::None &&
-                      card->connection_text == "Not connected" && card->address.empty() && !card->can_launch_monitor,
+            check(address_before.empty() && card && card->status == Home::PrinterStatus::NotConnected &&
+                      card->message == "No network connection is set up." && card->address.empty() &&
+                      card->action == Home::PrinterAction::Connect,
                   "home_says_not_connected_after_a_failed_host_test");
             check(card && card->model_text == "Ender-3 V2 Neo \xC2\xB7 0.4 mm", "home_model_row_names_model_and_nozzle");
             // The project has a filament selected, and adding the printer
@@ -5574,9 +5575,8 @@ private:
                   "host_success_saves_the_address");
             const std::string address = answered.substr(answered.find("://") + 3);
             const auto        card    = home_card(kAddedPrinter);
-            check(card && card->connection_state == Home::ConnectionState::Connected && card->connection_kind == "host" &&
-                      card->address == address && card->connection_text == "Connected \xC2\xB7 " + address &&
-                      card->can_launch_monitor && card->connection_action.empty(),
+            check(card && card->status == Home::PrinterStatus::Connected && card->connection_label == "Klipper" &&
+                      card->address == address && card->action == Home::PrinterAction::PrinterWindow,
                   "home_says_connected_with_the_saved_address");
             verify_open_printer_window(host);
         }
@@ -5664,7 +5664,7 @@ private:
             address = host.address();
             check(connect_host_and_wait(backend, kAddedPrinter, address, 20s).state == "verified", "host_lanes_fixture_connects");
             const auto first = card();
-            check(first && first->connection_state == Home::ConnectionState::Connected && first->can_launch_monitor,
+            check(first && first->status == Home::PrinterStatus::Connected && first->action == Home::PrinterAction::PrinterWindow,
                   "host_lanes_connection_test_counts_as_an_answer");
 
             shows("PLA #5F7D4F, PETG", "host_lanes_home_shows_the_loaded_lanes");
@@ -5690,7 +5690,7 @@ private:
             host.set_mmu("");
             shows("", "host_lanes_printer_without_a_unit_shows_nothing");
             const auto plain = card();
-            check(plain && plain->connection_state == Home::ConnectionState::Connected, "host_lanes_printer_without_a_unit_is_connected");
+            check(plain && plain->status == Home::PrinterStatus::Connected, "host_lanes_printer_without_a_unit_is_connected");
             check(saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_reads_no_unit_as_nothing");
             check(host.requests("/server/database/item") >= 4 && host.requests("/printer/objects/query") >= 2,
                   "host_lanes_both_sources_are_read");
@@ -5700,13 +5700,13 @@ private:
         // with Reconnect, and no longer said to hold anything.
         const bool offline = wait_for([&] {
             const auto read = card();
-            return read && read->connection_state == Home::ConnectionState::Offline;
+            return read && read->status == Home::PrinterStatus::NotConnected;
         }, PrinterSetup::kConnectionWait + 20s);
         const auto gone = card();
-        std::cout << "HARNESS host lanes silent: " << (gone ? gone->connection_text : "(no card)") << ", \""
+        std::cout << "HARNESS host lanes silent: " << (gone ? gone->message : "(no card)") << ", \""
                   << (gone ? loaded_text(gone->spools) : "") << "\"" << std::endl;
-        check(offline && gone->connection_text == "Offline" && gone->connection_action == "reconnect" &&
-                  !gone->can_launch_monitor && gone->address == address.substr(address.find("://") + 3),
+        check(offline && gone->message.find("isn't answering") != std::string::npos &&
+                  gone->action == Home::PrinterAction::Reconnect && gone->address == address.substr(address.find("://") + 3),
               "host_lanes_silent_host_goes_offline");
         check(gone && gone->spools.empty(), "host_lanes_silent_host_claims_nothing_loaded");
         check(!saved_now().connected && saved_now().spools.empty(), "host_lanes_conversation_sees_the_silent_host_disconnected");
@@ -6413,9 +6413,8 @@ private:
     void verify_home_bambu_card(const std::string& name, std::function<void()> then)
     {
         const auto card = home_card(name);
-        check(card && card->connection_state == Home::ConnectionState::Online && card->connection_kind == "lan" &&
-                  card->connection_text == "Online \xC2\xB7 LAN" && card->can_launch_monitor &&
-                  card->connection_action.empty(),
+        check(card && card->status == Home::PrinterStatus::Ready && card->connection_label == "LAN" &&
+                  card->action == Home::PrinterAction::Monitor,
               "home_says_online_for_a_connected_bambu_printer");
         check(card && card->model_text.rfind("A1 mini \xC2\xB7 ", 0) == 0, "home_model_row_names_the_bambu_model");
         const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
@@ -6448,8 +6447,86 @@ private:
                 self->check(read && read->spools.size() == 2 && read->spools[1].material == "PETG" &&
                                 read->spools[1].colour.empty(),
                             "home_draws_no_colour_a_tray_did_not_report");
-                boost::filesystem::remove(control);
-                then();
+                self->verify_home_bambu_job(name, control, 0, [control, then] {
+                    boost::filesystem::remove(control);
+                    then();
+                });
+            });
+    }
+
+    // What the fake Bambu printer reports about its job, one state after
+    // another, and what the card makes of each.
+    struct BambuJobCase
+    {
+        const char*                                      control;
+        const char*                                      check;
+        std::function<bool(const Home::PrinterEntry&)> holds;
+    };
+
+    void verify_home_bambu_job(const std::string& name, const std::string& control, size_t index, std::function<void()> then)
+    {
+        // 117473297 is 0x07008011, AMS filament ran out; 50348044 is
+        // 0x0300400C, the task was canceled.
+        static const std::vector<BambuJobCase> cases = {
+            {R"({"state":"pause","progress":0.4,"print_error":117473297})", "home_bambu_error_pause_needs_attention",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::NeedsAttention && !card.message.empty() &&
+                        !card.job.empty() && card.progress_percent == 40;
+             }},
+            {R"({"state":"pause","progress":0.4})", "home_bambu_pause_without_an_error_is_paused",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::Paused && card.message.empty() && !card.job.empty();
+             }},
+            {R"({"state":"printing","progress":0.5})", "home_bambu_printing_names_the_job",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::Printing && !card.job.empty() &&
+                        card.progress_percent == 50 && card.seconds_left > 0;
+             }},
+            {R"({"state":"failed","print_error":50348044})", "home_bambu_cancelled_print_reads_cancelled",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Cancelled &&
+                        card.job.empty();
+             }},
+            {R"({"state":"failed","print_error":0})", "home_bambu_failed_print_reads_failed",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Failed;
+             }},
+            {R"({"state":"finished"})", "home_bambu_finished_print_reads_finished",
+             [](const Home::PrinterEntry& card) {
+                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Finished;
+             }},
+        };
+        if (index == cases.size()) {
+            then();
+            return;
+        }
+        {
+            boost::nowide::ofstream out(control);
+            out << cases[index].control;
+        }
+        const BambuJobCase& next = cases[index];
+        wait_until(
+            [self = shared_from_this(), name, &next] {
+                const auto read = self->home_card(name);
+                return read && next.holds(*read);
+            },
+            next.check,
+            [self = shared_from_this(), name, control, index, &next, then] {
+                const auto read = self->home_card(name);
+                if (read)
+                    std::cerr << "HARNESS NOTE " << next.check << ": status=" << Home::to_string(read->status)
+                              << " job=" << read->job << " message=" << read->message << '\n';
+                self->verify_home_bambu_job(name, control, index + 1, then);
+            },
+            // What the card says while it does not yet hold, each time that changes.
+            [self = shared_from_this(), name, &next, said = std::make_shared<std::string>()] {
+                const auto read = self->home_card(name);
+                const std::string now = read ? std::string(Home::to_string(read->status)) + " job=" + read->job +
+                                                   " percent=" + std::to_string(read->progress_percent) +
+                                                   " message=" + read->message :
+                                               "(no card)";
+                if (now != *said)
+                    std::cerr << "HARNESS NOTE " << next.check << " reads " << (*said = now) << '\n';
             });
     }
 
@@ -6481,8 +6558,8 @@ private:
                 self->check(Printers::link_named_printer(name, device).empty(), "discovered_device_linked_before_authentication");
                 self->check(backend->connection(name).state == "not_configured", "identified_device_has_neutral_first_connection_state");
                 const auto linked = self->home_card(name);
-                self->check(linked && linked->connection_state == Home::ConnectionState::None &&
-                    linked->connection_text == "Not connected" && !linked->can_launch_monitor && linked->connection_action.empty(),
+                self->check(linked && linked->status == Home::PrinterStatus::NotConnected &&
+                    linked->action == Home::PrinterAction::Connect,
                     "home_says_not_connected_for_a_linked_but_unverified_device");
                 self->check(backend->connect_printer(name, device, "").empty(), "connect_existing_saved_bambu");
                 self->check(backend->connection(name).state == "connecting", "connect_waits_for_fresh_device_data");
@@ -6555,9 +6632,10 @@ private:
                                             "previously_verified_connection_remains_distinct_from_never_connected");
                                         // Verified before and silent now: Offline, with Reconnect.
                                         const auto silent = self->home_card(name);
-                                        self->check(silent && silent->connection_state == Home::ConnectionState::Offline &&
-                                            silent->connection_text == "Offline" && silent->connection_action == "reconnect" &&
-                                            !silent->can_launch_monitor, "home_says_offline_for_a_silent_verified_printer");
+                                        self->check(silent && silent->status == Home::PrinterStatus::NotConnected &&
+                                            silent->message == "The printer stopped sending updates." &&
+                                            silent->action == Home::PrinterAction::Reconnect,
+                                            "home_says_offline_for_a_silent_verified_printer");
                                         self->verify_bambu_connection_failures(*backend, name, device);
                                         self->verify_bambu_seen_reasons(*backend, name, device);
                                         self->verify_other_printers_menu();

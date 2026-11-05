@@ -78,6 +78,7 @@ fake rereads it about once a second.
 | `nozzle`, `bed` | °C |
 | `offline` | `true` stops `push_status`; after ~30 s the menu first row is Offline |
 | `spools` | loaded AMS spools; see below. Absent leaves whatever was last set |
+| `print_error` | Bambu's error code for what stopped or paused the job, as a decimal number: `117473297` (`0x07008011`, AMS filament ran out) with `"state":"pause"` puts Home's card on Needs attention; `50348044` (`0x0300400C`, "Printing was cancelled") with `"state":"failed"` reads as a cancelled last print. Absent is `0` |
 | `send_fails` | `true` makes the next print or storage upload fail as an upload failure (read at the moment of Send), so OrcaSlicer's send dialog shows its error and reports no success |
 | `connect_fails` | a code such as `"5"` (or `true`, which is `"5"`) makes every connect report `ConnectStatusFailed` with that code to the app, as the plug-in does for a printer that refuses; upstream reads `"5"` as a wrong access code and erases the saved one. Nothing connects while it is set. Tests can also call `fail_next_connect(code)` on the agent for one connect |
 

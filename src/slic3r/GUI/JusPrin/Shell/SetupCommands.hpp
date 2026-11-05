@@ -106,8 +106,10 @@ void remember_colour(const wxColour& colour);
 enum class ConnectionState
 {
     NotConnected, // no network printer, or a host Orca does not report state for
-    Idle,
+    Ready,
     Printing,
+    Paused,
+    Connected, // a print host that answers and does not say what it is doing
     Offline,
     Checking // a print host not read lately, being asked now
 };

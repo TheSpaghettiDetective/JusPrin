@@ -469,7 +469,7 @@ TEST_CASE("a live refresh sends only when a card changed", "[home]")
     PrinterEntry garage;
     garage.id              = "named:Garage A1 mini";
     garage.name            = "Garage A1 mini";
-    garage.connection_text = "Connected";
+    garage.status          = PrinterStatus::Connected;
     backend.machines       = {garage};
     backend.projects       = {a_project("0", "Garage bracket")};
     Wire     wire;
@@ -485,11 +485,11 @@ TEST_CASE("a live refresh sends only when a card changed", "[home]")
     CHECK_FALSE(host.refresh_if_changed());
     CHECK(wire.of_type("state").size() == states_after_hello);
 
-    backend.machines.front().state            = PrinterState::Printing;
+    backend.machines.front().status           = PrinterStatus::Printing;
     backend.machines.front().progress_percent = 43;
     CHECK(host.refresh_if_changed());
     json payload = wire.of_type("state").back().at("payload");
-    CHECK(payload.at("printers").at(0).at("state") == "printing");
+    CHECK(payload.at("printers").at(0).at("status") == "printing");
     CHECK(payload.at("printers").at(0).at("progressPercent") == 43);
     // A send carries the whole screen, projects re-read with it.
     CHECK(payload.at("projects").size() == 2);
@@ -497,11 +497,10 @@ TEST_CASE("a live refresh sends only when a card changed", "[home]")
 
     backend.machines.front().progress_percent = 44;
     CHECK(host.refresh_if_changed());
-    backend.machines.front().state            = PrinterState::Offline;
-    backend.machines.front().connection_state = ConnectionState::Offline;
-    backend.machines.front().connection_text  = "Offline";
+    backend.machines.front().status  = PrinterStatus::NotConnected;
+    backend.machines.front().message = "The printer stopped sending updates.";
     CHECK(host.refresh_if_changed());
-    CHECK(wire.of_type("state").back().at("payload").at("printers").at(0).at("state") == "offline");
+    CHECK(wire.of_type("state").back().at("payload").at("printers").at(0).at("status") == "not_connected");
     CHECK(wire.of_type("state").size() == states_after_hello + 3);
 
     // A progress value the page never draws -- no job, so no bar -- is no
@@ -523,7 +522,7 @@ TEST_CASE("a live refresh after an explicit push sends nothing new", "[home]")
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
-    backend.machines.front().state = PrinterState::Offline;
+    backend.machines.front().status = PrinterStatus::NotConnected;
     host.push_state();
     const size_t states = wire.of_type("state").size();
     CHECK_FALSE(host.refresh_if_changed());
@@ -549,7 +548,7 @@ TEST_CASE("a live refresh keeps the added printer leading and highlighted", "[ho
     host.push_state("New Printer");
 
     CHECK_FALSE(host.refresh_if_changed());
-    backend.machines.front().state = PrinterState::Printing;
+    backend.machines.front().status = PrinterStatus::Printing;
     CHECK(host.refresh_if_changed());
     json payload = wire.of_type("state").back().at("payload");
     CHECK(payload.at("printers").at(0).at("name") == "New Printer");
@@ -558,7 +557,7 @@ TEST_CASE("a live refresh keeps the added printer leading and highlighted", "[ho
     // The next explicit push is the ordinary order again, and so is every
     // live push after it.
     host.push_state();
-    backend.machines.front().state = PrinterState::Idle;
+    backend.machines.front().status = PrinterStatus::Ready;
     CHECK(host.refresh_if_changed());
     payload = wire.of_type("state").back().at("payload");
     CHECK(payload.at("printers").at(0).at("name") == "Existing Printer");

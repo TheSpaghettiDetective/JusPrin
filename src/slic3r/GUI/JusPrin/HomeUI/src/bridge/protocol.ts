@@ -93,7 +93,31 @@ export interface ProjectInfo {
   history?: HistorySummary;
 }
 
-export type PrinterState = 'idle' | 'printing' | 'offline';
+// What a card says the printer is doing, in one word. Each rests on
+// something the host read: 'not_connected' when it has no connection or none
+// answers, 'connecting' before the first answer, 'connected' when the printer
+// answers without saying what it is doing, and the rest when it says.
+export type PrinterStatus =
+  | 'not_connected'
+  | 'connecting'
+  | 'connected'
+  | 'ready'
+  | 'printing'
+  | 'paused'
+  | 'attention';
+
+// How the printer says its last print ended, on a 'ready' card.
+export type LastPrint = 'finished' | 'failed' | 'cancelled';
+
+// The card's one button: a Bambu printer's monitor, a print host's own page
+// in a window, Reconnect, or Connect for a printer with no connection.
+export type PrinterAction = 'none' | 'monitor' | 'printer_window' | 'reconnect' | 'connect';
+
+// A camera the card can show: an MJPEG stream, or a picture to fetch again.
+export interface PrinterCamera {
+  streamUrl?: string;
+  snapshotUrl?: string;
+}
 
 // A spool the printer holds, as a connected printer reports its tray. Either
 // field may be absent; the card names what it knows and draws a swatch only
@@ -104,15 +128,6 @@ export interface SpoolInfo {
   // '#RRGGBB'.
   colour?: string;
 }
-
-// What the connection line rests on. 'online' is a Bambu device's;
-// 'connected' is a print host with a saved address (for Moonraker, one that
-// answered lately); 'offline' is a Bambu device or a Moonraker host that has
-// gone silent; 'none' is neither, and draws no dot.
-export type ConnectionState = 'none' | 'online' | 'offline' | 'connected';
-
-// How the printer is reached; 'host' is Moonraker or OctoPrint.
-export type ConnectionKind = 'lan' | 'cloud' | 'host';
 
 // A named printer is one the person added and names in JusPrin: this page
 // confirms its rename and removal. A device is a Bambu printer no named
@@ -128,24 +143,28 @@ export interface PrinterInfo {
   canOpenSettings: boolean;
   canRename: boolean;
   canRemove: boolean;
-  state: PrinterState;
-  // Host-formatted status line, e.g. "Printing · 43% · 2h left". Present
-  // whenever the host has something to say about the current job.
-  statusText?: string;
-  // 0-100, present only while printing; drives the progress bar's width.
+  status: PrinterStatus;
+  // The job while one runs or is paused, as the printer names it.
+  job?: string;
+  // 0-100 and the seconds left, while a job runs or is paused; each absent
+  // when the printer does not say.
   progressPercent?: number;
-  connectionState: ConnectionState;
-  // Host-formatted Connection row, e.g. "Online · LAN", "Not connected".
-  connectionText?: string;
-  connectionKind?: ConnectionKind;
-  connectionAction?: 'reconnect';
-  // A print host's address as saved, without its scheme.
+  secondsLeft?: number;
+  // The printer's own words about what needs doing, or why a card is not
+  // connected.
+  message?: string;
+  lastPrint?: LastPrint;
+  // When the app last heard from a printer that is not connected, ISO 8601
+  // in UTC; absent when it does not know.
+  lastConnectedAt?: string;
+  camera?: PrinterCamera;
+  // The facts line's parts: how it is reached ('LAN', 'Klipper' ...), a
+  // print host's address as saved, and "X1 Carbon · 0.4 mm".
+  connectionLabel?: string;
   address?: string;
-  // Host-formatted Model row, e.g. "X1 Carbon · 0.4 mm".
   modelText?: string;
   spools: SpoolInfo[];
-  // A Bambu card's Launch monitor, or a print host's Open printer window.
-  canLaunchMonitor: boolean;
+  action: PrinterAction;
   // What was made for, sent to and printed on this printer, across projects;
   // absent when nothing was.
   history?: HistorySummary;

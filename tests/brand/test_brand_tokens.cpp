@@ -572,7 +572,7 @@ TEST_CASE("the printer card geometry is explicit", "[brand]")
 {
     const json tokens = load_tokens();
     require_exact_table<int>(tokens.at("component").at("printerCard"),
-        {{"columnWidth", 320}, {"pictureSize", 32}, {"padding", 16}, {"radius", 12}},
+        {{"columnWidth", 320}, {"pictureSize", 32}, {"padding", 16}, {"radius", 12}, {"cameraHeight", 135}},
         "component.printerCard");
 }
 

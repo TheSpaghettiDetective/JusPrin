@@ -30,15 +30,14 @@ PrinterEntry a_printer()
     PrinterEntry printer;
     printer.id                 = "x1";
     printer.name               = "X1 Carbon";
-    printer.state              = PrinterState::Printing;
-    printer.status_text        = "Printing - 43% - 2h left";
-    printer.progress_percent   = 43;
-    printer.connection_state   = ConnectionState::Online;
-    printer.connection_text    = "Online - LAN";
-    printer.connection_kind    = "lan";
-    printer.model_text         = "X1 Carbon - 0.4 mm";
-    printer.spools             = {SpoolEntry{"PLA", "#000000"}, SpoolEntry{"PETG", "#FFFFFF"}};
-    printer.can_launch_monitor = true;
+    printer.status           = PrinterStatus::Printing;
+    printer.job              = "Vent grille";
+    printer.progress_percent = 43;
+    printer.seconds_left     = 7200;
+    printer.connection_label = "LAN";
+    printer.model_text       = "X1 Carbon - 0.4 mm";
+    printer.spools           = {SpoolEntry{"PLA", "#000000"}, SpoolEntry{"PETG", "#FFFFFF"}};
+    printer.action           = PrinterAction::Monitor;
     return printer;
 }
 
@@ -123,40 +122,57 @@ TEST_CASE("a printing printer carries its job, its bar, and its spools", "[home]
     Snapshot snapshot;
     snapshot.printers = {a_printer()};
     const json printer = state_payload(snapshot).at("printers").at(0);
-    CHECK(printer.at("state") == "printing");
-    CHECK(printer.at("statusText") == "Printing - 43% - 2h left");
+    CHECK(printer.at("status") == "printing");
+    CHECK(printer.at("job") == "Vent grille");
     CHECK(printer.at("progressPercent") == 43);
-    CHECK(printer.at("connectionState") == "online");
-    CHECK(printer.at("connectionText") == "Online - LAN");
-    CHECK(printer.at("connectionKind") == "lan");
+    CHECK(printer.at("secondsLeft") == 7200);
+    CHECK(printer.at("connectionLabel") == "LAN");
     CHECK(printer.at("modelText") == "X1 Carbon - 0.4 mm");
-    CHECK(printer.at("canLaunchMonitor") == true);
+    CHECK(printer.at("action") == "monitor");
     CHECK_FALSE(printer.contains("address"));
+    CHECK_FALSE(printer.contains("message"));
+    CHECK_FALSE(printer.contains("camera"));
     REQUIRE(printer.at("spools").size() == 2);
     CHECK(printer.at("spools").at(0).at("material") == "PLA");
     CHECK(printer.at("spools").at(0).at("colour") == "#000000");
-    // The card's material now comes from what the printer holds; the
-    // project's filament is not a fact about the printer.
-    CHECK_FALSE(printer.contains("materialLabel"));
-    CHECK_FALSE(printer.contains("nozzleText"));
+    // The old two-part state is gone: one status says it all.
+    for (const char* gone : {"state", "statusText", "connectionState", "connectionText", "canLaunchMonitor"})
+        CHECK_FALSE(printer.contains(gone));
 }
 
-// The dot and the connection row rest on the state; the words are the host's.
-TEST_CASE("every connection state maps to the page's vocabulary", "[home]")
+TEST_CASE("every status, last print and action maps to the page's vocabulary", "[home]")
 {
     Snapshot snapshot;
     snapshot.printers = {PrinterEntry{}};
-    CHECK(state_payload(snapshot).at("printers").at(0).at("connectionState") == "none");
-    const std::pair<ConnectionState, const char*> expected[] = {
-        {ConnectionState::None, "none"},
-        {ConnectionState::Online, "online"},
-        {ConnectionState::Offline, "offline"},
-        {ConnectionState::Connected, "connected"},
+    CHECK(state_payload(snapshot).at("printers").at(0).at("status") == "not_connected");
+    CHECK(state_payload(snapshot).at("printers").at(0).at("action") == "none");
+    const std::pair<PrinterStatus, const char*> statuses[] = {
+        {PrinterStatus::NotConnected, "not_connected"}, {PrinterStatus::Connecting, "connecting"},
+        {PrinterStatus::Connected, "connected"},        {PrinterStatus::Ready, "ready"},
+        {PrinterStatus::Printing, "printing"},          {PrinterStatus::Paused, "paused"},
+        {PrinterStatus::NeedsAttention, "attention"},
     };
-    for (const auto& [state, text] : expected) {
-        snapshot.printers[0].connection_state = state;
+    for (const auto& [status, text] : statuses) {
+        snapshot.printers[0].status = status;
         INFO(text);
-        CHECK(state_payload(snapshot).at("printers").at(0).at("connectionState") == text);
+        CHECK(state_payload(snapshot).at("printers").at(0).at("status") == text);
+    }
+    const std::pair<PrinterAction, const char*> actions[] = {
+        {PrinterAction::Monitor, "monitor"},     {PrinterAction::PrinterWindow, "printer_window"},
+        {PrinterAction::Reconnect, "reconnect"}, {PrinterAction::Connect, "connect"},
+    };
+    for (const auto& [action, text] : actions) {
+        snapshot.printers[0].action = action;
+        INFO(text);
+        CHECK(state_payload(snapshot).at("printers").at(0).at("action") == text);
+    }
+    snapshot.printers[0].status = PrinterStatus::Ready;
+    const std::pair<LastPrint, const char*> lasts[] = {
+        {LastPrint::Finished, "finished"}, {LastPrint::Failed, "failed"}, {LastPrint::Cancelled, "cancelled"}};
+    for (const auto& [last, text] : lasts) {
+        snapshot.printers[0].last_print = last;
+        INFO(text);
+        CHECK(state_payload(snapshot).at("printers").at(0).at("lastPrint") == text);
     }
 }
 
@@ -176,46 +192,57 @@ TEST_CASE("a spool without a colour sends its material and no colour", "[home]")
     CHECK(spools.at(1).at("colour") == "#C8202D");
 }
 
-// A print host is Connected on its saved address and offers its own page.
-TEST_CASE("a print host carries its address and its page", "[home]")
+// A print host's card says how it is reached and where, and its camera.
+TEST_CASE("a print host carries its label, its address and its camera", "[home]")
 {
     Snapshot snapshot;
     PrinterEntry host;
-    host.id                 = "named:Voron";
-    host.connection_state   = ConnectionState::Connected;
-    host.connection_kind    = "host";
-    host.address            = "192.168.1.42:7125";
-    host.connection_text    = "Connected - 192.168.1.42:7125";
-    host.can_launch_monitor = true;
-    snapshot.printers       = {host};
+    host.id                  = "named:Voron";
+    host.status              = PrinterStatus::Connected;
+    host.connection_label    = "OctoPrint";
+    host.address             = "192.168.1.42:7125";
+    host.camera_stream_url   = "http://192.168.1.42/webcam/?action=stream";
+    host.camera_snapshot_url = "http://192.168.1.42/webcam/?action=snapshot";
+    host.action              = PrinterAction::PrinterWindow;
+    snapshot.printers        = {host};
     const json printer = state_payload(snapshot).at("printers").at(0);
-    CHECK(printer.at("connectionState") == "connected");
-    CHECK(printer.at("connectionKind") == "host");
+    CHECK(printer.at("status") == "connected");
+    CHECK(printer.at("connectionLabel") == "OctoPrint");
     CHECK(printer.at("address") == "192.168.1.42:7125");
-    CHECK(printer.at("canLaunchMonitor") == true);
-    CHECK_FALSE(printer.contains("connectionAction"));
+    CHECK(printer.at("camera").at("streamUrl") == "http://192.168.1.42/webcam/?action=stream");
+    CHECK(printer.at("camera").at("snapshotUrl") == "http://192.168.1.42/webcam/?action=snapshot");
+    CHECK(printer.at("action") == "printer_window");
 }
 
-// An idle printer is one collapsed row. Sending a bar or a job line for it
-// would make the two states look alike, which is the thing the design most
-// wants to avoid.
-TEST_CASE("an idle printer sends no progress bar", "[home]")
+// A job's bar and time left belong to a job that runs; a ready printer's
+// stale values from a finished job are not sent, and neither is a "Last
+// connected" on a printer that is connected.
+TEST_CASE("a field is sent only on the statuses it belongs to", "[home]")
 {
     Snapshot snapshot;
-    PrinterEntry idle;
-    idle.id               = "mk4";
-    idle.name             = "Prusa MK4";
-    idle.state            = PrinterState::Idle;
-    idle.progress_percent = 43; // stale value from a finished job
-    snapshot.printers     = {idle};
-    const json printer = state_payload(snapshot).at("printers").at(0);
-    CHECK(printer.at("state") == "idle");
+    PrinterEntry ready;
+    ready.status            = PrinterStatus::Ready;
+    ready.progress_percent  = 100;
+    ready.seconds_left      = 60;
+    ready.last_connected_at = "2026-11-05T12:00:00Z";
+    snapshot.printers       = {ready};
+    json printer = state_payload(snapshot).at("printers").at(0);
     CHECK_FALSE(printer.contains("progressPercent"));
-    CHECK_FALSE(printer.contains("statusText"));
-    CHECK(printer.at("spools").empty());
-    CHECK(printer.at("canLaunchMonitor") == false);
+    CHECK_FALSE(printer.contains("secondsLeft"));
+    CHECK_FALSE(printer.contains("lastConnectedAt"));
+    CHECK_FALSE(printer.contains("lastPrint"));
     CHECK_FALSE(printer.contains("modelText"));
-    CHECK_FALSE(printer.contains("connectionKind"));
+    CHECK(printer.at("spools").empty());
+
+    snapshot.printers[0].status = PrinterStatus::NotConnected;
+    printer = state_payload(snapshot).at("printers").at(0);
+    CHECK(printer.at("lastConnectedAt") == "2026-11-05T12:00:00Z");
+
+    snapshot.printers[0].status     = PrinterStatus::Paused;
+    snapshot.printers[0].last_print = LastPrint::Failed;
+    printer = state_payload(snapshot).at("printers").at(0);
+    CHECK(printer.at("progressPercent") == 100);
+    CHECK_FALSE(printer.contains("lastPrint"));
 }
 
 TEST_CASE("a printing printer with no percentage yet sends no bar", "[home]")
@@ -223,20 +250,13 @@ TEST_CASE("a printing printer with no percentage yet sends no bar", "[home]")
     Snapshot snapshot;
     PrinterEntry starting = a_printer();
     starting.progress_percent = -1;
+    starting.seconds_left     = -1;
     snapshot.printers         = {starting};
     const json printer = state_payload(snapshot).at("printers").at(0);
-    CHECK(printer.at("state") == "printing");
+    CHECK(printer.at("status") == "printing");
     CHECK_FALSE(printer.contains("progressPercent"));
-    CHECK(printer.at("statusText") == "Printing - 43% - 2h left");
-}
-
-TEST_CASE("an offline printer is its own state", "[home]")
-{
-    Snapshot snapshot;
-    PrinterEntry offline;
-    offline.state     = PrinterState::Offline;
-    snapshot.printers = {offline};
-    CHECK(state_payload(snapshot).at("printers").at(0).at("state") == "offline");
+    CHECK_FALSE(printer.contains("secondsLeft"));
+    CHECK(printer.at("job") == "Vent grille");
 }
 
 // The page decides how to confirm an action from the card's kind, and never
@@ -264,19 +284,4 @@ TEST_CASE("a printer carries its kind and which menu actions it offers", "[home]
     CHECK(printers.at(1).at("canOpenSettings") == false);
     CHECK(printers.at(1).at("canRename") == false);
     CHECK(printers.at(1).at("canRemove") == false);
-}
-
-// The payload sends the backend's action as set; it never reads one off the
-// status text. Which action a printer gets is OrcaHomeBackend's, which this
-// test does not reach.
-TEST_CASE("the payload's connection action is the backend's field, never read off the status text", "[home]")
-{
-    Snapshot snapshot;
-    snapshot.printers = {a_printer()};
-    snapshot.printers[0].connection_action = "reconnect";
-    snapshot.printers[0].connection_text   = "Localized status";
-    CHECK(state_payload(snapshot)["printers"][0]["connectionAction"] == "reconnect");
-    // No button is no field.
-    snapshot.printers[0].connection_action.clear();
-    CHECK_FALSE(state_payload(snapshot)["printers"][0].contains("connectionAction"));
 }

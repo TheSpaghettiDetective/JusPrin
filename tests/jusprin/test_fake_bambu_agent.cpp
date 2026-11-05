@@ -107,6 +107,24 @@ TEST_CASE("FakeBambuAgent push_status reports loaded spools as a real AMS and tr
     CHECK_FALSE(trays[1].contains("tray_color"));
 }
 
+TEST_CASE("FakeBambuAgent control JSON reports the job's error code while it is set", "[FakeBambuAgent]")
+{
+    Slic3r::FakeBambuAgent      agent("");
+    std::string                 last_payload;
+    Slic3r::FakeBambuStatusStep step;
+    bool                        offline = false;
+    agent.set_on_local_message_fn([&last_payload](std::string, std::string payload) { last_payload = payload; });
+
+    REQUIRE(Slic3r::FakeBambuAgent::apply_control_json(R"({"state":"pause","print_error":117473297})", step, offline));
+    agent.push_status(step);
+    CHECK(json::parse(last_payload)["print"]["print_error"] == 117473297);
+
+    // Left out, it is cleared, as the state is.
+    REQUIRE(Slic3r::FakeBambuAgent::apply_control_json(R"({"state":"pause"})", step, offline));
+    agent.push_status(step);
+    CHECK(json::parse(last_payload)["print"]["print_error"] == 0);
+}
+
 TEST_CASE("FakeBambuAgent replays default scenario end-to-end", "[FakeBambuAgent]")
 {
     Slic3r::FakeBambuAgent agent("");

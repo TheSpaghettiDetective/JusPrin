@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import type { HistoryEntry, PrinterInfo } from './bridge/protocol';
+import type { HistoryEntry } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
-import { PrinterCard, PrinterChip } from './components/PrinterCard';
+import { PrinterCard } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PrintHistory } from './components/PrintHistory';
 import type { PrintHistoryActions } from './components/PrintHistory';
@@ -20,12 +20,6 @@ const FORMATS = ['STL', '3MF', 'STEP', 'OBJ', 'AMF', 'SVG', 'ZIP'];
 const SEARCH_FROM = 8;
 
 type SortOrder = 'recent' | 'name';
-
-// A printer that is printing or needs reconnecting opens as its full card.
-// Every other one is a chip until the person opens it.
-function startsCollapsed(printer: PrinterInfo): boolean {
-  return printer.state !== 'printing' && printer.connectionAction !== 'reconnect';
-}
 
 // A new screen of the history starts from its own filters, not the last one's.
 function screenKey(screen: Screen): string {
@@ -49,9 +43,6 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   const [state, dispatch] = useReducer(reduce, initialState);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortOrder>('recent');
-  // Printers the person opened from a chip, by id. They stay open through
-  // the host's pushes, so a card does not fold away under an open menu.
-  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
 
   const client = useMemo(
     () =>
@@ -90,13 +81,6 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   useEffect(() => {
     applyAppearance(state.appearance);
   }, [state.appearance]);
-
-  // A printer the conversation just added opens as its full card and stays
-  // open after the push that named it.
-  useEffect(() => {
-    const added = state.printers.find((printer) => printer.name === state.highlightPrinter);
-    if (added) setOpened((ids) => new Set(ids).add(added.id));
-  }, [state.highlightPrinter, state.printers]);
 
   // The host lists projects newest first, which is the Recent order.
   const searchable = state.projects.length >= SEARCH_FROM;
@@ -295,21 +279,17 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               {state.printerError.message}
             </p>
           )}
-          {state.printers.map((printer) =>
-            startsCollapsed(printer) && !opened.has(printer.id) && state.highlightPrinter !== printer.name ? (
-              <PrinterChip key={printer.id} printer={printer} onExpand={(id) => setOpened((ids) => new Set(ids).add(id))} />
-            ) : (
-              <PrinterCard
-                key={printer.id}
-                printer={printer}
-                otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
-                actions={printerActions}
-                onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
-                onHistory={(printerId) => openHistory({ printerId })}
-                highlighted={state.highlightPrinter === printer.name}
-              />
-            ),
-          )}
+          {state.printers.map((printer) => (
+            <PrinterCard
+              key={printer.id}
+              printer={printer}
+              otherNames={state.printers.filter((other) => other.id !== printer.id).map((other) => other.name)}
+              actions={printerActions}
+              onLaunchMonitor={(id) => client.send('launch_monitor', { id })}
+              onHistory={(printerId) => openHistory({ printerId })}
+              highlighted={state.highlightPrinter === printer.name}
+            />
+          ))}
           <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
             + Add printer
           </button>

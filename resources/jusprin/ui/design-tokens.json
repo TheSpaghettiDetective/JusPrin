@@ -507,7 +507,8 @@
       "columnWidth": 320,
       "pictureSize": 32,
       "padding": 16,
-      "radius": 12
+      "radius": 12,
+      "cameraHeight": 135
     },
     "progress": {
       "height": 4

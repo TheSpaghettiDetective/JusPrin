@@ -270,6 +270,26 @@ void remember_colour(const wxColour& colour)
     config->save_custom_color_to_config(values);
 }
 
+namespace {
+
+// A print host that answers: what Moonraker says Klipper is doing, as the
+// printer's card on Home says it; any other host only answers.
+ConnectionState host_state(const Printers::HostStatus& status)
+{
+    if (!status.klipper)
+        return ConnectionState::Connected;
+    switch (Printers::host_activity(*status.klipper)) {
+    case Printers::HostActivity::Ready: return ConnectionState::Ready;
+    case Printers::HostActivity::Printing: return ConnectionState::Printing;
+    case Printers::HostActivity::Paused: return ConnectionState::Paused;
+    case Printers::HostActivity::Starting: return ConnectionState::Checking;
+    case Printers::HostActivity::KlipperDown: break;
+    }
+    return ConnectionState::Offline;
+}
+
+} // namespace
+
 PrinterConnection printer_connection()
 {
     PrinterConnection connection;
@@ -286,7 +306,7 @@ PrinterConnection printer_connection()
         if (const auto status = Printers::host_status(name)) {
             connection.print_host_printer = name;
             connection.monitor_available  = true;
-            connection.state = status->link == Printers::HostLink::Reachable   ? ConnectionState::Idle :
+            connection.state = status->link == Printers::HostLink::Reachable   ? host_state(*status) :
                                status->link == Printers::HostLink::Unreachable ? ConnectionState::Offline :
                                                                                  ConnectionState::Checking;
         }
@@ -302,9 +322,9 @@ PrinterConnection printer_connection()
     if (!machine->is_connected())
         connection.state = ConnectionState::Offline;
     else if (machine->is_in_printing())
-        connection.state = ConnectionState::Printing;
+        connection.state = machine->print_status == "PAUSE" ? ConnectionState::Paused : ConnectionState::Printing;
     else
-        connection.state = ConnectionState::Idle;
+        connection.state = ConnectionState::Ready;
     return connection;
 }
 

@@ -213,6 +213,8 @@ bool FakeBambuAgent::apply_control_json(const std::string& json_text, FakeBambuS
                                      0.0 :
                                      step.bed_temper;
     }
+    // Like the state, and unlike the spools: absent is none.
+    step.print_error = j.contains("print_error") && j["print_error"].is_number_integer() ? j["print_error"].get<int>() : 0;
     // Present and an array replaces the loaded spools wholesale, same as
     // every other field here; absent leaves whatever the step already had
     // rather than clearing it, so a later poll that only touches state or
@@ -253,7 +255,7 @@ std::string FakeBambuAgent::build_push_status_json(const FakeBambuStatusStep& st
     print["mc_remaining_time"]     = step.mc_remaining_time;
     print["mc_print_stage"]        = (step.gcode_state == "RUNNING") ? 1 : (step.gcode_state == "PAUSE") ? 2 : (step.gcode_state == "FINISH") ? 3 : (step.gcode_state == "FAILED") ? 4 : 0;
     print["mc_print_error_code"]   = 0;
-    print["print_error"]           = 0;
+    print["print_error"]           = step.print_error;
     print["subtask_name"]          = m_last_print_filename.empty() ? "fake_print.3mf" : m_last_print_filename;
     print["gcode_file"]            = print["subtask_name"];
     print["nozzle_temper"]         = step.nozzle_temper;

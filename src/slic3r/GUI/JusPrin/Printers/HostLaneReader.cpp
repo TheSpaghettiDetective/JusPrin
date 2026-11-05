@@ -68,6 +68,7 @@ public:
         if (status != 200 && status != 404)
             return reading;
         reading.reached = true;
+        read_activity(reading);
         if (status == 200)
             if (const auto report = parse_lane_data(body); report && report->unit) {
                 reading.loaded = report->loaded;
@@ -82,6 +83,23 @@ public:
     }
 
 private:
+    // What Klipper is doing, how its last job ended, and its camera, from a
+    // host that has answered.
+    void read_activity(HostReading& reading) const
+    {
+        const auto [status, body] = get("printer/objects/query?webhooks&print_stats&display_status");
+        if (status == 200)
+            reading.klipper = parse_klipper_state(body);
+        else if (status == 503)
+            // Moonraker answers 503 while Klipper's own process is not
+            // connected to it, which its /server/info calls "disconnected".
+            reading.klipper = KlipperState{"disconnected"};
+        if (const auto [history_status, history_body] = get("server/history/list?limit=1&order=desc"); history_status == 200)
+            reading.last_job = parse_last_job(history_body);
+        if (const auto [webcams_status, webcams_body] = get("server/webcams/list"); webcams_status == 200)
+            reading.camera = parse_webcams(webcams_body, make_url(""));
+    }
+
     // The HTTP status, zero when nothing answered, and the body.
     std::pair<unsigned, std::string> get(const std::string& path) const
     {

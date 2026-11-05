@@ -7,8 +7,10 @@
 #include "slic3r/GUI/BindDialog.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
+#include "slic3r/GUI/DeviceCore/DevHMS.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/HMS.hpp"
 #include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
@@ -59,18 +61,6 @@ const wxString& middle_dot()
 {
     static const wxString s = wxString::FromUTF8(" \xC2\xB7 ");
     return s;
-}
-
-// "2h 14m left", "14m left", or empty when the device has not estimated yet.
-// The card omits the clause rather than showing a zero.
-wxString remaining_text(int seconds)
-{
-    if (seconds <= 0)
-        return wxEmptyString;
-    const int minutes = seconds / 60;
-    if (minutes >= 60)
-        return wxString::Format(_L("%dh %dm left"), minutes / 60, minutes % 60);
-    return wxString::Format(_L("%dm left"), std::max(minutes, 1));
 }
 
 // A card id says what the card stands for, so an action never has to guess
@@ -134,36 +124,176 @@ double reported_nozzle(MachineObject& machine)
     return extruders != nullptr ? extruders->GetNozzleDiameter(0) : 0.;
 }
 
-// What the device reports about itself and its job. The connection line is
-// the device's only when it has something verified to say; otherwise the
-// card keeps what it had.
+// The name a print host type goes by on a card: Orca's own label for it, but
+// for the two Orca labels that name more than the host.
+std::string host_label(const DynamicPrintConfig& config)
+{
+    const auto* type = config.option<ConfigOptionEnum<PrintHostType>>("host_type");
+    if (type == nullptr)
+        return {};
+    if (type->value == htMoonraker)
+        return "Klipper";
+    if (type->value == htOctoPrint)
+        return "OctoPrint";
+    const ConfigOptionDef* def = print_config_def.get("host_type");
+    for (size_t i = 0; def != nullptr && i < def->enum_values.size() && i < def->enum_labels.size(); ++i)
+        if (ConfigOptionEnum<PrintHostType>::get_enum_values().at(def->enum_values[i]) == type->value)
+            return def->enum_labels[i];
+    return {};
+}
+
+std::string iso_utc(std::chrono::system_clock::time_point at)
+{
+    return utf8(wxDateTime(std::chrono::system_clock::to_time_t(at)).ToUTC().FormatISOCombined() + "Z");
+}
+
+// "Vent grille" for "Vent grille.gcode", "plates/Vent grille.gcode" or a
+// Bambu job's "Vent grille.gcode.3mf": the job as the person named it.
+std::string job_name(const std::string& filename)
+{
+    std::string name = filename.substr(filename.find_last_of('/') == std::string::npos ? 0 : filename.find_last_of('/') + 1);
+    for (const char* extension : {".gcode.3mf", ".3mf", ".gcode", ".GCODE", ".gco", ".g", ".bgcode"})
+        if (const size_t length = std::strlen(extension); name.size() > length && name.compare(name.size() - length, length, extension) == 0) {
+            name.resize(name.size() - length);
+            break;
+        }
+    return name;
+}
+
+// Bambu's code for a print that was stopped: "The task was canceled."
+constexpr int kBambuPrintCancelled = 0x0300400C;
+
+// An error that stopped the job for a person to deal with, as upstream's
+// device page tells it: not a cancel, and not one Bambu keeps to itself.
+bool has_print_error(MachineObject& machine)
+{
+    return machine.print_error > 0 && machine.print_error != kBambuPrintCancelled &&
+           !wxGetApp().get_hms_query()->is_internal_error(&machine, machine.print_error);
+}
+
+// What a Bambu printer says is wrong, in its own words: the job's error, else
+// its most serious current health message. A code the app has no words for
+// is still said, as the code.
+std::string device_message(MachineObject& machine)
+{
+    HMSQuery& query = *wxGetApp().get_hms_query();
+    if (has_print_error(machine)) {
+        const wxString text = query.query_print_error_msg(&machine, machine.print_error);
+        return utf8(!text.empty() ? text :
+                                    wxString::Format(_L("The printer reports error %s."), machine.get_print_error_str()));
+    }
+    for (const DevHMSItem& item : machine.GetHMS()->GetHMSItems())
+        if (item.get_level() == HMS_FATAL || item.get_level() == HMS_SERIOUS) {
+            const wxString text = query.query_hms_msg(&machine, item.get_long_error_code());
+            return utf8(!text.empty() ? text :
+                                        wxString::Format(_L("The printer reports error %s."), item.get_long_error_code()));
+        }
+    return {};
+}
+
+// What the device reports about itself and its job, over whatever the card
+// had. A device silent for 30 seconds is not connected, with Reconnect only
+// where there is a connection to retry: a named printer's verified one.
 void describe_device(MachineObject& machine, PrinterEntry& printer)
 {
-    const bool printing        = machine_is_printing(machine);
-    const bool connected       = PrinterSetup::has_recent_printer_data(machine);
-    printer.state              = !connected ? PrinterState::Offline
-                                 : printing ? PrinterState::Printing
-                                            : PrinterState::Idle;
-    printer.can_launch_monitor = connected;
-    if (printing) {
-        printer.progress_percent = machine.mc_print_percent;
-        wxString status          = _L("Printing") + middle_dot() + wxString::Format("%d%%", machine.mc_print_percent);
-        const wxString remaining = remaining_text(machine.mc_left_time);
-        if (!remaining.empty())
-            status += middle_dot() + remaining;
-        printer.status_text = std::string(status.ToUTF8());
-    }
     const std::string kind = machine.connection_type();
-    if (connected) {
-        printer.connection_state  = ConnectionState::Online;
-        printer.connection_kind   = kind;
-        printer.connection_text   = utf8(_L("Online") + middle_dot() + (kind == "lan" ? _L("LAN") : _L("Cloud")));
-        printer.connection_action = "";
-    } else if (PrinterSetup::has_verified_printer_connection(machine.get_dev_id())) {
-        printer.connection_state  = ConnectionState::Offline;
-        printer.connection_kind   = kind;
-        printer.connection_text   = utf8(_L("Offline"));
-        printer.connection_action = "reconnect";
+    if (PrinterSetup::has_recent_printer_data(machine)) {
+        printer.connection_label = utf8(kind == "lan" ? _L("LAN") : _L("Cloud"));
+        printer.action           = PrinterAction::Monitor;
+        if (machine_is_printing(machine)) {
+            const bool paused        = machine.print_status == "PAUSE";
+            printer.status           = paused ? PrinterStatus::Paused : PrinterStatus::Printing;
+            printer.job              = job_name(machine.subtask_name);
+            printer.progress_percent = machine.mc_print_percent;
+            printer.seconds_left     = machine.mc_left_time;
+            // A printer that paused itself on an error waits for a person;
+            // one paused otherwise says why only if it has a health message.
+            if (paused) {
+                printer.message = device_message(machine);
+                if (has_print_error(machine))
+                    printer.status = PrinterStatus::NeedsAttention;
+            }
+        } else {
+            printer.status = PrinterStatus::Ready;
+            if (machine.print_status == "FINISH")
+                printer.last_print = LastPrint::Finished;
+            else if (machine.print_status == "FAILED")
+                printer.last_print = machine.print_error == kBambuPrintCancelled ? LastPrint::Cancelled : LastPrint::Failed;
+        }
+    } else if (printer.kind == PrinterKind::Named && PrinterSetup::has_verified_printer_connection(machine.get_dev_id())) {
+        printer.connection_label = utf8(kind == "lan" ? _L("LAN") : _L("Cloud"));
+        printer.status           = PrinterStatus::NotConnected;
+        printer.message          = utf8(_L("The printer stopped sending updates."));
+        printer.action           = PrinterAction::Reconnect;
+    }
+}
+
+// What a print host's latest reading says, over the card's starting point of
+// a saved address that answered. Moonraker says what Klipper is doing; any
+// other host only whether it answers, so it stays Connected.
+void describe_host(const Printers::HostStatus& status, PrinterEntry& printer)
+{
+    if (status.link == Printers::HostLink::Checking) {
+        printer.status = PrinterStatus::Connecting;
+        printer.action = PrinterAction::None;
+        return;
+    }
+    if (status.link == Printers::HostLink::Unreachable) {
+        printer.status  = PrinterStatus::NotConnected;
+        printer.message = utf8(wxString::Format(_L("%s isn't answering."), wxString::FromUTF8(printer.address)));
+        printer.action  = PrinterAction::Reconnect;
+        if (status.last_connected)
+            printer.last_connected_at = iso_utc(*status.last_connected);
+        return;
+    }
+    printer.status = PrinterStatus::Connected;
+    printer.action = PrinterAction::PrinterWindow;
+    if (status.camera) {
+        printer.camera_stream_url   = status.camera->stream_url;
+        printer.camera_snapshot_url = status.camera->snapshot_url;
+    }
+    if (!status.klipper)
+        return;
+    const Printers::KlipperState& klipper = *status.klipper;
+    switch (Printers::host_activity(klipper)) {
+    case Printers::HostActivity::Starting:
+        printer.status = PrinterStatus::Connecting;
+        return;
+    case Printers::HostActivity::KlipperDown:
+        // The Pi answers and the printer does not: not connected, in
+        // Klipper's own words, and the host's page is where to restart it.
+        printer.status  = PrinterStatus::NotConnected;
+        printer.message = klipper.klippy_message.empty()
+                              ? utf8(_L("Klipper isn't running."))
+                              : utf8(_L("Klipper stopped:") + " " + wxString::FromUTF8(klipper.klippy_message));
+        if (status.last_connected)
+            printer.last_connected_at = iso_utc(*status.last_connected);
+        return;
+    case Printers::HostActivity::Printing:
+    case Printers::HostActivity::Paused: {
+        const bool paused = Printers::host_activity(klipper) == Printers::HostActivity::Paused;
+        printer.status    = paused ? PrinterStatus::Paused : PrinterStatus::Printing;
+        printer.job       = job_name(klipper.filename);
+        if (klipper.progress)
+            printer.progress_percent = static_cast<int>(*klipper.progress * 100.);
+        // Klipper gives no time left; the slicer's estimate less the time
+        // printed so far is what Mainsail shows as its file estimate.
+        if (status.last_job && status.last_job->status == "in_progress" && status.last_job->filename == klipper.filename &&
+            status.last_job->estimated_time > 0. && klipper.print_duration > 0.)
+            printer.seconds_left = static_cast<int>(std::max(0., status.last_job->estimated_time - klipper.print_duration));
+        printer.message = klipper.message;
+        return;
+    }
+    case Printers::HostActivity::Ready:
+        printer.status = PrinterStatus::Ready;
+        if (status.last_job) {
+            const std::string& ended = status.last_job->status;
+            printer.last_print       = ended == "completed"                     ? LastPrint::Finished
+                                       : ended == "cancelled"                   ? LastPrint::Cancelled
+                                       : ended == "in_progress" || ended.empty() ? LastPrint::Unknown
+                                                                                 : LastPrint::Failed;
+        }
+        return;
     }
 }
 
@@ -306,16 +436,6 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
                     spools.push_back(SpoolEntry{spool.material, spool.colour});
             }
 
-    // Every card says something about its connection; one with nothing
-    // verified says so in words, and draws no dot.
-    const auto settle_connection = [](PrinterEntry& printer) {
-        if (printer.connection_state != ConnectionState::None || !printer.connection_text.empty())
-            return;
-        printer.connection_text   = utf8(_L("Not connected"));
-        printer.connection_kind   = "";
-        printer.connection_action = "";
-    };
-
     // The printers the person added, each with the device it stands for when
     // that device is here. The device's own reading of the nozzle wins: a
     // printer whose hardware was changed says so.
@@ -329,6 +449,9 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_open_settings = true;
         printer.can_rename        = true;
         printer.can_remove        = true;
+        // With nothing else to say, it has no connection to show.
+        printer.message = utf8(_L("No network connection is set up."));
+        printer.action  = PrinterAction::Connect;
         std::string model;
         // What a Moonraker host last said its multi-filament unit holds.
         std::optional<std::vector<Printers::HostLane>> host_loaded;
@@ -339,33 +462,28 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
             // an accepted gap).
             const std::string host = preset->config.opt_string("print_host");
             if (!host.empty()) {
-                printer.connection_state   = ConnectionState::Connected;
-                printer.connection_kind    = "host";
-                printer.address            = host_address(host);
-                printer.connection_text    = utf8(_L("Connected") + middle_dot() + wxString::FromUTF8(printer.address));
-                printer.can_launch_monitor = true;
+                printer.connection_label = host_label(preset->config);
+                printer.address          = host_address(host);
+                printer.message.clear();
+                // Orca's own agent announces the selected print host as a
+                // device of its own, named by its address; this card is it.
+                represented.insert(host);
+                represented.insert(printer.address);
             }
-            // The host is read, so the line says whether it answers now.
             if (const auto status = Printers::host_status(named.name)) {
-                if (status->link == Printers::HostLink::Reachable) {
+                describe_host(*status, printer);
+                if (status->link == Printers::HostLink::Reachable)
                     host_loaded = status->loaded;
-                } else if (status->link == Printers::HostLink::Unreachable) {
-                    printer.connection_state   = ConnectionState::Offline;
-                    printer.connection_text    = utf8(_L("Offline"));
-                    printer.connection_action  = "reconnect";
-                    printer.can_launch_monitor = false;
-                } else {
-                    // Asked, and not answered yet: no dot until it has.
-                    printer.connection_state   = ConnectionState::None;
-                    printer.connection_text    = utf8(_L("Checking connection") + wxString::FromUTF8("\xE2\x80\xA6"));
-                    printer.can_launch_monitor = false;
-                }
             }
         }
         double nozzle = named.nozzle;
         if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
+            printer.message.clear();
+            printer.action = PrinterAction::None;
             describe_device(*found->second, printer);
-            if (printer.can_launch_monitor) {
+            if (printer.status == PrinterStatus::NotConnected && printer.action == PrinterAction::None)
+                printer.action = PrinterAction::Connect;
+            if (printer.action == PrinterAction::Monitor) {
                 wxGetApp().app_config->set("jusprin_verified_connections", named.device_id, "true");
                 if (const double reported = reported_nozzle(*found->second); reported > 0.)
                     nozzle = reported;
@@ -373,11 +491,10 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
             represented.insert(named.device_id);
         } else if (PrinterSetup::has_verified_printer_connection(named.device_id)) {
             // Connected before, and the app has not heard of the device since.
-            printer.connection_state  = ConnectionState::Offline;
-            printer.connection_text   = utf8(_L("Offline"));
-            printer.connection_action = "reconnect";
+            printer.status  = PrinterStatus::NotConnected;
+            printer.message = utf8(_L("The printer stopped sending updates."));
+            printer.action  = PrinterAction::Reconnect;
         }
-        settle_connection(printer);
         printer.model_text = model_text(model, nozzle);
         // Only a connected printer says what it holds. Nothing else stands
         // in for it: the project's filament is what a print needs, not what
@@ -385,7 +502,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         // its multi-filament unit's lanes, or nothing when it has none.
         if (const auto held = loaded.find(named.device_id); !named.device_id.empty() && held != loaded.end())
             printer.spools = held->second;
-        else if (host_loaded)
+        else if (host_loaded && printer.status != PrinterStatus::NotConnected)
             for (const Printers::HostLane& lane : *host_loaded)
                 printer.spools.push_back(SpoolEntry{lane.material, lane.colour});
         printers.push_back(std::move(printer));
@@ -404,7 +521,6 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_rename = !machine->is_lan_mode_printer() && machine->is_online();
         printer.can_remove = !machine->is_lan_mode_printer();
         describe_device(*machine, printer);
-        settle_connection(printer);
         printer.model_text = model_text(model_name({}, machine->printer_type), reported_nozzle(*machine));
         if (const auto held = loaded.find(id); held != loaded.end())
             printer.spools = held->second;

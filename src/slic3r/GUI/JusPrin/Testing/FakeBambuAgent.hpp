@@ -49,6 +49,8 @@ struct FakeBambuStatusStep
     double      nozzle_target_temper = 0.0;
     double      bed_temper           = 25.0;
     double      bed_target_temper    = 0.0;
+    // Bambu's error code for what stopped or paused the job; 0 is none.
+    int         print_error          = 0;
     // Empty means no AMS reported at all, matching every step before this
     // field existed -- the default scenario and presets stay AMS-free.
     std::vector<FakeBambuSpool> spools;

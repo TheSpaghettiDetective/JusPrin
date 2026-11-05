@@ -27,30 +27,36 @@ HeaderMenuItem other_printer(const Home::PrinterEntry& printer)
 {
     HeaderMenuItem row;
     row.label = wxString::FromUTF8(printer.name);
-    switch (printer.connection_state) {
-    case Home::ConnectionState::Online:
-        if (printer.state == Home::PrinterState::Printing) {
-            row.decoration.status = StatusTone::Busy;
-            row.decoration.status_word = _L("Printing");
-            if (printer.progress_percent >= 0)
-                row.decoration.status_word += wxString::FromUTF8(" \xC2\xB7 ") +
-                                              wxString::Format("%d%%", printer.progress_percent);
-        } else {
-            row.decoration.status = StatusTone::Positive;
-            row.decoration.status_word = _L("Idle");
-        }
+    switch (printer.status) {
+    case Home::PrinterStatus::Printing:
+        row.decoration.status      = StatusTone::Busy;
+        row.decoration.status_word = _L("Printing");
+        if (printer.progress_percent >= 0)
+            row.decoration.status_word += wxString::FromUTF8(" \xC2\xB7 ") + wxString::Format("%d%%", printer.progress_percent);
         break;
-    case Home::ConnectionState::Offline:
-        row.decoration.status = StatusTone::Neutral;
-        row.decoration.status_word = _L("Offline");
+    case Home::PrinterStatus::Paused:
+        row.decoration.status      = StatusTone::Warning;
+        row.decoration.status_word = _L("Paused");
         break;
-    case Home::ConnectionState::Connected:
-        // A saved print host can be reached without reporting a live job.
-        row.decoration.status = StatusTone::Positive;
+    case Home::PrinterStatus::NeedsAttention:
+        row.decoration.status      = StatusTone::Warning;
+        row.decoration.status_word = _L("Needs attention");
+        break;
+    case Home::PrinterStatus::Ready:
+        row.decoration.status      = StatusTone::Positive;
+        row.decoration.status_word = _L("Ready");
+        break;
+    case Home::PrinterStatus::Connected:
+        // A print host that answers without saying what it is doing.
+        row.decoration.status      = StatusTone::Neutral;
         row.decoration.status_word = _L("Connected");
         break;
-    case Home::ConnectionState::None:
-        row.decoration.status = StatusTone::Neutral;
+    case Home::PrinterStatus::Connecting:
+        row.decoration.status      = StatusTone::Neutral;
+        row.decoration.status_word = _L("Connecting") + wxString::FromUTF8("\xE2\x80\xA6");
+        break;
+    case Home::PrinterStatus::NotConnected:
+        row.decoration.status      = StatusTone::Neutral;
         row.decoration.status_word = _L("Not connected");
         break;
     }
@@ -97,14 +103,25 @@ void PrinterMenu::show_root(const Ptr& self)
         machine.decoration.sub_label_role = TextRole::BodySmall;
     } else
     switch (connection.state) {
-    case SetupCommands::ConnectionState::Idle:
+    case SetupCommands::ConnectionState::Ready:
         machine.decoration.status      = StatusTone::Positive;
-        machine.decoration.status_word = _L("Idle");
+        machine.decoration.status_word = _L("Ready");
         machine.decoration.trailing    = HeaderIcon::Monitor;
         break;
     case SetupCommands::ConnectionState::Printing:
         machine.decoration.status      = StatusTone::Busy;
         machine.decoration.status_word = _L("Printing");
+        machine.decoration.trailing    = HeaderIcon::Monitor;
+        break;
+    case SetupCommands::ConnectionState::Paused:
+        machine.decoration.status      = StatusTone::Warning;
+        machine.decoration.status_word = _L("Paused");
+        machine.decoration.trailing    = HeaderIcon::Monitor;
+        break;
+    case SetupCommands::ConnectionState::Connected:
+        // Answers, and does not say what it is doing: no claim either way.
+        machine.decoration.status      = StatusTone::Neutral;
+        machine.decoration.status_word = _L("Connected");
         machine.decoration.trailing    = HeaderIcon::Monitor;
         break;
     case SetupCommands::ConnectionState::Offline:

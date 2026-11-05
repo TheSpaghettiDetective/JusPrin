@@ -20,10 +20,9 @@ const printer: PrinterInfo = {
   canOpenSettings: true,
   canRename: true,
   canRemove: true,
-  state: 'printing',
-  connectionState: 'online',
+  status: 'printing',
   spools: [],
-  canLaunchMonitor: true,
+  action: 'monitor',
 };
 
 describe('the Home reducer', () => {

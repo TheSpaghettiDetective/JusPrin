@@ -67,9 +67,26 @@ struct SpoolEntry
     std::string colour;   // '#RRGGBB'
 };
 
-enum class PrinterState { Idle, Printing, Offline };
+// What a card says the printer is doing, in one word. Matches PrinterStatus
+// in the page's protocol.ts. Each is said only on something the app read:
+// NotConnected when it has no connection or none answers, Connecting before
+// the first answer, Connected when the printer answers but does not say what
+// it is doing, and the rest when it says.
+enum class PrinterStatus { NotConnected, Connecting, Connected, Ready, Printing, Paused, NeedsAttention };
 
-const char* to_string(PrinterState state);
+const char* to_string(PrinterStatus status);
+
+// How the printer says its last print ended; Unknown when it does not.
+enum class LastPrint { Unknown, Finished, Failed, Cancelled };
+
+const char* to_string(LastPrint last);
+
+// The card's one button: a Bambu printer's monitor, a print host's own page
+// in a window, Reconnect for a connection that went quiet, or Connect for a
+// printer with none.
+enum class PrinterAction { None, Monitor, PrinterWindow, Reconnect, Connect };
+
+const char* to_string(PrinterAction action);
 
 // What a card stands for, which decides how the page asks about its actions.
 // A named printer is one the person added and names in JusPrin; the page
@@ -80,16 +97,9 @@ enum class PrinterKind { Named, Device };
 
 const char* to_string(PrinterKind kind);
 
-// What a card's connection line and dot rest on, apart from its words.
-// Online and Offline are a Bambu device's: data in the last 30 seconds, or
-// verified before and silent now. Connected is a print host's: an address is
-// saved, and for a Moonraker host, it answered in the last 30 seconds; a
-// Moonraker host that stopped answering is Offline too. None is neither, and
-// draws no dot.
-enum class ConnectionState { None, Online, Offline, Connected };
-
-const char* to_string(ConnectionState state);
-
+// One printer card. Every field but the name and the status is shown only
+// when it has a value, so the card grows and shrinks with what the printer
+// reports.
 struct PrinterEntry
 {
     std::string             id;
@@ -100,24 +110,34 @@ struct PrinterEntry
     bool                    can_open_settings{false};
     bool                    can_rename{false};
     bool                    can_remove{false};
-    PrinterState            state{PrinterState::Idle};
-    std::string             status_text;
-    // Below zero whenever there is no job to report; only a printing printer
-    // sends a bar.
+    PrinterStatus           status{PrinterStatus::NotConnected};
+    // The job, while one runs: its name as the printer gives it, how far it
+    // is, and the seconds left; each below zero or empty when not reported.
+    std::string             job;
     int                     progress_percent{-1};
-    // The Connection row: the finished line, the state it rests on, and the
-    // transport -- "lan", "cloud", "host", or empty.
-    ConnectionState         connection_state{ConnectionState::None};
-    std::string             connection_text;
-    std::string             connection_kind;
-    std::string             connection_action; // "reconnect", or empty for no button
-    // A print host's address as saved, without its scheme.
+    int                     seconds_left{-1};
+    // The printer's own words about what needs doing, or, on a card that is
+    // not connected, why; already translated where they are the app's.
+    std::string             message;
+    // On a Ready card.
+    LastPrint               last_print{LastPrint::Unknown};
+    // When the app last heard from it, ISO 8601 in UTC; on a card that is not
+    // connected, and empty when the app does not know.
+    std::string             last_connected_at;
+    // A camera the page can show: an MJPEG stream, or one picture to fetch
+    // again and again; empty for none.
+    std::string             camera_stream_url;
+    std::string             camera_snapshot_url;
+    // The facts line, "LAN · X1 Carbon · 0.4 mm": how it is reached ("LAN",
+    // "Cloud", "Klipper", "OctoPrint" ...), a print host's address as saved
+    // without its scheme, and "X1 Carbon · 0.4 mm". Each part empty when
+    // unknown.
+    std::string             connection_label;
     std::string             address;
-    // The Model row, "X1 Carbon · 0.4 mm"; empty when neither is known.
     std::string             model_text;
-    // The Loaded row; empty when nothing is known to be loaded.
+    // What is loaded, when the printer says; empty otherwise.
     std::vector<SpoolEntry> spools;
-    bool                    can_launch_monitor{false};
+    PrinterAction           action{PrinterAction::None};
     // The card's print-history line: what was made for, sent to and printed
     // on this printer, across projects. An empty one draws none.
     HistorySummary          history;
