@@ -1,0 +1,7 @@
+> That is a copy of today’s build of jusprin-newui. It uses its own data folder, so your real JusPrin settings aren’t touched. The data folder is a copy of the one the earlier test sessions used, so it includes your AI provider keys and the built-in fake Bambu printer.
+
+does this version include the latest commits on jusprin-newui
+
+---
+
+did the main session find out the mqtt setting trick to make bambu printer easier to connect?
