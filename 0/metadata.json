@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6PZH0N6D12JBVKA4E8AWP74",
+  "session_id": "473348c5-5f94-4e4d-9ad9-c7e9dd10b438",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-05T23:08:33.278897Z",
+  "branch": "claude/printer-done-chip",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/printerInstructions.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "dec4f9184c00",
+  "checkpoint_transcript_start": 3997,
+  "transcript_lines_at_start": 3997,
+  "compact_transcript_start": 583,
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 85470,
+    "cache_read_tokens": 2882091,
+    "output_tokens": 9388,
+    "api_call_count": 21
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-05T23:08:29.636753Z",
+    "agent_lines": 232,
+    "agent_removed": 0,
+    "human_added": 62,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 294,
+    "total_lines_changed": 326,
+    "agent_percentage": 71.16564417177914,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
