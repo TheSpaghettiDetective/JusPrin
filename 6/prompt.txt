@@ -1,0 +1,120 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+**Branch switch.** The main checkout `/Users/kenneth/Projects/JusPrin` was switched at Kenneth's request from `jusprin-newui` to a new branch, `claude/connection-help`, at the same commit, e27c962864. Two other sessions share that working tree with uncommitted connection-chat changes in `PrinterSetup/`, `Agent/` and `AgentUI/`. If you work in that folder, never switch branches, stash, reset or `git add -A`/`git add .`. If you are ever told to commit, stage only your own files by name.
+
+**Uncommitted edits from the session that found these problems** (the monitor-window session) are in the same tree, and you build on top of them. Don't revert them, and don't commit them or its new files:
+- `Home/PopOutWindow.{hpp,cpp}` (new): the shared window base. `PrinterWindow` now derives from it, and it provides `close()`, `closing()`, `bring_forward()` and `set_content()`.
+- `Home/MonitorWindow.{hpp,cpp}` (new): the Bambu monitor in its own window.
+- Edits in `OrcaHomeBackend.{hpp,cpp}`, `PrinterWindow.{hpp,cpp}`, `Shell/SetupCommands.{hpp,cpp}` (`open_monitor` replaced by `monitored_device`), `Shell/PrinterMenu.cpp` (the Bambu row opens `open_monitor_window`) and `sources.cmake`.
+
+That session is paused waiting for Kenneth to decide how the Bambu monitor window should follow its printer. It will touch `MonitorWindow` and possibly the same menu row later. Keep your changes to the print-host path, and say in your report which lines you changed in those shared files.
+
+**Kenneth's rule** for these windows: a printer's window is independent of the main window. It stays until the person closes it or quits the app, and the project's printer in the main window never changes what it shows.
+
+**Real-app test recipe** (it worked for the previous session):
+- A scratch copy of the app is at `/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/ee181d60-9c47-47c1-b71d-f5bedc8844da/scratchpad/run/JusPrinMon.app`, bundle id `io.jusprin.monitor-investigation`, with its own data folder `run/data`.
+- That data folder already has a user printer preset "OctoPi Test": host_type octoprint, print_host `http://192.0.2.10`, which never answers. It also has "Klipper Pi" at `http://raspberrypi.local`, Kenneth's real Moonraker, where Klipper reports shutdown.
+- Copy a fresh build's `Contents/MacOS/OrcaSlicer` into that `.app`. Launch it with `--datadir <run>/data`. To drive Home via a queue, set `JUSPRIN_HOME_DEV_URL=http://127.0.0.1:8737/index.html` and run `server.py` in that folder.
+- Kenneth granted computer-use access to that app, so `app_screenshot` and `app_click` work. Popup menus are not listed as windows: render them in-process with lldb (`cacheDisplayInRect:toBitmapImageRep:` on the panel's `contentView`).
+- Quit by closing the main window. Calling `[NSApp terminate:]` aborts inside Bambu's plug-in. Closing a window inside an lldb expression leaves it half-closed, so schedule closes with `performSelector:afterDelay:` instead.
+
+**Build:** follow AGENTS.md's shared-machine rules: check `uptime` and `pgrep -fl ninja` first, then `cmake --build build/arm64 --config RelWithDebInfo --target OrcaSlicer -- -j4`, run in the background in its own process group.
+
+**UI text:** any new on-screen words follow `agent-docs/jusprin/design-system.md`, "Writing UI code" (tokens via `ShellTheme`, no literal colours or sizes).
+
+Task:
+Fix three problems with print-host printers (Klipper/Moonraker, OctoPrint, PrusaLink and the like) on JusPrin's Home page and header. Reproduce each one on the real built app before fixing it, and show it working afterwards.
+
+1. **A printer that never answers shows as connected.** A print-host printer whose address answers nothing still gets "Connected · <address>" and a green "Idle" dot on its Home card, and the "Open printer window" button. JusPrin checks only Moonraker hosts. Every other host type counts as connected once an address is saved. See `OrcaHomeBackend.cpp` around lines 335-365 (`can_launch_monitor`, `connection_state`, `Printers::host_status`).
+2. **Its window stays blank.** Clicking "Open printer window" for that printer opens a plain white window. It stayed blank for over two minutes with no message. The window is `src/slic3r/GUI/JusPrin/Home/PrinterWindow.cpp`. It holds Orca's `PrinterWebView`, whose `OnError` only logs. The person should see in plain words that the printer's page didn't load and what to do. Fix this in JusPrin's own files, not by editing `PrinterWebView.cpp`, unless you justify that under `agent-docs/jusprin/fork-stewardship.md`.
+3. **The header menu can't open the window.** When the project's printer is a print-host printer, the first row of the header's printer menu reads "Not connected · Prints go to a card." and is greyed out, with no way to open the printer's window. Home calls the same printer "Idle". The cause is that `SetupCommands::printer_connection()` (`src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp`, about lines 272-295) reports state only for Bambu printers. The menu row is built in `PrinterMenu::show_root` (`src/slic3r/GUI/JusPrin/Shell/PrinterMenu.cpp`). The row should open the same window the Home card opens, through `OrcaHomeBackend::open_printer_window`.
+
+Two related problems were found by reading the code only, never run. Check them and fix them if they're real:
+- Open windows are tracked by printer name (`m_printer_windows`), so after a rename the old window keeps its title, and a click opens a second window for the same printer.
+- After the printer's address changes, a click brings back the old window still showing the old address.
+
+Done means:
+- each problem is reproduced on the real app first;
+- each is fixed;
+- each is verified on the real app afterwards, with screenshots saved in `monitor-window-screenshots/` at the repository root (untracked; never commit it);
+- a report to Kenneth under about 500 words, following `~/.claude/CLAUDE.md`.
+
+Don't commit unless Kenneth asks.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_1e9666f1-ff5f-4f50-99e9-ca2314377822
+
+---
+
+<task-notification>
+<task-id>bjuh5hmqm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/bjuh5hmqm.output</output-file>
+<status>failed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin; ls deps/build 2&gt;/dev/null | head; mdfind -name event.cpp 2&gt;/dev/null | grep -i wx | head -3; find / -path "*wxWidgets*/src/common/event.cpp" -not -path "*/proc/*" 2&gt;/dev/null | head -3" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bayifuich</task-id>
+<tool-use-id>toolu_012iTd3PzNuW5XU111ATtaki</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/bayifuich.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/scratchpad; while kill -0 $(cat $S/build.pid) 2&gt;/dev/null; do sleep 15; done; tail -5 $S/build.log; grep -n "error:" $S/build.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brvrci6kt</task-id>
+<tool-use-id>toolu_01RtrqDSAT8M9jSge9zXcgoV</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/brvrci6kt.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/scratchpad; until ! kill -0 $(cat $S/build.pid) 2&gt;/dev/null; do sleep 5; done; tail -3 $S/build.log; grep -n "error:\|Undefined" $S/build.log | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcbig3m6o</task-id>
+<tool-use-id>toolu_01EHuEotw6r8WRX7rMnkzhzS</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/bcbig3m6o.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 50496 2&gt;/dev/null; do sleep 10; done; L=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/4a013ea5-cb84-4887-8a0f-bf74ddb7287a/scratchpad/build.log; grep -E "error:|FAILED" $L | head; tail -2 $L | cut -c1-200; ls -la /Users/kenneth/Projects/JusPrin/build/arm64/src/RelWithDebInfo/OrcaSlicer.app/Contents/MacOS/OrcaSlicer" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bry4u4rrb</task-id>
+<tool-use-id>toolu_01RFpmoyXgwtq1ytkzXM5kqq</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/bry4u4rrb.output</output-file>
+<status>completed</status>
+<summary>Background command "R=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/ee181d60-9c47-47c1-b71d-f5bedc8844da/scratchpad/run; cd $R; touch $R/app.pid.shell; JUSPRIN_HOME_DEV_URL=http://127.0.0.1:8737/index.html JUSPRIN_AGENT_ENDPOINT=http://127.0.0.1:9/v1 exec $R/JusPrinMon.app/Contents/MacOS/OrcaSlicer --datadir $R/data &gt; $R/app.out 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>btgpcb5bg</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/dea8379c-b02c-43a2-a254-4c2259672439/tasks/btgpcb5bg.output</output-file>
+<status>completed</status>
+<summary>Background command "R=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/ee181d60-9c47-47c1-b71d-f5bedc8844da/scratchpad/run; cd $R; JUSPRIN_HOME_DEV_URL=http://127.0.0.1:8737/index.html JUSPRIN_AGENT_ENDPOINT=http://127.0.0.1:9/v1 exec $R/JusPrinMon.app/Contents/MacOS/OrcaSlicer --datadir $R/data &gt; $R/app.out 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_1e9666f1-ff5f-4f50-99e9-ca2314377822" from-name="Why the printer monitor button and screen misbehave">
+The monitor-window session is moving off the shared scratch app, so `run/JusPrinMon.app`, its `run/data` folder and the page server on port 8737 are yours alone from now on. I now use a separate copy (bundle id io.jusprin.monitor-window-test, port 8738). One thing to know: at about 10:45 I quit a JusPrinMon instance by closing its main window and relaunched it with the latest build. If that interrupted your test, I'm sorry; relaunch it. I also switched `run/data/JusPrin2.conf` presets.machine to "Bambu Lab A1 mini 2"; put it back if you need Klipper Pi selected.
+</cross-session-message>
+
+---
+
+Are you done? If you are done, capture the screenshots
+
+---
+
+<cross-session-message from="local_06a35cc1-bf6c-485d-bf62-19ee49343bbe" from-name="Moonraker printer live test">
+Kenneth asked me to check: is your task finished, and is all its code committed? Reply with what's done, what's still open, and any files you've changed but not committed in /Users/kenneth/Projects/JusPrin.
+</cross-session-message>
