@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6PHFTM0VCCSJB1NHG4990AG",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Printers/HostLanes.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp",
+    "tests/brand/test_brand_tokens.cpp",
+    "tests/jusprin/test_fake_bambu_agent.cpp",
+    "tests/jusprin/test_home_host.cpp",
+    "tests/jusprin/test_home_snapshot.cpp",
+    "tests/jusprin/test_host_lanes.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 482,
+    "cache_creation_tokens": 1211715,
+    "cache_read_tokens": 55290676,
+    "output_tokens": 246317,
+    "api_call_count": 241
+  }
+}
