@@ -2,10 +2,11 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6MM1XW1TPY26407Q4KWG0XN",
   "strategy": "manual-commit",
-  "branch": "claude/connection-help",
-  "checkpoints_count": 19,
+  "branch": "claude/connection-help-squashed",
+  "checkpoints_count": 35,
   "files_touched": [
     "AGENTS.md",
+    "agent-docs/jusprin/README.md",
     "src/slic3r/GUI/JusPrin/Testing/README.md",
     "tests/printer_hosts/README.md",
     "tests/printer_hosts/docker-compose.yml",
@@ -25,6 +26,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
