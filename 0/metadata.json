@@ -1,0 +1,79 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6MM1XW1TPY26407Q4KWG0XN",
+  "session_id": "0a0ef6e2-11ee-4f78-82f6-2d34c6a3a9e5",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-05T01:09:31.879789Z",
+  "branch": "claude/connection-help",
+  "checkpoints_count": 18,
+  "save_step_count": 4,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Testing/README.md",
+    "tests/printer_hosts/README.md",
+    "tests/printer_hosts/docker-compose.yml",
+    "tests/printer_hosts/simulavr/Dockerfile"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "48b5ad9086f3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 286,
+    "cache_creation_tokens": 222990,
+    "cache_read_tokens": 27670300,
+    "output_tokens": 86610,
+    "api_call_count": 143
+  },
+  "session_metrics": {
+    "turn_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-05T01:09:31.757142Z",
+    "agent_lines": 256,
+    "agent_removed": 3,
+    "human_added": 311,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 570,
+    "total_lines_changed": 575,
+    "agent_percentage": 45.04347826086956,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
