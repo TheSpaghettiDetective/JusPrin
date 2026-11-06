@@ -65,3 +65,10 @@ I don't understand your point. Rephrase it in plain English.
 <status>completed</status>
 <summary>Background command "Build the app in the background with four jobs" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+<!-- reply 1 -->
+> Our server draws it, and the app shows that page in a small built-in browser. You change the price on the server, and every copy of JusPrin shows $7 the next time Preferences opens, old copies included. This takes about a day of extra work to build. The page may also look slightly different from the rest of the app.
+
+the pricing page and subscription is already on the srver, right? if so, do the same here. but you need to design it first, right?
