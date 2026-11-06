@@ -85,12 +85,6 @@ Printer UI without hardware: `src/slic3r/GUI/JusPrin/Testing/README.md` (Bambu i
 - Before writing or changing any UI code, native or Agent page, follow "Writing UI code" in `agent-docs/jusprin/design-system.md`: every color, radius, font, and control size comes from the token file through `ShellTheme`, the shell recipes, or the CSS variables. A value with no token gets a token and a guard first, never a literal.
 - Temporary working docs (handoffs, findings, plans written for another agent) stay untracked: never commit them, and never add them to `.gitignore` or `.git/info/exclude`. Untracked files in `git status` are how Kenneth tracks work that isn't finished.
 
-## Landing a branch on jusprin-newui
-
-- Merge a feature branch with `git merge --no-ff`, never a squash. Make the merge message one line saying what the branch delivers: `Merge claude/<branch>: <what it delivers>`.
-- Read the history one line per feature with `git log --first-parent jusprin-newui`.
-- Why: a squash drops the step commits that `git blame` and `git bisect` need. It also leaves every branch the squashed one had merged looking unmerged, so the same work gets merged again with conflicts. Kenneth chose this on 2026-11-05.
-
 ## Critical Constraints
 
 - **Backward compatibility required** for .3mf project files and printer profiles

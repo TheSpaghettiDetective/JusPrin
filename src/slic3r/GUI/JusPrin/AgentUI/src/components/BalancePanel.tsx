@@ -19,7 +19,7 @@ function shortDate(iso: string): string {
 
 function lotName(lot: CreditLot, account: CreditAccount): string {
   switch (lot.kind) {
-    case 'signup': return 'First-month credits';
+    case 'signup': return 'Sign-up credits';
     case 'free': return 'Free credits';
     case 'subscription': return `${account.plan?.name ?? 'Plan'} credits`;
     case 'pack': return 'Bought credits';

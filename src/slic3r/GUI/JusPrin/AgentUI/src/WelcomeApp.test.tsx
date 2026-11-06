@@ -93,7 +93,7 @@ describe('Welcome back', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue with JusPrin' }));
     expect(host.ofType('account_sign_in')).toHaveLength(1);
     host.deliver('account_status', { phase: 'browser', url: 'https://jusprinv2.obico.io/o/authorize/' });
-    expect(screen.getByText('Finish signing in in your browser')).toBeInTheDocument();
+    expect(screen.getByText('Finish in your browser')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(host.ofType('account_cancel')).toHaveLength(1);
   });
@@ -102,7 +102,7 @@ describe('Welcome back', () => {
     render(<WelcomeApp getTransport={() => host.transport} />);
     connect(host, report(), []);
     expect(host.ofType('account_check')).toHaveLength(0);
-    expect(screen.getByTestId('welcome-account')).toHaveTextContent('Your first month: 500 credits');
+    expect(screen.getByTestId('welcome-account')).toHaveTextContent('Sign up and get 500 free credits');
     expect(screen.getByTestId('welcome-account')).not.toHaveTextContent('original price');
     expect(screen.getByRole('button', { name: 'Sign in for 500 credits' })).toHaveClass('primary');
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('secondary');

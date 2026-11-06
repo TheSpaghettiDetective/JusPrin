@@ -69,6 +69,7 @@ TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
     snapshot.onboarding.agent_configured = true;
     snapshot.onboarding.orca_source      = "/tmp/orca";
     snapshot.onboarding.orca_printers    = {"Voron 2.4 0.4 nozzle"};
+    snapshot.onboarding.orca_selected    = "Voron 2.4 0.4 nozzle";
     snapshot.onboarding.orca_filaments   = 3;
     snapshot.onboarding.agent_card       = HomeAgentCard::Account;
     snapshot.onboarding.account          = json{{"credits", json{{"total", 500}}}};
@@ -83,6 +84,7 @@ TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
     CHECK(state.at("agentConfigured") == true);
     CHECK(state.at("orca").at("source") == "/tmp/orca");
     CHECK(state.at("orca").at("printers") == json::array({"Voron 2.4 0.4 nozzle"}));
+    CHECK(state.at("orca").at("selected") == "Voron 2.4 0.4 nozzle");
     CHECK(state.at("orca").at("filamentCount") == 3);
     // No form is open on the OrcaSlicer screen.
     CHECK(state.at("printerForm").is_null());
@@ -99,8 +101,8 @@ TEST_CASE("an import's result lists each item for the page", "[home][onboarding]
 
     snapshot.onboarding.facts.orca_printers = true;
     snapshot.onboarding.import_result       = std::vector<Snapshot::Onboarding::ImportItem>{
-        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, ""},
-        {"filament", "Broken PLA", "", false, "the file couldn't be read"},
+        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, "", false},
+        {"filament", "Broken PLA", "", false, "Not imported. The file couldn't be read.", true},
     };
     const json state = state_payload(snapshot).at("onboarding");
     CHECK(state.at("printersScreen") == "import_result");
@@ -108,9 +110,10 @@ TEST_CASE("an import's result lists each item for the page", "[home][onboarding]
     const json& items = state.at("orca").at("importResult");
     REQUIRE(items.size() == 2);
     CHECK(items.at(0) == json{{"kind", "printer"}, {"name", "Shop X1C"}, {"renamedTo", "Shop X1C (Orca copy)"},
-                              {"imported", true}, {"reason", ""}});
+                              {"imported", true}, {"reason", ""}, {"retryable", false}});
     CHECK(items.at(1).at("imported") == false);
-    CHECK(items.at(1).at("reason") == "the file couldn't be read");
+    CHECK(items.at(1).at("reason") == "Not imported. The file couldn't be read.");
+    CHECK(items.at(1).at("retryable") == true);
 }
 
 TEST_CASE("only the first launch's default printer is marked assumed", "[home][onboarding]")
@@ -128,6 +131,23 @@ TEST_CASE("only the first launch's default printer is marked assumed", "[home][o
     const json printers = state_payload(snapshot).at("printers");
     CHECK_FALSE(printers.at(0).contains("assumed"));
     CHECK(printers.at(1).at("assumed") == true);
+}
+
+TEST_CASE("a printer with no connection ever set up says so to the page", "[home]")
+{
+    Snapshot snapshot;
+    PrinterEntry added;
+    added.id            = "a";
+    added.name          = "Prusa MK4";
+    added.no_connection = true;
+    PrinterEntry hosted = added;
+    hosted.id            = "b";
+    hosted.no_connection = false;
+    snapshot.printers    = {added, hosted};
+
+    const json printers = state_payload(snapshot).at("printers");
+    CHECK(printers.at(0).at("noConnection") == true);
+    CHECK_FALSE(printers.at(1).contains("noConnection"));
 }
 
 TEST_CASE("appearance is the page's own vocabulary, not a boolean", "[home]")

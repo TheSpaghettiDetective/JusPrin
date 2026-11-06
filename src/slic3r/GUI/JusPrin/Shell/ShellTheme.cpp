@@ -331,6 +331,10 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& preferences = component.at("preferences");
     m.preferences.width  = parse_int(preferences, "component.preferences", "width");
     m.preferences.height = parse_int(preferences, "component.preferences", "height");
+
+    const nlohmann::json& orca_import = component.at("orcaImport");
+    m.orca_import.width  = parse_int(orca_import, "component.orcaImport", "width");
+    m.orca_import.height = parse_int(orca_import, "component.orcaImport", "height");
     return m;
 }
 

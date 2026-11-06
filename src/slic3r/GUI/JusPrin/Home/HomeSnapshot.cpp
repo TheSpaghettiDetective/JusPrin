@@ -152,6 +152,8 @@ json printer_json(const PrinterEntry& printer)
         out["history"] = summary_json(printer.history);
     if (printer.assumed)
         out["assumed"] = true;
+    if (printer.no_connection)
+        out["noConnection"] = true;
     return out;
 }
 
@@ -180,7 +182,8 @@ json import_result_json(const std::optional<std::vector<Snapshot::Onboarding::Im
                          {"name", item.name},
                          {"renamedTo", item.renamed_to},
                          {"imported", item.imported},
-                         {"reason", item.reason}});
+                         {"reason", item.reason},
+                         {"retryable", item.retryable}});
     return lines;
 }
 
@@ -214,10 +217,12 @@ json state_payload(const Snapshot& snapshot)
              {"signInError", onboarding.sign_in_error},
              {"accountEmail", onboarding.account_email},
              {"agentConfigured", onboarding.agent_configured},
+             {"agentKeyProvider", onboarding.agent_key_provider},
              {"orca",
               json{
                   {"source", onboarding.orca_source},
                   {"printers", onboarding.orca_printers},
+                  {"selected", onboarding.orca_selected},
                   {"filamentCount", onboarding.orca_filaments},
                   {"found", onboarding.facts.orca_printers},
                   {"importResult", import_result_json(onboarding.import_result)},

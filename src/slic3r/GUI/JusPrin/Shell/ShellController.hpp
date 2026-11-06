@@ -178,6 +178,9 @@ public:
     // start (V1Import.hpp); returns once it is closed. Nothing when there is
     // no import still to show.
     void open_welcome_back();
+    // File › Import › Import from OrcaSlicer… (Home/OrcaImportWindow.hpp);
+    // returns once it is closed.
+    void open_orca_import();
 
     // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
     // decoupled from the add-printer request that opened it, so nothing else

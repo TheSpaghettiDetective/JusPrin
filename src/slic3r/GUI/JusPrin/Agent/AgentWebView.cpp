@@ -54,6 +54,8 @@ wxString agent_page_url(AgentPageMode mode)
         url += "?panel=preferences";
     else if (mode == AgentPageMode::WelcomeBack)
         url += "?panel=welcome";
+    else if (mode == AgentPageMode::OrcaImport)
+        url += "?panel=orca-import";
     return url;
 }
 

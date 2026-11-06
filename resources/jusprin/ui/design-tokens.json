@@ -563,6 +563,10 @@
       "controlWidth": 200,
       "segmentWidth": 96
     },
+    "orcaImport": {
+      "width": 560,
+      "height": 520
+    },
     "field": {
       "height": 26,
       "radius": 4,

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { PreferencesApp } from './PreferencesApp';
 import { WelcomeApp } from './WelcomeApp';
+import { OrcaImportApp } from './OrcaImportApp';
 import { nativeTransport } from './bridge/client';
 import { applyAppearance, applyStaticTokens } from './tokens';
 import './styles.css';
@@ -21,6 +22,9 @@ const preferences = query.get('panel') === 'preferences';
 // The window shown once after JusPrin v1's setup was imported loads it with
 // ?panel=welcome. See WelcomeApp.tsx.
 const welcome = query.get('panel') === 'welcome';
+// File › Import › Import from OrcaSlicer…'s window loads it with
+// ?panel=orca-import. See OrcaImportApp.tsx.
+const orcaImport = query.get('panel') === 'orca-import';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -28,6 +32,8 @@ createRoot(document.getElementById('root')!).render(
       ? <PreferencesApp getTransport={nativeTransport} />
       : welcome
         ? <WelcomeApp getTransport={nativeTransport} />
-        : <App getTransport={nativeTransport} printerPanel={panel} />}
+        : orcaImport
+          ? <OrcaImportApp getTransport={nativeTransport} />
+          : <App getTransport={nativeTransport} printerPanel={panel} />}
   </StrictMode>,
 );

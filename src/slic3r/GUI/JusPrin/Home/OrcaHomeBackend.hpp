@@ -11,7 +11,7 @@
 
 #include "HomeBackend.hpp"
 #include "MonitorWindow.hpp"
-#include "OrcaImport.hpp"
+#include "OrcaImporter.hpp"
 #include "PrintHistory.hpp"
 #include "PrinterWindow.hpp"
 #include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
@@ -34,6 +34,9 @@ class ProjectAutosave;
 }
 namespace Slic3r::GUI::JusPrin::Agent {
 class IChatModelSource;
+}
+namespace Slic3r::GUI::JusPrin::PrinterSetup {
+class PrinterCatalog;
 }
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -90,13 +93,13 @@ public:
     void open_sign_in_link(const std::string& link) override;
     void open_agent_door(const std::string& door) override;
     void leave_welcome() override;
-    void back_to_welcome() override;
+    void step_back() override;
+    void ask_agent_for_printer() override;
     void start_fresh() override;
-    std::string import_orca_printers() override;
+    std::string import_orca_printers(const std::vector<std::string>& printers) override;
     std::string assume_default_printer() override;
     void retry_orca_import() override;
     void finish_orca_import() override;
-    std::string choose_orca_folder() override;
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;
 
@@ -155,8 +158,11 @@ private:
     void complete_onboarding();
     // The Printers step has its printer: imported, added or assumed.
     void printer_chosen();
-    // Imports OrcaSlicer preset files and says what became of each.
-    std::vector<OrcaImportItem> import_orca_files(const std::vector<std::string>& files);
+    // Brings the OrcaSlicer items the person asked for and selects the
+    // printer OrcaSlicer had selected, otherwise the first one brought; the
+    // Printers step then has its printer.
+    std::vector<OrcaImportItem> bring_orca_items(std::vector<OrcaImportItem> ticked, const std::vector<std::string>& files);
+    const PrinterSetup::PrinterCatalog& profile_catalog();
     static std::vector<Snapshot::Onboarding::ImportItem> import_result_lines(const std::vector<OrcaImportItem>& items);
     Agent::ICloudSignIn& sign_in();
     void request_account();
@@ -185,11 +191,11 @@ private:
     bool                                               m_account_requested{false};
     nlohmann::json                                     m_account;
     std::unique_ptr<PrinterFormSession>                m_printer_form;
-    // The OrcaSlicer folder the person picked when none was found beside
-    // JusPrin's, for this run of the app, and the import's result while it
-    // is on screen.
-    std::optional<std::filesystem::path>               m_picked_orca;
+    // The OrcaSlicer import's result while it is on screen.
     std::optional<std::vector<OrcaImportItem>>         m_import_result;
+    // The printer OrcaSlicer had selected, for the import and its retry.
+    std::string                                        m_orca_selected;
+    OrcaImporter                                       m_importer;
     bool                                               m_onboarding_changed{false};
     // An upload's answer can arrive after the backend is gone.
     std::shared_ptr<void>                              m_alive{std::make_shared<int>(0)};

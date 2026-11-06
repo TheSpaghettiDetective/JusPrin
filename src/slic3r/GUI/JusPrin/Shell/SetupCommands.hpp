@@ -156,6 +156,10 @@ std::optional<std::size_t> add_filament_slot(Plater& plater);
 // update_objects_position_when_select_preset.
 bool select_printer_preset(Plater& plater, const std::string& preset_name);
 
+// Switches the process preset: the process branch of
+// Plater::priv::on_select_preset. False when there is no such preset.
+bool select_process_preset(Plater& plater, const std::string& preset_name);
+
 // Selects a saved printer through Orca's preset path and then selects its
 // linked device for printing. False when the printer disappeared or the person
 // cancelled Orca's unsaved-settings prompt.
@@ -166,6 +170,21 @@ bool select_named_printer(Plater& plater, const std::string& name);
 bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
                                 const std::string& model_id, const std::string& variant,
                                 const std::string& default_filament, std::string& error);
+
+// A shipped printer profile: its vendor, model and nozzle, and the filament
+// it comes with.
+struct PrinterProfile
+{
+    std::string vendor_id;
+    std::string model_id;
+    std::string variant;
+    std::string default_filament;
+};
+
+// Enables every profile with one preset reload and selects none of them,
+// where install_and_select_printer reloads once per printer. On a load
+// failure the old AppConfig selections are restored and reloaded.
+bool install_printer_profiles(Plater& plater, const std::vector<PrinterProfile>& profiles, std::string& error);
 
 // Applies a bed type through Sidebar::set_bed_type_accord_combox, the public
 // method Orca itself uses; it notifies the combo, so Orca's own handler owns

@@ -776,6 +776,15 @@ TEST_CASE("the Preferences window keeps the canvas's sizes", "[brand]")
     REQUIRE(preferences.at("navWidth").get<int>() < preferences.at("width").get<int>() / 2);
 }
 
+// File › Import › Import from OrcaSlicer…'s window (canvas "JusPrin v2",
+// boards orca-import-02 to 05): the boards' width. A longer list of
+// printers scrolls inside it.
+TEST_CASE("the Import from OrcaSlicer window keeps the canvas's sizes", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("orcaImport"), {{"width", 560}, {"height", 520}},
+                             "component.orcaImport");
+}
+
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
 // sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
 // the icon scale would make the row taller than its text, so the card has

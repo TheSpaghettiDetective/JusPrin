@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PrinterCamera, PrinterInfo, PrinterStatus, SpoolInfo } from '../bridge/protocol';
 import { printerHistoryLine } from '../history';
-import { HistoryGlyph, MonitorGlyph, PrinterGlyph, WarningGlyph } from './Glyphs';
+import { HistoryGlyph, MonitorGlyph, PrinterGlyph } from './Glyphs';
 import { PrinterActions, PrinterMenu } from './PrinterMenu';
+import { STAND_IN_PRINTER } from './Onboarding';
 
 // Every card is the same list of fields, top to bottom, and shows each one
 // only when the host sent it, so a card grows and shrinks with what its
-// printer reports. Only the name and the status are always there. Nothing
-// stands in for a field the printer did not report.
+// printer reports. Only the name and the status are always there, but on a
+// printer with no connection ever set up, where the card says what
+// connecting is for instead. Nothing stands in for a field the printer did
+// not report.
 
 const STATUS_WORD: Record<PrinterStatus, string> = {
   not_connected: 'Not connected',
@@ -62,14 +65,19 @@ function materials(spools: SpoolInfo[]): string {
   return names.join(', ');
 }
 
-// The default the first launch put in place when the person skipped
-// choosing a printer. It stays marked until they add or pick their own.
-function AssumedMark() {
+// In place of the printer the first launch set up when the person skipped
+// choosing one: files slice for it, but it is not theirs, so it has no
+// status, connection or menu. Home lists it only until they add their own.
+export function NoPrinterCard({ onAdd }: { onAdd: () => void }) {
   return (
-    <span className="printer-assumed" title="JusPrin set up this printer when you skipped choosing one. Add yours any time.">
-      <WarningGlyph />
-      assumed
-    </span>
+    <div className="printer-card no-printer-card">
+      <span className="printer-name-row">
+        <PrinterGlyph />
+        <span className="printer-name">No printer yet</span>
+      </span>
+      <p className="no-printer-text">{STAND_IN_PRINTER}</p>
+      <button type="button" className="button-primary button-primary-small" onClick={onAdd}>Add your printer</button>
+    </div>
   );
 }
 
@@ -203,14 +211,15 @@ export function PrinterCard({
         </span>
         {hasActions && <PrinterMenu printer={printer} otherNames={otherNames} actions={actions} />}
       </div>
-      {printer.assumed && <AssumedMark />}
-      <div className="printer-status">
-        {!quiet && <span className={`status-dot ${printer.status}`} aria-hidden="true" />}
-        <span className="printer-status-text">
-          <span className={quiet ? 'printer-status-word quiet' : 'printer-status-word'}>{STATUS_WORD[printer.status]}</span>
-          {detail && <span className="printer-status-detail"> · {detail}</span>}
-        </span>
-      </div>
+      {!printer.noConnection && (
+        <div className="printer-status">
+          {!quiet && <span className={`status-dot ${printer.status}`} aria-hidden="true" />}
+          <span className="printer-status-text">
+            <span className={quiet ? 'printer-status-word quiet' : 'printer-status-word'}>{STATUS_WORD[printer.status]}</span>
+            {detail && <span className="printer-status-detail"> · {detail}</span>}
+          </span>
+        </div>
+      )}
       {jobRuns && printer.job && <div className="printer-job">{printer.job}</div>}
       {jobRuns && printer.progressPercent !== undefined && (
         <div
@@ -250,9 +259,12 @@ export function PrinterCard({
         </button>
       )}
       {(printer.action === 'reconnect' || printer.action === 'connect') && actions.onConnect && (
-        <button type="button" className="button-secondary launch-monitor" onClick={() => actions.onConnect?.(printer.id)}>
-          {printer.action === 'reconnect' ? 'Reconnect' : 'Connect…'}
-        </button>
+        <div className={printer.noConnection ? 'printer-connect-row with-why' : 'printer-connect-row'}>
+          <button type="button" className="button-secondary launch-monitor" onClick={() => actions.onConnect?.(printer.id)}>
+            {printer.action === 'reconnect' ? 'Reconnect' : 'Connect…'}
+          </button>
+          {printer.noConnection && <span className="printer-connect-why">Connect it to send prints straight from JusPrin</span>}
+        </div>
       )}
     </div>
   );

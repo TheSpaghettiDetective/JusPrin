@@ -35,6 +35,7 @@ public:
     int                      wizards{0};
     // Each onboarding action, in the order the page sent them.
     std::vector<std::string> onboarding_calls;
+    std::vector<std::string> chosen_printers;
     std::vector<json>        form_messages;
     bool                     onboarding_changed{false};
     bool                      dark() const override { return is_dark; }
@@ -77,11 +78,13 @@ public:
     void open_sign_in_link(const std::string& link) override { onboarding_calls.push_back("link:" + link); }
     void open_agent_door(const std::string& door) override { onboarding_calls.push_back("door:" + door); }
     void leave_welcome() override { onboarding_calls.push_back("leave_welcome"); }
-    void back_to_welcome() override { onboarding_calls.push_back("back"); }
+    void step_back() override { onboarding_calls.push_back("back"); }
     void start_fresh() override { onboarding_calls.push_back("start_fresh"); }
-    std::string import_orca_printers() override
+    void ask_agent_for_printer() override { onboarding_calls.push_back("ask_agent"); }
+    std::string import_orca_printers(const std::vector<std::string>& printers) override
     {
         onboarding_calls.push_back("import");
+        chosen_printers = printers;
         return refusal;
     }
     std::string assume_default_printer() override
@@ -91,11 +94,6 @@ public:
     }
     void retry_orca_import() override { onboarding_calls.push_back("import_retry"); }
     void finish_orca_import() override { onboarding_calls.push_back("import_continue"); }
-    std::string choose_orca_folder() override
-    {
-        onboarding_calls.push_back("choose_orca_folder");
-        return refusal;
-    }
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
     void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
 
@@ -326,16 +324,18 @@ TEST_CASE("first-launch messages reach the backend and refresh the screen", "[ho
     host.on_page_message(page_message("onboarding_leave_welcome"));
     host.on_page_message(page_message("onboarding_back"));
     host.on_page_message(page_message("onboarding_start_fresh"));
-    host.on_page_message(page_message("onboarding_import"));
+    host.on_page_message(page_message("onboarding_ask_agent"));
+    host.on_page_message(page_message("onboarding_import", json{{"printers", {"My X1C", "Bambu Lab P1S 0.4 nozzle"}}}));
     host.on_page_message(page_message("onboarding_assume_default"));
     host.on_page_message(page_message("agent_card_dismiss"));
     host.on_page_message(page_message("onboarding_printer_form", json{{"action", "form_options"}, {"catalogId", "c1"}, {"nozzle", 0.4}}));
 
     CHECK(backend.onboarding_calls == std::vector<std::string>{"sign_in", "sign_in_cancel", "leave_welcome", "back", "start_fresh",
-                                                               "import", "assume_default", "dismiss_account_card"});
+                                                               "ask_agent", "import", "assume_default", "dismiss_account_card"});
+    CHECK(backend.chosen_printers == std::vector<std::string>{"My X1C", "Bambu Lab P1S 0.4 nozzle"});
     REQUIRE(backend.form_messages.size() == 1);
     CHECK(backend.form_messages.front().at("catalogId") == "c1");
-    CHECK(wire.of_type("state").size() == states + 9);
+    CHECK(wire.of_type("state").size() == states + 10);
 }
 
 // Preferences opens on the frame's next turn and is modal, so the page hears
@@ -383,12 +383,12 @@ TEST_CASE("the free doors open Preferences and the poll brings back how it close
 TEST_CASE("a printer the first launch could not bring says why and keeps the step", "[home][onboarding]")
 {
     FakeBackend backend;
-    backend.refusal = "JusPrin couldn't bring these printers. OrcaSlicer was not changed. Start fresh instead.";
+    backend.refusal = "JusPrin couldn't bring these printers. OrcaSlicer was not changed. Choose your printer instead.";
     Wire wire;
     HomeHost host(backend, wire.sink());
     host.on_page_message(hello());
 
-    host.on_page_message(page_message("onboarding_import"));
+    host.on_page_message(page_message("onboarding_import", json{{"printers", json::array()}}));
 
     const auto errors = wire.of_type("onboarding_error");
     REQUIRE(errors.size() == 1);
@@ -396,7 +396,7 @@ TEST_CASE("a printer the first launch could not bring says why and keeps the ste
     CHECK(wire.of_type("state").size() == 2);
 }
 
-TEST_CASE("the import result's buttons and the folder picker reach the backend", "[home][onboarding]")
+TEST_CASE("the import result's buttons reach the backend", "[home][onboarding]")
 {
     FakeBackend backend;
     Wire wire;
@@ -406,17 +406,9 @@ TEST_CASE("the import result's buttons and the folder picker reach the backend",
 
     host.on_page_message(page_message("onboarding_import_retry"));
     host.on_page_message(page_message("onboarding_import_continue"));
-    host.on_page_message(page_message("onboarding_choose_orca_folder"));
-    CHECK(backend.onboarding_calls == std::vector<std::string>{"import_retry", "import_continue", "choose_orca_folder"});
-    CHECK(wire.of_type("state").size() == states + 3);
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"import_retry", "import_continue"});
+    CHECK(wire.of_type("state").size() == states + 2);
     CHECK(wire.of_type("onboarding_error").empty());
-
-    // A picked folder with no printers says so.
-    backend.refusal = "JusPrin found no OrcaSlicer printers in that folder.";
-    host.on_page_message(page_message("onboarding_choose_orca_folder"));
-    const auto errors = wire.of_type("onboarding_error");
-    REQUIRE(errors.size() == 1);
-    CHECK(errors.front().at("payload").at("message") == backend.refusal);
 }
 
 // Adding a printer changes what the rail should show, so the screen is pushed

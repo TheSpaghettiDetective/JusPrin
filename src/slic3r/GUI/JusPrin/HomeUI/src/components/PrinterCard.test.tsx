@@ -148,7 +148,7 @@ describe('the fields', () => {
     expect(screen.getByText("Klipper stopped: Lost communication with MCU 'mcu'")).toBeInTheDocument();
     expect(screen.getByText('Last connected 3h ago')).toBeInTheDocument();
     document.body.innerHTML = '';
-    card(printer({ status: 'not_connected', message: 'No network connection is set up.' }));
+    card(printer({ status: 'not_connected', message: 'The printer stopped sending updates.' }));
     expect(screen.queryByText(/Last connected/)).toBeNull();
   });
 

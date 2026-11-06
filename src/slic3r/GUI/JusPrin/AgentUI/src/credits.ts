@@ -27,6 +27,29 @@ export function messageCostSentence(model: ModelOptionInfo | undefined, account:
   return cost === undefined ? undefined : `Each message you send in this chat costs ${creditCount(cost)}.`;
 }
 
+// The sign-up offer, wherever someone can make an account. The gateway grants
+// a new account 500 credits (JUSPRIN_V2_SIGNUP_CREDITS) for a month from the
+// day it is granted, and an Expert message costs 5 (its model aliases,
+// checked on staging 2026-11-05). Nothing asks the gateway before sign-in.
+export const SIGNUP_CREDITS = 500;
+const EXPERT_MESSAGE_CREDITS = 5;
+export const SIGNUP_OFFER = `Sign up and get ${creditNumber(SIGNUP_CREDITS)} free credits`;
+export const SIGNUP_SCALE =
+  `Good for your first month. That’s about ${SIGNUP_CREDITS / EXPERT_MESSAGE_CREDITS} messages to the agent on Expert.`;
+
+// "4 December".
+const longDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+
+// What signing in got the person, the line above who signed in: the free
+// credits a new account was just given, or what an account they used before
+// has left.
+export function signedInCredits(account: CreditAccount, now: Date = new Date()): string {
+  const signup = account.credits.lots.find((lot) => lot.kind === 'signup');
+  if (signup?.expires_at && signup.credits === signup.granted && new Date(signup.expires_at) > now)
+    return `You got ${creditNumber(signup.granted)} free credits for signing up, good until ${longDate(signup.expires_at)}.`;
+  return `You have ${creditCount(account.credits.total)}.`;
+}
+
 export const TIER_NAMES: Record<string, string> = { basic: 'Standard', expert: 'Expert' };
 
 // Why the next message of this chat cannot be paid, or nothing when it can.

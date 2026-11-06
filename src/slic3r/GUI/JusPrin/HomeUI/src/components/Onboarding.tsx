@@ -9,15 +9,23 @@
 // for now" moves on at once.
 
 import { useEffect, useRef, useState } from 'react';
-import type { Appearance, EmailSignIn, ImportResultItem, OnboardingState } from '../bridge/protocol';
-import { creditCount } from '../../../AgentUI/src/credits';
+import type { Appearance, EmailSignIn, OnboardingState } from '../bridge/protocol';
+import { afterPaint } from '@shared/afterPaint';
+import { SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
+import { OrcaImportResultLines, OrcaPrinterList } from '../../../AgentUI/src/components/OrcaImportLists';
 import lockupLight from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg';
 import lockupDark from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_dark.svg';
 import clip from '@resources/jusprin/welcome/welcome-clip.mp4';
 import googleMark from '@resources/jusprin/welcome/google-g.svg';
 import { CodeField } from './CodeField';
-import { CheckGlyph, FolderGlyph, PrinterGlyph, WarningGlyph } from './Glyphs';
-import { PrinterFormHost } from './PrinterFormHost';
+import { CheckGlyph, FolderGlyph } from './Glyphs';
+import { PrinterPickerHost } from './PrinterPickerHost';
+import type { PrinterPick } from '../../../AgentUI/src/components/PrinterPicker';
+
+// What Skip installs: OrcaSlicer's Generic Klipper Printer, its 250 × 250 mm
+// bed and Klipper G-code (OrcaHomeBackend::assume_default_printer). Home's
+// "No printer yet" card and its drop zone say the same.
+export const STAND_IN_PRINTER = 'Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.';
 
 // How long the card says who signed in before the Printers step.
 const SIGNED_IN_PAUSE_MS = 1500;
@@ -110,16 +118,16 @@ function CodeStep({ email, onAction, onChangeEmail, onBrowser }: {
       {refusal ? (
         <p className="onboarding-error" role="alert">{refusal}</p>
       ) : (
-        <p className="onboarding-door-note">The sixth digit signs you in. Read the email on any device.</p>
+        <p className="onboarding-door-note">Type the code from the email. You can open it on your phone.</p>
       )}
       {spent ? (
         <div className="onboarding-link-row onboarding-new-code-row">
           <button type="button" className="button-primary" disabled={email.busy} onClick={sendCode}>Send a new code</button>
-          <LinkRow links={[['Change email', onChangeEmail], ['Use the browser instead', onBrowser]]} />
+          <LinkRow links={[['Change email', onChangeEmail], ['Sign in with Google instead', onBrowser]]} />
         </div>
       ) : (
         <LinkRow
-          links={[['Send a new code', sendCode], ['Change email', onChangeEmail], ['Use the browser instead', onBrowser]]}
+          links={[['Send a new code', sendCode], ['Change email', onChangeEmail], ['Sign in with Google instead', onBrowser]]}
           cancel={() => onAction('onboarding_sign_in_cancel')}
         />
       )}
@@ -127,15 +135,17 @@ function CodeStep({ email, onAction, onChangeEmail, onBrowser }: {
   );
 }
 
-// The email door's choice, before anything is sent: an emailed code, which
-// also makes the account of an address that has none, or the password.
+// The email door before anything is sent: an emailed code, which also
+// makes the account of an address that has none, and, for someone who set
+// one, the password behind "Use a password instead".
 function ChooseStep({ email, onAction, onChangeEmail }: { email: EmailSignIn; onAction: Action; onChangeEmail: () => void }) {
   const [password, setPassword] = useState('');
+  const [withPassword, setWithPassword] = useState(email.refusal === 'wrong_password');
   const refusal = refusalText(email);
   const codeRefused = email.refusal === 'too_many_codes';
   return (
     <>
-      <p className="onboarding-door-title">How do you want to sign in?</p>
+      <p className="onboarding-door-title">We’ll email you a code.</p>
       <p className="onboarding-door-detail">
         {email.email}.{' '}
         <button type="button" className="onboarding-link inline" onClick={onChangeEmail}>Change email</button>
@@ -144,34 +154,51 @@ function ChooseStep({ email, onAction, onChangeEmail }: { email: EmailSignIn; on
         onClick={() => onAction('onboarding_sign_in_send_code')}>
         Email me a 6-digit code
       </button>
-      {codeRefused ? (
-        <p className="onboarding-error" role="alert">{refusal}</p>
+      {codeRefused && <p className="onboarding-error" role="alert">{refusal}</p>}
+      {withPassword ? (
+        <>
+          <p className="onboarding-or"><span>or</span></p>
+          <form className="onboarding-email-row" onSubmit={(event) => {
+            event.preventDefault();
+            if (password) onAction('onboarding_sign_in_password', { password });
+          }}>
+            <input className="onboarding-field" type="password" placeholder="Password" autoComplete="current-password"
+              aria-label="Password" value={password} disabled={email.busy} autoFocus
+              onChange={(event) => setPassword(event.target.value)} />
+            <button type="submit" className="button-secondary" disabled={email.busy || !password}>Sign in</button>
+          </form>
+          {refusal && !codeRefused && <p className="onboarding-error" role="alert">{refusal}</p>}
+          <LinkRow
+            links={[['Forgot password', () => onAction('onboarding_open_link', { link: 'reset_password' })]]}
+            cancel={() => onAction('onboarding_sign_in_cancel')}
+          />
+        </>
       ) : (
-        <p className="onboarding-door-note">New here? The code makes your account.</p>
+        <LinkRow links={[['Use a password instead', () => setWithPassword(true)]]} cancel={() => onAction('onboarding_sign_in_cancel')} />
       )}
-      <p className="onboarding-or"><span>or</span></p>
-      <form className="onboarding-email-row" onSubmit={(event) => {
-        event.preventDefault();
-        if (password) onAction('onboarding_sign_in_password', { password });
-      }}>
-        <input className="onboarding-field" type="password" placeholder="Password" autoComplete="current-password"
-          aria-label="Password" value={password} disabled={email.busy} onChange={(event) => setPassword(event.target.value)} />
-        <button type="submit" className="button-secondary" disabled={email.busy || !password}>Sign in</button>
-      </form>
-      {refusal && !codeRefused && <p className="onboarding-error" role="alert">{refusal}</p>}
-      <LinkRow
-        links={[['Forgot password', () => onAction('onboarding_open_link', { link: 'reset_password' })]]}
-        cancel={() => onAction('onboarding_sign_in_cancel')}
-      />
     </>
   );
 }
 
+// Who signed in, under what signing in got them: the free credits a new
+// account was just given, or what an account used before has left.
+function SignedIn({ onboarding }: { onboarding: OnboardingState }) {
+  const account = onboarding.account;
+  if (!account) return <p className="onboarding-door-title" role="status">Signed in as {onboarding.accountEmail}</p>;
+  return (
+    <div role="status">
+      <p className="onboarding-door-title">{signedInCredits(account)}</p>
+      <p className="onboarding-door-detail">Signed in as {onboarding.accountEmail}</p>
+    </div>
+  );
+}
+
 // The first door, on the welcome and in Home's Agent group alike: the
-// first-month offer, Google in the browser or an email that stays in the
-// app, each step of either, and who signed in. Returns the words and
-// controls only; the caller frames them.
-export function SignInDoor({ onboarding, onAction, title }: { onboarding: OnboardingState; onAction: Action; title?: string }) {
+// sign-up offer, Google in the browser or an email that stays in the app,
+// each step of either, and who signed in. Signing up and signing in are
+// the same door: an address with no account gets one from its first code.
+// Returns the words and controls only; the caller frames them.
+export function SignInDoor({ onboarding, onAction, offer }: { onboarding: OnboardingState; onAction: Action; offer?: boolean }) {
   // The address typed at rest, kept for "Change email".
   const [address, setAddress] = useState('');
   const addressField = useRef<HTMLInputElement>(null);
@@ -201,7 +228,7 @@ export function SignInDoor({ onboarding, onAction, title }: { onboarding: Onboar
       <>
         <p className="onboarding-door-title onboarding-waiting">
           <span className="onboarding-spinner" aria-hidden="true" />
-          Finish signing in in your browser.
+          Finish in your browser.
         </p>
         <p className="onboarding-door-detail">The app continues on its own once the browser is done.</p>
         <p className="onboarding-door-note">
@@ -225,21 +252,18 @@ export function SignInDoor({ onboarding, onAction, title }: { onboarding: Onboar
       </>
     );
   }
-  if (onboarding.accountEmail) {
-    const total = onboarding.account?.credits.total;
-    return (
-      <p className="onboarding-door-title" role="status">
-        Signed in as {onboarding.accountEmail}
-        {total !== undefined && ` · ${creditCount(total)}`}
-      </p>
-    );
-  }
+  if (onboarding.accountEmail) return <SignedIn onboarding={onboarding} />;
   // At rest.
+  const sendEmail = () => {
+    const typed = address.trim();
+    if (typed) onAction('onboarding_sign_in_email', { email: typed });
+    else addressField.current?.focus();
+  };
   return (
     <>
-      {title && <p className="onboarding-door-title">{title}</p>}
-      {title && <p className="onboarding-door-detail">An Expert message is 5 credits. Your own API key stays free.</p>}
-      {title && onboarding.v1Imported && (
+      {offer && <p className="onboarding-door-title">{SIGNUP_OFFER}</p>}
+      {offer && <p className="onboarding-door-detail">{SIGNUP_SCALE}</p>}
+      {offer && onboarding.v1Imported && (
         <p className="onboarding-door-detail">Subscribed to JusPrin v1? You get these 500 credits and keep your original price.</p>
       )}
       <button type="button" className="button-secondary onboarding-google"
@@ -250,16 +274,19 @@ export function SignInDoor({ onboarding, onAction, title }: { onboarding: Onboar
       <p className="onboarding-or"><span>or</span></p>
       <form className="onboarding-email-row" onSubmit={(event) => {
         event.preventDefault();
-        const typed = address.trim();
-        if (typed) onAction('onboarding_sign_in_email', { email: typed });
+        sendEmail();
       }}>
         <input ref={addressField} className="onboarding-field" type="email" placeholder="you@example.com" autoComplete="email"
           aria-label="Email" value={address} onChange={(event) => setAddress(event.target.value)} />
-        <button type="submit" className="button-primary" disabled={!address.trim()}>Continue with email</button>
+        <button type="submit" className="button-primary" disabled={!address.trim()}>Sign up free</button>
       </form>
-      <p className="onboarding-door-note">New or existing account, same door. Google opens your browser; email stays here.</p>
       <p className="onboarding-door-note">
-        By signing in you agree to the{' '}
+        Already have an account?{' '}
+        <button type="button" className="onboarding-link inline" onClick={sendEmail}>Sign in</button>
+      </p>
+      <p className="onboarding-door-note">Google opens your browser; email stays here.</p>
+      <p className="onboarding-door-note">
+        By continuing you agree to the{' '}
         <button type="button" className="onboarding-link inline" onClick={() => onAction('onboarding_open_link', { link: 'terms' })}>
           Terms
         </button>{' '}
@@ -274,20 +301,14 @@ export function SignInDoor({ onboarding, onAction, title }: { onboarding: Onboar
   );
 }
 
-// The two free doors: each opens Preferences › Agent, and closes back here.
-export function FreeDoors({ onAction, disabled }: { onAction: Action; disabled: boolean }) {
-  const door = (which: 'key' | 'tool', name: string, cost: string) => (
-    <button type="button" className="onboarding-door" disabled={disabled}
-      onClick={() => onAction('onboarding_open_preferences', { door: which })}>
-      <span className="onboarding-door-name">{name}</span>
-      <span className="onboarding-door-cost">{cost}</span>
-    </button>
-  );
+// The agent on the person's own AI account, an API key or Claude Code and
+// Claude Desktop: Preferences › Agent explains both, and closes back here.
+export function OwnAccountDoor({ onAction, disabled }: { onAction: Action; disabled: boolean }) {
   return (
-    <>
-      {door('key', 'Your own API key', 'Free')}
-      {door('tool', 'Claude Code or Claude Desktop', 'Free · MCP server')}
-    </>
+    <button type="button" className="onboarding-link flush" disabled={disabled}
+      onClick={() => onAction('onboarding_open_preferences', { door: 'key' })}>
+      Use your own AI account instead
+    </button>
   );
 }
 
@@ -334,9 +355,9 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
             </p>
           </div>
           <div className="onboarding-doors">
-            <p className="onboarding-doors-label">Pick how the agent should think. Change it any time in Preferences › Agent.</p>
+            <p className="onboarding-doors-label">Sign up to use the AI agent, or skip it and just slice.</p>
             <div className="onboarding-offer">
-              <SignInDoor onboarding={onboarding} onAction={onAction} title="Your first month: 500 credits" />
+              <SignInDoor onboarding={onboarding} onAction={onAction} offer />
               {signedIn && !waited.current && (
                 <button type="button" className="button-primary onboarding-door-button"
                   onClick={() => onAction('onboarding_leave_welcome')}>
@@ -344,7 +365,7 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
                 </button>
               )}
             </div>
-            <FreeDoors onAction={onAction} disabled={checking || (signedIn && waited.current)} />
+            <OwnAccountDoor onAction={onAction} disabled={checking || (signedIn && waited.current)} />
             <button type="button" className="onboarding-link flush" disabled={checking || (signedIn && waited.current)}
               onClick={() => onAction('onboarding_leave_welcome')}>
               Just slice for now
@@ -356,85 +377,115 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
   );
 }
 
+// What the welcome finished, above the first printer screen's headline:
+// who signed in, or whose key the agent uses. Nothing after "Just slice for
+// now".
+function WelcomeDone({ onboarding }: { onboarding: OnboardingState }) {
+  const { account, accountEmail } = onboarding;
+  if (accountEmail && account) {
+    return (
+      <div className="onboarding-done">
+        <CheckGlyph />
+        <span className="onboarding-done-text">
+          <span>{signedInCredits(account)}</span>
+          <span className="onboarding-done-detail">Signed in as {accountEmail}</span>
+        </span>
+      </div>
+    );
+  }
+  const text = accountEmail ? `Signed in as ${accountEmail}`
+    : onboarding.agentKeyProvider ? `The agent uses your ${onboarding.agentKeyProvider} key` : '';
+  if (!text) return null;
+  return <p className="onboarding-done"><CheckGlyph />{text}</p>;
+}
+
+// Importing holds the app on the action's message, so the button says so
+// first and the message goes once that has been painted. The host answers
+// every action with fresh state.
+function useBusy(onAction: Action, onboarding: OnboardingState) {
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setBusy(false), [onboarding]);
+  const run = (type: string, payload?: object) => {
+    setBusy(true);
+    afterPaint(() => onAction(type, payload));
+  };
+  return [busy, run] as const;
+}
+
+// The printer JusPrin selects once the import is done, as the importer
+// picks it: OrcaSlicer's own, while it is ticked, otherwise the first ticked.
+function startsWith(orca: OnboardingState['orca'], chosen: string[]): string {
+  const ticked = orca.printers.filter((name) => chosen.includes(name));
+  if (ticked.length === 0) return '';
+  if (ticked.includes(orca.selected)) return `JusPrin starts with ${orca.selected}, the printer OrcaSlicer had selected.`;
+  return `JusPrin starts with ${ticked[0]}.`;
+}
+
 function OrcaImport({ onboarding, error, onAction }: Props) {
   const { orca } = onboarding;
+  const [busy, run] = useBusy(onAction, onboarding);
+  // Every printer starts ticked; only the ticked ones are imported.
+  const [chosen, setChosen] = useState(orca.printers);
+  const listed = orca.printers.join('\n');
+  useEffect(() => setChosen(orca.printers), [listed]);
+  const choose = (name: string, ticked: boolean) =>
+    setChosen((now) => (ticked ? [...now, name] : now.filter((one) => one !== name)));
+  const starts = startsWith(orca, chosen);
   return (
     <div className="onboarding-step">
+      <WelcomeDone onboarding={onboarding} />
       <div className="onboarding-heading">
         <h1>Bring your printers from OrcaSlicer?</h1>
         <p className="onboarding-lead">
           JusPrin copies these printers with their filaments, settings and printer connections. OrcaSlicer keeps its own copy.
         </p>
       </div>
-      <ul className="onboarding-printers">
-        {orca.printers.map((name) => (
-          <li key={name}>
-            <PrinterGlyph />
-            {name}
-          </li>
-        ))}
-      </ul>
-      <p className="onboarding-source">
-        <FolderGlyph />
-        <span className="onboarding-source-path">{orca.source}</span>
-        {orca.filamentCount > 0 && <span>· {orca.filamentCount === 1 ? '1 filament' : `${orca.filamentCount} filaments`}</span>}
-      </p>
+      <OrcaPrinterList printers={orca.printers.map((name) => ({ name, already: false }))} chosen={chosen} onChoose={choose}
+        disabled={busy} />
+      <div className="onboarding-source">
+        {orca.filamentCount > 0 && (
+          <p>Also brings {orca.filamentCount === 1 ? '1 filament' : `${orca.filamentCount} filaments`}.</p>
+        )}
+        <p className="onboarding-source-folder">
+          <FolderGlyph />
+          <span className="onboarding-source-path">{orca.source}</span>
+        </p>
+      </div>
+      {starts && <p className="onboarding-lead">{starts}</p>}
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
-        <button type="button" className="button-primary" onClick={() => onAction('onboarding_import')}>Import</button>
-        <button type="button" className="button-secondary" onClick={() => onAction('onboarding_start_fresh')}>Start fresh</button>
+        <button type="button" className="button-primary" disabled={busy || chosen.length === 0}
+          onClick={() => run('onboarding_import', { printers: chosen })}>
+          {busy ? 'Importing…' : 'Import'}
+        </button>
+        <button type="button" className="button-secondary" disabled={busy} onClick={() => onAction('onboarding_start_fresh')}>
+          Choose my printer instead
+        </button>
       </div>
-      <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>Back</button>
+      <button type="button" className="onboarding-link flush" disabled={busy} onClick={() => onAction('onboarding_back')}>Back</button>
     </div>
   );
 }
 
-function importStatus(item: ImportResultItem) {
-  if (!item.imported) return `Not imported · ${item.reason}`;
-  return item.renamedTo ? `Imported as ‘${item.renamedTo}’` : 'Imported';
-}
-
 function ImportResult({ onboarding, error, onAction }: Props) {
   const items = onboarding.orca.importResult ?? [];
-  const failed = items.some((item) => !item.imported);
-  // Printers and processes a line each; filaments as a count, with any not
-  // imported listed so each says why.
-  const filaments = items.filter((item) => item.kind === 'filament');
-  const importedFilaments = filaments.filter((item) => item.imported).length;
-  const listed = items.filter((item) => item.kind !== 'filament' || !item.imported);
-  const noun = filaments.length === 1 ? 'filament' : 'filaments';
+  // Only a failure that can go another way is offered again.
+  const retryable = items.some((item) => item.retryable);
+  const [busy, run] = useBusy(onAction, onboarding);
   return (
     <div className="onboarding-step">
       <div className="onboarding-heading">
-        <h1>{failed ? 'Some settings need attention' : 'Imported from OrcaSlicer'}</h1>
-        <p className="onboarding-lead">OrcaSlicer’s own files were not changed.</p>
+        <h1>Imported from OrcaSlicer</h1>
       </div>
-      {listed.length > 0 && (
-        <ul className="onboarding-printers">
-          {listed.map((item, index) => (
-            <li key={`${item.kind}:${item.name}:${index}`}>
-              {item.imported ? <CheckGlyph /> : <WarningGlyph />}
-              <span className="onboarding-import-line">
-                <span>{item.name}</span>
-                <span className="onboarding-import-status">{importStatus(item)}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {filaments.length > 0 && (
-        <p className="onboarding-import-count">
-          {importedFilaments === filaments.length
-            ? `${filaments.length} ${noun} imported`
-            : `${importedFilaments} of ${filaments.length} ${noun} imported`}
-        </p>
-      )}
+      <OrcaImportResultLines lines={items} />
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
-        <button type="button" className="button-primary" onClick={() => onAction('onboarding_import_continue')}>Continue</button>
-        {failed && (
-          <button type="button" className="button-secondary" onClick={() => onAction('onboarding_import_retry')}>
-            Retry failed items
+        <button type="button" className="button-primary" disabled={busy} onClick={() => onAction('onboarding_import_continue')}>
+          Continue
+        </button>
+        {retryable && (
+          <button type="button" className="button-secondary" disabled={busy} onClick={() => run('onboarding_import_retry')}>
+            {busy ? 'Importing…' : 'Retry failed items'}
           </button>
         )}
       </div>
@@ -442,34 +493,62 @@ function ImportResult({ onboarding, error, onAction }: Props) {
   );
 }
 
-function AddPrinter({ onboarding, error, onAction }: Props) {
+// "Which printer do you have?": the printer and its nozzle, added with its
+// profile's own plate and filament. The dialog Home's "+ Add printer" opens
+// asks for those too.
+function ChoosePrinter({ onboarding, error, onAction }: Props) {
   const form = onboarding.printerForm;
-  const back = () => onAction('onboarding_back');
+  const [pick, setPick] = useState<PrinterPick>({});
+  const { catalogId, nozzle, deviceId } = pick;
+  // Continue waits for the app: it either leaves for Home or says why not.
+  const [finishing, setFinishing] = useState(false);
+  useEffect(() => { setFinishing(false); }, [form?.error]);
+  useEffect(() => {
+    if (catalogId && nozzle !== undefined) onAction('onboarding_printer_form', { action: 'form_options', catalogId, nozzle });
+  }, [catalogId, nozzle]);
+  // The options the app sent for exactly this choice, and none for another.
+  const options = form?.options && form.options.catalogId === catalogId && form.options.nozzle === nozzle ? form.options : undefined;
+  const ready = options !== undefined && !form?.loading && !options.error;
+  // The agent can help only when it can answer: an account with credits, or a key.
+  const agentReady = onboarding.agentKeyProvider !== '' ||
+    (onboarding.accountEmail !== '' && (onboarding.account?.credits.total ?? 0) > 0);
+
+  const finish = () => {
+    if (!options || !catalogId || nozzle === undefined) return;
+    const plate = options.plates.some((entry) => entry.type === options.defaultPlate) ? options.defaultPlate : options.plates[0]?.type;
+    setFinishing(true);
+    onAction('onboarding_printer_form', { action: 'form_finish', catalogId, nozzle,
+      ...(options.plates.length > 0 ? { plate } : {}), ...(deviceId ? { deviceId } : {}) });
+  };
+
   return (
-    <div className="onboarding-step onboarding-add-printer">
+    <div className="onboarding-step">
+      {!onboarding.orca.found && <WelcomeDone onboarding={onboarding} />}
+      <div className="onboarding-heading">
+        <h1>Which printer do you have?</h1>
+        <p className="onboarding-lead">
+          JusPrin plans every print for your printer: its bed, its nozzle and the filament it starts with. You can add more
+          printers later.
+        </p>
+      </div>
       {form ? (
-        <PrinterFormHost
-          form={form}
-          onAsk={(catalogId, nozzle) => onAction('onboarding_printer_form', { action: 'form_options', catalogId, nozzle })}
-          onFinish={(choice) => onAction('onboarding_printer_form', { action: 'form_finish', ...choice })}
-          // The form's own Cancel and Escape are the step's Back.
-          onClose={back}
-        />
+        <PrinterPickerHost form={form} pick={pick} onPick={setPick}
+          reading={Boolean(form.loading && catalogId && nozzle !== undefined)}
+          onAskAgent={agentReady ? () => onAction('onboarding_ask_agent') : undefined} />
       ) : (
         <p className="onboarding-lead" role="status">Reading the printer list…</p>
       )}
+      {options?.error && <p className="onboarding-error" role="alert">{options.error}</p>}
+      {form?.error && <p className="onboarding-error" role="alert">{form.error}</p>}
       {error && <p className="onboarding-error" role="alert">{error}</p>}
-      {!onboarding.orca.found && (
-        <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_choose_orca_folder')}>
-          Import from an OrcaSlicer folder…
-        </button>
-      )}
-      <div className="onboarding-nav">
-        <button type="button" className="onboarding-link flush" onClick={back}>Back</button>
-        <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_assume_default')}>
-          Skip, use a default
-        </button>
+      <div className="onboarding-step-group">
+        <div className="onboarding-actions">
+          <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}>Continue</button>
+          <button type="button" className="onboarding-link" onClick={() => onAction('onboarding_assume_default')}>Skip for now</button>
+        </div>
+        <p className="onboarding-note">{STAND_IN_PRINTER}</p>
       </div>
+      <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>Back</button>
     </div>
   );
 }
@@ -481,7 +560,7 @@ export function Onboarding(props: Props) {
       <Lockup appearance={props.appearance} />
       {props.onboarding.printersScreen === 'orca_import' ? <OrcaImport {...props} />
         : props.onboarding.printersScreen === 'import_result' ? <ImportResult {...props} />
-          : <AddPrinter {...props} />}
+          : <ChoosePrinter {...props} />}
     </div>
   );
 }

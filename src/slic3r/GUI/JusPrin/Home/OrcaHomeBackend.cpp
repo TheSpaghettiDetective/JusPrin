@@ -33,6 +33,7 @@
 #include "libslic3r/Utils.hpp"
 #include "libslic3r_version.h"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/Utils/Http.hpp"
@@ -40,7 +41,6 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/log/trivial.hpp>
 #include <wx/datetime.h>
-#include <wx/dirdlg.h>
 #include <wx/filedlg.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/nowide/fstream.hpp>
@@ -109,56 +109,6 @@ bool config_true(const AppConfig* config, const char* key)
 const char* const kAssumedPrinter = "assumed_printer";
 // Home's Agent group showed the account's credits and the person closed it.
 const char* const kAccountCardDismissed = "account_card_dismissed";
-
-// The OrcaSlicer folder the Printers step offers: the one the person picked,
-// or OrcaSlicer's own data folder beside JusPrin's.
-struct OrcaProfileSource
-{
-    std::string     root;
-    OrcaPresetFiles presets;
-};
-
-OrcaProfileSource detect_orca_profiles(const std::optional<std::filesystem::path>& picked)
-{
-    namespace fs = std::filesystem;
-    OrcaProfileSource source;
-    std::optional<fs::path> account;
-    if (picked) {
-        source.root = picked->u8string();
-        account     = orca_account_folder_for_pick(*picked);
-    } else {
-        const fs::path data = fs::u8path(data_dir());
-        const fs::path root = data.parent_path() / "OrcaSlicer";
-        std::error_code error;
-        if (!fs::is_directory(root, error) || root == data)
-            return source;
-        source.root = root.u8string();
-        account     = orca_account_folder(root);
-    }
-    if (account)
-        source.presets = scan_orca_presets(*account);
-    return source;
-}
-
-PresetCollection& preset_collection(PresetBundle& presets, OrcaImportItem::Kind kind)
-{
-    switch (kind) {
-    case OrcaImportItem::Kind::Filament: return presets.filaments;
-    case OrcaImportItem::Kind::Process: return presets.prints;
-    case OrcaImportItem::Kind::Printer: break;
-    }
-    return presets.printers;
-}
-
-const char* to_string(OrcaImportItem::Kind kind)
-{
-    switch (kind) {
-    case OrcaImportItem::Kind::Filament: return "filament";
-    case OrcaImportItem::Kind::Process: return "process";
-    case OrcaImportItem::Kind::Printer: break;
-    }
-    return "printer";
-}
 
 // The rest of `id` after `prefix`, or nothing when it has another prefix.
 std::optional<std::string> strip(const std::string& id, const std::string& prefix)
@@ -446,6 +396,7 @@ wxString ledger_text(const LedgerStatus& status)
 
 OrcaHomeBackend::OrcaHomeBackend(MainFrame& frame)
     : m_frame(frame)
+    , m_importer(frame)
 {}
 
 bool OrcaHomeBackend::dark() const { return wxGetApp().dark_mode(); }
@@ -526,7 +477,7 @@ class OrcaHomeBackend::PrinterFormSession final : public PrinterSetup::IConversa
 public:
     explicit PrinterFormSession(OrcaHomeBackend& owner)
         : m_owner(owner)
-        , m_backend(*wxGetApp().plater(), PrinterSetup::PrinterCatalog::load(Slic3r::resources_dir()))
+        , m_backend(*wxGetApp().plater(), owner.profile_catalog())
         , m_conversation(m_backend, *this)
     {
         m_conversation.start(PrinterSetup::ConversationMode::Add);
@@ -613,12 +564,16 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
 
     if (state.step == OnboardingStep::Printers) {
         // Read only on the Printers step: this runs on every Home refresh.
-        OrcaProfileSource source   = detect_orca_profiles(m_picked_orca);
-        state.facts.orca_printers  = !source.presets.printers.empty();
+        OrcaProfileSource source   = m_importer.detect(std::nullopt);
+        state.facts.orca_printers  = source.has_printers();
         state.printers_screen      = printers_screen(state.progress, state.facts);
         if (state.printers_screen == PrintersScreen::OrcaImport) {
             state.orca_source    = source.root;
-            state.orca_printers  = std::move(source.presets.printers);
+            state.orca_printers  = source.printer_names();
+            // The page says which printer JusPrin starts with.
+            if (std::find(state.orca_printers.begin(), state.orca_printers.end(), source.selected) != state.orca_printers.end())
+                state.orca_selected = source.selected;
+            // Only saved presets bring filaments; a ticked printer starts with its profile's.
             state.orca_filaments = int(source.presets.filaments.size());
         }
         if (m_import_result)
@@ -648,6 +603,11 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
     }
     state.sign_in_error    = m_sign_in_error;
     state.agent_configured = agent_configured();
+    // The agent on the person's own key, by the provider's name.
+    if (config != nullptr && config->get("jusprin_agent", "enabled") == "true")
+        if (const Agent::ProviderProfile* profile = Agent::profile_for(config->get("jusprin_agent", "provider"));
+            profile != nullptr && !profile->account_sign_in)
+            state.agent_key_provider = profile->display_name;
     state.agent_card       = home_agent_card(state.agent_configured, !state.account_email.empty(),
                                              config_true(config, kAccountCardDismissed));
     // The credits the welcome's card and Home's account group show.
@@ -795,12 +755,20 @@ void OrcaHomeBackend::leave_welcome()
     save_onboarding(progress);
 }
 
-void OrcaHomeBackend::back_to_welcome()
+void OrcaHomeBackend::step_back()
 {
     OnboardingProgress progress = onboarding_progress();
-    progress.welcome_left       = false;
-    progress.fresh_start        = false;
+    if (progress.fresh_start)
+        progress.fresh_start = false;
+    else
+        progress.welcome_left = false;
     save_onboarding(progress);
+}
+
+void OrcaHomeBackend::ask_agent_for_printer()
+{
+    complete_onboarding();
+    add_printer();
 }
 
 void OrcaHomeBackend::start_fresh()
@@ -826,29 +794,36 @@ void OrcaHomeBackend::dismiss_account_card()
     }
 }
 
-std::string OrcaHomeBackend::import_orca_printers()
+std::string OrcaHomeBackend::import_orca_printers(const std::vector<std::string>& printers)
 {
-    const OrcaProfileSource source = detect_orca_profiles(m_picked_orca);
-    if (source.presets.printers.empty())
-        return utf8(_L("JusPrin found no OrcaSlicer printers to bring. Start fresh instead."));
-    m_import_result = import_orca_files(source.presets.files);
+    OrcaProfileSource source = m_importer.detect(std::nullopt);
+    if (!source.has_printers())
+        return utf8(_L("JusPrin found no OrcaSlicer printers to bring. Choose your printer instead."));
+    OrcaImportChoice chosen = orca_import_chosen(source.presets, source.ticked, printers);
+    m_orca_selected         = source.selected;
+    m_import_result         = bring_orca_items(std::move(chosen.profile_printers), chosen.files);
     return {};
+}
+
+std::vector<OrcaImportItem> OrcaHomeBackend::bring_orca_items(std::vector<OrcaImportItem> ticked, const std::vector<std::string>& files)
+{
+    std::vector<OrcaImportItem> items = m_importer.bring(std::move(ticked), files, m_orca_selected, OrcaImporter::Selection::Brought);
+    if (std::any_of(items.begin(), items.end(), [](const OrcaImportItem& item) {
+            return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
+        }))
+        printer_chosen();
+    return items;
 }
 
 void OrcaHomeBackend::retry_orca_import()
 {
     if (!m_import_result)
         throw std::logic_error("Home retried an OrcaSlicer import with no result on screen");
-    std::vector<std::string> failed;
-    for (const OrcaImportItem& item : *m_import_result)
-        if (item.outcome == OrcaImportItem::Outcome::NotImported)
-            failed.push_back(item.source);
-    // Each failed item is replaced by its new outcome, in place.
-    std::vector<OrcaImportItem> again = import_orca_files(failed);
-    auto next = again.begin();
-    for (OrcaImportItem& item : *m_import_result)
-        if (item.outcome == OrcaImportItem::Outcome::NotImported)
-            item = std::move(*next++);
+    m_importer.retry(*m_import_result, m_orca_selected, OrcaImporter::Selection::Brought);
+    if (std::any_of(m_import_result->begin(), m_import_result->end(), [](const OrcaImportItem& item) {
+            return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
+        }))
+        printer_chosen();
 }
 
 void OrcaHomeBackend::finish_orca_import()
@@ -864,89 +839,17 @@ void OrcaHomeBackend::finish_orca_import()
         start_fresh();
 }
 
-std::string OrcaHomeBackend::choose_orca_folder()
-{
-    wxDirDialog dialog(&m_frame, _L("Choose your OrcaSlicer folder"), wxEmptyString, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
-    if (dialog.ShowModal() != wxID_OK)
-        return {};
-    const std::filesystem::path picked = std::filesystem::u8path(utf8(dialog.GetPath()));
-    if (detect_orca_profiles(picked).presets.printers.empty())
-        return utf8(_L("JusPrin found no OrcaSlicer printers in that folder."));
-    m_picked_orca = picked;
-    OnboardingProgress progress = onboarding_progress();
-    progress.fresh_start        = false;
-    save_onboarding(progress);
-    return {};
-}
-
-std::vector<OrcaImportItem> OrcaHomeBackend::import_orca_files(const std::vector<std::string>& files)
-{
-    namespace fs = std::filesystem;
-    PresetBundle* presets = wxGetApp().preset_bundle;
-    AppConfig* config     = wxGetApp().app_config;
-    Plater* plater        = wxGetApp().plater();
-    if (presets == nullptr || config == nullptr || plater == nullptr)
-        throw std::logic_error("Home imported printers before the app finished starting");
-
-    OrcaImportCatalog catalog;
-    catalog.has = [presets](OrcaImportItem::Kind kind, const std::string& name) {
-        return preset_collection(*presets, kind).find_preset(name, false) != nullptr;
-    };
-    catalog.has_base = [presets](OrcaImportItem::Kind kind, const std::string& base) {
-        return preset_collection(*presets, kind).find_preset2(base, true) != nullptr;
-    };
-    // Renamed copies live here only until import_presets has copied them.
-    const fs::path staging = fs::temp_directory_path() / ("jusprin-orca-import-" + std::to_string(wxGetProcessId()));
-    fs::remove_all(staging);
-    fs::create_directories(staging);
-    std::vector<OrcaImportItem> items = plan_orca_import(files, catalog, staging);
-
-    std::vector<std::string> pending;
-    for (const OrcaImportItem& item : items)
-        if (item.outcome == OrcaImportItem::Outcome::Pending)
-            pending.push_back(item.file);
-    if (!pending.empty()) {
-        // Every taken name was renamed above, so import_presets has nothing
-        // to ask. Were it asked, the answer is no and that item says it was
-        // not imported.
-        presets->import_presets(pending, [](const std::string&) { return 0; }, ForwardCompatibilitySubstitutionRule::Enable,
-                                *config);
-        wxGetApp().load_current_presets();
-        presets->update_compatible(PresetSelectCompatibleType::Always);
-        m_frame.update_side_preset_ui();
-    }
-    // import_presets leaves in `pending` what it imported.
-    settle_orca_import(items, pending);
-    fs::remove_all(staging);
-
-    for (const OrcaImportItem& item : items)
-        if (item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported) {
-            SetupCommands::select_printer_preset(*plater, item.renamed_to.empty() ? item.name : item.renamed_to);
-            printer_chosen();
-            break;
-        }
-    return items;
-}
+const PrinterSetup::PrinterCatalog& OrcaHomeBackend::profile_catalog() { return m_importer.profile_catalog(); }
 
 std::vector<Snapshot::Onboarding::ImportItem> OrcaHomeBackend::import_result_lines(const std::vector<OrcaImportItem>& items)
 {
-    using Reason = OrcaImportItem::Reason;
     std::vector<Snapshot::Onboarding::ImportItem> lines;
-    for (const OrcaImportItem& item : items) {
-        Snapshot::Onboarding::ImportItem line{to_string(item.kind), item.name, item.renamed_to,
-                                              item.outcome == OrcaImportItem::Outcome::Imported, {}};
-        switch (item.reason) {
-        case Reason::Unreadable: line.reason = utf8(_L("the file couldn't be read")); break;
-        case Reason::NoVersion: line.reason = utf8(_L("the file has no version")); break;
-        case Reason::NotAPreset: line.reason = utf8(_L("it isn't a printer, filament or process preset")); break;
-        case Reason::MissingBase:
-            line.reason = utf8(wxString::Format(_L("its base profile, %s, isn't in JusPrin"), wxString::FromUTF8(item.base)));
-            break;
-        case Reason::NotLoaded: line.reason = utf8(_L("JusPrin couldn't load it")); break;
-        case Reason::None: break;
-        }
-        lines.push_back(std::move(line));
-    }
+    for (const OrcaImportItem& item : items)
+        // Nothing to say about a preset JusPrin already had.
+        if (item.outcome != OrcaImportItem::Outcome::AlreadyThere)
+            lines.push_back({orca_import_kind(item.kind), item.name, item.renamed_to,
+                             item.outcome == OrcaImportItem::Outcome::Imported, orca_import_reason(item),
+                             orca_import_retryable(item)});
     return lines;
 }
 
@@ -957,15 +860,12 @@ std::string OrcaHomeBackend::assume_default_printer()
     if (plater == nullptr || config == nullptr)
         throw std::logic_error("Home installed a printer before the app finished starting");
     // A fresh install has no printer, and the person named none. They get
-    // the bundled printer that belongs to no manufacturer, saved under its
-    // own name like any other printer installed here.
-    const Printers::VendorMap before = config->vendors();
+    // the bundled printer that belongs to no manufacturer, saved as the
+    // generic printer the printer chip names.
     std::string problem;
     if (!SetupCommands::install_and_select_printer(*plater, "Custom", "Generic Klipper Printer", "0.4", "Generic PLA @System", problem))
         return problem;
-    const std::vector<std::string> named = Printers::name_installed_printers(*plater, before);
-    config->set(kOnboardingSection, kAssumedPrinter,
-                named.empty() ? wxGetApp().preset_bundle->printers.get_selected_preset_name() : named.front());
+    config->set(kOnboardingSection, kAssumedPrinter, Printers::add_named_printer(*plater, utf8(_L("Generic printer")), {}));
     printer_chosen();
     return {};
 }
@@ -1057,7 +957,14 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
     std::vector<PrinterEntry> printers;
     std::set<std::string>     represented;
     const std::string         assumed = wxGetApp().app_config->get(kOnboardingSection, kAssumedPrinter);
-    for (const Printers::NamedPrinter& named : Printers::named_printers()) {
+    const std::vector<Printers::NamedPrinter> all_named = Printers::named_printers();
+    // The generic printer stands in only until the person adds their own;
+    // the preset stays, so files opened for it still slice.
+    const bool has_own = std::any_of(all_named.begin(), all_named.end(),
+                                     [&assumed](const Printers::NamedPrinter& named) { return named.name != assumed; });
+    for (const Printers::NamedPrinter& named : all_named) {
+        if (has_own && named.name == assumed)
+            continue;
         PrinterEntry printer;
         printer.id                = kNamedPrefix + named.name;
         printer.name              = named.name;
@@ -1065,9 +972,10 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         printer.can_open_settings = true;
         printer.can_rename        = true;
         printer.can_remove        = true;
-        // With nothing else to say, it has no connection to show.
-        printer.message = utf8(_L("No network connection is set up."));
-        printer.action  = PrinterAction::Connect;
+        // Until a print host, a device or an earlier connection says
+        // otherwise, it has never had a connection set up.
+        printer.no_connection = true;
+        printer.action        = PrinterAction::Connect;
         printer.assumed           = !assumed.empty() && named.name == assumed;
         std::string model;
         // What a Moonraker host last said its multi-filament unit holds.
@@ -1081,7 +989,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
             if (!host.empty()) {
                 printer.connection_label = host_label(preset->config);
                 printer.address          = host_address(host);
-                printer.message.clear();
+                printer.no_connection    = false;
                 // Orca's own agent announces the selected print host as a
                 // device of its own, named by its address; this card is it.
                 represented.insert(host);
@@ -1095,8 +1003,8 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
         }
         double nozzle = named.nozzle;
         if (const auto found = machines.find(named.device_id); !named.device_id.empty() && found != machines.end()) {
-            printer.message.clear();
-            printer.action = PrinterAction::None;
+            printer.no_connection = false;
+            printer.action        = PrinterAction::None;
             describe_device(*found->second, printer);
             if (printer.status == PrinterStatus::NotConnected && printer.action == PrinterAction::None)
                 printer.action = PrinterAction::Connect;
@@ -1108,6 +1016,7 @@ std::vector<PrinterEntry> OrcaHomeBackend::printers() const
             represented.insert(named.device_id);
         } else if (PrinterSetup::has_verified_printer_connection(named.device_id)) {
             // Connected before, and the app has not heard of the device since.
+            printer.no_connection = false;
             printer.status  = PrinterStatus::NotConnected;
             printer.message = utf8(_L("The printer stopped sending updates."));
             printer.action  = PrinterAction::Reconnect;

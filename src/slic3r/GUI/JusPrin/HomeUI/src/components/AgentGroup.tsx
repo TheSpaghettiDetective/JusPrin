@@ -5,9 +5,9 @@
 
 import type { OnboardingState } from '../bridge/protocol';
 import { balanceRows } from '../../../AgentUI/src/components/BalancePanel';
-import { creditCount, creditNumber } from '../../../AgentUI/src/credits';
+import { SIGNUP_CREDITS, creditCount, creditNumber } from '../../../AgentUI/src/credits';
 import { CloseGlyph, ConnectedGlyph } from './Glyphs';
-import { FreeDoors, SignInDoor } from './Onboarding';
+import { OwnAccountDoor, SignInDoor } from './Onboarding';
 
 type Action = (type: string, payload?: object) => void;
 
@@ -18,8 +18,7 @@ function Account({ onboarding, onAction }: { onboarding: OnboardingState; onActi
       <div className="agent-card-head">
         <ConnectedGlyph />
         <span className="agent-card-title">
-          <strong>JusPrin account</strong>
-          <span>Connected</span>
+          <strong>Signed in as {onboarding.accountEmail}</strong>
         </span>
         <button type="button" className="agent-card-close" aria-label="Dismiss" onClick={() => onAction('agent_card_dismiss')}>
           <CloseGlyph />
@@ -56,8 +55,11 @@ export function AgentGroup({ onboarding, onAction }: { onboarding: OnboardingSta
       ) : (
         <div className="agent-card">
           <strong className="agent-card-heading">Set up the agent</strong>
+          {onboarding.signIn === 'idle' && !onboarding.accountEmail && (
+            <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits and ask the agent to fix failed prints.</p>
+          )}
           <SignInDoor onboarding={onboarding} onAction={onAction} />
-          <FreeDoors onAction={onAction} disabled={onboarding.signIn === 'checking'} />
+          <OwnAccountDoor onAction={onAction} disabled={onboarding.signIn === 'checking'} />
         </div>
       )}
     </section>

@@ -61,7 +61,7 @@ function AccountBox({ account, status, actions, priceCarriesOver }: Pick<Welcome
       <div className="welcome-account">
         <div className="welcome-account-line">
           <div className="welcome-row-copy">
-            <span className="welcome-account-title">Finish signing in in your browser</span>
+            <span className="welcome-account-title">Finish in your browser</span>
             <span className="welcome-row-detail">
               A JusPrin tab just opened. Sign in there, or create an account, and come back. This notices on its own.
             </span>

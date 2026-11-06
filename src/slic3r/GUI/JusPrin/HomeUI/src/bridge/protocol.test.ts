@@ -54,7 +54,6 @@ describe('protocol constants come from the shared file', () => {
       'onboarding_import',
       'onboarding_import_retry',
       'onboarding_import_continue',
-      'onboarding_choose_orca_folder',
       'onboarding_assume_default',
       'onboarding_printer_form',
       'agent_card_dismiss',

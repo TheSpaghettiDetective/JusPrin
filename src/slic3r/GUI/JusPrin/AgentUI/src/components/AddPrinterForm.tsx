@@ -14,10 +14,12 @@
 // would offer. Nothing is saved until the last step; closing it changes
 // nothing.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { PrinterFormFilament, PrinterFormInfo, PrinterFormModel, PrinterFormOptions } from '../bridge/protocol';
-import { ActionMenu, Dialog } from './ChatNavigation';
+import type { PrinterFormFilament, PrinterFormInfo, PrinterFormOptions } from '../bridge/protocol';
+import { Dialog } from './ChatNavigation';
+import { PrinterPicker } from './PrinterPicker';
+import type { PrinterPick } from './PrinterPicker';
 
 export interface PrinterFormChoice {
   catalogId: string;
@@ -33,13 +35,6 @@ type Step = 'printer' | 'plate' | 'filament';
 
 // Search results drawn at once; the rest wait for a narrower search.
 const RESULT_LIMIT = 50;
-
-const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-
-// 0.4 where the model ships it, as the chat assumes, otherwise its smallest.
-function startingNozzle(model: PrinterFormModel): number {
-  return model.nozzles.includes(0.4) ? 0.4 : model.nozzles[0];
-}
 
 function StepMarker({ step, steps }: { step: number; steps: number }) {
   return <div className="printer-form-step">
@@ -57,10 +52,8 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   onFinish: (choice: PrinterFormChoice) => void;
   onClose: () => void;
 }) {
-  const [vendorId, setVendorId] = useState<string>();
-  const [catalogId, setCatalogId] = useState<string>();
-  const [nozzle, setNozzle] = useState<number>();
-  const [deviceId, setDeviceId] = useState<string>();
+  const [pick, setPick] = useState<PrinterPick>({});
+  const { catalogId, nozzle, deviceId } = pick;
   const [step, setStep] = useState<Step>('printer');
   const [plate, setPlate] = useState<number>();
   const [query, setQuery] = useState('');
@@ -71,15 +64,6 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   const [finishing, setFinishing] = useState(false);
   useEffect(() => { setFinishing(false); }, [form.error]);
 
-  // One brand per vendor file: a vendor whose model names spell the brand
-  // two ways is still one brand.
-  const brands = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const model of form.catalog) if (!seen.has(model.vendorId)) seen.set(model.vendorId, model.brand);
-    return [...seen].map(([id, label]) => ({ id, label })).sort((a, b) => byName(a.label, b.label));
-  }, [form.catalog]);
-  const models = useMemo(() => form.catalog.filter((model) => model.vendorId === vendorId)
-    .sort((a, b) => byName(a.model, b.model)), [form.catalog, vendorId]);
   const model = form.catalog.find((entry) => entry.id === catalogId);
 
   useEffect(() => { if (catalogId && nozzle !== undefined) onAsk(catalogId, nozzle); }, [catalogId, nozzle]);
@@ -101,13 +85,6 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
     setPlate(options.plates.some((entry) => entry.type === options.defaultPlate) ? options.defaultPlate : options.plates[0]?.type);
   }, [options?.catalogId, options?.nozzle]);
 
-  const chooseModel = (entry: PrinterFormModel, device?: string) => {
-    setVendorId(entry.vendorId);
-    setCatalogId(entry.id);
-    setNozzle(startingNozzle(entry));
-    setDeviceId(device);
-  };
-
   const finish = (filament?: string, create = false) => {
     if (!catalogId || nozzle === undefined || !options) return;
     setFinishing(true);
@@ -123,53 +100,7 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
   if (step === 'printer') {
     return <Dialog key="printer" title="Which printer?" onClose={onClose} className="printer-form"
       eyebrow={<StepMarker step={1} steps={steps} />}>
-      <div className="printer-form-fields">
-        <div className="printer-form-field">
-          <span className="printer-form-label">Brand</span>
-          <ActionMenu label="Brand" appearance="select" text={brands.find((brand) => brand.id === vendorId)?.label ?? 'Choose a brand'}
-            search={{ label: 'Search brands', noMatch: (text) => `No brand matches “${text}”` }}
-            items={brands.map((brand) => ({ key: brand.id, label: brand.label, current: brand.id === vendorId,
-              onSelect: () => {
-                if (brand.id === vendorId) return;
-                setVendorId(brand.id);
-                setCatalogId(undefined);
-                setNozzle(undefined);
-                setDeviceId(undefined);
-              } }))} />
-        </div>
-        <div className="printer-form-field">
-          <span className="printer-form-label">Model</span>
-          <ActionMenu label="Model" appearance="select" disabled={!vendorId} text={model?.model ?? 'Choose a model'}
-            search={{ label: 'Search models', noMatch: (text) => `No model matches “${text}”` }}
-            items={models.map((entry) => ({ key: entry.id, label: entry.model, current: entry.id === catalogId,
-              onSelect: () => { if (entry.id !== catalogId) chooseModel(entry); } }))} />
-        </div>
-        {model && <div className="printer-form-field">
-          <span className="printer-form-label">Nozzle</span>
-          {model.nozzles.length > 1
-            ? <div className="jp-segmented printer-form-nozzles" role="radiogroup" aria-label="Nozzle">
-                {model.nozzles.map((size) => <button type="button" key={size} role="radio" aria-checked={size === nozzle}
-                  className={size === nozzle ? 'jp-segment selected' : 'jp-segment'} onClick={() => setNozzle(size)}>
-                  {size}</button>)}
-              </div>
-            : <p className="printer-form-value">{model.nozzles[0]} mm, the only size it comes with</p>}
-        </div>}
-      </div>
-      {form.nearby.length > 0 && <>
-        <hr className="printer-form-rule" />
-        <div className="printer-form-found">
-          <span className="printer-form-heading">Found on your network</span>
-          {form.nearby.map((found) => {
-            const entry = form.catalog.find((item) => item.id === found.catalogId);
-            return <button type="button" key={found.deviceId} className="printer-form-row" aria-pressed={found.deviceId === deviceId}
-              onClick={() => { if (entry) chooseModel(entry, found.deviceId); }}>
-              <span className="printer-form-row-name">{entry ? `${entry.brand} ${entry.model}` : found.name} · {found.deviceId}</span>
-              <span className="printer-form-online" aria-label="On the network" />
-            </button>;
-          })}
-          <p className="printer-form-note printer-form-center">You can connect it later.</p>
-        </div>
-      </>}
+      <PrinterPicker form={form} pick={pick} onPick={setPick} />
       {errorNote}
       <div className="chat-dialog-buttons">
         <button type="button" onClick={onClose}>Cancel</button>

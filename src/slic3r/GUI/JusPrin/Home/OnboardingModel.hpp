@@ -7,8 +7,9 @@
 // Every door on the welcome is a detour that comes back into the sequence:
 // signing in waits on the welcome's card, Preferences closes back onto it,
 // and "Just slice for now" skips the detour, not the sequence. Each ends by
-// leaving the welcome. Back on the Printers step returns to the welcome, and
-// whatever the person finished there stays finished, because it is stored as
+// leaving the welcome. Back on the Printers step returns to the welcome (from
+// the add-printer form that Start fresh opened, to the OrcaSlicer screen), and
+// whatever the person finished on the welcome stays finished: it is stored as
 // the agent's own settings, not here. Onboarding is done only once Home is
 // reached; until then every launch starts at the step the person left.
 
@@ -17,7 +18,7 @@ namespace Slic3r::GUI::JusPrin::Home {
 enum class OnboardingStatus { Unfinished, Completed };
 enum class OnboardingStep { Hidden, Welcome, Printers };
 // Which Printers screen: bring the printers from OrcaSlicer, what that
-// import brought, or the add-printer form with "Skip, use a default".
+// import brought, or the printer screen with "Skip for now".
 enum class PrintersScreen { OrcaImport, ImportResult, AddPrinter };
 
 struct OnboardingProgress

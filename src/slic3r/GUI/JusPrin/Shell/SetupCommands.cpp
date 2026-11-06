@@ -464,6 +464,17 @@ bool select_printer_preset(Plater& plater, const std::string& preset_name)
     return true;
 }
 
+bool select_process_preset(Plater& plater, const std::string& preset_name)
+{
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    Tab*          tab     = wxGetApp().get_tab(Preset::TYPE_PRINT);
+    if (presets == nullptr || tab == nullptr || presets->prints.find_preset(preset_name) == nullptr)
+        return false;
+    tab->select_preset(preset_name);
+    plater.on_config_change(presets->full_config());
+    return true;
+}
+
 bool select_named_printer(Plater& plater, const std::string& name)
 {
     const auto saved = Printers::named_printers();
@@ -480,6 +491,46 @@ bool select_named_printer(Plater& plater, const std::string& name)
     return true;
 }
 
+namespace {
+
+// What installing profiles changes: the enabled vendors and filaments, and
+// the selected printer.
+struct ProfileSnapshot
+{
+    std::map<std::string, std::map<std::string, std::set<std::string>>> vendors;
+    std::map<std::string, std::string>                                  filaments;
+    std::string                                                         printer;
+};
+
+ProfileSnapshot profile_snapshot()
+{
+    AppConfig* config = wxGetApp().app_config;
+    return {config->vendors(),
+            config->has_section(AppConfig::SECTION_FILAMENTS) ? config->get_section(AppConfig::SECTION_FILAMENTS)
+                                                              : std::map<std::string, std::string>(),
+            wxGetApp().preset_bundle->printers.get_selected_preset_name()};
+}
+
+// Puts back what a failed install changed; the problem doing so, if any.
+std::string restore_profiles(Plater& plater, const ProfileSnapshot& before)
+{
+    AppConfig* config = wxGetApp().app_config;
+    config->set_vendors(before.vendors);
+    config->set_section(AppConfig::SECTION_FILAMENTS, before.filaments);
+    try {
+        wxGetApp().preset_bundle->load_presets(*config, ForwardCompatibilitySubstitutionRule::Enable,
+                                               {std::string(), std::string(), std::string(), std::string()});
+        if (!select_printer_preset(plater, before.printer))
+            return "The previous printer preset could not be selected again.";
+        if (wxGetApp().mainframe) wxGetApp().mainframe->update_side_preset_ui();
+    } catch (const std::exception& exception) {
+        return std::string("The previous preset configuration could not be reloaded: ") + exception.what();
+    }
+    return {};
+}
+
+} // namespace
+
 bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
                                 const std::string& model_id, const std::string& variant,
                                 const std::string& default_filament, std::string& error)
@@ -490,25 +541,8 @@ bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
         error = "Printer setup is unavailable because the preset system is not ready.";
         return false;
     }
-    const auto old_vendors = config->vendors();
-    const bool had_filaments = config->has_section(AppConfig::SECTION_FILAMENTS);
-    const auto old_filaments = had_filaments ? config->get_section(AppConfig::SECTION_FILAMENTS)
-                                             : std::map<std::string, std::string>();
-    const std::string old_printer = presets->printers.get_selected_preset_name();
-    auto rollback = [&]() -> std::string {
-        config->set_vendors(old_vendors);
-        config->set_section(AppConfig::SECTION_FILAMENTS, old_filaments);
-        try {
-            presets->load_presets(*config, ForwardCompatibilitySubstitutionRule::Enable,
-                                  {std::string(), std::string(), std::string(), std::string()});
-            if (!select_printer_preset(plater, old_printer))
-                return "The previous printer preset could not be selected again.";
-            if (wxGetApp().mainframe) wxGetApp().mainframe->update_side_preset_ui();
-        } catch (const std::exception& exception) {
-            return std::string("The previous preset configuration could not be reloaded: ") + exception.what();
-        }
-        return {};
-    };
+    const ProfileSnapshot before = profile_snapshot();
+    auto rollback = [&]() { return restore_profiles(plater, before); };
     try {
         std::map<std::string, std::map<std::string, std::set<std::string>>> vendors;
         vendors[vendor_id][model_id].insert(variant);
@@ -547,6 +581,49 @@ bool install_and_select_printer(Plater& plater, const std::string& vendor_id,
     } catch (const std::exception& exception) {
         const std::string rollback_error = rollback();
         error = std::string("The printer profile could not be loaded: ") + exception.what();
+        if (!rollback_error.empty()) error += " " + rollback_error;
+        return false;
+    }
+}
+
+bool install_printer_profiles(Plater& plater, const std::vector<PrinterProfile>& profiles, std::string& error)
+{
+    PresetBundle* presets = wxGetApp().preset_bundle;
+    AppConfig*    config  = wxGetApp().app_config;
+    if (!presets || !config) {
+        error = "Printer setup is unavailable because the preset system is not ready.";
+        return false;
+    }
+    std::map<std::string, std::map<std::string, std::set<std::string>>> vendors;
+    std::map<std::string, std::string>                                  filaments;
+    for (const PrinterProfile& profile : profiles) {
+        if (profile.vendor_id.empty() || profile.model_id.empty() || profile.variant.empty())
+            throw std::logic_error("A printer profile to install names no vendor, model or nozzle");
+        vendors[profile.vendor_id][profile.model_id].insert(profile.variant);
+        if (!profile.default_filament.empty())
+            filaments[profile.default_filament] = "true";
+    }
+    if (vendors.empty())
+        return true;
+    const ProfileSnapshot before = profile_snapshot();
+    try {
+        bool applied = false;
+        // Reloading may select another printer; Orca's wrapper keeps objects
+        // on their plates through it.
+        plater.update_objects_position_when_select_preset([&] {
+            applied = presets->apply_vendor_config(vendors, filaments, config, false);
+        });
+        if (!applied) {
+            const std::string rollback_error = restore_profiles(plater, before);
+            error = rollback_error.empty() ? "The printer profiles could not be installed. Your previous setup is unchanged."
+                                           : "The printer profiles could not be installed. " + rollback_error;
+            return false;
+        }
+        if (wxGetApp().mainframe) wxGetApp().mainframe->update_side_preset_ui();
+        return true;
+    } catch (const std::exception& exception) {
+        const std::string rollback_error = restore_profiles(plater, before);
+        error = std::string("The printer profiles could not be loaded: ") + exception.what();
         if (!rollback_error.empty()) error += " " + rollback_error;
         return false;
     }

@@ -177,6 +177,9 @@ struct PrinterEntry
     // The default first run installed for a person who skipped choosing a
     // printer: the card marks it "assumed" until it is changed.
     bool                    assumed{false};
+    // A printer the person added with no connection ever set up: the card
+    // says what connecting it is for in place of a status.
+    bool                    no_connection{false};
 };
 
 // The project gallery: the saved projects, or why they could not be listed.
@@ -222,10 +225,16 @@ struct Snapshot
         // The JusPrin account this computer is signed in to; empty when none.
         std::string account_email;
         bool agent_configured{false};
+        // The provider whose key the person saved, as "Anthropic", while
+        // the agent runs on it; empty otherwise.
+        std::string agent_key_provider;
         // The OrcaSlicer screen: the folder and the printers it holds, and
         // how many filaments come with them.
         std::string orca_source;
         std::vector<std::string> orca_printers;
+        // The one of orca_printers OrcaSlicer has selected; empty when it
+        // selected none of them.
+        std::string orca_selected;
         int orca_filaments{0};
         // What the import brought, file by file, while its result is on
         // screen: kind is "printer", "filament" or "process"; renamed_to is
@@ -238,6 +247,8 @@ struct Snapshot
             std::string renamed_to;
             bool        imported{false};
             std::string reason;
+            // Not imported, and bringing it again can succeed.
+            bool        retryable{false};
         };
         std::optional<std::vector<ImportItem>> import_result;
         // The add-printer form, as the printer panel's page receives it;

@@ -4674,3 +4674,84 @@ p.welcome-intro {
 .welcome-continue {
   align-self: stretch;
 }
+
+/* File › Import › Import from OrcaSlicer…'s window (canvas boards
+   orca-import-02 to 05): what it found above, the buttons in a bar under a
+   hairline. The window's title bar carries the title. */
+.app--orca-import {
+  background: var(--surface-raised);
+}
+
+.orca-import {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.orca-import-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+p.orca-import-lead {
+  margin: 0;
+  font: var(--font-body);
+  color: var(--text-secondary);
+}
+
+/* The lists are OrcaImportLists.css's, shared with the first launch. A long
+   one scrolls inside itself, so the folder row below it stays in view. */
+.orca-import-content > .orca-import-list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.orca-import-folder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+}
+
+.orca-import-folder button {
+  flex: none;
+  white-space: nowrap;
+}
+.orca-import-folder-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: var(--font-label);
+  overflow-wrap: anywhere;
+}
+
+p.orca-import-error {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--status-danger);
+}
+
+.orca-import-buttons {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  box-shadow: inset 0 1px 0 0 var(--border-subtle);
+}
+
+.orca-import-buttons button:not(.primary) {
+  min-height: var(--button-secondary-height);
+  padding: var(--button-secondary-padding);
+  border-color: var(--border-subtle);
+  font: var(--font-body-small);
+}
+
+.jp-icon-monitor { -webkit-mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); }

@@ -865,6 +865,30 @@ export interface WelcomeBackPayload {
   unusable: string[]; // imported presets OrcaSlicer could not load
 }
 
+// File › Import › Import from OrcaSlicer…'s window (canvas boards
+// orca-import-02 to 05): an OrcaSlicer folder's printers, with the ones
+// JusPrin has marked, and once imported, what became of each preset.
+export interface OrcaImportPayload {
+  kind: 'orca_import';
+  // no_folder: none beside JusPrin's; no_printers: a folder with none in it.
+  screen: 'found' | 'nothing_new' | 'no_folder' | 'no_printers' | 'imported';
+  folder?: string; // where it looked, under ~ when in the home folder
+  printers?: { name: string; already: boolean }[];
+  newPrinters?: number;
+  newFilaments?: number;
+  result?: OrcaImportLine[];
+  error: string;
+}
+
+export interface OrcaImportLine {
+  kind: 'printer' | 'filament' | 'process';
+  name: string;
+  renamedTo: string; // the name it was imported under, when its own was taken
+  imported: boolean;
+  reason: string; // why it was not imported, as a sentence
+  retryable: boolean; // not imported, and bringing it again can succeed
+}
+
 export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';
 export type DragAction = 'none' | 'pan' | 'rotate';
 
@@ -1051,8 +1075,9 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  // the printer and filament chats, Preferences and the welcome-back window
-  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload | WelcomeBackPayload;
+  // the printer and filament chats, Preferences, the welcome-back window and
+  // the Import from OrcaSlicer window
+  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload | WelcomeBackPayload | OrcaImportPayload;
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

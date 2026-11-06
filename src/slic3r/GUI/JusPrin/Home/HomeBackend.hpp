@@ -103,19 +103,22 @@ public:
     virtual void open_agent_door(const std::string& door) = 0;
     // "Just slice for now", and the end of a sign-in.
     virtual void leave_welcome()                  = 0;
-    // The Printers step.
-    virtual void back_to_welcome()                = 0;
+    // The Printers step. Back returns to the screen before: the OrcaSlicer
+    // screen from the add-printer form its Start fresh opened, otherwise
+    // the welcome.
+    virtual void step_back()                      = 0;
     virtual void start_fresh()                    = 0;
+    // "Can't find your printer? Ask the agent": Home, with the printer chat.
+    virtual void ask_agent_for_printer()          = 0;
     // Each returns a message for the person when it could not finish.
-    virtual std::string import_orca_printers()    = 0;
+    // `printers` names the printers the person left chosen, as the
+    // OrcaSlicer screen lists them.
+    virtual std::string import_orca_printers(const std::vector<std::string>& printers) = 0;
     virtual std::string assume_default_printer()  = 0;
     // The import's result: the items that failed, imported again, and
     // Continue, which leaves for the add-printer form when no printer came.
     virtual void retry_orca_import()              = 0;
     virtual void finish_orca_import()             = 0;
-    // A folder picker for an OrcaSlicer folder when none was found beside
-    // JusPrin's; returns a message for the person when it holds no printers.
-    virtual std::string choose_orca_folder()      = 0;
     // The add-printer form's own requests: form_options and form_finish.
     virtual void printer_form_message(const nlohmann::json& payload) = 0;
     // Home's Agent group: the account's credits are shown once.

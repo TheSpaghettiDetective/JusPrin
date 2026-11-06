@@ -102,6 +102,10 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Home/OrcaHomeBackend.hpp
     GUI/JusPrin/Home/OrcaImport.cpp
     GUI/JusPrin/Home/OrcaImport.hpp
+    GUI/JusPrin/Home/OrcaImporter.cpp
+    GUI/JusPrin/Home/OrcaImporter.hpp
+    GUI/JusPrin/Home/OrcaImportWindow.cpp
+    GUI/JusPrin/Home/OrcaImportWindow.hpp
     GUI/JusPrin/Home/HomeWebView.cpp
     GUI/JusPrin/Home/HomeWebView.hpp
     GUI/JusPrin/Home/MonitorWindow.cpp

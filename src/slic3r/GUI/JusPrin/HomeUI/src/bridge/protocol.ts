@@ -53,7 +53,6 @@ export type PageMessageType =
   | 'onboarding_import'
   | 'onboarding_import_retry'
   | 'onboarding_import_continue'
-  | 'onboarding_choose_orca_folder'
   | 'onboarding_assume_default'
   | 'onboarding_printer_form'
   | 'agent_card_dismiss';
@@ -193,6 +192,9 @@ export interface PrinterInfo {
   // The default the first launch put in place when the person skipped
   // choosing: the card marks it "assumed".
   assumed?: boolean;
+  // Added by the person, with no connection ever set up: the card says what
+  // connecting is for in place of a status.
+  noConnection?: boolean;
   spools: SpoolInfo[];
   action: PrinterAction;
   // What was made for, sent to and printed on this printer, across projects;
@@ -359,6 +361,8 @@ export interface ImportResultItem {
   renamedTo: string;
   imported: boolean;
   reason: string;
+  // Not imported, and bringing it again can succeed.
+  retryable: boolean;
 }
 
 export interface OnboardingState {
@@ -376,10 +380,14 @@ export interface OnboardingState {
   // Set once the sign-in is saved: the welcome's card says who signed in.
   accountEmail: string;
   agentConfigured: boolean;
+  // The provider whose saved key the agent runs on, as "Anthropic"; empty
+  // when it runs on the account, or there is no agent.
+  agentKeyProvider: string;
   // The OrcaSlicer folder the Printers step offers to bring printers from;
+  // selected is the one of its printers OrcaSlicer has selected, or empty;
   // found is false when none with printers was found, and importResult is
   // set while the import's result is on screen.
-  orca: { source: string; printers: string[]; filamentCount: number; found: boolean;
+  orca: { source: string; printers: string[]; selected: string; filamentCount: number; found: boolean;
     importResult: ImportResultItem[] | null };
   // The add-printer form, as the printer conversation describes it; null
   // until its catalogue is read.

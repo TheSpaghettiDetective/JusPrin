@@ -92,7 +92,8 @@ function onboarding(overrides: Partial<OnboardingState> = {}): OnboardingState {
     signInError: '',
     accountEmail: '',
     agentConfigured: true,
-    orca: { source: '', printers: [], filamentCount: 0, found: false, importResult: null },
+    agentKeyProvider: '',
+    orca: { source: '', printers: [], selected: '', filamentCount: 0, found: false, importResult: null },
     printerForm: null,
     agentCard: 'none',
     account: null,
@@ -107,7 +108,7 @@ function emailStep(overrides: Partial<NonNullable<OnboardingState['email']>> = {
 // An account fresh from signing in: the first month's credits, untouched.
 function account(credits: number): OnboardingState['account'] {
   return {
-    credits: { total: credits, lots: [{ kind: 'signup', credits, granted: credits, expires_at: '2026-12-02T00:00:00Z' }] },
+    credits: { total: credits, lots: [{ kind: 'signup', credits, granted: credits, expires_at: '2099-12-02T12:00:00Z' }] },
     plan: null,
     v1_subscription: null,
   } as unknown as OnboardingState['account'];
@@ -217,7 +218,8 @@ describe('Home', () => {
       progressPercent: undefined,
       secondsLeft: undefined,
       connectionLabel: undefined,
-      message: 'No network connection is set up.',
+      message: undefined,
+      noConnection: true,
       modelText: 'MK4 · 0.4 mm',
       spools: [],
       action: 'connect',
@@ -229,9 +231,10 @@ describe('Home', () => {
     expect(within(printing).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '43');
     expect(within(printing).getByText('LAN · X1 Carbon · 0.4 mm')).toBeInTheDocument();
     const idle = screen.getByText('Prusa MK4').closest('.printer-card') as HTMLElement;
-    expect(within(idle).getByText('Not connected')).toBeInTheDocument();
-    expect(idle.querySelector('.printer-status .status-dot')).toBeNull();
-    expect(within(idle).getByText('No network connection is set up.')).toBeInTheDocument();
+    // No status word for a printer never connected: what connecting is for, beside Connect.
+    expect(within(idle).queryByText('Not connected')).toBeNull();
+    expect(idle.querySelector('.printer-status')).toBeNull();
+    expect(within(idle).getByText('Connect it to send prints straight from JusPrin')).toBeInTheDocument();
     await userEvent.click(within(idle).getByRole('button', { name: 'Connect…' }));
     expect(host.lastOfType('connect_printer')!.payload).toEqual({ id: 'mk4' });
   });
@@ -486,8 +489,10 @@ describe('first launch', () => {
     host.deliver('state', welcome());
 
     expect(screen.getByRole('heading', { name: 'The AI slicer that fixes failed prints.' })).toBeInTheDocument();
-    expect(screen.getByText('Your first month: 500 credits')).toBeInTheDocument();
-    expect(screen.getByText('An Expert message is 5 credits. Your own API key stays free.')).toBeInTheDocument();
+    expect(screen.getByText('Sign up to use the AI agent, or skip it and just slice.')).toBeInTheDocument();
+    expect(screen.getByText('Sign up and get 500 free credits')).toBeInTheDocument();
+    expect(screen.getByText('Good for your first month. That’s about 100 messages to the agent on Expert.')).toBeInTheDocument();
+    expect(screen.queryByText(/Free · MCP server/)).toBeNull();
     // The v1 line shows only after a v1 import.
     expect(screen.queryByText(/Subscribed to JusPrin v1/)).toBeNull();
     expect(screen.queryByText(/trial|\$/i)).toBeNull();
@@ -496,10 +501,8 @@ describe('first launch', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
     expect(host.lastOfType('onboarding_sign_in')).toBeDefined();
-    await userEvent.click(screen.getByRole('button', { name: /Your own API key/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Use your own AI account instead' }));
     expect(host.lastOfType('onboarding_open_preferences')!.payload).toEqual({ door: 'key' });
-    await userEvent.click(screen.getByRole('button', { name: /Claude Code or Claude Desktop/ }));
-    expect(host.lastOfType('onboarding_open_preferences')!.payload).toEqual({ door: 'tool' });
     await userEvent.click(screen.getByRole('button', { name: 'Just slice for now' }));
     expect(host.lastOfType('onboarding_leave_welcome')).toBeDefined();
   });
@@ -507,12 +510,12 @@ describe('first launch', () => {
   it('waits on the browser with a way to open it again, to use email, or to cancel', async () => {
     const host = start();
     host.deliver('state', welcome({ signIn: 'browser' }));
-    expect(screen.getByText('Finish signing in in your browser.')).toBeInTheDocument();
+    expect(screen.getByText('Finish in your browser.')).toBeInTheDocument();
     expect(screen.getByText('The app continues on its own once the browser is done.')).toBeInTheDocument();
     // Nothing can ask the server whether a loopback sign-in finished, so there is no "Check sign-in".
     expect(screen.queryByRole('button', { name: 'Check sign-in' })).toBeNull();
     // The other doors stay open, as boards 12b to 13b draw them.
-    expect(screen.getByRole('button', { name: /Your own API key/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Use your own AI account instead' })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Open the browser again' }));
     expect(host.lastOfType('onboarding_sign_in_reopen')).toBeDefined();
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -532,18 +535,24 @@ describe('first launch', () => {
     const host = start();
     host.deliver('state', welcome({ signIn: 'checking' }));
     expect(screen.getByText('Signing you in…')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Your own API key/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Claude Code or Claude Desktop/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Use your own AI account instead' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Just slice for now' })).toBeDisabled();
   });
 
-  it('sends the typed address, trimmed', async () => {
+  it('sends the typed address, trimmed, from Sign up free and from Sign in alike', async () => {
     const host = start();
     host.deliver('state', welcome());
-    const send = screen.getByRole('button', { name: 'Continue with email' });
+    const send = screen.getByRole('button', { name: 'Sign up free' });
     expect(send).toBeDisabled();
+    // Sign in with no address yet asks for one.
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(host.lastOfType('onboarding_sign_in_email')).toBeUndefined();
+    expect(screen.getByRole('textbox', { name: 'Email' })).toHaveFocus();
     await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), ' alex@example.com ');
     await userEvent.click(send);
+    expect(host.lastOfType('onboarding_sign_in_email')!.payload).toEqual({ email: 'alex@example.com' });
+    host.clear();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(host.lastOfType('onboarding_sign_in_email')!.payload).toEqual({ email: 'alex@example.com' });
   });
 
@@ -552,8 +561,10 @@ describe('first launch', () => {
     host.deliver('state', welcome());
     expect(screen.getByRole('textbox', { name: 'Email' })).toHaveAttribute('placeholder', 'you@example.com');
     expect(screen.getByText('or')).toBeInTheDocument();
-    expect(screen.getByText('New or existing account, same door. Google opens your browser; email stays here.')).toBeInTheDocument();
-    expect(screen.getByText(/By signing in you agree to the/)).toHaveTextContent('By signing in you agree to the Terms and Privacy Policy.');
+    expect(screen.queryByText(/same door/)).toBeNull();
+    expect(screen.getByText(/Already have an account\?/)).toHaveTextContent('Already have an account? Sign in');
+    expect(screen.getByText('Google opens your browser; email stays here.')).toBeInTheDocument();
+    expect(screen.getByText(/By continuing you agree to the/)).toHaveTextContent('By continuing you agree to the Terms and Privacy Policy.');
     await userEvent.click(screen.getByRole('button', { name: 'Terms' }));
     expect(host.lastOfType('onboarding_open_link')!.payload).toEqual({ link: 'terms' });
     await userEvent.click(screen.getByRole('button', { name: 'Privacy Policy' }));
@@ -571,7 +582,7 @@ describe('first launch', () => {
     host.deliver('state', welcome({ signIn: 'email', email: emailStep() }));
     expect(screen.getByText('Check your email.')).toBeInTheDocument();
     expect(screen.getByText('We sent a 6-digit code to alex@example.com.')).toBeInTheDocument();
-    expect(screen.getByText('The sixth digit signs you in. Read the email on any device.')).toBeInTheDocument();
+    expect(screen.getByText('Type the code from the email. You can open it on your phone.')).toBeInTheDocument();
     const field = screen.getByRole('textbox', { name: 'Sign-in code' });
     expect(field).toHaveFocus();
     expect(document.querySelectorAll('.code-cell')).toHaveLength(6);
@@ -638,7 +649,7 @@ describe('first launch', () => {
     expect(host.lastOfType('onboarding_sign_in_cancel')).toBeDefined();
 
     host.clear();
-    await userEvent.click(screen.getByRole('button', { name: 'Use the browser instead' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google instead' }));
     expect(host.messages().map((message) => message.type)).toEqual(['onboarding_sign_in_cancel', 'onboarding_sign_in']);
   });
 
@@ -646,7 +657,7 @@ describe('first launch', () => {
     const host = start();
     host.deliver('state', welcome());
     await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com');
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with email' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign up free' }));
     host.deliver('state', welcome({ signIn: 'email', email: emailStep() }));
     await userEvent.click(screen.getByRole('button', { name: 'Change email' }));
     expect(host.lastOfType('onboarding_sign_in_cancel')).toBeDefined();
@@ -663,12 +674,16 @@ describe('first launch', () => {
     expect(host.lastOfType('onboarding_sign_in_email')!.payload).toEqual({ email: 'alex@example.com' });
 
     host.deliver('state', welcome({ signIn: 'email', email: emailStep({ step: 'choose' }) }));
-    expect(screen.getByText('How do you want to sign in?')).toBeInTheDocument();
+    expect(screen.getByText('We’ll email you a code.')).toBeInTheDocument();
     expect(screen.getByText(/^alex@example\.com\./)).toHaveTextContent('alex@example.com. Change email');
-    expect(screen.getByText('New here? The code makes your account.')).toBeInTheDocument();
+    expect(screen.queryByText(/New here\?/)).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Email me a 6-digit code' }));
     expect(host.lastOfType('onboarding_sign_in_send_code')).toBeDefined();
 
+    // The password stays out of the way until asked for.
+    expect(screen.queryByLabelText('Password')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Forgot password' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Use a password instead' }));
     const signIn = screen.getByRole('button', { name: 'Sign in' });
     expect(signIn).toBeDisabled();
     await userEvent.type(screen.getByLabelText('Password'), 'correct horse{Enter}');
@@ -687,20 +702,20 @@ describe('first launch', () => {
     const host = start();
     host.deliver('state', welcome({ signIn: 'email', email: emailStep({ step: 'choose', refusal: 'wrong_password' }) }));
     expect(screen.getByRole('alert')).toHaveTextContent('That password is wrong.');
-    expect(screen.getByText('New here? The code makes your account.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
     host.deliver('state', welcome({ signIn: 'email', email: emailStep({ step: 'choose', refusal: 'too_many_tries' }) }));
     expect(screen.getByRole('alert')).toHaveTextContent('Too many tries. Wait a few minutes, or email me a code.');
     host.deliver('state', welcome({ signIn: 'email', email: emailStep({ step: 'choose', refusal: 'too_many_codes' }) }));
-    // In place of the note under the code button.
+    // Under the code button.
     expect(screen.getByRole('alert')).toHaveTextContent('Too many codes were sent to this address. Try again in an hour.');
-    expect(screen.queryByText('New here? The code makes your account.')).toBeNull();
   });
 
   it('says who signed in, then moves on by itself', async () => {
     const host = start();
     host.deliver('state', welcome({ signIn: 'checking' }));
     host.deliver('state', welcome({ accountEmail: 'kim@example.com', account: account(500) }));
-    expect(screen.getByRole('status')).toHaveTextContent('Signed in as kim@example.com · 500 credits');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'You got 500 free credits for signing up, good until 2 December.Signed in as kim@example.com');
     expect(host.lastOfType('onboarding_leave_welcome')).toBeUndefined();
     await waitFor(() => expect(host.lastOfType('onboarding_leave_welcome')).toBeDefined(), { timeout: 3000 });
   });
@@ -711,130 +726,228 @@ describe('first launch', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Signed in as kim@example.com');
     await new Promise((resolve) => setTimeout(resolve, 1700));
     expect(host.lastOfType('onboarding_leave_welcome')).toBeUndefined();
-    expect(screen.getByRole('button', { name: /Your own API key/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Use your own AI account instead' })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(host.lastOfType('onboarding_leave_welcome')).toBeDefined();
   });
 
-  it('offers to bring OrcaSlicer printers with Import, Start fresh and Back', async () => {
+  it('offers to bring the ticked OrcaSlicer printers, with Import, Choose my printer instead and Back', async () => {
     const host = start();
-    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'orca_import',
+    const screenState = () => state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'orca_import',
       orca: { source: '~/Library/Application Support/OrcaSlicer', printers: ['Bambu Lab P1S 0.4 nozzle', 'Prusa MK4'],
-        filamentCount: 14, found: true, importResult: null } }) }));
+        selected: 'Bambu Lab P1S 0.4 nozzle', filamentCount: 14, found: true, importResult: null } }) });
+    host.deliver('state', screenState());
     expect(screen.getByRole('heading', { name: 'Bring your printers from OrcaSlicer?' })).toBeInTheDocument();
-    expect(screen.getByText('Bambu Lab P1S 0.4 nozzle')).toBeInTheDocument();
-    expect(screen.getByText('Prusa MK4')).toBeInTheDocument();
+    const p1s = screen.getByRole('checkbox', { name: 'Bambu Lab P1S 0.4 nozzle' });
+    const mk4 = screen.getByRole('checkbox', { name: 'Prusa MK4' });
+    expect(p1s).toBeChecked();
+    expect(mk4).toBeChecked();
     expect(screen.getByText('~/Library/Application Support/OrcaSlicer')).toBeInTheDocument();
-    expect(screen.getByText('· 14 filaments')).toBeInTheDocument();
+    expect(screen.getByText('Also brings 14 filaments.')).toBeInTheDocument();
+    expect(screen.getByText('JusPrin starts with Bambu Lab P1S 0.4 nozzle, the printer OrcaSlicer had selected.')).toBeInTheDocument();
+    // Unticking OrcaSlicer's printer names the one JusPrin will start with.
+    await userEvent.click(p1s);
+    expect(screen.getByText('JusPrin starts with Prusa MK4.')).toBeInTheDocument();
+    // With nothing ticked there is nothing to import.
+    await userEvent.click(mk4);
+    expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
+    await userEvent.click(mk4);
+
+    // The import holds the app, so the step says so first and asks once
+    // that has been painted; the host's next state ends it.
     await userEvent.click(screen.getByRole('button', { name: 'Import' }));
-    expect(host.lastOfType('onboarding_import')).toBeDefined();
-    await userEvent.click(screen.getByRole('button', { name: 'Start fresh' }));
+    expect(screen.getByRole('button', { name: 'Importing…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Choose my printer instead' })).toBeDisabled();
+    expect(host.lastOfType('onboarding_import')).toBeUndefined();
+    await waitFor(() => expect(host.lastOfType('onboarding_import')).toBeDefined());
+    expect(host.lastOfType('onboarding_import')!.payload).toEqual({ printers: ['Prusa MK4'] });
+    host.deliver('state', screenState());
+    expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
+    // The same list pushed again keeps the ticks.
+    expect(screen.getByRole('checkbox', { name: 'Bambu Lab P1S 0.4 nozzle' })).not.toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'Choose my printer instead' }));
     expect(host.lastOfType('onboarding_start_fresh')).toBeDefined();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(host.lastOfType('onboarding_back')).toBeDefined();
 
-    host.deliver('onboarding_error', { message: 'JusPrin couldn’t bring these printers. OrcaSlicer was not changed. Start fresh instead.' });
+    host.deliver('onboarding_error', { message: 'JusPrin couldn’t bring these printers. OrcaSlicer was not changed.' });
     expect(screen.getByRole('alert')).toHaveTextContent('OrcaSlicer was not changed');
   });
 
-  it('lists what the OrcaSlicer import brought, with Continue and Retry failed items', async () => {
+  it('lists what the OrcaSlicer import brought, with Continue, and Retry only for what a retry can fix', async () => {
     const host = start();
     const orca = (importResult: OnboardingState['orca']['importResult']) => state({ onboarding: onboarding({
       visible: true, step: 'printers', printersScreen: 'import_result',
-      orca: { source: '', printers: [], filamentCount: 0, found: true, importResult } }) });
+      orca: { source: '', printers: [], selected: '', filamentCount: 0, found: true, importResult } }) });
+    const missingBase = { kind: 'filament' as const, name: 'Silk Red', renamedTo: '', imported: false, retryable: false,
+      reason: 'This filament is built on Kingroon PLA Silk, which JusPrin doesn’t have.' };
     host.deliver('state', orca([
-      { kind: 'printer', name: 'Bambu Lab P1S 0.4 nozzle', renamedTo: '', imported: true, reason: '' },
-      { kind: 'printer', name: 'Prusa MK4', renamedTo: 'Prusa MK4 (Orca copy)', imported: true, reason: '' },
-      { kind: 'printer', name: 'Old Voron', renamedTo: '', imported: false,
-        reason: 'its base profile, Voron 0.1, isn’t in JusPrin' },
-      { kind: 'filament', name: 'My PLA', renamedTo: '', imported: true, reason: '' },
-      { kind: 'filament', name: 'My PETG', renamedTo: '', imported: true, reason: '' },
-      { kind: 'filament', name: 'Broken PLA', renamedTo: '', imported: false, reason: 'the file couldn’t be read' },
-      { kind: 'process', name: '0.20mm Tuned', renamedTo: '', imported: true, reason: '' },
+      { kind: 'printer', name: 'Bambu Lab P1S 0.4 nozzle', renamedTo: '', imported: true, reason: '', retryable: false },
+      { kind: 'printer', name: 'Prusa MK4', renamedTo: 'Prusa MK4 (Orca copy)', imported: true, reason: '', retryable: false },
+      { kind: 'filament', name: 'My PLA', renamedTo: '', imported: true, reason: '', retryable: false },
+      missingBase,
+      { kind: 'filament', name: 'Broken PLA', renamedTo: '', imported: false, retryable: true,
+        reason: 'Not imported. The file couldn’t be read.' },
+      { kind: 'process', name: '0.20mm Tuned', renamedTo: '', imported: true, reason: '', retryable: false },
     ]));
-    expect(screen.getByRole('heading', { name: 'Some settings need attention' })).toBeInTheDocument();
-    expect(screen.getByText('OrcaSlicer’s own files were not changed.')).toBeInTheDocument();
+    // The title stays, whatever failed; each failure has its own row.
+    expect(screen.getByRole('heading', { name: 'Imported from OrcaSlicer' })).toBeInTheDocument();
+    expect(screen.queryByText(/OrcaSlicer’s own files/)).toBeNull();
     const line = (name: string) => screen.getByText(name).closest('li')!;
     expect(line('Bambu Lab P1S 0.4 nozzle')).toHaveTextContent(/Imported$/);
     expect(line('Prusa MK4')).toHaveTextContent('Imported as ‘Prusa MK4 (Orca copy)’');
-    expect(line('Old Voron')).toHaveTextContent('Not imported · its base profile, Voron 0.1, isn’t in JusPrin');
+    expect(line('Silk Red')).toHaveTextContent('This filament is built on Kingroon PLA Silk, which JusPrin doesn’t have.');
     expect(line('0.20mm Tuned')).toHaveTextContent(/Imported$/);
-    // Filaments are counted; only the one not imported has a line.
+    // Filaments are counted; only the ones not imported have a line.
     expect(screen.queryByText('My PLA')).toBeNull();
-    expect(line('Broken PLA')).toHaveTextContent('Not imported · the file couldn’t be read');
-    expect(screen.getByText('2 of 3 filaments imported')).toBeInTheDocument();
+    expect(line('Broken PLA')).toHaveTextContent('Not imported. The file couldn’t be read.');
+    expect(screen.getByText('1 of 3 filaments imported')).toBeInTheDocument();
     // Continue leads.
     const buttons = screen.getAllByRole('button');
     expect(buttons[0]).toHaveAccessibleName('Continue');
     await userEvent.click(screen.getByRole('button', { name: 'Retry failed items' }));
-    expect(host.lastOfType('onboarding_import_retry')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Importing…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    await waitFor(() => expect(host.lastOfType('onboarding_import_retry')).toBeDefined());
+    // Only a missing base is left: a retry cannot fix it.
+    host.deliver('state', orca([missingBase]));
+    expect(screen.queryByRole('button', { name: 'Retry failed items' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(host.lastOfType('onboarding_import_continue')).toBeDefined();
 
     // Everything imported: nothing to retry.
     host.deliver('state', orca([
-      { kind: 'printer', name: 'Prusa MK4', renamedTo: '', imported: true, reason: '' },
-      { kind: 'filament', name: 'My PLA', renamedTo: '', imported: true, reason: '' },
+      { kind: 'printer', name: 'Prusa MK4', renamedTo: '', imported: true, reason: '', retryable: false },
+      { kind: 'filament', name: 'My PLA', renamedTo: '', imported: true, reason: '', retryable: false },
     ]));
     expect(screen.getByRole('heading', { name: 'Imported from OrcaSlicer' })).toBeInTheDocument();
     expect(screen.getByText('1 filament imported')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry failed items' })).toBeNull();
   });
 
-  it('offers an OrcaSlicer folder only when none was found', async () => {
+  it('offers no OrcaSlicer folder on the printer screen: File › Import does', () => {
     const host = start();
-    const addPrinter = (found: boolean) => state({ onboarding: onboarding({ visible: true, step: 'printers',
-      printersScreen: 'add_printer', printerForm: null,
-      orca: { source: '', printers: [], filamentCount: 0, found, importResult: null } }) });
-    host.deliver('state', addPrinter(false));
-    // A link, not a third button beside Back and Skip.
-    const link = screen.getByRole('button', { name: 'Import from an OrcaSlicer folder…' });
-    expect(link).toHaveClass('onboarding-link');
-    await userEvent.click(link);
-    expect(host.lastOfType('onboarding_choose_orca_folder')).toBeDefined();
-    host.deliver('onboarding_error', { message: 'JusPrin found no OrcaSlicer printers in that folder.' });
-    expect(screen.getByRole('alert')).toHaveTextContent('no OrcaSlicer printers in that folder');
-
-    // Start fresh with OrcaSlicer's printers found: no link.
-    host.deliver('state', addPrinter(true));
-    expect(screen.queryByRole('button', { name: 'Import from an OrcaSlicer folder…' })).toBeNull();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'add_printer',
+      printerForm: null, orca: { source: '', printers: [], selected: '', filamentCount: 0, found: false, importResult: null } }) }));
+    expect(screen.queryByText(/OrcaSlicer printers in another folder/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Choose the folder…' })).toBeNull();
   });
 
-  it('draws the add-printer form with Back and Skip, use a default', async () => {
+  it('asks which printer, then adds it with its profile’s plate and filament', async () => {
     const host = start();
-    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'add_printer',
-      printerForm: null }) }));
+    const form = (options?: object) => ({ catalog: [
+      { id: 'c1', vendorId: 'v1', brand: 'Bambu Lab', model: 'A1 mini', nozzles: [0.2, 0.4, 0.6] },
+      { id: 'c2', vendorId: 'v2', brand: 'Creality', model: 'Ender 3 V2', nozzles: [0.4] },
+    ], nearby: [{ deviceId: 'SN1', name: 'A1 mini', catalogId: 'c1' }], error: '', loading: false, options,
+    } as unknown as OnboardingState['printerForm']);
+    const screenState = (printerForm: OnboardingState['printerForm'], overrides: Partial<OnboardingState> = {}) =>
+      state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'add_printer', printerForm,
+        accountEmail: 'k+test@obico.io', account: { credits: { total: 120, lots: [] }, plan: null, v1_subscription: null,
+          usage_30d: { credits: 0, days: [], activity: [] } },
+        ...overrides }) });
+    host.deliver('state', screenState(null));
     expect(screen.getByText('Reading the printer list…')).toBeInTheDocument();
-    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'add_printer',
-      printerForm: { catalog: [{ id: 'c1', vendorId: 'v1', brand: 'Creality', model: 'Ender 3 V2', nozzles: [0.4] }],
-        nearby: [], error: '', loading: false } as unknown as OnboardingState['printerForm'] }) }));
-    // The form is the Agent page's, drawn in its own shadow root.
-    const form = document.querySelector('.onboarding-printer-form')!;
-    await waitFor(() => expect(form.shadowRoot!.querySelector('[role="dialog"]')).not.toBeNull());
-    expect(form.shadowRoot!.textContent).toContain('Which printer?');
+    host.deliver('state', screenState(form()));
+    expect(screen.getByRole('heading', { name: 'Which printer do you have?' })).toBeInTheDocument();
+    // What the welcome finished, above the headline.
+    expect(screen.getByText('You have 120 credits.')).toBeInTheDocument();
+    expect(screen.getByText('Signed in as k+test@obico.io')).toBeInTheDocument();
+    expect(screen.queryByText(/Step 1 of/)).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Skip, use a default' }));
+    // The fields are the Agent page's, drawn in their own shadow root.
+    const picker = document.querySelector('.onboarding-printer-picker')!;
+    await waitFor(() => expect(picker.shadowRoot!.textContent).toContain('Brand'));
+    const shadow = within(picker.shadowRoot as unknown as HTMLElement);
+    expect(shadow.getByText('Can’t find your printer?')).toBeInTheDocument();
+    const continueButton = screen.getByRole('button', { name: 'Continue' });
+    expect(continueButton).toBeDisabled();
+
+    // The printer found on the network picks its model and the usual nozzle.
+    await userEvent.click(shadow.getByRole('button', { name: /A1 mini · SN1/ }));
+    await waitFor(() => expect(shadow.getByRole('radio', { name: '0.4 mm' })).toHaveAttribute('aria-checked', 'true'));
+    expect(shadow.getByText('Most printers ship with 0.4 mm.')).toBeInTheDocument();
+    expect(host.lastOfType('onboarding_printer_form')?.payload).toEqual({ action: 'form_options', catalogId: 'c1', nozzle: 0.4 });
+    expect(continueButton).toBeDisabled();
+    // While the app reads that printer's settings, the note under the nozzles says so.
+    host.deliver('state', screenState({ ...form(), loading: true } as OnboardingState['printerForm']));
+    await waitFor(() => expect(shadow.getByRole('status')).toHaveTextContent('Reading this printer’s settings…'));
+    expect(shadow.queryByText('Most printers ship with 0.4 mm.')).toBeNull();
+
+    host.deliver('state', screenState(form({ catalogId: 'c1', nozzle: 0.4, plates: [{ type: 1, label: 'Cool' }, { type: 2, label: 'Textured' }],
+      defaultPlate: 2, filaments: [], others: [], own: [], suggested: [], defaultFilament: '', error: '' })));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled());
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    // No filament: the profile's own is the default.
+    expect(host.lastOfType('onboarding_printer_form')?.payload).toEqual(
+      { action: 'form_finish', catalogId: 'c1', nozzle: 0.4, plate: 2, deviceId: 'SN1' });
+
+    await userEvent.click(shadow.getByRole('button', { name: 'Ask the agent' }));
+    expect(host.lastOfType('onboarding_ask_agent')).toBeDefined();
+    expect(screen.getByText('Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.'))
+      .toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
     expect(host.lastOfType('onboarding_assume_default')).toBeDefined();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(host.lastOfType('onboarding_back')).toBeDefined();
+
+    // After Just slice for now: nothing finished to say, and no agent to ask.
+    host.deliver('state', screenState(form(), { accountEmail: '', account: null }));
+    await waitFor(() => expect(shadow.queryByText('Can’t find your printer?')).toBeNull());
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+    // A saved key: the agent can help, and the line names its provider.
+    host.deliver('state', screenState(form(), { accountEmail: '', account: null, agentKeyProvider: 'Anthropic' }));
+    expect(screen.getByText('The agent uses your Anthropic key')).toBeInTheDocument();
+    await waitFor(() => expect(shadow.getByText('Can’t find your printer?')).toBeInTheDocument());
+    // After the OrcaSlicer screen's Start fresh, that screen said it.
+    host.deliver('state', screenState(form(), { orca: { source: '', printers: [], selected: '', filamentCount: 0, found: true,
+      importResult: null } }));
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+  });
+
+  it('opens the OrcaSlicer screen with what the welcome finished', () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'orca_import',
+      accountEmail: 'k+test@obico.io', account: { credits: { total: 1, lots: [] }, plan: null, v1_subscription: null,
+        usage_30d: { credits: 0, days: [], activity: [] } },
+      orca: { source: '/o', printers: ['Bambu Lab A1 mini 0.4 nozzle'], selected: '', filamentCount: 0, found: true,
+        importResult: null } }) }));
+    expect(screen.getByText('You have 1 credit.')).toBeInTheDocument();
+    expect(screen.getByText('Signed in as k+test@obico.io')).toBeInTheDocument();
+    expect(screen.getByText('JusPrin starts with Bambu Lab A1 mini 0.4 nozzle.')).toBeInTheDocument();
+    // The import's result comes after it and does not say it again.
+    host.deliver('state', state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'import_result',
+      accountEmail: 'k+test@obico.io', orca: { source: '', printers: [], selected: '', filamentCount: 0, found: true,
+        importResult: [{ kind: 'printer', name: 'Bambu Lab A1 mini 0.4 nozzle', renamedTo: '', imported: true, reason: '',
+          retryable: false }] } }) }));
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
   });
 
   it('puts the three doors at the top of Home’s right column after Just slice', async () => {
     const host = start();
-    host.deliver('state', state({ projects: [], printers: [printer({ name: 'Generic Klipper Printer', assumed: true,
+    host.deliver('state', state({ projects: [], printers: [printer({ name: 'Generic printer', assumed: true,
       status: 'not_connected', spools: [] })],
     onboarding: onboarding({ agentConfigured: false, agentCard: 'doors' }) }));
     const group = screen.getByRole('region', { name: 'Agent' });
     expect(within(group).getByText('Set up the agent')).toBeInTheDocument();
+    expect(within(group).getByText('Get 500 free credits and ask the agent to fix failed prints.')).toBeInTheDocument();
+    expect(within(group).getByRole('button', { name: 'Sign up free' })).toBeInTheDocument();
+    expect(within(group).getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
     await userEvent.click(within(group).getByRole('button', { name: 'Continue with Google' }));
     expect(host.lastOfType('onboarding_sign_in')).toBeDefined();
-    await userEvent.click(within(group).getByRole('button', { name: /Your own API key/ }));
+    await userEvent.click(within(group).getByRole('button', { name: 'Use your own AI account instead' }));
     expect(host.lastOfType('onboarding_open_preferences')!.payload).toEqual({ door: 'key' });
-    // Without an agent the drop target promises a slice, not a plan.
-    expect(screen.getByText(/JusPrin slices it for your Generic Klipper Printer\./)).toBeInTheDocument();
-    // The default printer's card carries the mark under its header.
-    const card = screen.getByText('Generic Klipper Printer', { selector: '.printer-name' }).closest('.printer-card')!;
-    expect(within(card as HTMLElement).getByText('assumed')).toBeInTheDocument();
+    // The generic printer is no printer of theirs: the drop target and the
+    // card say what files slice for until they add theirs.
+    expect(within(document.querySelector('.first-run') as HTMLElement)
+      .getByText(/files are sliced for a 250 mm Klipper printer and may not print on other printers\./)).toBeInTheDocument();
+    expect(screen.queryByText('Generic printer')).toBeNull();
+    const card = screen.getByText('No printer yet').closest('.printer-card')! as HTMLElement;
+    expect(within(card).getByText('Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.'))
+      .toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /Connect|More/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ Add printer' })).toBeNull();
+    await userEvent.click(within(card).getByRole('button', { name: 'Add your printer' }));
+    expect(host.lastOfType('add_printer')).toBeDefined();
   });
 
   it('shows the account and its credits once after signing in', async () => {
@@ -842,9 +955,10 @@ describe('first launch', () => {
     host.deliver('state', state({ onboarding: onboarding({ agentCard: 'account', accountEmail: 'kim@example.com',
       account: account(500) }) }));
     const group = screen.getByRole('region', { name: 'Agent' });
-    expect(within(group).getByText('JusPrin account')).toBeInTheDocument();
+    expect(within(group).getByText('Signed in as kim@example.com')).toBeInTheDocument();
+    expect(within(group).queryByText('Connected')).toBeNull();
     expect(within(group).getByText('500 credits left')).toBeInTheDocument();
-    expect(within(group).getByText('First-month credits')).toBeInTheDocument();
+    expect(within(group).getByText('Sign-up credits')).toBeInTheDocument();
     expect(within(group).getByText('500 of 500 left')).toBeInTheDocument();
     await userEvent.click(within(group).getByRole('button', { name: 'Dismiss' }));
     expect(host.lastOfType('agent_card_dismiss')).toBeDefined();

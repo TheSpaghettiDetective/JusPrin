@@ -162,6 +162,9 @@ struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
 // JusPrin's Preferences window; its page reads the rest of the group.
 struct PreferencesMetrics { int width{0}; int height{0}; };
 
+// File › Import › Import from OrcaSlicer…'s window.
+struct OrcaImportMetrics { int width{0}; int height{0}; };
+
 // A drop shadow's geometry; its colour differs by mode and lives in ShellPalette.
 struct ElevationMetrics { int offset_x{0}; int offset_y{0}; int blur{0}; int spread{0}; };
 
@@ -237,6 +240,7 @@ struct ShellMetrics
     FocusMetrics     focus;
     PrinterCardMetrics  printer_card;
     PreferencesMetrics  preferences;
+    OrcaImportMetrics   orca_import;
 };
 
 class ShellTheme

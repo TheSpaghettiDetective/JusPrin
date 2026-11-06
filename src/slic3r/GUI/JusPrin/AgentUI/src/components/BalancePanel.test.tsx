@@ -51,7 +51,7 @@ describe('the balance panel', () => {
       },
     });
     expect(lotRows()).toEqual([
-      'First-month credits62 of 500 leftExpires 1 Dec',
+      'Sign-up credits62 of 500 leftExpires 1 Dec',
       'Free credits50 of 50 leftExpires 2 Dec',
       'Bought credits500 of 500 leftNever expire',
     ]);

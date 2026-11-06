@@ -272,7 +272,8 @@ void HomeHost::on_page_message(const std::string& text)
         push_state();
     }
     else if (type == "onboarding_sign_in" || type == "onboarding_sign_in_cancel" || type == "onboarding_leave_welcome" ||
-             type == "onboarding_back" || type == "onboarding_start_fresh" || type == "agent_card_dismiss") {
+             type == "onboarding_back" || type == "onboarding_start_fresh" || type == "onboarding_ask_agent" ||
+             type == "agent_card_dismiss") {
         if (type == "onboarding_sign_in")
             m_backend.start_sign_in();
         else if (type == "onboarding_sign_in_cancel")
@@ -280,9 +281,11 @@ void HomeHost::on_page_message(const std::string& text)
         else if (type == "onboarding_leave_welcome")
             m_backend.leave_welcome();
         else if (type == "onboarding_back")
-            m_backend.back_to_welcome();
+            m_backend.step_back();
         else if (type == "onboarding_start_fresh")
             m_backend.start_fresh();
+        else if (type == "onboarding_ask_agent")
+            m_backend.ask_agent_for_printer();
         else
             m_backend.dismiss_account_card();
         push_state();
@@ -310,10 +313,10 @@ void HomeHost::on_page_message(const std::string& text)
         if (door == "key" || door == "tool")
             m_backend.open_agent_door(door);
     }
-    else if (type == "onboarding_import" || type == "onboarding_assume_default" || type == "onboarding_choose_orca_folder") {
-        const std::string problem = type == "onboarding_import"           ? m_backend.import_orca_printers()
-                                    : type == "onboarding_assume_default" ? m_backend.assume_default_printer()
-                                                                          : m_backend.choose_orca_folder();
+    else if (type == "onboarding_import" || type == "onboarding_assume_default") {
+        const std::string problem = type == "onboarding_import"
+                                        ? m_backend.import_orca_printers(payload.at("printers").get<std::vector<std::string>>())
+                                        : m_backend.assume_default_printer();
         if (!problem.empty())
             send("onboarding_error", json{{"message", problem}}, correlation);
         push_state();

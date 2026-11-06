@@ -7,6 +7,7 @@
 
 import { KeyboardEvent, RefObject, useEffect, useRef, useState } from 'react';
 import { AccountStatusPayload, McpToolInfo, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
+import { SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
 
 // The page and the host ship in the same build, so this list and the host's
 // setup_provider_supported() are two views of the same fact. The host still
@@ -36,8 +37,8 @@ export function FirstMonthOffer({ note, onSignIn }: { note?: string; onSignIn: (
   return (
     <div className="credit-offer" data-testid="first-month-offer">
       <div className="credit-offer-copy">
-        <h2 className="credit-offer-title">Your first month: 500 credits</h2>
-        <p>An Expert message is 5 credits. Your own API key stays free.</p>
+        <h2 className="credit-offer-title">{SIGNUP_OFFER}</h2>
+        <p>{SIGNUP_SCALE}</p>
         {note && <p className="credit-offer-note">{note}</p>}
       </div>
       <button type="button" className="primary credit-offer-action" onClick={onSignIn}>Sign in for 500 credits</button>
@@ -67,7 +68,7 @@ export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: A
   };
   let line: React.ReactNode;
   if (waiting) {
-    line = status.phase === 'checking' ? 'Checking your account…' : 'Finish signing in in your browser';
+    line = status.phase === 'checking' ? 'Checking your account…' : 'Finish in your browser';
   } else if (account && ended) {
     line = (
       <span className="agent-row-status-label">

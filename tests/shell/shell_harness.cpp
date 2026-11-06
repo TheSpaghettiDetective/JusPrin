@@ -14,7 +14,7 @@
 //   --fresh-example
 //              a data directory with no printer runs the first launch:
 //              the welcome, "Just slice for now", Back, the add-printer
-//              form, then "Skip, use a default" through to Home, where the
+//              form, then "Skip for now" through to Home, where the
 //              agent card signs in by email against a stand-in server
 //   --classic-switch
 //              switches to classic view and back twice, once through the View
@@ -1535,7 +1535,7 @@ public:
 
     // The first launch on a data directory with no printer: the welcome, its
     // "Just slice for now", Back from the Printers step, then the add-printer
-    // form and "Skip, use a default", which puts the bundled printer that
+    // form and "Skip for now", which puts the bundled printer that
     // belongs to no manufacturer in place and marks it assumed. Each step is
     // the backend's own call, as the page's message makes it.
     void verify_fresh_install_example()
@@ -1549,7 +1549,7 @@ public:
 
         backend.leave_welcome(); // Just slice for now
         check(backend.onboarding().step == Home::OnboardingStep::Printers, "just_slice_moves_to_printers");
-        backend.back_to_welcome();
+        backend.step_back();
         check(backend.onboarding().step == Home::OnboardingStep::Welcome, "back_returns_to_the_welcome");
         backend.leave_welcome();
         // An OrcaSlicer folder on this computer would offer its printers first.
@@ -1564,7 +1564,7 @@ public:
 
         const std::string assumed = backend.assume_default_printer();
         check(assumed.empty(), "skip_use_a_default: " + assumed);
-        check(selected_printer() == "Generic Klipper Printer", "fresh_example_printer_installed: " + selected_printer());
+        check(selected_printer() == "Generic printer", "fresh_example_printer_installed: " + selected_printer());
         check(!Printers::printer_from_file(printers.get_selected_preset()), "fresh_example_printer_not_marked_from_the_file");
         const auto listed = backend.printers();
         check(std::any_of(listed.begin(), listed.end(), [](const Home::PrinterEntry& entry) { return entry.assumed; }),

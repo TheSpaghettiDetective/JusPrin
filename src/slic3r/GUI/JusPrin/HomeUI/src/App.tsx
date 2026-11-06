@@ -3,14 +3,14 @@ import type { DragEvent } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import type { HistoryEntry } from './bridge/protocol';
 import { ProjectCard } from './components/ProjectCard';
-import { PrinterCard } from './components/PrinterCard';
+import { NoPrinterCard, PrinterCard } from './components/PrinterCard';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PrintHistory } from './components/PrintHistory';
 import { PrintReportForm } from './components/PrintReportForm';
 import type { PrintHistoryActions } from './components/PrintHistory';
 import type { PrinterActions } from './components/PrinterMenu';
 import { ChevronDownGlyph, ChevronRightGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
-import { Onboarding } from './components/Onboarding';
+import { Onboarding, STAND_IN_PRINTER } from './components/Onboarding';
 import { AgentGroup } from './components/AgentGroup';
 import { initialState, reduce } from './state/store';
 import type { Screen } from './state/store';
@@ -222,6 +222,8 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   // Nothing saved yet: the gallery is one drop target that carries the two
   // actions itself, so the header has none and Open… stays the only primary.
   const firstRun = !state.projectsProblem && state.projects.length === 0;
+  // The printer the first launch set up when the person skipped choosing one.
+  const noPrinterYet = state.printers.some((printer) => printer.assumed);
   const firstPrinter = state.printers[0]?.name;
   // Without an agent nobody asks what the part is for.
   const agentReady = state.onboarding?.agentConfigured ?? true;
@@ -288,7 +290,9 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
                 <h2>Drop a model or project to start</h2>
                 <p>
                   {FORMATS.slice(0, -1).join(', ')} or {FORMATS[FORMATS.length - 1]}.{' '}
-                  {agentReady
+                  {noPrinterYet
+                    ? STAND_IN_PRINTER
+                    : agentReady
                     ? `JusPrin asks what the part is for, then plans the print${firstPrinter ? ` for your ${firstPrinter}` : ''}.`
                     : `JusPrin slices it${firstPrinter ? ` for your ${firstPrinter}` : ''}.`}
                 </p>
@@ -329,7 +333,9 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               {state.printerError.message}
             </p>
           )}
-          {state.printers.map((printer) => (
+          {state.printers.map((printer) => printer.assumed ? (
+            <NoPrinterCard key={printer.id} onAdd={() => client.send('add_printer', {})} />
+          ) : (
             <PrinterCard
               key={printer.id}
               printer={printer}
@@ -340,9 +346,11 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               highlighted={state.highlightPrinter === printer.name}
             />
           ))}
-          <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
-            + Add printer
-          </button>
+          {!noPrinterYet && (
+            <button type="button" className="add-printer" onClick={() => client.send('add_printer', {})}>
+              + Add printer
+            </button>
+          )}
         </aside>
       </div>
       {state.confirmation && (

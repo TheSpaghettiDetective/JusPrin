@@ -24,6 +24,7 @@ import {
   StatePayload,
   ToolActivityInfo,
   WelcomeBackPayload,
+  OrcaImportPayload,
   WireMessage,
   WorkspaceContext,
   McpCatalogPayload,
@@ -88,6 +89,7 @@ export interface AgentUiState {
   preferences: PreferencesPayload | null;
   // The welcome-back window's list of what came from JusPrin v1.
   welcomeBack: WelcomeBackPayload | null;
+  orcaImport: OrcaImportPayload | null;
   navigation: { focused: boolean; returnLabel?: string };
   // The All settings panel's table, read from hosts with all_settings; the
   // revision says which project state it describes.
@@ -151,6 +153,7 @@ export const initialState: AgentUiState = {
   filamentSession: null,
   preferences: null,
   welcomeBack: null,
+  orcaImport: null,
   navigation: { focused: false },
   settingsCatalog: null,
   confirmation: null,
@@ -238,6 +241,7 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
         filamentSession: full.session && 'kind' in full.session && full.session.kind === 'filament' ? full.session : null,
         preferences: full.session && 'kind' in full.session && full.session.kind === 'preferences' ? full.session : null,
         welcomeBack: full.session && 'kind' in full.session && full.session.kind === 'welcome_back' ? full.session : null,
+        orcaImport: full.session && 'kind' in full.session && full.session.kind === 'orca_import' ? full.session : null,
         navigation: full.navigation ?? { focused: false },
         settingsCatalog: full.context?.sessionId === state.context?.sessionId ? state.settingsCatalog : null,
         // A full state answers a fresh handshake; any check that was in

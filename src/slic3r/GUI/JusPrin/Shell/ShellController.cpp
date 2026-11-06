@@ -17,6 +17,7 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
 #include "slic3r/GUI/JusPrin/V1Import/WelcomeBackWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
@@ -1430,6 +1431,24 @@ void ShellController::open_welcome_back()
     // and a new sign-in replaces it; either way the docked agent rebuilds.
     if (agent_settings() != agent_before)
         reload_agent_config();
+}
+
+void ShellController::open_orca_import()
+{
+    if (!m_installed || m_preferences_open)
+        return;
+    // One JusPrin window over the app at a time.
+    m_preferences_open = true;
+    bool imported      = false;
+    {
+        Home::OrcaImportWindow window(*m_frame, *m_theme, *m_workspace);
+        window.ShowModal();
+        imported = window.imported();
+    }
+    m_preferences_open = false;
+    // Home's printer cards list the printers it brought.
+    if (imported && m_home != nullptr)
+        m_home->refresh();
 }
 
 void ShellController::open_preferences(const std::string& section, PreferencesClosed closed)
