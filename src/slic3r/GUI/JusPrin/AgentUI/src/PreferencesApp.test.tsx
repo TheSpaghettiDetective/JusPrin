@@ -2,7 +2,7 @@
 // app says is stored, sends one preferences_action per change, and draws the
 // Agent's connection rows with the same components Agent setup uses.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PreferencesApp } from './PreferencesApp';
@@ -138,6 +138,8 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(host.lastOfType('setup_remove_key')?.payload).toEqual({ provider: 'jusprin' });
 
+    // Signed out, the section points to the ways that need no account.
+    host.deliver('setup_keys', { keys: [] });
     await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Agent' }));
     expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
   });
@@ -163,6 +165,148 @@ describe('Preferences', () => {
     host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
     expect(screen.queryByTestId('agent-key-jusprin')).toBeNull();
     expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
+  });
+
+  describe('Account’s credits and usage', () => {
+    const chat = (letter: string) => letter.repeat(32);
+    const usageAccount = {
+      credits: {
+        total: 562,
+        lots: [
+          { kind: 'pack', credits: 500, granted: 500, expires_at: null },
+          { kind: 'signup', credits: 62, granted: 500, expires_at: '2026-12-01T12:00:00+00:00' },
+        ],
+      },
+      plan: null,
+      v1_subscription: null,
+      usage_30d: {
+        credits: 438,
+        days: [
+          { date: '2026-11-12', credits: 230 }, { date: '2026-11-14', credits: 150 },
+          { date: '2026-11-18', credits: 18 }, { date: '2026-11-19', credits: 40 },
+        ],
+        activity: [
+          { date: '2026-11-19', chat_id: chat('a'), tier: 'expert', messages: 8, credits: 40 },
+          { date: '2026-11-18', chat_id: chat('b'), tier: 'basic', messages: 18, credits: 18 },
+          { date: '2026-11-15', kind: 'report', title: 'Print report · Vent Grille', credits: 25 },
+          { date: '2026-11-14', chat_id: chat('c'), tier: 'expert', messages: 30, credits: 150 },
+          { date: '2026-11-12', chat_id: chat('d'), tier: 'expert', messages: 46, credits: 230 },
+          { date: '2026-11-12', chat_id: chat('e'), tier: 'expert', messages: 1, credits: 5 },
+        ],
+      },
+    };
+    const chatTitles = {
+      [chat('a')]: 'Resizing a Print to Fit the Bambu A1 mini',
+      [chat('b')]: 'Stringing on a PETG Bracket',
+      [chat('c')]: 'First Layer Lifting on a Long Plate',
+      [chat('d')]: 'Warping on a Wide ABS Panel',
+    };
+    const signedIn = { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] };
+    const cells = (row: HTMLElement) => within(row).getAllByRole('cell').map((cell) => cell.textContent);
+    const zone = process.env.TZ;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-19T20:00:00Z'));
+      // West of Greenwich, where a gateway day read as local time would show the day before.
+      process.env.TZ = 'America/Los_Angeles';
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      process.env.TZ = zone;
+    });
+
+    it('shows nothing of the account until it is signed in and has answered', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('account', { account: usageAccount, chatTitles });
+      expect(screen.queryByRole('group', { name: 'Usage' })).toBeNull();
+      host.deliver('account', { account: null, chatTitles: {} });
+      host.deliver('setup_keys', signedIn);
+      expect(screen.queryByRole('group', { name: 'Usage' })).toBeNull();
+    });
+
+    it('says what signing out keeps once signed in, and what needs no account before', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      expect(screen.getByText(/Local work never needs an account/)).toBeInTheDocument();
+      expect(screen.queryByText(/Signing out keeps/)).toBeNull();
+
+      host.deliver('setup_keys', signedIn);
+      expect(screen.queryByText(/Local work never needs an account/)).toBeNull();
+      expect(screen.getByText('Signing out keeps your projects, printers and API keys on this computer.')).toBeInTheDocument();
+    });
+
+    it('asks for the account again when the window gets the focus back, as after buying in the browser', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      expect(host.ofType('refresh_account')).toHaveLength(0);
+      window.dispatchEvent(new Event('focus'));
+      expect(host.ofType('refresh_account')).toHaveLength(1);
+    });
+
+    it('draws the plan, a bar per kind of credit, and the last 30 days by day and by chat', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', { account: usageAccount, chatTitles });
+
+      expect(screen.getByText('Pay as you go')).toBeInTheDocument();
+      expect(screen.getByText('Only messages you send cost credits.')).toBeInTheDocument();
+      expect(screen.getByText('562 credits left')).toBeInTheDocument();
+      expect(screen.getByText('62 of 500 left')).toBeInTheDocument();
+      expect(screen.getByText('Expires 1 Dec')).toBeInTheDocument();
+      expect(screen.getByText('Never expire')).toBeInTheDocument();
+
+      const usage = screen.getByRole('group', { name: 'Usage' });
+      expect(within(usage).getByText('438 credits')).toBeInTheDocument();
+      // A bar for each of the 30 days to today, the busiest one full height.
+      const bars = usage.querySelectorAll<HTMLElement>('.prefs-usage-bar');
+      expect(bars).toHaveLength(30);
+      expect(bars[29]).toHaveAttribute('title', '19 Nov: 40 credits');
+      expect(bars[22]).toHaveAttribute('title', '12 Nov: 230 credits');
+      expect(bars[22].style.height).toBe('100%');
+      expect(bars[0]).toHaveAttribute('title', '21 Oct: 0 credits');
+      expect(usage.querySelector('.prefs-usage-axis')?.textContent).toBe('21 Oct5 Nov19 Nov');
+
+      const rows = within(usage).getAllByRole('row').slice(1);
+      expect(rows).toHaveLength(5);
+      expect(cells(rows[0])).toEqual(['19 Nov', 'Resizing a Print to Fit the Bambu A1 mini', 'Expert', '8', '40']);
+      expect(cells(rows[1])).toEqual(['18 Nov', 'Stringing on a PETG Bracket', 'Standard', '18', '18']);
+      expect(cells(rows[2])).toEqual(['15 Nov', 'Print report · Vent Grille', '', '', '+25']);
+
+      // The rest on request; a chat this computer has no title for says so.
+      fireEvent.click(within(usage).getByRole('button', { name: 'See all activity' }));
+      const all = within(usage).getAllByRole('row').slice(1);
+      expect(all).toHaveLength(6);
+      expect(cells(all[5])).toEqual(['12 Nov', 'A chat not on this computer', 'Expert', '1', '5']);
+      expect(within(usage).queryByRole('button', { name: 'See all activity' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
+      expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_pricing' });
+    });
+
+    it('names a plan and when it renews, and says when nothing was spent', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', {
+        account: {
+          ...usageAccount,
+          credits: { total: 640, lots: [{ kind: 'subscription', credits: 640, granted: 1000, expires_at: '2026-12-01T12:00:00+00:00' }] },
+          plan: { id: 'jusprin-workshop-monthly', name: 'Workshop', renews_at: '2026-12-01T12:00:00+00:00', unlimited_basic: true },
+          usage_30d: { credits: 0, days: [], activity: [] },
+        },
+        chatTitles: {},
+      });
+      expect(screen.getByText('Workshop')).toBeInTheDocument();
+      expect(screen.getByText('Renews 1 Dec.')).toBeInTheDocument();
+      expect(screen.getByText('Workshop credits')).toBeInTheDocument();
+      const usage = screen.getByRole('group', { name: 'Usage' });
+      expect(within(usage).getByText('0 credits')).toBeInTheDocument();
+      expect(within(usage).getByText('No messages in the last 30 days.')).toBeInTheDocument();
+      expect(within(usage).queryByRole('table')).toBeNull();
+    });
   });
 
   it('draws the Agent section with setup’s rows and their messages', async () => {

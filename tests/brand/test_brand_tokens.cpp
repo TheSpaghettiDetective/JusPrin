@@ -492,13 +492,14 @@ TEST_CASE("the link, segmented control and tooltip geometry is explicit", "[bran
     CHECK(component.at("tooltip").at("textRole") == "metadata");
 }
 
-// The composer's credits ring and its panel (board 2a), and the model menu
-// wide enough for a tier's clause (board 2b).
+// The composer's credits ring and its panel (board 2a), Account's usage chart
+// (board 4b), and the model menu wide enough for a tier's clause (board 2b).
 TEST_CASE("the credits ring, panel and model menu geometry is explicit", "[brand]")
 {
     const auto component = load_tokens().at("component");
     require_exact_table<int>(component.at("credits"),
-        {{"ringSize", 16}, {"ringButton", 24}, {"panelWidth", 300}, {"panelPadding", 12}, {"barHeight", 4}}, "component.credits");
+        {{"ringSize", 16}, {"ringButton", 24}, {"panelWidth", 300}, {"panelPadding", 12}, {"barHeight", 4}, {"usageChartHeight", 88}},
+        "component.credits");
     require_exact_table<int>(component.at("modelMenu"), {{"width", 320}}, "component.modelMenu");
 }
 

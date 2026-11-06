@@ -444,7 +444,7 @@ bool ProviderAgent::post()
         // The gateway keeps each chat whole, named by this. A copied project
         // gets a new project id, so its chats get new names too.
         if (!m_transcript.chat_key.empty())
-            request.headers.push_back({"X-JusPrin-Chat", sha256_hex(m_transcript.chat_key).substr(0, 32)});
+            request.headers.push_back({"X-JusPrin-Chat", gateway_chat_id(m_transcript.chat_key)});
     }
     request.body = built.body.dump();
     if (m_config.request_listener)
@@ -715,5 +715,7 @@ void ProviderAgent::cancel()
     m_waiting_for_tool = false;
     m_terminal_seen = true;
 }
+
+std::string gateway_chat_id(const std::string& chat_key) { return sha256_hex(chat_key).substr(0, 32); }
 
 } // namespace Slic3r::GUI::JusPrin::Agent

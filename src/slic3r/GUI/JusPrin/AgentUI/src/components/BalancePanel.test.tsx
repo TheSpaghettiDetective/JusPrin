@@ -19,6 +19,7 @@ const board2a: CreditAccount = {
   },
   plan: null,
   v1_subscription: null,
+  usage_30d: { credits: 0, days: [], activity: [] },
 };
 
 function open(account: CreditAccount, onGetMore = vi.fn(), onSeeUsage = vi.fn()) {
@@ -74,6 +75,7 @@ describe('the balance panel', () => {
       credits: { total: 640, lots: [{ kind: 'subscription', credits: 640, granted: 1000, expires_at: '2026-12-01T12:00:00+00:00' }] },
       plan: { id: 'jusprin-workshop-monthly', name: 'Workshop', renews_at: '2026-12-01T12:00:00+00:00', unlimited_basic: true },
       v1_subscription: null,
+      usage_30d: { credits: 0, days: [], activity: [] },
     });
     expect(lotRows()).toEqual(['Workshop credits640 of 1,000 leftExpires 1 Dec. Unused credits don’t carry over.']);
   });

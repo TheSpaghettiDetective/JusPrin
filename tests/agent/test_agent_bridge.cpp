@@ -12,6 +12,7 @@
 #include "libslic3r/Exception.hpp"
 #include "../jusprin_support/DeterministicMockAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentSetup.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProviderAgent.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
@@ -2191,6 +2192,52 @@ TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][
     CHECK(source->asked.count("jusprin") == 1);
     const std::string chat = h.persistence.document().active_conversation_id();
     CHECK_FALSE(h.persistence.document().chat_model(chat).has_value());
+}
+
+// The gateway records a chat's credits under a hash of its key and never sees
+// its title. The host keeps every chat's title in one file, under the same
+// hash, and sends the titles of the chats in the account's usage with it.
+TEST_CASE("the account comes with the titles of the chats it charged", "[agent][account]")
+{
+    const std::filesystem::path file = std::filesystem::temp_directory_path() /
+                                       ("jusprin-chat-titles-" + std::to_string(std::random_device{}())) / "chat-titles.json";
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_titles_file(file.string());
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    const std::string chat = h.persistence.document().active_conversation_id();
+    h.send_user_message("Shrink everything 75%", "c-1");
+    h.pump_all();
+    h.deliver("rename_conversation", json{{"conversationId", chat}, {"title", "Resizing a print"}});
+    // A chat with no message has spent nothing and is not kept.
+    h.deliver("create_conversation", json{{"title", "Empty"}});
+    const std::string empty = h.persistence.document().active_conversation_id();
+
+    const std::string charged = gateway_chat_id(h.persistence.document().project_id() + "/" + chat);
+    std::ifstream in(file);
+    const json kept = json::parse(in);
+    CHECK(kept == json{{charged, "Resizing a print"}});
+    CHECK_FALSE(kept.contains(gateway_chat_id(h.persistence.document().project_id() + "/" + empty)));
+
+    const std::string elsewhere(32, 'f');
+    REQUIRE(source->account_done);
+    source->account_done(json{
+        {"credits", {{"total", 10}, {"lots", json::array()}}},
+        {"usage_30d",
+         {{"credits", 15},
+          {"days", json::array()},
+          {"activity", json::array({
+                           json{{"date", "2026-11-05"}, {"chat_id", charged}, {"tier", "expert"}, {"messages", 2}, {"credits", 10}},
+                           json{{"date", "2026-11-05"}, {"chat_id", elsewhere}, {"tier", "expert"}, {"messages", 1}, {"credits", 5}},
+                           json{{"date", "2026-11-04"}, {"chat_id", nullptr}, {"tier", "basic"}, {"messages", 1}, {"credits", 0}},
+                           json{{"date", "2026-11-03"}, {"kind", "report"}, {"title", "Print report · Vent"}, {"credits", 25}},
+                       })}}}});
+    const json* account = h.last_of_type("account");
+    REQUIRE(account != nullptr);
+    CHECK((*account)["payload"]["chatTitles"] == json{{charged, "Resizing a print"}});
+    CHECK((*account)["payload"]["account"]["usage_30d"]["credits"] == 15);
+    std::filesystem::remove_all(file.parent_path());
 }
 
 // The printer and filament chats have the pickers too: the model the person

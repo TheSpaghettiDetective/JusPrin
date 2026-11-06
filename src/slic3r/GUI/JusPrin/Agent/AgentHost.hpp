@@ -208,6 +208,11 @@ public:
     // composer's pickers, switchable between any two turns. The choice is
     // kept with the chat; each turn is started on an agent built for it.
     void set_chat_model_source(std::shared_ptr<IChatModelSource> source);
+    // The file that keeps this computer's chat titles by the name the gateway
+    // knows each chat by. The gateway never sees a title, so Account's usage
+    // table names a chat from here. Every window and project shares the one
+    // file; without it, no titles are kept.
+    void set_chat_titles_file(std::string path) { m_chat_titles_file = std::move(path); }
     // Asks the page a Confirmation question (Protocol::kConfirm); held until
     // the page is connected. A reload drops a question on screen; the person
     // asks again.
@@ -422,6 +427,8 @@ private:
     void send_model_catalog();
     void request_account();
     void send_account();
+    void remember_chat_titles();
+    nlohmann::json usage_chat_titles() const;
     bool person_started(const ConversationMessage& assistant) const;
     ChatModelChoice app_turn_model(const ChatModelChoice& chat) const;
     // What a chat that has no model of its own is on.
@@ -687,6 +694,9 @@ private:
     std::optional<ChatModelChoice>          m_agent_choice;
     std::map<std::string, ProviderModels>   m_models;
     std::optional<nlohmann::json>           m_account;
+    std::string                             m_chat_titles_file;
+    // What this host last wrote there, so an unchanged list costs no write.
+    std::map<std::string, std::string>      m_chat_titles_kept;
     FilePickerFn                    m_file_picker;
     std::string                     m_mcp_discovery_path;
     std::string                     m_mcp_edit_tool;

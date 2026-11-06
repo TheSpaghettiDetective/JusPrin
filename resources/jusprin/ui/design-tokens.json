@@ -395,7 +395,8 @@
       "ringButton": 24,
       "panelWidth": 300,
       "panelPadding": 12,
-      "barHeight": 4
+      "barHeight": 4,
+      "usageChartHeight": 88
     },
     "modelMenu": {
       "width": 320

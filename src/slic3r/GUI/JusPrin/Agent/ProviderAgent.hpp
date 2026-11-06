@@ -36,6 +36,11 @@ struct SentRequest
     const nlohmann::json& body;
 };
 
+// The name JusPrin's gateway keeps a chat's turns and credits under, sent as
+// X-JusPrin-Chat: the chat key hashed, so the gateway never sees a project or
+// chat id.
+std::string gateway_chat_id(const std::string& chat_key);
+
 struct ProviderAgentConfig
 {
     // The provider, with the configured model and endpoint in place of the

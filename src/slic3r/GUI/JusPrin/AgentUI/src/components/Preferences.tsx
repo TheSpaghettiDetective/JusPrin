@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import {
   AccountStatusPayload,
+  CreditAccount,
   DragAction,
   McpCatalogPayload,
   McpPreviewPayload,
@@ -21,6 +22,8 @@ import {
   SetupStatusPayload,
 } from '../bridge/protocol';
 import { AccountRow, ProviderKeys, ToolGroup } from './AgentConnection';
+import { balanceRows } from './BalancePanel';
+import { creditCount, creditNumber, TIER_NAMES } from '../credits';
 import { MarkdownMessage } from './MarkdownMessage';
 import { Progress } from './Progress';
 import { ActionMenu } from './ChatNavigation';
@@ -57,6 +60,7 @@ export interface PreferencesActions {
   revealTool: (toolId: string) => void;
   signIn: () => void;
   cancelSignIn: () => void;
+  getMoreCredits: () => void;
 }
 
 export interface PreferencesProps {
@@ -64,6 +68,10 @@ export interface PreferencesProps {
   setup: SetupStatusPayload;
   savedKeys: SavedKeyInfo[];
   account: AccountStatusPayload;
+  // The signed-in account's credits and usage; null with no account or
+  // before it answers.
+  creditAccount: CreditAccount | null;
+  chatTitles: Record<string, string>;
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
@@ -159,17 +167,138 @@ function Group({ title, tag, children }: { title: string; tag?: string; children
   );
 }
 
-function AccountSection({ savedKeys, account, actions, onAgent }: {
-  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; actions: PreferencesActions; onAgent: () => void;
+// A gateway day, YYYY-MM-DD, as "5 Nov". The day is the gateway's, so it is
+// read as UTC: a local reading would move it a day west of Greenwich.
+function dayLabel(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+const USAGE_DAYS = 30;
+// Rows shown before "See all activity".
+const ACTIVITY_ROWS = 5;
+
+// The 30 days the usage covers, oldest first, today last.
+function usageDays(now: Date): string[] {
+  return Array.from({ length: USAGE_DAYS }, (_, index) =>
+    new Date(now.getTime() - (USAGE_DAYS - 1 - index) * 86_400_000).toISOString().slice(0, 10));
+}
+
+// The account's plan, credits and usage (boards 4a to 4c on the canvas's
+// "Agent setup & Preferences" page): a bar for each kind of credit as the
+// composer's panel draws them, then usage per day with totals per chat.
+function AccountCredits({ account, chatTitles, onGetMore }: {
+  account: CreditAccount; chatTitles: Record<string, string>; onGetMore: () => void;
 }) {
+  const [allActivity, setAllActivity] = useState(false);
+  const usage = account.usage_30d;
+  const byDay = new Map(usage.days.map((day) => [day.date, day.credits]));
+  const days = usageDays(new Date());
+  const most = Math.max(0, ...days.map((day) => byDay.get(day) ?? 0));
+  const activity = allActivity ? usage.activity : usage.activity.slice(0, ACTIVITY_ROWS);
+  return (
+    <>
+      <div className="prefs-credits-plan">
+        <div className="prefs-row-copy">
+          <span className="prefs-credits-plan-name">{account.plan?.name ?? 'Pay as you go'}</span>
+          <span className="prefs-intro">
+            {account.plan
+              ? (account.plan.renews_at ? `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.` : '')
+              : 'Only messages you send cost credits.'}
+          </span>
+        </div>
+        <button type="button" className="primary" onClick={onGetMore}>Get more credits</button>
+      </div>
+      <div className="prefs-credits">
+        <div className="prefs-credits-card">
+          <strong className="prefs-credits-total">{creditCount(account.credits.total)} left</strong>
+          {balanceRows(account).map((row) => (
+            <div key={row.key} className="credit-lot prefs-credits-lot">
+              <div className="credit-lot-line">
+                <strong>{row.name}</strong>
+                <span>{creditNumber(row.left)} of {creditNumber(row.of)} left</span>
+              </div>
+              <div className="credit-lot-bar">
+                <div className="credit-lot-fill" style={{ width: `${row.of > 0 ? Math.min(row.left / row.of, 1) * 100 : 0}%` }} />
+              </div>
+              <span className="credit-lot-date">{row.date}</span>
+            </div>
+          ))}
+        </div>
+        <p className="prefs-note">Expiring credits are used first.</p>
+      </div>
+      <div className="prefs-usage" aria-label="Usage" role="group">
+        <h3 className="prefs-group-title">Usage</h3>
+        <div className="prefs-row-copy">
+          <span className="prefs-credits-plan-name">{creditCount(usage.credits)}</span>
+          <span className="prefs-note">in the last 30 days</span>
+        </div>
+        <div className="prefs-usage-chart">
+          <div className="prefs-usage-bars">
+            {days.map((day) => {
+              const credits = byDay.get(day) ?? 0;
+              return <div key={day} className="prefs-usage-bar" title={`${dayLabel(day)}: ${creditCount(credits)}`}
+                style={{ height: `${most > 0 ? (credits / most) * 100 : 0}%` }} />;
+            })}
+            {most > 0 && <span className="prefs-usage-most">{creditNumber(most)}</span>}
+          </div>
+          <div className="prefs-usage-axis">
+            <span>{dayLabel(days[0])}</span>
+            <span>{dayLabel(days[Math.floor(USAGE_DAYS / 2)])}</span>
+            <span>{dayLabel(days[USAGE_DAYS - 1])}</span>
+          </div>
+        </div>
+        {usage.activity.length > 0 ? (
+          <table className="prefs-usage-table">
+            <thead>
+              <tr><th>Date</th><th>Chat</th><th>Tier</th><th>Messages</th><th>Credits</th></tr>
+            </thead>
+            <tbody>
+              {activity.map((row, index) => 'kind' in row ? (
+                <tr key={index}>
+                  <td>{dayLabel(row.date)}</td><td>{row.title}</td><td /><td /><td>+{creditNumber(row.credits)}</td>
+                </tr>
+              ) : (
+                <tr key={index}>
+                  <td>{dayLabel(row.date)}</td>
+                  <td>{(row.chat_id !== null && chatTitles[row.chat_id]) || 'A chat not on this computer'}</td>
+                  <td>{TIER_NAMES[row.tier]}</td>
+                  <td>{creditNumber(row.messages)}</td>
+                  <td>{creditNumber(row.credits)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="prefs-note">No messages in the last 30 days.</p>
+        )}
+        {!allActivity && usage.activity.length > ACTIVITY_ROWS && (
+          <button type="button" className="link prefs-inline-link" onClick={() => setAllActivity(true)}>See all activity</button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function AccountSection({ savedKeys, account, creditAccount, chatTitles, actions, onAgent }: {
+  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; creditAccount: CreditAccount | null;
+  chatTitles: Record<string, string>; actions: PreferencesActions; onAgent: () => void;
+}) {
+  const signedIn = savedKeys.some((key) => key.provider === 'jusprin');
   return (
     <section className="prefs-section" aria-label="Account">
       <h2 className="prefs-title">Account</h2>
       <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
-      <p className="prefs-note">
-        Local work never needs an account. Your own API key or AI tool works without one; set those up in{' '}
-        <button type="button" className="link prefs-inline-link" onClick={onAgent}>Agent</button>.
-      </p>
+      {signedIn && creditAccount && (
+        <AccountCredits account={creditAccount} chatTitles={chatTitles} onGetMore={actions.getMoreCredits} />
+      )}
+      {signedIn ? (
+        <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
+      ) : (
+        <p className="prefs-note">
+          Local work never needs an account. Your own API key or AI tool works without one; set those up in{' '}
+          <button type="button" className="link prefs-inline-link" onClick={onAgent}>Agent</button>.
+        </p>
+      )}
     </section>
   );
 }
@@ -457,7 +586,9 @@ function rememberedSection(): PreferencesSection | null {
   }
 }
 
-export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog, mcpPreview, mcpStatus, actions, onToolDone }: PreferencesProps) {
+export function Preferences({
+  preferences, setup, savedKeys, account, creditAccount, chatTitles, mcpCatalog, mcpPreview, mcpStatus, actions, onToolDone,
+}: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
   const [section, setSection] = useState<PreferencesSection>(() => rememberedSection() ?? preferences.section);
   // The AI tool being connected, which takes the Agent section's place.
@@ -494,7 +625,8 @@ export function Preferences({ preferences, setup, savedKeys, account, mcpCatalog
         </div>
       </nav>
       <main className="prefs-content">
-        {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} actions={actions} onAgent={() => go('agent')} />}
+        {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} creditAccount={creditAccount}
+          chatTitles={chatTitles} actions={actions} onAgent={() => go('agent')} />}
         {section === 'agent' && (tool ? (
           <SetupLocalTool
             startTool={tool}

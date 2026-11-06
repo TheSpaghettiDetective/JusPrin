@@ -255,7 +255,15 @@ export interface CreditLot {
   expires_at: string | null;
 }
 
-// The part of the account's answer the message box reads.
+// One row of the account's usage table: a chat's messages on one day, or a
+// print report and what it earned. The gateway never sees a chat's title, so
+// a chat's row names it by its id; the app keeps the titles.
+export type CreditActivity =
+  | { date: string; chat_id: string | null; tier: 'basic' | 'expert'; messages: number; credits: number }
+  | { date: string; kind: 'report'; title: string; credits: number };
+
+// The part of the account's answer the message box and Account read. Dates
+// are the gateway's days, YYYY-MM-DD.
 export interface CreditAccount {
   credits: { total: number; lots: CreditLot[] };
   plan: {
@@ -265,6 +273,13 @@ export interface CreditAccount {
     unlimited_basic: boolean;
   } | null;
   v1_subscription: { plan_id: string; cents: number; period: 'month' | 'year' } | null;
+  usage_30d: {
+    credits: number;
+    // Only days with a charge.
+    days: { date: string; credits: number }[];
+    // Newest first.
+    activity: CreditActivity[];
+  };
 }
 
 export interface ProviderModelsInfo {

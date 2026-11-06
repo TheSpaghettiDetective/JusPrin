@@ -166,6 +166,8 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
     m_view = new AgentWebView(this, theme, workspace, *m_persistence, runtime.availability, {}, runtime.setup,
                               AgentPageMode::Preferences);
     m_view->SetName(_L("Preferences"));
+    // For Account's credits and usage, read fresh each time the window opens.
+    m_view->enable_chat_model_choice(wxGetApp().app_config);
     GetSizer()->Add(m_view, 1, wxEXPAND);
 
     Agent::AgentHost& host = m_view->host();
@@ -227,6 +229,11 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
             (done == "tool" || (done == "key" && wxGetApp().app_config->get("jusprin_agent", "enabled") == "true")))
             after.done = done;
         CallAfter([this, after] { close_for(after); });
+        return true;
+    }
+    if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_pricing") {
+        // Account's Get more credits, as the composer's opens it.
+        wxLaunchDefaultBrowser(wxString::FromUTF8(Agent::cloud_pricing_url(wxGetApp().app_config)));
         return true;
     }
     if (type != Agent::Protocol::kPreferencesAction)

@@ -33,6 +33,13 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
     applyAppearance(state.appearance);
   }, [state.appearance]);
 
+  // Coming back from the browser, where credits may have been bought.
+  useEffect(() => {
+    const refresh = () => client.send('refresh_account', {});
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [client]);
+
   // A window opened for one task closes itself once it is done.
   const closeWhenDone = Boolean(state.preferences?.closeWhenDone);
   const finish = (done: 'key' | 'tool') => client.send('shell_action', { action: 'close', done });
@@ -54,6 +61,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
       revealTool: (toolId) => client.send('reveal_path', { toolId }),
       signIn: () => client.send('account_sign_in', {}),
       cancelSignIn: () => client.send('account_cancel', {}),
+      getMoreCredits: () => client.send('shell_action', { action: 'open_pricing' }),
     }),
     [client],
   );
@@ -75,6 +83,8 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         setup={state.setup}
         savedKeys={state.savedKeys}
         account={state.account}
+        creditAccount={state.creditAccount}
+        chatTitles={state.chatTitles}
         mcpCatalog={state.mcpCatalog}
         mcpPreview={state.mcpPreview}
         mcpStatus={state.mcpStatus}

@@ -31,6 +31,7 @@ const balance = (...lots: ReturnType<typeof lot>[]): CreditAccount => ({
   credits: { total: lots.reduce((sum, one) => sum + one.credits, 0), lots },
   plan: null,
   v1_subscription: null,
+  usage_30d: { credits: 0, days: [], activity: [] },
 });
 const workshop = (...lots: ReturnType<typeof lot>[]): CreditAccount => ({
   ...balance(...lots),

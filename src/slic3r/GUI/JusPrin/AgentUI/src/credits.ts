@@ -27,7 +27,7 @@ export function messageCostSentence(model: ModelOptionInfo | undefined, account:
   return cost === undefined ? undefined : `Each message you send in this chat costs ${creditCount(cost)}.`;
 }
 
-const TIER_NAMES: Record<string, string> = { basic: 'Standard', expert: 'Expert' };
+export const TIER_NAMES: Record<string, string> = { basic: 'Standard', expert: 'Expert' };
 
 // Why the next message of this chat cannot be paid, or nothing when it can.
 export function sendBlock(account: CreditAccount | null | undefined, model: ModelOptionInfo | undefined): string | undefined {

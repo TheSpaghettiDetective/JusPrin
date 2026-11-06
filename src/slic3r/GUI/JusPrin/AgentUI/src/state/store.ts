@@ -55,6 +55,9 @@ export interface AgentUiState {
   chatModel?: ChatModelChoice;
   // The signed-in account's credits; null with no account or before it answers.
   creditAccount: CreditAccount | null;
+  // This computer's titles for the chats in the account's usage, by the id
+  // the gateway knows each by.
+  chatTitles: Record<string, string>;
   // Words the gateway refused, back for the message box. The count tells a new
   // return from one the box has already taken.
   returnedDraft: { text: string; count: number };
@@ -139,6 +142,7 @@ export const initialState: AgentUiState = {
   savedKeys: [],
   account: { phase: 'idle' },
   creditAccount: null,
+  chatTitles: {},
   returnedDraft: { text: '', count: 0 },
   mcpCatalog: null,
   mcpPreview: null,
@@ -274,7 +278,11 @@ function applyHostEnvelope(state: AgentUiState, envelope: Envelope): AgentUiStat
     case 'account_status':
       return { ...state, account: envelope.payload as AccountStatusPayload };
     case 'account':
-      return { ...state, creditAccount: (payload.account as CreditAccount | null) ?? null };
+      return {
+        ...state,
+        creditAccount: (payload.account as CreditAccount | null) ?? null,
+        chatTitles: payload.chatTitles as Record<string, string>,
+      };
     case 'model_catalog':
       return { ...state, modelCatalog: envelope.payload as ModelCatalogPayload };
     case 'chat_model': {

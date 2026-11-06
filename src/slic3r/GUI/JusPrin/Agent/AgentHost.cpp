@@ -1,5 +1,6 @@
 #include "AgentHost.hpp"
 #include "ToolRegistry.hpp"
+#include "ProviderAgent.hpp"
 #include "ProviderCodec.hpp"
 #include "ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/SettingsSupport.hpp"
@@ -36,6 +37,13 @@ json conversation_list_json(const ProjectStateDocument& document)
                               {"updatedAt", info.updated_at}, {"preview", info.preview}});
     return result;
 }
+// The key a chat's requests carry: unique across projects, and new for a
+// copied project's chats.
+std::string chat_key(const ProjectStateDocument& document, const std::string& conversation_id)
+{
+    return document.project_id() + "/" + conversation_id;
+}
+
 using Workspace::SelectionStatus;
 using Workspace::WorkspaceSnapshot;
 
@@ -905,6 +913,7 @@ void AgentHost::send_context()
 
 void AgentHost::send_conversations()
 {
+    remember_chat_titles();
     send_envelope(Protocol::kConversationsUpdated,
                   json{{"conversations", conversation_list_json(m_persistence.document())},
                        {"busy", m_stream.has_value() || !m_tool_continuations.empty()}}.dump());
@@ -2884,7 +2893,7 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     // a cached response for a different native operation.
     request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
                          std::to_string(assistant.attempt);
-    request.chat_key   = document.project_id() + "/" + conversation_id;
+    request.chat_key   = chat_key(document, conversation_id);
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();
@@ -3604,7 +3613,88 @@ void AgentHost::request_account()
 void AgentHost::send_account()
 {
     if (m_handshake)
-        send_envelope(Protocol::kAccount, json{{"account", m_account ? *m_account : json()}}.dump());
+        send_envelope(Protocol::kAccount,
+                      json{{"account", m_account ? *m_account : json()}, {"chatTitles", usage_chat_titles()}}.dump());
+}
+
+namespace {
+
+// {"<gateway chat id>": "<title>"}. The file is only a list of names: one
+// that will not read starts over, and the usage table names those chats
+// generically until each is used again.
+json read_chat_titles(const std::string& path)
+{
+    std::ifstream in(std::filesystem::u8path(path), std::ios::binary);
+    if (!in)
+        return json::object();
+    json titles = json::parse(in, nullptr, false);
+    if (titles.is_object())
+        return titles;
+    BOOST_LOG_TRIVIAL(warning) << "Chat titles file could not be read, starting it over: " << path;
+    return json::object();
+}
+
+} // namespace
+
+void AgentHost::remember_chat_titles()
+{
+    if (m_chat_titles_file.empty())
+        return;
+    const ProjectStateDocument& document = m_persistence.document();
+    std::map<std::string, std::string> changed;
+    for (const ConversationInfo& info : document.conversations()) {
+        // A chat with no message yet has spent nothing.
+        if (info.preview.empty())
+            continue;
+        const std::string id   = gateway_chat_id(chat_key(document, info.id));
+        const auto        kept = m_chat_titles_kept.find(id);
+        if (kept == m_chat_titles_kept.end() || kept->second != info.title)
+            changed.emplace(id, info.title);
+    }
+    if (changed.empty())
+        return;
+    // Read again before writing: another window may have added its chats.
+    json titles = read_chat_titles(m_chat_titles_file);
+    for (const auto& [id, title] : changed)
+        titles[id] = title;
+    const std::filesystem::path path = std::filesystem::u8path(m_chat_titles_file);
+    const std::filesystem::path temp = path.string() + ".tmp";
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    {
+        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+        out << titles.dump();
+        if (!out) {
+            BOOST_LOG_TRIVIAL(warning) << "Chat titles not written to " << temp.string();
+            return;
+        }
+    }
+    std::filesystem::rename(temp, path, ec);
+    if (ec) {
+        BOOST_LOG_TRIVIAL(warning) << "Chat titles not written to " << m_chat_titles_file << ": " << ec.message();
+        return;
+    }
+    for (auto& [id, title] : changed)
+        m_chat_titles_kept[id] = std::move(title);
+}
+
+json AgentHost::usage_chat_titles() const
+{
+    json found = json::object();
+    if (!m_account || m_chat_titles_file.empty())
+        return found;
+    const json titles = read_chat_titles(m_chat_titles_file);
+    // A report's row names itself and has no chat; a request of no chat has
+    // a null one.
+    for (const json& row : m_account->at("usage_30d").at("activity")) {
+        const auto chat = row.find("chat_id");
+        if (chat == row.end() || !chat->is_string())
+            continue;
+        const auto title = titles.find(chat->get<std::string>());
+        if (title != titles.end())
+            found[chat->get<std::string>()] = *title;
+    }
+    return found;
 }
 
 bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_person)
