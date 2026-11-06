@@ -1,0 +1,122 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer, with a v2 cloud server at jusprinv2.obico.io. Kenneth wants promotions on the app's Account page that the server controls, so he can change or end them without an app release.
+
+The frame runs no scripts because of a security check made during design. On macOS (tested) and Linux (from the wxWidgets source), wxWidgets puts the app's native bridge, `window.wx`, into every frame of a web view, not only the main page. When a message arrives, it doesn't tell the app which frame sent it. A test with a bare WKWebView, set up the way wxWidgets sets one up, showed that a sandboxed frame from another site that allows scripts can post to the native handler. With `sandbox="allow-same-origin"` and no `allow-scripts`, the frame's script didn't run, and the parent page could still read the frame's height. So the box must never get `allow-scripts`.
+
+Old app versions rely only on two things: the endpoint exists, and it returns HTML or nothing. The box's content can change freely.
+
+Task:
+Build the server-filled box near the top of Preferences › Account in JusPrin, plus the server request that fills it. Its first use is a launch-promotion banner.
+
+What it does (Kenneth agreed to this design on 2026-11-06):
+- When Account opens, the app sends a small request, `GET /v2/account_box`, to the JusPrin v2 server. It sends the sign-in token when there is one, and no token when signed out.
+- The server answers with a piece of HTML, or with nothing. Nothing means no box at all: no gap and no placeholder.
+- The app puts the HTML in an `<iframe sandbox="allow-same-origin" srcdoc=…>`. That frame runs no scripts, so nothing inside it can reach the app's native bridge, and links in it can't open. The box is words and pictures only.
+- The Account page measures the frame's content height itself and shows the box only after it has loaded and been sized. While it loads, nothing shows.
+- The box also stays hidden when the request fails, when the app is offline, and when the app runs on the person's own API key. A failed request must not break or delay the rest of Account.
+- The server decides what to send for each person:
+  - signed out: "Sign up today" plus the offer;
+  - signed in but never paid: the offer;
+  - subscribed, or has ever bought a credit pack: nothing.
+- The launch offer's wording: label "LAUNCH CELEBRATION", headline "Double credits on everything", body "Until 31 Jan, every credit pack and every month of every plan gives twice the credits." For a signed-out person the body starts with "Sign up today. ".
+- The look is a brand gradient (orbit → violet → bloom) with small sparkles. The server's HTML carries its own styles, because the app's CSS doesn't reach inside the frame.
+
+Where things are:
+- Design board: "Plan and billing · Preferences › Account" on the JusPrin v2 canvas, https://claude.ai/artifact/ENCtdaz7gjynfbcy4JYbWJ (Credits & plans page, from y=2900). Read it with the Artifact tool's read action.
+- Spec, untracked: `/Users/kenneth/Projects/JusPrin/money-pages-app-server-split-2026-11-06.md`. Item 5 of the contract, and the bridge finding under "Constraints found".
+- App: Preferences is a web page in an `AgentWebView` (`src/slic3r/GUI/JusPrin/Preferences/PreferencesWindow.cpp`). Find its Account section in the web UI sources, and find how the page reads the account answer today (`/v2/account`).
+- Server: the repo that holds `web_ent/jusprin/ledger/account.py`, which builds the existing `/v2/account` answer. Add the new endpoint beside it. Decide "has ever paid" from the ledger's records of subscriptions and purchased credits. The promotion end date belongs in one server-side setting, so the box disappears after 31 Jan without a deploy.
+
+Done looks like:
+- Server: the endpoint returns the right answer for each of the three cases, with tests.
+- App: on a local build pointed at a local server, the box shows for a signed-out person and for a never-paid person, and doesn't show for a paying person or when the server is down. Take screenshots of each.
+- A test proves a `<script>` inside the box never runs. Write that test so it fails if the sandbox attribute is loosened.
+- Follow the repo's `AGENTS.md`: design tokens only in app code, the shared-machine build rules (`-j4`, check `pgrep -fl ninja` first), and `agent-docs/jusprin/design-guidelines.md` for on-screen text.
+- Ask Kenneth before committing, and say how you propose to land it.
+
+Out of scope:
+- The in-app sheet for the server's full pricing and billing pages. That sheet also needs a web view without the native bridge, which is separate work.
+- Any links or buttons inside the box.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_e71c8b0a-6720-4250-85de-80d4899e6200
+
+---
+
+<task-notification>
+<task-id>bvczl2zp0</task-id>
+<tool-use-id>toolu_018tTrGHgge5UJu3G8hKhDW9</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2d2be9ab-3763-487b-83f1-d57e31022287/tasks/bvczl2zp0.output</output-file>
+<status>failed</status>
+<summary>Monitor "app build progress and errors" script failed (exit 1)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b091b797f</task-id>
+<summary>Monitor event: "app build progress and errors"</summary>
+<event>progress 214/957</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b091b797f</task-id>
+<summary>Monitor event: "app build progress and errors"</summary>
+<event>progress 426/957</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b091b797f</task-id>
+<summary>Monitor event: "app build progress and errors"</summary>
+<event>progress 600/957</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b091b797f</task-id>
+<summary>Monitor event: "app build progress and errors"</summary>
+<event>progress 805/957</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b1tokqkdh</task-id>
+<tool-use-id>toolu_01JbJZtoW7HEzLB98LmQEnqB</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2d2be9ab-3763-487b-83f1-d57e31022287/tasks/b1tokqkdh.output</output-file>
+<status>completed</status>
+<summary>Background command "Build app, native tests and harness with four jobs" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b091b797f</task-id>
+<tool-use-id>toolu_012mpTSAGpmqyM4XTyxSKNh4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2d2be9ab-3763-487b-83f1-d57e31022287/tasks/b091b797f.output</output-file>
+<status>completed</status>
+<summary>Monitor "app build progress and errors" stream ended</summary>
+<event>ninja exited
+ld: warning: ignoring duplicate libraries: '-lm', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libjpeg.a', '/Users/kenneth/Projects/OrcaSlicer/deps/build/arm64/OrcaSlicer_dep/usr/local/lib/libpng.a', 'deps_src/libnest2d/RelWithDebInfo/liblibnest2d.a', 'src/libslic3r/RelWithDebInfo/liblibslic3r.a'
+[954/957] Linking CXX executable tests/agent/RelWithDebInfo/agent_bridge_tests.app/Contents/MacOS/agent_bridge_tests</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhgq29di8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/2d2be9ab-3763-487b-83f1-d57e31022287/tasks/bhgq29di8.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch the app signed out" failed with exit code 144</summary>
+</task-notification>
