@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6S9TBPR2ZM87689QZZX1N5K",
   "strategy": "manual-commit",
   "branch": "claude/first-run-board-fixes",
-  "checkpoints_count": 6,
+  "checkpoints_count": 2,
   "files_touched": [
     "resources/jusprin/home/protocol.json",
     "resources/jusprin/welcome/README.md",
@@ -49,10 +49,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 500,
-    "cache_creation_tokens": 763905,
-    "cache_read_tokens": 52952525,
-    "output_tokens": 190542,
-    "api_call_count": 250
+    "input_tokens": 280,
+    "cache_creation_tokens": 563438,
+    "cache_read_tokens": 29067807,
+    "output_tokens": 120650,
+    "api_call_count": 140
   }
 }
