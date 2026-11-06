@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6PZH0N6D12JBVKA4E8AWP74",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 13,
+  "checkpoints_count": 12,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
     "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
@@ -50,11 +50,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 5074,
-    "cache_creation_tokens": 3450704,
-    "cache_read_tokens": 192011906,
-    "output_tokens": 523431,
-    "api_call_count": 919
+    "input_tokens": 4876,
+    "cache_creation_tokens": 3142870,
+    "cache_read_tokens": 171507963,
+    "output_tokens": 472423,
+    "api_call_count": 820
   },
   "combined_attribution": {
     "calculated_at": "2026-11-05T23:08:38.40518Z",
