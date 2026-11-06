@@ -163,15 +163,49 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')).toBeUndefined();
   });
 
-  it('sends a tapped Done as the person’s own message, and asks nothing', async () => {
+  const finished = state({ conversation: [
+    { id: 'm-1', role: 'user', state: 'complete', text: 'Not now', attempt: 1 },
+    { id: 'm-2', role: 'assistant', state: 'complete', text: 'It can still prepare prints.\nChoices: Done', attempt: 1 },
+  ] } as Partial<StatePayload>);
+
+  it('closes on a tapped Done, sending nothing to the model and asking nothing', async () => {
+    const host = open(finished);
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
+    expect(host.lastOfType('user_message')).toBeUndefined();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('goes back without asking while Done is offered', async () => {
+    const host = open(finished);
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('still asks on Done over words not yet sent', async () => {
+    const host = open(finished);
+    await userEvent.type(screen.getByLabelText('Message the Agent'), 'one more thing');
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByRole('dialog', { name: 'Close this conversation?' })).toBeInTheDocument();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+  });
+
+  it('asks again once the person answers past Done', async () => {
+    const host = open(finished);
+    host.deliver('message_added', { message: { id: 'm-3', role: 'user', state: 'complete', text: 'wait, change the nozzle', attempt: 1 } });
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('dialog', { name: 'Close this conversation?' })).toBeInTheDocument();
+    expect(host.lastOfType('printer_action')).toBeUndefined();
+  });
+
+  it('sends Done as a message when it is one of several choices', async () => {
     const host = open(state({ conversation: [
-      { id: 'm-1', role: 'user', state: 'complete', text: 'Not now', attempt: 1 },
-      { id: 'm-2', role: 'assistant', state: 'complete', text: 'It can still prepare prints.\nChoices: Done', attempt: 1 },
+      { id: 'm-1', role: 'assistant', state: 'complete', text: 'Anything else?\nChoices: Done | Change the nozzle', attempt: 1 },
     ] } as Partial<StatePayload>));
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Done' });
     expect(host.lastOfType('printer_action')).toBeUndefined();
-    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('keeps OrcaSlicer’s own screens visible, printer settings only once there is a printer', async () => {

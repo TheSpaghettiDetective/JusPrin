@@ -70,7 +70,7 @@ whose own case improves while no other case drops.
 
 Every reply in every case is also held to the rules the prompt sets for all
 replies: a `Choices:` line the page draws as intended (on the last line, two
-to four choices under 30 characters; read as
+to four choices under 30 characters, or Done alone; read as
 `replyChoices.ts` reads it), and no leak of the tools themselves: a tool's
 exact name from `printer_tools.json`, a camelCase field from their arguments
 (`catalogId`, `deviceId`), or a JSON object pasted from a result. Exact names,
@@ -163,10 +163,11 @@ app is configured with (see "Which model").
   `change-nozzle-close`: the four places the prompt says nothing is left to
   decide -- the person turns down connecting, the app's note says the
   connection is verified, they leave a failed connection for now, a nozzle
-  change is saved. Each passes when that reply says the person can close the
-  chat and offers no reply choices. The connect cases return the attempt's
-  outcome as `printer_bambu_connect`'s result, as the app does once the person
-  submits the form: the call stays open through the form and the attempt.
+  change is saved. Each passes when that reply offers Done as its one choice,
+  read as the page reads it; the page closes the chat when it is tapped. The
+  connect cases return the attempt's outcome as `printer_bambu_connect`'s
+  result, as the app does once the person submits the form: the call stays
+  open through the form and the attempt.
 The cases above follow the main paths. The ones below are the rest of what
 people say in each session -- questions the tools cannot answer, facts that
 need nothing saved, requests that belong to another session -- and each checks

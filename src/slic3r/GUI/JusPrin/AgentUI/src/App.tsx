@@ -10,7 +10,7 @@ import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
 import { AddPrinterForm } from './components/AddPrinterForm';
-import { printerInstructions } from './printerInstructions';
+import { DONE_CHOICE, printerInstructions } from './printerInstructions';
 import { filamentInstructions } from './filamentInstructions';
 import { skills } from './skills';
 import { projectInstructions } from './projectInstructions';
@@ -545,11 +545,18 @@ export function App({
     const session = state.session;
     const printerAction = (action: string) => client.send('printer_action', { action });
     // No tool closes the panel for the model: the person decides when they
-    // are done, with Back or by opening the printer's own settings.
+    // are done, with Back, Done or by opening the printer's own settings.
+    // The model offers Done alone once nothing is left to decide (FINISHING
+    // in printerInstructions.ts); while it is offered there is no
+    // conversation left to lose, so neither Done nor Back asks, unless words
+    // or a photo wait to be sent. Done beside other choices, such as "Done |
+    // I need help" while connecting, answers a step and is sent as a reply.
+    const choices = openChoices(state.messages);
+    const doneOffered = choices.length === 1 && choices[0] === DONE_CHOICE;
     const back = () => {
-      const begun = started ||
-        state.attachments.some((attachment) => attachment.state === 'staged') || printerDraft.current.trim() !== '';
-      if (begun) setConfirmPrinterClose(true);
+      const unsent = state.attachments.some((attachment) => attachment.state === 'staged') ||
+        printerDraft.current.trim() !== '';
+      if (unsent || (started && !doneOffered)) setConfirmPrinterClose(true);
       else printerAction('close');
     };
     return (
@@ -602,7 +609,7 @@ export function App({
           creditActions={creditActions}
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
-              onSend={sendMessage}
+              onSend={(text) => (doneOffered && text === DONE_CHOICE ? back() : sendMessage(text))}
               replyDisabled={unavailable || streaming}
               toolActivities={state.toolActivities.filter((activity) => activity.tool === 'settings_apply_patch' ||
                 // These stay open while the app tests, listens or waits for

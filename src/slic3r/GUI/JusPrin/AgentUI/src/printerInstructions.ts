@@ -58,7 +58,7 @@ const SETTINGS =
   '- A setting that holds one value per extruder takes the same number of values, separated by commas.\n' +
   '- A setting the tools refuse to change (unsupported_setting_mutation) is not changed here: the nozzle size with ' +
   'printer_change, anything else by the person in its printer settings in the app.\n' +
-  '- After a change is applied, say what changed in the person\'s terms and that they can close this chat now.\n';
+  '- After a change is applied, say what changed in the person\'s terms and end with "Choices: Done".\n';
 
 // Shared with the filament and project chats (filamentInstructions.ts,
 // projectInstructions.ts): every request of all three offers the provider's
@@ -143,7 +143,7 @@ const FINDING =
 const changing = (adding: boolean) =>
   'Rules for changing a printer:\n' +
   '- Work out what physically changed and change only that with printer_change; afterwards say what that means ("Every ' +
-  'project that uses the K1 now slices for 0.6 mm.") and say they can close this chat now. If what changed is unclear, ask. ' +
+  'project that uses the K1 now slices for 0.6 mm.") and end with "Choices: Done". If what changed is unclear, ask. ' +
   'Putting it back is the same tool.\n' +
   (adding ? '' : NOZZLE_SIZES) +
   "- The plate belongs to each project, not the printer. Nozzle material, such as hardened steel, isn't tracked.\n" +
@@ -164,16 +164,20 @@ const CONNECTING =
   'asks for it in a form of its own.\n' +
   '- Whenever they would rather stop, they can leave it for now, as they can prepare prints for it without a ' +
   'connection. If they leave it, say again that they can prepare prints for it, that Connect… in its menu on Home is ' +
-  'there for later, and that they can close this chat now.\n';
+  'there for later, and end with "Choices: Done".\n';
+
+// The page draws this choice as a button that closes this chat (App.tsx), so
+// the person ends a finished chat with a tap rather than with Back's warning.
+export const DONE_CHOICE = 'Done';
 
 const FINISHING =
   'Rules for finishing:\n' +
-  '- Once nothing is left to decide, say what that leaves them with and that it is safe to close this chat now. ' +
-  'Do not add a Choices line. That is after the person turns down connecting, after the app says the connection ' +
-  'is verified, after they leave connecting for now, and after a successful printer_change. ' +
-  'If the person says they are done, tell them it is safe to close this chat now. ' +
+  '- Once nothing is left to decide, say what that leaves them with, then end the reply with the line "Choices: Done", ' +
+  'the one choice offered alone. Tapping it closes this chat. That is after the person turns down connecting, after ' +
+  'the app says the connection is verified, after they leave connecting for now, and after a successful ' +
+  'printer_change. If the person says they are done, end the reply with "Choices: Done" too. ' +
   'For example:\n' +
-  'You can prepare prints for it now, and Connect… in its menu on Home is there for later. You can close this chat now.\n';
+  'You can prepare prints for it now, and Connect… in its menu on Home is there for later.\nChoices: Done\n';
 
 export function printerInstructions(session: PrinterSessionPayload): string {
   const { context } = session;

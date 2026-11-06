@@ -238,7 +238,8 @@ def reply_problems(reply, tool_result_keys=frozenset()):
         problems.append("CHOICES NOT ON THE LAST LINE")
     if found is not None:
         choices = [choice.strip() for choice in found.group(2).split("|") if choice.strip()]
-        if not 2 <= len(choices) <= 4:
+        # Done alone ends a finished chat; the page closes the chat on it.
+        if not 2 <= len(choices) <= 4 and choices != ["Done"]:
             problems.append(f"{len(choices)} CHOICES")
         if any(len(choice) >= 30 for choice in choices):
             problems.append("LONG CHOICE")
@@ -718,26 +719,17 @@ def offers_done(reply):
     return [choice.strip() for choice in found.group(2).split("|") if choice.strip()] == ["Done"] and said.strip() != ""
 
 
-def says_can_close(reply):
-    return re.search(r"\b(?:can|may|safe to|okay to|ok to|feel free to)\s+close\s+(?:this\s+|the\s+|your\s+)?"
-                     r"(?:chat|conversation)\b", reply, re.IGNORECASE) is not None
-
-
 class Finishing:
-    """When nothing is left to decide, tell the person they can close the chat."""
+    """When nothing is left to decide, offer Done alone, which closes the chat."""
 
     def end(self, reply, detail):
-        close = says_can_close(reply)
-        choices = "Choices:" in reply
-        detail += "; says to close" if close else "; NO CLOSE INSTRUCTION: " + repr(reply[-120:])
-        if choices:
-            detail += "; CHOICES OFFERED"
-        return close and not choices, detail
+        done = offers_done(reply)
+        return done, detail + ("; offers Done" if done else "; NO DONE: " + repr(reply[-120:]))
 
 
 class AddNotNowClose(Finishing, AddCase):
     """The person adds a printer and turns down connecting it. Passes when the
-    reply to "Not now" says they can close the chat."""
+    reply to "Not now" offers Done."""
 
     name = "add-not-now-close"
 
@@ -879,7 +871,7 @@ class ConnectScreenSaysDisconnected(ConnectOutcome):
 
 
 class ConnectVerifiedClose(ConnectOutcome):
-    """Passes when the reply to a verified connection says they can close the chat."""
+    """Passes when the reply to a verified connection offers Done."""
 
     name = "connect-verified-close"
 
@@ -892,7 +884,7 @@ class ConnectVerifiedClose(ConnectOutcome):
 
 class ConnectLeaveClose(ConnectOutcome):
     """The connection fails and the person leaves it for now. Passes when the
-    reply to that says they can close the chat."""
+    reply to that offers Done."""
 
     name = "connect-leave-close"
     outcome = {"state": "failed",
@@ -908,7 +900,7 @@ class ConnectLeaveClose(ConnectOutcome):
 
 class ChangeNozzleClose(Finishing):
     """The person says the nozzle changed. Passes when it is changed to that
-    size alone, and the reply says they can close the chat."""
+    size alone, and the reply offers Done."""
 
     name = "change-nozzle-close"
     printer = {"name": "Bambu Lab A1 mini", "model": "Bambu Lab A1 mini", "nozzle": 0.4, "nozzles": [0.2, 0.4, 0.6, 0.8],

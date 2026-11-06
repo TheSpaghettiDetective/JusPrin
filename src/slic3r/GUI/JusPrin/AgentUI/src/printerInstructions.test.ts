@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PrinterSessionPayload } from './bridge/protocol';
-import { LOOK_IT_UP, printerInstructions } from './printerInstructions';
+import { DONE_CHOICE, LOOK_IT_UP, printerInstructions } from './printerInstructions';
 import { splitChoices } from './replyChoices';
 
 function session(overrides: Partial<PrinterSessionPayload>): PrinterSessionPayload {
@@ -117,11 +117,12 @@ describe('the instructions', () => {
       'call the tool without asking again',
       'use read-only tools to identify or show candidates as needed',
       'ask and wait for the person\'s answer before adding, changing or connecting one',
-      'Do not add a Choices line',
-      'it is safe to close this chat now',
+      'end the reply with the line "Choices: Done", the one choice offered alone',
+      'Tapping it closes this chat',
       'after the person turns down connecting, after the app says the connection is verified, after they leave connecting for now, and after a successful printer_change',
-      'they can close this chat now',
-      'now slices for 0.6 mm.") and say they can close this chat now',
+      'is there for later, and end with "Choices: Done"',
+      'now slices for 0.6 mm.") and end with "Choices: Done"',
+      'If the person says they are done, end the reply with "Choices: Done" too',
       'the app asks for it in a form of its own',
     ])
       expect(text.toLowerCase()).toContain(rule.toLowerCase());
@@ -143,7 +144,7 @@ describe('the instructions', () => {
   it('offer no dialog or finish tool in any printer conversation', () => {
     for (const mode of ['add', 'change', 'connect'] as const) {
       const text = printerInstructions(session({ ...change, mode }));
-      for (const removed of ['printer_manual_setup', 'printer_manual_connection', 'printer_setup_finish', 'Choices: Done'])
+      for (const removed of ['printer_manual_setup', 'printer_manual_connection', 'printer_setup_finish', 'close this chat now'])
         expect(text).not.toContain(removed);
     }
   });
@@ -236,6 +237,8 @@ describe('the instructions', () => {
     expect(examples.map((line) => splitChoices(`Question?\n${line}`).choices)).toEqual([
       ['Yes, that is it', 'Different printer'],
       ['Prusa MK4', 'Prusa MK4S', 'Prusa MK4S HF'],
+      // The one the page closes the chat on, not sent to the model.
+      [DONE_CHOICE],
     ]);
   });
 });
