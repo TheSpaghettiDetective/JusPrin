@@ -1,0 +1,21 @@
+Can you see the The Artifact First Launch Confusion Review ?
+
+---
+
+Pay attention to how the initial wording was very dense and hard to understand.  If you know what I'm talking about, list a few examples and tell me how the revised version helped the users understand better.
+
+---
+
+I found that the design agents has a very strong tendency to spell out cryptic messages on the user interface. What would be a good way to counter that?
+
+---
+
+So you're saying that we need to recruit editor to proofread all the designs?
+
+---
+
+Okay, sounds good. Create a fresh agent as a code reader.
+
+---
+
+Yes, add it
