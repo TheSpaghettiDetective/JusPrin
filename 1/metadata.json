@@ -1,0 +1,145 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6RFTXNV9CC1KCHGFMF0SFS5",
+  "session_id": "c868826d-3950-4f0f-9ecd-4a549cdd6983",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-06T13:12:51.376757Z",
+  "branch": "claude/first-run-fixes",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "d3b31fd35b58",
+  "checkpoint_transcript_start": 20672,
+  "transcript_lines_at_start": 20672,
+  "compact_transcript_start": 2385,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 177458,
+    "cache_read_tokens": 2149708,
+    "output_tokens": 7424,
+    "api_call_count": 11
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01GE5fTYCKjCK88emJ4ibJW4",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-account-ops"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e15d6e340988",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1289,
+        "end": 1290,
+        "entry_ids": [
+          "572bdcb2-40b9-400f-a643-abc7d2c317c6"
+        ],
+        "tool_use_id": "toolu_01GE5fTYCKjCK88emJ4ibJW4"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01GE5fTYCKjCK88emJ4ibJW4"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-account-ops",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_019h1tpv62iM3E7mrgBWcgw4",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e15d6e340988",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1689,
+        "end": 1690,
+        "entry_ids": [
+          "e8ebcbbd-a4c0-48f1-ba8e-c288d79fff8e"
+        ],
+        "tool_use_id": "toolu_019h1tpv62iM3E7mrgBWcgw4"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019h1tpv62iM3E7mrgBWcgw4"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01FBeqZEykAVRATMRcxWM1iJ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e15d6e340988",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 5890,
+        "end": 5891,
+        "entry_ids": [
+          "1ec9da3a-4ee5-4c6e-9e0c-87c57acfc4b5"
+        ],
+        "tool_use_id": "toolu_01FBeqZEykAVRATMRcxWM1iJ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01FBeqZEykAVRATMRcxWM1iJ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 23
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-06T13:12:48.176956Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 6,
+    "total_committed": 0,
+    "total_lines_changed": 6,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
