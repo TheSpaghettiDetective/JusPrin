@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6RHYMDTJVHTM6BS8JKZG096",
+  "strategy": "manual-commit",
+  "branch": "claude/first-run-squashed",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "resources/jusprin/home/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AgentConnection.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/BalancePanel.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/WelcomeBack.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/main.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/AgentGroup.tsx",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellTheme.hpp",
+    "src/slic3r/GUI/MainFrame.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1228,
+    "cache_creation_tokens": 4093243,
+    "cache_read_tokens": 142990967,
+    "output_tokens": 593773,
+    "api_call_count": 615
+  }
+}
