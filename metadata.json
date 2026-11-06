@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6SA5ES6RT3PFDBEXD99E5CT",
+  "strategy": "manual-commit",
+  "branch": "claude/first-run-board-fixes",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "resources/jusprin/welcome/README.md",
+    "resources/jusprin/welcome/welcome-clip.mp4"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 50886,
+    "cache_read_tokens": 10712631,
+    "output_tokens": 13475,
+    "api_call_count": 33
+  }
+}
