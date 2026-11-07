@@ -2,7 +2,6 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6V5E7E7A9M52QZFQCRHDDC9",
   "strategy": "manual-commit",
-  "branch": "claude/wording-sweep-proposals",
   "checkpoints_count": 5,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
@@ -84,18 +83,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 60,
-    "cache_creation_tokens": 45809,
-    "cache_read_tokens": 7410752,
-    "output_tokens": 15089,
-    "api_call_count": 30,
-    "subagent_tokens": {
-      "input_tokens": 38,
-      "cache_creation_tokens": 206649,
-      "cache_read_tokens": 1297065,
-      "output_tokens": 35043,
-      "api_call_count": 16
-    }
+    "input_tokens": 24,
+    "cache_creation_tokens": 16625,
+    "cache_read_tokens": 3530885,
+    "output_tokens": 7080,
+    "api_call_count": 12
   },
   "combined_attribution": {
     "calculated_at": "2026-11-07T14:08:49.688342Z",
