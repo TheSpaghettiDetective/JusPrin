@@ -61,6 +61,8 @@ public:
     void request_slice(bool all = false);
     void request_prepare();
     void request_action(PrintAction action);
+    // Whether request_action would run it now.
+    bool action_enabled(PrintAction action) const;
     PrintActionState action_state() const;
     void request_home();
     // Closes the Agent panel if it is open and opens it if it is closed.

@@ -529,11 +529,16 @@ void StatusRow::show_overflow_menu()
     (new HeaderMenu(this,m_theme,m_dark,std::move(menu)))->open(*m_overflow_button);
 }
 
-void StatusRow::request_action(PrintAction action)
+bool StatusRow::action_enabled(PrintAction action) const
 {
     const auto actions = primary_print_action(action_state());
     const auto eligible = [action](const PrintActionItem& item) { return item.action == action && item.enabled; };
-    if (!eligible(actions.primary) && std::none_of(actions.menu.begin(), actions.menu.end(), eligible)) return;
+    return eligible(actions.primary) || std::any_of(actions.menu.begin(), actions.menu.end(), eligible);
+}
+
+void StatusRow::request_action(PrintAction action)
+{
+    if (!action_enabled(action)) return;
     switch (action) {
     case PrintAction::Slice: request_slice(); return;
     case PrintAction::SliceAll: request_slice(true); return;

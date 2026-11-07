@@ -1,6 +1,7 @@
 #include "ShellController.hpp"
 
 #include "AgentPane.hpp"
+#include "AppMenus.hpp"
 #include "ClassicView.hpp"
 #include "GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
@@ -771,22 +772,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_left_pane->set_add_model([this] { m_plater->add_model(); });
         m_status_row->set_left_pane_toggle([this] { toggle_left_pane(); });
         m_status_row->set_left_pane_collapsed(m_left_pane_collapsed);
-        // The overflow menu's project rows are the Project tab's. Its two
-        // views open in the pane, which shows only on Prepare; the export is
-        // the tab's own and needs no pane on screen.
-        m_status_row->set_project_rows([this](ProjectMenuRow row) {
-            if (row == ProjectMenuRow::Export) {
-                m_left_pane->export_project();
-                return;
-            }
-            m_frame->select_tab(size_t(MainFrame::tp3DEditor));
-            if (is_left_pane_collapsed())
-                toggle_left_pane();
-            if (row == ProjectMenuRow::VersionHistory)
-                m_left_pane->open_project_view(ProjectView::Versions);
-            else
-                m_left_pane->show_project();
-        });
+        // The overflow menu's project rows are the Project tab's.
+        m_status_row->set_project_rows([this](ProjectMenuRow row) { open_project_row(row); });
         m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
             [this] {
                 // OrcaSlicer's project-information editor lives on its Project page.
@@ -947,6 +934,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         tabpanel.Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
         show_orca_calibration_menu(false);
+        // After the Calibration menu is off the bar, so Print and Printer
+        // take its place after View; uninstall takes them off first.
+        m_app_menus = std::make_unique<AppMenus>(frame, *this);
+        m_app_menus->install();
         m_installed = true;
         on_page_changed();
         apply_current_appearance();
@@ -990,6 +981,10 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         m_installed = false;
         wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
         m_prepare_canvas_presentation.abandon();
+        // The menus are still there: wx deletes the menu bar, and the title
+        // bar with its menus, after this event. Put back, OrcaSlicer's items
+        // go with them.
+        m_app_menus.reset();
         // This controller lives in a static slot and outlives every window,
         // so whatever it owns that unbinds from the Plater has to go now,
         // while the frame's children still exist: wx sends this event from
@@ -1541,6 +1536,23 @@ void ShellController::show_orca_calibration_menu(bool show)
 #endif
 }
 
+void ShellController::open_project_row(ProjectMenuRow row)
+{
+    // The export is the Project tab's own and needs no pane on screen; the
+    // two views open in the pane, which shows only on Prepare.
+    if (row == ProjectMenuRow::Export) {
+        m_left_pane->export_project();
+        return;
+    }
+    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    if (is_left_pane_collapsed())
+        toggle_left_pane();
+    if (row == ProjectMenuRow::VersionHistory)
+        m_left_pane->open_project_view(ProjectView::Versions);
+    else
+        m_left_pane->show_project();
+}
+
 void ShellController::uninstall()
 {
     m_runtime_timer.Stop();
@@ -1561,6 +1573,7 @@ void ShellController::uninstall()
     m_plater->set_sidebar_available(true);
     m_plater->set_auto_preview_after_slice(m_saved_auto_preview_after_slice);
     wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
+    m_app_menus.reset();
     show_orca_calibration_menu(true);
     // A printer connection may have installed a provider the slicing profile
     // does not select; hand the choice back to Orca's profile-driven policy.

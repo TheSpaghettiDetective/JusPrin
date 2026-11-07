@@ -384,6 +384,7 @@
 #include "figma_timeline_fixture.hpp"
 #include "dialog_witness.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AppMenus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ClassicView.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/JusPrin/Shell/LeftPane.hpp"
@@ -3251,12 +3252,29 @@ private:
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
         ClassicViewReturn* classic = installed_classic_view();
         wxMenu* view_menu = classic->view_menu();
-        const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
+        // OrcaSlicer's menus as it built them, with classic view's row.
+        const std::vector<std::string> stock_menus = menu_signature();
         press_button(*classic->back_button());
         wait_until([] { return installed_shell() != nullptr; }, "stock_banner_opens_jusprin",
-            [self = shared_from_this(), view_menu, view_menu_items] {
-                self->verify_shell_back("stock_return", view_menu, view_menu_items);
-                self->finish();
+            [self = shared_from_this(), view_menu, stock_menus] {
+                self->verify_shell_back("stock_return", view_menu);
+                self->check(self->menu_signature() != stock_menus && installed_shell()->app_menus() != nullptr,
+                            "stock_return_installs_the_app_menus");
+                detach_shell();
+                self->wait_until([] { return installed_classic_view() != nullptr; }, "stock_switches_back_to_classic",
+                    [self, stock_menus] {
+                        const std::vector<std::string> after = self->menu_signature();
+                        self->check(after == stock_menus, "classic_view_gets_orca_menus_back_exactly");
+                        if (after != stock_menus)
+                            for (std::size_t i = 0; i < std::max(after.size(), stock_menus.size()); ++i)
+                                if (i >= after.size() || i >= stock_menus.size() || after[i] != stock_menus[i]) {
+                                    std::cerr << "HARNESS MENU DIFF at " << i << ": stock \""
+                                              << (i < stock_menus.size() ? stock_menus[i] : "") << "\" now \""
+                                              << (i < after.size() ? after[i] : "") << "\"\n";
+                                    break;
+                                }
+                        self->finish();
+                    });
             });
     }
 
@@ -7379,7 +7397,9 @@ private:
     void read_page_piece(wxWebView* view, const std::string& tag, const std::string& name, size_t index, const std::string& so_far,
                          std::function<void(const nlohmann::json&)> then)
     {
-        constexpr size_t kPiece = 800;
+        // static: MSVC will not use a local constexpr in a lambda that does
+        // not capture it.
+        static constexpr size_t kPiece = 800;
         const std::string piece_tag = tag + "-" + std::to_string(index) + ":";
         WebView::RunScript(view, wxString::FromUTF8("document.title = '" + piece_tag + "' + window.__harnessRead.slice(" +
                                                     std::to_string(index * kPiece) + ", " + std::to_string((index + 1) * kPiece) + ")"));
@@ -8256,6 +8276,143 @@ private:
         check(second_install_failed, "second_install_rejected");
         check(installed_shell()->is_installed() && installed_shell()->status_row()->GetContainingSizer() != nullptr,
               "shell_survives_rejected_install");
+        verify_app_menus_on_home();
+    }
+
+    // A menu's items as a person reads them, a separator as "---".
+    static std::vector<wxString> menu_labels(wxMenu* menu)
+    {
+        std::vector<wxString> labels;
+        for (wxMenuItem* item : menu->GetMenuItems())
+            labels.push_back(item->IsSeparator() ? wxString("---") : item->GetItemLabelText());
+        return labels;
+    }
+
+    static wxMenuItem* labelled(wxMenu* menu, const wxString& label)
+    {
+        for (wxMenuItem* item : menu->GetMenuItems())
+            if (!item->IsSeparator() && item->GetItemLabelText() == label)
+                return item;
+        return nullptr;
+    }
+
+    // Every menu of the window, item by item with its full label, kind and
+    // submenu, in order: what a person can see in them.
+    std::vector<std::string> menu_signature() const
+    {
+        std::vector<std::string> lines;
+        std::function<void(wxMenu*, const std::string&)> walk = [&](wxMenu* menu, const std::string& indent) {
+            for (wxMenuItem* item : menu->GetMenuItems()) {
+                lines.push_back(indent + (item->IsSeparator() ? std::string("---") : std::string(item->GetItemLabel().ToUTF8())) +
+                                " #" + std::to_string(int(item->GetKind())));
+                if (item->GetSubMenu() != nullptr)
+                    walk(item->GetSubMenu(), indent + "  ");
+            }
+        };
+#ifdef __APPLE__
+        wxMenuBar* bar = m_frame->GetMenuBar();
+        for (size_t at = 0; at < bar->GetMenuCount(); ++at) {
+            lines.push_back(std::string(bar->GetMenuLabelText(at).ToUTF8()));
+            walk(bar->GetMenu(at), "  ");
+        }
+#else
+        lines.push_back("File");
+        walk(m_frame->topbar()->GetFileMenu(), "  ");
+        lines.push_back("Title bar menu");
+        walk(m_frame->topbar()->GetTopMenu(), "  ");
+#endif
+        return lines;
+    }
+
+    // The app's menus on Home: JusPrin's commands in OrcaSlicer's menus, a
+    // Print and a Printer menu after View, and what cannot run on Home
+    // greyed out rather than hidden.
+    void verify_app_menus_on_home()
+    {
+        AppMenus* menus = installed_shell()->app_menus();
+        check(menus != nullptr, "app_menus_installed");
+        if (menus == nullptr)
+            return;
+#ifdef _WIN32
+        const wxString quit = _L("Exit");
+#else
+        const wxString quit = _L("Quit");
+#endif
+        std::vector<wxString> file{_L("New project"), _L("Open…"), _L("Open recent"), "---", _L("Save"),
+                                   _L("Version history…"), "---", _L("Import"), _L("Export"), "---", quit};
+#ifdef __APPLE__
+        file.push_back(_L("Preset Bundle"));
+#endif
+        check(menu_labels(menus->file_menu()) == file, "app_menus_file_menu");
+        const std::vector<wxString> exports = menu_labels(labelled(menus->file_menu(), _L("Export"))->GetSubMenu());
+        check(exports.size() > 2 && exports[0] == _L("Project 3MF…") && exports[1] == "---", "app_menus_export_starts_with_project_3mf");
+        check(menu_labels(menus->print_menu()) ==
+                  std::vector<wxString>{_L("Slice plate"), _L("Slice all plates"), "---", _L("Check print…"), _L("Print…"),
+                                        _L("Print all plates…"), _L("Export sliced file…")},
+              "app_menus_print_menu");
+        check(menu_labels(menus->printer_menu()) ==
+                  std::vector<wxString>{_L("Add a printer…"), "---", _L("Printer settings…"), _L("Ask AI about printer settings…"),
+                                        _L("Filament settings…"), _L("Ask AI about filament settings…"), "---", _L("Calibrate…")},
+              "app_menus_printer_menu");
+        const std::vector<wxString> help = menu_labels(menus->help_menu());
+        check(help.size() > 3 && help[0] == _L("Ask AI…") && help[1] == _L("Report a problem…") && help[2] == "---" &&
+                  labelled(menus->help_menu(), _L("Setup Wizard")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Show Tip of the Day")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Check for Updates")) != nullptr,
+              "app_menus_help_menu");
+        const std::vector<wxString> view = menu_labels(menus->view_menu());
+        check(view.size() > 5 && view[0] == _L("Home") && view[3] == "---" && view.back() == _L("Switch to classic view…") &&
+                  labelled(menus->view_menu(), _L("Reset Window Layout")) == nullptr &&
+                  labelled(menus->view_menu(), _L("Show Gridlines")) != nullptr,
+              "app_menus_view_menu");
+#ifdef __APPLE__
+        wxMenuBar* bar = m_frame->GetMenuBar();
+        const int view_at = bar->FindMenu(_L("View"));
+        check(bar->FindMenu(_L("Print")) == view_at + 1 && bar->FindMenu(_L("Printer")) == view_at + 2 &&
+                  bar->FindMenu(_L("Calibration")) == wxNOT_FOUND,
+              "app_menus_print_and_printer_follow_view");
+#else
+        check(menu_labels(m_frame->topbar()->GetTopMenu()) ==
+                  std::vector<wxString>{_L("Edit"), _L("View"), _L("Print"), _L("Printer"), _L("Preferences"),
+                                        _L("Preset Bundle"), _L("Help")},
+              "app_menus_title_bar_menu");
+#endif
+
+        // Greyed out on Home: what needs the project in front.
+        for (wxMenu* menu : {menus->file_menu(), menus->view_menu(), menus->print_menu(), menus->printer_menu(), menus->help_menu()})
+            menu->UpdateUI(m_frame->GetEventHandler());
+        const auto enabled = [](wxMenu* menu, const wxString& label) {
+            wxMenuItem* item = labelled(menu, label);
+            return item != nullptr && item->IsEnabled();
+        };
+        check(enabled(menus->file_menu(), _L("New project")) && enabled(menus->file_menu(), _L("Open…")) &&
+                  !enabled(menus->file_menu(), _L("Save")) && !enabled(menus->file_menu(), _L("Version history…")),
+              "app_menus_file_greys_out_project_commands_on_home");
+        check(!menus->view_menu()->FindItemByPosition(0)->IsEnabled() && !menus->view_menu()->FindItemByPosition(1)->IsEnabled() &&
+                  !menus->view_menu()->FindItemByPosition(2)->IsEnabled(),
+              "app_menus_view_greys_out_home_and_panels_on_home");
+        bool print_greyed = true;
+        for (wxMenuItem* item : menus->print_menu()->GetMenuItems())
+            print_greyed = print_greyed && (item->IsSeparator() || !item->IsEnabled());
+        check(print_greyed, "app_menus_print_greyed_out_on_home");
+        check(enabled(menus->printer_menu(), _L("Add a printer…")) && enabled(menus->printer_menu(), _L("Printer settings…")),
+              "app_menus_printer_works_from_home");
+        check(enabled(menus->help_menu(), _L("Ask AI…")), "app_menus_ask_ai_works_from_home");
+#ifdef __APPLE__
+        check(menus->view_menu()->FindItemByPosition(2)->GetItemLabelText() == _L("Show AI panel"),
+              "app_menus_mac_panel_label_says_what_it_does");
+#else
+        check(menus->view_menu()->FindItemByPosition(2)->IsCheckable() && !menus->view_menu()->FindItemByPosition(2)->IsChecked(),
+              "app_menus_panel_is_a_check_item");
+#endif
+
+        // Cmd+S on Home is spent, never handed to OrcaSlicer's Save.
+        wxKeyEvent save(wxEVT_CHAR_HOOK);
+        save.m_keyCode     = 'S';
+        save.m_controlDown = true;
+        wxKeyEvent quit_key(save);
+        quit_key.m_keyCode = 'Q';
+        check(menus->run_shortcut(save) && !menus->run_shortcut(quit_key), "app_menus_answer_their_own_shortcuts_only");
     }
 
     struct PaneStep
@@ -13365,6 +13522,33 @@ private:
                   id() != opened && into_path(m_plater->get_project_filename(".3mf")) == source,
               "file_opening_3mf_canvas_drop_opens_project");
 
+        // File > Save and Cmd+S save the project in its store and keep that
+        // version; OrcaSlicer's own Save would write the change over the
+        // 3MF it was opened from.
+        {
+            AppMenus*         menus    = shell->app_menus();
+            const std::string original = read(source.string());
+            check(autosave->save_now(), "file_save_fixture_opened");
+            const std::size_t versions = autosave->history().size();
+            m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            // An edit as OrcaSlicer marks one: its own Save would now write.
+            m_plater->set_plater_dirty(true);
+            check(objects() == 2 && m_frame->can_save(), "file_save_fixture_changed");
+            menus->file_menu()->UpdateUI(m_frame->GetEventHandler());
+            wxMenuItem* save_item = labelled(menus->file_menu(), _L("Save"));
+            check(save_item != nullptr && save_item->IsEnabled(), "file_save_enabled_on_prepare");
+            wxKeyEvent save(wxEVT_CHAR_HOOK);
+            save.m_keyCode     = 'S';
+            save.m_controlDown = true;
+            m_frame->GetEventHandler()->ProcessEvent(save);
+            check(read(source.string()) == original, "file_save_shortcut_leaves_the_opened_3mf_alone");
+            check(autosave->state() == Workspace::ProjectAutosave::State::Saved && autosave->history().size() > versions,
+                  "file_save_shortcut_saves_a_version");
+            menus->file_menu()->SendEvent(save_item->GetId());
+            check(read(source.string()) == original && autosave->state() == Workspace::ProjectAutosave::State::Saved,
+                  "file_save_menu_leaves_the_opened_3mf_alone");
+        }
+
         // The same .3mf dropped on Home twice: the second time it is known.
         check(autosave->save_now(), "file_opening_home_3mf_fixture_saved");
         m_frame->select_tab(size_t(MainFrame::tpHome));
@@ -14902,16 +15086,15 @@ private:
                     // own dispatch, which a choice in the open menu sends.
                     ClassicViewReturn* classic = installed_classic_view();
                     wxMenu* view_menu = classic->view_menu();
-                    const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
                     view_menu->SendEvent(classic->menu_row()->GetId());
                     self->wait_until([] { return installed_shell() != nullptr; }, "view_menu_row_returns_to_jusprin",
-                        [self, view_menu, view_menu_items, project_id, next] {
-                            self->verify_shell_back("first_return", view_menu, view_menu_items);
+                        [self, view_menu, project_id, next] {
+                            self->verify_shell_back("first_return", view_menu);
                             self->check(installed_shell()->persistence()->document().project_id() == project_id &&
                                             installed_shell()->persistence()->draft() == "unfinished classic view draft",
                                         "return_keeps_the_project_chat");
                             installed_shell()->persistence()->set_draft({});
-                            self->verify_second_classic_round_trip(view_menu, view_menu_items, project_id, next);
+                            self->verify_second_classic_round_trip(view_menu, project_id, next);
                         });
                 });
         });
@@ -14921,14 +15104,14 @@ private:
     // a new project there, then goes back through the banner: two round
     // trips, so a binding either install leaks shows up here, and the new
     // project gets a conversation of its own.
-    void verify_second_classic_round_trip(wxMenu* view_menu, std::size_t view_menu_items, const std::string& project_id,
+    void verify_second_classic_round_trip(wxMenu* view_menu, const std::string& project_id,
                                           std::function<void()> next)
     {
         m_frame->select_tab(size_t(MainFrame::tp3DEditor));
         installed_shell()->status_row()->show_overflow_menu();
-        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), view_menu, view_menu_items, project_id, next] {
+        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), view_menu, project_id, next] {
             self->wait_until([] { return installed_shell() == nullptr; }, "menu_switches_to_classic_view_again",
-                [self, view_menu, view_menu_items, project_id, next] {
+                [self, view_menu, project_id, next] {
                     if (!self->verify_classic_view_offered("second_classic"))
                         return;
                     self->check(installed_classic_view()->view_menu() == view_menu, "second_classic_uses_the_same_view_menu");
@@ -14947,8 +15130,8 @@ private:
                     press_button(*back);
                     self->check(!back->IsEnabled(), "banner_button_disables_on_press");
                     self->wait_until([] { return installed_shell() != nullptr; }, "banner_returns_to_jusprin",
-                        [self, view_menu, view_menu_items, project_id, next] {
-                            self->verify_shell_back("second_return", view_menu, view_menu_items);
+                        [self, view_menu, project_id, next] {
+                            self->verify_shell_back("second_return", view_menu);
                             const std::string after = installed_shell()->persistence()->document().project_id();
                             self->check(!after.empty() && after != project_id,
                                         "project_replaced_in_classic_view_starts_its_own_chat");
@@ -14993,7 +15176,7 @@ private:
 
     // The installed-shell presentation the startup checks prove, now after a
     // return from classic view, with the banner and the row gone.
-    void verify_shell_back(const std::string& when, wxMenu* view_menu, std::size_t view_menu_items)
+    void verify_shell_back(const std::string& when, wxMenu* view_menu)
     {
         ShellController* shell = installed_shell();
         check(shell->is_installed(), when + "_shell_installed");
@@ -15003,7 +15186,10 @@ private:
         bool row_left = false;
         for (wxMenuItem* item : view_menu->GetMenuItems())
             row_left = row_left || item->GetItemLabelText() == _L("Switch to JusPrin view");
-        check(!row_left && view_menu->GetMenuItemCount() == view_menu_items, when + "_view_menu_row_removed");
+        // The shell's own View menu, which ends with its way to classic view.
+        check(!row_left && view_menu->GetMenuItemCount() > 0 &&
+                  view_menu->FindItemByPosition(view_menu->GetMenuItemCount() - 1)->GetItemLabelText() == _L("Switch to classic view…"),
+              when + "_view_menu_row_removed");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), when + "_tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), when + "_sidebar_unavailable");
         check(m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(), when + "_prepare_legacy_overlays_hidden");

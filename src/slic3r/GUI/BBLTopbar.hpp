@@ -62,6 +62,7 @@ public:
     void AddDropDownSubMenu(wxMenu* sub_menu, const wxString& title);
     void AddDropDownMenuItem(wxMenuItem* menu_item);
     wxMenu *GetTopMenu();
+    wxMenu *GetFileMenu() { return m_file_menu; }
     wxMenu *GetCalibMenu();
     void SetTitle(wxString title);
     void SetMaximizedSize();

@@ -38,11 +38,13 @@ struct SimpleEvent;
 namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
+class AppMenus;
 class ClassicViewReturn;
 class GcodeHistoryRecorder;
 class LeftPane;
 class ShellTheme;
 class StatusRow;
+enum class ProjectMenuRow;
 
 namespace Home {
 class HomeWebView;
@@ -92,6 +94,13 @@ public:
     PrintIssues::WorkFeed* work_feed() const { return m_work_feed.get(); }
     bool agent_pane_collapsed() const { return m_agent_pane_collapsed; }
     LeftPane* left_pane() const { return m_left_pane; }
+    AppMenus* app_menus() const { return m_app_menus.get(); }
+    // Whether a printer or filament chat is open over the screen it was
+    // opened from.
+    bool task_open() const { return m_task_open; }
+    // A project row of the header's overflow menu and the File menu: the
+    // Project tab or its version history in the pane, or the export.
+    void open_project_row(ProjectMenuRow row);
     // The Prepare canvas's presentation, for the integration harness to drive
     // the tool strip and the value card the way a pointer does.
     const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
@@ -320,6 +329,7 @@ private:
     std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
     // Writes the G-code records; reads both of the above, so it goes first.
     std::unique_ptr<GcodeHistoryRecorder> m_gcode_history;
+    std::unique_ptr<AppMenus> m_app_menus;
     // The version pinned before a model turn's first edit; every later edit
     // of the turn links to it, and the turn's end clears it.
     std::string m_turn_before_version;
