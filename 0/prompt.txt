@@ -49,3 +49,52 @@ ask for screen access again
 <status>failed</status>
 <summary>Background command "Launch the fixed app on the fixture v1 folder" failed with exit code 144</summary>
 </task-notification>
+
+---
+
+<cross-session-message from="local_fe14ab88-36db-4a0e-84c6-95ae6713e6ab" from-name="btw: waht do you mean?">
+Kenneth wants JUSPRIN_V1_DATADIR removed. His words, in a side session forked from yours: "tell the main sessino to remove it".
+
+Context: he asked why the variable is still needed now that d289298950 makes first launch find v1's real folder whatever --datadir says. I told him the fix covers its original job, so a staging run no longer needs it to find v1. It still has two other jobs:
+1. Hiding v1 so a Mac that has v1 can test the new-user path. Case (b)'s launch command sets JUSPRIN_V1_DATADIR= for this.
+2. Keeping the shell harness (tests/shell/shell_harness.cpp) and the real-adapter harness (tests/workspace/real_adapter_harness.cpp) off the real v1 folder. Both set it to a folder that doesn't exist, just before set_data_dir().
+
+He heard both and still said remove it. So whatever removes it has to give those two jobs another way, or tell him plainly what's lost. Today's places:
+- v1_folder() in src/slic3r/GUI/JusPrin/V1Import/V1Import.cpp and its comment in V1Import.hpp
+- the third test case in tests/agent/test_app_folders.cpp
+- the two harnesses above
+- the "First launch against a staging server" section and the case (b) command in agent-docs/jusprin/engineering-method.md
+- the commit message of d289298950, if you amend it
+
+He didn't mention JUSPRIN_ORCA_DATADIR, so that one is unchanged unless he says so.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>b7hinnal3</task-id>
+<tool-use-id>toolu_014T9QtKzE8VaqagwBdo9ges</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/0bd9fd0b-1fd6-4ed7-9e9b-89af62d57bfb/tasks/b7hinnal3.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the app, unit tests and both harnesses" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9mh5u1ez</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/0bd9fd0b-1fd6-4ed7-9e9b-89af62d57bfb/tasks/b9mh5u1ez.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the shell harness with a test v1 install in HOME" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bb1g9nclh</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/0bd9fd0b-1fd6-4ed7-9e9b-89af62d57bfb/tasks/bb1g9nclh.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch the app as a new person with an empty HOME" failed with exit code 144</summary>
+</task-notification>
