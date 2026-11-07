@@ -2,10 +2,10 @@
 // 2026-10-21): a list of sections on the left and the chosen one beside it.
 // The app reads and writes every setting, under the keys OrcaSlicer's own
 // dialog uses, and sends what is stored after each change; the page only
-// says what to change. The Agent section is where the agent is set up, the
-// first time too: every surface that finds no agent opens it there
-// (decided 2026-10-23). Agent and Account draw the connection rows of
-// AgentConnection.tsx.
+// says what to change. Account holds the JusPrin account and is where every
+// surface that finds no AI opens it; BYOAI (Bring Your Own AI) holds the
+// person's own API keys and AI tools, with no JusPrin account in it. Both draw
+// the connection rows of AgentConnection.tsx.
 
 import { useEffect, useState } from 'react';
 import {
@@ -30,9 +30,10 @@ import { Progress } from './Progress';
 import { ActionMenu } from './ChatNavigation';
 import { SetupLocalTool } from './SetupLocalTool';
 
-const SECTIONS: { id: PreferencesSection; label: string; icon: string }[] = [
+// A hint is a second, smaller line under the label, for a label that needs it.
+const SECTIONS: { id: PreferencesSection; label: string; hint?: string; icon: string }[] = [
   { id: 'account', label: 'Account', icon: 'user' },
-  { id: 'agent', label: 'AI', icon: 'bot' },
+  { id: 'agent', label: 'BYOAI', hint: 'Bring Your Own AI', icon: 'key' },
   { id: 'appearance', label: 'Appearance', icon: 'palette' },
   { id: 'view3d', label: '3D view', icon: 'box' },
   { id: 'projects', label: 'Projects & files', icon: 'folder' },
@@ -84,7 +85,7 @@ export interface PreferencesProps {
   onToolDone?: () => void;
 }
 
-// The JusPrin account row, as Account and Agent both draw it.
+// The JusPrin account row.
 function JusPrinAccount({ savedKeys, account, actions }: {
   savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; actions: PreferencesActions;
 }) {
@@ -310,21 +311,29 @@ function AccountSection({ savedKeys, account, creditAccount, chatTitles, account
       {signedIn && creditAccount && (
         <AccountCredits account={creditAccount} chatTitles={chatTitles} onGetMore={actions.getMoreCredits} />
       )}
+      <div className="prefs-callout">
+        <span className="jp-icon jp-icon-lock" aria-hidden="true" />
+        <p>
+          With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach,
+          and passes them on to the model provider it uses.
+        </p>
+      </div>
       {signedIn ? (
         <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
       ) : (
         <p className="prefs-note">
           Local work never needs an account. Your own API key or AI tool works without one; set those up in the{' '}
-          <button type="button" className="link prefs-inline-link" onClick={onAgent}>AI</button> section.
+          <button type="button" className="link prefs-inline-link" onClick={onAgent}>BYOAI</button> section.
         </p>
       )}
     </section>
   );
 }
 
-function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, onConnectTool }: {
-  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[]; account: AccountStatusPayload;
+function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectTool, onAccount }: {
+  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[];
   mcpCatalog: McpCatalogPayload | null; actions: PreferencesActions; onConnectTool: (tool: McpToolInfo) => void;
+  onAccount: () => void;
 }) {
   // The tools are looked for once each time the section opens.
   useEffect(() => {
@@ -332,12 +341,14 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <section className="prefs-section" aria-label="AI">
+    <section className="prefs-section" aria-label="BYOAI">
       <div className="prefs-head">
-        <h2 className="prefs-title">AI</h2>
-        <p className="prefs-intro">The ways AI can think. Set up as many as you like; each chat picks a model from them.</p>
+        <h2 className="prefs-title">BYOAI</h2>
+        <p className="prefs-intro">
+          Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as
+          you like; each chat picks a model from them.
+        </p>
       </div>
-      <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
         onRemove={actions.removeKey} />
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
@@ -354,11 +365,16 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
       <div className="prefs-callout">
         <span className="jp-icon jp-icon-lock" aria-hidden="true" />
         <p>
-          The provider a chat uses receives your messages, the open project’s settings and anything you attach. With a
-          JusPrin account, JusPrin receives them and passes them on to the model provider it uses. JusPrin doesn’t send
-          your keys anywhere else.
+          The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin
+          doesn’t send your keys anywhere else.
         </p>
       </div>
+      {!savedKeys.some((key) => key.provider === 'jusprin') && (
+        <p className="prefs-note">
+          Rather use JusPrin’s own AI? Sign up in{' '}
+          <button type="button" className="link prefs-inline-link" onClick={onAccount}>Account</button>.
+        </p>
+      )}
     </section>
   );
 }
@@ -630,7 +646,14 @@ export function Preferences({
           <button key={entry.id} type="button" className="prefs-nav-item" aria-current={section === entry.id ? 'page' : undefined}
             onClick={() => go(entry.id)}>
             <span className={`jp-icon jp-icon-${entry.icon}`} aria-hidden="true" />
-            <span>{entry.label}</span>
+            {entry.hint ? (
+              <span className="prefs-nav-copy" aria-label={`${entry.label}, ${entry.hint}`}>
+                <span>{entry.label}</span>
+                <span className="prefs-nav-hint">{entry.hint}</span>
+              </span>
+            ) : (
+              <span>{entry.label}</span>
+            )}
             {entry.id === 'updates' && preferences.updates.available && (
               <span className="prefs-dot prefs-nav-dot" role="img" aria-label="Update available" />
             )}
@@ -664,9 +687,9 @@ export function Preferences({
             }}
           />
         ) : (
-          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} account={account} mcpCatalog={mcpCatalog}
+          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} mcpCatalog={mcpCatalog}
             actions={actions}
-            onConnectTool={(chosen) => setTool(chosen.id)} />
+            onConnectTool={(chosen) => setTool(chosen.id)} onAccount={() => go('account')} />
         ))}
         {section === 'appearance' && <AppearanceSection appearance={preferences.appearance} set={actions.set} run={actions.run} />}
         {section === 'view3d' && <View3dSection view={preferences.view3d} set={actions.set} />}

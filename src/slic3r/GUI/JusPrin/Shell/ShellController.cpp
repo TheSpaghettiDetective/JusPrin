@@ -887,7 +887,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             };
             // The one place the agent is set up. Opened from a later turn:
             // the press arrives inside the canvas's own frame.
-            actions.set_up_agent = [this] { request_preferences("agent"); };
+            actions.set_up_agent = [this] { request_preferences("account"); };
             m_issue_overlay = std::make_unique<PrintIssues::IssueOverlay>(*prepare_canvas, *m_print_issues, std::move(actions));
             m_prepare_canvas_presentation.set_extra_overlay([this, prepare_canvas] {
                 if (m_plater->model().objects.empty())
@@ -1362,11 +1362,11 @@ void ShellController::answer_calibration(const std::string& request_id, bool con
     m_pending_calibration.reset();
     if (!confirmed)
         return;
-    // Preferences › Agent over the screen the row was pressed on. Closed with
+    // Preferences › Account over the screen the row was pressed on. Closed with
     // an agent, the same question comes back with Start; closed without one,
     // the screen is as it was. Nothing is saved, closed or started meanwhile.
     if (pending.needs_agent) {
-        open_preferences("agent");
+        open_preferences("account");
         if (m_agent_pane->web_view().host().availability() == Agent::AgentAvailability::Ready)
             start_calibration(pending.printer, pending.filament, pending.spools);
         return;

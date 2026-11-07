@@ -470,6 +470,7 @@ body {
 .jp-icon-package { -webkit-mask-image: url('@resources/jusprin/ui/icons/package.svg'); mask-image: url('@resources/jusprin/ui/icons/package.svg'); }
 .jp-icon-grid-3x3 { -webkit-mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); }
 .jp-icon-info { -webkit-mask-image: url('@resources/jusprin/ui/icons/info.svg'); mask-image: url('@resources/jusprin/ui/icons/info.svg'); }
+.jp-icon-key { -webkit-mask-image: url('@resources/jusprin/ui/icons/key.svg'); mask-image: url('@resources/jusprin/ui/icons/key.svg'); }
 .jp-icon-triangle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
 .jp-icon-rotate-ccw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
 .jp-icon-rotate-cw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
@@ -4137,6 +4138,25 @@ p.agent-row-note {
 
 .prefs-nav-dot {
   margin-left: auto;
+}
+
+/* A label with a hint under it: the row grows to fit both lines. */
+.prefs-nav-item:has(.prefs-nav-copy) {
+  height: auto;
+  min-height: var(--preferences-nav-row-height);
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.prefs-nav-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prefs-nav-hint {
+  font: var(--font-label);
+  color: var(--text-tertiary);
 }
 
 .prefs-dot {

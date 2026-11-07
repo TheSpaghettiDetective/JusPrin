@@ -88,7 +88,7 @@ describe('Preferences', () => {
     connect(host, preferences({ section: 'appearance' }));
     const nav = screen.getByRole('navigation', { name: 'Preference sections' });
     expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Account', 'AI', 'Appearance', '3D view', 'Projects & files', 'Updates', 'OrcaSlicer preferences…',
+      'Account', 'BYOAIBring Your Own AI', 'Appearance', '3D view', 'Projects & files', 'Updates', 'OrcaSlicer preferences…',
     ]);
     expect(within(nav).getByRole('button', { name: 'Appearance' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('heading', { name: 'Appearance', level: 2 })).toBeInTheDocument();
@@ -142,8 +142,8 @@ describe('Preferences', () => {
 
     // Signed out, the section points to the ways that need no account.
     host.deliver('setup_keys', { keys: [] });
-    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'AI' }));
-    expect(screen.getByRole('heading', { name: 'AI', level: 2 })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'BYOAI' }));
+    expect(screen.getByRole('heading', { name: 'BYOAI', level: 2 })).toBeInTheDocument();
   });
 
   it('asks to sign in again when the account’s sign-in has ended, and says why one failed', async () => {
@@ -161,12 +161,14 @@ describe('Preferences', () => {
     expect(screen.getByTestId('account-error')).toHaveTextContent('Signing in didn’t finish');
   });
 
-  it('does not list the JusPrin account among the API keys', () => {
+  it('keeps the JusPrin account out of BYOAI, among the API keys or on its own', () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host, preferences({ section: 'agent' }));
     host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
     expect(screen.queryByTestId('agent-key-jusprin')).toBeNull();
-    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
+    expect(screen.queryByTestId('agent-account')).toBeNull();
+    // Signed in, there is nothing to point to in Account.
+    expect(screen.queryByText(/Rather use JusPrin’s own AI/)).toBeNull();
   });
 
   describe('Account’s credits and usage', () => {
@@ -318,7 +320,7 @@ describe('Preferences', () => {
     host.deliver('setup_keys', { keys: [{ provider: 'anthropic', hint: 'sk-ant-…a1b2', rejected: false }] });
     host.deliver('mcp_catalog', { tools: [{ id: 'claude-code', name: 'Claude Code', detected: true, cli: true, text: 'claude mcp add jusprin' }], helperPresent: true });
 
-    expect(screen.getByTestId('agent-account')).toBeInTheDocument();
+    expect(screen.queryByTestId('agent-account')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Your own API key' })).toBeInTheDocument();
     expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('Key saved on this computer');
     expect(screen.getByRole('heading', { name: 'Connect an AI tool you already use' })).toBeInTheDocument();
@@ -335,7 +337,7 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByRole('heading', { name: 'AI', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'BYOAI', level: 2 })).toBeInTheDocument();
   });
 
   it('sends one change per control, by the name the app writes it under', async () => {

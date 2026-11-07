@@ -238,10 +238,10 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Open printer settings' })).toBeInTheDocument();
   });
 
-  it('sends its offer to Preferences › Agent, keeps the panel, and continues the greeting once an agent is there', async () => {
+  it('sends its offer to Preferences › Account, keeps the panel, and continues the greeting once an agent is there', async () => {
     const host = open(state({ agent: { status: 'unavailable' } }));
     await userEvent.click(screen.getByRole('button', { name: 'Set up AI' }));
-    expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+    expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'open_preferences', section: 'account' });
     // No setup is drawn in the panel, and the panel is not closed for the person.
     expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Your own API key' })).not.toBeInTheDocument();

@@ -967,7 +967,7 @@
 
         // -- 6. Agent unavailable: the status still works ----------------------
         // With no agent the bubble has one button, which opens Preferences on
-        // its Agent section. Closing the window without an agent changes
+        // its Account section. Closing the window without an agent changes
         // nothing; closing it with one brings Ask AI back, and
         // nothing is sent for the person either way.
         steps.push_back({"agent_unavailable", [self] {
@@ -995,8 +995,8 @@
             self->click_overlay(frame.set_up);
         }});
         steps.push_back({"no_agent_preferences_cancelled", {}, [self] { return self->preferences_closed(); }, [self] {
-            self->check(self->m_preferences_section == std::optional<std::string>("agent"),
-                        "setup_opens_preferences_on_its_agent_section");
+            self->check(self->m_preferences_section == std::optional<std::string>("account"),
+                        "setup_opens_preferences_on_its_account_section");
             self->check(installed_shell()->is_agent_pane_collapsed() && self->user_message_count() == self->m_user_messages_before,
                         "closing_preferences_without_an_agent_changes_nothing");
             const PrintIssues::IssueOverlayFrame frame = self->issue_frame();

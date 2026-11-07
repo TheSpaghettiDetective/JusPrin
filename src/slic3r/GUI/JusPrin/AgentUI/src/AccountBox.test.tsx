@@ -106,7 +106,7 @@ describe('the account box', () => {
     expect(host.asked()).toBe(2);
     act(() => { window.dispatchEvent(new Event('focus')); });
     expect(host.asked()).toBe(3);
-    await userEvent.click(screen.getByRole('button', { name: 'AI' }));
+    await userEvent.click(screen.getByRole('button', { name: 'BYOAI, Bring Your Own AI' }));
     await userEvent.click(screen.getByRole('button', { name: 'Account' }));
     expect(host.asked()).toBe(4);
   });

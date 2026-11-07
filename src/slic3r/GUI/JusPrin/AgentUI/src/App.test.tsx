@@ -139,11 +139,11 @@ function connect(host: MockHost, statePayload: StatePayload = emptyState()) {
   host.deliver('state', statePayload);
 }
 
-// Every way into agent setup asks the shell for Preferences › Agent; nothing
+// Every way into agent setup asks the shell for Preferences › Account; nothing
 // of setup is drawn in the pane itself.
 function expectAgentPreferencesAsked() {
   const host = currentHost!;
-  expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+  expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'account' });
   expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
   expect(screen.queryByTestId('setup-api-key')).not.toBeInTheDocument();
   expect(screen.queryByTestId('agent-key-openai')).not.toBeInTheDocument();

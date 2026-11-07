@@ -325,10 +325,11 @@ export function App({
     client.send('work_cancel', { id });
   };
 
-  // Every way to set the agent up or change it is Preferences › Agent, a
-  // window over whatever is on screen. Nothing here changes: when it closes
-  // with an agent, the host says so and the composer takes the offer's place.
-  const openAgentPreferences = () => client.send('shell_action', { action: 'open_preferences', section: 'agent' });
+  // Every way to set the agent up or change it is Preferences › Account, a
+  // window over whatever is on screen: the JusPrin account first, with the
+  // way to BYOAI under it. Nothing here changes: when it closes with an
+  // agent, the host says so and the composer takes the offer's place.
+  const openAgentPreferences = () => client.send('shell_action', { action: 'open_preferences', section: 'account' });
 
   useEffect(() => {
     window.__jusprinTest = {

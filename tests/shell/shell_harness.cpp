@@ -3411,7 +3411,7 @@ private:
         verify_setup_install_commands();
     }
 
-    // With no agent, the printer chat's offer opens Preferences on its Agent
+    // With no agent, the printer chat's offer opens Preferences on its Account
     // section, over the panel. Closed without an agent, nothing changes;
     // closed with one, the same session goes on with the agent live, its
     // greeting in place and nothing sent. The panel is never closed for the
@@ -3456,7 +3456,7 @@ private:
         press_offer();
         check(wait_for([this] { return preferences_closed(); }, 60s), "printer_offer_opens_preferences");
         stop_answering_modals();
-        check(m_preferences_section == std::optional<std::string>("agent"), "printer_offer_opens_preferences_on_agent");
+        check(m_preferences_section == std::optional<std::string>("account"), "printer_offer_opens_preferences_on_account");
         check(panel.IsShown() && panel.host() == host && host->availability() != Agent::AgentAvailability::Ready,
               "printer_panel_unchanged_when_preferences_closes_without_an_agent");
         check(page_shows() == "offer", "printer_panel_keeps_its_offer_after_a_cancel");
@@ -11952,7 +11952,7 @@ private:
                    });
     }
 
-    // The setup bar in the real WKWebView opens Preferences on its Agent
+    // The setup bar in the real WKWebView opens Preferences on its Account
     // section, over the pane, and the pane draws no setup of its own (the
     // offer's button does the same; the page's tests cover both). Closed
     // without an agent, the window leaves the pane as it was. The page
@@ -11967,8 +11967,8 @@ private:
         wait_until([self = shared_from_this()] { return self->preferences_closed(); },
                    "offer_opened_preferences", [self = shared_from_this()] {
                        self->stop_answering_modals();
-                       self->check(self->m_preferences_section == std::optional<std::string>("agent"),
-                                   "offer_action_opens_preferences_on_agent");
+                       self->check(self->m_preferences_section == std::optional<std::string>("account"),
+                                   "offer_action_opens_preferences_on_account");
                        self->check(installed_shell()->agent_pane()->web_view().host().availability() ==
                                        Agent::AgentAvailability::Unavailable,
                                    "closing_preferences_without_an_agent_leaves_it_unset");
