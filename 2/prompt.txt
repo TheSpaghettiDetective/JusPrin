@@ -1,0 +1,11 @@
+> Windows can’t use the empty value. Windows can’t hold an empty variable, so there you name a folder that doesn’t exist instead.
+
+waht do you mean?
+
+---
+
+why do we need JUSPRIN_V1_DATADIR ? isn't this fixed?
+
+---
+
+tell the main sessino to remove it
