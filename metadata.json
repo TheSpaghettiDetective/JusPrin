@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6VR6PWDC1VKRCJ9H6F5C0FH",
+  "strategy": "manual-commit",
+  "branch": "ui-walkthrough",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.hpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/WelcomeApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/WelcomeApp.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/AgentConnection.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/CodeField.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Preferences.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/WelcomeBack.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.test.ts",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/Onboarding.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/tokens.ts",
+    "src/slic3r/GUI/JusPrin/WebShared/tokens.ts",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_cloud_account.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 670,
+    "cache_creation_tokens": 927724,
+    "cache_read_tokens": 65445396,
+    "output_tokens": 240886,
+    "api_call_count": 335,
+    "subagent_tokens": {
+      "input_tokens": 624,
+      "cache_creation_tokens": 950565,
+      "cache_read_tokens": 41414112,
+      "output_tokens": 180209,
+      "api_call_count": 310
+    }
+  }
+}
