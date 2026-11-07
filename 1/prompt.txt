@@ -179,3 +179,27 @@ ALLDONE
 [exited with code 0]</event>
 If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>b7cmrsgpx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/d8244453-3b6f-47fb-8616-225c4fd669d3/tasks/b7cmrsgpx.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the harness and app after the reorder" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b49tt75cg</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/d8244453-3b6f-47fb-8616-225c4fd669d3/tasks/b49tt75cg.output</output-file>
+<status>completed</status>
+<summary>Monitor "rebuild after member reorder" stream ended</summary>
+<event>exit=0
+10
+[exited with code 0]</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
