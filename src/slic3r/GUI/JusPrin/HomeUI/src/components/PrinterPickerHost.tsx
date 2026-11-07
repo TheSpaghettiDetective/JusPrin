@@ -56,7 +56,7 @@ export function PrinterPickerHost({ form, pick, onPick, onAskAgent, reading }: P
   useEffect(() => {
     const askAgent: ReactNode = onAskAgent && <p className="printer-form-note">
       Can’t find your printer?{' '}
-      <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask the agent</button>
+      <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask AI</button>
     </p>;
     root.current?.render(<div className="chat-dialog printer-form onboarding-picker">
       <PrinterPicker form={form} pick={pick} onPick={onPick} underMenus={askAgent} nozzleUnit

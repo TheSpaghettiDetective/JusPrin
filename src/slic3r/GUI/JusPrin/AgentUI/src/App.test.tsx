@@ -160,11 +160,11 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the AI panel' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
-    expect(screen.getAllByRole('button', { name: 'Hide the Agent panel' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Hide the AI panel' })).toHaveLength(1);
   });
 
   // The project chat's composer shows the host's models; a pick goes to the
@@ -225,7 +225,7 @@ describe('App', () => {
   // says "Reply…", and while answer buttons show it says typing works too.
   it('changes the message field\'s hint as the chat goes on', () => {
     render(<App getTransport={() => host.transport} />);
-    const field = () => screen.getByRole('textbox', { name: 'Message the Agent' });
+    const field = () => screen.getByRole('textbox', { name: 'Message AI' });
     const asked = [
       { id: 'm-1', role: 'user', state: 'complete', text: 'my print failed', attempt: 1 },
       { id: 'm-2', role: 'assistant', state: 'complete', text: 'What happened?\nChoices: It stopped | Not sure', attempt: 1 },
@@ -248,7 +248,7 @@ describe('App', () => {
   it('keeps the unconfigured temporary chat focused on setup and manual settings', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' }, navigation: { focused: true } }));
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
@@ -260,7 +260,7 @@ describe('App', () => {
     ] }));
     expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeInTheDocument();
   });
 
   it('shows connecting, then reconstructs the conversation from host state', () => {
@@ -325,7 +325,7 @@ describe('App', () => {
       { ...marker, id: 'd-2', kind: 'export', conversationId: 'conv-other', fileName: 'elsewhere.gcode.3mf', printerName: '' },
     ] }));
 
-    expect(screen.getByRole('note')).toHaveTextContent('Plate 1 · a71f 8c04 → Garage X1C');
+    expect(screen.getByRole('note')).toHaveTextContent('Plate 1 → Garage X1C');
     expect(screen.queryByText(/elsewhere\.gcode\.3mf/)).not.toBeInTheDocument();
   });
 
@@ -443,7 +443,7 @@ describe('App', () => {
       { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1,
         fileReport: { ...fileReport, startedBy: 'agent' as const }, fileReportCard: false },
     ] }));
-    expect(document.querySelector('.message.note')).toHaveTextContent(/^Opened bracket\.3mf · Agent$/);
+    expect(document.querySelector('.message.note')).toHaveTextContent(/^Opened bracket\.3mf · AI$/);
   });
 
   it('places file notes above the original setup offer when no Agent is configured', async () => {
@@ -462,9 +462,9 @@ describe('App', () => {
     // A question answered in the person's place says what that left.
     expect(card).toHaveTextContent('JusPrin answered No to this question.');
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
-    expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
-    await userEvent.click(within(offer).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.getAllByRole('button', { name: /Set up AI/i })).toHaveLength(1);
+    expect(screen.getByLabelText('Message AI')).toBeDisabled();
+    await userEvent.click(within(offer).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByLabelText('Notes about this file')).toBeInTheDocument();
   });
@@ -477,17 +477,17 @@ describe('App', () => {
     ] }));
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
     // One way into setup, under the thread; the card does not repeat it.
     expect(within(screen.getByLabelText('Notes about this file')).queryByRole('button')).toBeNull();
-    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Set up AI/i })).toHaveLength(1);
   });
 
   it('sends a user message on Enter and streams the reply with stop support', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     await userEvent.type(textarea, 'hello agent');
     fireEvent.keyDown(textarea, { key: 'Enter' });
 
@@ -517,7 +517,7 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     await userEvent.type(textarea, 'first line');
 
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
@@ -561,16 +561,16 @@ describe('App', () => {
 
     expect(screen.queryByText('The Agent isn’t set up yet')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
     expect(screen.getByTestId('agent-setup-bar')).toBeInTheDocument();
-    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByText('older message')).toBeInTheDocument();
 
     // The chat list's row goes to the same place, and the list stays.
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     const before = host.received.filter((envelope) => envelope.type === 'shell_action').length;
-    await userEvent.click(screen.getByRole('button', { name: /Set up the agent/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Set up AI/ }));
     expect(host.received.filter((envelope) => envelope.type === 'shell_action')).toHaveLength(before + 1);
     expectAgentPreferencesAsked();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
@@ -581,16 +581,16 @@ describe('App', () => {
     connect(host, emptyState({ agent: { status: 'unavailable' } }));
 
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
-    expect(screen.getByText('No agent connected')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeEnabled();
+    expect(screen.getByText('No AI connected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeEnabled();
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
     // The card stays, as a label for the preset in use and nothing more.
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('Test Printer 0.4');
-    expect(card).toHaveTextContent('No agent configured · using the selected preset.');
+    expect(card).toHaveTextContent('No AI configured · using the selected preset.');
     expect(within(card).queryByRole('button')).toBeNull();
     // The ask box stays in place, inert.
-    const composer = screen.getByLabelText('Message the Agent');
+    const composer = screen.getByLabelText('Message AI');
     expect(composer).toBeDisabled();
     expect(composer).toHaveAttribute('placeholder', 'ask, or steer this chat\u2026');
   });
@@ -610,11 +610,11 @@ describe('App', () => {
     expect(screen.getByTestId('work-work-4')).toHaveTextContent('Slicing plate 1');
     // The thread names who edited; the card states only what is in force.
     const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('No agent configured');
+    expect(card).toHaveTextContent('No AI configured');
     expect(card).not.toHaveTextContent(/Edited by|Claude Code/);
     // Setup takes the composer's place: there is nothing to type to.
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
-    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
+    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByTestId('work-work-4')).toBeInTheDocument();
   });
@@ -622,7 +622,7 @@ describe('App', () => {
   it('opens Preferences › Agent from the offer and draws the composer once an agent is there, sending nothing', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' } }));
-    await userEvent.click(within(screen.getByTestId('agent-not-configured')).getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(within(screen.getByTestId('agent-not-configured')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     // The window is native and over the pane: the pane keeps its offer.
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
@@ -630,7 +630,7 @@ describe('App', () => {
     const sentBefore = host.received.length;
     host.deliver('agent_status', { status: 'ready' });
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+    expect(screen.getByLabelText('Message AI')).toBeEnabled();
     expect(host.received.slice(sentBefore).filter((envelope) => envelope.type !== 'draft_update')).toEqual([]);
   });
 
@@ -959,13 +959,13 @@ describe('App', () => {
   it('keeps a draft when browsing chats and opens configuration for a connected agent', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
-    await userEvent.type(screen.getByRole('textbox', { name: 'Message the Agent' }), 'Unsaved thought');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message AI' }), 'Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     await userEvent.click(screen.getByRole('button', { name: 'Open chat: Conversation 1' }));
-    expect(screen.getByRole('textbox', { name: 'Message the Agent' })).toHaveValue('Unsaved thought');
+    expect(screen.getByRole('textbox', { name: 'Message AI' })).toHaveValue('Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     // A connected agent is changed in Preferences › Agent, over the panel.
-    await userEvent.click(screen.getByRole('button', { name: /Configure Agent/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Configure AI/ }));
     expectAgentPreferencesAsked();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
   });
@@ -1002,7 +1002,7 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} draftDebounceMs={1} />);
     connect(host, emptyState({ draft: 'recovered draft' }));
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     expect(textarea).toHaveValue('recovered draft');
 
     await userEvent.type(textarea, ' plus more');
@@ -1018,7 +1018,7 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ conversation: toolCallConversation() }));
     const band = screen.getByTestId('current-setup').parentElement!;
-    const thread = screen.getByRole('log', { name: 'Agent conversation' });
+    const thread = screen.getByRole('log', { name: 'AI conversation' });
     expect(band).toHaveClass('pinned-setup');
     expect(band).not.toHaveClass('pinned-setup--scrolled');
 
@@ -1106,7 +1106,7 @@ describe('App', () => {
     expect(screen.queryByText('make it strong')).not.toBeInTheDocument();
     expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
     // The panel can still be put away from here.
-    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the AI panel' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to chat' }));
@@ -1295,7 +1295,7 @@ describe('App attachments', () => {
     expect(screen.getByText('notes.txt')).toBeInTheDocument();
 
     // A message may be sent with the attachment even when the text is empty.
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     fireEvent.keyDown(textarea, { key: 'Enter' });
     const sent = host.lastOfType('user_message');
     expect(sent).toBeTruthy();

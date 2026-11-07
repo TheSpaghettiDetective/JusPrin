@@ -89,8 +89,7 @@ bool orca_preset_in_jusprin(const std::string& file, const OrcaImportCatalog& ca
 void settle_orca_import(std::vector<OrcaImportItem>& items, const std::vector<std::string>& imported);
 
 // The presets an OrcaSlicer account folder holds (user/<account>): printers
-// first, then filaments and processes, each sorted, so a retry runs in the
-// same order.
+// first, then filaments and processes, each sorted.
 struct OrcaPresetFiles
 {
     std::vector<std::string> files;
@@ -117,12 +116,6 @@ struct OrcaImportChoice
 };
 OrcaImportChoice orca_import_chosen(const OrcaPresetFiles& presets, const std::vector<OrcaImportItem>& profile_printers,
                                     const std::vector<std::string>& printers);
-
-// Bringing this item again can succeed: a file that couldn't be read, or a
-// preset or profile JusPrin couldn't load. A file with no version or of no
-// known kind, or one built on a base JusPrin doesn't have, fails the same
-// way every time.
-bool orca_import_retryable(const OrcaImportItem& item);
 
 // A printer ticked in OrcaSlicer's printer list, as OrcaSlicer.conf's
 // "models" records it: the vendor file's name, the model's profile name and

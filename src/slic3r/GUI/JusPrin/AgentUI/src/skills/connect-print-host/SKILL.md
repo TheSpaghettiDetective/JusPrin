@@ -65,3 +65,7 @@ Say what the app saw in the person's terms, then work out why. What the test was
 - **No answer after 30 seconds.** The test was still waiting. This came from a name ending in `.local` that no device answered to. The IP address, which their router or Mainsail may show, avoids looking up the name.
 
 What is worth trying beyond this has not been tested here, so search for what people with the same setup report before you suggest it. Without a search, general knowledge gives: opening the same address in a browser on this computer, checking the printer's computer and this one are on the same network, or restarting the program. When they want to try again, call printer_host_connect again with the address to use.
+
+## When they are stuck
+
+The JusPrin developers can only fix what they hear about, and they have not tested most setups. A person who has tried and wants them to know can report it with `issue_report_open`, which opens a GitHub issue page in their browser with your summary filled in. It files nothing: they read the page, change it if they like, and submit it with their own GitHub account.

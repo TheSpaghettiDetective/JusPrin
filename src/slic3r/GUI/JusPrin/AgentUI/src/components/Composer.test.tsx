@@ -21,7 +21,7 @@ function renderComposer(overrides: Partial<Props> = {}) {
     ...overrides,
   };
   const view = render(<Composer {...props} />);
-  return { ...view, props, field: screen.getByRole('textbox', { name: 'Message the Agent' }) as HTMLTextAreaElement };
+  return { ...view, props, field: screen.getByRole('textbox', { name: 'Message AI' }) as HTMLTextAreaElement };
 }
 
 const staged: AttachmentInfo = {

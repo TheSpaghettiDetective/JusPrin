@@ -72,19 +72,24 @@ std::string orca_import_reason(const OrcaImportItem& item)
     using Reason = OrcaImportItem::Reason;
     const wxString base = wxString::FromUTF8(item.base);
     switch (item.reason) {
-    case Reason::Unreadable: return into_u8(_L("Not imported. The file couldn't be read."));
+    // These two can go another way next time, so they say how to try again.
+    case Reason::Unreadable:
+        return into_u8(_L("JusPrin couldn't read this file. To try again, choose File › Import › Import from OrcaSlicer…"));
     case Reason::NoVersion: return into_u8(_L("Not imported. The file has no version."));
     case Reason::NotAPreset: return into_u8(_L("Not imported. It isn't a printer, filament or process preset."));
     case Reason::MissingBase:
         switch (item.kind) {
         case OrcaImportItem::Kind::Filament:
-            return into_u8(wxString::Format(_L("This filament is built on %s, which JusPrin doesn't have."), base));
+            return into_u8(wxString::Format(
+                _L("This filament is built on %s, which JusPrin doesn't have. Pick a similar filament from the filament menu instead."),
+                base));
         case OrcaImportItem::Kind::Process:
             return into_u8(wxString::Format(_L("These settings are built on %s, which JusPrin doesn't have."), base));
         case OrcaImportItem::Kind::Printer: break;
         }
         return into_u8(wxString::Format(_L("This printer is built on %s, which JusPrin doesn't have."), base));
-    case Reason::NotLoaded: return into_u8(_L("Not imported. JusPrin couldn't load it."));
+    case Reason::NotLoaded:
+        return into_u8(_L("JusPrin couldn't load this preset. To try again, choose File › Import › Import from OrcaSlicer…"));
     case Reason::None: break;
     }
     return {};
@@ -210,41 +215,6 @@ std::vector<OrcaImportItem> OrcaImporter::bring(std::vector<OrcaImportItem> tick
     if (chosen != items.end())
         SetupCommands::select_printer_preset(plater, saved_as(*chosen));
     return items;
-}
-
-void OrcaImporter::retry(std::vector<OrcaImportItem>& result, const std::string& preferred, Selection selection)
-{
-    // A failed ticked printer is installed again; a failed file is imported
-    // again. One that would fail the same way stays as it is.
-    std::vector<OrcaImportItem> ticked;
-    std::vector<std::string>    failed;
-    for (const OrcaImportItem& item : result)
-        if (orca_import_retryable(item)) {
-            if (item.vendor.empty())
-                failed.push_back(item.source);
-            else
-                ticked.push_back(item);
-        }
-    // The printer the first try selected stays selected, unless this try
-    // brings OrcaSlicer's selected printer.
-    const auto imported_printer = [](const OrcaImportItem& item) {
-        return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
-    };
-    const bool        had_printer = std::any_of(result.begin(), result.end(), imported_printer);
-    const std::string kept        = preset_bundle().printers.get_selected_preset_name();
-    // Each failed item is replaced by its new outcome, in place. bring lists
-    // the files' items before the ticked ones.
-    std::vector<OrcaImportItem> again = bring(std::move(ticked), failed, preferred, selection);
-    const bool brought_selected = std::any_of(again.begin(), again.end(), [&](const OrcaImportItem& item) {
-        return imported_printer(item) && item.name == preferred;
-    });
-    if (selection == Selection::Brought && had_printer && !brought_selected)
-        SetupCommands::select_printer_preset(*wxGetApp().plater(), kept);
-    auto next_file   = again.begin();
-    auto next_ticked = again.begin() + std::ptrdiff_t(failed.size());
-    for (OrcaImportItem& item : result)
-        if (orca_import_retryable(item))
-            item = item.vendor.empty() ? std::move(*next_file++) : std::move(*next_ticked++);
 }
 
 OrcaImporter::FolderChoice OrcaImporter::choose_folder(wxWindow* parent)

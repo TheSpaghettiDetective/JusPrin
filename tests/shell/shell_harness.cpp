@@ -186,13 +186,13 @@
 //              nozzle, Undo). The key is written to this run's throwaway
 //              app config, where the panel reads it.
 //   --printer-settings-live
-//              needs OPENAI_API_KEY: the header's Printer settings… on the
+//              needs OPENAI_API_KEY: the header's Ask AI about printer settings… on the
 //              printer OrcaSlicer ships, as the fixture selects it, through
 //              the live model: a retraction change is saved as
 //              "<preset> - Copy"; the copy holds it, is
 //              selected, and is what the conversation is about
 //   --filament-settings-live
-//              needs OPENAI_API_KEY: the header's Filament settings… for slot
+//              needs OPENAI_API_KEY: the header's Ask AI about filament settings… for slot
 //              1, which holds a filament OrcaSlicer ships, through the live
 //              model: a nozzle temperature change is saved as
 //              "<preset> - Copy"; the copy holds it and
@@ -319,6 +319,11 @@
 //              with its "no key" or Cancel button. For the printer named
 //              (such as "Elegoo/Elegoo Neptune 4 Pro") or the first one not
 //              made by Bambu Lab.
+//   --account-box
+//              the server's box on Preferences › Account in the real web
+//              view: HTML whose scripts would close the window through the
+//              app's bridge is measured and shown, runs none of them, and
+//              leaves the bridge working
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -1383,7 +1388,8 @@ struct HarnessState
         LeftPaneSlicedCapture,
         UnavailableStorage,
         StartupRequests,
-        PrintHistory
+        PrintHistory,
+        AccountBox
     };
 
     std::atomic<int>  result{-1};
@@ -1706,6 +1712,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::PrintHistory) {
                 begin_print_history();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::AccountBox) {
+                verify_account_box();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -3382,7 +3392,7 @@ private:
         wxYield();
         check(!panel->IsShown() && home->IsShownOnScreen(), "panel_add_returns_to_home_before_change");
         const std::string named = Printers::add_named_printer(*m_plater, "Lab Printer", {});
-        home->backend().open_printer_settings("named:" + named);
+        home->backend().ask_about_printer_settings("named:" + named);
         check(panel->IsShown(), "panel_opens_from_printer_settings");
         const nlohmann::json change = panel->session_json();
         check(change.value("mode", "") == "change", "panel_changes_the_printer_it_was_opened_for");
@@ -4750,7 +4760,7 @@ private:
                                 {}});
     }
 
-    // The header's Printer settings… on a project that uses the printer
+    // The header's Ask AI about printer settings… on a project that uses the printer
     // OrcaSlicer ships (reported 2026-09-28: it opened a conversation about
     // adding a printer). A change is saved as a copy, which the project then
     // uses and the conversation is then about.
@@ -4796,7 +4806,7 @@ private:
                                 }});
     }
 
-    // The header's Filament settings… for slot 1, which holds a filament
+    // The header's Ask AI about filament settings… for slot 1, which holds a filament
     // OrcaSlicer ships: the change is saved as a copy, which takes the slot.
     void queue_filament_settings_live()
     {
@@ -6747,14 +6757,14 @@ private:
                  return card.status == Home::PrinterStatus::Printing && !card.job.empty() &&
                         card.progress_percent == 50 && card.seconds_left > 0;
              }},
-            {R"({"state":"failed","print_error":50348044})", "home_bambu_cancelled_print_reads_cancelled",
+            {R"({"state":"failed","print_error":50348044})", "home_bambu_cancelled_print_says_no_outcome",
              [](const Home::PrinterEntry& card) {
-                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Cancelled &&
+                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Unknown &&
                         card.job.empty();
              }},
-            {R"({"state":"failed","print_error":0})", "home_bambu_failed_print_reads_failed",
+            {R"({"state":"failed","print_error":0})", "home_bambu_failed_print_says_no_outcome",
              [](const Home::PrinterEntry& card) {
-                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Failed;
+                 return card.status == Home::PrinterStatus::Ready && card.last_print == Home::LastPrint::Unknown;
              }},
             {R"({"state":"finished"})", "home_bambu_finished_print_reads_finished",
              [](const Home::PrinterEntry& card) {
@@ -8595,7 +8605,8 @@ private:
 
     // The one-slot filament menu, as the design lists it: a colour row, the
     // installed filaments that fit in brand-then-name order with the current
-    // one ticked, then Other filament…, Filament settings…, Calibrate this
+    // one ticked, then Other filament…, Filament settings…, Ask AI about
+    // filament settings…, Calibrate this
     // filament… and Add a slot. The fixture printer reports no trays, so the
     // tray row is absent rather than greyed.
     void verify_filament_menu()
@@ -8608,7 +8619,8 @@ private:
         std::vector<std::string> expected;
         for (const auto& filament : SetupCommands::compatible_filaments()) expected.push_back(ui_text(filament.alias));
         check(!expected.empty(), "the_printer_has_installed_filaments");
-        for (const char* tail : {"Other filament…", "Filament settings…", "Calibrate this filament…", "Add a slot"})
+        for (const char* tail : {"Other filament…", "Filament settings…", "Ask AI about filament settings…", "Calibrate this filament…",
+                                 "Add a slot"})
             expected.push_back(tail);
         const std::vector<std::string> names = menu_row_names(menu);
         check(names == expected, "filament_menu_lists_the_installed_filaments_then_the_quiet_rows");
@@ -8635,21 +8647,43 @@ private:
         // The printer half opens the printer menu; the filament half's menu
         // carries Filament settings….
         if (type == Preset::TYPE_PRINTER) {
-            // First the fixture's own printer, which Orca ships: the chat is a
-            // change about that preset, by its name, never one about adding a
-            // printer (as it was when the header passed its display name).
+            // Printer settings… is Orca's settings window, with the printer
+            // kept. Then the fixture's own printer, which Orca ships: the
+            // chat is a change about that preset, by its name, never one about
+            // adding a printer (as it was when the header passed its display
+            // name).
+            const std::string preset = wxGetApp().preset_bundle->printers.get_selected_preset_name();
             installed_shell()->status_row()->open_printer_menu();
-            choose_header_item(ui_name("Printer settings…"),
-                [self=shared_from_this()] { self->verify_header_stock_printer_settings(); });
+            choose_header_item(ui_name("Printer settings…"), [self=shared_from_this(), preset] {
+                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); }, "header_printer_settings_opens_the_window",
+                    [self, preset] {
+                        self->check(wxGetApp().preset_bundle->printers.get_selected_preset_name() == preset,
+                                    "header_printer_settings_window_keeps_the_printer");
+                        wxGetApp().params_dialog()->Close();
+                        installed_shell()->status_row()->open_printer_menu();
+                        self->choose_header_item(ui_name("Ask AI about printer settings…"),
+                            [self] { self->verify_header_stock_printer_settings(); });
+                    });
+            });
             return;
         }
         const auto& document = installed_shell()->persistence()->document();
         m_header_project_chat_count = document.messages(document.active_conversation_id()).size();
         installed_shell()->status_row()->open_filament_menu();
-        // Filament settings… is a plain row of the filament menu.
+        // Filament settings… is Orca's settings window; the row under it
+        // opens the chat.
         m_frame->CallAfter([self=shared_from_this(),type] {
-            self->choose_header_item(ui_name("Filament settings…"),
-                [self,type] { self->verify_header_setup_open(type); });
+            self->choose_header_item(ui_name("Filament settings…"), [self,type] {
+                self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); }, "header_filament_settings_opens_the_window",
+                    [self,type] {
+                        wxGetApp().params_dialog()->Close();
+                        installed_shell()->status_row()->open_filament_menu();
+                        self->m_frame->CallAfter([self,type] {
+                            self->choose_header_item(ui_name("Ask AI about filament settings…"),
+                                [self,type] { self->verify_header_setup_open(type); });
+                        });
+                    });
+            });
         });
     }
 
@@ -8689,7 +8723,7 @@ private:
         check(SetupCommands::current_printer().nickname.ToStdString() == m_header_setup_printer,
               "header_setup_named_printer_selected");
         installed_shell()->status_row()->open_printer_menu();
-        choose_header_item(ui_name("Printer settings…"),
+        choose_header_item(ui_name("Ask AI about printer settings…"),
             [self=shared_from_this()] { self->verify_header_printer_settings_open(); });
     }
 
@@ -9438,7 +9472,8 @@ private:
         check(wait_for([&page_shows] { return page_shows() == "picker"; }, 30s), name + "_chat_shows_the_model_picker");
     }
 
-    // The header's Printer settings… covers Prepare with a temporary chat.
+    // The header's Ask AI about printer settings… covers Prepare with a
+    // temporary chat.
     void verify_header_printer_settings_open()
     {
         wait_until([this] {
@@ -9493,7 +9528,7 @@ private:
             });
     }
 
-    // Filament settings… opens a fresh temporary chat. Its manual action then
+    // Ask AI about filament settings… opens a fresh temporary chat. Its manual action then
     // restores Prepare and opens Orca's material settings window.
     void verify_header_setup_open(Preset::Type type)
     {
@@ -9569,7 +9604,7 @@ private:
                     const std::string id = "named:" + name;
                     auto& backend = installed_shell()->home_view()->backend();
                     self->verify_home_task_route("settings", "change", [&backend,id] {
-                            backend.open_printer_settings(id);
+                            backend.ask_about_printer_settings(id);
                         }, [self,name,id] {
                             auto& backend = installed_shell()->home_view()->backend();
                             self->verify_home_task_route("connect", "connect", [&backend,id] {
@@ -10283,7 +10318,7 @@ private:
                 // The card's printer only: which spool is in it is the person's
                 // to say, in the calibration project.
                 self->check(self->m_dialog_seen.rfind(std::string("Calibrate ") + kCalibrationPrinter + "? A new calibration project opens for " +
-                                                          kCalibrationPrinter + ", and the agent picks the spool", 0) == 0,
+                                                          kCalibrationPrinter + ", and AI picks the spool", 0) == 0,
                             "calibration_home_dialog_names_the_printer_and_no_filament");
                 self->check(installed_shell()->home_view()->IsShown(), "calibration_home_cancel_stays_on_home");
                 self->check_untouched(before, "calibration_home");
@@ -10312,7 +10347,7 @@ private:
 
         const auto names = menu_row_names(menu);
         const auto at    = std::find(names.begin(), names.end(), "Calibrate…");
-        check(at != names.end() && at != names.begin() && *(at - 1) == "Printer settings…",
+        check(at != names.end() && at != names.begin() && *(at - 1) == "Ask AI about printer settings…",
               "calibration_row_follows_printer_settings");
         blit_screen(m_frame->GetScreenRect(), "5-printer-menu");
         const std::string filament = ui_text(SetupCommands::current_filament().alias);
@@ -10883,7 +10918,7 @@ private:
         // The wait above counted the four changed rows; this only sees the
         // page's "N changed" summaries.
         check(page.find("changed") != std::string::npos, "setup_page_shows_a_changed_summary");
-        check(page.find("Hide the Agent panel") == std::string::npos, "setup_page_text_is_the_page_alone");
+        check(page.find("Hide the AI panel") == std::string::npos, "setup_page_text_is_the_page_alone");
         capture_web_view(installed_shell()->agent_pane()->web_view().webview(), "setup-differences-agent-page");
         run_in_agent_page("document.querySelector('.all-settings-header .chat-icon').click()");
         // A person's edit after the agent's: the plan line is annotated with
@@ -11031,7 +11066,7 @@ private:
         persistence().commit();
         installed_shell()->agent_pane()->web_view().host().refresh_page_state();
         m_frame->SetSize(m_frame->FromDIP(wxSize(1200, 1850)));
-        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        auto* divider = wxWindow::FindWindowByName("Resize AI panel", m_frame);
         check(divider != nullptr, "figma_timeline_resize_handle_found");
         if (divider) {
             const wxPoint start(divider->GetClientSize().x / 2, divider->GetClientSize().y / 2);
@@ -11752,6 +11787,7 @@ private:
 #include "check_print_scenario.inc"
 #include "dialog_routing_scenario.inc"
 #include "project_prompt_scenario.inc"
+#include "account_box_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
     {
@@ -14485,7 +14521,7 @@ private:
             check(left_pane->IsShown() && left_divider->IsShown(), "left_panel_drag_never_closes_the_pane");
 
             drag_left(left_divider->FromDIP(2000));
-            auto* agent_divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+            auto* agent_divider = wxWindow::FindWindowByName("Resize AI panel", m_frame);
             const int agent_width = installed_shell()->agent_pane()->GetSize().x;
             const int expected_max = std::max(left_pane->FromDIP(160),
                 m_frame->GetClientSize().x - left_pane->FromDIP(320) - left_divider->GetSize().x -
@@ -14543,7 +14579,7 @@ private:
             verify_agent_pane_tiling("after_left_panel_drag");
         }
 
-        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        auto* divider = wxWindow::FindWindowByName("Resize AI panel", m_frame);
         auto* pane = installed_shell()->agent_pane();
         check(divider != nullptr && divider->IsShown(), "agent_resize_handle_shown");
         check(divider != nullptr && divider->GetSize().x == divider->FromDIP(8),
@@ -14728,7 +14764,7 @@ private:
     void verify_agent_pane_tiling(const std::string& name)
     {
         auto* pane = installed_shell()->agent_pane();
-        auto* divider = wxWindow::FindWindowByName("Resize Agent panel", m_frame);
+        auto* divider = wxWindow::FindWindowByName("Resize AI panel", m_frame);
         if (pane == nullptr || divider == nullptr || installed_shell()->is_agent_pane_collapsed())
             return;
         const int client = m_frame->GetClientSize().x;
@@ -15480,6 +15516,8 @@ int main(int argc, char** argv)
         // settings rather than the base conf's stealth mode.
         else if (argument == "--startup-requests")
             state->mode = HarnessState::Mode::StartupRequests;
+        else if (argument == "--account-box")
+            state->mode = HarnessState::Mode::AccountBox;
         else if (argument == "--print-history") {
             state->mode = HarnessState::Mode::PrintHistory;
             // Optionally a folder for the screen's pictures.

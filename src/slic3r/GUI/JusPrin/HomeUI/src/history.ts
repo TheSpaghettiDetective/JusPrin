@@ -48,7 +48,7 @@ export function finishedDay(iso: string, now: Date = new Date()): string {
 }
 
 // A project card's line: "2 prints · 1 printing now", "1 print · finished
-// Sun", "Exported once · never printed".
+// Sun", "Exported once, never sent to a printer".
 export function projectHistoryLine(history: HistorySummary, now: Date = new Date()): string {
   if (history.prints > 0) {
     const prints = plural(history.prints, 'print');
@@ -58,7 +58,7 @@ export function projectHistoryLine(history: HistorySummary, now: Date = new Date
   // A print host reports no prints, so a send is not known never to have
   // printed; only a G-code that went nowhere but a file is.
   if (history.sends > 0) return history.sends === 1 ? 'Sent once' : `Sent ${history.sends} times`;
-  return `${history.exports === 1 ? 'Exported once' : `Exported ${history.exports} times`} · never printed`;
+  return `${history.exports === 1 ? 'Exported once' : `Exported ${history.exports} times`}, never sent to a printer`;
 }
 
 // What a print report earns, in the words of the button and the card's line.
@@ -68,12 +68,12 @@ export const REPORT_CREDITS = 25;
 export const REPORT_OFFER = `Tell us how it printed · ${REPORT_CREDITS} credits`;
 export const REPORT_MIN_TEXT = 200;
 
-// "Plate 1 · a71f 8c04 → Bambu X1C": what the report form is about. A G-code
-// that only went to a file names no printer.
+// "Plate 1 → Bambu X1C": what the report form is about. A G-code that only
+// went to a file names no printer. The hash stays internal.
 export function reportSubject(entry: HistoryEntry): string {
   const sends = entry.destinations.filter((row) => row.kind === 'send');
   const printer = entry.prints[entry.prints.length - 1]?.printerName ?? sends[sends.length - 1]?.printerName;
-  return `${entry.name} · ${shortHash(entry.hash)}${printer ? ` → ${printer}` : ''}`;
+  return `${entry.name}${printer ? ` → ${printer}` : ''}`;
 }
 
 export function reportSentDetail(report: NonNullable<HistoryEntry['report']>, createdAt: string): string {
@@ -86,7 +86,7 @@ export function fileSize(bytes: number): string {
 }
 
 // A printer card's line: "12 prints · 1 printing now", "7 prints · last
-// finished Sun".
+// finished Sun", "1 G-code, never sent to a printer".
 export function printerHistoryLine(history: HistorySummary, now: Date = new Date()): string {
   if (history.prints > 0) {
     const prints = plural(history.prints, 'print');
@@ -94,12 +94,7 @@ export function printerHistoryLine(history: HistorySummary, now: Date = new Date
     return history.lastFinishedAt ? `${prints} · last finished ${finishedDay(history.lastFinishedAt, now)}` : prints;
   }
   if (history.sends > 0) return history.sends === 1 ? 'Sent once' : `Sent ${history.sends} times`;
-  return `${plural(history.gcodes, 'G-code')} · never printed`;
-}
-
-// The eight leading hex digits in two groups, "a71f 8c04".
-export function shortHash(hash: string): string {
-  return `${hash.slice(0, 4)} ${hash.slice(4, 8)}`;
+  return `${plural(history.gcodes, 'G-code')}, never sent to a printer`;
 }
 
 // The day heading an entry sits under: TODAY, YESTERDAY, SUN within the
@@ -183,8 +178,6 @@ export function matches(entry: HistoryEntry, needle: string): boolean {
     entry.name,
     entry.projectName,
     entry.plateName,
-    entry.hash.slice(0, 8),
-    shortHash(entry.hash),
     entry.printer,
     entry.material,
     entry.process,

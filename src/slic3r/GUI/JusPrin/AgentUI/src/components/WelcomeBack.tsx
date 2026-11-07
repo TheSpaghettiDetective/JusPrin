@@ -115,7 +115,7 @@ function AccountBox({ account, status, actions, priceCarriesOver }: Pick<Welcome
       <div className="welcome-account-line">
         <span className="jp-icon jp-icon-triangle-alert welcome-icon--warning" aria-hidden="true" />
         <div className="welcome-row-copy">
-          <span className="welcome-account-title">Sign in again to use the agent</span>
+          <span className="welcome-account-title">Sign in again to use AI</span>
           <span className="welcome-row-detail">
             {`Your JusPrin v1 sign-in${account.account ? ` for ${account.account}` : ''} has expired.`}
           </span>

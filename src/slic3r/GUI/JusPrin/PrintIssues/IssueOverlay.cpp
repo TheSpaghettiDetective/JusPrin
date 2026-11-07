@@ -653,7 +653,7 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
                                  issue.object_name + (target && !in_view ? " \xC2\xB7 " + _u8L("out of view") : std::string());
     const std::string message  = trimmed(issue.message);
     const std::string pager    = paged ? format(_u8L("%1% of %2%"), walk_index + 1, walk.size()) : std::string();
-    const std::string note     = busy ? _u8L("The assistant is replying...") : std::string();
+    const std::string note     = busy ? _u8L("AI is replying...") : std::string();
     const std::string ignore   = !ignorable ? std::string() : issue.ignored ? _u8L("Stop ignoring") : _u8L("Ignore this warning");
 
     const float width = std::round(s.m.print_issues.bubble_width * s.scale);
@@ -762,7 +762,7 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
         // canvas font has no ellipsis character.
         const OverlayRect set_up{bubble.x + s.pad, y, bubble.w - 2 * s.pad, button_h};
         m_frame.set_up = set_up;
-        if (button(draw, "##set_up", set_up, _u8L("Set up the agent..."), std::round(recipe.radius * s.scale), true,
+        if (button(draw, "##set_up", set_up, _u8L("Set up AI..."), std::round(recipe.radius * s.scale), true,
                    s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
             after_frame([](IssueOverlay& self) {
                 if (self.m_actions.set_up_agent)

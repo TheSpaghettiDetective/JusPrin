@@ -1665,7 +1665,7 @@ std::vector<ToolDefinition> make_definitions()
          ToolHandler::PrinterBambuConnect},
         // Offered only with the skill for a printer's connection type
         // (PrinterConversation::connection_skill), never on a session's own
-        // list, so a chat with no saved Bambu Lab printer never has it. It posts
+        // list, so a chat with no saved printer to connect never has it. It posts
         // nothing: the person submits the page on GitHub themselves.
         {"issue_report_open",
          "Open an issue for the developers",
@@ -1673,8 +1673,8 @@ std::vector<ToolDefinition> make_definitions()
          "Call it only after the person has said yes to reporting the problem, when they are stuck and want the developers to "
          "know. Nothing is filed by this call: the person reads the page, can change it, and submits it with their own GitHub "
          "account, which they need. Write the body as a short summary for a developer: the printer model, what was tried, what "
-         "the app reported, and what the person said. Leave out the access code. The app adds its version, the connection "
-         "type and the printer, removes printer serials and IP addresses, and cuts a body too long for the link.",
+         "the app reported, and what the person said. Leave out any access code or API key. The app adds its version, the "
+         "connection type and the printer, removes printer serials and IP addresses, and cuts a body too long for the link.",
          object_schema(json{{"title", {{"type", "string"}, {"maxLength", kToolLabelLimit},
                                        {"description", "One line naming the problem, such as the printer and what failed."}}},
                             {"body", {{"type", "string"}, {"maxLength", 4 * kToolTextLimit},

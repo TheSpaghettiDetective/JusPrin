@@ -175,10 +175,10 @@ const notes = (id: string, name: string, expects: string[], truncated: boolean):
 const question = [message('m-1', 'assistant', 'Would you like to connect it now?\n\nChoices: Connect it | Not now')];
 
 export const authoringCases: VisualCase[] = [
-  list('current', 'State=Current', ['aria-current="true"', 'Configure Agent', 'No messages yet'], {}),
+  list('current', 'State=Current', ['aria-current="true"', 'Configure AI', 'No messages yet'], {}),
   list('empty', 'State=Empty', ['No chats yet. Start a new chat about this project.'], { conversations: [] }),
   list('busy', 'State=Busy', ['class="configure-agent" disabled'], { conversationBusy: true }),
-  list('unavailable', 'State=Agent unavailable', ['Set up the agent', 'Connect an Agent to continue this conversation'],
+  list('unavailable', 'State=Agent unavailable', ['Set up AI', 'Set up AI to continue this conversation'],
     { agent: { status: 'unavailable' } }),
 
   composer('idle', '1. Idle', ['Attach a file', 'disabled', 'Send'], {}),
@@ -190,11 +190,11 @@ export const authoringCases: VisualCase[] = [
   chip('sent', '6. Sent file', ['printer-notes.pdf'], attachment({ state: 'sent' }), false),
   composer('photo-ready', '7. Printer chat · attachment ready', ['add a note, or just send', 'bracket-photo.png'],
     { attachKinds: ['image', 'pdf'], stagedPlaceholder: 'add a note, or just send', attachments: [photo] }),
-  composer('streaming', '8. Streaming', ['Agent is responding…', 'Stop'], { streaming: true }),
+  composer('streaming', '8. Streaming', ['AI is responding…', 'Stop'], { streaming: true }),
   composer('drag-over', '10. Drag over', ['class="composer dragging"'], {},
     (root) => { fireEvent.dragOver(root.querySelector('.composer')!); }),
-  composer('unavailable', 'Agent unavailable', ['The Agent is not available', 'disabled'],
-    { disabled: true, disabledReason: 'The Agent is not available' }),
+  composer('unavailable', 'Agent unavailable', ['AI is not available', 'disabled'],
+    { disabled: true, disabledReason: 'AI is not available' }),
 
   redesign('empty', '1. Empty', ['Ask about this print or request a change…', 'jp-icon-plus', 'Send'], {}),
   redesign('typing', '2. Typing grows the box', ['The bracket cracked at the hook'], {
@@ -215,7 +215,7 @@ export const authoringCases: VisualCase[] = [
     initialText: 'Can you check whether this will fit?',
     attachments: [{ ...photo, name: 'bracket-on-wall.png' },
       attachment({ id: 'a-2', name: 'bracket-v3.3mf', kind: 'model', mime: 'model/3mf', sizeBytes: 2516582 })] }),
-  redesign('responding', '10. Agent responding', ['Agent is responding…', 'Stop', 'disabled'], { streaming: true }),
+  redesign('responding', '10. Agent responding', ['AI is responding…', 'Stop', 'disabled'], { streaming: true }),
   redesign('printer', 'Printer chat · + menu', ['Photo or image', 'Document (PDF)', 'Claude Opus 5.5'],
     { attachKinds: ['image', 'pdf'] },
     async () => { await userEvent.click(screen.getByRole('button', { name: 'Attach a file' })); }),

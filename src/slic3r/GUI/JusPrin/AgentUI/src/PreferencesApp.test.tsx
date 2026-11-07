@@ -88,7 +88,7 @@ describe('Preferences', () => {
     connect(host, preferences({ section: 'appearance' }));
     const nav = screen.getByRole('navigation', { name: 'Preference sections' });
     expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Account', 'Agent', 'Appearance', '3D view', 'Projects & files', 'Updates', 'OrcaSlicer preferences…',
+      'Account', 'AI', 'Appearance', '3D view', 'Projects & files', 'Updates', 'OrcaSlicer preferences…',
     ]);
     expect(within(nav).getByRole('button', { name: 'Appearance' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('heading', { name: 'Appearance', level: 2 })).toBeInTheDocument();
@@ -116,7 +116,9 @@ describe('Preferences', () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
     expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Sign up and get 500 free credits');
-    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Good for your first month. That’s about 100 messages to the agent on Expert.');
+    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Good for your first month. That’s about 100 messages to AI.');
+    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('After that, 50 free credits a month. No card needed.');
+    expect(screen.getByTestId('first-month-offer').textContent).not.toMatch(/Expert|Standard/);
     expect(screen.getByTestId('first-month-offer').textContent).not.toMatch(/trial|\$/i);
     await userEvent.click(screen.getByRole('button', { name: 'Sign in for 500 credits' }));
     expect(host.lastOfType('account_sign_in')?.payload).toEqual({});
@@ -140,8 +142,8 @@ describe('Preferences', () => {
 
     // Signed out, the section points to the ways that need no account.
     host.deliver('setup_keys', { keys: [] });
-    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Agent' }));
-    expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'AI' }));
+    expect(screen.getByRole('heading', { name: 'AI', level: 2 })).toBeInTheDocument();
   });
 
   it('asks to sign in again when the account’s sign-in has ended, and says why one failed', async () => {
@@ -333,7 +335,7 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI', level: 2 })).toBeInTheDocument();
   });
 
   it('sends one change per control, by the name the app writes it under', async () => {

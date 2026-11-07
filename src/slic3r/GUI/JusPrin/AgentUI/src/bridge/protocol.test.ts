@@ -48,6 +48,7 @@ describe('protocol constants', () => {
       'pick_attachment',
       'set_chat_model',
       'refresh_account',
+      'refresh_account_box',
       'printer_action',
       'printer_instructions',
       'printer_opening',

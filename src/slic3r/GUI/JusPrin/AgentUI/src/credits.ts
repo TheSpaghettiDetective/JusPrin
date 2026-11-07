@@ -31,11 +31,16 @@ export function messageCostSentence(model: ModelOptionInfo | undefined, account:
 // a new account 500 credits (JUSPRIN_V2_SIGNUP_CREDITS) for a month from the
 // day it is granted, and an Expert message costs 5 (its model aliases,
 // checked on staging 2026-11-05). Nothing asks the gateway before sign-in.
+// No plan is named: someone who has not signed up has none to choose.
 export const SIGNUP_CREDITS = 500;
 const EXPERT_MESSAGE_CREDITS = 5;
 export const SIGNUP_OFFER = `Sign up and get ${creditNumber(SIGNUP_CREDITS)} free credits`;
 export const SIGNUP_SCALE =
-  `Good for your first month. That’s about ${SIGNUP_CREDITS / EXPERT_MESSAGE_CREDITS} messages to the agent on Expert.`;
+  `Good for your first month. That’s about ${SIGNUP_CREDITS / EXPERT_MESSAGE_CREDITS} messages to AI.`;
+// What a free account gets once the first month is over, under the offer
+// where it is drawn at rest. 50 a month is the free plan's monthly grant,
+// confirmed for the welcome on 2026-11-06; nothing here reads it.
+export const SIGNUP_AFTER = 'After that, 50 free credits a month. No card needed.';
 
 // "4 December".
 const longDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });

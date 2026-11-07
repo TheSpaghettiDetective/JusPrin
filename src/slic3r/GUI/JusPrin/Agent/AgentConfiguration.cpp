@@ -300,6 +300,16 @@ public:
         done(std::nullopt);
     }
 
+    // Signed out, the server is asked with no token: it then offers sign-up.
+    void fetch_account_box(AccountBoxDone done) override
+    {
+        const std::string url = cloud_server_from_gateway(endpoint_for(m_config, account_provider())) + "/ent/jusprin/v2/account_box";
+        Agent::fetch_account_box(account_provider(), cloud_account_token(m_config), url, m_cancelled,
+                                 [post = m_post, done = std::move(done)](std::optional<std::string> html) {
+                                     post([done, html = std::move(html)]() mutable { done(std::move(html)); });
+                                 });
+    }
+
     void list_models(const std::string& provider, ModelsDone done) override
     {
         const ProviderProfile* profile = profile_for(provider);

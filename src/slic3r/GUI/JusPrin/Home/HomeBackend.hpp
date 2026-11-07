@@ -115,9 +115,8 @@ public:
     // OrcaSlicer screen lists them.
     virtual std::string import_orca_printers(const std::vector<std::string>& printers) = 0;
     virtual std::string assume_default_printer()  = 0;
-    // The import's result: the items that failed, imported again, and
-    // Continue, which leaves for the add-printer form when no printer came.
-    virtual void retry_orca_import()              = 0;
+    // The import's result: Continue, which leaves for the add-printer form
+    // when no printer came.
     virtual void finish_orca_import()             = 0;
     // The add-printer form's own requests: form_options and form_finish.
     virtual void printer_form_message(const nlohmann::json& payload) = 0;
@@ -129,6 +128,8 @@ public:
     // already translated: the request was understood but cannot be carried
     // out, such as a name another profile has.
     virtual std::string open_printer_settings(const std::string& printer_id)                       = 0;
+    // The printer's own chat, to ask about those settings.
+    virtual std::string ask_about_printer_settings(const std::string& printer_id)                  = 0;
     virtual std::string connect_printer(const std::string& printer_id) { return "Connection is unavailable."; }
     // A calibration of a filament on this printer, in the project chat.
     virtual std::string calibrate_printer(const std::string& printer_id) { return "Calibration is unavailable."; }

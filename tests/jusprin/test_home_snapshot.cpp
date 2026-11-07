@@ -101,8 +101,8 @@ TEST_CASE("an import's result lists each item for the page", "[home][onboarding]
 
     snapshot.onboarding.facts.orca_printers = true;
     snapshot.onboarding.import_result       = std::vector<Snapshot::Onboarding::ImportItem>{
-        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, "", false},
-        {"filament", "Broken PLA", "", false, "Not imported. The file couldn't be read.", true},
+        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, ""},
+        {"filament", "Broken PLA", "", false, "JusPrin couldn't read this file. To try again, choose File › Import › Import from OrcaSlicer…"},
     };
     const json state = state_payload(snapshot).at("onboarding");
     CHECK(state.at("printersScreen") == "import_result");
@@ -110,10 +110,9 @@ TEST_CASE("an import's result lists each item for the page", "[home][onboarding]
     const json& items = state.at("orca").at("importResult");
     REQUIRE(items.size() == 2);
     CHECK(items.at(0) == json{{"kind", "printer"}, {"name", "Shop X1C"}, {"renamedTo", "Shop X1C (Orca copy)"},
-                              {"imported", true}, {"reason", ""}, {"retryable", false}});
+                              {"imported", true}, {"reason", ""}});
     CHECK(items.at(1).at("imported") == false);
-    CHECK(items.at(1).at("reason") == "Not imported. The file couldn't be read.");
-    CHECK(items.at(1).at("retryable") == true);
+    CHECK(items.at(1).at("reason") == "JusPrin couldn't read this file. To try again, choose File › Import › Import from OrcaSlicer…");
 }
 
 TEST_CASE("only the first launch's default printer is marked assumed", "[home][onboarding]")
@@ -261,13 +260,8 @@ TEST_CASE("every status, last print and action maps to the page's vocabulary", "
         CHECK(state_payload(snapshot).at("printers").at(0).at("action") == text);
     }
     snapshot.printers[0].status = PrinterStatus::Ready;
-    const std::pair<LastPrint, const char*> lasts[] = {
-        {LastPrint::Finished, "finished"}, {LastPrint::Failed, "failed"}, {LastPrint::Cancelled, "cancelled"}};
-    for (const auto& [last, text] : lasts) {
-        snapshot.printers[0].last_print = last;
-        INFO(text);
-        CHECK(state_payload(snapshot).at("printers").at(0).at("lastPrint") == text);
-    }
+    snapshot.printers[0].last_print = LastPrint::Finished;
+    CHECK(state_payload(snapshot).at("printers").at(0).at("lastPrint") == "finished");
 }
 
 // A spool described without a colour is still a material the card names; a
@@ -333,7 +327,7 @@ TEST_CASE("a field is sent only on the statuses it belongs to", "[home]")
     CHECK(printer.at("lastConnectedAt") == "2026-11-05T12:00:00Z");
 
     snapshot.printers[0].status     = PrinterStatus::Paused;
-    snapshot.printers[0].last_print = LastPrint::Failed;
+    snapshot.printers[0].last_print = LastPrint::Finished;
     printer = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("progressPercent") == 100);
     CHECK_FALSE(printer.contains("lastPrint"));

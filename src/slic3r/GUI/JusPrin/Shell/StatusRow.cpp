@@ -99,7 +99,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
     m_overflow_button->SetToolTip(_L("Project details and preferences"));
     m_agent_toggle = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::PanelOpen);
     m_agent_toggle->SetName("Agent panel");
-    m_agent_toggle->SetToolTip(_L("Hide the Agent panel"));
+    m_agent_toggle->SetToolTip(_L("Hide the AI panel"));
     m_agent_toggle->Hide();
     m_agent_toggle->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { toggle_agent_pane(); });
     m_home_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { request_home(); });
@@ -281,7 +281,7 @@ void StatusRow::set_agent_pane_toggle(std::function<void()> toggle)
 void StatusRow::set_agent_pane_collapsed(bool collapsed)
 {
     m_agent_toggle->set_icon(collapsed ? HeaderIcon::PanelClosed : HeaderIcon::PanelOpen);
-    m_agent_toggle->SetToolTip(collapsed ? _L("Show the Agent panel") : _L("Hide the Agent panel"));
+    m_agent_toggle->SetToolTip(collapsed ? _L("Show the AI panel") : _L("Hide the AI panel"));
     // The open pane carries its own copy at the same right edge. Keeping two
     // controls avoids reparenting a live native button as the pane changes.
     m_agent_toggle->Show(collapsed);

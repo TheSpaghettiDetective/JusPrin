@@ -33,6 +33,8 @@
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/Utils/NetworkAgent.hpp"
+#include "slic3r/Utils/OrcaCloudServiceAgent.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -392,7 +394,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.width);
         m_agent_resize_handle = new PaneResizeHandle(
             &frame, *m_theme, PaneResizeHandle::PaneSide::Right,
-            _L("Resize Agent panel"), _L("Drag to resize the Agent panel"),
+            _L("Resize AI panel"), _L("Drag to resize the AI panel"),
             PaneResizeHandle::Callbacks{
                 [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
                 [this](int width) { request_agent_pane_width(width); },
@@ -1329,16 +1331,16 @@ void ShellController::start_calibration(const std::string& printer, const std::s
                                                    wxString::Format(_L("%1$s on %2$s"), from_u8(filament), from_u8(printer));
     const wxString closes = project.empty() ? wxString() : wxString::Format(_L("%s will be saved and closed. "), from_u8(project));
     const wxString opens  = filament.empty() ?
-        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the spool and the test with you there."), target) :
-        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the test with you there."), target);
-    const wxString unset = needs_agent ? " " + _L("The agent isn't set up yet; the test needs it to choose the range and read the result.")
+        wxString::Format(_L("A new calibration project opens for %s, and AI picks the spool and the test with you there."), target) :
+        wxString::Format(_L("A new calibration project opens for %s, and AI picks the test with you there."), target);
+    const wxString unset = needs_agent ? " " + _L("AI isn't set up yet; the test needs it to choose the range and read the result.")
                                        : wxString();
     const std::string body = into_u8(closes + opens + " " + _L("Settings the test changes are temporary and are not saved to your filament.") +
                                      unset);
     const std::string id = "calibrate-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     m_pending_calibration = PendingCalibration{id, printer, filament, home ? std::string("Home") : project, spools, needs_agent};
     const std::string title   = into_u8(wxString::Format(_L("Calibrate %s?"), target));
-    const std::string confirm = into_u8(needs_agent ? _L("Set up the agent…") : _L("Start"));
+    const std::string confirm = into_u8(needs_agent ? _L("Set up AI…") : _L("Start"));
     const std::string cancel  = into_u8(_L("Cancel"));
     if (home) {
         m_home->host().ask_confirmation({id, title, body, confirm, cancel});
@@ -1986,6 +1988,15 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
             // it is never asked, on a file open or on reopening a saved
             // project from Home.
             wxGetApp().app_config->set_bool("sync_after_load_file_show_flag", false);
+            // OrcaSlicer's cloud login lives in its encrypted file, never the
+            // macOS keychain: a keychain entry made by another build of the
+            // app asks for the login password on every read. OrcaSlicer reads
+            // this at startup before this runs, so the running cloud agent is
+            // switched too, and the next launch takes the stored value.
+            wxGetApp().app_config->set_bool(SETTING_USE_ENCRYPTED_TOKEN_FILE, true);
+            if (NetworkAgent* agent = wxGetApp().getAgent())
+                if (auto orca_cloud = std::dynamic_pointer_cast<OrcaCloudServiceAgent>(agent->get_cloud_agent()))
+                    orca_cloud->set_use_encrypted_token_file(true);
         }
     }
     if (tabpanel == nullptr || main_sizer == nullptr)

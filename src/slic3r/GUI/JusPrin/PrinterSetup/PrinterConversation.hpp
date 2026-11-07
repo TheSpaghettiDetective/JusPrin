@@ -131,8 +131,8 @@ public:
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
     // The skill for this printer's connection type, chosen by its vendor,
     // from the moment the chat has a saved printer: added in it, or the one it
-    // was opened for. A Bambu Lab printer's comes with issue_report_open, for
-    // someone stuck who wants the developers to know.
+    // was opened for. Each comes with issue_report_open, for someone stuck
+    // who wants the developers to know.
     std::optional<Agent::SessionSkill> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once

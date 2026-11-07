@@ -85,6 +85,9 @@ inline constexpr const char* kPickAttachment     = "pick_attachment";
 // pickers: {provider, model, effort}. It applies from the next turn. Added
 // additively; the model_choice capability advertises it.
 inline constexpr const char* kRefreshAccount      = "refresh_account";
+// Asks again for the box the JusPrin server fills on Preferences › Account;
+// the answer comes back as account_box.
+inline constexpr const char* kRefreshAccountBox   = "refresh_account_box";
 inline constexpr const char* kSetChatModel       = "set_chat_model";
 // The All settings panel asks for every setting in force, in one message;
 // the host answers with settings_catalog. Added additively; the all_settings
@@ -147,6 +150,10 @@ inline constexpr const char* kRevealItem         = "reveal_item";
 // [{id, label, efforts, defaultEffort}]}]}. model_choice capability.
 inline constexpr const char* kModelCatalog       = "model_catalog";
 inline constexpr const char* kAccount            = "account";
+// The box on Preferences › Account: {html}, the HTML the JusPrin server sent,
+// or null for no box (it sent none, or could not be asked). One answer to the
+// latest refresh_account_box; an earlier one still on its way is dropped.
+inline constexpr const char* kAccountBox         = "account_box";
 // The active chat's choice after a set_chat_model: {conversationId, chatModel}.
 inline constexpr const char* kChatModel          = "chat_model";
 // Every setting in force, for the All settings panel, in answer to
@@ -218,7 +225,7 @@ inline constexpr const char* kCalibrationStarted = "calibration_started";
 // a saved printer is opened for (with its first request). The trigger is
 // chosen by the app from the printer's vendor, and the skill stays in that
 // conversation from then on, with issue_report_open offered beside it
-// (PrinterConversation::connection_skill).
+// (PrinterConversation::connection_skill), as it is with kConnectPrintHost.
 inline constexpr const char* kConnectBambu = "connect_bambu";
 // The same for any other printer, which connects through a print host. The
 // app cannot know which kind until the person says, so one skill covers

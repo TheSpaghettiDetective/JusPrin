@@ -79,9 +79,9 @@ export interface AppProps {
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
-  'no-transport': 'The Agent panel has no connection to JusPrin',
-  timeout: 'The Agent panel could not reach JusPrin',
-  incompatible: 'This Agent panel does not match this JusPrin build',
+  'no-transport': 'The AI panel has no connection to JusPrin',
+  timeout: 'The AI panel could not reach JusPrin',
+  incompatible: 'This AI panel does not match this JusPrin build',
 };
 
 export function App({
@@ -371,7 +371,7 @@ export function App({
     return (
       <div className="app">
         <BridgeErrorPane
-          title={errorTitles[state.connection] ?? 'The Agent panel could not connect'}
+          title={errorTitles[state.connection] ?? 'The AI panel could not connect'}
           detail={state.connectionDetail}
           diagnostics={state.diagnostics}
           onRetry={() => client.retry()}
@@ -633,7 +633,7 @@ export function App({
           {!notConfigured && (
             <Composer
               disabled={unavailable}
-              disabledReason={unavailable ? 'The Agent is not available' : undefined}
+              disabledReason={unavailable ? 'AI is not available' : undefined}
               placeholder={session ? placeholder(session) : undefined}
               started={started}
               choicesOffered={choicesOffered}

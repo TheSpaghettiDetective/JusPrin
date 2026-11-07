@@ -496,9 +496,11 @@ std::optional<Agent::SessionSkill> PrinterConversation::connection_skill() const
     const SavedPrinter printer = saved(m_printer_name);
     if (printer.name.empty())
         return std::nullopt;
+    // Either comes with issue_report_open: Kenneth, 2026-11-06, offered it for
+    // all printer connections.
     if (printer.vendor_id == "BBL")
         return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectBambu, {"issue_report_open"}};
-    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {}};
+    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {"issue_report_open"}};
 }
 
 std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity)
@@ -1050,11 +1052,11 @@ IssueLink issue_link(const std::string& title, const std::string& body, const st
 
 Result PrinterConversation::open_issue(const json& arguments)
 {
-    // The tool is offered only with the connection skill, and the footer
-    // below is the Bambu Lab one: another connection type's needs its own.
+    // The tool is offered only with a connection skill.
     const std::optional<Agent::SessionSkill> skill = connection_skill();
-    if (!skill || skill->trigger != Agent::Protocol::SkillTrigger::kConnectBambu)
-        throw std::logic_error("issue_report_open ran in a printer chat without the Bambu Lab connection skill in force");
+    if (!skill)
+        throw std::logic_error("issue_report_open ran in a printer chat without a connection skill in force");
+    const bool bambu = skill->trigger == Agent::Protocol::SkillTrigger::kConnectBambu;
     const SavedPrinter          printer = saved(m_printer_name);
     const PrinterConnectionInfo info    = m_backend.connection(m_printer_name);
     std::vector<std::string>    known{printer.device_id, info.device_id, info.address};
@@ -1062,9 +1064,13 @@ Result PrinterConversation::open_issue(const json& arguments)
         known.push_back(candidate.id);
         known.push_back(candidate.address);
     }
-    // The app's own facts, which the model may have wrong or left out.
-    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() + "\nConnection: Bambu Lab, LAN mode\nPrinter: " +
-                               printer.model;
+    // The app's own facts, which the model may have wrong or left out. A
+    // print host is named once the chat or its saved connection says which
+    // program it is.
+    const std::string& type = m_host_type.empty() ? info.host_type : m_host_type;
+    const std::string  host = type == "moonraker" ? "Moonraker" : type == "octoprint" ? "OctoPrint" : "print host";
+    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() +
+                               "\nConnection: " + (bambu ? "Bambu Lab, LAN mode" : host) + "\nPrinter: " + printer.model;
     const IssueLink link = issue_link(for_public(arguments.at("title").get<std::string>(), known),
                                     for_public(arguments.at("body").get<std::string>(), known), footer);
     if (!m_host.open_in_browser(link.url))

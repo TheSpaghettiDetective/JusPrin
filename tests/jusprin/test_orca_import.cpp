@@ -376,20 +376,3 @@ TEST_CASE("an orca import brings only the printers the person left chosen, and e
         CHECK(choice.profile_printers.empty());
     }
 }
-
-TEST_CASE("an orca import offers a retry only for a failure a retry can fix", "[home][onboarding][orca_import]")
-{
-    const auto item = [](Outcome outcome, Reason reason) {
-        OrcaImportItem made;
-        made.outcome = outcome;
-        made.reason  = reason;
-        return made;
-    };
-    CHECK(orca_import_retryable(item(Outcome::NotImported, Reason::Unreadable)));
-    CHECK(orca_import_retryable(item(Outcome::NotImported, Reason::NotLoaded)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::MissingBase)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::NoVersion)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::NotAPreset)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::Imported, Reason::None)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::AlreadyThere, Reason::None)));
-}

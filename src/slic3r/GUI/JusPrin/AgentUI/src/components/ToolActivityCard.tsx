@@ -47,7 +47,7 @@ export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props
       ? `Running… · ${percent}%`
       : state === 'failed'
         ? stale
-          ? 'The project changed before this could run. Ask the Agent again.'
+          ? 'The project changed before this could run. Ask AI again.'
           : activity.error?.message ?? stateLabels.failed
         : stateLabels[state];
 

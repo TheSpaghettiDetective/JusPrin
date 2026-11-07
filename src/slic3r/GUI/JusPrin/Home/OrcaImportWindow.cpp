@@ -126,8 +126,7 @@ json OrcaImportWindow::state() const
                                  {"name", item.name},
                                  {"renamedTo", item.renamed_to},
                                  {"imported", item.outcome == OrcaImportItem::Outcome::Imported},
-                                 {"reason", orca_import_reason(item)},
-                                 {"retryable", orca_import_retryable(item)}});
+                                 {"reason", orca_import_reason(item)}});
         payload["result"] = std::move(lines);
         return payload;
     }
@@ -163,8 +162,6 @@ bool OrcaImportWindow::on_page_message(const std::string& type, const json& payl
         CallAfter([this] { EndModal(wxID_OK); });
     else if (action == "import")
         CallAfter([this, printers = payload.at("printers").get<std::vector<std::string>>()] { import(printers); });
-    else if (action == "retry")
-        CallAfter([this] { retry(); });
     else if (action == "choose_folder")
         CallAfter([this] { choose_folder(); });
     else
@@ -187,16 +184,6 @@ void OrcaImportWindow::import(const std::vector<std::string>& printers)
     m_error.clear();
     m_result = m_importer.bring(chosen.profile_printers, chosen.files, m_source.selected, OrcaImporter::Selection::Kept);
     SetTitle(_L("Imported from OrcaSlicer"));
-    m_view->host().refresh_page_state();
-}
-
-void OrcaImportWindow::retry()
-{
-    if (!m_result)
-        throw std::logic_error("The Import from OrcaSlicer window retried with no result on screen");
-    // The window is modal, so nothing was edited since import() asked about
-    // unsaved changes.
-    m_importer.retry(*m_result, m_source.selected, OrcaImporter::Selection::Kept);
     m_view->host().refresh_page_state();
 }
 

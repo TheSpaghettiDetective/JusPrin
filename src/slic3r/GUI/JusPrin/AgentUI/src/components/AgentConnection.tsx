@@ -7,7 +7,7 @@
 
 import { KeyboardEvent, RefObject, useEffect, useRef, useState } from 'react';
 import { AccountStatusPayload, McpToolInfo, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
-import { SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
+import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
 
 // The page and the host ship in the same build, so this list and the host's
 // setup_provider_supported() are two views of the same fact. The host still
@@ -32,13 +32,16 @@ export function providerLabel(id: string | undefined): string {
 
 // The first-month offer, the headline wherever someone can sign in for the
 // first time (canvas "JusPrin v2", boards 1a to 1c). The button names what
-// signing in gets; `note` is what a surface adds under the offer.
-export function FirstMonthOffer({ note, onSignIn }: { note?: string; onSignIn: () => void }) {
+// signing in gets; `note` is what a surface adds under the offer. `freeAfter`
+// adds what a free account gets after the month, for someone who has no plan
+// yet; a v1 subscriber keeps theirs, so the welcome-back window leaves it out.
+export function FirstMonthOffer({ note, freeAfter, onSignIn }: { note?: string; freeAfter?: boolean; onSignIn: () => void }) {
   return (
     <div className="credit-offer" data-testid="first-month-offer">
       <div className="credit-offer-copy">
         <h2 className="credit-offer-title">{SIGNUP_OFFER}</h2>
         <p>{SIGNUP_SCALE}</p>
+        {freeAfter && <p>{SIGNUP_AFTER}</p>}
         {note && <p className="credit-offer-note">{note}</p>}
       </div>
       <button type="button" className="primary credit-offer-action" onClick={onSignIn}>Sign in for 500 credits</button>
@@ -87,7 +90,7 @@ export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: A
     return (
       <div className="agent-account-offer" data-testid="agent-account">
         <span className="agent-account-eyebrow">JusPrin account</span>
-        <FirstMonthOffer onSignIn={onSignIn} />
+        <FirstMonthOffer freeAfter onSignIn={onSignIn} />
         {status.error && <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>}
         {status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>

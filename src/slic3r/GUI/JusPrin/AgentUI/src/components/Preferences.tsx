@@ -21,6 +21,7 @@ import {
   SavedKeyInfo,
   SetupStatusPayload,
 } from '../bridge/protocol';
+import { AccountBox } from './AccountBox';
 import { AccountRow, ProviderKeys, ToolGroup } from './AgentConnection';
 import { balanceRows } from './BalancePanel';
 import { creditCount, creditNumber, TIER_NAMES } from '../credits';
@@ -31,7 +32,7 @@ import { SetupLocalTool } from './SetupLocalTool';
 
 const SECTIONS: { id: PreferencesSection; label: string; icon: string }[] = [
   { id: 'account', label: 'Account', icon: 'user' },
-  { id: 'agent', label: 'Agent', icon: 'bot' },
+  { id: 'agent', label: 'AI', icon: 'bot' },
   { id: 'appearance', label: 'Appearance', icon: 'palette' },
   { id: 'view3d', label: '3D view', icon: 'box' },
   { id: 'projects', label: 'Projects & files', icon: 'folder' },
@@ -61,6 +62,7 @@ export interface PreferencesActions {
   signIn: () => void;
   cancelSignIn: () => void;
   getMoreCredits: () => void;
+  refreshAccountBox: () => void;
 }
 
 export interface PreferencesProps {
@@ -72,6 +74,8 @@ export interface PreferencesProps {
   // before it answers.
   creditAccount: CreditAccount | null;
   chatTitles: Record<string, string>;
+  // The box the server fills near the top of Account; null for none.
+  accountBox: string | null;
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
@@ -279,14 +283,29 @@ function AccountCredits({ account, chatTitles, onGetMore }: {
   );
 }
 
-function AccountSection({ savedKeys, account, creditAccount, chatTitles, actions, onAgent }: {
+function AccountSection({ savedKeys, account, creditAccount, chatTitles, accountBox, actions, onAgent }: {
   savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; creditAccount: CreditAccount | null;
-  chatTitles: Record<string, string>; actions: PreferencesActions; onAgent: () => void;
+  chatTitles: Record<string, string>; accountBox: string | null; actions: PreferencesActions; onAgent: () => void;
 }) {
   const signedIn = savedKeys.some((key) => key.provider === 'jusprin');
+  // On the person's own API key there is no account to offer anything for.
+  const ownKey = !signedIn && savedKeys.length > 0;
+  // The server's box is asked for when Account opens, after a sign-in or
+  // out, and on coming back from the browser, where a pack may have been
+  // bought.
+  useEffect(() => {
+    if (ownKey)
+      return;
+    actions.refreshAccountBox();
+    const refresh = () => actions.refreshAccountBox();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, ownKey]);
   return (
-    <section className="prefs-section" aria-label="Account">
+    <section className="prefs-section prefs-account" aria-label="Account">
       <h2 className="prefs-title">Account</h2>
+      {!ownKey && accountBox && <AccountBox key={accountBox} html={accountBox} />}
       <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       {signedIn && creditAccount && (
         <AccountCredits account={creditAccount} chatTitles={chatTitles} onGetMore={actions.getMoreCredits} />
@@ -295,8 +314,8 @@ function AccountSection({ savedKeys, account, creditAccount, chatTitles, actions
         <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
       ) : (
         <p className="prefs-note">
-          Local work never needs an account. Your own API key or AI tool works without one; set those up in{' '}
-          <button type="button" className="link prefs-inline-link" onClick={onAgent}>Agent</button>.
+          Local work never needs an account. Your own API key or AI tool works without one; set those up in the{' '}
+          <button type="button" className="link prefs-inline-link" onClick={onAgent}>AI</button> section.
         </p>
       )}
     </section>
@@ -313,10 +332,10 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <section className="prefs-section" aria-label="Agent">
+    <section className="prefs-section" aria-label="AI">
       <div className="prefs-head">
-        <h2 className="prefs-title">Agent</h2>
-        <p className="prefs-intro">The ways the Agent can think. Set up as many as you like; each chat picks a model from them.</p>
+        <h2 className="prefs-title">AI</h2>
+        <p className="prefs-intro">The ways AI can think. Set up as many as you like; each chat picks a model from them.</p>
       </div>
       <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
@@ -587,7 +606,8 @@ function rememberedSection(): PreferencesSection | null {
 }
 
 export function Preferences({
-  preferences, setup, savedKeys, account, creditAccount, chatTitles, mcpCatalog, mcpPreview, mcpStatus, actions, onToolDone,
+  preferences, setup, savedKeys, account, creditAccount, chatTitles, accountBox, mcpCatalog, mcpPreview, mcpStatus, actions,
+  onToolDone,
 }: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
   const [section, setSection] = useState<PreferencesSection>(() => rememberedSection() ?? preferences.section);
@@ -626,7 +646,7 @@ export function Preferences({
       </nav>
       <main className="prefs-content">
         {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} creditAccount={creditAccount}
-          chatTitles={chatTitles} actions={actions} onAgent={() => go('agent')} />}
+          chatTitles={chatTitles} accountBox={accountBox} actions={actions} onAgent={() => go('agent')} />}
         {section === 'agent' && (tool ? (
           <SetupLocalTool
             startTool={tool}

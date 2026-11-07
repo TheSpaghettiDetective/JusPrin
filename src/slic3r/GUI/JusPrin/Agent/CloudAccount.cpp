@@ -363,7 +363,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         chosen = record.formats.begin();
     AgentServicePtr service = chosen == record.formats.end() ? nullptr : m_agents(m_token, chosen->first, chosen->second);
     if (!service)
-        return failed("account_no_models", "JusPrin has no Agent model for this account right now. Try again later.", true);
+        return failed("account_no_models", "JusPrin has no AI model for this account right now. Try again later.", true);
 
     CloudSignInOutcome outcome;
     outcome.kind    = CloudSignInOutcome::Kind::SignedIn;

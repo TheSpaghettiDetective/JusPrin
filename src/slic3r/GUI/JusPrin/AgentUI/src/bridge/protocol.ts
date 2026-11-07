@@ -34,6 +34,7 @@ export type PageMessageType =
   | 'pick_attachment'
   | 'set_chat_model'
   | 'refresh_account'
+  | 'refresh_account_box'
   | 'printer_action'
   | 'printer_instructions'
   | 'printer_opening'
@@ -83,6 +84,7 @@ export type HostMessageType =
   | 'setup_keys'
   | 'account_status'
   | 'account'
+  | 'account_box'
   | 'preferences';
 
 // A question the host asks before an action it cannot take back, drawn as
@@ -885,8 +887,7 @@ export interface OrcaImportLine {
   name: string;
   renamedTo: string; // the name it was imported under, when its own was taken
   imported: boolean;
-  reason: string; // why it was not imported, as a sentence
-  retryable: boolean; // not imported, and bringing it again can succeed
+  reason: string; // why it was not imported, and what to do, as a sentence
 }
 
 export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';

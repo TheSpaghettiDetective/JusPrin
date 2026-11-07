@@ -466,16 +466,23 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
     };
     rows.push_back(std::move(other));
 
+    // Orca's settings window on this slot's filament, and the row under it
+    // asks the filament conversation about them.
     HeaderMenuItem settings;
     settings.label  = _L("Filament settings…");
-    settings.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
+    settings.invoke = [slot] { SetupCommands::open_filament_settings(slot); };
+    rows.push_back(std::move(settings));
+
+    HeaderMenuItem ask;
+    ask.label  = _L("Ask AI about filament settings…");
+    ask.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
         if (ShellController* shell = installed_shell())
             shell->open_filament_help(slot, preset, shown);
     };
-    rows.push_back(std::move(settings));
+    rows.push_back(std::move(ask));
 
     // This slot's filament on the printer in use; which test is the
-    // assistant's question. Board 1 puts it after Filament settings….
+    // assistant's question. Board 1 puts it after the settings rows.
     HeaderMenuItem calibrate;
     calibrate.label  = _L("Calibrate this filament…");
     calibrate.invoke = [printer  = std::string(SetupCommands::current_printer().nickname.ToUTF8()),

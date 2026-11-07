@@ -151,7 +151,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
   const ariaLabel = historical ? 'Earlier setup — saved with this conversation' : 'Current setup';
   const eyebrow = sent ? 'Saved sliced snapshot' : historical ? 'Earlier setup' : 'Setup summary';
   const saved = formatMoment(savedAt);
-  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'Agent working' : '';
+  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'AI working' : '';
 
   const purpose = context.setupIntent.trim();
   const plan = context.planHeadline.trim();
@@ -196,7 +196,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
     <Note text={estimate.status === 'stale' ? 'Previous estimates · not current' : ''}
       action={live ? { label: 'Recompute', onClick: onCompute! } : undefined} />
     {!historical && !agentAvailable && <p className="current-setup-line">{changedSettingCount(context) > 0
-      ? 'No agent configured.' : 'No agent configured · using the selected preset.'}</p>}
+      ? 'No AI configured.' : 'No AI configured · using the selected preset.'}</p>}
     {historical && <p className="current-setup-line">{sent
       ? `${sent.printer ? `Sent to ${sent.printer}` : 'Sent'}${sentWhen ? ` · ${sentWhen}` : ''}. Saved snapshot: the canvas shows your current project.`
       : 'Saved with this chat. The canvas shows your current project.'}</p>}

@@ -340,7 +340,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kRefreshAccountBox, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
@@ -360,7 +360,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
-                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount});
+                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount, Protocol::kAccountBox});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
@@ -2109,6 +2109,8 @@ struct FakeModelSource final : IChatModelSource
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
     AccountDone account_done;
     void fetch_account(AccountDone done) override { account_done = std::move(done); }
+    std::vector<AccountBoxDone> box_asked;
+    void fetch_account_box(AccountBoxDone done) override { box_asked.push_back(std::move(done)); }
     // An account's aliases and the format each is served in now.
     std::map<std::string, std::string> formats;
     std::string model_format(const std::string& provider, const std::string& model) const override
@@ -2238,6 +2240,30 @@ TEST_CASE("the account comes with the titles of the chats it charged", "[agent][
     CHECK((*account)["payload"]["chatTitles"] == json{{charged, "Resizing a print"}});
     CHECK((*account)["payload"]["account"]["usage_30d"]["credits"] == 15);
     std::filesystem::remove_all(file.parent_path());
+}
+
+// Each refresh_account_box gets one answer, the server's HTML or null for no
+// box; an answer to an earlier request, from before a sign-in, is dropped.
+TEST_CASE("the account box answers the latest request only", "[agent][account]")
+{
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+
+    h.deliver("refresh_account_box", json::object());
+    h.deliver("refresh_account_box", json::object());
+    REQUIRE(source->box_asked.size() == 2);
+    source->box_asked[1](std::string("<p>Double credits</p>"));
+    source->box_asked[0](std::string("<p>Sign up today</p>"));
+    const std::vector<json> boxes = h.of_type("account_box");
+    REQUIRE(boxes.size() == 1);
+    CHECK(boxes[0]["payload"] == json{{"html", "<p>Double credits</p>"}});
+
+    h.deliver("refresh_account_box", json::object());
+    REQUIRE(source->box_asked.size() == 3);
+    source->box_asked[2](std::nullopt);
+    CHECK(h.last_of_type("account_box")->at("payload") == json{{"html", nullptr}});
 }
 
 // The printer and filament chats have the pickers too: the model the person

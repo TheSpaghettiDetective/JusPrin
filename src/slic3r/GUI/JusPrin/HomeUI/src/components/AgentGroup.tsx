@@ -6,7 +6,7 @@
 import type { OnboardingState } from '../bridge/protocol';
 import { balanceRows } from '../../../AgentUI/src/components/BalancePanel';
 import { SIGNUP_CREDITS, creditCount, creditNumber } from '../../../AgentUI/src/credits';
-import { CloseGlyph, ConnectedGlyph } from './Glyphs';
+import { ConnectedGlyph } from './Glyphs';
 import { OwnAccountDoor, SignInDoor } from './Onboarding';
 
 type Action = (type: string, payload?: object) => void;
@@ -20,8 +20,8 @@ function Account({ onboarding, onAction }: { onboarding: OnboardingState; onActi
         <span className="agent-card-title">
           <strong>Signed in as {onboarding.accountEmail}</strong>
         </span>
-        <button type="button" className="agent-card-close" aria-label="Dismiss" onClick={() => onAction('agent_card_dismiss')}>
-          <CloseGlyph />
+        <button type="button" className="onboarding-link agent-card-hide" onClick={() => onAction('agent_card_dismiss')}>
+          Hide
         </button>
       </div>
       {account && (
@@ -48,15 +48,15 @@ function Account({ onboarding, onAction }: { onboarding: OnboardingState; onActi
 export function AgentGroup({ onboarding, onAction }: { onboarding: OnboardingState; onAction: Action }) {
   if (onboarding.agentCard === 'none') return null;
   return (
-    <section className="agent-group" aria-label="Agent">
-      <span className="section-label">Agent</span>
+    <section className="agent-group" aria-label="AI">
+      <span className="section-label">AI</span>
       {onboarding.agentCard === 'account' ? (
         <Account onboarding={onboarding} onAction={onAction} />
       ) : (
         <div className="agent-card">
-          <strong className="agent-card-heading">Set up the agent</strong>
+          <strong className="agent-card-heading">Set up AI</strong>
           {onboarding.signIn === 'idle' && !onboarding.accountEmail && (
-            <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits and ask the agent to fix failed prints.</p>
+            <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits and ask AI to fix failed prints.</p>
           )}
           <SignInDoor onboarding={onboarding} onAction={onAction} />
           <OwnAccountDoor onAction={onAction} disabled={onboarding.signIn === 'checking'} />

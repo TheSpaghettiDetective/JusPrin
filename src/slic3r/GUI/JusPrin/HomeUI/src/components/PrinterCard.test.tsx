@@ -26,7 +26,7 @@ function printer(overrides: Partial<PrinterInfo> = {}): PrinterInfo {
 const NOW = new Date('2026-11-05T15:00:00Z');
 
 function card(info: PrinterInfo, onLaunchMonitor = vi.fn(), onConnect = vi.fn(), onHistory = vi.fn()) {
-  const actions = { onConnect, onOpenSettings: vi.fn(), onRename: vi.fn(), onRemove: vi.fn() };
+  const actions = { onConnect, onOpenSettings: vi.fn(), onAskAboutSettings: vi.fn(), onRename: vi.fn(), onRemove: vi.fn() };
   render(
     <PrinterCard
       printer={info}
@@ -73,7 +73,7 @@ describe('the status line', () => {
     expect(statusDetail(printer({ status: 'printing' }))).toBeUndefined();
     expect(statusDetail(printer({ status: 'paused', progressPercent: 27 }))).toBe('at 27%');
     expect(statusDetail(printer({ status: 'attention', progressPercent: 40 }))).toBe('at 40%');
-    expect(statusDetail(printer({ status: 'ready', lastPrint: 'failed' }))).toBe('last print failed');
+    expect(statusDetail(printer({ status: 'ready', lastPrint: 'finished' }))).toBe('last print finished');
     expect(statusDetail(printer({ status: 'ready' }))).toBeUndefined();
     // A printer that is not connected has no job to report on.
     expect(statusDetail(printer({ status: 'not_connected', progressPercent: 27 }))).toBeUndefined();

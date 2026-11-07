@@ -57,6 +57,7 @@
     "pick_attachment",
     "set_chat_model",
     "refresh_account",
+    "refresh_account_box",
     "printer_action",
     "printer_instructions",
     "printer_opening",
@@ -106,6 +107,7 @@
     "setup_keys",
     "preferences",
     "account_status",
-    "account"
+    "account",
+    "account_box"
   ]
 }

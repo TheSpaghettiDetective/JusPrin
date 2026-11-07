@@ -62,6 +62,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
       signIn: () => client.send('account_sign_in', {}),
       cancelSignIn: () => client.send('account_cancel', {}),
       getMoreCredits: () => client.send('shell_action', { action: 'open_pricing' }),
+      refreshAccountBox: () => client.send('refresh_account_box', {}),
     }),
     [client],
   );
@@ -85,6 +86,7 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         account={state.account}
         creditAccount={state.creditAccount}
         chatTitles={state.chatTitles}
+        accountBox={state.accountBox}
         mcpCatalog={state.mcpCatalog}
         mcpPreview={state.mcpPreview}
         mcpStatus={state.mcpStatus}

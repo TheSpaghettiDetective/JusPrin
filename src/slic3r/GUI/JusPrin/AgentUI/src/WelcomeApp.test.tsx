@@ -88,7 +88,7 @@ describe('Welcome back', () => {
   it('V1-03: an ended sign-in offers signing in again in the browser', async () => {
     render(<WelcomeApp getTransport={() => host.transport} />);
     connect(host, report(), [{ ...signedIn, rejected: true }]);
-    expect(screen.getByTestId('welcome-account')).toHaveTextContent('Sign in again to use the agent');
+    expect(screen.getByTestId('welcome-account')).toHaveTextContent('Sign in again to use AI');
     expect(screen.getByTestId('welcome-account')).toHaveTextContent('Your JusPrin v1 sign-in for alex@example.com has expired.');
     await userEvent.click(screen.getByRole('button', { name: 'Continue with JusPrin' }));
     expect(host.ofType('account_sign_in')).toHaveLength(1);
@@ -152,6 +152,8 @@ describe('Welcome back', () => {
       carriedOver(undefined, undefined);
       expect(screen.getByTestId('welcome-account')).toHaveTextContent(
         'Subscribed to JusPrin v1? You get these 500 credits and keep your original price, on the $10 Hobby plan.');
+      // A v1 subscriber keeps their plan, so the free plan's monthly credits are not offered.
+      expect(screen.getByTestId('welcome-account')).not.toHaveTextContent(/50 free credits a month/);
     });
   });
 });

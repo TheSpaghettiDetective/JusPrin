@@ -65,7 +65,7 @@ const recovery = (id: string, name: string, expects: string[], state: StatePaylo
 });
 
 export const historyCases: VisualCase[] = [
-  markerCase('send', 'Sent to a printer', ['Plate 1 · a71f 8c04 → Bambu X1C'], marker()),
+  markerCase('send', 'Sent to a printer', ['Plate 1 → Bambu X1C'], marker()),
   markerCase('export', 'Exported to a file', ['bracket-v3.gcode.3mf · exported'],
     marker({ id: 'd-2', kind: 'export', fileName: 'bracket-v3.gcode.3mf', printerName: '' })),
 

@@ -17,7 +17,7 @@ export function ConnectingPane() {
   return (
     <div className="pane-state" data-testid="connecting">
       <h1>Connecting…</h1>
-      <p>Starting the Agent panel.</p>
+      <p>Starting the AI panel.</p>
     </div>
   );
 }
@@ -60,7 +60,7 @@ export function BridgeErrorPane({ title, detail, diagnostics, onRetry }: BridgeE
 export function AgentNotConfiguredHeader({ onCollapse }: { onCollapse: () => void }) {
   return (
     <div className="agent-header" data-testid="agent-not-configured-header">
-      <span className="agent-title">Agent</span>
+      <span className="agent-title">AI</span>
       <span className="agent-badge">NOT SET UP</span>
       <AgentPaneToggle onCollapse={onCollapse} />
     </div>
@@ -74,14 +74,14 @@ export function AgentNotConfiguredPane({ onSetUp, fileReports, offerRef }: {
 }) {
   const offer = (
     <div className="pane-state" data-testid="agent-not-configured" ref={offerRef}>
-      <h1>No agent connected</h1>
+      <h1>No AI connected</h1>
       <p>
-        An agent turns what you want — <em>“make it strong, it’ll bear weight”</em> — into the hundreds of
+        AI turns what you want — <em>“make it strong, it’ll bear weight”</em> — into the hundreds of
         settings underneath, and shows you what it changed.
       </p>
       <p>Until then JusPrin slices from the preset, exactly as it always has.</p>
       <button className="primary" onClick={onSetUp}>
-        Set up the agent
+        Set up AI
       </button>
       <p className="footnote">Registered JusPrin account, your own key, or an AI tool you already use.</p>
     </div>
@@ -114,9 +114,9 @@ export function AgentSetupBar({ onSetUp, from, notice }: {
     <div className="agent-setup-bar" data-testid="agent-setup-bar">
       {notice}
       <button ref={button} type="button" className="primary" onClick={onSetUp}>
-        Set up the agent
+        Set up AI
       </button>
-      <p>Chatting here needs an agent.</p>
+      <p>Chatting here needs AI.</p>
     </div>
   );
 }

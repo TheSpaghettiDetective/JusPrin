@@ -350,11 +350,11 @@ describe('below the rule: time and material', () => {
 });
 
 describe('one card-wide state', () => {
-  it('says "Agent working" and nothing else while the agent works, and offers no action', () => {
+  it('says "AI working" and nothing else while the agent works, and offers no action', () => {
     const value = context();
     value.plates[0].estimateStatus = 'stale';
     const card = show(value, { working: true, onCompute: () => {} });
-    expect(card.querySelector('.current-setup-state')).toHaveTextContent(/^Agent working$/);
+    expect(card.querySelector('.current-setup-state')).toHaveTextContent(/^AI working$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).not.toHaveTextContent(/Agent is applying|Last confirmed/);
     expect(card).toHaveAttribute('aria-busy', 'true');
@@ -390,7 +390,7 @@ describe('saved and no-agent cards', () => {
     expect(annotations(card)).toEqual(['Previous estimates · not current']);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('Saved with this chat. The canvas shows your current project.');
-    expect(card).not.toHaveTextContent(/Agent working/);
+    expect(card).not.toHaveTextContent(/AI working/);
     expect(card).not.toHaveAttribute('aria-busy');
     expect(within(card).queryByRole('button', { name: /Recompute|Compute/ })).toBeNull();
   });
@@ -411,8 +411,8 @@ describe('saved and no-agent cards', () => {
     expect(card.querySelector('.current-setup-label')).toHaveTextContent('Setup summary');
     expect(card).toHaveTextContent('0.20 mm Standard · PETG Basic · 1 setting changed');
     // Someone changed a setting, so the preset alone is not what is in force.
-    expect(card).toHaveTextContent('No agent configured.');
-    expect(card).not.toHaveTextContent(/using the selected preset|Preset fallback|Edited by|Updated|Agent working/);
+    expect(card).toHaveTextContent('No AI configured.');
+    expect(card).not.toHaveTextContent(/using the selected preset|Preset fallback|Edited by|Updated|AI working/);
     expect(within(card).queryByRole('button')).toBeNull();
   });
 

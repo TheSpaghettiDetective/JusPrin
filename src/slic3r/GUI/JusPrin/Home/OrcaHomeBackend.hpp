@@ -98,12 +98,12 @@ public:
     void start_fresh() override;
     std::string import_orca_printers(const std::vector<std::string>& printers) override;
     std::string assume_default_printer() override;
-    void retry_orca_import() override;
     void finish_orca_import() override;
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
+    std::string ask_about_printer_settings(const std::string& printer_id) override;
     std::string connect_printer(const std::string& printer_id) override;
     std::string calibrate_printer(const std::string& printer_id) override;
     std::string rename_printer(const std::string& printer_id, const std::string& new_name) override;
@@ -193,7 +193,7 @@ private:
     std::unique_ptr<PrinterFormSession>                m_printer_form;
     // The OrcaSlicer import's result while it is on screen.
     std::optional<std::vector<OrcaImportItem>>         m_import_result;
-    // The printer OrcaSlicer had selected, for the import and its retry.
+    // The printer OrcaSlicer had selected, for the import.
     std::string                                        m_orca_selected;
     OrcaImporter                                       m_importer;
     bool                                               m_onboarding_changed{false};

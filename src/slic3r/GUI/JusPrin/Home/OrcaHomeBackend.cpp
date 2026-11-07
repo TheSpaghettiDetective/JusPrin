@@ -259,8 +259,6 @@ void describe_device(MachineObject& machine, PrinterEntry& printer)
             printer.status = PrinterStatus::Ready;
             if (machine.print_status == "FINISH")
                 printer.last_print = LastPrint::Finished;
-            else if (machine.print_status == "FAILED")
-                printer.last_print = machine.print_error == kBambuPrintCancelled ? LastPrint::Cancelled : LastPrint::Failed;
         }
     } else if (printer.kind == PrinterKind::Named && PrinterSetup::has_verified_printer_connection(machine.get_dev_id())) {
         printer.connection_label = utf8(kind == "lan" ? _L("LAN") : _L("Cloud"));
@@ -328,13 +326,8 @@ void describe_host(const Printers::HostStatus& status, PrinterEntry& printer)
     }
     case Printers::HostActivity::Ready:
         printer.status = PrinterStatus::Ready;
-        if (status.last_job) {
-            const std::string& ended = status.last_job->status;
-            printer.last_print       = ended == "completed"                     ? LastPrint::Finished
-                                       : ended == "cancelled"                   ? LastPrint::Cancelled
-                                       : ended == "in_progress" || ended.empty() ? LastPrint::Unknown
-                                                                                 : LastPrint::Failed;
-        }
+        if (status.last_job && status.last_job->status == "completed")
+            printer.last_print = LastPrint::Finished;
         return;
     }
 }
@@ -815,17 +808,6 @@ std::vector<OrcaImportItem> OrcaHomeBackend::bring_orca_items(std::vector<OrcaIm
     return items;
 }
 
-void OrcaHomeBackend::retry_orca_import()
-{
-    if (!m_import_result)
-        throw std::logic_error("Home retried an OrcaSlicer import with no result on screen");
-    m_importer.retry(*m_import_result, m_orca_selected, OrcaImporter::Selection::Brought);
-    if (std::any_of(m_import_result->begin(), m_import_result->end(), [](const OrcaImportItem& item) {
-            return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
-        }))
-        printer_chosen();
-}
-
 void OrcaHomeBackend::finish_orca_import()
 {
     if (!m_import_result)
@@ -848,8 +830,7 @@ std::vector<Snapshot::Onboarding::ImportItem> OrcaHomeBackend::import_result_lin
         // Nothing to say about a preset JusPrin already had.
         if (item.outcome != OrcaImportItem::Outcome::AlreadyThere)
             lines.push_back({orca_import_kind(item.kind), item.name, item.renamed_to,
-                             item.outcome == OrcaImportItem::Outcome::Imported, orca_import_reason(item),
-                             orca_import_retryable(item)});
+                             item.outcome == OrcaImportItem::Outcome::Imported, orca_import_reason(item)});
     return lines;
 }
 
@@ -1469,8 +1450,21 @@ std::string OrcaHomeBackend::open_printer_settings(const std::string& printer_id
     const auto name = strip(printer_id, kNamedPrefix);
     if (!name)
         return gone();
-    // "Printer settings…" opens that printer's temporary conversation, with
-    // Orca's own settings window available from its manual action.
+    // Orca's settings window, as the printer chat's manual action opens it:
+    // the printer becomes the project's, then its tab opens.
+    Plater* plater = wxGetApp().plater();
+    if (plater == nullptr)
+        return gone();
+    return utf8(Printers::open_named_printer_settings(*plater, *name));
+}
+
+std::string OrcaHomeBackend::ask_about_printer_settings(const std::string& printer_id)
+{
+    const auto name = strip(printer_id, kNamedPrefix);
+    if (!name)
+        return gone();
+    // That printer's temporary conversation, which also offers the settings
+    // window as its manual action.
     if (m_open_conversation)
         m_open_conversation(*name, false);
     return {};

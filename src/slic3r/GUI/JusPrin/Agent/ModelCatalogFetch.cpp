@@ -94,6 +94,33 @@ void fetch_account(const ProviderProfile& profile, const std::string& api_key, c
         .perform();
 }
 
+void fetch_account_box(const ProviderProfile& profile, const std::string& token, const std::string& url,
+                       std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(std::optional<std::string>)> done)
+{
+    auto finished = std::make_shared<std::function<void(std::optional<std::string>)>>(std::move(done));
+    auto http     = Slic3r::Http::get(url);
+    if (!token.empty())
+        http.header("Authorization", "Bearer " + token);
+    for (const AgentHttpHeader& header : profile.headers)
+        http.header(header.name, header.value);
+    http.header("Accept", "text/html")
+        .tls_verify(true)
+        .timeout_connect(10)
+        .timeout_max(30)
+        .on_progress([cancelled](Slic3r::Http::Progress, bool& cancel) { cancel = *cancelled; })
+        .on_complete([cancelled, finished](std::string body, unsigned status) {
+            if (*cancelled)
+                return;
+            // 204, and anything but HTML, is no box.
+            (*finished)(status == 200 && !body.empty() ? std::optional<std::string>(std::move(body)) : std::nullopt);
+        })
+        .on_error([cancelled, finished](std::string, std::string, unsigned) {
+            if (!*cancelled)
+                (*finished)(std::nullopt);
+        })
+        .perform();
+}
+
 void fetch_model_list(const ProviderProfile& profile, const std::string& api_key, const std::string& endpoint_override,
                       std::shared_ptr<std::atomic<bool>> cancelled, std::function<void(ModelListResult)> done)
 {

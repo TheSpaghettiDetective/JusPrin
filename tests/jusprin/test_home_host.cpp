@@ -92,12 +92,12 @@ public:
         onboarding_calls.push_back("assume_default");
         return refusal;
     }
-    void retry_orca_import() override { onboarding_calls.push_back("import_retry"); }
     void finish_orca_import() override { onboarding_calls.push_back("import_continue"); }
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
     void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
 
     std::vector<std::string>                         settings_opened;
+    std::vector<std::string>                         settings_asked;
     std::vector<std::string>                         connections_opened;
     std::vector<std::string>                         calibrations;
     std::vector<std::pair<std::string, std::string>> renamed;
@@ -107,6 +107,11 @@ public:
     std::string open_printer_settings(const std::string& id) override
     {
         settings_opened.push_back(id);
+        return refusal;
+    }
+    std::string ask_about_printer_settings(const std::string& id) override
+    {
+        settings_asked.push_back(id);
         return refusal;
     }
     std::string rename_printer(const std::string& id, const std::string& name) override
@@ -396,7 +401,7 @@ TEST_CASE("a printer the first launch could not bring says why and keeps the ste
     CHECK(wire.of_type("state").size() == 2);
 }
 
-TEST_CASE("the import result's buttons reach the backend", "[home][onboarding]")
+TEST_CASE("the import result's Continue reaches the backend", "[home][onboarding]")
 {
     FakeBackend backend;
     Wire wire;
@@ -404,10 +409,9 @@ TEST_CASE("the import result's buttons reach the backend", "[home][onboarding]")
     host.on_page_message(hello());
     const size_t states = wire.of_type("state").size();
 
-    host.on_page_message(page_message("onboarding_import_retry"));
     host.on_page_message(page_message("onboarding_import_continue"));
-    CHECK(backend.onboarding_calls == std::vector<std::string>{"import_retry", "import_continue"});
-    CHECK(wire.of_type("state").size() == states + 2);
+    CHECK(backend.onboarding_calls == std::vector<std::string>{"import_continue"});
+    CHECK(wire.of_type("state").size() == states + 1);
     CHECK(wire.of_type("onboarding_error").empty());
 }
 
@@ -568,12 +572,14 @@ TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]
     const size_t states_after_hello = wire.of_type("state").size();
 
     host.on_page_message(page_message("open_printer_settings", json{{"id", "named:Garage X1C"}}));
+    host.on_page_message(page_message("ask_about_printer_settings", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("connect_printer", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("calibrate_printer", json{{"id", "named:Garage X1C"}}));
     host.on_page_message(page_message("rename_printer", json{{"id", "named:Garage X1C"}, {"name", "Shed X1C"}}));
     host.on_page_message(page_message("remove_printer", json{{"id", "named:Shed X1C"}}));
 
     CHECK(backend.settings_opened == std::vector<std::string>{"named:Garage X1C"});
+    CHECK(backend.settings_asked == std::vector<std::string>{"named:Garage X1C"});
     CHECK(backend.connections_opened == std::vector<std::string>{"named:Garage X1C"});
     CHECK(backend.calibrations == std::vector<std::string>{"named:Garage X1C"});
     CHECK(backend.wizards == 0);
@@ -581,7 +587,7 @@ TEST_CASE("the printer menu reaches its actions and refreshes the rail", "[home]
     CHECK(backend.renamed.front() == std::make_pair(std::string("named:Garage X1C"), std::string("Shed X1C")));
     CHECK(backend.removed == std::vector<std::string>{"named:Shed X1C"});
     CHECK(wire.of_type("printer_error").empty());
-    CHECK(wire.of_type("state").size() == states_after_hello + 5);
+    CHECK(wire.of_type("state").size() == states_after_hello + 6);
 }
 
 // A refusal is the person's to read, and the rail is sent again either way so

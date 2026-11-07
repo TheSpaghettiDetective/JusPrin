@@ -94,13 +94,13 @@ describe('the three designed frames', () => {
 describe('the card\'s other states', () => {
   const expected: Record<string, (string | RegExp)[]> = {
     earlier: ['Earlier setup', 'Saved Oct 8, 10:42', 'Wide brim and a slow first layer for adhesion', 'Saved with this chat.'],
-    working: ['Agent working', 'Stop the corners lifting', '~2h 18m'],
+    working: ['AI working', 'Stop the corners lifting', '~2h 18m'],
     recomputing: ['Time & material estimates recomputing…'],
     stale: ['Setup summary', '~2h 18m', 'Previous estimates · not current', 'Recompute'],
     'plan-mark': ['Stop the corners lifting', 'Wide brim and a slow first layer for adhesion',
       'Filament changed to Generic ABS by hand', 'Check plan', 'Time & material estimates recomputing…'],
     material: ['Generic ABS +2 · 7 settings changed', 'Printer last reported PLA'],
-    'no-agent': ['0.20mm Standard · Generic ABS +2', 'Not sliced yet', 'No agent configured · using the selected preset.'],
+    'no-agent': ['0.20mm Standard · Generic ABS +2', 'Not sliced yet', 'No AI configured · using the selected preset.'],
     sent: ['Saved sliced snapshot', 'Sliced & sent', 'Sent to MyKlipper · Oct 8, 10:42. Saved snapshot: the canvas shows your current project.'],
     'with-currency': [/1\.12/],
     missing: ['No settings read from the project', 'Estimate unavailable'],

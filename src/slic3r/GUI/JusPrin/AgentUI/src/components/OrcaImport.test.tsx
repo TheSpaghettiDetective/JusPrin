@@ -10,7 +10,7 @@ import { OrcaImport } from './OrcaImport';
 const folder = '~/Library/Application Support/OrcaSlicer';
 
 function actions() {
-  return { importPrinters: vi.fn(), retry: vi.fn(), chooseFolder: vi.fn(), close: vi.fn() };
+  return { importPrinters: vi.fn(), chooseFolder: vi.fn(), close: vi.fn() };
 }
 
 function state(overrides: Partial<OrcaImportPayload>): OrcaImportPayload {
@@ -97,12 +97,11 @@ describe('the Import from OrcaSlicer window', () => {
     render(<OrcaImport actions={act} state={state({
       screen: 'imported',
       result: [
-        { kind: 'printer', name: 'Bambu Lab P1S 0.4 nozzle', renamedTo: '', imported: true, reason: '', retryable: false },
-        { kind: 'printer', name: 'Shop X1C', renamedTo: 'Shop X1C (Orca copy)', imported: true, reason: '', retryable: false },
-        { kind: 'process', name: 'Old', renamedTo: '', imported: false, reason: 'Not imported. The file has no version.',
-          retryable: false },
-        { kind: 'filament', name: 'PLA', renamedTo: '', imported: true, reason: '', retryable: false },
-        { kind: 'filament', name: 'PETG', renamedTo: '', imported: true, reason: '', retryable: false },
+        { kind: 'printer', name: 'Bambu Lab P1S 0.4 nozzle', renamedTo: '', imported: true, reason: '' },
+        { kind: 'printer', name: 'Shop X1C', renamedTo: 'Shop X1C (Orca copy)', imported: true, reason: '' },
+        { kind: 'process', name: 'Old', renamedTo: '', imported: false, reason: 'Not imported. The file has no version.' },
+        { kind: 'filament', name: 'PLA', renamedTo: '', imported: true, reason: '' },
+        { kind: 'filament', name: 'PETG', renamedTo: '', imported: true, reason: '' },
       ],
     })} />);
     expect(screen.getByText('They are in the printer menu. The printer this project uses didn’t change.')).toBeInTheDocument();
@@ -110,24 +109,16 @@ describe('the Import from OrcaSlicer window', () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       'Bambu Lab P1S 0.4 nozzleImported', 'Shop X1CImported as ‘Shop X1C (Orca copy)’', 'OldNot imported. The file has no version.',
     ]);
-    expect(screen.getByText('2 filaments imported')).toBeInTheDocument();
-    // A file with no version fails the same way again: no retry.
-    expect(screen.queryByRole('button', { name: 'Retry failed items' })).toBeNull();
+    expect(screen.getByText('2 filaments imported: PLA, PETG.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(act.close).toHaveBeenCalledTimes(1);
   });
 
-  it('retries the failed items, and offers no retry when nothing failed', async () => {
-    const act = actions();
-    const failed = { kind: 'printer' as const, name: 'Old', renamedTo: '', imported: false, retryable: true,
-      reason: 'Not imported. The file couldn’t be read.' };
-    const { rerender } = render(<OrcaImport actions={act} state={state({ screen: 'imported', result: [failed] })} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Retry failed items' }));
-    expect(screen.getByRole('button', { name: 'Importing…' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
-    await waitFor(() => expect(act.retry).toHaveBeenCalledTimes(1));
-    rerender(<OrcaImport actions={act} state={state({ screen: 'imported', result: [{ ...failed, imported: true, retryable: false }] })} />);
-    expect(screen.queryByRole('button', { name: /Retry|Importing/ })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
+  it('says how to try again on the line itself, with Done as the only button', () => {
+    render(<OrcaImport actions={actions()} state={state({ screen: 'imported', result: [
+      { kind: 'printer', name: 'Old', renamedTo: '', imported: false, reason: 'JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…' },
+    ] })} />);
+    expect(screen.getByText('Old').closest('li')).toHaveTextContent('JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…');
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Done']);
   });
 });

@@ -12,7 +12,6 @@ import { OrcaImportResultLines, OrcaPrinterList } from './OrcaImportLists';
 export interface OrcaImportActions {
   // The printers left ticked, by name.
   importPrinters: (printers: string[]) => void;
-  retry: () => void;
   chooseFolder: () => void;
   close: () => void;
 }
@@ -66,14 +65,7 @@ export function OrcaImport({ state, actions }: { state: OrcaImportPayload; actio
   switch (state.screen) {
     case 'imported':
       body = <Result result={state.result ?? []} />;
-      buttons = <>
-        {(state.result ?? []).some((line) => line.retryable) && (
-          <button type="button" disabled={busy} onClick={() => run(actions.retry)}>
-            {busy ? 'Importing…' : 'Retry failed items'}
-          </button>
-        )}
-        <button type="button" className="primary" disabled={busy} onClick={actions.close}>Done</button>
-      </>;
+      buttons = <button type="button" className="primary" onClick={actions.close}>Done</button>;
       break;
     case 'nothing_new':
       body = <>

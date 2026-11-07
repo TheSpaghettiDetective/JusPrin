@@ -113,7 +113,7 @@ describe('the printer panel page', () => {
     expect(screen.queryByRole('heading')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
     expect(screen.getByText('What printer do you have?')).toBeInTheDocument();
-    expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+    expect(screen.getByLabelText('Message AI')).toBeEnabled();
     // The project's own setup card belongs to the other panel.
     expect(screen.queryByTestId('current-setup')).toBeNull();
   });
@@ -157,7 +157,7 @@ describe('the printer panel page', () => {
 
   it('asks before going back over words not yet sent', async () => {
     const host = open();
-    await userEvent.type(screen.getByLabelText('Message the Agent'), 'half a thought');
+    await userEvent.type(screen.getByLabelText('Message AI'), 'half a thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(host.lastOfType('printer_action')).toBeUndefined();
@@ -185,7 +185,7 @@ describe('the printer panel page', () => {
 
   it('still asks on Done over words not yet sent', async () => {
     const host = open(finished);
-    await userEvent.type(screen.getByLabelText('Message the Agent'), 'one more thing');
+    await userEvent.type(screen.getByLabelText('Message AI'), 'one more thing');
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByRole('dialog', { name: 'Close this conversation?' })).toBeInTheDocument();
     expect(host.lastOfType('printer_action')).toBeUndefined();
@@ -225,7 +225,7 @@ describe('the printer panel page', () => {
     host.deliver('message_added', { message: state().conversation[0] });
     expect(screen.getByTestId('agent-not-configured')).toBeVisible();
     expect(screen.queryByText('What printer do you have?')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
 
     expect(screen.getAllByRole('button', { name: 'Browse the full printer list' })).toHaveLength(1);
     await userEvent.click(screen.getByRole('button', { name: 'Browse the full printer list' }));
@@ -240,7 +240,7 @@ describe('the printer panel page', () => {
 
   it('sends its offer to Preferences › Agent, keeps the panel, and continues the greeting once an agent is there', async () => {
     const host = open(state({ agent: { status: 'unavailable' } }));
-    await userEvent.click(screen.getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Set up AI' }));
     expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'open_preferences', section: 'agent' });
     // No setup is drawn in the panel, and the panel is not closed for the person.
     expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
@@ -253,7 +253,7 @@ describe('the printer panel page', () => {
     host.deliver('agent_status', { status: 'ready' });
     expect(screen.getByText('What printer do you have?')).toBeVisible();
     expect(host.lastOfType('user_message')).toBeUndefined();
-    await userEvent.type(screen.getByLabelText('Message the Agent'), 'Bambu A1 mini{Enter}');
+    await userEvent.type(screen.getByLabelText('Message AI'), 'Bambu A1 mini{Enter}');
     expect(host.lastOfType('user_message')!.payload).toMatchObject({ text: 'Bambu A1 mini' });
   });
 

@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Appearance, EmailSignIn, OnboardingState } from '../bridge/protocol';
 import { afterPaint } from '@shared/afterPaint';
-import { SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
+import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
 import { OrcaImportResultLines, OrcaPrinterList } from '../../../AgentUI/src/components/OrcaImportLists';
 import lockupLight from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg';
 import lockupDark from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_dark.svg';
@@ -26,6 +26,8 @@ import type { PrinterPick } from '../../../AgentUI/src/components/PrinterPicker'
 // bed and Klipper G-code (OrcaHomeBackend::assume_default_printer). Home's
 // "No printer yet" card and its drop zone say the same.
 export const STAND_IN_PRINTER = 'Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.';
+// The same before Skip, under Continue and Skip for now.
+const SKIP_PRINTER = 'If you skip, files are sliced for a 250 mm Klipper printer until you add yours, and may not print on other printers.';
 
 // How long the card says who signed in before the Printers step.
 const SIGNED_IN_PAUSE_MS = 1500;
@@ -196,13 +198,17 @@ function SignedIn({ onboarding }: { onboarding: OnboardingState }) {
 // The first door, on the welcome and in Home's Agent group alike: the
 // sign-up offer, Google in the browser or an email that stays in the app,
 // each step of either, and who signed in. Signing up and signing in are
-// the same door: an address with no account gets one from its first code.
-// Returns the words and controls only; the caller frames them.
+// the same door: an address with no account gets one from its first code,
+// so "Sign up free" sends it at once, and only "Sign in" asks how (board
+// first-run-11). Returns the words and controls only; the caller frames them.
 export function SignInDoor({ onboarding, onAction, offer }: { onboarding: OnboardingState; onAction: Action; offer?: boolean }) {
   // The address typed at rest, kept for "Change email".
   const [address, setAddress] = useState('');
   const addressField = useRef<HTMLInputElement>(null);
   const [focusAddress, setFocusAddress] = useState(false);
+  // "Sign up free" was pressed: the code is on its way, so the step that asks
+  // how to sign in is not shown while the server sends it.
+  const [sendingCode, setSendingCode] = useState(false);
   useEffect(() => {
     if (focusAddress && onboarding.signIn === 'idle') {
       addressField.current?.focus();
@@ -221,6 +227,17 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
   const email = onboarding.email;
   if (onboarding.signIn === 'email' && email && email.step === 'code')
     return <CodeStep email={email} onAction={onAction} onChangeEmail={backToAddress} onBrowser={browser} />;
+  if (onboarding.signIn === 'email' && email && sendingCode && !email.refusal) {
+    return (
+      <>
+        <p className="onboarding-door-title onboarding-waiting">
+          <span className="onboarding-spinner" aria-hidden="true" />
+          Sending a code to {email.email}…
+        </p>
+        <LinkRow links={[]} cancel={() => onAction('onboarding_sign_in_cancel')} />
+      </>
+    );
+  }
   if (onboarding.signIn === 'email' && email)
     return <ChooseStep email={email} onAction={onAction} onChangeEmail={backToAddress} />;
   if (onboarding.signIn === 'browser') {
@@ -253,16 +270,22 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
     );
   }
   if (onboarding.accountEmail) return <SignedIn onboarding={onboarding} />;
-  // At rest.
-  const sendEmail = () => {
+  // At rest. The host takes the address, then the code request, in order.
+  const sendEmail = (withCode: boolean) => {
     const typed = address.trim();
-    if (typed) onAction('onboarding_sign_in_email', { email: typed });
-    else addressField.current?.focus();
+    if (!typed) {
+      addressField.current?.focus();
+      return;
+    }
+    setSendingCode(withCode);
+    onAction('onboarding_sign_in_email', { email: typed });
+    if (withCode) onAction('onboarding_sign_in_send_code');
   };
   return (
     <>
       {offer && <p className="onboarding-door-title">{SIGNUP_OFFER}</p>}
       {offer && <p className="onboarding-door-detail">{SIGNUP_SCALE}</p>}
+      {offer && <p className="onboarding-door-detail">{SIGNUP_AFTER}</p>}
       {offer && onboarding.v1Imported && (
         <p className="onboarding-door-detail">Subscribed to JusPrin v1? You get these 500 credits and keep your original price.</p>
       )}
@@ -274,7 +297,7 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
       <p className="onboarding-or"><span>or</span></p>
       <form className="onboarding-email-row" onSubmit={(event) => {
         event.preventDefault();
-        sendEmail();
+        sendEmail(true);
       }}>
         <input ref={addressField} className="onboarding-field" type="email" placeholder="you@example.com" autoComplete="email"
           aria-label="Email" value={address} onChange={(event) => setAddress(event.target.value)} />
@@ -282,9 +305,8 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
       </form>
       <p className="onboarding-door-note">
         Already have an account?{' '}
-        <button type="button" className="onboarding-link inline" onClick={sendEmail}>Sign in</button>
+        <button type="button" className="onboarding-link inline" onClick={() => sendEmail(false)}>Sign in</button>
       </p>
-      <p className="onboarding-door-note">Google opens your browser; email stays here.</p>
       <p className="onboarding-door-note">
         By continuing you agree to the{' '}
         <button type="button" className="onboarding-link inline" onClick={() => onAction('onboarding_open_link', { link: 'terms' })}>
@@ -303,11 +325,16 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
 
 // The agent on the person's own AI account, an API key or Claude Code and
 // Claude Desktop: Preferences › Agent explains both, and closes back here.
+// A card of its own under the offer, with what it costs.
 export function OwnAccountDoor({ onAction, disabled }: { onAction: Action; disabled: boolean }) {
   return (
-    <button type="button" className="onboarding-link flush" disabled={disabled}
+    <button type="button" className="onboarding-door" disabled={disabled}
       onClick={() => onAction('onboarding_open_preferences', { door: 'key' })}>
-      Use your own AI account instead
+      <span className="onboarding-door-text">
+        <span className="onboarding-door-name">Use your own AI account</span>
+        <span className="onboarding-door-what">Your API key, or Claude Code or Claude Desktop</span>
+      </span>
+      <span className="onboarding-door-cost">Free</span>
     </button>
   );
 }
@@ -333,7 +360,7 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
       <Lockup appearance={appearance} />
       <div className="onboarding-welcome">
         <figure className="onboarding-clip">
-          <video src={clip} autoPlay loop muted playsInline aria-label="The agent fixing a print that came out stringy" />
+          <video src={clip} autoPlay loop muted playsInline aria-label="AI fixing a print that came out stringy" />
           <details className="onboarding-credits">
             <summary>Photo credits</summary>
             <p>
@@ -350,12 +377,12 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
           <div className="onboarding-heading">
             <h1>The AI slicer that fixes failed prints.</h1>
             <p className="onboarding-lead">
-              Show it a photo of what went wrong. The agent reads your file, your settings and your slice, changes the settings
+              Show it a photo of what went wrong. AI reads your file, your settings and your slice, changes the settings
               and slices again.
             </p>
           </div>
           <div className="onboarding-doors">
-            <p className="onboarding-doors-label">Sign up to use the AI agent, or skip it and just slice.</p>
+            <p className="onboarding-doors-label">Sign up to use AI, or skip it and just slice.</p>
             <div className="onboarding-offer">
               <SignInDoor onboarding={onboarding} onAction={onAction} offer />
               {signedIn && !waited.current && (
@@ -394,7 +421,7 @@ function WelcomeDone({ onboarding }: { onboarding: OnboardingState }) {
     );
   }
   const text = accountEmail ? `Signed in as ${accountEmail}`
-    : onboarding.agentKeyProvider ? `The agent uses your ${onboarding.agentKeyProvider} key` : '';
+    : onboarding.agentKeyProvider ? `AI uses your ${onboarding.agentKeyProvider} key` : '';
   if (!text) return null;
   return <p className="onboarding-done"><CheckGlyph />{text}</p>;
 }
@@ -467,11 +494,9 @@ function OrcaImport({ onboarding, error, onAction }: Props) {
   );
 }
 
+// A line not imported says what to do about it, trying again included.
 function ImportResult({ onboarding, error, onAction }: Props) {
   const items = onboarding.orca.importResult ?? [];
-  // Only a failure that can go another way is offered again.
-  const retryable = items.some((item) => item.retryable);
-  const [busy, run] = useBusy(onAction, onboarding);
   return (
     <div className="onboarding-step">
       <div className="onboarding-heading">
@@ -480,14 +505,9 @@ function ImportResult({ onboarding, error, onAction }: Props) {
       <OrcaImportResultLines lines={items} />
       {error && <p className="onboarding-error" role="alert">{error}</p>}
       <div className="onboarding-actions">
-        <button type="button" className="button-primary" disabled={busy} onClick={() => onAction('onboarding_import_continue')}>
+        <button type="button" className="button-primary" onClick={() => onAction('onboarding_import_continue')}>
           Continue
         </button>
-        {retryable && (
-          <button type="button" className="button-secondary" disabled={busy} onClick={() => run('onboarding_import_retry')}>
-            {busy ? 'Importing…' : 'Retry failed items'}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -546,7 +566,7 @@ function ChoosePrinter({ onboarding, error, onAction }: Props) {
           <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}>Continue</button>
           <button type="button" className="onboarding-link" onClick={() => onAction('onboarding_assume_default')}>Skip for now</button>
         </div>
-        <p className="onboarding-note">{STAND_IN_PRINTER}</p>
+        {!catalogId && <p className="onboarding-note">{SKIP_PRINTER}</p>}
       </div>
       <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>Back</button>
     </div>

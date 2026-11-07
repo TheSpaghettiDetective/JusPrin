@@ -49,7 +49,6 @@ private:
     bool           on_page_message(const std::string& type, const nlohmann::json& payload);
     // Brings the printers named in `printers`, as the page lists them.
     void           import(const std::vector<std::string>& printers);
-    void           retry();
     void           choose_folder();
 
     OrcaImporter                               m_importer;

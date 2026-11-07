@@ -310,10 +310,10 @@ int LeftPane::draw_print_history_row(wxGraphicsContext& gc, int y, int width)
             detail += middle_dot() + _L("printing now");
         else if (!summary.last_finished_at.empty())
             detail += middle_dot() + wxString::Format(_L("last finished %s"), finished_day(summary.last_finished_at));
-        // A print host reports no prints, so only G-code that went nowhere
-        // but a file is known never to have printed.
+        // A print host reports no prints, so a send is not known never to
+        // have printed; what is known is that this G-code went to no printer.
         else if (summary.sends == 0)
-            detail += middle_dot() + _L("never printed");
+            detail += ", " + _L("never sent to a printer");
     }
     m_print_history_detail = detail;
 

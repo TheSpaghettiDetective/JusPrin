@@ -109,8 +109,10 @@ enum class PrinterStatus { NotConnected, Connecting, Connected, Ready, Printing,
 
 const char* to_string(PrinterStatus status);
 
-// How the printer says its last print ended; Unknown when it does not.
-enum class LastPrint { Unknown, Finished, Failed, Cancelled };
+// Finished when the printer says its last print finished. A failed or
+// cancelled print reads as Unknown: the card says nothing about an outcome
+// it cannot be sure of.
+enum class LastPrint { Unknown, Finished };
 
 const char* to_string(LastPrint last);
 
@@ -247,8 +249,6 @@ struct Snapshot
             std::string renamed_to;
             bool        imported{false};
             std::string reason;
-            // Not imported, and bringing it again can succeed.
-            bool        retryable{false};
         };
         std::optional<std::vector<ImportItem>> import_result;
         // The add-printer form, as the printer panel's page receives it;

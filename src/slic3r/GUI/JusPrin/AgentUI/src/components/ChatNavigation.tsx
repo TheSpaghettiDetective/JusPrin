@@ -15,8 +15,8 @@ function NewChat({ busy, onCreate }: { busy: boolean; onCreate: () => void }) {
 // in the page makes the conversation controls and pane toggle one header row;
 // the native project header owns the other half while the pane is hidden.
 export function AgentPaneToggle({ onCollapse }: { onCollapse: () => void }) {
-  return <button className="chat-icon agent-pane-toggle" aria-label="Hide the Agent panel"
-    title="Hide the Agent panel" onClick={onCollapse}>
+  return <button className="chat-icon agent-pane-toggle" aria-label="Hide the AI panel"
+    title="Hide the AI panel" onClick={onCollapse}>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="4" y="5" width="16" height="14" rx="1" />
       <path d="M14 5v14" />
@@ -373,8 +373,8 @@ export function ChatList({ conversations, activeId, busy, agentUnavailable, onSw
       <button className="configure-agent" onClick={onConfigure} disabled={busy}>
         <span className="jp-icon jp-icon-settings" aria-hidden="true" />
         <span>
-          <strong>{agentUnavailable ? 'Set up the agent' : 'Configure Agent'}</strong>
-          <small>{agentUnavailable ? 'Connect an Agent to continue this conversation' : 'Adjust defaults, models, and slice preferences'}</small>
+          <strong>{agentUnavailable ? 'Set up AI' : 'Configure AI'}</strong>
+          <small>{agentUnavailable ? 'Set up AI to continue this conversation' : 'Adjust defaults, models, and slice preferences'}</small>
         </span>
       </button>
     </footer>

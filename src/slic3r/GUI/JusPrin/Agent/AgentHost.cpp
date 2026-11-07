@@ -1032,6 +1032,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_pick_attachment(envelope_id, payload);
     else if (type == Protocol::kRefreshAccount)
         request_account();
+    else if (type == Protocol::kRefreshAccountBox)
+        request_account_box();
     else if (type == Protocol::kSetChatModel)
         handle_set_chat_model(envelope_id, payload);
     else if (type == Protocol::kSkills)
@@ -1274,7 +1276,7 @@ std::optional<AgentError> AgentHost::user_message_refusal() const
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id())
         return AgentError{"inactive_conversation", "Return to the active chat or restore this chat before sending.", false};
     if (m_setup_pending)
-        return AgentError{"setup_busy", "Finish or cancel Agent configuration before sending a message.", false};
+        return AgentError{"setup_busy", "Finish or cancel AI configuration before sending a message.", false};
     return std::nullopt;
 }
 
@@ -1453,7 +1455,7 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
         record.error = AgentError{"too_large", "This file is too large to attach."};
     } else if (record.kind == "unsupported") {
         record.state = "error";
-        record.error = AgentError{"unsupported_type", "This file type can't be read by the Agent."};
+        record.error = AgentError{"unsupported_type", "This file type can't be read by AI."};
     } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
         record.state = "error";
         record.error = AgentError{"not_text", "This file is not readable UTF-8 text."};
@@ -2066,7 +2068,7 @@ void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::
                                        [preview](const ConversationMessage& message) { return message.id == preview->correlation_id; });
     if (proposed == messages.end() ||
         std::any_of(std::next(proposed), messages.end(), [](const ConversationMessage& message) { return message.role == MessageRole::User; })) {
-        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask the Agent again.", envelope_id);
+        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask AI again.", envelope_id);
         return;
     }
     if (const std::string refusal = m_tools.approve_proposal(action_id); !refusal.empty())
@@ -2400,11 +2402,11 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
 {
     cancel_conversation_title();
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before configuring the Agent.", envelope_id);
+        send_bridge_error("busy", "Finish or stop the current reply before configuring AI.", envelope_id);
         return;
     }
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
         return;
     }
     const json payload = json::parse(payload_json);
@@ -2452,7 +2454,7 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
     // a key check.
     cancel_conversation_title();
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
         return;
     }
     if (agent_busy()) {
@@ -2759,7 +2761,7 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         failed.in_reply_to = user_message_id;
         failed.error       = instructions_missing ?
                                  AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
-                                 AgentError{"agent_unavailable", "The Agent service is not available.", true};
+                                 AgentError{"agent_unavailable", "The AI service is not available.", true};
         failed.created_at = m_persistence.timestamp();
         document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
@@ -2830,7 +2832,7 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     if (asks_setup_check(request.skills) && purpose_recorded(conversation_id))
         mark_setup_checked(request.workspace);
     if (!m_agent || !m_agent->ready() || !m_agent->start(request))
-        fail_stream(AgentError{"agent_unavailable", "The Agent service could not start this request.", true});
+        fail_stream(AgentError{"agent_unavailable", "The AI service could not start this request.", true});
 }
 
 namespace {
@@ -3200,7 +3202,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {
         begin_tool_followup(continuation);
-        fail_stream(AgentError{"agent_continuation_failed", "The Agent could not receive the native tool result.", true});
+        fail_stream(AgentError{"agent_continuation_failed", "AI could not receive the native tool result.", true});
         return;
     }
     begin_tool_followup(continuation);
@@ -3259,7 +3261,7 @@ void AgentHost::pump_stream()
     else if (next->kind == AgentEventKind::Failed) {
         if (next->error && next->error->code == "invalid_credentials")
             note_key_rejected();
-        fail_stream(next->error.value_or(AgentError{"agent_error", "The Agent request failed.", true}));
+        fail_stream(next->error.value_or(AgentError{"agent_error", "The AI request failed.", true}));
     }
     else if (next->kind == AgentEventKind::Completed)
         complete_stream();
@@ -3617,6 +3619,20 @@ void AgentHost::send_account()
                       json{{"account", m_account ? *m_account : json()}, {"chatTitles", usage_chat_titles()}}.dump());
 }
 
+void AgentHost::request_account_box()
+{
+    // Signing in or out asks again, so only the latest request is answered.
+    const unsigned request = ++m_account_box_request;
+    auto answer = [this, request](std::optional<std::string> html) {
+        if (request == m_account_box_request && m_handshake)
+            send_envelope(Protocol::kAccountBox, json{{"html", html ? json(*html) : json()}}.dump());
+    };
+    if (m_model_source)
+        m_model_source->fetch_account_box(std::move(answer));
+    else
+        answer(std::nullopt);
+}
+
 namespace {
 
 // {"<gateway chat id>": "<title>"}. The file is only a list of names: one
@@ -3710,7 +3726,7 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_perso
             // for again, and the person can send once it has.
             request_model_lists();
             fail_stream(AgentError{"account_models_unknown",
-                                   "JusPrin hasn't loaded the Agent models for your account yet. Try again in a moment.", true});
+                                   "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment.", true});
             return false;
         }
         // The person's first message fixes the chat to its model and the format
@@ -3728,7 +3744,7 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_perso
         const ProviderProfile* profile = profile_for(choice.provider);
         fail_stream(AgentError{"provider_not_set_up",
                                "No " + (profile ? profile->display_name : choice.provider) +
-                                   " API key is set up. Add it in the Agent settings, or choose another model.",
+                                   " API key is set up. Add it in the AI settings, or choose another model.",
                                false});
         return false;
     }

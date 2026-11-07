@@ -47,9 +47,11 @@ struct OrcaProfileSource
 
 // "printer", "filament" or "process", as an import's result names each kind.
 const char* orca_import_kind(OrcaImportItem::Kind kind);
-// Why an item was not imported, for the person, as a sentence: "Not
-// imported. The file couldn't be read.", or for a missing base "This
-// filament is built on Kingroon PLA Silk, which JusPrin doesn't have."
+// Why an item was not imported, for the person, as a sentence that says
+// what to do where there is something: "JusPrin couldn't read this file. To
+// try again, choose File › Import › Import from OrcaSlicer…", or for a
+// missing base "This filament is built on Kingroon PLA Silk, which JusPrin
+// doesn't have. Pick a similar filament from the filament menu instead."
 // Empty for one that was imported.
 std::string orca_import_reason(const OrcaImportItem& item);
 
@@ -77,9 +79,6 @@ public:
     // Items already AlreadyThere stay as they are.
     std::vector<OrcaImportItem> bring(std::vector<OrcaImportItem> ticked, const std::vector<std::string>& files,
                                       const std::string& preferred, Selection selection);
-    // Brings again each item of `result` a retry can fix
-    // (orca_import_retryable), and puts its new outcome in its place.
-    void retry(std::vector<OrcaImportItem>& result, const std::string& preferred, Selection selection);
 
     // The folder the person picked when asked for OrcaSlicer's: nothing when
     // they cancelled, a problem when it holds no OrcaSlicer printers.

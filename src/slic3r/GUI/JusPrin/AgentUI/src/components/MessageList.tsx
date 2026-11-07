@@ -147,7 +147,7 @@ function openedLine(message: Message, report: FileReport, isFirst: boolean): Rea
   const files = report.loads.flatMap((load) => load.files);
   const name = (files[0] ?? '').split(/[\\/]/).pop() || 'a file';
   const text = [`Opened ${name}${files.length > 1 ? ` and ${files.length - 1} more` : ''}${isFirst ? ' as a new project' : ''}`,
-    report.startedBy === 'agent' ? 'Agent' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
+    report.startedBy === 'agent' ? 'AI' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
     .filter(Boolean).join(' · ');
   return <div className="message note" role="status">
     <span className="note-text" title={text}>{text}</span>
@@ -433,7 +433,7 @@ export function MessageList({
 
   return (
     <div className="message-thread">
-      <div className="message-list" role="log" aria-label="Agent conversation"
+      <div className="message-list" role="log" aria-label="AI conversation"
         ref={scrollRef} onScroll={handleScroll}>
         <div className="message-list-content" ref={contentRef}>
           <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />

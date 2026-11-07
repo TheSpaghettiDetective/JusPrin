@@ -32,7 +32,7 @@ const pick = async (item: string) => { await openMenu(); await userEvent.click(s
 const busyState = () => chatState({ conversationBusy: true });
 
 export const runtimeCases: VisualCase[] = [
-  runtime('connecting', 'Mode=Connecting', ['Connecting…', 'Starting the Agent panel.'], () => mountedApp(null)),
+  runtime('connecting', 'Mode=Connecting', ['Connecting…', 'Starting the AI panel.'], () => mountedApp(null)),
   runtime('bridge-error', 'Mode=Bridge error · Diagnostics=Collapsed', ['data-testid="bridge-error"', 'Retry', 'Diagnostics'],
     () => timedOut(false)),
   runtime('bridge-error-diagnostics', 'Mode=Bridge error · Diagnostics=Expanded', ['<details class="diagnostics" open', 'diagnostics-code'],
@@ -41,7 +41,7 @@ export const runtimeCases: VisualCase[] = [
     () => mountedApp(chatState(), { after: ({ deliver }: ScriptedHost) =>
       deliver('bridge_error', { code: 'pending_actions', message: 'Resolve pending actions before deleting this chat.' }) })),
 
-  header('default', 'State=Default', ['Strong print', 'Hide the Agent panel'], () => mountedApp(chatState())),
+  header('default', 'State=Default', ['Strong print', 'Hide the AI panel'], () => mountedApp(chatState())),
   header('long-title', 'State=Long title', [longTitle], () => mountedApp(chatState({
     conversations: [{ id: 'conv-1', title: longTitle, createdAt: '2026-10-05T10:42:00' }] }))),
   header('busy', 'State=Busy', ['aria-label="New chat" title="New chat" disabled'], () => mountedApp(busyState())),

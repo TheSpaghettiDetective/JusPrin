@@ -127,7 +127,7 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
     // Internal-connection error surface; hidden until a failure occurs.
     m_error_panel = new wxPanel(this, wxID_ANY);
     auto* error_sizer = new wxBoxSizer(wxVERTICAL);
-    m_error_title  = new wxStaticText(m_error_panel, wxID_ANY, _L("The Agent panel could not connect"));
+    m_error_title  = new wxStaticText(m_error_panel, wxID_ANY, _L("The AI panel could not connect"));
     m_error_detail = new wxStaticText(m_error_panel, wxID_ANY, wxEmptyString);
     auto* retry_button = new Button(m_error_panel, _L("Retry"));
     m_retry_button = retry_button;
@@ -158,7 +158,7 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
 
     m_page_url = agent_page_url(mode);
     if (m_page_url.empty()) {
-        show_bridge_error(_L("The packaged Agent page is missing from this build."));
+        show_bridge_error(_L("The packaged AI page is missing from this build."));
     } else {
         m_webview  = WebView::CreateWebView(this, m_page_url);
         if (m_webview == nullptr) {
@@ -168,6 +168,15 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
             m_webview->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &AgentWebView::on_script_message, this);
             m_webview->Bind(wxEVT_WEBVIEW_ERROR, &AgentWebView::on_load_error, this);
             m_webview->Bind(wxEVT_WEBVIEW_NAVIGATING, [this](wxWebViewEvent& event) {
+                // wx reports frames inside the page too, such as Account's
+                // server box (about:srcdoc). Those leave the page and its
+                // handshake as they are. The main-frame flag (GetInt) is not
+                // set on GTK, so the URL decides: the page itself is never an
+                // about: URL.
+                if (event.GetURL().StartsWith("about:")) {
+                    event.Skip();
+                    return;
+                }
                 // Every (re)load needs a fresh handshake before other traffic.
                 m_host->reset_page();
                 m_handshake_timer.StartOnce(kHandshakeDeadlineMs);
@@ -217,13 +226,13 @@ void AgentWebView::on_load_error(wxWebViewEvent& event)
 {
     m_last_load_error = event.GetString();
     BOOST_LOG_TRIVIAL(error) << "JusPrin agent page failed to load: " << m_last_load_error.ToUTF8();
-    show_bridge_error(_L("The Agent page failed to load."));
+    show_bridge_error(_L("The AI page failed to load."));
 }
 
 void AgentWebView::on_handshake_deadline(wxTimerEvent&)
 {
     if (!m_host->handshake_complete())
-        show_bridge_error(_L("The Agent page did not complete the bridge handshake."));
+        show_bridge_error(_L("The AI page did not complete the bridge handshake."));
 }
 
 void AgentWebView::reload()
@@ -239,9 +248,9 @@ void AgentWebView::reload()
         // only re-check the packaged page.
         const boost::filesystem::path page = agent_page_path();
         if (boost::filesystem::exists(page))
-            show_bridge_error(_L("Restart the application to load the Agent page."));
+            show_bridge_error(_L("Restart the application to load the AI page."));
         else
-            show_bridge_error(_L("The packaged Agent page is missing from this build."));
+            show_bridge_error(_L("The packaged AI page is missing from this build."));
     }
 }
 
@@ -263,7 +272,7 @@ wxString AgentWebView::diagnostics_text(const wxString& reason) const
 {
     wxString text = reason;
     text += "\n\n";
-    text += _L("This is an internal connection between the application and its Agent panel, not a network service.");
+    text += _L("This is an internal connection between the application and its AI panel, not a network service.");
     text += "\n";
     text += wxString::Format("URL: %s", m_page_url.empty() ? wxString(agent_page_path().string()) : m_page_url);
     if (!m_last_load_error.empty())

@@ -998,7 +998,7 @@ std::string ToolExecutionCoordinator::approve_proposal(const std::string& previe
 {
     const ToolActivity* preview = find(preview_action_id);
     if (preview == nullptr || preview->proposal_json.empty() || preview->state != ToolState::Succeeded)
-        return "This proposal is no longer open. Ask the Agent again.";
+        return "This proposal is no longer open. Ask AI again.";
     const bool saving = std::any_of(m_activities.begin(), m_activities.end(), [&preview_action_id](const ToolActivity& item) {
         return item.approves == preview_action_id && item.state != ToolState::Failed && item.state != ToolState::Cancelled;
     });

@@ -700,7 +700,7 @@ TEST_CASE("each stop reason ends the response as it should", "[agent][anthropic]
             CHECK(event->error->retryable == item.retryable);
         }
         if (std::string(item.stop_reason) == "refusal")
-            CHECK(event->error->message == "The Agent service declined to answer (cyber).");
+            CHECK(event->error->message == "The AI service declined to answer (cyber).");
         CHECK_FALSE(agent.service->busy());
     }
 

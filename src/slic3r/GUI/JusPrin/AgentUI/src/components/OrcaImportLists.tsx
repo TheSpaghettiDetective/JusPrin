@@ -56,10 +56,12 @@ function status(line: OrcaImportResultLine) {
 }
 
 // Printers and processes a line each, the outcome under the name; filaments
-// as a count, with any not imported listed so each says why.
+// as a count with the names of those imported, and any not imported listed
+// so each says why.
 export function OrcaImportResultLines({ lines }: { lines: OrcaImportResultLine[] }) {
   const filaments = lines.filter((line) => line.kind === 'filament');
-  const importedFilaments = filaments.filter((line) => line.imported).length;
+  const imported = filaments.filter((line) => line.imported).map((line) => line.renamedTo || line.name);
+  const importedFilaments = imported.length;
   const listed = lines.filter((line) => line.kind !== 'filament' || !line.imported);
   const noun = filaments.length === 1 ? 'filament' : 'filaments';
   return <>
@@ -82,6 +84,7 @@ export function OrcaImportResultLines({ lines }: { lines: OrcaImportResultLine[]
         {importedFilaments === filaments.length
           ? `${filaments.length} ${noun} imported`
           : `${importedFilaments} of ${filaments.length} ${noun} imported`}
+        {importedFilaments > 0 ? `: ${imported.join(', ')}.` : '.'}
       </p>
     )}
   </>;

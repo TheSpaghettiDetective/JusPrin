@@ -263,12 +263,6 @@ OrcaImportChoice orca_import_chosen(const OrcaPresetFiles& presets, const std::v
     return choice;
 }
 
-bool orca_import_retryable(const OrcaImportItem& item)
-{
-    using Reason = OrcaImportItem::Reason;
-    return item.outcome == OrcaImportItem::Outcome::NotImported && (item.reason == Reason::Unreadable || item.reason == Reason::NotLoaded);
-}
-
 std::vector<OrcaTickedPrinter> orca_ticked_printers(const fs::path& orca_root)
 {
     std::vector<OrcaTickedPrinter> ticked;

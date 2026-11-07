@@ -11,7 +11,6 @@ import {
   printSpan,
   projectHistoryLine,
   rowTime,
-  shortHash,
   statsLine,
 } from './history';
 
@@ -60,12 +59,12 @@ describe('the card lines', () => {
     expect(projectHistoryLine(summary({ prints: 1 }), now)).toBe('1 print');
   });
 
-  it('say an exported G-code never printed, but not a sent one', () => {
-    expect(projectHistoryLine(summary({ exports: 1 }), now)).toBe('Exported once · never printed');
-    expect(projectHistoryLine(summary({ exports: 3 }), now)).toBe('Exported 3 times · never printed');
+  it('say an exported G-code was never sent to a printer, but not a sent one', () => {
+    expect(projectHistoryLine(summary({ exports: 1 }), now)).toBe('Exported once, never sent to a printer');
+    expect(projectHistoryLine(summary({ exports: 3 }), now)).toBe('Exported 3 times, never sent to a printer');
     // A print host reports no prints, so a send may have printed.
     expect(projectHistoryLine(summary({ sends: 2 }), now)).toBe('Sent 2 times');
-    expect(printerHistoryLine(summary({ gcodes: 2 }), now)).toBe('2 G-codes · never printed');
+    expect(printerHistoryLine(summary({ gcodes: 2 }), now)).toBe('2 G-codes, never sent to a printer');
   });
 });
 
@@ -93,8 +92,7 @@ describe('the screen wording', () => {
     expect(printSpan(iso(2026, 9, 25, 10, 14), undefined, created, now)).toBe('10:14 →');
   });
 
-  it('writes the hash in two groups and the estimates on one line', () => {
-    expect(shortHash('a71f8c04deadbeef')).toBe('a71f 8c04');
+  it('writes the estimates on one line', () => {
     expect(statsLine(entry({ printTimeSeconds: 9240, grams: 68.6, layers: 181 }))).toBe('2h 34m · 69 g · 181 layers');
     expect(statsLine(entry())).toBe('');
     expect(duration(3900)).toBe('1h 05m');
@@ -113,12 +111,12 @@ describe('the screen wording', () => {
     expect(countLine([printed], true)).toBe('1 G-code · 1 print');
   });
 
-  it('finds an entry by its name, project, hash, printer or file', () => {
+  it('finds an entry by its name, project, printer or file, never its hash', () => {
     const sent = entry({
       destinations: [{ id: 'd-1', kind: 'send', at: iso(2026, 9, 28, 13, 6), printerName: 'Bambu X1C', delivered: true, startRequested: true }],
     });
     expect(matches(sent, 'garage')).toBe(true);
-    expect(matches(sent, 'a71f 8c04')).toBe(true);
+    expect(matches(sent, 'a71f')).toBe(false);
     expect(matches(sent, 'x1c')).toBe(true);
     expect(matches(sent, 'vent')).toBe(false);
   });

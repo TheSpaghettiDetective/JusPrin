@@ -27,6 +27,7 @@ export type PageMessageType =
   | 'connect_printer'
   | 'calibrate_printer'
   | 'open_printer_settings'
+  | 'ask_about_printer_settings'
   | 'rename_printer'
   | 'remove_printer'
   | 'confirm_answer'
@@ -51,7 +52,6 @@ export type PageMessageType =
   | 'onboarding_back'
   | 'onboarding_start_fresh'
   | 'onboarding_import'
-  | 'onboarding_import_retry'
   | 'onboarding_import_continue'
   | 'onboarding_assume_default'
   | 'onboarding_printer_form'
@@ -132,8 +132,8 @@ export type PrinterStatus =
   | 'paused'
   | 'attention';
 
-// How the printer says its last print ended, on a 'ready' card.
-export type LastPrint = 'finished' | 'failed' | 'cancelled';
+// Set on a 'ready' card when the printer says its last print finished.
+export type LastPrint = 'finished';
 
 // The card's one button: a Bambu printer's monitor, a print host's own page
 // in a window, Reconnect, or Connect for a printer with no connection.
@@ -361,8 +361,6 @@ export interface ImportResultItem {
   renamedTo: string;
   imported: boolean;
   reason: string;
-  // Not imported, and bringing it again can succeed.
-  retryable: boolean;
 }
 
 export interface OnboardingState {

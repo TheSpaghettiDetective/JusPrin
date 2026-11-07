@@ -36,7 +36,6 @@ export function OrcaImportApp({ getTransport }: { getTransport: () => Transport 
   const actions = useMemo<OrcaImportActions>(
     () => ({
       importPrinters: (printers) => client.send('shell_action', { action: 'import', printers }),
-      retry: () => client.send('shell_action', { action: 'retry' }),
       chooseFolder: () => client.send('shell_action', { action: 'choose_folder' }),
       close: () => client.send('shell_action', { action: 'close' }),
     }),

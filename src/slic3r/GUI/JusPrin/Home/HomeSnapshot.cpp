@@ -36,8 +36,6 @@ const char* to_string(LastPrint last)
 {
     switch (last) {
     case LastPrint::Finished: return "finished";
-    case LastPrint::Failed: return "failed";
-    case LastPrint::Cancelled: return "cancelled";
     case LastPrint::Unknown: break;
     }
     return "unknown";
@@ -182,8 +180,7 @@ json import_result_json(const std::optional<std::vector<Snapshot::Onboarding::Im
                          {"name", item.name},
                          {"renamedTo", item.renamed_to},
                          {"imported", item.imported},
-                         {"reason", item.reason},
-                         {"retryable", item.retryable}});
+                         {"reason", item.reason}});
     return lines;
 }
 

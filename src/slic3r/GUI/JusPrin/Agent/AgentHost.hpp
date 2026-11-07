@@ -65,6 +65,11 @@ public:
     // thread; nothing when no account is signed in or it could not be read.
     using AccountDone = std::function<void(std::optional<nlohmann::json> account)>;
     virtual void fetch_account(AccountDone done) { done(std::nullopt); }
+    // The HTML the JusPrin server puts in the box on Preferences › Account,
+    // later, on the host's thread; nothing when it sends none or could not be
+    // asked. Asked with the account's token when one is signed in.
+    using AccountBoxDone = std::function<void(std::optional<std::string> html)>;
+    virtual void fetch_account_box(AccountBoxDone done) { done(std::nullopt); }
 };
 
 class AgentHost
@@ -427,6 +432,7 @@ private:
     void send_model_catalog();
     void request_account();
     void send_account();
+    void request_account_box();
     void remember_chat_titles();
     nlohmann::json usage_chat_titles() const;
     bool person_started(const ConversationMessage& assistant) const;
@@ -694,6 +700,7 @@ private:
     std::optional<ChatModelChoice>          m_agent_choice;
     std::map<std::string, ProviderModels>   m_models;
     std::optional<nlohmann::json>           m_account;
+    unsigned                                m_account_box_request{0};
     std::string                             m_chat_titles_file;
     // What this host last wrote there, so an unchanged list costs no write.
     std::map<std::string, std::string>      m_chat_titles_kept;

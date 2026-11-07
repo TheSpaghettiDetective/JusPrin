@@ -4259,6 +4259,26 @@ button.link.prefs-inline-link {
   width: 100%;
 }
 
+/* The box the server fills on Account (AccountBox.tsx): out of the column,
+   so it leaves no gap, until its content is measured. It takes no clicks. */
+.prefs-account {
+  position: relative;
+}
+
+.prefs-box {
+  display: block;
+  width: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.prefs-box[data-measuring] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+}
+
 /* Account's plan, credits and usage (boards 4a to 4c). The bars are the
    composer's credit panel's .credit-lot rows. */
 .prefs-credits-plan {

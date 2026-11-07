@@ -300,12 +300,12 @@ export function Composer({
         )}
         <textarea
           ref={field}
-          aria-label="Message the Agent"
+          aria-label="Message AI"
           placeholder={
             disabled
-              ? disabledReason ?? 'The Agent is not available'
+              ? disabledReason ?? 'AI is not available'
               : streaming
-                ? 'Agent is responding…'
+                ? 'AI is responding…'
                 : stagedPlaceholder && hasSendable
                   ? stagedPlaceholder
                   : !started && placeholder
