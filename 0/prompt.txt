@@ -168,3 +168,11 @@ All printer connections
 ---
 
 check commits on jusprin-newui-integration  to see if they can be squashed into cleaner log before mergging
+
+---
+
+squash all of them into 1 on jusprin-newui
+
+---
+
+is this the result after your sweep and proposed fixes?
