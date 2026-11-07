@@ -1,0 +1,1 @@
+also the "account" page on the preferences only supports google sign in? all other auth options in the onboarding flow are missing from preferendes?
