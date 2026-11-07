@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6V4SQY7TSFHG3GWTXQ2QTBR",
+  "strategy": "manual-commit",
+  "branch": "ui-walkthrough",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "resources/jusprin/ui/icons/lucide-map.json",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/AccountBox.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Preferences.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/styles.css",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/shell/print_issues_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 60099,
+    "cache_read_tokens": 6616964,
+    "output_tokens": 21122,
+    "api_call_count": 34,
+    "subagent_tokens": {
+      "input_tokens": 508,
+      "cache_creation_tokens": 606323,
+      "cache_read_tokens": 36280911,
+      "output_tokens": 140167,
+      "api_call_count": 252
+    }
+  }
+}
