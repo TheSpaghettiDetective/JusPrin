@@ -1,0 +1,9 @@
+How about make it a little geeky and call it BYOAI followed by "Bring Your Own AI". find a way to fit that in the side bar
+
+---
+
+let's use jusprin-newui-integration as the branch
+
+---
+
+use ui-walkthrough as the branch name
