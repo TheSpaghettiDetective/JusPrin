@@ -1,0 +1,3 @@
+> Windows can’t use the empty value. Windows can’t hold an empty variable, so there you name a folder that doesn’t exist instead.
+
+waht do you mean?
