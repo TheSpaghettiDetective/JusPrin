@@ -1,0 +1,7 @@
+> It won’t bring in your v1 data. The app doesn’t import from your v1 JusPrin folder when it’s given its own data folder. So you see the new-user flow, not the welcome-back window.
+
+v2 is using a diff data folder than v1, right? why doesn't it bring v1 folder?
+
+---
+
+command to put the test data folder in /tmp
