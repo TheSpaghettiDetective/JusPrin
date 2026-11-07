@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>byuih0z0m</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/0bd9fd0b-1fd6-4ed7-9e9b-89af62d57bfb/tasks/byuih0z0m.output</output-file>
+<status>failed</status>
+<summary>Background command "Launch the app for the v1 case on a fresh data folder" failed with exit code 144</summary>
+</task-notification>
