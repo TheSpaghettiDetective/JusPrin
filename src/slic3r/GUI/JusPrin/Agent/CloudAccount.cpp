@@ -385,7 +385,8 @@ CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::strin
 
 std::string CloudSignIn::link_url(const std::string& link) const
 {
-    // JusPrin accounts are Obico accounts; the Terms and Privacy Policy are Obico's.
+    // Obico's Terms and Privacy Policy until JusPrin's own are published.
+    // JusPrin accounts are separate from Obico's.
     if (link == "terms")
         return "https://www.obico.io/terms.html";
     if (link == "privacy")

@@ -1,12 +1,16 @@
-# JusPrin's publisher and version, for everything the build stamps with them:
-# the Windows version resource (src/dev-utils/platform/msw/OrcaSlicer.rc.in)
-# and the package (packaging.cmake). The top-level CMakeLists.txt includes
+# JusPrin's publisher, copyright and version, for everything the build stamps
+# with them: the Windows version resource
+# (src/dev-utils/platform/msw/OrcaSlicer.rc.in), the macOS Info.plist and the
+# package (both in packaging.cmake). The top-level CMakeLists.txt includes
 # this file right after version.inc, before any of them is configured.
 #
 # The product name is SLIC3R_APP_NAME, which version.inc already sets to
 # JusPrin.
 
+# The brand people know; the copyright names the company that holds it.
 set(JUSPRIN_VENDOR "Obico")
+# ASCII only: the Windows resource compiler reads the file in code page 1252.
+set(JUSPRIN_COPYRIGHT "Copyright (C) 2026 TSD Technology, LLC")
 
 # JusPrin's version lives in one place, Version.hpp; the release workflow
 # reads it from there too.
