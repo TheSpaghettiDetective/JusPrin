@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6WPM3ZMSJJCQJZA4WDJR26J",
+  "strategy": "manual-commit",
+  "branch": "claude/design-board-rules",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/design-system.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 134,
+    "cache_creation_tokens": 277162,
+    "cache_read_tokens": 16666833,
+    "output_tokens": 41598,
+    "api_call_count": 67
+  }
+}
