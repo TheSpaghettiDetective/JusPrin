@@ -27,3 +27,44 @@ Okay, now I understand. I agree with you to merge using v2.4.2 as its base. The 
 ---
 
 Okay, now I understand. I agree with you to merge using v2.4.2 as its base. does it mean we need to update our, stewardship document?
+
+---
+
+Yes, apply them
+
+---
+
+commit to jusprin-newui in main checkout, and push
+
+---
+
+Creates a handoff document for another agent to do the merge. It doesn't have to be very detailed and prescriptive, give some room for another agent to make his own judgment calls. Just include the rationale for your proposed approach, but leave a door open for the other agents to push back.
+
+---
+
+<task-notification>
+<task-id>bh7lnv2s9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b17b3a41-0b48-49ae-9756-26d2d9ac0bbe/tasks/bh7lnv2s9.output</output-file>
+<status>completed</status>
+<summary>Background command "git add agent-docs/jusprin/fork-stewardship.md agent-docs/jusprin/engineering-method.md &amp;&amp; git commit -q -F - &lt;&lt;'EOF'
+Fork stewardship: take upstream releases by merging from the last release taken
+
+Rule 10 said to replay the fork's commits onto upstream and never merge.
+Its diagnosis was right: a plain merge of a new upstream release picks a
+development-line commit as the base and conflicts in thousands of vendor
+profiles and translations JusPrin never edited. But the fix is to name the
+base, not to replay. Measured for v2.4.2 -&gt; v2.5.0, a merge with v2.4.2 as
+the base conflicts in the same 22 files as a squash replay, rewrites no
+commits, and leaves in-progress branches mergeable (ui-walkthrough merged
+into the trial result with no conflicts). A linear replay would stop up to
+59 times, often on lines the fork later rewrote itself.
+
+The rule now gives the procedure (MERGE_HEAD plus git merge-recursive with
+an explicit base, tested on git 2.50.1). The rebase-simulation command in
+"Before you finish" and in engineering-method.md now measures against the
+newest upstream release with the last release taken as the base, instead of
+upstream/main.
+EOF
+git push origin jusprin-newui 2&gt;&amp;1 | tail -1; git log -1 --format='%h %s'" completed (exit code 0)</summary>
+</task-notification>
