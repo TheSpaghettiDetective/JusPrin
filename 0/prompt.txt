@@ -1,0 +1,70 @@
+are you using ui-walthrough branch? if so, list the commits youc ommited  to that branch. also make sure you pull from that ranch and build it, and give m the command to test first run
+
+---
+
+jusprin-newui-integration should be obsolete now. don't make any more commits to it. let's start using ui-walkthrough
+
+---
+
+<task-notification>
+<task-id>b92z2lrmg</task-id>
+<tool-use-id>toolu_01Wm1JDkD7wDEzcnitw8Dqye</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/4dd7461d-dd64-4d02-9eb4-be3a58c5e029/tasks/b92z2lrmg.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the app, unit tests and shell harness with 4 jobs" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+The main window is small and located in at the upper right hand corner of my screen. Check which commits introduce this bug.
+
+---
+
+In the message that you previously received, what was the instruction about what settings we should import from V1? If the message was that you should import more than just the profiles, give me the verb of that message and tell me where that came from.
+
+---
+
+<!-- reply 4 -->
+> The OrcaSlicer import result (first picture). Say someone uses File › Import to bring printers in from OrcaSlicer. The board’s result dialog ends with “OrcaSlicer’s own files were not changed.” The real dialog doesn’t show that sentence. It used to sit on the first-launch import screen. It was dropped in b0a2fe3b08 on Nov 6, when the import was rebuilt as this dialog, and the new dialog never had it. I left it on the board because it wasn’t part of the wording sweep.
+
+repeat this in plain eng
+
+<!-- reply -->
+> The menu for a printer that isn’t connected (second picture). Under “Ender 3 V2 · Not connected”, the board shows two faint lines: “Export the G-code to print from a card.” and then “Connect…”. The app shows only the first line. A comment in PrinterMenu.cpp says the Connect action from this menu is left for later. So the board offers an action that the app doesn’t have yet.
+
+What are you trying to say here? Did you say that you created a bug the cost the code to be inconsistent with the board. And do you ask me for the precision to fix your own bug? I'm fucking confused.
+
+<!-- reply -->
+> Did I update all the boards? I u
+
+This is a yes-no question. Even if this is nuanced, I am not sure you need a PhD thesis to explain.
+
+<!-- reply -->
+> Decision needed: should the import dialog say “OrcaSlicer’s own files were not changed”? It’s yours because it’s product wording on a screen people see once. Option one is to put it back in the app: one line in OrcaImport.tsx and a test. Option two is to delete it from the board. I’d put it back, because it answers a real worry for anyone who still uses OrcaSlicer. Should I put it back in the app?
+
+I don't fucking understand, repeat this in plain English.
+
+
+Should I draw the missing states on the boards? What states? 
+
+Can you figure out a way to make me make it slightly easier for me to understand what you are trying to say? I don't know if you did it on purpose. You don't seem to want to want me to understand you.
+
+---
+
+Yes, add it back
+
+---
+
+<!-- reply 2 -->
+> I’d draw them. Should I?
+
+No
+
+<!-- reply -->
+> Decision needed: on the Home screen, the canvas shows a project whose G-code was exported, labelled “Exported · file not found”. The app never built that label. It says “G-code exported <date> for <printer>“ and doesn’t check whether the file still exists. This isn’t a bug. The design shows something the app doesn’t do yet. One option is to build it: the app checks whether the exported file is still on disk and says so, which is a small code change plus tests. The other is to change the board to match today’s app, which takes five minutes. I’d change the board, because checking the disk for every recent project on Home adds work for little gain. Should I change the board?
+
+Change the board.
+
+---
+
+Leave them
