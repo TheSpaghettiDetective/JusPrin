@@ -81,8 +81,8 @@
             check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_new_project");
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
             const auto strategy = LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence;
-            check(m_plater->load_files(std::vector<std::string>{cube}, strategy, false).size() == 1, name + "_cube_loaded");
-            check(m_plater->load_files(std::vector<std::string>{write_overhang_stl()}, strategy, false).size() == 1,
+            check(m_plater->load_files(std::vector<boost::filesystem::path>{cube}, strategy, false).size() == 1, name + "_cube_loaded");
+            check(m_plater->load_files(std::vector<boost::filesystem::path>{write_overhang_stl()}, strategy, false).size() == 1,
                   name + "_overhang_loaded");
             PartPlateList& plates = m_plater->get_partplate_list();
             check(plates.get_plate(0)->add_instance(0, 0, true) == 0, name + "_cube_centred");
@@ -94,7 +94,7 @@
             check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_new_project");
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
             const auto strategy = LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence;
-            check(m_plater->load_files(std::vector<std::string>{cube}, strategy, false).size() == 1, name + "_cube_loaded");
+            check(m_plater->load_files(std::vector<boost::filesystem::path>{cube}, strategy, false).size() == 1, name + "_cube_loaded");
             check(m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, name + "_cube_centred");
             m_plater->canvas3D()->reload_scene(true, true);
         } else {
@@ -126,7 +126,7 @@
         }
         check(sliced, name + "_fixture_sliced");
         installed_shell()->status_row()->request_prepare();
-        wait_for([this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor && !m_plater->is_preview_shown(); }, 20s);
+        wait_for([this] { return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && !m_plater->is_preview_shown(); }, 20s);
 
         Agent::AgentHost& host = project_host();
         if (!host.conversation().empty())

@@ -492,7 +492,7 @@
         steps.push_back({"fixture", [self] {
             self->check(self->m_plater->new_project(true, true) != wxID_CANCEL, "issues_new_project");
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-            self->check(self->m_plater->load_files(std::vector<std::string>{cube},
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                             LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
                         "issues_cube_loaded");
             self->check(self->m_plater->duplicate_object(0) == 1, "issues_second_cube");
@@ -1202,8 +1202,8 @@
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
             const std::string stl  = self->write_overhang_stl();
             const auto strategy = LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence;
-            self->check(self->m_plater->load_files(std::vector<std::string>{cube}, strategy, false).size() == 1, "overhang_cube_loaded");
-            self->check(self->m_plater->load_files(std::vector<std::string>{stl}, strategy, false).size() == 1, "overhang_loaded");
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{cube}, strategy, false).size() == 1, "overhang_cube_loaded");
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{stl}, strategy, false).size() == 1, "overhang_loaded");
             PartPlateList& plates = self->m_plater->get_partplate_list();
             self->check(plates.get_plate(0)->add_instance(0, 0, true) == 0, "overhang_cube_centred");
             self->check(plates.get_plate(0)->add_instance(1, 0, true) == 0, "overhang_centred");
@@ -1471,7 +1471,7 @@
                 write_box(out, {-10, -10, 0}, {10, 10, 0.02}); // thinner than any layer
                 out << "endsolid flake\n";
             }
-            self->check(self->m_plater->load_files(std::vector<std::string>{path},
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{path},
                             LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
                         "flake_loaded");
             self->check(self->m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true) == 0, "flake_centred");

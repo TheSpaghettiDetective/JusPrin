@@ -172,7 +172,7 @@
         answer_modals(wxID_NO);
         check(m_plater->new_project(true, true) != wxID_CANCEL, label + "_new_project");
         stop_answering_modals();
-        check(m_plater->load_files(std::vector<std::string>{stl},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{stl},
                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               label + "_model_loaded");
         PartPlateList& plates = m_plater->get_partplate_list();
@@ -367,6 +367,14 @@
                 const ImVec4 col_orca = ImGuiWrapper::COL_ORCA;
                 self->check(std::lround(col_orca.x * 255) == action.Red() && std::lround(col_orca.z * 255) == action.Blue(),
                             "cp_a_col_orca_reads_the_accent");
+                // Its other shades, which the plate-select toolbar and the gizmos' round buttons draw.
+                const wxColour hover = theme->palette(GUI_App::dark_mode()).action_primary_hover;
+                const auto     is    = [](const ImVec4& c, const wxColour& w) {
+                    return std::lround(c.x * 255) == w.Red() && std::lround(c.y * 255) == w.Green() && std::lround(c.z * 255) == w.Blue();
+                };
+                self->check(is(ImGuiWrapper::COL_ORCA_DARK, action), "cp_a_col_orca_dark_reads_the_accent");
+                self->check(is(ImGuiWrapper::COL_ORCA_HOVER, hover), "cp_a_col_orca_hover_reads_the_hover_token");
+                self->check(is(ImGuiWrapper::COL_ORCA_HOVER_DARK, hover), "cp_a_col_orca_hover_dark_reads_the_hover_token");
                 const ImVec4 header = ImGui::GetStyle().Colors[ImGuiCol_HeaderActive];
                 self->check(std::lround(header.x * 255) == action.Red() && std::lround(header.z * 255) == action.Blue(),
                             "cp_a_imgui_style_carries_the_accent");

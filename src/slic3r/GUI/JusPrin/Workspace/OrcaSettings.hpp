@@ -203,7 +203,7 @@ inline void predict_process_normalization(DynamicPrintConfig& config)
     // The modal predicates above were checked first. Execute Orca's own
     // normalization on the clone with no presentation callbacks; don't keep
     // a duplicate table of dependent values or infill-pattern capabilities.
-    ConfigManipulation normalizer([] {}, [](const std::string&, bool, int) {}, {}, {});
+    ConfigManipulation normalizer([] {}, [](const std::string&, bool, int, const wxString&) {}, {}, {});
     auto& bundle = *wxGetApp().preset_bundle;
     const auto& selected = bundle.prints.get_selected_preset();
     normalizer.initialize_support_material_overhangs_queried(!selected.is_system && !selected.is_dirty &&

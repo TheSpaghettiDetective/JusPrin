@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/tests/jusprin_support/PythonRuntime.cmake)
+
 # GUI-free contract tests for fork-owned JusPrin data structures that carry no
 # wx or Orca types. The sources under test are compiled directly into the test
 # binary, so nothing here links libslic3r_gui.
@@ -45,8 +47,8 @@ target_compile_definitions(jusprin_tests PRIVATE
 )
 target_include_directories(jusprin_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/deps_src
 )
+target_include_directories(jusprin_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 # test_common carries the macOS framework link (CoreFoundation) that
 # HostLocale.hpp needs there; on Windows and Linux it adds nothing but the
 # shared test defines.
@@ -107,6 +109,13 @@ if (SLIC3R_GUI)
         ${CMAKE_SOURCE_DIR}/src
     )
     target_link_libraries(shell_theme_tests PRIVATE Catch2WithMain libslic3r_gui)
+    jusprin_copy_python_runtime(shell_theme_tests)
+    # As OrcaSlicer's GUI tests do: its precompiled header brings in wx before
+    # libslic3r, whose OCCT headers define NOUSER on Windows and hide part of
+    # commctrl.h from wx.
+    if (SLIC3R_PCH AND NOT SLIC3R_SYNTAXONLY)
+        add_precompiled_header(shell_theme_tests ${CMAKE_SOURCE_DIR}/src/slic3r/pchheader.hpp FORCEINCLUDE)
+    endif ()
 
     orcaslicer_discover_tests(shell_theme_tests)
 
@@ -118,6 +127,7 @@ if (SLIC3R_GUI)
         ${CMAKE_SOURCE_DIR}/src/slic3r/GUI
     )
     target_link_libraries(jusprin_fake_bambu_tests PRIVATE test_common libslic3r_gui libslic3r Catch2::Catch2WithMain)
+    jusprin_copy_python_runtime(jusprin_fake_bambu_tests)
     set_property(TARGET jusprin_fake_bambu_tests PROPERTY FOLDER "tests")
     orcaslicer_copy_test_dlls()
     orcaslicer_discover_tests(jusprin_fake_bambu_tests)

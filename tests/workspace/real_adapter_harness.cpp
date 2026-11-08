@@ -4,6 +4,7 @@
 #include "libslic3r/TriangleSelector.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
+#include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/GUI_Geometry.hpp"
 #include "slic3r/GUI/GUI_Init.hpp"
@@ -142,7 +143,7 @@ public:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "crash_new_project");
         if (m_state->mode == HarnessState::Mode::CrashWrite) {
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-            check(m_plater->load_files(std::vector<std::string>{cube},
+            check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
                   "crash_cube_loaded");
             if (!m_plater->canvas3D()->is_initialized()) {
@@ -174,7 +175,7 @@ public:
             return;
         }
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
               LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1 &&
               m_plater->canvas3D()->is_initialized(), "crash_verifier_canvas_ready");
         m_plater->reset();
@@ -909,6 +910,7 @@ private:
                     value = flags.front();
                 break;
             case coFloats:
+            case coPercents: // a percent field hands over the number, as a float field does
                 if (const auto& numbers = static_cast<const ConfigOptionVector<double>*>(option)->values; !numbers.empty())
                     value = numbers.front();
                 break;
@@ -1025,7 +1027,7 @@ private:
         run("tower_off_under_timelapse_and_clumping", print,
             {{"timelapse_type", "1"}, {"enable_prime_tower", "1"}, {"enable_wrapping_detection", "1"}}, {{"enable_prime_tower", "0"}}, 2);
         run("tower_off_under_clumping_alone", print, {{"enable_prime_tower", "1"}, {"enable_wrapping_detection", "1"}},
-            {{"enable_prime_tower", "0"}}, 0);
+            {{"enable_prime_tower", "0"}}, 1); // asked without smooth timelapse since 2.5.0
         run("clumping_on_without_tower", print, {{"enable_prime_tower", "0"}}, {{"enable_wrapping_detection", "1"}}, 1);
         printer = original_printer;
         run("precise_z_on_with_tower", print, {{"enable_prime_tower", "1"}}, {{"precise_z_height", "1"}}, 1);
@@ -1261,7 +1263,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "new_project_fixture");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "repository_cube_loaded");
         const int second_index = m_plater->duplicate_object(0);
         check(second_index == 1, "second_fixture_object_created");
@@ -1446,7 +1448,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "redo_tail_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "redo_tail_cube_loaded");
         check(m_plater->rename_object(0, "Redo Tail Renamed"), "redo_tail_rename_succeeds");
         m_plater->deselect_all();
@@ -1461,7 +1463,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "duplicate_plate_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "duplicate_plate_cube_loaded");
         PartPlateList& plates = m_plater->get_partplate_list();
         check(plates.create_plate(true) == 1, "duplicate_plate_second_plate_created");
@@ -1486,7 +1488,7 @@ private:
         const fs::path file = fs::temp_directory_path() / fs::unique_path("jusprin-two-shells-%%%%.stl");
         check(shells.write_binary(file.string().c_str()), "split_modifier_file_written");
         const auto loaded = m_plater->load_files(
-            std::vector<std::string>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         boost::system::error_code removed;
         fs::remove(file, removed);
         check(loaded.size() == 1, "split_modifier_object_loaded");
@@ -1515,7 +1517,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "cut_plate_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const auto loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "cut_plate_cube_loaded");
         check(m_plater->duplicate_object(0) == 1, "cut_plate_second_object_created");
         PartPlateList& plates = m_plater->get_partplate_list();
@@ -1563,7 +1565,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "versions_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const auto loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "versions_cube_loaded");
         ProjectVersionStore store(std::filesystem::path(data_dir()) / "version-test", "p-harness");
         std::string document_state = "{\"project\":{\"projectId\":\"p-harness\"},\"attachments\":[]}";
@@ -1768,7 +1770,7 @@ private:
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, "paint_versions_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
               LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               "paint_versions_cube_loaded");
         ProjectVersionStore store(std::filesystem::path(data_dir()) / "version-test", "p-paints");
@@ -1860,7 +1862,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "legacy_delete_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "legacy_delete_cube_loaded");
         check(m_plater->select_object(0), "legacy_delete_object_selected");
         m_app.obj_list()->remove();
@@ -1939,7 +1941,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "plate_type_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "plate_type_cube_loaded");
         check(m_plater->get_partplate_list().create_plate(true) == 1, "plate_type_second_plate_created");
         m_plater->select_plate(0);
@@ -1970,7 +1972,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "layout_checks_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         for (int copy = 0; copy < 2; ++copy)
-            m_plater->load_files(std::vector<std::string>{cube},
+            m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                  LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(m_plater->model().objects.size() == 2, "layout_checks_two_cubes_loaded");
         OrcaWorkspaceAdapter workspace(*m_plater);
@@ -2035,7 +2037,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "layout_enabled_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "layout_enabled_cube_loaded");
 
         OrcaWorkspaceAdapter workspace(*m_plater);
@@ -2075,7 +2077,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "gizmo_wheel_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "gizmo_wheel_cube_loaded");
         check(m_plater->select_object(0), "gizmo_wheel_object_selected");
 
@@ -2104,7 +2106,7 @@ private:
 
         m_plater->new_project(true, true);
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        m_plater->load_files(std::vector<std::string>{cube},
+        m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                              LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         ModelObject* object = m_plater->model().objects.front();
         object->center_around_origin();
@@ -2127,7 +2129,7 @@ private:
         ready_timer->Bind(wxEVT_TIMER, [self = shared_from_this(), ready_timer](wxTimerEvent&) {
             ready_timer->Stop();
             if (self->m_app.mainframe != nullptr)
-                self->m_app.mainframe->select_tab(MainFrame::tp3DEditor);
+                self->m_app.mainframe->select_tab(TAB_ID_PREPARE);
             self->m_plater->canvas3D()->reload_scene(true, true);
             self->m_plater->select_object(0);
             std::cerr << "HARNESS MANUAL READY "
@@ -2226,7 +2228,7 @@ private:
             std::ofstream(open_cube.string(), std::ios::binary) << text;
         }
         const auto loaded = m_plater->load_files(
-            std::vector<std::string>{open_cube.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            std::vector<boost::filesystem::path>{open_cube.string()}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(loaded.size() == 1, "managed_mesh_open_cube_loaded");
         auto* shell = Slic3r::GUI::JusPrin::installed_shell();
         auto* autosave = shell ? shell->autosave() : nullptr;
@@ -2417,7 +2419,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "unknown_preset_new_project");
         ShownDialogs open_dialogs;
         open_dialogs.Register();
-        const auto loaded = m_plater->load_files(std::vector<std::string>{foreign.string()},
+        const auto loaded = m_plater->load_files(std::vector<boost::filesystem::path>{foreign.string()},
                                                  LoadStrategy::LoadModel | LoadStrategy::LoadConfig, false);
         open_dialogs.Unregister();
         // Not checked: the adapter torn down earlier in this run took the
@@ -2499,7 +2501,7 @@ private:
         }
         check(m_plater->new_project(true, true) != wxID_CANCEL, "slice_failure_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
                       .size() == 1,
               "slice_failure_cube_loaded");
@@ -2525,8 +2527,8 @@ private:
             // is shown instead, so the expected text goes through the same
             // translation lookup rather than naming one of the two.
             const std::string orca_words = Slic3r::format(
-                _u8L("Plate %d: %s is not suggested to be used to print filament %s (%s). "
-                     "If you still want to do this print job, please set this filament's bed temperature to non-zero."),
+                _u8L("Plate %d: %s is not suggested for use printing filament %s (%s). "
+                     "If you still want to do this print job, please set this filament\'s bed temperature to a number that is not zero."),
                 1, "Cool Plate", 1, "Bambu PETG HF");
             check(recorded && plate->slice_failure->severity == "blocker" &&
                       plate->slice_failure->message.find(orca_words) != std::string::npos &&
@@ -2574,7 +2576,7 @@ private:
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, name + "_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
                       .size() == 1,
               name + "_cube_loaded");
@@ -2649,7 +2651,7 @@ private:
     // The sliced plate in Preview, coloured by the value the test varies.
     void preview_captured_then(libvgcode::EViewType view, const std::string& name, std::function<void()> then)
     {
-        m_app.mainframe->select_tab(size_t(MainFrame::tpPreview));
+        m_app.mainframe->select_tab(TAB_ID_PREVIEW);
         // Preview loads a new slice when it is first drawn, which sets its
         // own colouring; it is set once that has happened.
         const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
@@ -2659,7 +2661,7 @@ private:
             preview->set_as_dirty();
             preview->request_extra_frame();
             captured_then(name, [this, then] {
-                m_app.mainframe->select_tab(size_t(MainFrame::tp3DEditor));
+                m_app.mainframe->select_tab(TAB_ID_PREPARE);
                 then();
             });
         });
@@ -2728,7 +2730,13 @@ private:
             check(saved_project_setting(autosave, person, "nozzle_temperature") == std::to_string(edited),
                   label + "_version_saved_with_the_unsaved_edit");
             check(autosave.save_now(), label + "_calibration_project_saved");
-            const std::size_t home_before = autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size();
+            const auto home = [&autosave] {
+                std::set<std::string> ids;
+                for (const auto& managed : autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}))
+                    ids.insert(managed.id);
+                return ids;
+            };
+            const std::set<std::string> home_before = home();
             const std::string project     = persistence.document().project_id();
             const std::string chat        = persistence.document().active_conversation_id();
             const std::size_t messages    = persistence.document().messages(chat).size();
@@ -2746,9 +2754,14 @@ private:
             const WorkspaceSnapshot now = workspace.snapshot();
             check(made.project_name == name && now.setup.project_name == name, label + "_project_named");
             check(autosave.save_now(), label + "_test_saved_in_the_project");
-            check(autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size() == home_before,
-                  label + "_home_count_unchanged");
-            std::cerr << "HARNESS CALIBRATION " << label << " home=" << home_before << " -> " << autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{}).size()
+            // The calibration project held no model until now, so this is its
+            // first save and it joins Home (an empty project stays in memory
+            // until it holds a model). No other project joins.
+            std::set<std::string> home_expected = home_before;
+            home_expected.insert(project);
+            const std::set<std::string> home_after = home();
+            check(home_after == home_expected, label + "_home_gains_only_the_calibration_project");
+            std::cerr << "HARNESS CALIBRATION " << label << " home=" << home_before.size() << " -> " << home_after.size()
                       << " project=" << project << " -> " << persistence.document().project_id() << '\n';
             check(!now.plates.empty() && now.plates.front().id == made.plate && !made.objects.empty() &&
                       made.objects.size() == m_plater->model().objects.size() &&

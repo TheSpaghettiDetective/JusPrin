@@ -172,7 +172,7 @@ void OrientJob::prepare()
 }
 
 /// parameters to minimize support area
-static void setMinimalSupportAreaPrams(Slic3r::orientation::OrientParams &out)
+void setMinimalSupportAreaPrams(Slic3r::orientation::OrientParams &out)
 {
     out.TAR_A               = 0.015f;
     out.TAR_B               = 0.177f;

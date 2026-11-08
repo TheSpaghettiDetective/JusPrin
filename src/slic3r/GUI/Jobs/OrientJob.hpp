@@ -62,6 +62,9 @@ public:
     static orientation::OrientMesh get_orient_mesh(ModelInstance* instance);
 };
 
+// The parameters OrientJob uses when the orient settings minimise support area.
+void setMinimalSupportAreaPrams(orientation::OrientParams &out);
+
 
 }} // namespace Slic3r::GUI
 

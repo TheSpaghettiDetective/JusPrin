@@ -139,8 +139,12 @@ void AppMenus::install()
 #ifndef __APPLE__
     wxMenu* top = m_frame.topbar()->GetTopMenu();
     // Sync Presets pulls presets from OrcaSlicer's cloud, which JusPrin
-    // accounts are not.
-    const std::vector<wxMenuItem*> top_items = without(top, {stock_item(top, _L("Sync Presets"))});
+    // accounts are not. Speed Dial is OrcaSlicer's palette of its own
+    // commands. Plugins opens OrcaSlicer's Python plugin manager; a plugin's
+    // page is a tab, and the shell hides the tab strip. On the Mac both are
+    // File items, which build_file leaves out.
+    const std::vector<wxMenuItem*> top_items = without(
+        top, {stock_item(top, _L("Sync Presets")), stock_item(top, _L("Open Speed Dial")), stock_item(top, _L("Plugins"))});
 #endif
     // Print and Printer follow View, as an app's own menus do.
     wxMenu* print   = build_print();
@@ -296,7 +300,12 @@ void AppMenus::build_file(wxMenu* menu)
     wxMenuItem* import_item = stock_item(menu, _L("Import"));
     wxMenuItem* export_item = stock_item(menu, _L("Export"));
     wxMenu*     exports     = export_item->GetSubMenu();
+#ifdef __APPLE__
     wxMenuItem* quit        = menu->FindChildItem(wxID_EXIT);
+#else
+    // A Shortcut::Quit item, whose id is not wxID_EXIT, off macOS.
+    wxMenuItem* quit        = stock_item(menu, _L("Quit"));
+#endif
     if (exports == nullptr || quit == nullptr)
         throw std::runtime_error("OrcaSlicer's File menu has no Export submenu or no Quit item");
 #ifdef __APPLE__
@@ -376,7 +385,7 @@ void AppMenus::build_view(wxMenu* menu)
 #endif
     items.push_back(command(menu, _L("Plates and project panel"), {
         [this] { m_shell.toggle_left_pane(); },
-        [this] { return !m_shell.task_open() && m_frame.m_tabpanel->GetSelection() == MainFrame::tp3DEditor; },
+        [this] { return !m_shell.task_open() && m_frame.m_tabpanel->GetSelectedPageName() == TAB_ID_PREPARE; },
         check ? [this] { return !m_shell.is_left_pane_collapsed(); } : std::function<bool()>{},
         check ? std::function<wxString()>{} : [this] {
             return m_shell.is_left_pane_collapsed() ? _L("Show plates and project panel") : _L("Hide plates and project panel");
@@ -410,7 +419,7 @@ void AppMenus::build_help(wxMenu* menu)
     std::vector<wxMenuItem*> items;
     items.push_back(command(menu, _L("Ask AI…"), {[this] {
         if (home())
-            m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+            m_frame.select_tab(TAB_ID_PREPARE);
         if (m_shell.is_agent_pane_collapsed())
             m_shell.toggle_agent_pane();
     }, [this] { return !m_shell.task_open() && m_shell.agent_pane() != nullptr; }}));
@@ -557,7 +566,7 @@ void AppMenus::on_recent(wxCommandEvent& event)
     m_shell.home_view()->backend().open_project(project);
 }
 
-bool AppMenus::home() const { return m_frame.m_tabpanel->GetSelection() == MainFrame::tpHome; }
+bool AppMenus::home() const { return m_frame.m_tabpanel->GetSelectedPageName() == TAB_ID_HOME; }
 
 bool AppMenus::project_shown() const { return !home() && !m_shell.task_open(); }
 

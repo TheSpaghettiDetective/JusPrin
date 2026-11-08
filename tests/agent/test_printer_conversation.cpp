@@ -3205,7 +3205,7 @@ TEST_CASE("the shipped profiles give the panel the printers people name", "[prin
     CHECK(mk3s->display_name() == "Prusa MK3S");
     CHECK(mk3s->default_plate.empty());
     // The profile's own default, not the wizard's first tick (ABS).
-    CHECK(mk3s->filament_for(0.4) == "Prusa Generic PLA");
+    CHECK(mk3s->filament_for(0.4) == "Generic PLA @Prusa");
 
     CHECK(backend.find("Voron/Voron 2.4 350") != nullptr);
     CHECK(std::none_of(backend.printers.begin(), backend.printers.end(),

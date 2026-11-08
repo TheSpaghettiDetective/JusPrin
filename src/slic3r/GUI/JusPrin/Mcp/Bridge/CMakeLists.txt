@@ -4,8 +4,11 @@ add_library(jusprin_mcp_bridge_core STATIC
     ../../Agent/ToolRegistry.cpp ../../Agent/ToolResults.cpp
 )
 target_include_directories(jusprin_mcp_bridge_core PUBLIC
-    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/deps_src ${CMAKE_BINARY_DIR}/src/libslic3r
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src/libslic3r
 )
+# SYSTEM, as OrcaSlicer includes its bundled libraries: its clang and gcc
+# builds turn warnings into errors and exempt only system headers.
+target_include_directories(jusprin_mcp_bridge_core SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/deps_src)
 # boost_headeronly carries the project's Asio configuration (on macOS,
 # BOOST_ASIO_DISABLE_KQUEUE). Every file linked with the bridge must see the
 # same one: agent_bridge_tests mixed a kqueue bridge with select-reactor tests,

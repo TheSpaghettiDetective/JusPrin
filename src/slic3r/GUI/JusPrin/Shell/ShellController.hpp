@@ -11,6 +11,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <boost/filesystem/path.hpp>
+#include <wx/bookctrl.h>
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
@@ -289,7 +290,7 @@ private:
     // project header owns the collapsed copy; only one is visible at a time.
     // The Plates / Project pane, left of the workspace; shown on Prepare only.
     LeftPane*  m_left_pane{nullptr};
-    // Shown in the Notebook's slot while the Notebook's selection is tpHome.
+    // Shown in the Notebook's slot while the Notebook's selection is TAB_ID_HOME.
     Home::HomeWebView* m_home{nullptr};
     // Fresh in-memory printer or filament task chat, shown over the workspace.
     PrinterSetup::PrinterPanel* m_printer_panel{nullptr};
@@ -312,13 +313,13 @@ private:
     // Waits for the main window to be up before the welcome-back window.
     std::unique_ptr<wxTimer> m_welcome_wait;
     bool m_task_open{false};
-    int  m_task_origin_tab{-1};
+    wxString m_task_origin_tab;
     // Home tells its page which screen to show each time Home comes on
     // screen: the gallery, unless a Print history was asked for on the way.
     bool           m_home_shown{false};
     nlohmann::json m_home_screen = nlohmann::json::object({{"screen", "home"}});
     // The screen Back from a project-opened Print history returns to.
-    int            m_history_return_tab{-1};
+    wxString       m_history_return_tab;
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.

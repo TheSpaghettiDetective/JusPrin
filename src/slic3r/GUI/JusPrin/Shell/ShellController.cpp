@@ -28,6 +28,7 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
@@ -277,7 +278,7 @@ public:
         MSWUpdateDragImageOnLeave(); // hides the system icon
 #endif
         m_frame.Raise();
-        m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame.select_tab(TAB_ID_PREPARE);
         m_plater.select_view_3D("3D");
         const bool loaded = m_add ? m_add(files) : m_plater.load_files(files);
         m_frame.update_title();
@@ -350,7 +351,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
     Plater* plater = frame.plater();
     if (plater == nullptr)
         throw std::runtime_error("the Plater is not constructed");
-    if (tabpanel.FindPage(plater) != MainFrame::tp3DEditor)
+    if (tabpanel.GetPageByName(TAB_ID_PREPARE) != plater)
         throw std::runtime_error("the Prepare page is not where the shell expects it");
     if (main_sizer.GetItem(&tabpanel) == nullptr)
         throw std::runtime_error("the tab panel is not in the main layout");
@@ -572,7 +573,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             m_autosave->ensure_current_preview();
             return true;
         });
-        plater->set_external_project_open_handler([this](const Plater::fs_path& path) {
+        plater->set_external_project_open_handler([this](const boost::filesystem::path& path) {
 #ifdef _WIN32
             const std::filesystem::path source(path.wstring());
 #else
@@ -645,11 +646,11 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     MessageDialog(m_frame, _L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
                                   wxOK | wxICON_ERROR).ShowModal();
                 else
-                    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                    m_frame->select_tab(TAB_ID_PREPARE);
             }
             return true;
         });
-        plater->set_external_file_open_handler([this](const std::vector<Plater::fs_path>& files) {
+        plater->set_external_file_open_handler([this](const std::vector<boost::filesystem::path>& files) {
             return take_opened_files(files);
         });
         install_drop_target();
@@ -716,11 +717,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_runtime_timer.Start(33);
 
         // Home is a fork-owned panel beside the Notebook, not one of its pages.
-        // The Notebook keeps every page it had, so upstream keeps the meaning
-        // of its indices: the dialog parents that ask for page 0, the
-        // predicates that key off GetSelection(), and any future cast of a
-        // page all still find the window they expect. The shell owns only
-        // which of the two is on screen for tpHome.
+        // The Notebook keeps every page it had, so upstream's lookups by page
+        // name and its casts of a page all still find the window they expect.
+        // The shell owns only which of the two is on screen for TAB_ID_HOME.
         m_home = new Home::HomeWebView(&frame, *m_theme, frame);
         m_home->backend().set_autosave(m_autosave.get());
         m_home->Hide();
@@ -777,13 +776,13 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_left_pane->set_project_sources({m_persistence.get(), m_autosave.get(),
             [this] {
                 // OrcaSlicer's project-information editor lives on its Project page.
-                ProjectPanel* project = m_frame->m_project;
+                // The page is built on first use.
+                ProjectPanel* project = ProjectPanel::ensure();
                 if (project == nullptr)
                     throw std::runtime_error("the Project page is unavailable");
-                const int page = m_tabpanel->FindPage(project);
-                if (page == wxNOT_FOUND)
+                if (m_tabpanel->FindPageByName(TAB_ID_PROJECT) == wxNOT_FOUND)
                     throw std::runtime_error("the Project page is missing from the Notebook");
-                m_frame->select_tab(size_t(page));
+                m_frame->select_tab(TAB_ID_PROJECT);
                 project->show_info_editor(true);
             },
             {},
@@ -1086,7 +1085,7 @@ bool ShellController::take_opened_files(const std::vector<boost::filesystem::pat
                 m_frame->add_to_recent_projects(from_path(file));
         }
     }
-    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    m_frame->select_tab(TAB_ID_PREPARE);
     return true;
 }
 
@@ -1217,7 +1216,7 @@ void ShellController::set_left_pane_collapsed(bool collapsed)
         return;
     m_left_pane_collapsed = collapsed;
     const bool available = !m_task_open && m_tabpanel != nullptr &&
-                           m_tabpanel->GetSelection() == MainFrame::tp3DEditor;
+                           m_tabpanel->GetSelectedPageName() == TAB_ID_PREPARE;
     m_left_pane->Show(available && !collapsed);
     m_left_resize_handle->Show(available && !collapsed);
     if (m_status_row != nullptr)
@@ -1318,7 +1317,7 @@ void ShellController::start_calibration(const std::string& printer, const std::s
     // Agent set up (decision 18) the same dialog says the test needs one, and
     // its primary action opens Preferences › Agent instead of Start.
     const bool        needs_agent = host.availability() != Agent::AgentAvailability::Ready;
-    const bool        home    = m_tabpanel->GetSelection() == MainFrame::tpHome;
+    const bool        home    = m_tabpanel->GetSelectedPageName() == TAB_ID_HOME;
     const std::string project = home ? std::string() : m_workspace->snapshot().setup.project_name;
     const wxString    target  = filament.empty() ? from_u8(printer) :
                                                    wxString::Format(_L("%1$s on %2$s"), from_u8(filament), from_u8(printer));
@@ -1365,8 +1364,8 @@ void ShellController::answer_calibration(const std::string& request_id, bool con
         return;
     }
     restore_task_panel();
-    if (m_tabpanel->GetSelection() == MainFrame::tpHome)
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    if (m_tabpanel->GetSelectedPageName() == TAB_ID_HOME)
+        m_frame->select_tab(TAB_ID_PREPARE);
     m_agent_pane_user_collapsed = false;
     set_agent_pane_collapsed(false);
     // The app, not the Agent, opens the calibration project: the open one is
@@ -1544,7 +1543,7 @@ void ShellController::open_project_row(ProjectMenuRow row)
         m_left_pane->export_project();
         return;
     }
-    m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+    m_frame->select_tab(TAB_ID_PREPARE);
     if (is_left_pane_collapsed())
         toggle_left_pane();
     if (row == ProjectMenuRow::VersionHistory)
@@ -1734,25 +1733,25 @@ void ShellController::open_printer_conversation(const std::string& printer_name,
 void ShellController::open_print_history(const std::string& focus_hash)
 {
     m_frame->CallAfter([this, focus_hash] {
-        if (!m_installed || m_task_open || m_tabpanel->GetSelection() == MainFrame::tpHome)
+        if (!m_installed || m_task_open || m_tabpanel->GetSelectedPageName() == TAB_ID_HOME)
             return;
         const Agent::ProjectStateDocument& document = m_persistence->document();
         if (!document.has_identity())
             throw std::logic_error("a Print history was asked for a project that has no identity");
-        m_history_return_tab = m_tabpanel->GetSelection();
+        m_history_return_tab = m_tabpanel->GetSelectedPageName();
         m_home_screen        = nlohmann::json{{"screen", "history"}, {"projectId", document.project_id()}, {"back", "project"}};
         if (!focus_hash.empty())
             m_home_screen["focus"] = focus_hash;
-        m_tabpanel->SetSelection(MainFrame::tpHome);
+        m_tabpanel->SelectPageByName(TAB_ID_HOME);
     });
 }
 
 void ShellController::leave_print_history()
 {
     m_frame->CallAfter([this] {
-        if (!m_installed || m_history_return_tab < 0)
+        if (!m_installed || m_history_return_tab.empty())
             return;
-        m_tabpanel->SetSelection(std::exchange(m_history_return_tab, -1));
+        m_tabpanel->SelectPageByName(std::exchange(m_history_return_tab, wxString()));
     });
 }
 
@@ -1861,8 +1860,8 @@ void ShellController::open_in_chat(const std::string& project_id, const std::str
                 return;
             }
         }
-        m_history_return_tab = -1;
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_history_return_tab.clear();
+        m_frame->select_tab(TAB_ID_PREPARE);
         if (m_agent_pane_collapsed)
             toggle_agent_pane();
         // A chat can be deleted after a G-code went out from it.
@@ -1884,7 +1883,7 @@ void ShellController::open_filament_help(std::size_t slot, const std::string& pr
     // Tab no longer reaches Preview from the shell, but OrcaSlicer's Ctrl+R
     // (slice and show the preview) still does.
     m_printer_panel->open_filament(slot, preset, shown,
-        m_tabpanel->GetSelection() == MainFrame::tpPreview ? _L("Back to Preview") : _L("Back to Prepare"));
+        m_tabpanel->GetSelectedPageName() == TAB_ID_PREVIEW ? _L("Back to Preview") : _L("Back to Prepare"));
     show_task_panel();
 }
 
@@ -1893,7 +1892,7 @@ void ShellController::show_task_panel()
     // Keep the stock page constructed and selected. Hiding its sizer item
     // gives the task chat the workspace without changing Orca's tab indices.
     m_task_open = true;
-    m_task_origin_tab = m_tabpanel->GetSelection();
+    m_task_origin_tab = m_tabpanel->GetSelectedPageName();
     m_home->set_live(false);
     m_workspace_sizer->Show(false);
     m_left_pane->Hide();
@@ -1910,7 +1909,7 @@ void ShellController::restore_task_panel()
     if (!m_task_open)
         return;
     m_task_open = false;
-    m_task_origin_tab = -1;
+    m_task_origin_tab.clear();
     m_printer_panel->Hide();
     m_workspace_sizer->Show(true);
     m_agent_pane->Show(!m_agent_pane_collapsed);
@@ -1924,11 +1923,11 @@ void ShellController::on_page_changed()
     if (!m_installed || m_home == nullptr || m_tabpanel == nullptr)
         return;
     if (m_task_open) {
-        if (m_tabpanel->GetSelection() != m_task_origin_tab)
+        if (m_tabpanel->GetSelectedPageName() != m_task_origin_tab)
             m_printer_panel->close();
         return;
     }
-    const bool home = m_tabpanel->GetSelection() == MainFrame::tpHome;
+    const bool home = m_tabpanel->GetSelectedPageName() == TAB_ID_HOME;
     if (home)
         m_home->refresh();
     // Coming onto the screen, Home shows its gallery, or the Print history
@@ -1949,7 +1948,7 @@ void ShellController::on_page_changed()
     m_status_row->Show(!home);
     // The pane lists the project being prepared; Preview draws its own plate
     // picker and Home has no project in front.
-    const bool left_pane_available = !home && m_tabpanel->GetSelection() == MainFrame::tp3DEditor;
+    const bool left_pane_available = !home && m_tabpanel->GetSelectedPageName() == TAB_ID_PREPARE;
     if (m_status_row != nullptr)
         m_status_row->set_left_pane_available(left_pane_available);
     const bool show_left_pane = left_pane_available && !m_left_pane_collapsed;
@@ -1999,6 +1998,19 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
             // it is never asked, on a file open or on reopening a saved
             // project from Home.
             wxGetApp().app_config->set_bool("sync_after_load_file_show_flag", false);
+            // OrcaSlicer 2.5.0's stored "Don't remind me again" to its startup
+            // offer to add back the printers a user filament preset's parent
+            // listed in 2.4.2. The offer counts every preset that takes its
+            // printers from its parent as made before 2.5.0. JusPrin has no
+            // presets from before 2.5.0, so it would make the offer for
+            // presets JusPrin just made, naming OrcaSlicer and a Help item
+            // JusPrin doesn't show.
+            wxGetApp().app_config->set_bool("legacy_user_filament_presets_dont_remind", true);
+            // Space opens OrcaSlicer 2.5.0's Speed Dial, a palette of
+            // OrcaSlicer's own commands, which JusPrin's menus leave out
+            // (AppMenus). This is OrcaSlicer's preference for that key; classic
+            // view's menu item still opens it.
+            wxGetApp().app_config->set_bool("enable_speed_dial", false);
         }
     }
     if (tabpanel == nullptr || main_sizer == nullptr)

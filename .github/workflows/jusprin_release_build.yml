@@ -41,17 +41,20 @@ jobs:
         id: key
         shell: bash
         env:
-          # As in OrcaSlicer's build_check_cache.yml, so both share one cache.
-          cache_os: ${{ runner.os == 'macOS' && format('macos-{0}', inputs.arch) || (runner.os == 'Windows' && format('windows-{0}', inputs.arch) || format('linux-clang{0}', inputs.arch && format('-{0}', inputs.arch) || '')) }}
+          # As in OrcaSlicer's build_check_cache.yml. The macOS and Linux trees are
+          # OrcaSlicer's and share its cache; OrcaSlicer builds Windows with clang-cl,
+          # so JusPrin's cl tree is cached on its own.
+          cache_os: ${{ runner.os == 'macOS' && format('{0}-{1}', inputs.os, inputs.arch) || (runner.os == 'Windows' && format('windows-{0}-msvc', inputs.arch) || format('linux-clang{0}', inputs.arch && format('-{0}', inputs.arch) || '')) }}
           dep_folder: ${{ runner.os == 'macOS' && format('/{0}', inputs.arch) || (runner.os == 'Windows' && inputs.arch == 'arm64') && '-arm64/OrcaSlicer_dep' || '/OrcaSlicer_dep' }}
         run: |
           echo "key=${cache_os}-cache-orcaslicer_deps-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
-          echo "path=${{ github.workspace }}/deps/build${dep_folder}" >> "$GITHUB_OUTPUT"
+          # Relative to the workspace, as build_deps.yml takes it.
+          echo "path=deps/build${dep_folder}" >> "$GITHUB_OUTPUT"
       - name: Look the cache up
         id: lookup
         uses: actions/cache@v5
         with:
-          path: ${{ steps.key.outputs.path }}
+          path: ${{ github.workspace }}/${{ steps.key.outputs.path }}
           key: ${{ steps.key.outputs.key }}
           lookup-only: true
 
@@ -66,6 +69,8 @@ jobs:
       valid-cache: false
       os: ${{ inputs.os }}
       arch: ${{ inputs.arch }}
+      # cl under the Visual Studio generator, which JusPrin's Windows build uses.
+      compiler: msvc
       # Stops build_deps.yml before it calls OrcaSlicer's build_orca.yml.
       build-deps-only: true
     secrets: inherit
@@ -85,7 +90,7 @@ jobs:
       - name: Load the deps
         uses: actions/cache@v5
         with:
-          path: ${{ needs.cache.outputs.path }}
+          path: ${{ github.workspace }}/${{ needs.cache.outputs.path }}
           key: ${{ needs.cache.outputs.key }}
           fail-on-cache-miss: true
 
@@ -113,7 +118,11 @@ jobs:
       - name: Build
         if: runner.os == 'Windows'
         shell: pwsh
-        run: .\build_release_vs.bat slicer
+        # As OrcaSlicer's build_orca.yml calls build_win.bat, but with cl rather than
+        # clang-cl. -i installs into build\OrcaSlicer, which the packaging reads.
+        run: |
+          $deps = (Split-Path "${{ github.workspace }}/${{ needs.cache.outputs.path }}").Replace('\', '/')
+          .\build_win.bat -s -i --arch ${{ inputs.arch }} --build-dir build --deps-dir $deps --msvc --msbuild
 
       - name: Package
         if: runner.os == 'Windows'
@@ -135,7 +144,7 @@ jobs:
 
       - name: Build
         if: runner.os == 'macOS'
-        run: ./build_release_macos.sh -s -n -x -1 -a ${{ inputs.arch }} -t 10.15
+        run: ./build_release_macos.sh -s -n -x -j 3 -a ${{ inputs.arch }} -t 10.15
 
       - name: Package
         if: runner.os == 'macOS'

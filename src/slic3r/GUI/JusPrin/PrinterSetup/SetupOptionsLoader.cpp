@@ -77,10 +77,12 @@ SetupOptions load_setup_options(const std::string& profiles_directory, const std
 {
     SetupOptions options;
     PresetBundle bundle;
-    try {
-        bundle.load_system_vendor_from_dir(profiles_directory, vendor_id, ForwardCompatibilitySubstitutionRule::EnableSilent);
-    } catch (const std::runtime_error& error) {
-        options.error = std::string("The printer profiles could not be read: ") + error.what();
+    // A vendor that cannot be read is named, not thrown; its error is in the text.
+    std::vector<std::string> failed;
+    const std::string errors =
+        bundle.load_system_vendor_from_dir(profiles_directory, vendor_id, ForwardCompatibilitySubstitutionRule::EnableSilent, &failed).second;
+    if (!failed.empty()) {
+        options.error = "The printer profiles could not be read: " + errors;
         return options;
     }
 

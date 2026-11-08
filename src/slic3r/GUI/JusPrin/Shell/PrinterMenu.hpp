@@ -32,7 +32,7 @@ public:
     // at it. The controller is shared and every callback holds a reference.
     static void open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor);
 
-    PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater);
+    PrinterMenu(wxWindow* owner, const ShellTheme& theme, Plater& plater);
 
 private:
     using Ptr = std::shared_ptr<PrinterMenu>;
@@ -45,7 +45,6 @@ private:
     Plater& m_plater;
     wxWeakRef<wxWindow> m_owner;
     ShellTheme m_theme;
-    bool m_dark{false};
     // Weak: see FilamentMenu -- a transient popup may vanish under us.
     wxWeakRef<HeaderMenu> m_menu;
 };

@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/tests/jusprin_support/PythonRuntime.cmake)
+
 add_executable(workspace_contract_tests
     test_workspace_contract.cpp
     test_project_outline.cpp
@@ -5,8 +7,8 @@ add_executable(workspace_contract_tests
 
 target_include_directories(workspace_contract_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/deps_src
 )
+target_include_directories(workspace_contract_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 target_link_libraries(workspace_contract_tests PRIVATE Catch2WithMain nlohmann_json)
 
 orcaslicer_discover_tests(workspace_contract_tests)
@@ -16,8 +18,8 @@ orcaslicer_discover_tests(workspace_contract_tests)
 add_executable(setting_display_tests test_setting_display.cpp)
 target_include_directories(setting_display_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/deps_src
 )
+target_include_directories(setting_display_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 target_link_libraries(setting_display_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
 orcaslicer_copy_test_dlls()
 orcaslicer_discover_tests(setting_display_tests)
@@ -34,6 +36,13 @@ if (SLIC3R_GUI)
         ${CMAKE_SOURCE_DIR}/src/slic3r/GUI
     )
     target_link_libraries(workspace_adapter_integration_harness PRIVATE libslic3r_gui)
+    jusprin_copy_python_runtime(workspace_adapter_integration_harness)
+    # As OrcaSlicer's GUI tests do: its precompiled header brings in wx before
+    # libslic3r, whose OCCT headers define NOUSER on Windows and hide part of
+    # commctrl.h from wx.
+    if (SLIC3R_PCH AND NOT SLIC3R_SYNTAXONLY)
+        add_precompiled_header(workspace_adapter_integration_harness ${CMAKE_SOURCE_DIR}/src/slic3r/pchheader.hpp FORCEINCLUDE)
+    endif ()
     if (APPLE)
         set_target_properties(workspace_adapter_integration_harness PROPERTIES
             OUTPUT_NAME "JusPrinWorkspaceHarness"

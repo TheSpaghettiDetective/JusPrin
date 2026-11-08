@@ -405,7 +405,8 @@ public:
     static const ImVec4 COL_TOOLBAR_BG_DARK;
     static const ImVec4 COL_SEPARATOR;
     static const ImVec4 COL_SEPARATOR_DARK;
-    static ImVec4 col_orca() { return to_ImVec4(ColorRGBA::ORCA()); }
+    // A stored copy, so &COL_ORCA (2.5.0's DesignCanvas) is not the address of a temporary.
+    static const ImVec4& col_orca() { static ImVec4 c; c = to_ImVec4(ColorRGBA::ORCA()); return c; }
     #define COL_ORCA col_orca() // read at use, so a host's accent set after start-up applies
     void reset_style() { init_style(); } // the style table copies ORCA(); re-read it after the accent changes
     // The accent's other shades, OrcaSlicer's teal ones unless a host sets its own; read at use like COL_ORCA.

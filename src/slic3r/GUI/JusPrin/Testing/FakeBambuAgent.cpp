@@ -5,6 +5,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/Monitor.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ManufacturingHistory.hpp"
 
 #include <boost/filesystem.hpp>
@@ -571,9 +572,19 @@ void FakeBambuAgent::announce_if_needed()
     const std::string dev_id  = JUSPRIN_FAKE_BAMBU_DEV_ID;
     if (queue_fn) {
         queue_fn([dev_id]() {
+            // The code a person gave this printer before, on its local record and for
+            // the fake's agent, which is where discovery reads it.
             if (auto* config = GUI::wxGetApp().app_config) {
-                config->set_str("access_code", dev_id, kAccessCode);
-                config->set_str("user_access_code", dev_id, kAccessCode);
+                const auto&    machines = config->get_local_machines();
+                const auto     known    = machines.find(dev_id);
+                BBLocalMachine machine  = known != machines.end() ? known->second : BBLocalMachine{};
+                machine.dev_id           = dev_id;
+                machine.dev_name         = "JusPrin Fake A1 mini";
+                machine.dev_ip           = "127.0.0.1";
+                machine.printer_type     = JUSPRIN_FAKE_BAMBU_PRINTER_TYPE;
+                machine.printer_agent_id = JUSPRIN_FAKE_BAMBU_AGENT_ID;
+                machine.access_code      = kAccessCode;
+                config->update_local_machine(machine);
             }
         });
     }
@@ -589,8 +600,11 @@ void FakeBambuAgent::select_machine_on_main(const std::string& dev_id)
         return;
     if (devices->get_local_machine(dev_id) == nullptr && devices->get_my_machine(dev_id) == nullptr)
         return;
-    if (auto* frame = GUI::wxGetApp().mainframe; frame && frame->m_monitor)
-        frame->m_monitor->select_machine(dev_id);
+    // The Device page's selection also updates the sidebar's sync state, so the page is built
+    // for it as MainFrame::jump_to_monitor() builds it.
+    GUI::MonitorPanel* monitor = GUI::wxGetApp().mainframe != nullptr ? GUI::MonitorPanel::ensure() : nullptr;
+    if (monitor != nullptr)
+        monitor->select_machine(dev_id);
     else
         devices->set_selected_machine(dev_id);
     BOOST_LOG_TRIVIAL(info) << "FakeBambuAgent: selected machine " << dev_id;
@@ -635,19 +649,15 @@ int FakeBambuAgent::send_message(std::string dev_id, std::string json_str, int q
     return handle_printer_command(dev_id, json_str);
 }
 
-int FakeBambuAgent::connect_printer(std::string dev_id, std::string dev_ip, std::string username, std::string password, bool use_ssl)
+int FakeBambuAgent::connect_printer(const PrinterConnectionParams& params)
 {
-    (void) dev_ip;
-    (void) username;
-    (void) password;
-    (void) use_ssl;
     OnLocalConnectedFn  connect_fn;
     FakeBambuStatusStep initial_step;
     std::string         id;
     std::string         failure;
     {
         std::lock_guard<std::mutex> lock(state_mutex);
-        id         = dev_id.empty() ? std::string(JUSPRIN_FAKE_BAMBU_DEV_ID) : dev_id;
+        id         = params.dev_id.empty() ? std::string(JUSPRIN_FAKE_BAMBU_DEV_ID) : params.dev_id;
         connect_fn = on_local_connect_fn;
         failure    = m_next_connect_failure.empty() ? m_control_connect_failure : m_next_connect_failure;
         m_next_connect_failure.clear();
@@ -728,6 +738,7 @@ int FakeBambuAgent::bind_detect(std::string dev_ip, std::string sec_link, detect
 
 int FakeBambuAgent::bind(std::string      dev_ip,
                          std::string      dev_id,
+                         std::string      dev_model,
                          std::string      sec_link,
                          std::string      timezone,
                          bool             improved,
@@ -735,6 +746,7 @@ int FakeBambuAgent::bind(std::string      dev_ip,
 {
     (void) dev_ip;
     (void) dev_id;
+    (void) dev_model;
     (void) sec_link;
     (void) timezone;
     (void) improved;

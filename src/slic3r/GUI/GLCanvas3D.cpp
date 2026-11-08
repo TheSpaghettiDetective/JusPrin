@@ -2794,7 +2794,8 @@ void GLCanvas3D::_render_frame(bool scene_dirty, bool only_init)
         m_scene_cache.render(m_background);
     }
 
-    _render_overlay_toolbars();
+    if (!m_legacy_overlays_hidden)
+        _render_overlay_toolbars();
     m_frame_profiler.mark("toolbars");
 
     wxGetApp().imgui()->render(draw_data);

@@ -3523,26 +3523,19 @@ std::pair<PresetsConfigSubstitutions, std::string> PresetBundle::load_vendors(co
 }
 
 std::pair<PresetsConfigSubstitutions, std::string> PresetBundle::load_system_vendor_from_dir(
-    const std::string &dir, const std::string &vendor_name, ForwardCompatibilitySubstitutionRule compatibility_rule)
+    const std::string &dir, const std::string &vendor_name, ForwardCompatibilitySubstitutionRule compatibility_rule,
+    std::vector<std::string> *failed)
 {
-    // JusPrin seam. Upstream's load_vendors (f5679ad343, after this fork's
-    // base) does this loading; on a rebase onto it, this body becomes
-    // load_vendors({{ORCA_FILAMENT_LIBRARY, dir}, {vendor_name, dir}}, rule,
-    // false) followed by update_system_maps(), which load_vendors leaves to
-    // its caller and which computes the library's exclusions.
-    PresetsConfigSubstitutions substitutions;
-    std::string                errors;
-    // The library first, as in load_system_presets_from_json: the vendor's
-    // filaments may inherit from it.
-    append(substitutions, this->load_vendor_configs_from_json(dir, ORCA_FILAMENT_LIBRARY, PresetBundle::LoadSystem, compatibility_rule).first);
-    if (vendor_name != ORCA_FILAMENT_LIBRARY) {
-        PresetBundle vendor;
-        append(substitutions, vendor.load_vendor_configs_from_json(dir, vendor_name, PresetBundle::LoadSystem, compatibility_rule, this).first);
-        for (const std::string &duplicate : this->merge_presets(std::move(vendor)))
-            errors += "Found duplicated preset " + duplicate + " in vendor " + vendor_name + "\n";
-    }
+    // JusPrin seam: one vendor and the library it may inherit from, both read
+    // from `dir` without the profile cache, then update_system_maps(), which
+    // load_vendors leaves to its caller and which computes the library's
+    // exclusions.
+    std::vector<VendorSource> vendors{{ORCA_FILAMENT_LIBRARY, dir}};
+    if (vendor_name != ORCA_FILAMENT_LIBRARY)
+        vendors.push_back({vendor_name, dir});
+    auto result = this->load_vendors(vendors, compatibility_rule, false, nullptr, failed);
     this->update_system_maps();
-    return std::make_pair(std::move(substitutions), errors);
+    return result;
 }
 
 std::pair<PresetsConfigSubstitutions, std::string> PresetBundle::load_system_models_from_json(ForwardCompatibilitySubstitutionRule compatibility_rule)

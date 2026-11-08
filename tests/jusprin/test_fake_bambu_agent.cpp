@@ -17,6 +17,17 @@
 
 using nlohmann::json;
 
+// A LAN connection to the fake at 127.0.0.1.
+static int connect(Slic3r::FakeBambuAgent& agent, const std::string& user, const std::string& password)
+{
+    Slic3r::PrinterConnectionParams params;
+    params.dev_id   = "FAKE001";
+    params.host     = "127.0.0.1";
+    params.username = user;
+    params.password = password;
+    return agent.connect_printer(params);
+}
+
 // The type code itself (the A1 mini's "N1") is checked through
 // start_discovery below; this checks the announcement carries the fake's own
 // id and type, as a free LAN device.
@@ -139,7 +150,7 @@ TEST_CASE("FakeBambuAgent replays default scenario end-to-end", "[FakeBambuAgent
         connected = (status == Slic3r::ConnectStatusOk);
     });
 
-    REQUIRE(agent.connect_printer("FAKE001", "127.0.0.1", "", "", false) == BAMBU_NETWORK_SUCCESS);
+    REQUIRE(connect(agent, "", "") == BAMBU_NETWORK_SUCCESS);
     CHECK(connected);
     REQUIRE(received.size() == 1);
     CHECK(received.back()["print"]["gcode_state"] == "IDLE");
@@ -308,7 +319,7 @@ TEST_CASE("FakeBambuAgent reports a refused connection with its code, once or wh
     agent.set_on_local_message_fn([&statuses](std::string, std::string) { ++statuses; });
 
     agent.fail_next_connect("5");
-    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "wrong", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    CHECK(connect(agent, "bblp", "wrong") == BAMBU_NETWORK_ERR_CONNECT_FAILED);
     REQUIRE(reported.size() == 1);
     CHECK(reported[0].first == Slic3r::ConnectStatusFailed);
     CHECK(reported[0].second == "5");
@@ -316,7 +327,7 @@ TEST_CASE("FakeBambuAgent reports a refused connection with its code, once or wh
     CHECK(statuses == 0);
 
     // One connect only: the next succeeds as before.
-    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "right", false) == BAMBU_NETWORK_SUCCESS);
+    CHECK(connect(agent, "bblp", "right") == BAMBU_NETWORK_SUCCESS);
     REQUIRE(reported.size() == 2);
     CHECK(reported[1].first == Slic3r::ConnectStatusOk);
     CHECK(statuses == 1);
@@ -339,8 +350,8 @@ TEST_CASE("FakeBambuAgent control file makes every connect fail while it asks to
         if (state == Slic3r::ConnectStatusFailed)
             codes.push_back(msg);
     });
-    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "code", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
-    CHECK(agent.connect_printer("FAKE001", "127.0.0.1", "bblp", "code", false) == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    CHECK(connect(agent, "bblp", "code") == BAMBU_NETWORK_ERR_CONNECT_FAILED);
+    CHECK(connect(agent, "bblp", "code") == BAMBU_NETWORK_ERR_CONNECT_FAILED);
     CHECK(codes == std::vector<std::string>{"7", "7"});
 
     std::error_code ec;

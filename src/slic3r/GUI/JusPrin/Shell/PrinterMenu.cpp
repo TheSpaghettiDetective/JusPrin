@@ -65,12 +65,12 @@ HeaderMenuItem other_printer(const Home::PrinterEntry& printer)
 
 } // namespace
 
-PrinterMenu::PrinterMenu(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater)
-    : m_plater(plater), m_owner(owner), m_theme(theme), m_dark(dark) {}
+PrinterMenu::PrinterMenu(wxWindow* owner, const ShellTheme& theme, Plater& plater)
+    : m_plater(plater), m_owner(owner), m_theme(theme) {}
 
 void PrinterMenu::open(wxWindow* owner, const ShellTheme& theme, bool dark, Plater& plater, HeaderButton& anchor)
 {
-    auto self = std::make_shared<PrinterMenu>(owner, theme, dark, plater);
+    auto self = std::make_shared<PrinterMenu>(owner, theme, plater);
     self->m_menu = new HeaderMenu(owner, theme, dark, {});
     show_root(self);
     self->m_menu->open(anchor);

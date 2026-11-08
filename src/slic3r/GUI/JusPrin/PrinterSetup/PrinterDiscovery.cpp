@@ -5,6 +5,7 @@
 #include "slic3r/GUI/DeviceCore/DevExtruderSystem.h"
 #include "slic3r/GUI/DeviceCore/DevFilaSystem.h"
 #include "slic3r/GUI/DeviceCore/DevManager.h"
+#include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 
 #include <algorithm>
@@ -36,7 +37,7 @@ void read_reported_hardware(MachineObject& machine, DiscoveredPrinter& printer)
         printer.progress_percent = machine.mc_print_percent;
         printer.job              = machine.subtask_name;
     }
-    DevFilaSystem* filaments = machine.GetFilaSystem();
+    const std::shared_ptr<DevFilaSystem> filaments = machine.GetFilaSystem();
     if (!filaments) return;
     for (const auto& [ams_id, ams] : filaments->GetAmsList()) {
         if (!ams) continue;

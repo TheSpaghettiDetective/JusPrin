@@ -384,7 +384,7 @@ wxString StatusRow::project_summary() const
 
 void StatusRow::request_home()
 {
-    m_tabpanel.SetSelection(MainFrame::tpHome);
+    m_tabpanel.SelectPageByName(TAB_ID_HOME);
 }
 
 // The chip renders Orca's own selection and nothing else: the printer, and
@@ -588,7 +588,7 @@ void StatusRow::request_slice(bool all)
 
 void StatusRow::request_prepare()
 {
-    m_tabpanel.SetSelection(MainFrame::tp3DEditor);
+    m_tabpanel.SelectPageByName(TAB_ID_PREPARE);
 }
 
 } // namespace Slic3r::GUI::JusPrin

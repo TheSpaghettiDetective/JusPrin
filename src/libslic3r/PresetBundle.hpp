@@ -648,9 +648,11 @@ public:
     // the system folder (the packaged profiles, for example), together with
     // the Orca Filament Library its filaments may inherit from, the same way
     // load_system_presets_from_json loads them. Replaces what this bundle held.
-    // For reading profiles that are not installed.
+    // For reading profiles that are not installed. As load_vendors, a vendor
+    // that cannot be read is named in failed and its error is in the text.
     std::pair<PresetsConfigSubstitutions, std::string> load_system_vendor_from_dir(
-        const std::string &dir, const std::string &vendor_name, ForwardCompatibilitySubstitutionRule compatibility_rule);
+        const std::string &dir, const std::string &vendor_name, ForwardCompatibilitySubstitutionRule compatibility_rule,
+        std::vector<std::string> *failed = nullptr);
 
     // Set the filament preset name. As the name could come from the UI selection box,
     // an optional "(modified)" suffix will be removed from the filament name.
