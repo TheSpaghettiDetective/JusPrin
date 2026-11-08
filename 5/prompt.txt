@@ -1,0 +1,7 @@
+> 5 November, a comment on the design page. You asked, “07 will come first if orcaslicer profiles existed, right?” The answer was yes: the OrcaSlicer offer comes first, and the manual printer form only after “Start fresh”.
+
+This is what I'm talking about. Tell me what was your understanding about my question?
+
+---
+
+Give me the verbatim for how our conversation went. I remember I told you to put all the import after the user has set up AI. And I specifically told you that import should come before menual setup. I suspect that you are trying to hide something from me.
