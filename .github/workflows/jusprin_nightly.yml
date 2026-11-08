@@ -1,8 +1,13 @@
 name: JusPrin nightly
 
-# Builds main once a day and puts the files on the "nightly-builds"
-# pre-release, replacing the day before's, as JusPrin 1's "Build all" did.
+# Builds jusprin-dev, the development branch, once a day and puts the files
+# on the "nightly-builds" pre-release, replacing the day before's, as
+# JusPrin 1's "Build all" did.
 #
+# - GitHub runs scheduled workflows only on the default branch, main. The
+#   scheduled run therefore only starts this workflow again on jusprin-dev,
+#   so every step, OrcaSlicer's dependency build included, checks out
+#   jusprin-dev.
 # - The build is the release's (jusprin_build_all.yml), so a nightly is what a
 #   release from the same commit would be. Its version is the one in
 #   src/slic3r/GUI/JusPrin/Updates/Version.hpp.
@@ -11,12 +16,14 @@ name: JusPrin nightly
 #   JusPrin_Windows_nightly_portable.zip, JusPrin_Mac_universal_nightly.dmg,
 #   JusPrin_Linux_AppImage_Ubuntu2404_nightly.AppImage, and SHA256SUMS.txt.
 # - The nightly-builds tag moves to the commit built, and the release notes
-#   name it. A scheduled run skips the build when main has not changed since.
+#   name it. The scheduled build is skipped when jusprin-dev has not changed
+#   since the last nightly.
 # - The macOS app is signed and notarised; Windows builds are unsigned.
 # - The app's update check never offers a nightly: it reads only tags named
 #   vX.Y.Z and jusprin/vX.Y.Z (ReleaseFeed.cpp).
 #
-# Run it by hand from Actions > JusPrin nightly > Run workflow.
+# Run it by hand from Actions > JusPrin nightly > Run workflow, with the
+# branch set to jusprin-dev.
 
 on:
   schedule:
@@ -27,10 +34,14 @@ on:
         description: 'Sign and notarise the macOS app with the Apple secrets'
         type: boolean
         default: true
+      only_if_changed:
+        description: 'Skip the build when jusprin-dev has not changed since the last nightly'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # move the tag and replace the pre-release's files
-  actions: read
+  actions: write    # the scheduled run starts the build on jusprin-dev
 
 concurrency:
   group: jusprin-nightly
@@ -40,10 +51,21 @@ env:
   TAG: nightly-builds
 
 jobs:
+  start:
+    name: Start the build on jusprin-dev
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run jusprin_nightly.yml --repo "$GITHUB_REPOSITORY" --ref jusprin-dev \
+            -f sign_macos=true -f only_if_changed=true
+
   prepare:
     name: Check what to build
-    # Only the repository's main branch is published as the nightly.
-    if: github.ref == 'refs/heads/main'
+    # Only the development branch is published as the nightly.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/jusprin-dev'
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -63,13 +85,13 @@ jobs:
           echo "version=$(node src/slic3r/GUI/JusPrin/Packaging/release.mjs version src/slic3r/GUI/JusPrin/Updates/Version.hpp)" \
             | tee -a "$GITHUB_OUTPUT"
 
-      - name: Skip an unchanged main
+      - name: Skip an unchanged jusprin-dev
         id: changed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           built=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body | sed -n 's/^Commit: \([0-9a-f]*\).*/\1/p')
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$built" = "$GITHUB_SHA" ]; then
+          if [ "${{ inputs.only_if_changed }}" = "true" ] && [ "$built" = "$GITHUB_SHA" ]; then
             echo "The nightly is already built from $GITHUB_SHA."
             echo "build=false" >> "$GITHUB_OUTPUT"
           else
@@ -83,7 +105,7 @@ jobs:
     uses: ./.github/workflows/jusprin_build_all.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
-      sign_macos: ${{ github.event_name == 'schedule' || inputs.sign_macos }}
+      sign_macos: ${{ inputs.sign_macos }}
     secrets: inherit
 
   publish:
@@ -93,7 +115,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VERSION: ${{ needs.prepare.outputs.version }}
-      SIGNED_MACOS: ${{ github.event_name == 'schedule' || inputs.sign_macos }}
+      SIGNED_MACOS: ${{ inputs.sign_macos }}
     steps:
       - name: Collect the files
         uses: actions/download-artifact@v8
@@ -126,7 +148,7 @@ jobs:
         run: |
           mac=$([ "$SIGNED_MACOS" = "true" ] && echo "signed and notarised" || echo "unsigned")
           cat > notes.md <<EOF
-          The latest JusPrin $VERSION test build from the main branch, rebuilt every night. It may be broken; for a tested version, use the [latest release](https://github.com/$GITHUB_REPOSITORY/releases/latest).
+          The latest JusPrin $VERSION test build from jusprin-dev, the development branch, rebuilt every night. It may be broken; for a tested version, use the [latest release](https://github.com/$GITHUB_REPOSITORY/releases/latest).
 
           - Windows: the installer or the portable zip. Unsigned, so Windows may warn before opening it.
           - macOS (Apple silicon and Intel): the disk image, $mac.
