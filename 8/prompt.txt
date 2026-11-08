@@ -1,0 +1,1 @@
+clean up the worktrees and branches for all subsessions
