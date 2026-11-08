@@ -1,0 +1,28 @@
+name: 💡 Idea
+description: Something JusPrin should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you for the idea.** Please search the existing issues first. If someone has asked for the same thing, add a comment or a 👍 there instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you were trying to do
+      description: Describe the print or the task, and what got in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Screenshots, links, or how another app does it.
+    validations:
+      required: false

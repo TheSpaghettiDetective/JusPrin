@@ -1,0 +1,83 @@
+name: 🐞 Bug report
+description: JusPrin does something wrong, crashes or freezes
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you for reporting a problem with JusPrin.**
+
+        The quickest way to report one is **Help › Report a problem…** in the app, which fills in your app version and system.
+
+        Please search the existing issues first. If yours is there, add a comment instead. For a security problem, email jusprin-support@obico.io instead of opening an issue.
+  - type: input
+    id: version
+    attributes:
+      label: JusPrin version
+      description: The version is in the app's About JusPrin window.
+      placeholder: e.g. 2.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os_type
+    attributes:
+      label: Operating system
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: Operating system version
+      placeholder: e.g. Windows 11, macOS 15.3, Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer
+      placeholder: e.g. Bambu Lab P1S, Prusa MK4, Voron 2.4
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: Include a screenshot if you can. If you were talking to AI, say what you asked and what it did.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen again
+      placeholder: |
+        1. Open '...'
+        2. Click '...'
+        3. See the problem
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Project file and log folder
+      description: |
+        Attach the files with the **Paste, drop, or click to add files** control under this box. Zip anything that is not a `.log`, `.txt` or image, since GitHub rejects other file types, and keep each file under 25 MB.
+
+        * The **project file**, zipped: **File › Export › Project 3MF…**
+        * The **log folder**, zipped. **Help › Show Configuration Folder** opens the folder that holds it, or find it at:
+          * Windows: `%APPDATA%\JusPrin2\log`
+          * macOS: `~/Library/Application Support/JusPrin2/log`
+          * Linux: `~/.config/JusPrin2/log`
+        * If the zip is over 25 MB, attach only the newest log files.
+    validations:
+      required: false

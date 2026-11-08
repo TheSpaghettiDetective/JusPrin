@@ -1,8 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: Community Support (Discord channel)
-    url: https://discord.gg/P4VE9UY9gJ
-    about: Please ask and answer support "how do I?"questions here.
-  - name: Discussion Forum
-    url: https://github.com/OrcaSlicer/OrcaSlicer/discussions
-    about: Please raise ideas and feature suggestions here.
+  - name: Questions and support
+    url: mailto:jusprin-support@obico.io
+    about: Email jusprin-support@obico.io for help using JusPrin, or to report a security problem privately.
