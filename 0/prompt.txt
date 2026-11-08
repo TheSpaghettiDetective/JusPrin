@@ -1,0 +1,24 @@
+Move main now
+
+---
+
+Fix the v1 logo
+
+---
+
+we want to clean up the docs that repo visitors are likely to see such as readme (maybe others?). let's see if/how much we can borrow it from v1
+
+---
+
+<!-- reply 2 -->
+> Should the README lead with them?
+
+use the v1 line
+
+<!-- reply -->
+> Decision needed: where visitors reach you.
+
+jusprin-support@obico.io
+
+
+Draft the README and the other visitor files now

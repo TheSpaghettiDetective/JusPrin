@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6YJ6R1FQ2S11ZQY3VN47WN7",
+  "strategy": "manual-commit",
+  "branch": "ui-walkthrough",
+  "checkpoints_count": 8,
+  "files_touched": [
+    ".github/CONTRIBUTING.md",
+    ".github/FUNDING.yml",
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/ISSUE_TEMPLATE/crash_report.yml",
+    ".github/ISSUE_TEMPLATE/feature_request.yml",
+    ".github/ISSUE_TEMPLATE/jusprin_bug_report.yml",
+    ".github/ISSUE_TEMPLATE/jusprin_feature_request.yml",
+    ".github/README.md",
+    ".github/SECURITY.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 322,
+    "cache_creation_tokens": 282526,
+    "cache_read_tokens": 24726648,
+    "output_tokens": 84915,
+    "api_call_count": 162
+  }
+}
