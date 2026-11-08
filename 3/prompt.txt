@@ -1,0 +1,1 @@
+Check which session designed the screen flow for the profile importing part of the current onboarding
