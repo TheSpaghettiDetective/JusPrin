@@ -1,13 +1,13 @@
 // The Agent's ways of connecting, drawn once for every surface that offers
 // them: the JusPrin account block, one row per provider key, and one row per
 // AI tool (canvas "JusPrin v2": Agent/Account Row, Agent/Provider Row,
-// Agent/Your Own API Key and Agent/Tool Row, decided 2026-10-21). Agent setup
-// shows one way at a time; Preferences › Agent shows all three, with the
-// same rows.
+// Agent/Your Own API Key and Agent/Tool Row, decided 2026-10-21). Preferences
+// › Account holds the account; Preferences › BYOAI the keys and the tools.
 
 import { KeyboardEvent, RefObject, useEffect, useRef, useState } from 'react';
-import { AccountStatusPayload, McpToolInfo, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
-import { SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
+import { AccountStatusPayload, McpToolInfo, PageMessageType, SavedKeyInfo, SetupStatusPayload } from '../bridge/protocol';
+import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE } from '../credits';
+import { SignInActions, SignInButtons, SignInDoor } from './SignInDoor';
 
 // The page and the host ship in the same build, so this list and the host's
 // setup_provider_supported() are two views of the same fact. The host still
@@ -30,66 +30,124 @@ export function providerLabel(id: string | undefined): string {
   return PROVIDERS.find((provider) => provider.id === id)?.label ?? 'your provider';
 }
 
-// The first-month offer, the headline wherever someone can sign in for the
-// first time (canvas "JusPrin v2", boards 1a to 1c). The button names what
-// signing in gets; `note` is what a surface adds under the offer.
-export function FirstMonthOffer({ note, onSignIn }: { note?: string; onSignIn: () => void }) {
+// The Agent page's own buttons, drawn in the shared sign-in.
+const AGENT_BUTTONS: SignInButtons = { primary: 'primary', secondary: 'agent-row-action' };
+
+// The shared sign-in's controls, as the Agent page's bridge carries them out.
+// Every window that signs in speaks the same messages.
+export function accountSignInActions(send: (type: PageMessageType, payload: object) => void): SignInActions {
+  return {
+    google: () => send('account_sign_in', {}),
+    email: (email) => send('account_email', { email }),
+    sendCode: () => send('account_send_code', {}),
+    code: (code) => send('account_code', { code }),
+    password: (password) => send('account_password', { password }),
+    cancel: () => send('account_cancel', {}),
+    reopen: () => send('account_reopen', {}),
+    openLink: (link) => send('account_open_link', { link }),
+  };
+}
+
+export interface AccountSignInProps {
+  status: AccountStatusPayload;
+  actions: SignInActions;
+}
+
+// The sign-in every screen shares (SignInDoor), in a column of its own.
+// `children` is what it says above the door while nothing has started.
+export function AccountSignIn({ status, actions, children }: AccountSignInProps & { children?: React.ReactNode }) {
   return (
-    <div className="credit-offer" data-testid="first-month-offer">
-      <div className="credit-offer-copy">
-        <h2 className="credit-offer-title">{SIGNUP_OFFER}</h2>
-        <p>{SIGNUP_SCALE}</p>
-        {note && <p className="credit-offer-note">{note}</p>}
-      </div>
-      <button type="button" className="primary credit-offer-action" onClick={onSignIn}>Sign in for 500 credits</button>
+    <div className="account-sign-in">
+      <SignInDoor phase={status.phase} email={status.email} error={status.error?.message} actions={actions}
+        buttons={AGENT_BUTTONS}>
+        {children}
+      </SignInDoor>
     </div>
   );
 }
 
-export interface AccountRowProps {
+// The first-month offer, the headline wherever someone can sign in for the
+// first time (canvas "JusPrin v2", boards 1a to 1c), over the sign-in itself.
+// Signing up and signing in are one door: an address with no account gets
+// one from its first code. `note` is what a surface adds under the offer.
+// `freeAfter` adds what a free account gets after the month, for someone who
+// has no plan yet.
+export function FirstMonthOffer({ note, freeAfter, status, actions }: AccountSignInProps & { note?: string; freeAfter?: boolean }) {
+  return (
+    <div className="credit-offer" data-testid="first-month-offer">
+      <AccountSignIn status={status} actions={actions}>
+        <div className="credit-offer-copy">
+          <h2 className="credit-offer-title">{SIGNUP_OFFER}</h2>
+          <p>{SIGNUP_SCALE}</p>
+          {freeAfter && <p>{SIGNUP_AFTER}</p>}
+          {note && <p className="credit-offer-note">{note}</p>}
+        </div>
+      </AccountSignIn>
+    </div>
+  );
+}
+
+export interface AccountRowProps extends AccountSignInProps {
   // The signed-in account, from setup_keys; absent when signed out.
   account?: SavedKeyInfo;
-  status: AccountStatusPayload;
-  onSignIn: () => void;
-  onCancel: () => void;
+  // Signed in, but the account's AI could not be reached: its model list
+  // failed without the server refusing the sign-in. `retrying` while Try
+  // again waits for the answer.
+  aiUnavailable?: boolean;
+  retrying?: boolean;
+  onRetry?: () => void;
   onSignOut: () => void;
 }
 
 // The JusPrin account (canvas "JusPrin v2": Agent/Account Row): signed out,
-// waiting for the browser, signed in, or signed in with a sign-in that has
-// ended. The browser does the signing in; this row only follows it.
-export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: AccountRowProps) {
-  const [copied, setCopied] = useState(false);
-  const waiting = status.phase !== 'idle';
-  const ended = !!account?.rejected;
-  const copyLink = () => {
-    if (!status.url) return;
-    navigator.clipboard.writeText(status.url).then(() => setCopied(true), () => setCopied(false));
-  };
-  let line: React.ReactNode;
-  if (waiting) {
-    line = status.phase === 'checking' ? 'Checking your account…' : 'Finish in your browser';
-  } else if (account && ended) {
-    line = (
-      <span className="agent-row-status-label">
-        <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
-        <span>Your sign-in for {account.account || 'this account'} has ended</span>
-      </span>
-    );
-  } else if (account) {
-    line = (
-      <span className="agent-row-status-label">
-        <span className="jp-icon jp-icon-check" aria-hidden="true" />
-        <span>{account.account ? `Signed in as ${account.account}` : 'Signed in'}</span>
-      </span>
-    );
-  } else {
+// signed in, signed in with AI unavailable, or signed in with a sign-in that
+// has ended. Signing in, or in again, is the sign-in every screen shares.
+export function AccountRow({ account, status, actions, aiUnavailable, retrying, onRetry, onSignOut }: AccountRowProps) {
+  if (!account) {
     return (
       <div className="agent-account-offer" data-testid="agent-account">
         <span className="agent-account-eyebrow">JusPrin account</span>
-        <FirstMonthOffer onSignIn={onSignIn} />
-        {status.error && <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>}
+        <FirstMonthOffer freeAfter status={status} actions={actions} />
         {status.warning && <p className="agent-row-note">{status.warning}</p>}
+      </div>
+    );
+  }
+  if (account.rejected) {
+    return (
+      <div className="agent-account-offer" data-testid="agent-account">
+        <div className="agent-row-copy">
+          <h2 className="agent-account-title">JusPrin account</h2>
+          <span className="agent-row-status agent-row-status--rejected" data-testid="agent-account-status">
+            <span className="agent-row-status-label">
+              <span className="jp-icon jp-icon-circle-alert" aria-hidden="true" />
+              <span>Your sign-in for {account.account || 'this account'} has ended</span>
+            </span>
+          </span>
+        </div>
+        <p className="agent-row-note">Sign in again to keep using AI with your JusPrin account.</p>
+        <AccountSignIn status={status} actions={actions} />
+      </div>
+    );
+  }
+  // The stored account being checked again: its sign-in may have ended.
+  const checking = status.phase === 'checking';
+  const email = account.account ? `Signed in as ${account.account}` : 'Signed in';
+  if (!checking && aiUnavailable) {
+    return (
+      <div className="agent-account" data-testid="agent-account">
+        <div className="agent-row-copy">
+          <h2 className="agent-account-title">JusPrin account</h2>
+          <span className="agent-row-status agent-row-status--unavailable" data-testid="agent-account-status">
+            <span className="agent-row-status-label">
+              <span className="agent-row-status-dot" aria-hidden="true" />
+              <span>{email} · AI unavailable</span>
+            </span>
+          </span>
+        </div>
+        <button type="button" className="agent-row-action" onClick={onRetry} disabled={retrying}>Try again</button>
+        <div className="agent-account-detail">
+          <p className="agent-row-note">Your account and AI setup stay intact. Your own key or AI tool still works meanwhile.</p>
+        </div>
       </div>
     );
   }
@@ -97,37 +155,25 @@ export function AccountRow({ account, status, onSignIn, onCancel, onSignOut }: A
     <div className="agent-account" data-testid="agent-account">
       <div className="agent-row-copy">
           <h2 className="agent-account-title">JusPrin account</h2>
-          <span className={`agent-row-status${ended && !waiting ? ' agent-row-status--rejected' : account && !waiting ? ' agent-row-status--saved' : ''}`}
-            data-testid="agent-account-status">{line}</span>
+          <span className={`agent-row-status${checking ? '' : ' agent-row-status--saved'}`} data-testid="agent-account-status">
+            {checking ? 'Checking your account…' : (
+              <span className="agent-row-status-label">
+                <span className="jp-icon jp-icon-check" aria-hidden="true" />
+                <span>{email}</span>
+              </span>
+            )}
+          </span>
       </div>
-      {waiting ? (
-        <button type="button" className="link" onClick={onCancel}>Cancel</button>
-      ) : account && !ended ? (
-        <button type="button" className="agent-row-action" onClick={onSignOut}>Sign out</button>
+      {checking ? (
+        <button type="button" className="link" onClick={actions.cancel}>Cancel</button>
       ) : (
-        <button type="button" className="primary" onClick={onSignIn}>Sign in again</button>
+        <button type="button" className="agent-row-action" onClick={onSignOut}>Sign out</button>
       )}
       <div className="agent-account-detail">
-      {status.phase === 'browser' && (
-        <>
-          <p className="agent-row-note">
-            A JusPrin tab just opened. Sign in there, or create an account, and come back. This notices on its own.
-          </p>
-          {status.url && (
-            <p className="agent-row-note">
-              Didn’t open?{' '}
-              <button type="button" className="link" onClick={copyLink}>{copied ? 'Link copied' : 'Copy link'}</button>
-            </p>
-          )}
-        </>
-      )}
-      {!waiting && status.error && (
+      {!checking && status.error && (
         <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>
       )}
-      {!waiting && status.warning && <p className="agent-row-note">{status.warning}</p>}
-      {!waiting && account && ended && (
-        <p className="agent-row-note">Sign in again to keep using the Agent with your JusPrin account.</p>
-      )}
+      {!checking && status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
     </div>
   );
@@ -145,7 +191,7 @@ export type KeyForm = 'closed' | 'entering' | 'checking' | 'unreachable' | 'refu
 
 const STANDING_LINE: Record<Exclude<KeyStanding, 'none'>, { icon: string; text: string }> = {
   saved: { icon: 'check', text: 'Key saved on this computer' },
-  sessionOnly: { icon: 'triangle-alert', text: 'Working, but only until JusPrin restarts' },
+  sessionOnly: { icon: 'triangle-alert', text: 'This key works now, but JusPrin couldn’t save it.' },
   rejected: { icon: 'circle-alert', text: 'The provider rejected this key' },
 };
 
@@ -262,7 +308,7 @@ export function ProviderKeyRow({
 
       {form === 'closed' && standing === 'sessionOnly' && (
         <p className="agent-row-note">
-          JusPrin couldn’t store this key on this computer, so you’ll need to enter it again after a restart.
+          You’ll need to add it again after JusPrin restarts.
         </p>
       )}
       {form === 'closed' && standing === 'rejected' && (
@@ -449,8 +495,8 @@ export function ToolGroup({ heading = false, tools, onConnect, onLookAgain }: To
       <div className="agent-group-head">
         {heading && <h2 className="agent-group-title">Connect an AI tool you already use</h2>}
         <p className="agent-group-intro">
-          Let an AI app on this computer work with the open project. JusPrin writes the connection settings; you don’t
-          need to know what MCP is.
+          Let an AI app on this computer, such as Claude Desktop, work with the open project. JusPrin adds itself to
+          that app’s settings.
         </p>
       </div>
       {tools.map((tool) => <ToolRow key={tool.id} tool={tool} onConnect={() => onConnect(tool)} />)}

@@ -30,7 +30,8 @@
     "proposals",
     "saved_keys",
     "preferences",
-    "cloud_account"
+    "cloud_account",
+    "account_email"
   ],
   "pageMessageTypes": [
     "hello",
@@ -57,6 +58,7 @@
     "pick_attachment",
     "set_chat_model",
     "refresh_account",
+    "refresh_account_box",
     "printer_action",
     "printer_instructions",
     "printer_opening",
@@ -72,7 +74,13 @@
     "preferences_action",
     "account_sign_in",
     "account_check",
-    "account_cancel"
+    "account_cancel",
+    "account_email",
+    "account_send_code",
+    "account_code",
+    "account_password",
+    "account_reopen",
+    "account_open_link"
   ],
   "hostMessageTypes": [
     "hello_ack",
@@ -106,6 +114,7 @@
     "setup_keys",
     "preferences",
     "account_status",
-    "account"
+    "account",
+    "account_box"
   ]
 }

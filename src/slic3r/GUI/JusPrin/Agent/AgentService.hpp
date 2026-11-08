@@ -104,6 +104,10 @@ struct AgentRequest
     // The same on every request of one chat and different for every other
     // chat: what a provider routes its prompt cache by. Empty for a title.
     std::string                           chat_key;
+    // The chat's title as the person sees it, which JusPrin's gateway keeps
+    // beside the chat's name there so Billing and usage can name the chat.
+    // Empty while the chat has none.
+    std::string                           chat_title;
     // What the chat has sent before, picture text loaded, and where the
     // items this turn sends go to be kept: the record of the chat the turn
     // belongs to, and the blob each picture or PDF is written to before the

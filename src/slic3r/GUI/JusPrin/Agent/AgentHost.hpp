@@ -51,7 +51,9 @@ public:
     virtual AgentServicePtr make_agent(const ChatModelChoice& choice) = 0;
     // Asks the provider for its models; `done` is called later, once, on the
     // thread the host runs on, and not at all after the source is replaced.
-    using ModelsDone = std::function<void(bool ok, std::vector<ModelOption> models)>;
+    // `refused` says the provider turned the stored key or sign-in down (401
+    // or 403); any other failure says nothing about it.
+    using ModelsDone = std::function<void(bool ok, std::vector<ModelOption> models, bool refused)>;
     virtual void list_models(const std::string& provider, ModelsDone done) = 0;
     // For an account provider, the wire format the account's model list last
     // gave this model; empty when it gave none, and for other providers.
@@ -65,6 +67,15 @@ public:
     // thread; nothing when no account is signed in or it could not be read.
     using AccountDone = std::function<void(std::optional<nlohmann::json> account)>;
     virtual void fetch_account(AccountDone done) { done(std::nullopt); }
+    // The HTML the JusPrin server puts in the box on Preferences › Account,
+    // later, on the host's thread; nothing when it sends none or could not be
+    // asked. Asked with the account's token when one is signed in.
+    using AccountBoxDone = std::function<void(std::optional<std::string> html)>;
+    virtual void fetch_account_box(AccountBoxDone done) { done(std::nullopt); }
+    // Deletes the signed-in account on its server, later, on the host's
+    // thread: whether the server says it is gone.
+    using DeleteAccountDone = std::function<void(bool deleted)>;
+    virtual void delete_account(DeleteAccountDone done) { done(false); }
 };
 
 class AgentHost
@@ -151,6 +162,10 @@ public:
     // Sends one envelope of a type this protocol declares. The subject uses
     // it to push its own state between snapshots.
     void send_page_envelope(const std::string& type, const nlohmann::json& payload);
+    // Reads the signed-in account's credits and plan again, as the page's
+    // refresh_account does: after a server page in the app's sheet closes, a
+    // purchase may have changed them.
+    void refresh_account() { request_account(); }
     // Runs the session's own tools inside the coordinator's state machine.
     // Anything it leaves unhandled stays with the host.
     void set_session_tool_executor(ToolExecutionCoordinator::ExtensionExecutor executor)
@@ -278,6 +293,10 @@ public:
     // runner above.
     using RevealPathFn = std::function<void(const std::string& path)>;
     void set_reveal_path_handler(RevealPathFn reveal);
+    // Opens one web page in the desktop's browser: Google's sign-in again, or
+    // a page the sign-in links to. GUI-free like the reveal handler.
+    using OpenUrlFn = std::function<void(const std::string& url)>;
+    void set_url_opener(OpenUrlFn open);
     // Shows the desktop's file dialog for one kind of attachment and calls
     // `done` with the chosen paths (UTF-8), empty when the person cancels.
     // GUI-free like the reveal handler: the wx side supplies the dialog.
@@ -427,6 +446,7 @@ private:
     void send_model_catalog();
     void request_account();
     void send_account();
+    void request_account_box();
     void remember_chat_titles();
     nlohmann::json usage_chat_titles() const;
     bool person_started(const ConversationMessage& assistant) const;
@@ -447,9 +467,17 @@ private:
     void handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_check_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_setup_cancel();
+    void handle_delete_account(const std::string& envelope_id);
+    // Removes a stored key and puts the agent on the keys still stored; false
+    // when setup would not remove it.
+    bool remove_saved_key(const std::string& provider);
     void handle_setup_remove_key(const std::string& envelope_id, const std::string& payload_json);
     void handle_account_sign_in(const std::string& envelope_id, bool stored);
     void handle_account_cancel();
+    // The email sign-in's steps and the sign-in's links (account_email capability).
+    void handle_account_email(const std::string& envelope_id, const std::string& payload_json);
+    void handle_account_email_step(const std::string& type, const std::string& payload_json);
+    void handle_account_open_link(const std::string& type, const std::string& payload_json);
     void pump_account();
     void send_account_status(const std::string& phase, const std::string& correlation_id = {},
                              const std::optional<AgentError>& error = std::nullopt, bool expired = false,
@@ -459,6 +487,8 @@ private:
     void send_setup_keys(const std::string& correlation_id = {});
     // The provider refused the key the current agent was built from.
     void note_key_rejected();
+    // The provider refused this provider's stored key or sign-in.
+    void reject_saved_key(const std::string& provider);
     void handle_mcp_catalog(const std::string& envelope_id);
     void handle_settings_catalog(const std::string& envelope_id);
     void handle_settings_action(const std::string& envelope_id, const std::string& payload_json);
@@ -682,6 +712,7 @@ private:
     McpConnectSettings              m_mcp_connect;
     McpCliRunner                    m_mcp_cli;
     RevealPathFn                    m_reveal_path;
+    OpenUrlFn                       m_open_url;
     // Per-chat models: the source, the choice the current m_agent was built
     // for (none for the agent the host was handed), and each configured
     // provider's list as it arrives.
@@ -694,6 +725,7 @@ private:
     std::optional<ChatModelChoice>          m_agent_choice;
     std::map<std::string, ProviderModels>   m_models;
     std::optional<nlohmann::json>           m_account;
+    unsigned                                m_account_box_request{0};
     std::string                             m_chat_titles_file;
     // What this host last wrote there, so an unchanged list costs no write.
     std::map<std::string, std::string>      m_chat_titles_kept;

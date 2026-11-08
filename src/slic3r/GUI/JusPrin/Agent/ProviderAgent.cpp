@@ -1,4 +1,5 @@
 #include "ProviderAgent.hpp"
+#include "CloudAccount.hpp"
 #include "ManufacturingHistory.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "ToolRegistry.hpp"
@@ -246,6 +247,7 @@ void ProviderAgent::begin_transcript(const AgentRequest& request)
     m_transcript = TurnTranscript{};
     m_transcript.request_id   = request.request_id;
     m_transcript.chat_key     = request.chat_key;
+    m_transcript.chat_title   = request.chat_title;
     m_transcript.instructions = request.session.instructions;
     m_app_started             = request.app_started;
     m_on_recorded             = request.on_recorded;
@@ -445,6 +447,9 @@ bool ProviderAgent::post()
         // gets a new project id, so its chats get new names too.
         if (!m_transcript.chat_key.empty())
             request.headers.push_back({"X-JusPrin-Chat", gateway_chat_id(m_transcript.chat_key)});
+        // So Billing and usage, on the server, can list the chat by name.
+        if (!m_transcript.chat_key.empty() && !m_transcript.chat_title.empty())
+            request.headers.push_back({"X-JusPrin-Chat-Title", percent_encoded(m_transcript.chat_title)});
     }
     request.body = built.body.dump();
     if (m_config.request_listener)
@@ -498,7 +503,7 @@ void ProviderAgent::handle(StreamEvent event)
     case StreamEvent::Kind::TextDelta: m_events.push_back(AgentEvent::delta(std::move(event.text))); break;
     case StreamEvent::Kind::TurnComplete: finish_response(std::move(event)); break;
     case StreamEvent::Kind::Incomplete:
-        fail(AgentError{"incomplete_response", "The Agent service stopped before finishing its response.", true});
+        fail(AgentError{"incomplete_response", "The AI service stopped before finishing its response.", true});
         break;
     case StreamEvent::Kind::Failed: fail(std::move(event.error)); break;
     }
@@ -521,17 +526,17 @@ void ProviderAgent::finish_response(StreamEvent event)
         // The provider paused its own turn and resumes it from this one.
         constexpr unsigned kPausedTurnLimit = 4;
         if (++m_paused_turns > kPausedTurnLimit) {
-            fail(AgentError{"agent_paused_too_often", "The Agent service kept pausing its response.", true});
+            fail(AgentError{"agent_paused_too_often", "The AI service kept pausing its response.", true});
             return;
         }
         if (!post())
-            fail(AgentError{"agent_continuation_failed", "The Agent could not be asked to continue its response.", true});
+            fail(AgentError{"agent_continuation_failed", "AI could not be asked to continue its response.", true});
         return;
     }
     for (ProviderToolCall& call : event.calls)
         m_queued_calls.push_back(std::move(call));
     if (!next_call())
-        fail(AgentError{"agent_continuation_failed", "The Agent could not be told the results of its tool calls.", true});
+        fail(AgentError{"agent_continuation_failed", "AI could not be told the results of its tool calls.", true});
 }
 
 // Hands out the next call of the response, or, once every call has its
@@ -582,7 +587,7 @@ bool ProviderAgent::next_call()
             continue;
         }
         if (call_id.empty() || !available || !validation.valid()) {
-            fail(AgentError{"malformed_tool_call", "The Agent returned an invalid tool call.", false});
+            fail(AgentError{"malformed_tool_call", "AI returned an invalid tool call.", false});
             return true;
         }
         request.arguments_json = std::move(validation.arguments_json);
@@ -644,7 +649,7 @@ void ProviderAgent::parse_available()
                 m_sse_buffer.clear();
             }
             if (!m_terminal_seen)
-                fail(AgentError{"malformed_response", "The Agent service ended before a complete response arrived.", true});
+                fail(AgentError{"malformed_response", "The AI service ended before a complete response arrived.", true});
         }
     }
 }
@@ -671,10 +676,12 @@ AgentError ProviderAgent::http_error(unsigned status, const std::string& detail,
             return {"credits_exhausted", answer["error"].value("message", ""), false};
         }
     }
+    // Any other refusal for payment is the same want of credits, with the
+    // same Get more credits button.
     if (m_config.profile.account_sign_in && status == 402)
-        return {"quota_exhausted", "Your JusPrin account has used its Agent allowance for now. See your account for more.", false};
+        return {"credits_exhausted", "You're out of credits.", false};
     if (status == 401 || status == 403)
-        return {"invalid_credentials", "The " + name + " API key was rejected. Update the Agent configuration and try again.", false};
+        return {"invalid_credentials", "The " + name + " API key was rejected. Update the AI configuration and try again.", false};
     if (status == 413)
         return {"request_too_large", "The request was too large for the " + name + " service.", false};
     if (status == 429)
@@ -684,8 +691,8 @@ AgentError ProviderAgent::http_error(unsigned status, const std::string& detail,
     if (status >= 500)
         return {"service_unavailable", "The " + name + " service is temporarily unavailable.", true};
     if (status == 408 || detail.find("timed out") != std::string::npos || detail.find("Timeout") != std::string::npos)
-        return {"timeout", "The Agent request timed out.", true};
-    return {"network_error", "The Agent request could not reach the " + name + " service.", true};
+        return {"timeout", "The AI request timed out.", true};
+    return {"network_error", "The AI request could not reach the " + name + " service.", true};
 }
 
 void ProviderAgent::fail(AgentError error)

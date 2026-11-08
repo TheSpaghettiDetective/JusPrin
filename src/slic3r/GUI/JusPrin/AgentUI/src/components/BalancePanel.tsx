@@ -47,6 +47,11 @@ export function balanceRows(account: CreditAccount): Row[] {
   return [...expiring, ...never.values()];
 }
 
+// "Expiring credits are used first." says which bar goes down first, so it is
+// shown only with two or more bars.
+export const EXPIRING_FIRST = 'Expiring credits are used first.';
+export const showsExpiringFirst = (rows: Row[]) => rows.length >= 2;
+
 // The ring's share: what is left of what the lots started with.
 export function ringShare(account: CreditAccount): number {
   const started = account.credits.lots.reduce((sum, lot) => sum + lot.granted, 0);
@@ -79,6 +84,7 @@ export function BalancePanel({ account, low, onGetMore, onSeeUsage }: {
   };
   // The pointer crosses a gap on its way from the ring to the panel's actions.
   const closeSoon = () => { closing.current = setTimeout(() => setOpen(false), 200); };
+  const rows = balanceRows(account);
 
   return <div className="credit-balance" onMouseEnter={keepOpen} onMouseLeave={closeSoon}
     onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}>
@@ -91,7 +97,7 @@ export function BalancePanel({ account, low, onGetMore, onSeeUsage }: {
         <strong>{creditCount(account.credits.total)} left</strong>
       </div>
       <div className="credit-panel-lots">
-        {balanceRows(account).map((row) => <div key={row.key} className="credit-lot">
+        {rows.map((row) => <div key={row.key} className="credit-lot">
           <div className="credit-lot-line">
             <strong>{row.name}</strong>
             <span>{creditNumber(row.left)} of {creditNumber(row.of)} left</span>
@@ -101,7 +107,7 @@ export function BalancePanel({ account, low, onGetMore, onSeeUsage }: {
           </div>
           <span className="credit-lot-date">{row.date}</span>
         </div>)}
-        <p className="credit-panel-rule">Expiring credits are used first.</p>
+        {showsExpiringFirst(rows) && <p className="credit-panel-rule">{EXPIRING_FIRST}</p>}
       </div>
       <div className="credit-panel-actions">
         <button type="button" className="link" onClick={onGetMore}>Get more credits</button>

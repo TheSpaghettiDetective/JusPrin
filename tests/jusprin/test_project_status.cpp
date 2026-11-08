@@ -1,5 +1,5 @@
 // The rule behind a Home project card's status line: which of a project's
-// sends and finished prints it reports.
+// exports, sends and finished prints it reports.
 
 #include <catch2/catch_all.hpp>
 
@@ -28,6 +28,15 @@ void send_at(Agent::GcodeRecord& record, const std::string& at)
     record.destinations.push_back(send);
 }
 
+void export_at(Agent::GcodeRecord& record, const std::string& at)
+{
+    Agent::GcodeDestination exported;
+    exported.id   = "d-" + std::to_string(record.destinations.size() + 1);
+    exported.kind = Agent::GcodeDestination::Kind::Export;
+    exported.at   = at;
+    record.destinations.push_back(exported);
+}
+
 void print_at(Agent::GcodeRecord& record, const std::string& started, const std::string& finished)
 {
     Agent::GcodePrint print;
@@ -47,14 +56,38 @@ TEST_CASE("a project nothing was sent from is a draft", "[home]")
     CHECK(status.at.empty());
 }
 
-TEST_CASE("an export alone leaves the project a draft", "[home]")
+TEST_CASE("an exported G-code reads Exported, with when and for which printer", "[home]")
 {
-    Agent::GcodeRecord record = a_gcode("Bambu Lab X1 Carbon 0.4 nozzle", "Bambu PLA Basic @BBL X1C");
-    Agent::GcodeDestination exported;
-    exported.kind = Agent::GcodeDestination::Kind::Export;
-    exported.at   = "2026-10-20T10:00:00Z";
-    record.destinations.push_back(exported);
-    CHECK(ledger_status({record}).kind == ProjectStatusKind::Draft);
+    Agent::GcodeRecord record = a_gcode("Creality Ender-3 V3 KE 0.4 nozzle", "Generic PLA");
+    export_at(record, "2026-11-03T10:00:00Z");
+    const LedgerStatus status = ledger_status({record});
+    CHECK(status.kind == ProjectStatusKind::Exported);
+    CHECK(status.at == "2026-11-03T10:00:00Z");
+    CHECK(status.printer == "Creality Ender-3 V3 KE 0.4 nozzle");
+}
+
+TEST_CASE("exporting a G-code that was sent leaves the project as sent", "[home]")
+{
+    Agent::GcodeRecord record = a_gcode("Bambu Lab A1 0.4 nozzle", "PLA");
+    send_at(record, "2026-10-20T10:00:00Z");
+    export_at(record, "2026-10-21T10:00:00Z");
+    CHECK(ledger_status({record}).kind == ProjectStatusKind::Sent);
+}
+
+TEST_CASE("a newer export of another G-code takes over from an older print", "[home]")
+{
+    Agent::GcodeRecord printed = a_gcode("Bambu Lab A1 0.4 nozzle", "PLA");
+    send_at(printed, "2026-10-20T10:00:00Z");
+    print_at(printed, "2026-10-20T10:05:00Z", "2026-10-20T11:30:00Z");
+    Agent::GcodeRecord exported = a_gcode("Creality Ender-3 V3 KE 0.4 nozzle", "PLA");
+    export_at(exported, "2026-10-22T08:00:00Z");
+    const LedgerStatus status = ledger_status({printed, exported});
+    CHECK(status.kind == ProjectStatusKind::Exported);
+    CHECK(status.printer == "Creality Ender-3 V3 KE 0.4 nozzle");
+    // And an older export does not hide a newer print.
+    exported.destinations = {};
+    export_at(exported, "2026-10-19T08:00:00Z");
+    CHECK(ledger_status({printed, exported}).kind == ProjectStatusKind::Completed);
 }
 
 TEST_CASE("a sent plate reads Sent, with when and to which printer", "[home]")

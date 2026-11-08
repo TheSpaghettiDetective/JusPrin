@@ -65,7 +65,7 @@ const recovery = (id: string, name: string, expects: string[], state: StatePaylo
 });
 
 export const historyCases: VisualCase[] = [
-  markerCase('send', 'Sent to a printer', ['Plate 1 · a71f 8c04 → Bambu X1C'], marker()),
+  markerCase('send', 'Sent to a printer', ['Plate 1 → Bambu X1C'], marker()),
   markerCase('export', 'Exported to a file', ['bracket-v3.gcode.3mf · exported'],
     marker({ id: 'd-2', kind: 'export', fileName: 'bracket-v3.gcode.3mf', printerName: '' })),
 
@@ -84,16 +84,17 @@ export const historyCases: VisualCase[] = [
   ], undefined, true),
 
   recovery('changed', 'Reason=Changed · Availability=Ready',
-    ['There have been project updates since this chat. Restore its saved project version to continue.', 'Restore and resume',
+    ['The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then.', 'Restore and resume',
       'Return to active chat', 'Ask current chat about this'], earlier('changed')),
   recovery('unchanged', 'Reason=Unchanged', ['This chat is inactive. Resume from its saved setup to continue.', 'Resume saved setup'],
     earlier('unchanged')),
-  recovery('unavailable', 'Reason=Unavailable', ['This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.'],
+  recovery('unavailable', 'Reason=Unavailable', ["JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working."],
     earlier('unavailable')),
   recovery('busy', 'Reason=Changed · Availability=Busy', ['class="primary" disabled'], earlier('changed', { conversationBusy: true })),
-  recovery('confirm', 'Restore-and-resume confirmation', ['Restore this chat\'s project setup?', 'role="dialog"'],
+  recovery('confirm', 'Restore-and-resume confirmation', ['Put the project back to', 'Your current version stays in Version history.', 'role="dialog"'],
     earlier('changed'), async () => { await userEvent.click(screen.getByRole('button', { name: 'Restore and resume' })); }),
   recovery('blocked', 'Project restoration blocked',
-    ['Project restoration needs recovery. This chat cannot run project actions.', 'placeholder="Project restoration needs recovery."'],
+    ["JusPrin couldn't put the project back. Open the project again from Home to keep working on it.",
+      'placeholder="Open the project again to keep working."'],
     chatState({ projectChatBlocked: true })),
 ];

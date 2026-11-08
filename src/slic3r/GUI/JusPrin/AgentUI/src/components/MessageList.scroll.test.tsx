@@ -57,7 +57,7 @@ function renderThread(messages: Message[]) {
     onRetry: () => {}, onToolCancel: () => {}, onSend: () => {},
   };
   const view = render(<MessageList messages={messages} {...props} />);
-  const list = screen.getByRole('log', { name: 'Agent conversation' });
+  const list = screen.getByRole('log', { name: 'AI conversation' });
   // What styles.css gives the thread. Without it the library ignores the wheel,
   // and its pending scroll to the bottom can undo a scroll up.
   list.style.overflow = 'auto';

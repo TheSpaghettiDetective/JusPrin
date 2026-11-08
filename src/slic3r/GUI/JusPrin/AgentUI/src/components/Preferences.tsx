@@ -2,10 +2,10 @@
 // 2026-10-21): a list of sections on the left and the chosen one beside it.
 // The app reads and writes every setting, under the keys OrcaSlicer's own
 // dialog uses, and sends what is stored after each change; the page only
-// says what to change. The Agent section is where the agent is set up, the
-// first time too: every surface that finds no agent opens it there
-// (decided 2026-10-23). Agent and Account draw the connection rows of
-// AgentConnection.tsx.
+// says what to change. Account holds the JusPrin account and is where every
+// surface that finds no AI opens it; BYOAI (Bring Your Own AI) holds the
+// person's own API keys and AI tools, with no JusPrin account in it. Both draw
+// the connection rows of AgentConnection.tsx.
 
 import { useEffect, useState } from 'react';
 import {
@@ -16,22 +16,26 @@ import {
   McpPreviewPayload,
   McpStatusPayload,
   McpToolInfo,
+  ModelCatalogPayload,
   PreferencesPayload,
   PreferencesSection,
   SavedKeyInfo,
   SetupStatusPayload,
 } from '../bridge/protocol';
+import { AccountBox } from './AccountBox';
 import { AccountRow, ProviderKeys, ToolGroup } from './AgentConnection';
-import { balanceRows } from './BalancePanel';
-import { creditCount, creditNumber, TIER_NAMES } from '../credits';
+import type { SignInActions } from './SignInDoor';
+import { balanceRows, EXPIRING_FIRST, showsExpiringFirst } from './BalancePanel';
+import { creditCount, creditNumber, MESSAGE_PRICES } from '../credits';
 import { MarkdownMessage } from './MarkdownMessage';
 import { Progress } from './Progress';
-import { ActionMenu } from './ChatNavigation';
+import { ActionMenu, Dialog } from './ChatNavigation';
 import { SetupLocalTool } from './SetupLocalTool';
 
-const SECTIONS: { id: PreferencesSection; label: string; icon: string }[] = [
+// A hint is a second, smaller line under the label, for a label that needs it.
+const SECTIONS: { id: PreferencesSection; label: string; hint?: string; icon: string }[] = [
   { id: 'account', label: 'Account', icon: 'user' },
-  { id: 'agent', label: 'Agent', icon: 'bot' },
+  { id: 'agent', label: 'BYOAI', hint: 'Bring Your Own AI', icon: 'key' },
   { id: 'appearance', label: 'Appearance', icon: 'palette' },
   { id: 'view3d', label: '3D view', icon: 'box' },
   { id: 'projects', label: 'Projects & files', icon: 'folder' },
@@ -58,9 +62,17 @@ export interface PreferencesActions {
   previewTool: (toolId: string) => void;
   connectTool: (toolId: string) => void;
   revealTool: (toolId: string) => void;
-  signIn: () => void;
-  cancelSignIn: () => void;
-  getMoreCredits: () => void;
+  // The JusPrin account's sign-in, as every screen that signs in has it.
+  signIn: SignInActions;
+  // One of the server's pages in the app's sheet: Credits and plans
+  // ("prices") or Billing and usage ("billing").
+  openServerPage: (page: 'prices' | 'billing') => void;
+  // Deletes the JusPrin account, once the person has confirmed it; the
+  // answer comes back as accountDeleted.
+  deleteAccount: () => void;
+  refreshAccountBox: () => void;
+  // Reads the account again, and any model list that failed.
+  refreshAccount: () => void;
 }
 
 export interface PreferencesProps {
@@ -68,10 +80,16 @@ export interface PreferencesProps {
   setup: SetupStatusPayload;
   savedKeys: SavedKeyInfo[];
   account: AccountStatusPayload;
-  // The signed-in account's credits and usage; null with no account or
+  // The signed-in account's plan and credits; null with no account or
   // before it answers.
   creditAccount: CreditAccount | null;
-  chatTitles: Record<string, string>;
+  // The box the server fills near the top of Account; null for none.
+  accountBox: string | null;
+  // The host's last answer to deleteAccount.
+  accountDeleted: { deleted: boolean } | null;
+  // Each configured provider's model list; the JusPrin account's says whether
+  // its AI can be reached.
+  modelCatalog?: ModelCatalogPayload;
   mcpCatalog: McpCatalogPayload | null;
   mcpPreview: McpPreviewPayload | null;
   mcpStatus: McpStatusPayload;
@@ -80,13 +98,20 @@ export interface PreferencesProps {
   onToolDone?: () => void;
 }
 
-// The JusPrin account row, as Account and Agent both draw it.
-function JusPrinAccount({ savedKeys, account, actions }: {
-  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; actions: PreferencesActions;
+// The JusPrin account row. Its AI is unavailable when the account's model
+// list failed without the server refusing the sign-in (a refusal shows as a
+// sign-in that has ended); Try again asks for the list again, and the row
+// waits for the next catalog the host sends.
+function JusPrinAccount({ savedKeys, account, modelCatalog, actions }: {
+  savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; modelCatalog?: ModelCatalogPayload; actions: PreferencesActions;
 }) {
+  const [retriedAt, setRetriedAt] = useState<ModelCatalogPayload | undefined>();
+  const models = modelCatalog?.providers.find((provider) => provider.id === 'jusprin');
   return (
-    <AccountRow account={savedKeys.find((key) => key.provider === 'jusprin')} status={account} onSignIn={actions.signIn}
-      onCancel={actions.cancelSignIn} onSignOut={() => actions.removeKey('jusprin')} />
+    <AccountRow account={savedKeys.find((key) => key.provider === 'jusprin')} status={account} actions={actions.signIn}
+      aiUnavailable={models?.state === 'failed'} retrying={retriedAt !== undefined && retriedAt === modelCatalog}
+      onRetry={() => { setRetriedAt(modelCatalog); actions.refreshAccount(); }}
+      onSignOut={() => actions.removeKey('jusprin')} />
   );
 }
 
@@ -173,45 +198,35 @@ function dayLabel(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-const USAGE_DAYS = 30;
-// Rows shown before "See all activity".
-const ACTIVITY_ROWS = 5;
-
-// The 30 days the usage covers, oldest first, today last.
-function usageDays(now: Date): string[] {
-  return Array.from({ length: USAGE_DAYS }, (_, index) =>
-    new Date(now.getTime() - (USAGE_DAYS - 1 - index) * 86_400_000).toISOString().slice(0, 10));
-}
-
-// The account's plan, credits and usage (boards 4a to 4c on the canvas's
-// "Agent setup & Preferences" page): a bar for each kind of credit as the
-// composer's panel draws them, then usage per day with totals per chat.
-function AccountCredits({ account, chatTitles, onGetMore }: {
-  account: CreditAccount; chatTitles: Record<string, string>; onGetMore: () => void;
+// The account's plan and credits (board money-06 on the canvas's "Plan and
+// billing" page): the plan's name and the price line the server writes, its
+// two doors into the server's pages, and a bar for each kind of credit as the
+// composer's panel draws them. Usage is on the server's Billing and usage.
+function AccountCredits({ account, onOpenPage }: {
+  account: CreditAccount; onOpenPage: (page: 'prices' | 'billing') => void;
 }) {
-  const [allActivity, setAllActivity] = useState(false);
-  const usage = account.usage_30d;
-  const byDay = new Map(usage.days.map((day) => [day.date, day.credits]));
-  const days = usageDays(new Date());
-  const most = Math.max(0, ...days.map((day) => byDay.get(day) ?? 0));
-  const activity = allActivity ? usage.activity : usage.activity.slice(0, ACTIVITY_ROWS);
+  const rows = balanceRows(account);
   return (
     <>
       <div className="prefs-credits-plan">
         <div className="prefs-row-copy">
-          <span className="prefs-credits-plan-name">{account.plan?.name ?? 'Pay as you go'}</span>
+          <span className="prefs-credits-plan-name">{account.plan?.name ?? 'No plan'}</span>
           <span className="prefs-intro">
             {account.plan
-              ? (account.plan.renews_at ? `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.` : '')
-              : 'Only messages you send cost credits.'}
+              ? [account.plan.price_line, account.plan.renews_at && `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.`]
+                .filter(Boolean).join(' ')
+              : MESSAGE_PRICES}
           </span>
         </div>
-        <button type="button" className="primary" onClick={onGetMore}>Get more credits</button>
+        <div className="prefs-credits-plan-actions">
+          <button type="button" onClick={() => onOpenPage('billing')}>Billing and usage</button>
+          <button type="button" className="primary" onClick={() => onOpenPage('prices')}>Get more credits</button>
+        </div>
       </div>
       <div className="prefs-credits">
         <div className="prefs-credits-card">
           <strong className="prefs-credits-total">{creditCount(account.credits.total)} left</strong>
-          {balanceRows(account).map((row) => (
+          {rows.map((row) => (
             <div key={row.key} className="credit-lot prefs-credits-lot">
               <div className="credit-lot-line">
                 <strong>{row.name}</strong>
@@ -224,88 +239,105 @@ function AccountCredits({ account, chatTitles, onGetMore }: {
             </div>
           ))}
         </div>
-        <p className="prefs-note">Expiring credits are used first.</p>
-      </div>
-      <div className="prefs-usage" aria-label="Usage" role="group">
-        <h3 className="prefs-group-title">Usage</h3>
-        <div className="prefs-row-copy">
-          <span className="prefs-credits-plan-name">{creditCount(usage.credits)}</span>
-          <span className="prefs-note">in the last 30 days</span>
-        </div>
-        <div className="prefs-usage-chart">
-          <div className="prefs-usage-bars">
-            {days.map((day) => {
-              const credits = byDay.get(day) ?? 0;
-              return <div key={day} className="prefs-usage-bar" title={`${dayLabel(day)}: ${creditCount(credits)}`}
-                style={{ height: `${most > 0 ? (credits / most) * 100 : 0}%` }} />;
-            })}
-            {most > 0 && <span className="prefs-usage-most">{creditNumber(most)}</span>}
-          </div>
-          <div className="prefs-usage-axis">
-            <span>{dayLabel(days[0])}</span>
-            <span>{dayLabel(days[Math.floor(USAGE_DAYS / 2)])}</span>
-            <span>{dayLabel(days[USAGE_DAYS - 1])}</span>
-          </div>
-        </div>
-        {usage.activity.length > 0 ? (
-          <table className="prefs-usage-table">
-            <thead>
-              <tr><th>Date</th><th>Chat</th><th>Tier</th><th>Messages</th><th>Credits</th></tr>
-            </thead>
-            <tbody>
-              {activity.map((row, index) => 'kind' in row ? (
-                <tr key={index}>
-                  <td>{dayLabel(row.date)}</td><td>{row.title}</td><td /><td /><td>+{creditNumber(row.credits)}</td>
-                </tr>
-              ) : (
-                <tr key={index}>
-                  <td>{dayLabel(row.date)}</td>
-                  <td>{(row.chat_id !== null && chatTitles[row.chat_id]) || 'A chat not on this computer'}</td>
-                  <td>{TIER_NAMES[row.tier]}</td>
-                  <td>{creditNumber(row.messages)}</td>
-                  <td>{creditNumber(row.credits)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="prefs-note">No messages in the last 30 days.</p>
-        )}
-        {!allActivity && usage.activity.length > ACTIVITY_ROWS && (
-          <button type="button" className="link prefs-inline-link" onClick={() => setAllActivity(true)}>See all activity</button>
-        )}
+        {showsExpiringFirst(rows) && <p className="prefs-note">{EXPIRING_FIRST}</p>}
       </div>
     </>
   );
 }
 
-function AccountSection({ savedKeys, account, creditAccount, chatTitles, actions, onAgent }: {
+// The last row of Account (board money-10): the app's own confirmation, in
+// the server's words about which plan ends and which credits go. Once the
+// server has deleted the account the host signs out of it, and Account shows
+// the signed-out form; a failure leaves the dialog open and says so.
+function DeleteAccount({ email, warning, accountDeleted, onDelete }: {
+  email?: string; warning?: string; accountDeleted: { deleted: boolean } | null; onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  // The answer the dialog is waiting past; undefined when it waits for none.
+  const [sentAt, setSentAt] = useState<{ deleted: boolean } | null | undefined>();
+  const deleting = sentAt !== undefined && accountDeleted === sentAt;
+  const failed = sentAt !== undefined && accountDeleted !== sentAt && accountDeleted?.deleted === false;
+  const close = () => { setConfirming(false); setSentAt(undefined); };
+  return (
+    <Group title="Delete account">
+      <Row title="Delete this JusPrin account"
+        detail="Ends any plan and removes this account’s credits and everything JusPrin keeps for it on its servers.">
+        <button type="button" className="danger prefs-danger" onClick={() => setConfirming(true)}>Delete account…</button>
+      </Row>
+      {confirming && (
+        <Dialog title="Delete your JusPrin account?" className="confirmation" onClose={() => { if (!deleting) close(); }}>
+          <p>
+            {warning ?? `Any plan ends, and the credits on ${email ?? 'this account'} are removed with everything JusPrin keeps for this account. This can’t be undone.`}
+          </p>
+          {failed && <p className="chat-dialog-field-error" role="alert">The account couldn’t be deleted. Check your internet connection, then try again.</p>}
+          <div className="chat-dialog-buttons">
+            <button type="button" disabled={deleting} onClick={close}>Cancel</button>
+            <button type="button" className="danger decisive" disabled={deleting}
+              onClick={() => { setSentAt(accountDeleted); onDelete(); }}>
+              {deleting ? 'Deleting…' : 'Delete account'}
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </Group>
+  );
+}
+
+function AccountSection({ savedKeys, account, creditAccount, accountBox, accountDeleted, modelCatalog, actions, onAgent }: {
   savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; creditAccount: CreditAccount | null;
-  chatTitles: Record<string, string>; actions: PreferencesActions; onAgent: () => void;
+  accountBox: string | null; accountDeleted: { deleted: boolean } | null;
+  modelCatalog?: ModelCatalogPayload; actions: PreferencesActions; onAgent: () => void;
 }) {
   const signedIn = savedKeys.some((key) => key.provider === 'jusprin');
+  // On the person's own API key there is no account to offer anything for.
+  const ownKey = !signedIn && savedKeys.length > 0;
+  // The server's box is asked for when Account opens, after a sign-in or
+  // out, and on coming back from the browser, where a pack may have been
+  // bought.
+  useEffect(() => {
+    if (ownKey)
+      return;
+    actions.refreshAccountBox();
+    const refresh = () => actions.refreshAccountBox();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, ownKey]);
   return (
-    <section className="prefs-section" aria-label="Account">
+    <section className="prefs-section prefs-account" aria-label="Account">
       <h2 className="prefs-title">Account</h2>
-      <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
+      {!ownKey && accountBox && <AccountBox key={accountBox} html={accountBox} />}
+      <JusPrinAccount savedKeys={savedKeys} account={account} modelCatalog={modelCatalog} actions={actions} />
       {signedIn && creditAccount && (
-        <AccountCredits account={creditAccount} chatTitles={chatTitles} onGetMore={actions.getMoreCredits} />
+        <AccountCredits account={creditAccount} onOpenPage={actions.openServerPage} />
       )}
+      <div className="prefs-callout">
+        <span className="jp-icon jp-icon-lock" aria-hidden="true" />
+        <p>
+          With a JusPrin account, JusPrin receives your messages, the open project’s settings and anything you attach,
+          and passes them on to the model provider it uses.
+        </p>
+      </div>
       {signedIn ? (
-        <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
+        <>
+          <p className="prefs-note">Signing out keeps your projects, printers and API keys on this computer.</p>
+          <DeleteAccount email={savedKeys.find((key) => key.provider === 'jusprin')?.account}
+            warning={creditAccount?.delete_warning} accountDeleted={accountDeleted} onDelete={actions.deleteAccount} />
+        </>
       ) : (
         <p className="prefs-note">
-          Local work never needs an account. Your own API key or AI tool works without one; set those up in{' '}
-          <button type="button" className="link prefs-inline-link" onClick={onAgent}>Agent</button>.
+          Local work never needs an account. Your own API key or AI tool works without one; set those up in the{' '}
+          <button type="button" className="link prefs-inline-link" onClick={onAgent}>BYOAI</button> section.
         </p>
       )}
     </section>
   );
 }
 
-function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, onConnectTool }: {
-  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[]; account: AccountStatusPayload;
+function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectTool, onAccount }: {
+  agent: PreferencesPayload['agent']; setup: SetupStatusPayload; savedKeys: SavedKeyInfo[];
   mcpCatalog: McpCatalogPayload | null; actions: PreferencesActions; onConnectTool: (tool: McpToolInfo) => void;
+  onAccount: () => void;
 }) {
   // The tools are looked for once each time the section opens.
   useEffect(() => {
@@ -313,12 +345,14 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <section className="prefs-section" aria-label="Agent">
+    <section className="prefs-section" aria-label="BYOAI">
       <div className="prefs-head">
-        <h2 className="prefs-title">Agent</h2>
-        <p className="prefs-intro">The ways the Agent can think. Set up as many as you like; each chat picks a model from them.</p>
+        <h2 className="prefs-title">BYOAI</h2>
+        <p className="prefs-intro">
+          Bring Your Own AI: an API key or an AI app you already pay for. No JusPrin account needed. Set up as many as
+          you like; each chat picks a model from them.
+        </p>
       </div>
-      <JusPrinAccount savedKeys={savedKeys} account={account} actions={actions} />
       <ProviderKeys heading setup={setup} savedKeys={savedKeys} onCheck={actions.checkKey} onCancel={actions.cancelCheck}
         onRemove={actions.removeKey} />
       <ToolGroup heading tools={mcpCatalog?.tools ?? []} onConnect={onConnectTool} onLookAgain={actions.refreshTools} />
@@ -329,17 +363,22 @@ function AgentSection({ agent, setup, savedKeys, account, mcpCatalog, actions, o
               options={agent.newChatChoices.map((choice) => ({ value: choice.provider, label: `${choice.model} · ${choice.label}` }))} />
           </Row>
         ) : (
-          <Row title="Model" detail="Add a key above, and new chats start with that provider’s model." />
+          <Row title="Model" detail="Add a key above, or sign in under Account, to choose the model new chats start with." />
         )}
       </Group>
       <div className="prefs-callout">
         <span className="jp-icon jp-icon-lock" aria-hidden="true" />
         <p>
-          The provider a chat uses receives your messages, the open project’s settings and anything you attach. With a
-          JusPrin account, JusPrin receives them and passes them on to the model provider it uses. JusPrin doesn’t send
-          your keys anywhere else.
+          The provider a chat uses receives your messages, the open project’s settings and anything you attach. JusPrin
+          doesn’t send your keys anywhere else.
         </p>
       </div>
+      {!savedKeys.some((key) => key.provider === 'jusprin') && (
+        <p className="prefs-note">
+          Rather use JusPrin’s own AI? Sign up in{' '}
+          <button type="button" className="link prefs-inline-link" onClick={onAccount}>Account</button>.
+        </p>
+      )}
     </section>
   );
 }
@@ -530,7 +569,9 @@ function UpdateStatus({ updates, actions }: { updates: PreferencesPayload['updat
               {checked ? `Couldn’t reach GitHub · last checked ${checked}` : 'Couldn’t reach GitHub'}
             </span>
           </span>
-          <span className="prefs-row-hint">JusPrin tries again tomorrow, or the next time it starts.</span>
+          <span className="prefs-row-hint">
+            {updates.checkUpdates ? 'JusPrin tries again tomorrow, or the next time it starts.' : 'Automatic checks are off.'}
+          </span>
         </div>
         <button type="button" className="prefs-button" onClick={() => actions.run('check_updates')}>Try again</button>
       </div>
@@ -587,7 +628,8 @@ function rememberedSection(): PreferencesSection | null {
 }
 
 export function Preferences({
-  preferences, setup, savedKeys, account, creditAccount, chatTitles, mcpCatalog, mcpPreview, mcpStatus, actions, onToolDone,
+  preferences, setup, savedKeys, account, creditAccount, accountBox, accountDeleted, modelCatalog, mcpCatalog, mcpPreview, mcpStatus,
+  actions, onToolDone,
 }: PreferencesProps) {
   // Opened where the app was asked to open it; the list moves on from there.
   const [section, setSection] = useState<PreferencesSection>(() => rememberedSection() ?? preferences.section);
@@ -610,7 +652,14 @@ export function Preferences({
           <button key={entry.id} type="button" className="prefs-nav-item" aria-current={section === entry.id ? 'page' : undefined}
             onClick={() => go(entry.id)}>
             <span className={`jp-icon jp-icon-${entry.icon}`} aria-hidden="true" />
-            <span>{entry.label}</span>
+            {entry.hint ? (
+              <span className="prefs-nav-copy" aria-label={`${entry.label}, ${entry.hint}`}>
+                <span>{entry.label}</span>
+                <span className="prefs-nav-hint">{entry.hint}</span>
+              </span>
+            ) : (
+              <span>{entry.label}</span>
+            )}
             {entry.id === 'updates' && preferences.updates.available && (
               <span className="prefs-dot prefs-nav-dot" role="img" aria-label="Update available" />
             )}
@@ -618,15 +667,15 @@ export function Preferences({
         ))}
         <div className="prefs-orca">
           <button type="button" className="link prefs-orca-link" onClick={() => actions.run('orca_preferences')}>
-            OrcaSlicer preferences…
-            <span className="jp-icon jp-icon-arrow-up-right" aria-hidden="true" />
+            More preferences…
           </button>
-          <p className="prefs-orca-note">Every OrcaSlicer setting, as OrcaSlicer shows it.</p>
+          <p className="prefs-orca-note">The full preferences window from OrcaSlicer, which JusPrin is built on.</p>
         </div>
       </nav>
       <main className="prefs-content">
         {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} creditAccount={creditAccount}
-          chatTitles={chatTitles} actions={actions} onAgent={() => go('agent')} />}
+          accountBox={accountBox} accountDeleted={accountDeleted} modelCatalog={modelCatalog} actions={actions}
+          onAgent={() => go('agent')} />}
         {section === 'agent' && (tool ? (
           <SetupLocalTool
             startTool={tool}
@@ -644,9 +693,9 @@ export function Preferences({
             }}
           />
         ) : (
-          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} account={account} mcpCatalog={mcpCatalog}
+          <AgentSection agent={preferences.agent} setup={setup} savedKeys={savedKeys} mcpCatalog={mcpCatalog}
             actions={actions}
-            onConnectTool={(chosen) => setTool(chosen.id)} />
+            onConnectTool={(chosen) => setTool(chosen.id)} onAccount={() => go('account')} />
         ))}
         {section === 'appearance' && <AppearanceSection appearance={preferences.appearance} set={actions.set} run={actions.run} />}
         {section === 'view3d' && <View3dSection view={preferences.view3d} set={actions.set} />}

@@ -113,6 +113,12 @@ CheckPrintReportView build_check_print_report(const Workspace::SliceReport&     
     std::vector<CheckSection> sections;
     const auto clean = [&view](PrintCheck check) { view.clean.push_back(check); };
 
+    // The regions the support check looks inside, as OrcaSliceChecks picks them.
+    view.kept_clear_marked = std::any_of(regions.begin(), regions.end(), [](const Workspace::RegionRecord& region) {
+        return (region.kind == "no_support" || region.kind == "precision_hole") &&
+               (region.geometry.type == "hole" || region.geometry.type == "box" || region.geometry.type == "cylinder");
+    });
+
     if (report.toolpath_outside) {
         CheckRow row;
         row.kind     = CheckRowKind::ToolpathOutside;
@@ -209,6 +215,8 @@ CheckPrintReportView build_check_print_report(const Workspace::SliceReport&     
     }
 
     if (report.seams) {
+        view.seam_faces_marked = std::any_of(report.seams->regions.begin(), report.seams->regions.end(),
+                                             [](const Workspace::SeamPlacement& placement) { return seams_unwanted_on(placement.kind); });
         std::vector<CheckRow> rows;
         for (const Workspace::SeamPlacement& placement : report.seams->regions) {
             if (placement.seams == 0 || !seams_unwanted_on(placement.kind))

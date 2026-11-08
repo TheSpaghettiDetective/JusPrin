@@ -111,16 +111,28 @@ wxString weight_and_length(const FilamentLine& line)
     return text;
 }
 
-wxString clean_name(PrintCheck check, bool supports_generated)
+bool is_clean(const CheckPrintReportView& view, PrintCheck check)
+{
+    return std::find(view.clean.begin(), view.clean.end(), check) != view.clean.end();
+}
+
+// What a check that found nothing confirms, as a clause of the closing line,
+// or nothing when it confirms nothing the person asked for.
+wxString clean_clause(const CheckPrintReportView& view, PrintCheck check)
 {
     switch (check) {
-    case PrintCheck::Supports:      return supports_generated ? _L("supports") : _L("supports (none generated)");
-    case PrintCheck::Seams:         return _L("seams on marked faces");
-    case PrintCheck::Islands:       return _L("unsupported islands");
-    case PrintCheck::CrossingPaths: return _L("crossing paths");
-    case PrintCheck::OutsidePlate:  return _L("paths outside the plate");
-    case PrintCheck::OrcaWarnings:  return _L("OrcaSlicer warnings");
-    case PrintCheck::FirstLayer:    return _L("first layer");
+    // A clean Supports check means the slice made none. It says so only when
+    // nothing prints in the air either: under an island, "no supports" beside
+    // a tick reads as all clear.
+    case PrintCheck::Supports:
+        return is_clean(view, PrintCheck::Islands) ? _L("no supports were needed") : wxString();
+    case PrintCheck::Seams:         return view.seam_faces_marked ? _L("no seams are on the faces you marked") : wxString();
+    case PrintCheck::Islands:       return _L("nothing prints in the air");
+    case PrintCheck::CrossingPaths:
+        return is_clean(view, PrintCheck::OutsidePlate) ? _L("no paths cross or leave the plate") : _L("no paths cross each other");
+    case PrintCheck::OutsidePlate:  return is_clean(view, PrintCheck::CrossingPaths) ? wxString() : _L("no paths leave the plate");
+    case PrintCheck::OrcaWarnings:  return _L("the slicer gave no warnings");
+    case PrintCheck::FirstLayer:    return wxString();
     }
     return wxEmptyString;
 }
@@ -201,7 +213,7 @@ wxString CheckPrintReportPanel::section_title(PrintCheck check)
     switch (check) {
     case PrintCheck::Supports:      return _L("Supports");
     case PrintCheck::Seams:         return _L("Seams");
-    case PrintCheck::OrcaWarnings:  return _L("OrcaSlicer warnings");
+    case PrintCheck::OrcaWarnings:  return _L("Slicer warnings");
     case PrintCheck::FirstLayer:    return _L("First layer");
     case PrintCheck::Islands:       return _L("Unsupported islands");
     case PrintCheck::CrossingPaths: return _L("Crossing paths");
@@ -214,13 +226,25 @@ wxString CheckPrintReportPanel::closing_line(const CheckPrintReportView& view)
 {
     if (view.clean.empty())
         return wxEmptyString;
-    wxString names;
-    for (std::size_t index = 0; index < view.clean.size(); ++index) {
+    std::vector<wxString> clauses;
+    for (PrintCheck check : view.clean)
+        if (wxString clause = clean_clause(view, check); !clause.empty())
+            clauses.push_back(clause);
+    // A section with a dot is something to look at; one without (the first
+    // layer, support that touched nothing) is information.
+    const bool flagged = std::any_of(view.sections.begin(), view.sections.end(),
+                                     [](const CheckSection& section) { return section.worst != CheckSeverity::None; });
+    const wxString nothing = flagged ? wxString() : _L("Nothing to flag.");
+    if (clauses.empty())
+        return nothing;
+    wxString sentence;
+    for (std::size_t index = 0; index < clauses.size(); ++index) {
         if (index > 0)
-            names += ", ";
-        names += clean_name(view.clean[index], view.supports_generated);
+            sentence += index + 1 < clauses.size() ? wxString(", ") : clauses.size() == 2 ? _L(" and ") : _L(", and ");
+        sentence += clauses[index];
     }
-    return wxString::Format(_L("Checked, nothing found: %s."), names);
+    sentence = sentence.Left(1).Upper() + sentence.Mid(1) + ".";
+    return nothing.empty() ? sentence : nothing + " " + sentence;
 }
 
 wxString CheckPrintReportPanel::section_count(const CheckSection& section) const
@@ -258,7 +282,8 @@ wxString CheckPrintReportPanel::row_message(const CheckRow& row) const
     case CheckRowKind::SupportInRegion:
         return wxString::Format(_L("Support touches %s, which you asked to keep clear"), utf8(row.region_label));
     case CheckRowKind::SupportInHole:     return wxString::Format(_L("Support inside the %s"), utf8(row.region_label));
-    case CheckRowKind::SupportClear:      return _L("No support in a hole or a region you kept clear");
+    case CheckRowKind::SupportClear:
+        return m_view.kept_clear_marked ? _L("No support in a hole or a region you kept clear") : _L("No support in a hole");
     case CheckRowKind::UnsupportedIsland: return wxString::Format(_L("Printed in the air: %s"), area_text(row.area));
     case CheckRowKind::SeamsOnRegion:
         return wxString::Format(_L_PLURAL("%d seam on %s", "%d seams on %s", int(row.count)), int(row.count), utf8(row.region_label));
@@ -428,7 +453,7 @@ int CheckPrintReportPanel::draw(wxGraphicsContext& gc, int top, int width)
     y += draw_summary(gc, pad, y, inner);
     for (std::size_t index = 0; index < m_view.sections.size(); ++index)
         y += gap + draw_section(gc, index, pad, y + gap, inner);
-    if (!m_view.clean.empty())
+    if (!closing_line(m_view).empty())
         y += gap + draw_closing(gc, pad, y + gap, inner);
     // Hit areas are kept in content coordinates, whatever the scroll.
     for (Hit& hit : m_hits)

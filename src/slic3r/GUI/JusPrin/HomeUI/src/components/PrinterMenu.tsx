@@ -4,7 +4,9 @@ import { MoreGlyph } from './Glyphs';
 
 export interface PrinterActions {
   onConnect?: (id: string) => void;
+  // Orca's settings window, and the printer's chat about them.
   onOpenSettings: (id: string) => void;
+  onAskAboutSettings: (id: string) => void;
   // A calibration of a filament on this saved printer, in the project chat.
   onCalibrate?: (id: string) => void;
   // A device is renamed in Orca's own dialog, so it is sent without a name.
@@ -27,7 +29,8 @@ export function renameProblem(name: string, current: string, others: string[]): 
   return undefined;
 }
 
-// The card header's kebab: Printer settings…, Calibrate…, Rename, Remove printer…. A named
+// The card header's kebab: Printer settings…, Ask AI about printer settings…,
+// Calibrate…, Rename, Remove printer…. A named
 // printer's rename and removal are confirmed here; a device's open Orca's own
 // dialogs, which confirm for themselves.
 export function PrinterMenu({
@@ -153,6 +156,17 @@ export function PrinterMenu({
               }}
             >
               Printer settings…
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!printer.canOpenSettings}
+              onClick={() => {
+                setOpen(false);
+                actions.onAskAboutSettings(printer.id);
+              }}
+            >
+              Ask AI about printer settings…
             </button>
             {named && actions.onCalibrate && (
               <button

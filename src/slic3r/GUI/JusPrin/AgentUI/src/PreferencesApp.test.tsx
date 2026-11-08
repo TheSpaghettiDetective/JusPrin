@@ -83,13 +83,14 @@ describe('Preferences', () => {
   let host: MockHost;
   beforeEach(() => { host = new MockHost(); window.sessionStorage.clear(); });
 
-  it('opens on the section it was asked for, with the six sections and the OrcaSlicer link', () => {
+  it('opens on the section it was asked for, with the six sections and the link to OrcaSlicer’s window', () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host, preferences({ section: 'appearance' }));
     const nav = screen.getByRole('navigation', { name: 'Preference sections' });
     expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Account', 'Agent', 'Appearance', '3D view', 'Projects & files', 'Updates', 'OrcaSlicer preferences…',
+      'Account', 'BYOAIBring Your Own AI', 'Appearance', '3D view', 'Projects & files', 'Updates', 'More preferences…',
     ]);
+    expect(within(nav).getByText('The full preferences window from OrcaSlicer, which JusPrin is built on.')).toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: 'Appearance' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('heading', { name: 'Appearance', level: 2 })).toBeInTheDocument();
   });
@@ -108,30 +109,36 @@ describe('Preferences', () => {
   it('opens OrcaSlicer’s own dialog from the link', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
-    await userEvent.click(screen.getByRole('button', { name: /OrcaSlicer preferences/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'More preferences…' }));
     expect(actionsSent(host)).toEqual([{ action: 'orca_preferences' }]);
   });
 
-  it('signs in to a JusPrin account through the browser and points to Agent', async () => {
+  it('signs in to a JusPrin account with the same choices as first launch: Google, an emailed code or a password', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
-    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Sign up and get 500 free credits');
-    expect(screen.getByTestId('first-month-offer')).toHaveTextContent('Good for your first month. That’s about 100 messages to the agent on Expert.');
-    expect(screen.getByTestId('first-month-offer').textContent).not.toMatch(/trial|\$/i);
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in for 500 credits' }));
-    expect(host.lastOfType('account_sign_in')?.payload).toEqual({});
+    const offer = screen.getByTestId('first-month-offer');
+    expect(offer).toHaveTextContent('Sign up and get 500 free credits');
+    expect(offer).toHaveTextContent('Good for your first month: about 500 Standard or 100 Expert messages.');
+    expect(offer).toHaveTextContent('After that, 50 free credits a month. No card needed.');
+    expect(offer.textContent).not.toMatch(/trial|\$/i);
+    expect(within(offer).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
 
-    // Waiting on the browser: what to do there, a way to copy the page, and Cancel.
-    host.deliver('account_status', { phase: 'browser', url: 'https://jusprinv2.obico.io/o/authorize/?client_id=JusPrin2' });
-    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Finish in your browser');
-    expect(screen.getByText(/A JusPrin tab just opened/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(host.lastOfType('account_cancel')).toBeTruthy();
+    // Sign up free: the address, then a code asked for at once.
+    await userEvent.type(within(offer).getByRole('textbox', { name: 'Email' }), 'alex@example.com');
+    await userEvent.click(within(offer).getByRole('button', { name: 'Sign up free' }));
+    expect(host.lastOfType('account_email')?.payload).toEqual({ email: 'alex@example.com' });
+    expect(host.lastOfType('account_send_code')).toBeTruthy();
+    const step = { step: 'code', email: 'alex@example.com', busy: false, refusal: '', codeResent: false };
+    host.deliver('account_status', { phase: 'email', email: step });
+    expect(screen.getByText('Check your email.')).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Sign-in code' }), '418207');
+    expect(host.lastOfType('account_code')?.payload).toEqual({ code: '418207' });
+    host.deliver('account_status', { phase: 'email', email: { ...step, refusal: 'wrong_code' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('That code is wrong.');
 
-    // Back from the browser, the account is checked, then shown by its email.
+    // Back from the code, the account is checked, then shown by its email.
     host.deliver('account_status', { phase: 'checking' });
-    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Checking your account');
+    expect(screen.getByText('Signing you in…')).toBeInTheDocument();
     host.deliver('account_status', { phase: 'idle' });
     host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
     expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
@@ -140,8 +147,36 @@ describe('Preferences', () => {
 
     // Signed out, the section points to the ways that need no account.
     host.deliver('setup_keys', { keys: [] });
-    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Agent' }));
-    expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'BYOAI' }));
+    expect(screen.getByRole('heading', { name: 'BYOAI', level: 2 })).toBeInTheDocument();
+  });
+
+  it('signs in with a password, and with Google in the browser, never on the server’s own page', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(host.lastOfType('account_email')?.payload).toEqual({ email: 'alex@example.com' });
+    expect(host.lastOfType('account_send_code')).toBeUndefined();
+    host.deliver('account_status', {
+      phase: 'email', email: { step: 'choose', email: 'alex@example.com', busy: false, refusal: '', codeResent: false },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Use a password instead' }));
+    await userEvent.type(screen.getByLabelText('Password'), 'correct horse');
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(host.lastOfType('account_password')?.payload).toEqual({ password: 'correct horse' });
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password' }));
+    expect(host.lastOfType('account_open_link')?.payload).toEqual({ link: 'reset_password' });
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(host.lastOfType('account_cancel')).toBeTruthy();
+
+    host.deliver('account_status', { phase: 'idle' });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(host.lastOfType('account_sign_in')?.payload).toEqual({});
+    host.deliver('account_status', { phase: 'browser', url: 'https://jusprinv2.obico.io/accounts/google/login/?process=login' });
+    expect(screen.getByText('Finish in your browser.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Open the browser again' }));
+    expect(host.lastOfType('account_reopen')).toBeTruthy();
   });
 
   it('asks to sign in again when the account’s sign-in has ended, and says why one failed', async () => {
@@ -150,21 +185,53 @@ describe('Preferences', () => {
     host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: true, account: 'alex@example.com' }] });
     expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Your sign-in for alex@example.com has ended');
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
     expect(host.lastOfType('account_sign_in')).toBeTruthy();
 
     host.deliver('account_status', {
       phase: 'idle', error: { code: 'sign_in_failed', message: 'Signing in didn’t finish. Nothing was saved. Try again.', retryable: true },
     });
-    expect(screen.getByTestId('account-error')).toHaveTextContent('Signing in didn’t finish');
+    expect(screen.getByRole('alert')).toHaveTextContent('Signing in didn’t finish');
   });
 
-  it('does not list the JusPrin account among the API keys', () => {
+  it('says AI is unavailable when the account’s model list failed, and asks again on Try again', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host);
+    host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
+    const catalog = (state: string) => ({
+      defaultProvider: 'jusprin',
+      providers: [{ id: 'jusprin', label: 'JusPrin', defaultModel: 'standard', state, models: [] }],
+    });
+    host.deliver('model_catalog', catalog('loading'));
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+
+    host.deliver('model_catalog', catalog('failed'));
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com · AI unavailable');
+    expect(screen.getByText('Your account and AI setup stay intact. Your own key or AI tool still works meanwhile.'))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    const asked = host.ofType('refresh_account').length;
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(host.ofType('refresh_account')).toHaveLength(asked + 1);
+    // Waiting on the answer, it can't be pressed again.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDisabled();
+
+    host.deliver('model_catalog', catalog('failed'));
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
+    host.deliver('model_catalog', catalog('ready'));
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent(/^Signed in as alex@example\.com$/);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('keeps the JusPrin account out of BYOAI, among the API keys or on its own', () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host, preferences({ section: 'agent' }));
     host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
     expect(screen.queryByTestId('agent-key-jusprin')).toBeNull();
-    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com');
+    expect(screen.queryByTestId('agent-account')).toBeNull();
+    // Signed in, there is nothing to point to in Account.
+    expect(screen.queryByText(/Rather use JusPrin’s own AI/)).toBeNull();
   });
 
   describe('Account’s credits and usage', () => {
@@ -202,7 +269,6 @@ describe('Preferences', () => {
       [chat('d')]: 'Warping on a Wide ABS Panel',
     };
     const signedIn = { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] };
-    const cells = (row: HTMLElement) => within(row).getAllByRole('cell').map((cell) => cell.textContent);
     const zone = process.env.TZ;
 
     beforeEach(() => {
@@ -220,10 +286,10 @@ describe('Preferences', () => {
       render(<PreferencesApp getTransport={() => host.transport} />);
       connect(host);
       host.deliver('account', { account: usageAccount, chatTitles });
-      expect(screen.queryByRole('group', { name: 'Usage' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Billing and usage' })).toBeNull();
       host.deliver('account', { account: null, chatTitles: {} });
       host.deliver('setup_keys', signedIn);
-      expect(screen.queryByRole('group', { name: 'Usage' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Billing and usage' })).toBeNull();
     });
 
     it('says what signing out keeps once signed in, and what needs no account before', () => {
@@ -245,48 +311,30 @@ describe('Preferences', () => {
       expect(host.ofType('refresh_account')).toHaveLength(1);
     });
 
-    it('draws the plan, a bar per kind of credit, and the last 30 days by day and by chat', () => {
+    it('draws the plan, a bar per kind of credit, and the doors to the server’s pages', () => {
       render(<PreferencesApp getTransport={() => host.transport} />);
       connect(host);
       host.deliver('setup_keys', signedIn);
       host.deliver('account', { account: usageAccount, chatTitles });
 
-      expect(screen.getByText('Pay as you go')).toBeInTheDocument();
-      expect(screen.getByText('Only messages you send cost credits.')).toBeInTheDocument();
+      expect(screen.getByText('No plan')).toBeInTheDocument();
+      expect(screen.getByText('Each message you send costs credits: Standard 1, Expert 5.')).toBeInTheDocument();
+      // Two bars, so the order they go down in is said.
+      expect(screen.getByText('Expiring credits are used first.')).toBeInTheDocument();
       expect(screen.getByText('562 credits left')).toBeInTheDocument();
       expect(screen.getByText('62 of 500 left')).toBeInTheDocument();
       expect(screen.getByText('Expires 1 Dec')).toBeInTheDocument();
       expect(screen.getByText('Never expire')).toBeInTheDocument();
 
-      const usage = screen.getByRole('group', { name: 'Usage' });
-      expect(within(usage).getByText('438 credits')).toBeInTheDocument();
-      // A bar for each of the 30 days to today, the busiest one full height.
-      const bars = usage.querySelectorAll<HTMLElement>('.prefs-usage-bar');
-      expect(bars).toHaveLength(30);
-      expect(bars[29]).toHaveAttribute('title', '19 Nov: 40 credits');
-      expect(bars[22]).toHaveAttribute('title', '12 Nov: 230 credits');
-      expect(bars[22].style.height).toBe('100%');
-      expect(bars[0]).toHaveAttribute('title', '21 Oct: 0 credits');
-      expect(usage.querySelector('.prefs-usage-axis')?.textContent).toBe('21 Oct5 Nov19 Nov');
-
-      const rows = within(usage).getAllByRole('row').slice(1);
-      expect(rows).toHaveLength(5);
-      expect(cells(rows[0])).toEqual(['19 Nov', 'Resizing a Print to Fit the Bambu A1 mini', 'Expert', '8', '40']);
-      expect(cells(rows[1])).toEqual(['18 Nov', 'Stringing on a PETG Bracket', 'Standard', '18', '18']);
-      expect(cells(rows[2])).toEqual(['15 Nov', 'Print report · Vent Grille', '', '', '+25']);
-
-      // The rest on request; a chat this computer has no title for says so.
-      fireEvent.click(within(usage).getByRole('button', { name: 'See all activity' }));
-      const all = within(usage).getAllByRole('row').slice(1);
-      expect(all).toHaveLength(6);
-      expect(cells(all[5])).toEqual(['12 Nov', 'A chat not on this computer', 'Expert', '1', '5']);
-      expect(within(usage).queryByRole('button', { name: 'See all activity' })).toBeNull();
-
+      // Usage is on the server's Billing and usage page; both pages open in the app's sheet.
+      expect(screen.queryByText(/used in the last/)).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
-      expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_pricing' });
+      expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_server_page', page: 'prices', from: 'account' });
+      fireEvent.click(screen.getByRole('button', { name: 'Billing and usage' }));
+      expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_server_page', page: 'billing', from: 'account' });
     });
 
-    it('names a plan and when it renews, and says when nothing was spent', () => {
+    it('names a plan and when it renews', () => {
       render(<PreferencesApp getTransport={() => host.transport} />);
       connect(host);
       host.deliver('setup_keys', signedIn);
@@ -302,10 +350,70 @@ describe('Preferences', () => {
       expect(screen.getByText('Workshop')).toBeInTheDocument();
       expect(screen.getByText('Renews 1 Dec.')).toBeInTheDocument();
       expect(screen.getByText('Workshop credits')).toBeInTheDocument();
-      const usage = screen.getByRole('group', { name: 'Usage' });
-      expect(within(usage).getByText('0 credits')).toBeInTheDocument();
-      expect(within(usage).getByText('No messages in the last 30 days.')).toBeInTheDocument();
-      expect(within(usage).queryByRole('table')).toBeNull();
+      // One kind of credit: nothing to say about which goes first.
+      expect(screen.queryByText('Expiring credits are used first.')).toBeNull();
+      expect(screen.queryByText(/Each message you send costs/)).toBeNull();
+    });
+
+    it('shows the price line the server wrote before the renewal date', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', {
+        account: {
+          ...usageAccount,
+          plan: { id: 'jusprin-workshop-monthly', name: 'Workshop', renews_at: '2026-12-01T12:00:00+00:00', unlimited_basic: true,
+            price_line: '$16 a month with Obico Premium’s 20% off.' },
+        },
+        chatTitles: {},
+      });
+      expect(screen.getByText('$16 a month with Obico Premium’s 20% off. Renews 1 Dec.')).toBeInTheDocument();
+    });
+
+    it('deletes the account after the server’s warning, and says so when it fails', () => {
+      const warning = 'Your Workshop plan ends today, and the 1,640 credits left on alex@example.com are removed with everything JusPrin keeps for this account. This can’t be undone.';
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', { account: { ...usageAccount, delete_warning: warning }, chatTitles: {} });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }));
+      const dialog = screen.getByRole('dialog', { name: 'Delete your JusPrin account?' });
+      expect(within(dialog).getByText(warning)).toBeInTheDocument();
+      // Cancel sends nothing.
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(host.ofType('delete_account')).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete account' }));
+      expect(host.ofType('delete_account')).toHaveLength(1);
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deleting…' })).toBeDisabled();
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' })).toBeDisabled();
+
+      host.deliver('account_deleted', { deleted: false });
+      expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('The account couldn’t be deleted.');
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete account' }));
+      expect(host.ofType('delete_account')).toHaveLength(2);
+      expect(within(screen.getByRole('dialog')).queryByRole('alert')).toBeNull();
+
+      // Deleted: the host signs out, and Account shows the signed-out form.
+      host.deliver('account_deleted', { deleted: true });
+      host.deliver('setup_keys', { keys: [] });
+      host.deliver('account', { account: null, chatTitles: {} });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Delete account…' })).toBeNull();
+    });
+
+    it('warns in its own words when the server sent none', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', { account: usageAccount, chatTitles: {} });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }));
+      expect(within(screen.getByRole('dialog')).getByText(
+        'Any plan ends, and the credits on alex@example.com are removed with everything JusPrin keeps for this account. This can’t be undone.',
+      )).toBeInTheDocument();
     });
   });
 
@@ -316,7 +424,7 @@ describe('Preferences', () => {
     host.deliver('setup_keys', { keys: [{ provider: 'anthropic', hint: 'sk-ant-…a1b2', rejected: false }] });
     host.deliver('mcp_catalog', { tools: [{ id: 'claude-code', name: 'Claude Code', detected: true, cli: true, text: 'claude mcp add jusprin' }], helperPresent: true });
 
-    expect(screen.getByTestId('agent-account')).toBeInTheDocument();
+    expect(screen.queryByTestId('agent-account')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Your own API key' })).toBeInTheDocument();
     expect(screen.getByTestId('agent-key-anthropic-standing')).toHaveTextContent('Key saved on this computer');
     expect(screen.getByRole('heading', { name: 'Connect an AI tool you already use' })).toBeInTheDocument();
@@ -333,7 +441,7 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Connect Claude Code' }));
     expect(screen.getByTestId('setup-local-prepare')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByRole('heading', { name: 'Agent', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'BYOAI', level: 2 })).toBeInTheDocument();
   });
 
   it('sends one change per control, by the name the app writes it under', async () => {
@@ -427,6 +535,14 @@ describe('Preferences', () => {
     expect(screen.getByText('JusPrin tries again tomorrow, or the next time it starts.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(actionsSent(host)).toEqual([{ action: 'check_updates' }]);
+  });
+
+  it('does not promise another try when automatic checks are off', () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'updates', updates: { ...preferences().updates, status: 'failed', checkUpdates: false } }));
+    expect(screen.getByText('Automatic checks are off.')).toBeInTheDocument();
+    expect(screen.queryByText(/tries again tomorrow/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 
   it('turns the daily check off, and says what it sends', async () => {
@@ -630,8 +746,8 @@ describe('Preferences › Agent', () => {
       warning: 'This key could not be saved, so it will have to be entered again next time JusPrin starts.',
     });
 
-    expect(screen.getByTestId('agent-key-openai-standing')).toHaveTextContent('Working, but only until JusPrin restarts');
-    expect(row('openai').getByText(/you’ll need to enter it again after a restart/)).toBeInTheDocument();
+    expect(screen.getByTestId('agent-key-openai-standing')).toHaveTextContent('This key works now, but JusPrin couldn’t save it.');
+    expect(row('openai').getByText('You’ll need to add it again after JusPrin restarts.')).toBeInTheDocument();
     expect(row('openai').getByRole('button', { name: 'Replace OpenAI key' })).toBeEnabled();
   });
 

@@ -15,19 +15,20 @@ namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
 struct LedgerStatus
 {
-    // Draft, Sent or Completed; Printing comes from a printer, not from the
-    // records.
+    // Draft, Exported, Sent or Completed; Printing comes from a printer, not
+    // from the records.
     ProjectStatusKind kind{ProjectStatusKind::Draft};
     // The presets the record named, as it recorded them; empty for a draft.
     std::string printer;
     std::string material;
-    // When it was sent, or when the print ended: ISO 8601 in UTC.
+    // When it was exported or sent, or when the print ended: ISO 8601 in UTC.
     std::string at;
 };
 
-// The newer of the latest send and the latest finished print decides: a
-// finished print makes the project Completed, a send makes it Sent, and
-// neither leaves it a Draft. An export alone leaves it a Draft.
+// The newest of the latest send, the latest finished print and the latest
+// export of a G-code never sent decides: a finished print makes the project
+// Completed, a send makes it Sent, and such an export makes it Exported. A
+// project with none of them is a Draft.
 LedgerStatus ledger_status(const std::vector<Agent::GcodeRecord>& records);
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

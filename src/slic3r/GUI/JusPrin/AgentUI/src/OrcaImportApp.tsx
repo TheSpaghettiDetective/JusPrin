@@ -1,7 +1,7 @@
-// The Agent page in its OrcaSlicer import mode (?panel=orca-import): the
-// window File › Import › Import from OrcaSlicer… opens. It speaks the same
-// bridge as the welcome-back window; each button is a shell_action the
-// window carries out (Home/OrcaImportWindow.cpp).
+// The Agent page in its import mode (?panel=orca-import): the window File ›
+// Import › Import from OrcaSlicer… or Import from JusPrin 1… opens. It speaks
+// the same bridge as Preferences; each button is a shell_action the window
+// carries out (Home/OrcaImportWindow.cpp).
 
 import { useEffect, useMemo, useReducer } from 'react';
 import { BridgeClient, Transport } from './bridge/client';
@@ -36,7 +36,6 @@ export function OrcaImportApp({ getTransport }: { getTransport: () => Transport 
   const actions = useMemo<OrcaImportActions>(
     () => ({
       importPrinters: (printers) => client.send('shell_action', { action: 'import', printers }),
-      retry: () => client.send('shell_action', { action: 'retry' }),
       chooseFolder: () => client.send('shell_action', { action: 'choose_folder' }),
       close: () => client.send('shell_action', { action: 'close' }),
     }),

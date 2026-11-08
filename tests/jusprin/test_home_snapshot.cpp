@@ -62,31 +62,38 @@ TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
 {
     Snapshot snapshot;
     snapshot.onboarding.step             = OnboardingStep::Printers;
-    snapshot.onboarding.printers_screen  = PrintersScreen::OrcaImport;
+    snapshot.onboarding.printers_screen  = PrintersScreen::V1Import;
     snapshot.onboarding.sign_in          = "browser";
     snapshot.onboarding.sign_in_error    = "That sign-in expired. Try again.";
     snapshot.onboarding.account_email    = "kim@example.com";
     snapshot.onboarding.agent_configured = true;
-    snapshot.onboarding.orca_source      = "/tmp/orca";
-    snapshot.onboarding.orca_printers    = {"Voron 2.4 0.4 nozzle"};
-    snapshot.onboarding.orca_selected    = "Voron 2.4 0.4 nozzle";
-    snapshot.onboarding.orca_filaments   = 3;
+    snapshot.onboarding.import_app       = "jusprin1";
+    snapshot.onboarding.import_source    = "/tmp/JusPrin";
+    snapshot.onboarding.import_printers  = {"Voron 2.4 0.4 nozzle"};
+    snapshot.onboarding.import_selected  = "Voron 2.4 0.4 nozzle";
+    snapshot.onboarding.import_filaments = 3;
+    snapshot.onboarding.import_processes = 2;
+    snapshot.onboarding.way_problem      = "JusPrin found no OrcaSlicer printers in that folder.";
     snapshot.onboarding.agent_card       = HomeAgentCard::Account;
     snapshot.onboarding.account          = json{{"credits", json{{"total", 500}}}};
 
     const json state = state_payload(snapshot).at("onboarding");
     CHECK(state.at("visible") == true);
     CHECK(state.at("step") == "printers");
-    CHECK(state.at("printersScreen") == "orca_import");
+    CHECK(state.at("printersScreen") == "v1_import");
     CHECK(state.at("signIn") == "browser");
     CHECK(state.at("signInError") == "That sign-in expired. Try again.");
     CHECK(state.at("accountEmail") == "kim@example.com");
     CHECK(state.at("agentConfigured") == true);
-    CHECK(state.at("orca").at("source") == "/tmp/orca");
-    CHECK(state.at("orca").at("printers") == json::array({"Voron 2.4 0.4 nozzle"}));
-    CHECK(state.at("orca").at("selected") == "Voron 2.4 0.4 nozzle");
-    CHECK(state.at("orca").at("filamentCount") == 3);
-    // No form is open on the OrcaSlicer screen.
+    CHECK(state.at("printerImport").at("app") == "jusprin1");
+    CHECK(state.at("printerImport").at("source") == "/tmp/JusPrin");
+    CHECK(state.at("printerImport").at("printers") == json::array({"Voron 2.4 0.4 nozzle"}));
+    CHECK(state.at("printerImport").at("selected") == "Voron 2.4 0.4 nozzle");
+    CHECK(state.at("printerImport").at("filamentCount") == 3);
+    CHECK(state.at("printerImport").at("settingsCount") == 2);
+    CHECK(state.at("wayProblem") == "JusPrin found no OrcaSlicer printers in that folder.");
+    CHECK_FALSE(state.contains("v1Imported"));
+    // No form is open on the JusPrin 1 screen.
     CHECK(state.at("printerForm").is_null());
     CHECK(state.at("agentCard") == "account");
     CHECK(state.at("account").at("credits").at("total") == 500);
@@ -97,23 +104,22 @@ TEST_CASE("an import's result lists each item for the page", "[home][onboarding]
     Snapshot snapshot;
     snapshot.onboarding.step            = OnboardingStep::Printers;
     snapshot.onboarding.printers_screen = PrintersScreen::ImportResult;
-    CHECK(state_payload(snapshot).at("onboarding").at("orca").at("importResult").is_null());
+    CHECK(state_payload(snapshot).at("onboarding").at("printerImport").at("result").is_null());
 
-    snapshot.onboarding.facts.orca_printers = true;
-    snapshot.onboarding.import_result       = std::vector<Snapshot::Onboarding::ImportItem>{
-        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, "", false},
-        {"filament", "Broken PLA", "", false, "Not imported. The file couldn't be read.", true},
+    snapshot.onboarding.import_app    = "orcaslicer";
+    snapshot.onboarding.import_result = std::vector<Snapshot::Onboarding::ImportItem>{
+        {"printer", "Shop X1C", "Shop X1C (Orca copy)", true, ""},
+        {"filament", "Broken PLA", "", false, "JusPrin couldn't read this file. To try again, choose File › Import › Import from OrcaSlicer…"},
     };
     const json state = state_payload(snapshot).at("onboarding");
     CHECK(state.at("printersScreen") == "import_result");
-    CHECK(state.at("orca").at("found") == true);
-    const json& items = state.at("orca").at("importResult");
+    CHECK(state.at("printerImport").at("app") == "orcaslicer");
+    const json& items = state.at("printerImport").at("result");
     REQUIRE(items.size() == 2);
     CHECK(items.at(0) == json{{"kind", "printer"}, {"name", "Shop X1C"}, {"renamedTo", "Shop X1C (Orca copy)"},
-                              {"imported", true}, {"reason", ""}, {"retryable", false}});
+                              {"imported", true}, {"reason", ""}});
     CHECK(items.at(1).at("imported") == false);
-    CHECK(items.at(1).at("reason") == "Not imported. The file couldn't be read.");
-    CHECK(items.at(1).at("retryable") == true);
+    CHECK(items.at(1).at("reason") == "JusPrin couldn't read this file. To try again, choose File › Import › Import from OrcaSlicer…");
 }
 
 TEST_CASE("only the first launch's default printer is marked assumed", "[home][onboarding]")
@@ -200,6 +206,7 @@ TEST_CASE("every status kind maps to the page's vocabulary", "[home]")
     const std::pair<ProjectStatusKind, const char*> expected[] = {
         {ProjectStatusKind::Unknown, "unknown"},
         {ProjectStatusKind::Draft, "draft"},
+        {ProjectStatusKind::Exported, "exported"},
         {ProjectStatusKind::Sent, "sent"},
         {ProjectStatusKind::Printing, "printing"},
         {ProjectStatusKind::Completed, "completed"},
@@ -261,13 +268,8 @@ TEST_CASE("every status, last print and action maps to the page's vocabulary", "
         CHECK(state_payload(snapshot).at("printers").at(0).at("action") == text);
     }
     snapshot.printers[0].status = PrinterStatus::Ready;
-    const std::pair<LastPrint, const char*> lasts[] = {
-        {LastPrint::Finished, "finished"}, {LastPrint::Failed, "failed"}, {LastPrint::Cancelled, "cancelled"}};
-    for (const auto& [last, text] : lasts) {
-        snapshot.printers[0].last_print = last;
-        INFO(text);
-        CHECK(state_payload(snapshot).at("printers").at(0).at("lastPrint") == text);
-    }
+    snapshot.printers[0].last_print = LastPrint::Finished;
+    CHECK(state_payload(snapshot).at("printers").at(0).at("lastPrint") == "finished");
 }
 
 // A spool described without a colour is still a material the card names; a
@@ -333,7 +335,7 @@ TEST_CASE("a field is sent only on the statuses it belongs to", "[home]")
     CHECK(printer.at("lastConnectedAt") == "2026-11-05T12:00:00Z");
 
     snapshot.printers[0].status     = PrinterStatus::Paused;
-    snapshot.printers[0].last_print = LastPrint::Failed;
+    snapshot.printers[0].last_print = LastPrint::Finished;
     printer = state_payload(snapshot).at("printers").at(0);
     CHECK(printer.at("progressPercent") == 100);
     CHECK_FALSE(printer.contains("lastPrint"));

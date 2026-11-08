@@ -11,8 +11,6 @@ namespace Slic3r::GUI::JusPrin::Agent {
 
 using nlohmann::json;
 
-namespace {
-
 std::string percent_encoded(const std::string& text)
 {
     std::string encoded;
@@ -27,6 +25,8 @@ std::string percent_encoded(const std::string& text)
     }
     return encoded;
 }
+
+namespace {
 
 std::string query(const std::vector<std::pair<std::string, std::string>>& parameters)
 {
@@ -119,12 +119,10 @@ bool CloudSignIn::start(CloudBrowserStart where)
                                                             {"code_challenge", challenge},
                                                             {"code_challenge_method", "S256"}});
     // Google's sign-in comes back to the server, which then sends the browser
-    // on to /o/authorize/, now signed in. Opened directly, /o/authorize/ first
-    // shows the server's sign-in page.
-    authorization.authorize_url = where == CloudBrowserStart::Google ?
-                                      m_server + "/accounts/google/login/?" +
-                                          query({{"process", "login"}, {"next", authorize}}) :
-                                      m_server + authorize;
+    // on to /o/authorize/, now signed in. /o/authorize/ is never opened
+    // directly: signed out, it would show the server's own sign-in page.
+    (void) where;
+    authorization.authorize_url = m_server + "/accounts/google/login/?" + query({{"process", "login"}, {"next", authorize}});
 
     const std::uint64_t generation = ++m_generation;
     std::weak_ptr<Inbox> inbox     = m_inbox;
@@ -363,7 +361,7 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         chosen = record.formats.begin();
     AgentServicePtr service = chosen == record.formats.end() ? nullptr : m_agents(m_token, chosen->first, chosen->second);
     if (!service)
-        return failed("account_no_models", "JusPrin has no Agent model for this account right now. Try again later.", true);
+        return failed("account_no_models", "JusPrin has no AI model for this account right now. Try again later.", true);
 
     CloudSignInOutcome outcome;
     outcome.kind    = CloudSignInOutcome::Kind::SignedIn;
@@ -383,6 +381,18 @@ CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::strin
     outcome.kind  = CloudSignInOutcome::Kind::Failed;
     outcome.error = AgentError{code, message, retryable};
     return outcome;
+}
+
+std::string CloudSignIn::link_url(const std::string& link) const
+{
+    // JusPrin accounts are Obico accounts; the Terms and Privacy Policy are Obico's.
+    if (link == "terms")
+        return "https://www.obico.io/terms.html";
+    if (link == "privacy")
+        return "https://www.obico.io/privacy.html";
+    if (link == "reset_password")
+        return m_server + "/accounts/password/reset/";
+    return {};
 }
 
 std::optional<CloudAccountRecord> CloudSignIn::account() const

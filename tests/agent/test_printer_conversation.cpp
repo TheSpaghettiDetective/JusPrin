@@ -1834,6 +1834,13 @@ TEST_CASE("printer_host_connect and printer_bambu_connect each refuse the other 
     REQUIRE(bambu.has_value());
     CHECK(bambu->code == "unknown_device");
     CHECK_THAT(bambu->message, StartsWith("This is a Bambu Lab printer, connected with printer_bambu_connect."));
+    // The list in the message is the model's; the card says it in words of
+    // its own, which the model never reads.
+    CHECK_THAT(bambu->message, ContainsSubstring("Pass the deviceId of one of these printers in LAN mode: 01P00A3B (Workshop)."));
+    CHECK(json::parse(bambu->details_json).value("shown", "") == "Pick one of these printers to connect.");
+    const auto unknown = connect_refusal(conversation, json{{"deviceId", "NOPE"}});
+    REQUIRE(unknown.has_value());
+    CHECK(json::parse(unknown->details_json).value("shown", "") == "Pick one of these printers to connect.");
 
     backend.connection_info = PrinterConnectionInfo{"host", "not_configured"};
     const auto host = connect_refusal(conversation, json{{"deviceId", "01P00A3B"}});
@@ -3455,7 +3462,7 @@ TEST_CASE("what reaches the model: a print host chat has the print host skill fr
     CHECK(skills.front().trigger == "connect_print_host");
     CHECK(skills.front().stays);
     CHECK(skills.front().text == text);
-    CHECK(skills.front().tools.empty());
+    CHECK(skills.front().tools == std::vector<std::string>{"issue_report_open"});
 }
 
 // -- An issue for the developers ------------------------------------------------
@@ -3563,7 +3570,8 @@ TEST_CASE("issue_report_open is never offered outside a printer chat's connectio
         CHECK(std::find(names.begin(), names.end(), "workspace_inspect") != names.end());
         CHECK(std::find(names.begin(), names.end(), "issue_report_open") == names.end());
     }
-    SECTION("a printer chat about a print host, whose skill brings no tool") {
+    // Kenneth, 2026-11-06: offered for all printer connections.
+    SECTION("a printer chat about a print host, whose skill brings it too") {
         PrinterHost host(ConversationMode::Connect);
         json skills = connect_bambu_skills();
         skills["skills"].push_back(json{{"name", "connect-print-host"}, {"trigger", "connect_print_host"}, {"text", skill_text("connect-print-host")}});
@@ -3571,7 +3579,7 @@ TEST_CASE("issue_report_open is never offered outside a printer chat's connectio
         host.say("Connect it");
         host.pump();
         REQUIRE_FALSE(host.agent->requests.empty());
-        CHECK_FALSE(offers(host.agent->requests.back(), "issue_report_open"));
+        CHECK(offers(host.agent->requests.back(), "issue_report_open"));
     }
 }
 
@@ -3665,7 +3673,7 @@ TEST_CASE("an issue link stays under the cap: the body is cut at a whole charact
     }
 }
 
-TEST_CASE("issue_report_open says when no browser opened, and runs only with the connection skill",
+TEST_CASE("issue_report_open says when no browser opened, and names a print host's program",
           "[printer-conversation][issue-report]")
 {
     FakeBackend    backend;
@@ -3680,12 +3688,16 @@ TEST_CASE("issue_report_open says when no browser opened, and runs only with the
         panel.browser_opens = false;
         CHECK(refused(conversation, "issue_report_open", arguments) == "failed");
     }
-    SECTION("a call without the Bambu Lab skill in force is a bug: the tool was never offered") {
-        backend.saved = {lab_printer()};
+    SECTION("a print host's issue names its program, and not its address") {
+        backend.saved                     = {lab_printer()};
+        backend.connection_info           = PrinterConnectionInfo{"host", "unknown"};
+        backend.connection_info.address   = "http://192.168.1.40:7125";
+        backend.connection_info.host_type = "moonraker";
         conversation.start(ConversationMode::Change, "Lab Printer");
-        CHECK_THROWS_AS(conversation.execute_tool(Agent::ToolHandler::IssueReportOpen, call("issue_report_open", arguments)),
-                        std::logic_error);
-        CHECK(panel.opened.empty());
+        ran(conversation, "issue_report_open", json{{"title", "Stuck"}, {"body", "It does not answer at 192.168.1.40."}});
+        REQUIRE(panel.opened.size() == 1);
+        CHECK_THAT(panel.opened.front(), ContainsSubstring(encoded("\nConnection: Moonraker\n")));
+        CHECK_THAT(panel.opened.front(), !ContainsSubstring("192.168"));
     }
 }
 
@@ -3778,8 +3790,8 @@ TEST_CASE("the print host skill names only states seen from a real host", "[prin
         {"failed", "Moonraker, OctoPrint and Mainsail in Docker, 2026-11-02, --print-host-check"},
         {"verified", "Moonraker in Docker and on a Raspberry Pi, OctoPrint in Docker, 2026-11-04, --print-host-check"},
     };
-    const std::set<std::string> names{"printer_host_connect", "printer_connection_status", "web_search", "trusted_clients",
-                                      "[authorization]"};
+    const std::set<std::string> names{"printer_host_connect", "printer_connection_status", "issue_report_open", "web_search",
+                                      "trusted_clients", "[authorization]"};
     {
         const std::string text = skill_text("connect-print-host");
         std::set<std::string> named;

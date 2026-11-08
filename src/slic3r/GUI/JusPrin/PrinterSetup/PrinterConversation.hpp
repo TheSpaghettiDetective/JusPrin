@@ -131,8 +131,8 @@ public:
     std::optional<nlohmann::json> tool_output(const Agent::ToolActivity& activity) const;
     // The skill for this printer's connection type, chosen by its vendor,
     // from the moment the chat has a saved printer: added in it, or the one it
-    // was opened for. A Bambu Lab printer's comes with issue_report_open, for
-    // someone stuck who wants the developers to know.
+    // was opened for. Each comes with issue_report_open, for someone stuck
+    // who wants the developers to know.
     std::optional<Agent::SessionSkill> connection_skill() const;
 
     // Called on the panel's pump. Picks up the printer form's options once
@@ -183,8 +183,11 @@ private:
     void   ask_credential(const nlohmann::json& arguments);
     void   end_connect_call(const std::string& state, std::string message);
     static Result pending();
-    // Why a connection tool refused `asked`, from what the app has observed.
-    std::string    unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const;
+    // Why a connection tool refused `asked`, from what the app has observed,
+    // after `lead`. When it lists printers to pick from, its details carry
+    // the card's own line, "shown", since the message is the model's.
+    Agent::ToolError unknown_device_error(const PrinterConnectionInfo& info, const std::string& asked,
+                                          const std::string& lead = {}) const;
     // How far the network search has got, for a refusal and for the status.
     std::string    search_text() const;
     nlohmann::json search_json(const PrinterConnectionInfo& info) const;

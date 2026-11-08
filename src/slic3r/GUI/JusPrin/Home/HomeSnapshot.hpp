@@ -25,7 +25,7 @@ namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 // Matches ProjectStatusKind in the page's protocol.ts. 'unknown' is a project
 // whose records could not be read, and has no line; only 'printing' earns a
 // colored dot on the card.
-enum class ProjectStatusKind { Unknown, Draft, Sent, Printing, Completed };
+enum class ProjectStatusKind { Unknown, Draft, Exported, Sent, Printing, Completed };
 
 const char* to_string(ProjectStatusKind kind);
 
@@ -109,8 +109,10 @@ enum class PrinterStatus { NotConnected, Connecting, Connected, Ready, Printing,
 
 const char* to_string(PrinterStatus status);
 
-// How the printer says its last print ended; Unknown when it does not.
-enum class LastPrint { Unknown, Finished, Failed, Cancelled };
+// Finished when the printer says its last print finished. A failed or
+// cancelled print reads as Unknown: the card says nothing about an outcome
+// it cannot be sure of.
+enum class LastPrint { Unknown, Finished };
 
 const char* to_string(LastPrint last);
 
@@ -228,14 +230,17 @@ struct Snapshot
         // The provider whose key the person saved, as "Anthropic", while
         // the agent runs on it; empty otherwise.
         std::string agent_key_provider;
-        // The OrcaSlicer screen: the folder and the printers it holds, and
-        // how many filaments come with them.
-        std::string orca_source;
-        std::vector<std::string> orca_printers;
-        // The one of orca_printers OrcaSlicer has selected; empty when it
+        // The JusPrin 1 or OrcaSlicer screen, and its result: the app
+        // (ImportApp::id), the folder and the printers it holds, and how
+        // many filaments come with them.
+        std::string import_app;
+        std::string import_source;
+        std::vector<std::string> import_printers;
+        // The one of import_printers the app has selected; empty when it
         // selected none of them.
-        std::string orca_selected;
-        int orca_filaments{0};
+        std::string import_selected;
+        int import_filaments{0};
+        int import_processes{0};
         // What the import brought, file by file, while its result is on
         // screen: kind is "printer", "filament" or "process"; renamed_to is
         // set for a copy imported under a new name, and reason, already in
@@ -247,10 +252,12 @@ struct Snapshot
             std::string renamed_to;
             bool        imported{false};
             std::string reason;
-            // Not imported, and bringing it again can succeed.
-            bool        retryable{false};
         };
         std::optional<std::vector<ImportItem>> import_result;
+        // Why the last "Other ways" link did not open its screen, in the
+        // person's words: the folder picked holds none of the app's
+        // printers. Empty otherwise.
+        std::string way_problem;
         // The add-printer form, as the printer panel's page receives it;
         // null while the form is not open.
         nlohmann::json printer_form;

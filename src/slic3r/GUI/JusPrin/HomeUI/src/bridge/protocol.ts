@@ -27,6 +27,7 @@ export type PageMessageType =
   | 'connect_printer'
   | 'calibrate_printer'
   | 'open_printer_settings'
+  | 'ask_about_printer_settings'
   | 'rename_printer'
   | 'remove_printer'
   | 'confirm_answer'
@@ -46,12 +47,12 @@ export type PageMessageType =
   | 'onboarding_sign_in_send_code'
   | 'onboarding_sign_in_reopen'
   | 'onboarding_open_link'
+  | 'onboarding_see_prices'
   | 'onboarding_open_preferences'
   | 'onboarding_leave_welcome'
   | 'onboarding_back'
-  | 'onboarding_start_fresh'
+  | 'onboarding_way'
   | 'onboarding_import'
-  | 'onboarding_import_retry'
   | 'onboarding_import_continue'
   | 'onboarding_assume_default'
   | 'onboarding_printer_form'
@@ -81,7 +82,7 @@ export type Appearance = 'light' | 'dark';
 //
 // 'unknown' means the project's records could not be read; its text is empty
 // and the card shows no line.
-export type ProjectStatusKind = 'unknown' | 'draft' | 'sent' | 'printing' | 'completed';
+export type ProjectStatusKind = 'unknown' | 'draft' | 'exported' | 'sent' | 'printing' | 'completed';
 
 export interface ProjectStatus {
   kind: ProjectStatusKind;
@@ -132,8 +133,8 @@ export type PrinterStatus =
   | 'paused'
   | 'attention';
 
-// How the printer says its last print ended, on a 'ready' card.
-export type LastPrint = 'finished' | 'failed' | 'cancelled';
+// Set on a 'ready' card when the printer says its last print finished.
+export type LastPrint = 'finished';
 
 // The card's one button: a Bambu printer's monitor, a print host's own page
 // in a window, Reconnect, or Connect for a printer with no connection.
@@ -352,7 +353,7 @@ export interface EmailSignIn {
   codeResent: boolean;
 }
 
-// One file an OrcaSlicer import brought, or could not. renamedTo is set for
+// One file a JusPrin 1 or OrcaSlicer import brought, or could not. renamedTo is set for
 // a copy imported under a new name because JusPrin had the name; reason,
 // already worded, for one not imported.
 export interface ImportResultItem {
@@ -361,20 +362,20 @@ export interface ImportResultItem {
   renamedTo: string;
   imported: boolean;
   reason: string;
-  // Not imported, and bringing it again can succeed.
-  retryable: boolean;
 }
+
+// The apps printers are imported from, as onboarding_way and
+// onboarding_import name them; empty when no import screen is open.
+export type ImportAppId = 'jusprin1' | 'orcaslicer' | '';
 
 export interface OnboardingState {
   visible: boolean;
   step: OnboardingStep;
-  // Bring OrcaSlicer's printers, what that import brought, or the
-  // add-printer form.
-  printersScreen: 'orca_import' | 'import_result' | 'add_printer';
+  // Bring JusPrin 1's or OrcaSlicer's printers, what that import brought,
+  // or the add-printer form.
+  printersScreen: 'v1_import' | 'orca_import' | 'import_result' | 'add_printer';
   signIn: SignInPhase;
   email: EmailSignIn | null;
-  // A JusPrin v1 import ran: the offer says v1 subscribers keep their price.
-  v1Imported: boolean;
   // Why the last sign-in did not finish, already worded.
   signInError: string;
   // Set once the sign-in is saved: the welcome's card says who signed in.
@@ -383,12 +384,16 @@ export interface OnboardingState {
   // The provider whose saved key the agent runs on, as "Anthropic"; empty
   // when it runs on the account, or there is no agent.
   agentKeyProvider: string;
-  // The OrcaSlicer folder the Printers step offers to bring printers from;
-  // selected is the one of its printers OrcaSlicer has selected, or empty;
-  // found is false when none with printers was found, and importResult is
-  // set while the import's result is on screen.
-  orca: { source: string; printers: string[]; selected: string; filamentCount: number; found: boolean;
-    importResult: ImportResultItem[] | null };
+  // The app whose printers the import screen offers, or whose import's
+  // result is on screen, and its folder; selected is the one of its printers
+  // that app has selected, or empty. filamentCount and settingsCount are the
+  // saved filaments and print settings in its folder. result is set while the
+  // result is on screen.
+  printerImport: { app: ImportAppId; source: string; printers: string[]; selected: string; filamentCount: number;
+    settingsCount: number; result: ImportResultItem[] | null };
+  // Why the last "Other ways" link did not open its screen, already worded:
+  // the folder picked holds none of that app's printers.
+  wayProblem: string;
   // The add-printer form, as the printer conversation describes it; null
   // until its catalogue is read.
   printerForm: PrinterFormInfo | null;

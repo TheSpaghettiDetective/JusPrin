@@ -176,7 +176,7 @@ wxString LeftPane::plate_status(const PaneRow& row) const
 {
     if (m_snapshot.slicing.running && m_snapshot.slicing.plate == row.plate)
         return m_snapshot.slicing.percent ? wxString::Format(_L("Slicing %d%%"), *m_snapshot.slicing.percent) : _L("Slicing…");
-    return row.sliced ? _L("Sliced") : _L("Needs slice");
+    return row.sliced ? _L("Sliced") : _L("Not sliced yet");
 }
 
 wxString LeftPane::plate_summary(const PaneRow& row) const
@@ -1099,7 +1099,7 @@ void LeftPane::draw_object_row(wxGraphicsContext& gc, const PaneRow& row, std::s
         // Right to left, the reverse of the frame's order: mesh error beside the
         // overflow, then won't-print, the customization mark, the filament, the copies.
         if (row.mesh.any())
-            put_right(row.mesh.open_edges > 0 ? wxString::Format(_L("%d mesh errors"), int(row.mesh.open_edges)) : _L("Mesh repaired"),
+            put_right(row.mesh.open_edges > 0 ? _L("Mesh needs repair") : _L("Mesh repaired"),
                       row.mesh.open_edges > 0 ? p.status_danger : p.status_warning);
         if (row.all_wont_print())
             put_right(_L("won't print"), p.text_secondary);
@@ -1132,7 +1132,7 @@ void LeftPane::draw_object_row(wxGraphicsContext& gc, const PaneRow& row, std::s
         break;
     case PaneRow::Kind::Volume:
         if (row.mesh.any())
-            put_right(row.mesh.open_edges > 0 ? wxString::Format(_L("%d mesh errors"), int(row.mesh.open_edges)) : _L("Mesh repaired"),
+            put_right(row.mesh.open_edges > 0 ? _L("Mesh needs repair") : _L("Mesh repaired"),
                       row.mesh.open_edges > 0 ? p.status_danger : p.status_warning);
         if (row.filament) {
             put_right(wxString::Format("%d", *row.filament), p.text_secondary);

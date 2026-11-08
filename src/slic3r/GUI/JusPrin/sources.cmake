@@ -14,8 +14,6 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/CloudSignInMachine.hpp
     GUI/JusPrin/V1Import/V1Import.cpp
     GUI/JusPrin/V1Import/V1Import.hpp
-    GUI/JusPrin/V1Import/WelcomeBackWindow.cpp
-    GUI/JusPrin/V1Import/WelcomeBackWindow.hpp
     GUI/JusPrin/Agent/AnthropicCodec.cpp
     GUI/JusPrin/Agent/AnthropicCodec.hpp
     GUI/JusPrin/Agent/AgentTransport.hpp
@@ -57,6 +55,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Support/AppFolders.cpp
+    GUI/JusPrin/Support/AppFolders.hpp
     GUI/JusPrin/Support/Base64.hpp
     GUI/JusPrin/PrinterSetup/PrinterSetupTypes.hpp
     GUI/JusPrin/PrinterSetup/PrinterCatalog.cpp
@@ -207,6 +207,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/PrinterMenu.hpp
     GUI/JusPrin/Shell/FilamentMenu.cpp
     GUI/JusPrin/Shell/FilamentMenu.hpp
+    GUI/JusPrin/Shell/ServerSheet.cpp
+    GUI/JusPrin/Shell/ServerSheet.hpp
     GUI/JusPrin/Shell/SetupCommands.cpp
     GUI/JusPrin/Shell/SetupCommands.hpp
     GUI/JusPrin/Shell/PrimaryPrintAction.hpp

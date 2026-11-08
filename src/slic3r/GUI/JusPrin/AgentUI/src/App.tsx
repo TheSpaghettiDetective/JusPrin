@@ -3,7 +3,7 @@ import { BridgeClient, ConnectionState, Transport } from './bridge/client';
 import { AttachmentPickKind, AttachmentSource, Envelope } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
-import { SetupCard } from './components/SetupCard';
+import { SetupCard, formatMoment } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
 import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
@@ -79,9 +79,9 @@ export interface AppProps {
 }
 
 const errorTitles: Partial<Record<ConnectionState, string>> = {
-  'no-transport': 'The Agent panel has no connection to JusPrin',
-  timeout: 'The Agent panel could not reach JusPrin',
-  incompatible: 'This Agent panel does not match this JusPrin build',
+  'no-transport': 'The AI panel has no connection to JusPrin',
+  timeout: 'The AI panel could not reach JusPrin',
+  incompatible: 'This AI panel does not match this JusPrin build',
 };
 
 export function App({
@@ -107,6 +107,11 @@ export function App({
   const offerRef = useRef<HTMLDivElement>(null);
   const offerRect = useRef<DOMRect | null>(null);
   const [lowNoticeDone, setLowNoticeDone] = useState(false);
+  // "+1,000 credits" over the message box once the sheet the composer opened
+  // has closed on a purchase: the balance before the click, then what the
+  // account answer read after it added.
+  const balanceBeforeSheet = useRef<number | null>(null);
+  const [creditsAdded, setCreditsAdded] = useState<number | null>(null);
   useLayoutEffect(() => { offerRect.current = offerRef.current?.getBoundingClientRect() ?? null; });
 
   const client = useMemo(() => {
@@ -233,6 +238,14 @@ export function App({
   const printerDraft = useRef('');
 
   useEffect(() => { setView('chat'); setCommandError(null); }, [state.context?.sessionId]);
+  // The first account answer after Get more credits is the one the host
+  // reads as the sheet closes.
+  useEffect(() => {
+    const before = balanceBeforeSheet.current;
+    if (before === null || !state.creditAccount) return;
+    balanceBeforeSheet.current = null;
+    if (state.creditAccount.credits.total > before) setCreditsAdded(state.creditAccount.credits.total - before);
+  }, [state.creditAccount]);
   useEffect(() => { if (state.navigation.focused) setView('chat'); }, [state.navigation.focused]);
   // The Print history's Open in chat: the host has already shown the chat;
   // the marker it named is brought into view once the thread has drawn it.
@@ -325,10 +338,11 @@ export function App({
     client.send('work_cancel', { id });
   };
 
-  // Every way to set the agent up or change it is Preferences › Agent, a
-  // window over whatever is on screen. Nothing here changes: when it closes
-  // with an agent, the host says so and the composer takes the offer's place.
-  const openAgentPreferences = () => client.send('shell_action', { action: 'open_preferences', section: 'agent' });
+  // Every way to set the agent up or change it is Preferences › Account, a
+  // window over whatever is on screen: the JusPrin account first, with the
+  // way to BYOAI under it. Nothing here changes: when it closes with an
+  // agent, the host says so and the composer takes the offer's place.
+  const openAgentPreferences = () => client.send('shell_action', { action: 'open_preferences', section: 'account' });
 
   useEffect(() => {
     window.__jusprinTest = {
@@ -371,8 +385,10 @@ export function App({
     return (
       <div className="app">
         <BridgeErrorPane
-          title={errorTitles[state.connection] ?? 'The Agent panel could not connect'}
+          title={errorTitles[state.connection] ?? 'The AI panel could not connect'}
           detail={state.connectionDetail}
+          message={state.connection === 'timeout'
+            ? "The AI chat didn't start. Try again, and restart JusPrin if it keeps happening." : undefined}
           diagnostics={state.diagnostics}
           onRetry={() => client.retry()}
         />
@@ -412,10 +428,10 @@ export function App({
   // What the notice on an earlier chat says depends on what its checkpoint is
   // worth: only a project that really moved on is described as updated.
   const boundary = resumeStatus === 'changed'
-    ? 'There have been project updates since this chat. Restore its saved project version to continue.'
+    ? 'The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then.'
     : resumeStatus === 'unchanged'
       ? 'This chat is inactive. Resume from its saved setup to continue.'
-      : 'This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.';
+      : "JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working.";
   const returnToActiveChat = () => {
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     setView('chat');
@@ -424,7 +440,7 @@ export function App({
     const latest = [...stateRef.current.messages].reverse().find((message) => message.text.trim());
     const excerpt = latest ? `\nExcerpt: “${latest.text.trim().slice(0, 600)}”` : '';
     const reference = `From earlier chat “${viewedChat?.title || viewedId}”${state.chatResume.savedAt ?
-      ` (saved ${state.chatResume.savedAt})` : ''}:${excerpt}\n\nWhat should we do with this in the current project?`;
+      ` (saved ${formatMoment(state.chatResume.savedAt)})` : ''}:${excerpt}\n\nWhat should we do with this in the current project?`;
     client.send('switch_conversation', { conversationId: state.activeConversationId });
     client.send('draft_update', { append: reference });
     client.send('state_request', {});
@@ -448,7 +464,7 @@ export function App({
     </div>
   </div>;
   const blockedAlert = state.projectChatBlocked && <div className="composer-alert" role="alert">
-    Project restoration needs recovery. This chat cannot run project actions.
+    JusPrin couldn't put the project back. Open the project again from Home to keep working on it.
   </div>;
   const cardContext = historical ? state.chatResume.summary ?? null : state.context;
   // The card is a band docked under the chat header, as the design has it,
@@ -470,14 +486,26 @@ export function App({
     state.messages.some((message) => message.id === activity.correlationId) &&
     activity.state === 'running');
   const createChat = () => { client.send('create_conversation', {}); setView('chat'); };
-  const getMoreCredits = () => client.send('shell_action', { action: 'open_pricing' });
-  const creditActions = { onGetMore: getMoreCredits };
+  // The server's Credits and plans page, in the app's sheet over the window.
+  const getMoreCredits = () => {
+    balanceBeforeSheet.current = state.creditAccount?.credits.total ?? null;
+    client.send('shell_action', { action: 'open_server_page', page: 'prices', from: 'composer' });
+  };
+  // An ended sign-in is the JusPrin account's; a rejected key has the same
+  // code, so Sign in is offered only in a chat that runs on the account.
+  const creditActions = {
+    onGetMore: getMoreCredits,
+    onSignIn: state.chatModel?.provider === 'jusprin' ? openAgentPreferences : undefined,
+  };
   const composerCredits: ComposerCredits = {
     account: state.creditAccount,
     lowNoticeDone,
     onLowNoticeDone: () => setLowNoticeDone(true),
     onGetMore: getMoreCredits,
-    onSeeUsage: () => client.send('shell_action', { action: 'open_preferences', section: 'account' }),
+    creditsAdded,
+    onCreditsAddedDone: () => setCreditsAdded(null),
+    // Usage is on the server's Billing and usage page.
+    onSeeUsage: () => client.send('shell_action', { action: 'open_server_page', page: 'billing', from: 'composer' }),
   };
   // A marker's history link opens the Print history at its G-code.
   const markerActions = {
@@ -591,12 +619,12 @@ export function App({
             />
           )}
           {confirmPrinterClose && (
-            <Dialog title="Close this conversation?" onClose={() => setConfirmPrinterClose(false)}>
-              <p>This conversation will be closed. You can't continue it at a later point. Are you sure?</p>
+            <Dialog title="Close this chat?" onClose={() => setConfirmPrinterClose(false)}>
+              <p>Printers already added stay added. The chat can't be opened again.</p>
               <div className="chat-dialog-buttons">
                 <button type="button" onClick={() => setConfirmPrinterClose(false)}>Cancel</button>
                 <button type="button" className="danger decisive" onClick={() => { setConfirmPrinterClose(false); printerAction('close'); }}>
-                  Close conversation
+                  Close chat
                 </button>
               </div>
             </Dialog>
@@ -633,7 +661,7 @@ export function App({
           {!notConfigured && (
             <Composer
               disabled={unavailable}
-              disabledReason={unavailable ? 'The Agent is not available' : undefined}
+              disabledReason={unavailable ? 'Sign in or add a key to chat with AI' : undefined}
               placeholder={session ? placeholder(session) : undefined}
               started={started}
               choicesOffered={choicesOffered}
@@ -716,7 +744,7 @@ export function App({
       {!historical && !setupBar && !(state.navigation.focused && notConfigured) && <div hidden={view !== 'chat'}><Composer
         key={`composer-${state.context?.sessionId}-${viewedId}`}
         disabled={unavailable || state.projectChatBlocked}
-        disabledReason={state.projectChatBlocked ? 'Project restoration needs recovery.' : notConfigured ? 'ask, or steer this chat…' : undefined}
+        disabledReason={state.projectChatBlocked ? 'Open the project again to keep working.' : notConfigured ? 'ask, or steer this chat…' : undefined}
         attachable={!state.projectChatBlocked}
         notice={blockedAlert || undefined}
         placeholder={state.navigation.focused ? 'Ask about this filament or request a change…' : undefined}
@@ -740,9 +768,9 @@ export function App({
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}
       /></div>}
-      {confirmChatRestore && historical && <Dialog title="Restore this chat's project setup?"
+      {confirmChatRestore && historical && <Dialog title={`Put the project back to ${formatMoment(state.chatResume.savedAt) || 'when this chat was saved'}?`}
         onClose={() => setConfirmChatRestore(false)}>
-        <p>Restore “{viewedChat?.title || 'this chat'}” from {state.chatResume.savedAt || 'its saved checkpoint'}? Its earlier model and settings will replace the working version, with the matching intent and plan. Your current version will remain in history.</p>
+        <p>Your current version stays in Version history.</p>
         <div className="chat-dialog-buttons">
           <button type="button" onClick={() => setConfirmChatRestore(false)}>Cancel</button>
           <button type="button" className="primary" disabled={busy} onClick={() => {

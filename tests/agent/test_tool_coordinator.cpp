@@ -2544,7 +2544,7 @@ TEST_CASE("in the project chat a preset is saved by the person, from the card it
     CHECK(fixture.selected_filament == "Fixture PLA · MK4 calibrated");
     CHECK(fixture.filaments.at("Fixture PLA").saved.at("nozzle_temperature") == "210");
     CHECK(h.coordinator.approve_proposal(preview_id) == "This proposal is already saved.");
-    CHECK(h.coordinator.approve_proposal("nope") == "This proposal is no longer open. Ask the Agent again.");
+    CHECK(h.coordinator.approve_proposal("nope") == "This proposal is no longer open. Ask AI again.");
 
     // A preview that saves nothing proposes nothing.
     json unsaved = patch;

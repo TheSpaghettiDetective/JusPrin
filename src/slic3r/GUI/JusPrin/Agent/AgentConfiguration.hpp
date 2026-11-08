@@ -43,10 +43,14 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config);
 // Signing in to a JusPrin account: the account is stored where the Agent's
 // keys are, and signing in makes it the Agent's provider.
 CloudSignInPtr make_cloud_sign_in(AppConfig* config);
-// Where "Get more credits" goes, on the server the account signs in to.
-std::string cloud_pricing_url(const AppConfig* config);
-// The server's "Forgot password" page.
-std::string cloud_password_reset_url(const AppConfig* config);
+// On the server the account signs in to: where the app asks for a link that
+// opens one of the server's pages signed in as the account, and the account
+// itself, which DELETE deletes.
+std::string cloud_web_link_url(const AppConfig* config);
+std::string cloud_account_url(const AppConfig* config);
+// Whether `url` is the address on that server its pages end at, which closes
+// the sheet they are shown in: a checkout, a plan change or a cancel is done.
+bool is_cloud_web_done(const AppConfig* config, const std::string& url);
 // Where a print report goes, and the account's token; empty when signed out.
 std::string cloud_print_reports_url(const AppConfig* config);
 std::string cloud_account_token(const AppConfig* config);

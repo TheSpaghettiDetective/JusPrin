@@ -46,7 +46,7 @@ export function FileNotesCard({ report }: Props) {
           );
         })}
       </ul>
-      {report.messages.truncated && <p className="file-notes-more">JusPrin said more than fits here.</p>}
+      {report.messages.truncated && <p className="file-notes-more">Some notes from opening the file aren't shown.</p>}
     </article>
   );
 }

@@ -1,13 +1,15 @@
 #pragma once
 
-// Bringing presets from an OrcaSlicer folder, item by item, for the Printers
-// step's import result. OrcaSlicer's PresetBundle::import_presets does the
+// Bringing presets from an OrcaSlicer folder, or from JusPrin 1's, item by
+// item, for the Printers step's import result. JusPrin 1 is a fork of
+// OrcaSlicer and keeps the same files under its own name, so both are read
+// the same way; ImportApp says which. OrcaSlicer's PresetBundle::import_presets does the
 // importing; it only reports which files it imported, and asks yes or no when
 // a name is taken. So each file is read here first: one that import_presets
 // would skip gets its reason, one JusPrin already has is left alone, and one
 // whose name JusPrin already has for another preset is imported from a
 // renamed copy, "<name> (Orca copy)", written to a staging folder.
-// OrcaSlicer's own files are only read.
+// The other app's own files are only read.
 //
 // No wx and no Orca types: the preset collections are reached through the
 // catalogue's callbacks.
@@ -21,6 +23,22 @@
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin::Home {
+
+// The app an import reads.
+struct ImportApp
+{
+    // "orcaslicer" or "jusprin1", as the Home page tells them apart.
+    const char* id;
+    // As the screens name it: "OrcaSlicer", "JusPrin 1".
+    const char* name;
+    // The name of its folder and of its settings file without ".conf":
+    // "OrcaSlicer", "JusPrin".
+    const char* key;
+    // What a renamed copy of one of its presets is called: "Orca copy".
+    const char* copy;
+};
+extern const ImportApp kOrcaSlicer;
+extern const ImportApp kJusPrin1;
 
 struct OrcaImportItem
 {
@@ -73,8 +91,9 @@ struct OrcaImportCatalog
 // skip NotImported with their reason, the others Pending, renamed when their
 // name is taken. A base profile among the files themselves counts as
 // found, since import_presets loads the files in order. Renamed copies are
-// written into `staging`, which must exist.
-std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& files, const OrcaImportCatalog& catalog,
+// written into `staging`, which must exist; an empty `staging` only plans,
+// naming each copy in `renamed_to` without writing it.
+std::vector<OrcaImportItem> plan_orca_import(const ImportApp& app, const std::vector<std::string>& files, const OrcaImportCatalog& catalog,
                                              const std::filesystem::path& staging);
 
 // JusPrin has the preset in this file: one of the same kind with the same
@@ -82,15 +101,14 @@ std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& fil
 // copy)", "<name> (Orca copy 2)"), based on the same profile. A same-named
 // preset based on another profile is another preset. False for a file that
 // cannot be read.
-bool orca_preset_in_jusprin(const std::string& file, const OrcaImportCatalog& catalog);
+bool orca_preset_in_jusprin(const ImportApp& app, const std::string& file, const OrcaImportCatalog& catalog);
 
 // Settles the Pending items once import_presets has run: `imported` is what
 // it left in its `files` argument.
 void settle_orca_import(std::vector<OrcaImportItem>& items, const std::vector<std::string>& imported);
 
 // The presets an OrcaSlicer account folder holds (user/<account>): printers
-// first, then filaments and processes, each sorted, so a retry runs in the
-// same order.
+// first, then filaments and processes, each sorted.
 struct OrcaPresetFiles
 {
     std::vector<std::string> files;
@@ -118,12 +136,34 @@ struct OrcaImportChoice
 OrcaImportChoice orca_import_chosen(const OrcaPresetFiles& presets, const std::vector<OrcaImportItem>& profile_printers,
                                     const std::vector<std::string>& printers);
 
-// Bringing this item again can succeed: a file that couldn't be read, or a
-// preset or profile JusPrin couldn't load. A file with no version or of no
-// known kind, or one built on a base JusPrin doesn't have, fails the same
-// way every time.
-bool orca_import_retryable(const OrcaImportItem& item);
+// What File › Import › Import from OrcaSlicer… (or JusPrin 1…) offers
+// before anything is imported, so that its sentence and its list agree.
+struct OrcaImportOffer
+{
+    // Each printer JusPrin has or can import, as the window lists it: a saved
+    // printer by its file's name, a ticked one by its profile's; true when
+    // JusPrin has it already.
+    std::vector<std::pair<std::string, bool>> printers;
+    int                                       new_printers{0};
+    // The new filaments and processes an import copies, by preset name.
+    std::vector<std::string> filaments;
+    std::vector<std::string> processes;
+    // The files an import would skip, each NotImported with its reason.
+    std::vector<OrcaImportItem> skipped;
 
+    bool nothing_new() const { return new_printers == 0 && filaments.empty() && processes.empty(); }
+};
+// `installs_base` says whether JusPrin ships the printer profile a saved
+// printer is based on, which the import installs first. A filament or
+// process whose base JusPrin hasn't loaded counts as new while a new printer
+// is on offer: installing that printer's profiles can bring the base, and
+// only the import can tell.
+OrcaImportOffer orca_import_offer(const ImportApp& app, const OrcaPresetFiles& presets, const std::vector<OrcaImportItem>& ticked,
+                                  const OrcaImportCatalog& catalog, const std::function<bool(const std::string&)>& installs_base);
+
+// Each of these reads the app's settings file, OrcaSlicer.conf or, for
+// JusPrin 1, JusPrin.conf.
+//
 // A printer ticked in OrcaSlicer's printer list, as OrcaSlicer.conf's
 // "models" records it: the vendor file's name, the model's profile name and
 // the nozzle, as {"BBL", "Bambu Lab A1 mini", "0.4"}. Most people tick a
@@ -135,13 +175,13 @@ struct OrcaTickedPrinter
     std::string nozzle;
 };
 // Nothing when OrcaSlicer.conf is missing or cannot be read.
-std::vector<OrcaTickedPrinter> orca_ticked_printers(const std::filesystem::path& orca_root);
+std::vector<OrcaTickedPrinter> orca_ticked_printers(const ImportApp& app, const std::filesystem::path& orca_root);
 
 // The printer preset OrcaSlicer has selected, as OrcaSlicer.conf's
 // "presets" "machine" names it: a system preset such as "Bambu Lab P1S 0.4
 // nozzle", which need not be ticked, or a saved one. Empty when
 // OrcaSlicer.conf is missing or names none.
-std::string orca_selected_printer(const std::filesystem::path& orca_root);
+std::string orca_selected_printer(const ImportApp& app, const std::filesystem::path& orca_root);
 
 // The printers to install from JusPrin's own profiles for an OrcaSlicer data
 // folder: each one ticked, and the selected one, that a profile in
@@ -150,7 +190,7 @@ std::string orca_selected_printer(const std::filesystem::path& orca_root);
 // "Bambu Lab A1 mini 0.4 nozzle". `profiles` is called only when OrcaSlicer
 // names a printer.
 std::vector<OrcaImportItem> orca_profile_printers(
-    const std::filesystem::path& orca_root, const std::optional<std::filesystem::path>& account_folder,
+    const ImportApp& app, const std::filesystem::path& orca_root, const std::optional<std::filesystem::path>& account_folder,
     const std::function<const std::vector<PrinterSetup::PrinterCandidate>&()>& profiles);
 
 // The account folder inside OrcaSlicer's data folder: the one its
@@ -158,11 +198,11 @@ std::vector<OrcaImportItem> orca_profile_printers(
 // saved last. OrcaSlicer signed in to a Bambu account saves under that
 // account's id, not under "default". Nothing when OrcaSlicer.conf cannot be
 // read: importing from a guessed account would be guesswork.
-std::optional<std::filesystem::path> orca_account_folder(const std::filesystem::path& orca_root);
+std::optional<std::filesystem::path> orca_account_folder(const ImportApp& app, const std::filesystem::path& orca_root);
 
 // The account folder for a folder the person picked: OrcaSlicer's data
 // folder, its user folder, an account folder, or an account's machine
 // folder. Nothing when the folder is none of these.
-std::optional<std::filesystem::path> orca_account_folder_for_pick(const std::filesystem::path& picked);
+std::optional<std::filesystem::path> orca_account_folder_for_pick(const ImportApp& app, const std::filesystem::path& picked);
 
 } // namespace Slic3r::GUI::JusPrin::Home

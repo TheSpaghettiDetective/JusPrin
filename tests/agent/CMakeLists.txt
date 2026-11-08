@@ -5,6 +5,7 @@ add_executable(agent_bridge_tests
     test_agent_setup.cpp
     test_cloud_account.cpp
     test_v1_import.cpp
+    test_app_folders.cpp
     test_openai_responses_agent.cpp
     test_provider_agent.cpp
     test_provider_configuration.cpp
@@ -24,6 +25,7 @@ add_executable(agent_bridge_tests
     test_mcp_bridge.cpp
     test_mcp_connections.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpCatalog.cpp
+    ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Support/AppFolders.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpConfigFile.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpDiscoveryFile.cpp
     ${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Mcp/McpProtocol.cpp

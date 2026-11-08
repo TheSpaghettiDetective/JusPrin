@@ -10,6 +10,8 @@
 
 #include <boost/log/trivial.hpp>
 
+#include <cstdlib>
+
 #include <nlohmann/json.hpp>
 
 namespace Slic3r::GUI::JusPrin::Agent {
@@ -19,8 +21,7 @@ namespace {
 constexpr const char* kSection = "jusprin_agent";
 
 // A server named here, such as a staging or self-hosted one, is the one the
-// account signs in to instead of the default. JusPrin v1 kept its own server
-// here too; the v1 import leaves that behind.
+// account signs in to instead of the default.
 constexpr const char* kServerSection = "jusprin_server";
 
 std::string api_key_item_for(const std::string& provider) { return provider + "_api_key"; }
@@ -29,11 +30,21 @@ std::string api_key_item_for(const std::string& provider) { return provider + "_
 std::string account_item_for(const std::string& provider) { return provider + "_account"; }
 std::string formats_item_for(const std::string& provider) { return provider + "_model_formats"; }
 
-// Where an account provider's gateway is: on the server v1's setting names,
-// or the row's own.
+// The server JUSPRIN_SERVER_URL names, otherwise the settings file's. The
+// variable lets a test run reach a staging server without writing a settings
+// file before launch.
+std::string server_base_url(const AppConfig* config)
+{
+    if (const char* chosen = std::getenv("JUSPRIN_SERVER_URL"); chosen != nullptr && *chosen != '\0')
+        return chosen;
+    return config == nullptr ? std::string() : config->get(kServerSection, "base_url");
+}
+
+// Where an account provider's gateway is: on the server named above, or the
+// row's own.
 std::string cloud_gateway(const AppConfig* config, const ProviderProfile& row)
 {
-    std::string base = config == nullptr ? std::string() : config->get(kServerSection, "base_url");
+    std::string base = server_base_url(config);
     while (!base.empty() && base.back() == '/')
         base.pop_back();
     return base.empty() ? row.endpoint : base + "/ent/jusprin/v2/responses";
@@ -173,14 +184,21 @@ AgentSetupServicePtr make_agent_setup(AppConfig* config)
                                               make_cloud_sign_in(config));
 }
 
-std::string cloud_pricing_url(const AppConfig* config)
+std::string cloud_web_link_url(const AppConfig* config)
 {
-    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/pricing/";
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/web_link";
 }
 
-std::string cloud_password_reset_url(const AppConfig* config)
+std::string cloud_account_url(const AppConfig* config)
 {
-    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/accounts/password/reset/";
+    return cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/account";
+}
+
+bool is_cloud_web_done(const AppConfig* config, const std::string& url)
+{
+    const std::string done = cloud_server_from_gateway(endpoint_for(config, account_provider())) + "/ent/jusprin/v2/web/done";
+    return url.compare(0, done.size(), done) == 0 &&
+           (url.size() == done.size() || std::string("/?#").find(url[done.size()]) != std::string::npos);
 }
 
 std::string cloud_print_reports_url(const AppConfig* config)
@@ -300,12 +318,33 @@ public:
         done(std::nullopt);
     }
 
+    // Signed out, the server is asked with no token: it then offers sign-up.
+    void fetch_account_box(AccountBoxDone done) override
+    {
+        const std::string url = cloud_server_from_gateway(endpoint_for(m_config, account_provider())) + "/ent/jusprin/v2/account_box";
+        Agent::fetch_account_box(account_provider(), cloud_account_token(m_config), url, m_cancelled,
+                                 [post = m_post, done = std::move(done)](std::optional<std::string> html) {
+                                     post([done, html = std::move(html)]() mutable { done(std::move(html)); });
+                                 });
+    }
+
+    void delete_account(DeleteAccountDone done) override
+    {
+        const std::string token = cloud_account_token(m_config);
+        if (token.empty()) {
+            done(false);
+            return;
+        }
+        Agent::delete_account(account_provider(), token, cloud_account_url(m_config), m_cancelled,
+                              [post = m_post, done = std::move(done)](bool deleted) { post([done, deleted] { done(deleted); }); });
+    }
+
     void list_models(const std::string& provider, ModelsDone done) override
     {
         const ProviderProfile* profile = profile_for(provider);
         const std::string      key     = load_provider_api_key(m_config, provider);
         if (profile == nullptr || key.empty()) {
-            done(false, {});
+            done(false, {}, false);
             return;
         }
         fetch_model_list(*profile, key, endpoint_for(m_config, *profile), m_cancelled,
@@ -323,7 +362,7 @@ public:
                                      store_formats(config, provider, formats);
                                      config->save();
                                  }
-                                 done(result.ok, std::move(result.models));
+                                 done(result.ok, std::move(result.models), result.refused);
                              });
                          });
     }

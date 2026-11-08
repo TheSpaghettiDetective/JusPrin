@@ -3114,6 +3114,18 @@ int main(int argc, char** argv)
     set_local_dir((resources / "i18n").string());
     set_sys_shapes_dir((resources / "shapes").string());
     set_custom_gcodes_dir((resources / "custom_gcodes").string());
+    // First launch looks for OrcaSlicer and JusPrin 1 in their real folders.
+    // OrcaSlicer's is named as one that does not exist. JusPrin 1's has no
+    // variable, so the Printers step may list the person's JusPrin 1 printers
+    // (it only reads them); a run that reaches that step chooses its way.
+    {
+        const std::string none = (data_directory / "no-such-install").string();
+#ifdef _WIN32
+        _putenv_s("JUSPRIN_ORCA_DATADIR", none.c_str());
+#else
+        setenv("JUSPRIN_ORCA_DATADIR", none.c_str(), 1);
+#endif
+    }
     set_data_dir(data_directory.string());
     set_temporary_dir(data_directory.string());
     save_main_thread_id();

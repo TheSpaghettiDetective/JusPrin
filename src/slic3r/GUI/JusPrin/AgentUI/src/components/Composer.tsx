@@ -21,7 +21,7 @@
 
 import { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AttachmentInfo, AttachmentPickKind, AttachmentSource, ChatModelChoice, CreditAccount, ModelCatalogPayload } from '../bridge/protocol';
-import { lowNotice, sendBlock } from '../credits';
+import { creditCount, lowNotice, sendBlock } from '../credits';
 import { composerInputMaxHeight } from '../tokens';
 import { AttachmentChip } from './AttachmentChip';
 import { BalancePanel } from './BalancePanel';
@@ -49,6 +49,10 @@ export interface ComposerCredits {
   lowNoticeDone: boolean;
   onLowNoticeDone: () => void;
   onGetMore: () => void;
+  // Credits a purchase just added, said once above the box until the person
+  // sends a message; null when there is nothing to say.
+  creditsAdded?: number | null;
+  onCreditsAddedDone?: () => void;
   onSeeUsage: () => void;
 }
 
@@ -214,6 +218,7 @@ export function Composer({
   const send = () => {
     if (!canSend) return;
     if (lowShown) credits?.onLowNoticeDone();
+    if (credits?.creditsAdded) credits.onCreditsAddedDone?.();
     if (draftTimer.current !== null) clearTimeout(draftTimer.current);
     pendingDraft.current = false;
     onSend(text.trim());
@@ -282,6 +287,9 @@ export function Composer({
           <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
         </div>
       </div>}
+      {!!credits?.creditsAdded && !block && <div className="composer-credits composer-credits--added" role="status">
+        +{creditCount(credits.creditsAdded)}
+      </div>}
       {lowShown && <div className="composer-credits composer-credits--low" role="status">
         <span>{low}</span>
         <button type="button" className="link" onClick={() => credits?.onGetMore()}>Get more credits</button>
@@ -300,12 +308,12 @@ export function Composer({
         )}
         <textarea
           ref={field}
-          aria-label="Message the Agent"
+          aria-label="Message AI"
           placeholder={
             disabled
-              ? disabledReason ?? 'The Agent is not available'
+              ? disabledReason ?? 'AI is not available'
               : streaming
-                ? 'Agent is responding…'
+                ? 'AI is responding…'
                 : stagedPlaceholder && hasSendable
                   ? stagedPlaceholder
                   : !started && placeholder

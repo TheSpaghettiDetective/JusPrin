@@ -1016,6 +1016,12 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_account_sign_in(envelope_id, true);
     else if (type == Protocol::kAccountCancel)
         handle_account_cancel();
+    else if (type == Protocol::kAccountEmail)
+        handle_account_email(envelope_id, payload);
+    else if (type == Protocol::kAccountSendCode || type == Protocol::kAccountCode || type == Protocol::kAccountPassword)
+        handle_account_email_step(type, payload);
+    else if (type == Protocol::kAccountReopen || type == Protocol::kAccountOpenLink)
+        handle_account_open_link(type, payload);
     else if (type == Protocol::kMcpCatalog)
         handle_mcp_catalog(envelope_id);
     else if (type == Protocol::kSettingsCatalogRequest)
@@ -1030,8 +1036,17 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_reveal_path(envelope_id, payload);
     else if (type == Protocol::kPickAttachment)
         handle_pick_attachment(envelope_id, payload);
-    else if (type == Protocol::kRefreshAccount)
+    else if (type == Protocol::kRefreshAccount) {
         request_account();
+        // A model list that failed is asked again with it: Try again on an
+        // account whose AI was unavailable, or coming back to the window.
+        if (m_model_source)
+            request_model_lists();
+    }
+    else if (type == Protocol::kRefreshAccountBox)
+        request_account_box();
+    else if (type == Protocol::kDeleteAccount)
+        handle_delete_account(envelope_id);
     else if (type == Protocol::kSetChatModel)
         handle_set_chat_model(envelope_id, payload);
     else if (type == Protocol::kSkills)
@@ -1274,7 +1289,7 @@ std::optional<AgentError> AgentHost::user_message_refusal() const
     if (m_persistence.document().viewed_conversation_id() != m_persistence.document().active_conversation_id())
         return AgentError{"inactive_conversation", "Return to the active chat or restore this chat before sending.", false};
     if (m_setup_pending)
-        return AgentError{"setup_busy", "Finish or cancel Agent configuration before sending a message.", false};
+        return AgentError{"setup_busy", "Finish or cancel AI configuration before sending a message.", false};
     return std::nullopt;
 }
 
@@ -1453,7 +1468,7 @@ void AgentHost::store_file_attachment(AttachmentRecord record, const std::string
         record.error = AgentError{"too_large", "This file is too large to attach."};
     } else if (record.kind == "unsupported") {
         record.state = "error";
-        record.error = AgentError{"unsupported_type", "This file type can't be read by the Agent."};
+        record.error = AgentError{"unsupported_type", "This file type can't be read by AI."};
     } else if ((record.kind == "text" || record.kind == "gcode" || record.kind == "svg") && !is_valid_utf8(bytes)) {
         record.state = "error";
         record.error = AgentError{"not_text", "This file is not readable UTF-8 text."};
@@ -2066,7 +2081,7 @@ void AgentHost::handle_save_proposal(const std::string& envelope_id, const std::
                                        [preview](const ConversationMessage& message) { return message.id == preview->correlation_id; });
     if (proposed == messages.end() ||
         std::any_of(std::next(proposed), messages.end(), [](const ConversationMessage& message) { return message.role == MessageRole::User; })) {
-        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask the Agent again.", envelope_id);
+        send_bridge_error("proposal_closed", "This proposal is no longer open. Ask AI again.", envelope_id);
         return;
     }
     if (const std::string refusal = m_tools.approve_proposal(action_id); !refusal.empty())
@@ -2281,7 +2296,7 @@ void AgentHost::handle_restore_conversation(const std::string& envelope_id, cons
     const auto checkpoint = document.chat_checkpoint(target);
     if (!checkpoint || !m_chat_version_exists ||
         !m_chat_version_exists(checkpoint->value("versionId", "")) || !m_restore_chat_version) {
-        send_bridge_error("checkpoint_unavailable", "This chat has no recoverable project checkpoint.", envelope_id);
+        send_bridge_error("checkpoint_unavailable", "JusPrin can't find the project version this chat was working on.", envelope_id);
         send_state();
         return;
     }
@@ -2291,7 +2306,7 @@ void AgentHost::handle_restore_conversation(const std::string& envelope_id, cons
     }
     if (!m_restore_chat_version(checkpoint->value("versionId", ""), target)) {
         m_chat_transition_blocked = true;
-        send_bridge_error("restore_failed", "The saved project could not be restored.", envelope_id);
+        send_bridge_error("restore_failed", "JusPrin couldn't put the project back.", envelope_id);
         send_state();
         return;
     }
@@ -2328,7 +2343,7 @@ void AgentHost::handle_delete_conversation(const std::string& envelope_id, const
     if (agent_busy() || std::any_of(m_tools.activities().begin(), m_tools.activities().end(), [&](const auto& activity) {
             return belongs_to_chat(activity) && !tool_state_terminal(activity.state);
         })) {
-        send_bridge_error("busy", "Finish or stop the reply and resolve pending actions before deleting this chat.", envelope_id);
+        send_bridge_error("busy", "This chat is still working. Stop it or let it finish, then delete it.", envelope_id);
         return;
     }
     ProjectStateDocument& document = m_persistence.document();
@@ -2400,11 +2415,11 @@ void AgentHost::handle_setup_check_key(const std::string& envelope_id, const std
 {
     cancel_conversation_title();
     if (agent_busy()) {
-        send_bridge_error("busy", "Finish or stop the current reply before configuring the Agent.", envelope_id);
+        send_bridge_error("busy", "Finish or stop the current reply before configuring AI.", envelope_id);
         return;
     }
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
         return;
     }
     const json payload = json::parse(payload_json);
@@ -2452,7 +2467,7 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
     // a key check.
     cancel_conversation_title();
     if (!m_setup) {
-        send_bridge_error("setup_unavailable", "This build cannot configure an Agent provider.", envelope_id);
+        send_bridge_error("setup_unavailable", "This build cannot configure an AI provider.", envelope_id);
         return;
     }
     if (agent_busy()) {
@@ -2463,11 +2478,17 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
         send_bridge_error("setup_busy", "Finish or cancel the key check before removing a key.", envelope_id);
         return;
     }
-    const std::string provider = json::parse(payload_json).value("provider", "");
-    if (!m_setup->remove_key(provider)) {
+    if (!remove_saved_key(json::parse(payload_json).value("provider", ""))) {
         send_bridge_error("remove_failed", "That key could not be removed.", envelope_id);
         return;
     }
+    send_setup_keys(envelope_id);
+}
+
+bool AgentHost::remove_saved_key(const std::string& provider)
+{
+    if (!m_setup->remove_key(provider))
+        return false;
     m_rejected_keys.erase(provider);
 
     // The agent in use may hold the removed key. It is rebuilt from the keys
@@ -2481,7 +2502,34 @@ void AgentHost::handle_setup_remove_key(const std::string& envelope_id, const st
     } else if (m_setup->saved_keys().empty()) {
         set_agent(nullptr, AgentAvailability::Unavailable);
     }
-    send_setup_keys(envelope_id);
+    return true;
+}
+
+void AgentHost::handle_delete_account(const std::string& envelope_id)
+{
+    const auto answer = [this, envelope_id](bool deleted) {
+        if (m_handshake)
+            send_envelope(Protocol::kAccountDeleted, json{{"deleted", deleted}}.dump(), envelope_id);
+    };
+    // Its key goes once the server has deleted the account, and a reply that
+    // is still running would be left holding it, so one waits for the other.
+    if (!m_model_source || !m_setup || agent_busy() || m_setup->busy()) {
+        answer(false);
+        return;
+    }
+    m_model_source->delete_account([this, answer](bool deleted) {
+        if (deleted) {
+            // Signed out the way Sign out does, whatever happens next: the
+            // account no longer exists to sign in as.
+            for (const SavedKey& saved : m_setup->saved_keys())
+                if (const ProviderProfile* profile = profile_for(saved.provider); profile != nullptr && profile->account_sign_in)
+                    remove_saved_key(saved.provider);
+            send_setup_keys();
+            request_account();
+            request_account_box();
+        }
+        answer(deleted);
+    });
 }
 
 void AgentHost::send_setup_keys(const std::string& correlation_id)
@@ -2504,10 +2552,16 @@ void AgentHost::note_key_rejected()
 {
     // Only a chat's own agent says whose key it was; a host without per-chat
     // models (the printer panel) cannot tell.
-    if (!m_setup || !m_agent_choice)
+    if (m_agent_choice)
+        reject_saved_key(m_agent_choice->provider);
+}
+
+void AgentHost::reject_saved_key(const std::string& provider)
+{
+    if (!m_setup)
         return;
     for (const SavedKey& saved : m_setup->saved_keys())
-        if (saved.provider == m_agent_choice->provider) {
+        if (saved.provider == provider) {
             m_rejected_keys[saved.provider] = saved.hint;
             send_setup_keys();
         }
@@ -2520,8 +2574,15 @@ void AgentHost::send_account_status(const std::string&               phase,
                                     const std::string&               warning)
 {
     json payload{{"phase", phase}};
-    if (ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr; cloud != nullptr && phase == "browser")
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud != nullptr && phase == "browser")
         payload["url"] = cloud->browser_url();
+    if (const std::optional<CloudEmailStep> email = cloud != nullptr && phase == "email" ? cloud->email_step() : std::nullopt)
+        payload["email"] = json{{"step", email->step == CloudEmailStep::Step::Code ? "code" : "choose"},
+                                {"email", email->email},
+                                {"busy", email->busy},
+                                {"refusal", email->refusal},
+                                {"codeResent", email->code_resent}};
     if (expired)
         payload["expired"] = true;
     if (error)
@@ -2555,12 +2616,76 @@ void AgentHost::handle_account_sign_in(const std::string& envelope_id, bool stor
         send_account_status("checking", envelope_id);
         return;
     }
-    if (!cloud->start(CloudBrowserStart::SignInPage)) {
+    if (!cloud->start(CloudBrowserStart::Google)) {
         send_account_status("idle", envelope_id,
                             AgentError{"sign_in_failed", "JusPrin couldn't start signing in. Try again.", true});
         return;
     }
     send_account_status("browser", envelope_id);
+}
+
+void AgentHost::handle_account_email(const std::string& envelope_id, const std::string& payload_json)
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr) {
+        send_bridge_error("setup_unavailable", "This build cannot sign in to a JusPrin account.", envelope_id);
+        return;
+    }
+    if (agent_busy()) {
+        send_bridge_error("busy", "Finish or stop the current reply before signing in.", envelope_id);
+        return;
+    }
+    if (m_setup->busy() || cloud->phase() != CloudSignInPhase::Idle) {
+        send_bridge_error("setup_busy", "A sign-in or key check is already running.", envelope_id);
+        return;
+    }
+    cancel_conversation_title();
+    const json payload = json::parse(payload_json, nullptr, false);
+    const std::string email = payload.is_object() ? payload.value("email", std::string()) : std::string();
+    if (!cloud->start_email(email)) {
+        send_account_status("idle", envelope_id,
+                            AgentError{"sign_in_failed", "JusPrin couldn't sign you in. Try again.", true});
+        return;
+    }
+    send_account_status("email", envelope_id);
+}
+
+// The page offers each of these only on the step that takes it; one sent as
+// the step changes under it (a double click) is refused by the sign-in and
+// changes nothing.
+void AgentHost::handle_account_email_step(const std::string& type, const std::string& payload_json)
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr || cloud->phase() != CloudSignInPhase::Email)
+        return;
+    const json payload = json::parse(payload_json, nullptr, false);
+    const auto field   = [&payload](const char* name) {
+        return payload.is_object() ? payload.value(name, std::string()) : std::string();
+    };
+    const bool taken = type == Protocol::kAccountSendCode ? cloud->send_code() :
+                       type == Protocol::kAccountCode     ? cloud->submit_code(field("code")) :
+                                                            cloud->submit_password(field("password"));
+    // The step is now with the server: the page shows it busy.
+    if (taken)
+        send_account_status("email");
+}
+
+void AgentHost::handle_account_open_link(const std::string& type, const std::string& payload_json)
+{
+    ICloudSignIn* cloud = m_setup ? m_setup->cloud_sign_in() : nullptr;
+    if (cloud == nullptr || !m_open_url)
+        return;
+    std::string url;
+    if (type == Protocol::kAccountReopen) {
+        url = cloud->browser_url();
+    } else {
+        const json payload = json::parse(payload_json, nullptr, false);
+        url = cloud->link_url(payload.is_object() ? payload.value("link", std::string()) : std::string());
+    }
+    // Nothing to reopen once the browser is done, and no other page: the page
+    // names a link, never a URL.
+    if (!url.empty())
+        m_open_url(url);
 }
 
 void AgentHost::handle_account_cancel()
@@ -2578,11 +2703,16 @@ void AgentHost::pump_account()
     if (cloud == nullptr)
         return;
     const CloudSignInPhase before = cloud->phase();
+    // The email steps move within one phase: a code asked for, refused, sent again.
+    const std::optional<CloudEmailStep> email_before = cloud->email_step();
     std::optional<CloudSignInOutcome> outcome = cloud->poll();
     if (!outcome) {
-        // The browser came back with a token; the account is being checked.
-        if (before == CloudSignInPhase::Browser && cloud->phase() == CloudSignInPhase::Checking)
+        // The browser or the code came back with a token; the account is
+        // being checked.
+        if (before != CloudSignInPhase::Checking && cloud->phase() == CloudSignInPhase::Checking)
             send_account_status("checking");
+        else if (cloud->phase() == CloudSignInPhase::Email && cloud->email_step() != email_before)
+            send_account_status("email");
         return;
     }
     const std::string provider = account_provider().id;
@@ -2759,7 +2889,7 @@ void AgentHost::begin_reply(const std::string& user_message_id)
         failed.in_reply_to = user_message_id;
         failed.error       = instructions_missing ?
                                  AgentError{"instructions_missing", "The panel is still loading. Try again in a moment.", true} :
-                                 AgentError{"agent_unavailable", "The Agent service is not available.", true};
+                                 AgentError{"agent_unavailable", "The AI service is not available.", true};
         failed.created_at = m_persistence.timestamp();
         document.append_message(conversation_id, failed, failed.created_at);
         m_persistence.flush();
@@ -2830,7 +2960,7 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
     if (asks_setup_check(request.skills) && purpose_recorded(conversation_id))
         mark_setup_checked(request.workspace);
     if (!m_agent || !m_agent->ready() || !m_agent->start(request))
-        fail_stream(AgentError{"agent_unavailable", "The Agent service could not start this request.", true});
+        fail_stream(AgentError{"agent_unavailable", "The AI service could not start this request.", true});
 }
 
 namespace {
@@ -2894,6 +3024,9 @@ AgentRequest AgentHost::make_agent_request(const ConversationMessage& assistant,
     request.request_id = document.project_id() + "-" + conversation_id + "-" + assistant.id + "-attempt-" +
                          std::to_string(assistant.attempt);
     request.chat_key   = chat_key(document, conversation_id);
+    for (const ConversationInfo& info : document.conversations())
+        if (info.id == conversation_id)
+            request.chat_title = info.title;
     request.attempt    = assistant.attempt;
     request.session    = m_session_profile;
     request.workspace  = m_workspace.snapshot();
@@ -3200,7 +3333,7 @@ void AgentHost::continue_after_tool(const ToolActivity& activity)
     result.image       = activity.image;
     if (!m_agent || !m_agent->continue_after_tool(result)) {
         begin_tool_followup(continuation);
-        fail_stream(AgentError{"agent_continuation_failed", "The Agent could not receive the native tool result.", true});
+        fail_stream(AgentError{"agent_continuation_failed", "AI could not receive the native tool result.", true});
         return;
     }
     begin_tool_followup(continuation);
@@ -3259,7 +3392,7 @@ void AgentHost::pump_stream()
     else if (next->kind == AgentEventKind::Failed) {
         if (next->error && next->error->code == "invalid_credentials")
             note_key_rejected();
-        fail_stream(next->error.value_or(AgentError{"agent_error", "The Agent request failed.", true}));
+        fail_stream(next->error.value_or(AgentError{"agent_error", "The AI request failed.", true}));
     }
     else if (next->kind == AgentEventKind::Completed)
         complete_stream();
@@ -3482,10 +3615,15 @@ void AgentHost::request_model_lists()
         if (held != m_models.end() && held->second.state != ProviderModels::State::Failed)
             continue;
         m_models[provider] = ProviderModels{};
-        m_model_source->list_models(provider, [this, provider](bool ok, std::vector<ModelOption> models) {
+        m_model_source->list_models(provider, [this, provider](bool ok, std::vector<ModelOption> models, bool refused) {
             ProviderModels& entry = m_models[provider];
             entry.state  = ok ? ProviderModels::State::Ready : ProviderModels::State::Failed;
             entry.models = std::move(models);
+            // A refused list is a key or sign-in that no longer works, as a
+            // refused turn is. Any other failure leaves it standing: for the
+            // JusPrin account, Preferences then says AI is unavailable.
+            if (refused)
+                reject_saved_key(provider);
             if (m_handshake)
                 send_model_catalog();
             send_active_chat_model();
@@ -3617,6 +3755,20 @@ void AgentHost::send_account()
                       json{{"account", m_account ? *m_account : json()}, {"chatTitles", usage_chat_titles()}}.dump());
 }
 
+void AgentHost::request_account_box()
+{
+    // Signing in or out asks again, so only the latest request is answered.
+    const unsigned request = ++m_account_box_request;
+    auto answer = [this, request](std::optional<std::string> html) {
+        if (request == m_account_box_request && m_handshake)
+            send_envelope(Protocol::kAccountBox, json{{"html", html ? json(*html) : json()}}.dump());
+    };
+    if (m_model_source)
+        m_model_source->fetch_account_box(std::move(answer));
+    else
+        answer(std::nullopt);
+}
+
 namespace {
 
 // {"<gateway chat id>": "<title>"}. The file is only a list of names: one
@@ -3710,7 +3862,7 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_perso
             // for again, and the person can send once it has.
             request_model_lists();
             fail_stream(AgentError{"account_models_unknown",
-                                   "JusPrin hasn't loaded the Agent models for your account yet. Try again in a moment.", true});
+                                   "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment.", true});
             return false;
         }
         // The person's first message fixes the chat to its model and the format
@@ -3728,7 +3880,7 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_perso
         const ProviderProfile* profile = profile_for(choice.provider);
         fail_stream(AgentError{"provider_not_set_up",
                                "No " + (profile ? profile->display_name : choice.provider) +
-                                   " API key is set up. Add it in the Agent settings, or choose another model.",
+                                   " API key is set up. Add it in the AI settings, or choose another model.",
                                false});
         return false;
     }
@@ -3753,6 +3905,11 @@ void AgentHost::set_mcp_cli_runner(McpCliRunner runner)
 void AgentHost::set_reveal_path_handler(RevealPathFn reveal)
 {
     m_reveal_path = std::move(reveal);
+}
+
+void AgentHost::set_url_opener(OpenUrlFn open)
+{
+    m_open_url = std::move(open);
 }
 
 void AgentHost::set_file_picker(FilePickerFn picker)

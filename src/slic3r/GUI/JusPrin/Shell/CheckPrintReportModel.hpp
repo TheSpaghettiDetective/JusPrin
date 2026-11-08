@@ -103,8 +103,14 @@ struct CheckPrintReportView
     // The checks that ran and found nothing, in the closing line's order.
     std::vector<PrintCheck>   clean;
     // False when the slice generated no support: the closing line then says
-    // "supports (none generated)" rather than "supports".
+    // no supports were needed, or that the print has none.
     bool                      supports_generated{false};
+    // Whether the person marked a region to keep support out of, of a shape
+    // the support check looks inside: only then does the support row name one.
+    bool                      kept_clear_marked{false};
+    // Whether the slice's objects have a face marked to keep seams off: only
+    // then does the closing line say no seams landed on one.
+    bool                      seam_faces_marked{false};
 };
 
 // The regions are the project's, so a row can use the name the person gave a

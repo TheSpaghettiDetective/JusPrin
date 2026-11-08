@@ -216,8 +216,12 @@ std::string status_label(const PrintIssueSnapshot& snapshot, const Tally& t)
         return format_wxstr(_L_PLURAL("%1% warning ignored", "%1% warnings ignored", int(t.ignored)), t.ignored).ToUTF8().data();
     const int count = int(t.counted);
     std::string label = format_wxstr(_L_PLURAL("%1% print issue", "%1% print issues", count), count).ToUTF8().data();
+    // Every blocker keeps Print off, though not every one stops slicing: some
+    // are found in the sliced paths. The bubble names each one the same way.
     if (t.blockers != 0)
-        label += " \xC2\xB7 " + format(_u8L("%1% blocking"), t.blockers);
+        label += ". " + std::string(format_wxstr(_L_PLURAL("%1% blocks printing.", "%1% block printing.", int(t.blockers)), t.blockers)
+                                        .ToUTF8()
+                                        .data());
     return label;
 }
 
@@ -647,13 +651,15 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
     // onto this bubble, and the next frame draws what is true then.
     const bool ready   = !m_actions.agent_ready || m_actions.agent_ready();
 
-    const std::string severity = issue.stale ? checking_label() : issue.ignored ? ignored_label() :
+    // An issue being checked again keeps its kind; its old words give way to
+    // what is happening, so a fix does not look as if it did nothing.
+    const std::string severity = issue.ignored ? ignored_label() :
                                  issue.severity == IssueSeverity::Blocker ? _u8L("Blocks printing") : _u8L("Warning");
     const std::string where    = issue.object == 0 ? plate_label() :
                                  issue.object_name + (target && !in_view ? " \xC2\xB7 " + _u8L("out of view") : std::string());
-    const std::string message  = trimmed(issue.message);
+    const std::string message  = issue.stale ? _u8L("Checking whether this is fixed...") : trimmed(issue.message);
     const std::string pager    = paged ? format(_u8L("%1% of %2%"), walk_index + 1, walk.size()) : std::string();
-    const std::string note     = busy ? _u8L("The assistant is replying...") : std::string();
+    const std::string note     = busy ? _u8L("AI is replying...") : std::string();
     const std::string ignore   = !ignorable ? std::string() : issue.ignored ? _u8L("Stop ignoring") : _u8L("Ignore this warning");
 
     const float width = std::round(s.m.print_issues.bubble_width * s.scale);
@@ -762,7 +768,7 @@ void IssueOverlay::draw_bubble(const Style& s, const StatusLayout& layout, const
         // canvas font has no ellipsis character.
         const OverlayRect set_up{bubble.x + s.pad, y, bubble.w - 2 * s.pad, button_h};
         m_frame.set_up = set_up;
-        if (button(draw, "##set_up", set_up, _u8L("Set up the agent..."), std::round(recipe.radius * s.scale), true,
+        if (button(draw, "##set_up", set_up, _u8L("Set up AI..."), std::round(recipe.radius * s.scale), true,
                    s.p.action_primary, s.p.action_primary_hover, s.p.action_primary_text, nullptr, s.p))
             after_frame([](IssueOverlay& self) {
                 if (self.m_actions.set_up_agent)

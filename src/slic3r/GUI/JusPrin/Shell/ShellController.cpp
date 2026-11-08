@@ -5,6 +5,7 @@
 #include "GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "LeftPane.hpp"
+#include "ServerSheet.hpp"
 #include "SetupCommands.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PresetLookup.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
@@ -18,7 +19,6 @@
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
-#include "slic3r/GUI/JusPrin/V1Import/WelcomeBackWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
@@ -33,6 +33,8 @@
 #include "slic3r/GUI/Project.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/Utils/NetworkAgent.hpp"
+#include "slic3r/Utils/OrcaCloudServiceAgent.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -392,7 +394,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         m_agent_pane_preferred_width = frame.FromDIP(m_theme->metrics().agent_pane.width);
         m_agent_resize_handle = new PaneResizeHandle(
             &frame, *m_theme, PaneResizeHandle::PaneSide::Right,
-            _L("Resize Agent panel"), _L("Drag to resize the Agent panel"),
+            _L("Resize AI panel"), _L("Drag to resize the AI panel"),
             PaneResizeHandle::Callbacks{
                 [this] { return m_agent_pane == nullptr ? 0 : m_agent_pane->GetSize().x; },
                 [this](int width) { request_agent_pane_width(width); },
@@ -491,8 +493,18 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 request_preferences(payload.value("section", std::string()));
                 return true;
             }
-            if (action == "open_pricing") {
-                wxLaunchDefaultBrowser(wxString::FromUTF8(Agent::cloud_pricing_url(wxGetApp().app_config)));
+            if (action == "open_server_page") {
+                // The composer's Get more credits: the server's page in the
+                // app's sheet, over the main window. Not from inside the web
+                // view's message handler, which the sheet's own would nest in.
+                const std::string page = payload.value("page", std::string());
+                const std::string from = payload.value("from", std::string());
+                m_frame->CallAfter([this, page, from] {
+                    ServerSheet::open(m_frame, page, from, [this] {
+                        if (m_installed && m_agent_pane != nullptr)
+                            m_agent_pane->web_view().host().refresh_account();
+                    });
+                });
                 return true;
             }
             if (action == "collapse_agent_pane") {
@@ -528,12 +540,12 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                     payload.value("plateId", std::string()) == std::to_string(snapshot.active_plate->value());
                 if (!active_chat || !same_project || !same_plate) {
                     wxMessageBox(_L("The setup changed. Review the current plate and try again."),
-                                 _L("Could not compute estimates"), wxOK | wxICON_WARNING, m_frame);
+                                 _L("Couldn't slice"), wxOK | wxICON_WARNING, m_frame);
                     return true;
                 }
                 const auto result = m_workspace->start_slice(snapshot.active_plate, false);
                 if (!result.succeeded())
-                    wxMessageBox(wxString::FromUTF8(result.message), _L("Could not compute estimates"),
+                    wxMessageBox(wxString::FromUTF8(result.message), _L("Couldn't slice"),
                                  wxOK | wxICON_ERROR, m_frame);
                 return true;
             }
@@ -885,7 +897,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
             };
             // The one place the agent is set up. Opened from a later turn:
             // the press arrives inside the canvas's own frame.
-            actions.set_up_agent = [this] { request_preferences("agent"); };
+            actions.set_up_agent = [this] { request_preferences("account"); };
             m_issue_overlay = std::make_unique<PrintIssues::IssueOverlay>(*prepare_canvas, *m_print_issues, std::move(actions));
             m_prepare_canvas_presentation.set_extra_overlay([this, prepare_canvas] {
                 if (m_plater->model().objects.empty())
@@ -958,23 +970,6 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // Shell installation runs during MainFrame construction, before the
         // deferred startup wizard check. Keep this before that check, not in run_wizard.
         wxGetApp().show_config_wizard_on_startup = false;
-        // A JusPrin v1 setup imported at this start is shown once the window
-        // is on screen, OrcaSlicer has finished starting up, and none of the
-        // dialogs OrcaSlicer opens at start-up is still waiting for an answer
-        // (one opened on top of it would run inside its modal loop).
-        if (const auto report = V1Import::read_report(std::filesystem::u8path(data_dir())); report && report->pending) {
-            m_welcome_wait = std::make_unique<wxTimer>();
-            m_welcome_wait->Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
-                if (!wxGetApp().post_initialized() || !m_frame->IsShownOnScreen())
-                    return;
-                for (wxWindow* window : wxTopLevelWindows)
-                    if (const auto* dialog = dynamic_cast<wxDialog*>(window); dialog != nullptr && dialog->IsModal())
-                        return;
-                m_welcome_wait->Stop();
-                m_frame->CallAfter([this] { open_welcome_back(); });
-            });
-            m_welcome_wait->Start(250);
-        }
     } catch (...) {
         m_installed = true; // let uninstall() undo whatever was applied
         uninstall();
@@ -986,7 +981,6 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
 {
     if (event.GetWindow() == m_frame) {
         m_runtime_timer.Stop();
-        m_welcome_wait.reset();
         m_installed = false;
         wxGetApp().show_config_wizard_on_startup = m_saved_show_config_wizard_on_startup;
         m_prepare_canvas_presentation.abandon();
@@ -1329,16 +1323,16 @@ void ShellController::start_calibration(const std::string& printer, const std::s
                                                    wxString::Format(_L("%1$s on %2$s"), from_u8(filament), from_u8(printer));
     const wxString closes = project.empty() ? wxString() : wxString::Format(_L("%s will be saved and closed. "), from_u8(project));
     const wxString opens  = filament.empty() ?
-        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the spool and the test with you there."), target) :
-        wxString::Format(_L("A new calibration project opens for %s, and the agent picks the test with you there."), target);
-    const wxString unset = needs_agent ? " " + _L("The agent isn't set up yet; the test needs it to choose the range and read the result.")
+        wxString::Format(_L("A new calibration project opens for %s, and AI picks the spool and the test with you there."), target) :
+        wxString::Format(_L("A new calibration project opens for %s, and AI picks the test with you there."), target);
+    const wxString unset = needs_agent ? " " + _L("AI isn't set up yet; the test needs it to choose the range and read the result.")
                                        : wxString();
     const std::string body = into_u8(closes + opens + " " + _L("Settings the test changes are temporary and are not saved to your filament.") +
                                      unset);
     const std::string id = "calibrate-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     m_pending_calibration = PendingCalibration{id, printer, filament, home ? std::string("Home") : project, spools, needs_agent};
     const std::string title   = into_u8(wxString::Format(_L("Calibrate %s?"), target));
-    const std::string confirm = into_u8(needs_agent ? _L("Set up the agent…") : _L("Start"));
+    const std::string confirm = into_u8(needs_agent ? _L("Set up AI…") : _L("Start"));
     const std::string cancel  = into_u8(_L("Cancel"));
     if (home) {
         m_home->host().ask_confirmation({id, title, body, confirm, cancel});
@@ -1360,11 +1354,11 @@ void ShellController::answer_calibration(const std::string& request_id, bool con
     m_pending_calibration.reset();
     if (!confirmed)
         return;
-    // Preferences › Agent over the screen the row was pressed on. Closed with
+    // Preferences › Account over the screen the row was pressed on. Closed with
     // an agent, the same question comes back with Start; closed without one,
     // the screen is as it was. Nothing is saved, closed or started meanwhile.
     if (pending.needs_agent) {
-        open_preferences("agent");
+        open_preferences("account");
         if (m_agent_pane->web_view().host().availability() == Agent::AgentAvailability::Ready)
             start_calibration(pending.printer, pending.filament, pending.spools);
         return;
@@ -1412,28 +1406,11 @@ std::map<std::string, std::string> agent_settings()
 
 } // namespace
 
-void ShellController::open_welcome_back()
-{
-    const std::filesystem::path           data   = std::filesystem::u8path(data_dir());
-    const std::optional<V1Import::Report> report = V1Import::read_report(data);
-    if (!m_installed || m_preferences_open || !report || !report->pending)
-        return;
-    const auto agent_before = agent_settings();
-    // One JusPrin window over the app at a time.
-    m_preferences_open = true;
-    {
-        V1Import::WelcomeBackWindow window(m_frame, *m_theme, *m_workspace, *report);
-        window.ShowModal();
-    }
-    m_preferences_open = false;
-    V1Import::mark_shown(data);
-    // The account check there stores what the server said about the account,
-    // and a new sign-in replaces it; either way the docked agent rebuilds.
-    if (agent_settings() != agent_before)
-        reload_agent_config();
-}
+void ShellController::open_orca_import() { open_import(Home::kOrcaSlicer); }
 
-void ShellController::open_orca_import()
+void ShellController::open_jusprin1_import() { open_import(Home::kJusPrin1); }
+
+void ShellController::open_import(const Home::ImportApp& app)
 {
     if (!m_installed || m_preferences_open)
         return;
@@ -1441,7 +1418,7 @@ void ShellController::open_orca_import()
     m_preferences_open = true;
     bool imported      = false;
     {
-        Home::OrcaImportWindow window(*m_frame, *m_theme, *m_workspace);
+        Home::OrcaImportWindow window(*m_frame, *m_theme, *m_workspace, app);
         window.ShowModal();
         imported = window.imported();
     }
@@ -1986,6 +1963,15 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
             // it is never asked, on a file open or on reopening a saved
             // project from Home.
             wxGetApp().app_config->set_bool("sync_after_load_file_show_flag", false);
+            // OrcaSlicer's cloud login lives in its encrypted file, never the
+            // macOS keychain: a keychain entry made by another build of the
+            // app asks for the login password on every read. OrcaSlicer reads
+            // this at startup before this runs, so the running cloud agent is
+            // switched too, and the next launch takes the stored value.
+            wxGetApp().app_config->set_bool(SETTING_USE_ENCRYPTED_TOKEN_FILE, true);
+            if (NetworkAgent* agent = wxGetApp().getAgent())
+                if (auto orca_cloud = std::dynamic_pointer_cast<OrcaCloudServiceAgent>(agent->get_cloud_agent()))
+                    orca_cloud->set_use_encrypted_token_file(true);
         }
     }
     if (tabpanel == nullptr || main_sizer == nullptr)

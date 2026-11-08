@@ -1,5 +1,7 @@
 #include "McpCatalog.hpp"
 
+#include "../Support/AppFolders.hpp"
+
 #include <cstdlib>
 #include <sstream>
 
@@ -32,20 +34,10 @@ CatalogPaths default_catalog_paths()
     CatalogPaths paths;
 #ifdef _WIN32
     paths.windows = true;
-    const auto profile = env("USERPROFILE");
-    paths.home = profile.empty() ? fs::current_path() : fs::u8path(profile);
-    const auto appdata = env("APPDATA");
-    paths.config_home = appdata.empty() ? paths.home : fs::u8path(appdata);
-#elif defined(__APPLE__)
-    const auto home = env("HOME");
-    paths.home = home.empty() ? fs::current_path() : fs::u8path(home);
-    paths.config_home = paths.home / "Library" / "Application Support";
-#else
-    const auto home = env("HOME");
-    paths.home = home.empty() ? fs::current_path() : fs::u8path(home);
-    const auto xdg = env("XDG_CONFIG_HOME");
-    paths.config_home = xdg.empty() ? paths.home / ".config" : fs::u8path(xdg);
 #endif
+    const UserFolders folders = user_folders();
+    paths.home        = folders.home;
+    paths.config_home = folders.app_data;
     return paths;
 }
 

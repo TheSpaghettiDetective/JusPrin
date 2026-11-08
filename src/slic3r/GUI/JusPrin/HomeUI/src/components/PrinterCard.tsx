@@ -181,7 +181,8 @@ export function PrinterCard({
   printer: PrinterInfo;
   otherNames: string[];
   actions: PrinterActions;
-  // Launch monitor, or a print host's Open printer window.
+  // Open printer window: a Bambu printer's monitor window, or a print host's
+  // page in a window. Either way one window for that printer.
   onLaunchMonitor: (id: string) => void;
   // The Print history filtered to this printer (board history-05).
   onHistory: (id: string) => void;
@@ -255,7 +256,7 @@ export function PrinterCard({
       {(printer.action === 'monitor' || printer.action === 'printer_window') && (
         <button type="button" className="button-secondary launch-monitor" onClick={() => onLaunchMonitor(printer.id)}>
           <MonitorGlyph />
-          {printer.action === 'printer_window' ? 'Open printer window' : 'Launch monitor'}
+          Open printer window
         </button>
       )}
       {(printer.action === 'reconnect' || printer.action === 'connect') && actions.onConnect && (

@@ -60,18 +60,15 @@
     }
 
     // The closing line wraps where the platform's font puts the breaks, so it
-    // is read joined back into one string.
+    // is read joined back into one string. It is drawn last, so it is read
+    // from the end until it is as long as the line it should be.
     static wxString drawn_closing_line(const CheckPrintReportPanel& panel)
     {
-        const wxString expected = CheckPrintReportPanel::closing_line(panel.view());
-        wxString       joined;
-        bool           started = false;
-        for (const wxString& line : panel.drawn_lines()) {
-            if (line.StartsWith(expected.BeforeFirst(':')))
-                started = true;
-            if (started)
-                joined += (joined.empty() ? "" : " ") + line;
-        }
+        const wxString               expected = CheckPrintReportPanel::closing_line(panel.view());
+        const std::vector<wxString>& lines    = panel.drawn_lines();
+        wxString                     joined;
+        for (std::size_t index = lines.size(); index-- > 0 && joined.length() < expected.length();)
+            joined = joined.empty() ? lines[index] : lines[index] + " " + joined;
         return joined;
     }
 
@@ -310,7 +307,9 @@
                 self->check(view.clean == closing_line_order(), "cp_a_every_check_is_named_clean");
                 self->check(!view.supports_generated, "cp_a_no_support_generated");
                 self->check(drew_closing_line(panel), "cp_a_closing_line_is_drawn_whole");
-                self->check(drawn_closing_line(panel).Contains(_L("supports (none generated)")), "cp_a_closing_line_says_none_generated");
+                self->check(drawn_closing_line(panel).StartsWith("Nothing to flag. No supports were needed"),
+                            "cp_a_closing_line_says_no_supports_were_needed");
+                self->check(!drawn_closing_line(panel).Contains("OrcaSlicer"), "cp_a_closing_line_does_not_name_another_program");
                 self->check(drew_line(panel, _L("Time")) && drew_line(panel, _L("Filament")), "cp_a_summary_names_time_and_filament");
                 const std::string context = utf8(dialog.context_label()->GetLabel());
                 self->check(context.find("sliced for") != std::string::npos, "cp_a_header_names_the_printer");
@@ -485,7 +484,7 @@
                     if (view.sections[section].check == PrintCheck::Islands && !view.sections[section].rows.empty())
                         island = CheckPrintReportPanel::RowRef{section, 0};
                 self->check(island.has_value(), "cp_c_floating_slab_is_an_island");
-                self->check(drawn_closing_line(panel).Contains(_L("supports (none generated)")), "cp_c_closing_line_says_none_generated");
+                self->check(drawn_closing_line(panel).StartsWith("No paths cross"), "cp_c_closing_line_leaves_out_supports_under_an_island");
                 self->check(drew_closing_line(panel), "cp_c_closing_line_is_drawn_whole");
                 if (island) {
                     // The island's row moves the layer slider to its height.

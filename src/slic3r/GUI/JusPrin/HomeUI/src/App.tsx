@@ -68,7 +68,13 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   // previous request, not this one.
   const printerActions = useMemo<PrinterActions>(() => {
     const send = (
-      type: 'open_printer_settings' | 'rename_printer' | 'remove_printer' | 'connect_printer' | 'calibrate_printer',
+      type:
+        | 'open_printer_settings'
+        | 'ask_about_printer_settings'
+        | 'rename_printer'
+        | 'remove_printer'
+        | 'connect_printer'
+        | 'calibrate_printer',
       payload: object,
     ) => {
       dispatch({ kind: 'printer_action' });
@@ -77,6 +83,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     return {
       onConnect: (id) => send('connect_printer', { id }),
       onOpenSettings: (id) => send('open_printer_settings', { id }),
+      onAskAboutSettings: (id) => send('ask_about_printer_settings', { id }),
       onCalibrate: (id) => send('calibrate_printer', { id }),
       onRename: (id, name) => send('rename_printer', name === undefined ? { id } : { id, name }),
       onRemove: (id) => send('remove_printer', { id }),

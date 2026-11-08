@@ -6,6 +6,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
+import { formatMoment } from './components/SetupCard';
 import { projectInstructions } from './projectInstructions';
 import { skills } from './skills';
 import {
@@ -139,11 +140,11 @@ function connect(host: MockHost, statePayload: StatePayload = emptyState()) {
   host.deliver('state', statePayload);
 }
 
-// Every way into agent setup asks the shell for Preferences › Agent; nothing
+// Every way into agent setup asks the shell for Preferences › Account; nothing
 // of setup is drawn in the pane itself.
 function expectAgentPreferencesAsked() {
   const host = currentHost!;
-  expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'agent' });
+  expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_preferences', section: 'account' });
   expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
   expect(screen.queryByTestId('setup-api-key')).not.toBeInTheDocument();
   expect(screen.queryByTestId('agent-key-openai')).not.toBeInTheDocument();
@@ -160,11 +161,11 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the AI panel' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
-    expect(screen.getAllByRole('button', { name: 'Hide the Agent panel' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Hide the AI panel' })).toHaveLength(1);
   });
 
   // The project chat's composer shows the host's models; a pick goes to the
@@ -225,7 +226,7 @@ describe('App', () => {
   // says "Reply…", and while answer buttons show it says typing works too.
   it('changes the message field\'s hint as the chat goes on', () => {
     render(<App getTransport={() => host.transport} />);
-    const field = () => screen.getByRole('textbox', { name: 'Message the Agent' });
+    const field = () => screen.getByRole('textbox', { name: 'Message AI' });
     const asked = [
       { id: 'm-1', role: 'user', state: 'complete', text: 'my print failed', attempt: 1 },
       { id: 'm-2', role: 'assistant', state: 'complete', text: 'What happened?\nChoices: It stopped | Not sure', attempt: 1 },
@@ -248,7 +249,7 @@ describe('App', () => {
   it('keeps the unconfigured temporary chat focused on setup and manual settings', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' }, navigation: { focused: true } }));
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
@@ -260,7 +261,7 @@ describe('App', () => {
     ] }));
     expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeInTheDocument();
   });
 
   it('shows connecting, then reconstructs the conversation from host state', () => {
@@ -325,7 +326,7 @@ describe('App', () => {
       { ...marker, id: 'd-2', kind: 'export', conversationId: 'conv-other', fileName: 'elsewhere.gcode.3mf', printerName: '' },
     ] }));
 
-    expect(screen.getByRole('note')).toHaveTextContent('Plate 1 · a71f 8c04 → Garage X1C');
+    expect(screen.getByRole('note')).toHaveTextContent('Plate 1 → Garage X1C');
     expect(screen.queryByText(/elsewhere\.gcode\.3mf/)).not.toBeInTheDocument();
   });
 
@@ -443,7 +444,7 @@ describe('App', () => {
       { id: 'n-1', role: 'note', state: 'complete', text: '', attempt: 1,
         fileReport: { ...fileReport, startedBy: 'agent' as const }, fileReportCard: false },
     ] }));
-    expect(document.querySelector('.message.note')).toHaveTextContent(/^Opened bracket\.3mf · Agent$/);
+    expect(document.querySelector('.message.note')).toHaveTextContent(/^Opened bracket\.3mf · AI$/);
   });
 
   it('places file notes above the original setup offer when no Agent is configured', async () => {
@@ -462,9 +463,9 @@ describe('App', () => {
     // A question answered in the person's place says what that left.
     expect(card).toHaveTextContent('JusPrin answered No to this question.');
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
-    expect(screen.getByLabelText('Message the Agent')).toBeDisabled();
-    await userEvent.click(within(offer).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.getAllByRole('button', { name: /Set up AI/i })).toHaveLength(1);
+    expect(screen.getByLabelText('Message AI')).toBeDisabled();
+    await userEvent.click(within(offer).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByLabelText('Notes about this file')).toBeInTheDocument();
   });
@@ -477,17 +478,17 @@ describe('App', () => {
     ] }));
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
     // One way into setup, under the thread; the card does not repeat it.
     expect(within(screen.getByLabelText('Notes about this file')).queryByRole('button')).toBeNull();
-    expect(screen.getAllByRole('button', { name: /Set up the agent/i })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Set up AI/i })).toHaveLength(1);
   });
 
   it('sends a user message on Enter and streams the reply with stop support', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     await userEvent.type(textarea, 'hello agent');
     fireEvent.keyDown(textarea, { key: 'Enter' });
 
@@ -510,14 +511,17 @@ describe('App', () => {
     const stop = host.lastOfType('stop_generation');
     expect((stop!.payload as { messageId: string }).messageId).toBe('m-2');
     host.deliver('assistant_stopped', { messageId: 'm-2' });
-    expect(screen.getByText('Stopped')).toBeInTheDocument();
+    expect(screen.getByText('Stopped before it finished.')).toBeInTheDocument();
+    // A stopped reply goes again the way a failed one does.
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(host.lastOfType('retry_message')?.payload).toMatchObject({ messageId: 'm-2' });
   });
 
   it('does not send on Shift+Enter or while composing with an IME', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     await userEvent.type(textarea, 'first line');
 
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
@@ -549,6 +553,97 @@ describe('App', () => {
     expect((retry!.payload as { messageId: string }).messageId).toBe('m-2');
   });
 
+  it('offers Sign in on an ended JusPrin sign-in, in Preferences › AI, and no Retry', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'jusprin', model: 'standard', effort: '' } }));
+    host.deliver('message_added', { message: { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-2', inReplyTo: 'm-1', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-2', error: { code: 'invalid_credentials',
+      message: 'Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.', retryable: false } });
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expectAgentPreferencesAsked();
+  });
+
+  it('offers no Sign in when a key of the person’s own was rejected', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'openai', model: 'gpt-5.4-mini', effort: '' } }));
+    host.deliver('message_added', { message: { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-2', inReplyTo: 'm-1', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-2', error: { code: 'invalid_credentials',
+      message: 'The OpenAI API key was rejected. Update the AI configuration and try again.', retryable: false } });
+    expect(screen.getByText(/API key was rejected/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
+  });
+
+  it('says the account is out of credits with Get more credits', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'jusprin', model: 'standard', effort: '' } }));
+    host.deliver('message_added', { message: { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-2', inReplyTo: 'm-1', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-2',
+      error: { code: 'credits_exhausted', message: "You're out of credits.", retryable: false } });
+    expect(screen.getByText("You're out of credits.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_server_page', page: 'prices', from: 'composer' });
+  });
+
+  // Board money-05: the sheet's close asks for the account again; a total that
+  // rose says what was added once, above a box that kept what was typed.
+  it('says once what a purchase added after the sheet closes, and keeps the draft', async () => {
+    const account = (total: number) => ({
+      credits: { total, lots: [{ kind: 'pack', credits: total, granted: total, expires_at: null }] },
+      plan: null, v1_subscription: null, usage_30d: { credits: 0, days: [], activity: [] },
+    });
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'jusprin', model: 'slicer-1', effort: '' } }));
+    host.deliver('model_catalog', {
+      defaultProvider: 'jusprin',
+      providers: [{ id: 'jusprin', label: 'JusPrin', defaultModel: 'slicer-1', state: 'ready',
+        models: [{ id: 'slicer-1', label: 'Expert', efforts: [], tier: 'expert', credits: 5 }] }],
+    });
+    host.deliver('account', { account: account(2), chatTitles: {} });
+    await userEvent.type(screen.getByRole('textbox'), 'Why is the first layer lifting?');
+    await userEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_server_page', page: 'prices', from: 'composer' });
+
+    host.deliver('account', { account: account(1002), chatTitles: {} });
+    expect(screen.getByText('+1,000 credits')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toHaveValue('Why is the first layer lifting?');
+    // A later answer adds nothing new to say.
+    host.deliver('account', { account: account(1010), chatTitles: {} });
+    expect(screen.getByText('+1,000 credits')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    expect(screen.queryByText('+1,000 credits')).toBeNull();
+  });
+
+  it('says nothing when the sheet closes without a purchase', async () => {
+    const account = { credits: { total: 300, lots: [{ kind: 'signup', credits: 300, granted: 500, expires_at: null }] },
+      plan: null, v1_subscription: null, usage_30d: { credits: 0, days: [], activity: [] } };
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'jusprin', model: 'standard', effort: '' } }));
+    host.deliver('account', { account, chatTitles: {} });
+    host.deliver('message_added', { message: { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-2', inReplyTo: 'm-1', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-2',
+      error: { code: 'credits_exhausted', message: "You're out of credits.", retryable: false } });
+    await userEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
+    host.deliver('account', { account, chatTitles: {} });
+    expect(screen.queryByText(/^\+/)).toBeNull();
+  });
+
+  it('offers Retry only on the last reply when replies were stopped', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ conversation: [
+      { id: 'm-1', role: 'user', state: 'complete', text: 'one', attempt: 1 },
+      { id: 'm-2', role: 'assistant', state: 'stopped', text: 'Half', attempt: 1 },
+      { id: 'm-3', role: 'user', state: 'complete', text: 'two', attempt: 1 },
+      { id: 'm-4', role: 'assistant', state: 'stopped', text: 'Also half', attempt: 1 },
+    ] }));
+    expect(screen.getAllByText('Stopped before it finished.')).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
+  });
+
   it('keeps history clear and provides setup from the chat list when the Agent is not configured', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(
@@ -561,16 +656,16 @@ describe('App', () => {
 
     expect(screen.queryByText('The Agent isn’t set up yet')).not.toBeInTheDocument();
     expect(screen.getByText('older message')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
     expect(screen.getByTestId('agent-setup-bar')).toBeInTheDocument();
-    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByText('older message')).toBeInTheDocument();
 
     // The chat list's row goes to the same place, and the list stays.
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     const before = host.received.filter((envelope) => envelope.type === 'shell_action').length;
-    await userEvent.click(screen.getByRole('button', { name: /Set up the agent/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Set up AI/ }));
     expect(host.received.filter((envelope) => envelope.type === 'shell_action')).toHaveLength(before + 1);
     expectAgentPreferencesAsked();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
@@ -581,16 +676,16 @@ describe('App', () => {
     connect(host, emptyState({ agent: { status: 'unavailable' } }));
 
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
-    expect(screen.getByText('No agent connected')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set up the agent' })).toBeEnabled();
+    expect(screen.getByText('No AI connected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Set up AI' })).toBeEnabled();
     expect(screen.getByText('NOT SET UP')).toBeInTheDocument();
     // The card stays, as a label for the preset in use and nothing more.
     const card = screen.getByTestId('current-setup');
     expect(card).toHaveTextContent('Test Printer 0.4');
-    expect(card).toHaveTextContent('No agent configured · using the selected preset.');
+    expect(card).toHaveTextContent('No AI configured · using the selected preset.');
     expect(within(card).queryByRole('button')).toBeNull();
     // The ask box stays in place, inert.
-    const composer = screen.getByLabelText('Message the Agent');
+    const composer = screen.getByLabelText('Message AI');
     expect(composer).toBeDisabled();
     expect(composer).toHaveAttribute('placeholder', 'ask, or steer this chat\u2026');
   });
@@ -610,11 +705,11 @@ describe('App', () => {
     expect(screen.getByTestId('work-work-4')).toHaveTextContent('Slicing plate 1');
     // The thread names who edited; the card states only what is in force.
     const card = screen.getByTestId('current-setup');
-    expect(card).toHaveTextContent('No agent configured');
+    expect(card).toHaveTextContent('No AI configured');
     expect(card).not.toHaveTextContent(/Edited by|Claude Code/);
     // Setup takes the composer's place: there is nothing to type to.
-    expect(screen.queryByLabelText('Message the Agent')).not.toBeInTheDocument();
-    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up the agent' }));
+    expect(screen.queryByLabelText('Message AI')).not.toBeInTheDocument();
+    await userEvent.click(within(screen.getByTestId('agent-setup-bar')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     expect(screen.getByTestId('work-work-4')).toBeInTheDocument();
   });
@@ -622,7 +717,7 @@ describe('App', () => {
   it('opens Preferences › Agent from the offer and draws the composer once an agent is there, sending nothing', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ agent: { status: 'unavailable' } }));
-    await userEvent.click(within(screen.getByTestId('agent-not-configured')).getByRole('button', { name: 'Set up the agent' }));
+    await userEvent.click(within(screen.getByTestId('agent-not-configured')).getByRole('button', { name: 'Set up AI' }));
     expectAgentPreferencesAsked();
     // The window is native and over the pane: the pane keeps its offer.
     expect(screen.getByTestId('agent-not-configured')).toBeInTheDocument();
@@ -630,7 +725,7 @@ describe('App', () => {
     const sentBefore = host.received.length;
     host.deliver('agent_status', { status: 'ready' });
     expect(screen.queryByTestId('agent-not-configured')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Message the Agent')).toBeEnabled();
+    expect(screen.getByLabelText('Message AI')).toBeEnabled();
     expect(host.received.slice(sentBefore).filter((envelope) => envelope.type !== 'draft_update')).toEqual([]);
   });
 
@@ -650,6 +745,15 @@ describe('App', () => {
     host.deliver('hello_reject', { supportedVersions: [99], message: 'version 99 only' });
     expect(screen.getByTestId('bridge-error')).toBeInTheDocument();
     expect(screen.getByText('version 99 only')).toBeInTheDocument();
+  });
+
+  it('says the AI chat did not start when the host never answers, the reason in Diagnostics', async () => {
+    render(<App getTransport={() => host.transport} handshakeTimeoutMs={1} />);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+    const pane = screen.getByTestId('bridge-error');
+    expect(pane).toHaveTextContent("The AI chat didn't start. Try again, and restart JusPrin if it keeps happening.");
+    expect(pane.querySelector('.pane-state-detail')).not.toHaveTextContent('hello handshake');
+    expect(pane.querySelector('.diagnostics-code')).toHaveTextContent('The native host did not answer the hello handshake.');
   });
 
   it('shows the no-transport bridge error when window.wx is absent', () => {
@@ -746,7 +850,10 @@ describe('App', () => {
     expect(screen.getAllByText(/The canvas shows your current project\./)).toHaveLength(1);
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
     await userEvent.click(screen.getAllByRole('button', { name: 'Restore and resume' })[0]);
-    expect(screen.getByRole('dialog')).toHaveTextContent('earlier model and settings');
+    // The dialog names the time as the saved card does, never the raw stamp.
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(`Put the project back to ${formatMoment('2026-10-03T12:00:00Z')}?`);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Your current version stays in Version history.');
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('2026-10-03T');
     expect(host.lastOfType('restore_conversation')).toBeUndefined();
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
     expect(host.lastOfType('restore_conversation')).toBeUndefined();
@@ -756,6 +863,8 @@ describe('App', () => {
     expect(host.lastOfType('draft_update')?.payload).toMatchObject({
       append: expect.stringContaining('Excerpt:'),
     });
+    expect((host.lastOfType('draft_update')?.payload as { append: string }).append)
+      .toContain(`(saved ${formatMoment('2026-10-03T12:00:00Z')})`);
     expect(host.lastOfType('user_message')).toBeUndefined();
   });
 
@@ -771,7 +880,7 @@ describe('App', () => {
     }));
     expect(screen.getAllByRole('note')).toHaveLength(1);
     const boundary = screen.getByRole('note');
-    expect(boundary).toHaveTextContent('There have been project updates since this chat. Restore its saved project version to continue.');
+    expect(boundary).toHaveTextContent('The project has changed since this chat. To continue here, JusPrin puts the project back the way it was then.');
     expect(within(boundary).getByRole('button', { name: 'Restore and resume' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
@@ -783,7 +892,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Attach a file' })).toBeNull();
     // The boundary ends the conversation; it is not part of the setup card.
     expect(within(screen.getByTestId('current-setup')).queryByRole('note')).toBeNull();
-    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('project updates');
+    expect(screen.getByTestId('current-setup')).not.toHaveTextContent('The project has changed');
   });
 
   it('keeps an earlier chat locked against typing and sending', async () => {
@@ -838,11 +947,11 @@ describe('App', () => {
       activeConversationId: 'conv-b', viewedConversationId: 'conv-a',
       chatResume: { status: 'unavailable' },
     }));
-    expect(screen.queryByText(/There have been project updates/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/The project has changed/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Restore and resume' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Resume saved setup' })).not.toBeInTheDocument();
     const boundary = screen.getByRole('note');
-    expect(boundary).toHaveTextContent('This chat has no recoverable project checkpoint. Its saved state is missing or corrupt.');
+    expect(boundary).toHaveTextContent("JusPrin can't find the project version this chat was working on, so this chat can't continue. Start a new chat to keep working.");
     expect(within(boundary).getByRole('button', { name: 'Return to active chat' })).toBeEnabled();
     expect(within(boundary).getByRole('button', { name: 'Ask current chat about this' })).toBeEnabled();
     expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
@@ -959,13 +1068,13 @@ describe('App', () => {
   it('keeps a draft when browsing chats and opens configuration for a connected agent', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host);
-    await userEvent.type(screen.getByRole('textbox', { name: 'Message the Agent' }), 'Unsaved thought');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Message AI' }), 'Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     await userEvent.click(screen.getByRole('button', { name: 'Open chat: Conversation 1' }));
-    expect(screen.getByRole('textbox', { name: 'Message the Agent' })).toHaveValue('Unsaved thought');
+    expect(screen.getByRole('textbox', { name: 'Message AI' })).toHaveValue('Unsaved thought');
     await userEvent.click(screen.getByRole('button', { name: 'Back to chats' }));
     // A connected agent is changed in Preferences › Agent, over the panel.
-    await userEvent.click(screen.getByRole('button', { name: /Configure Agent/ }));
+    await userEvent.click(screen.getByRole('button', { name: /AI settings/ }));
     expectAgentPreferencesAsked();
     expect(screen.getByRole('heading', { name: 'Chats' })).toBeInTheDocument();
   });
@@ -984,8 +1093,8 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Chat actions' }));
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeEnabled();
-    host.deliver('bridge_error', { code: 'busy', message: 'Resolve pending actions before deleting this chat.' });
-    expect(screen.getByRole('alert')).toHaveTextContent('Resolve pending actions');
+    host.deliver('bridge_error', { code: 'busy', message: 'This chat is still working. Stop it or let it finish, then delete it.' });
+    expect(screen.getByRole('alert')).toHaveTextContent('This chat is still working.');
   });
 
   it('replaces the chat list when the native project changes', async () => {
@@ -1002,7 +1111,7 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} draftDebounceMs={1} />);
     connect(host, emptyState({ draft: 'recovered draft' }));
 
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     expect(textarea).toHaveValue('recovered draft');
 
     await userEvent.type(textarea, ' plus more');
@@ -1018,7 +1127,7 @@ describe('App', () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ conversation: toolCallConversation() }));
     const band = screen.getByTestId('current-setup').parentElement!;
-    const thread = screen.getByRole('log', { name: 'Agent conversation' });
+    const thread = screen.getByRole('log', { name: 'AI conversation' });
     expect(band).toHaveClass('pinned-setup');
     expect(band).not.toHaveClass('pinned-setup--scrolled');
 
@@ -1056,7 +1165,7 @@ describe('App', () => {
     expect(card()).toHaveTextContent("Strong - it'll bear weight");
     expect(card()).toHaveTextContent('Four walls and gyroid infill for strength');
     expect(card()).not.toHaveTextContent('Wall loops');
-    expect(card()).toHaveTextContent('Test Printer 0.4 · Generic PLA · 1 setting changed');
+    expect(card()).toHaveTextContent('Test Printer 0.4 with Generic PLA. 1 setting differs from the presets.');
     expect(card()).toHaveTextContent('~3h 50m');
     expect(card()).toHaveTextContent('47 g');
   });
@@ -1106,7 +1215,7 @@ describe('App', () => {
     expect(screen.queryByText('make it strong')).not.toBeInTheDocument();
     expect(screen.queryByTestId('current-setup')).not.toBeInTheDocument();
     // The panel can still be put away from here.
-    await userEvent.click(screen.getByRole('button', { name: 'Hide the Agent panel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide the AI panel' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'collapse_agent_pane' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Back to chat' }));
@@ -1235,7 +1344,7 @@ describe('App', () => {
   it('asks the host to compute estimates for the plate the card shows', async () => {
     render(<App getTransport={() => host.transport} />);
     connect(host, emptyState({ context: applied }));
-    await userEvent.click(screen.getByRole('button', { name: 'Compute estimates' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Slice to see time and filament' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({
       action: 'compute_setup_estimates', sessionId: '1', plateId: '11' });
   });
@@ -1295,7 +1404,7 @@ describe('App attachments', () => {
     expect(screen.getByText('notes.txt')).toBeInTheDocument();
 
     // A message may be sent with the attachment even when the text is empty.
-    const textarea = screen.getByLabelText('Message the Agent');
+    const textarea = screen.getByLabelText('Message AI');
     fireEvent.keyDown(textarea, { key: 'Enter' });
     const sent = host.lastOfType('user_message');
     expect(sent).toBeTruthy();

@@ -233,7 +233,7 @@ TEST_CASE("an OpenRouter agent posts the same Responses body to OpenRouter, with
         if (auto event = agent->poll(); event && event->kind == AgentEventKind::Failed)
             failed = event;
     REQUIRE(failed);
-    CHECK(failed->error->message == "The OpenRouter API key was rejected. Update the Agent configuration and try again.");
+    CHECK(failed->error->message == "The OpenRouter API key was rejected. Update the AI configuration and try again.");
 }
 
 TEST_CASE("a configured model and endpoint replace the row's defaults", "[agent][openai][openrouter]")

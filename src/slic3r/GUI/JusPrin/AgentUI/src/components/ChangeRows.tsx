@@ -78,7 +78,7 @@ function title(run: ChangeRun): ReactNode {
 }
 
 function meta(run: ChangeRun): string {
-  const who = run.last.external ? run.last.client || 'External tool' : run.last.actor === 'agent' ? 'Agent' : 'you';
+  const who = run.last.external ? run.last.client || 'External tool' : run.last.actor === 'agent' ? 'AI' : 'you';
   const context = run.last.kind === 'setting' && run.last.preset ? `in ${run.last.preset}` : run.last.location;
   const parts = [context ? `${who}, ${context}` : who];
   if (run.count > 1) parts.push(`${run.count} steps merged`);
@@ -158,7 +158,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
         // where it cannot be cut: a long step name gives way, not the number.
         const summary = stepName(step.last.label);
         entries.push(
-          <section className="agent-change-summary" aria-label="Agent changes" key={step.first.seq}>
+          <section className="agent-change-summary" aria-label="AI changes" key={step.first.seq}>
             <button type="button" aria-expanded={summaryExpanded} onClick={() => setSummaryExpanded(!summaryExpanded)}>
               <span className="settings-changes-icon" aria-hidden="true" />
               <span className="agent-change-summary-label">{summary}</span>
@@ -185,7 +185,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
       const visible = settingsExpanded ? group : group.slice(0, 4);
       const remaining = group.length - visible.length;
       entries.push(
-        <section className="settings-changes" aria-label="Agent setting changes" key={group[0].first.seq}>
+        <section className="settings-changes" aria-label="AI setting changes" key={group[0].first.seq}>
           <div className="settings-changes-heading">
             <span className="settings-changes-icon" aria-hidden="true" />
             <span>{visible.length} {remaining > 0 ? `of ${group.length}` : ''} settings</span>
@@ -235,7 +235,7 @@ export function ChangeRows({ changes, restorePoints = [], onRevert }: {
             <span className="change-icon" aria-hidden="true">✎</span>
             <div className="change-text">
               <span className="change-title">{title(lead)}</span>
-              <span className="change-meta">{[...followed, 'Agent', ...(time ? [time] : [])].join(' · ')}</span>
+              <span className="change-meta">{[...followed, 'AI', ...(time ? [time] : [])].join(' · ')}</span>
             </div>
             {onRevert && points.has(tail.last.seq) && (
               <span className="change-revert-action">

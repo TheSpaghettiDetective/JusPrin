@@ -6,14 +6,14 @@ OnboardingStep next_onboarding_step(const OnboardingProgress& progress, const On
 {
     if (progress.status != OnboardingStatus::Unfinished)
         return OnboardingStep::Hidden;
-    // The welcome shows once whatever is already set up: a v1 account, a
-    // key, or a file opened at launch.
+    // The welcome shows once whatever is already set up: a key, or a file
+    // opened at launch.
     if (!progress.welcome_left)
         return OnboardingStep::Welcome;
     if (facts.import_result_open)
         return OnboardingStep::Printers;
     // The app needs one printer, and each of these brought one.
-    if (progress.printer_chosen || facts.v1_imported || facts.printer_from_file)
+    if (progress.printer_chosen || facts.printer_from_file)
         return OnboardingStep::Hidden;
     return OnboardingStep::Printers;
 }
@@ -22,7 +22,21 @@ PrintersScreen printers_screen(const OnboardingProgress& progress, const Onboard
 {
     if (facts.import_result_open)
         return PrintersScreen::ImportResult;
-    return facts.orca_printers && !progress.fresh_start ? PrintersScreen::OrcaImport : PrintersScreen::AddPrinter;
+    switch (progress.way) {
+    case PrintersWay::AddPrinter: return PrintersScreen::AddPrinter;
+    case PrintersWay::V1Import:
+        if (facts.v1_printers)
+            return PrintersScreen::V1Import;
+        break;
+    case PrintersWay::OrcaImport:
+        if (facts.orca_printers)
+            return PrintersScreen::OrcaImport;
+        break;
+    case PrintersWay::None: break;
+    }
+    if (facts.v1_printers)
+        return PrintersScreen::V1Import;
+    return facts.orca_printers ? PrintersScreen::OrcaImport : PrintersScreen::AddPrinter;
 }
 
 HomeAgentCard home_agent_card(bool agent_configured, bool signed_in, bool account_card_dismissed)
@@ -50,11 +64,31 @@ const char* to_string(OnboardingStep step)
 const char* to_string(PrintersScreen screen)
 {
     switch (screen) {
+    case PrintersScreen::V1Import: return "v1_import";
     case PrintersScreen::OrcaImport: return "orca_import";
     case PrintersScreen::ImportResult: return "import_result";
     case PrintersScreen::AddPrinter: break;
     }
     return "add_printer";
+}
+
+const char* to_string(PrintersWay way)
+{
+    switch (way) {
+    case PrintersWay::V1Import: return "v1_import";
+    case PrintersWay::OrcaImport: return "orca_import";
+    case PrintersWay::AddPrinter: return "add_printer";
+    case PrintersWay::None: break;
+    }
+    return "";
+}
+
+PrintersWay printers_way_from_string(const std::string& name)
+{
+    for (PrintersWay way : {PrintersWay::V1Import, PrintersWay::OrcaImport, PrintersWay::AddPrinter})
+        if (name == to_string(way))
+            return way;
+    return PrintersWay::None;
 }
 
 const char* to_string(HomeAgentCard card)

@@ -139,9 +139,9 @@ void PrinterMenu::show_root(const Ptr& self)
     case SetupCommands::ConnectionState::NotConnected:
         machine.decoration.status      = StatusTone::Neutral;
         machine.decoration.status_word = _L("Not connected");
-        // Connect… is deferred to a later slice, so the sub-line states the
-        // consequence rather than offering an action that would do nothing.
-        machine.decoration.sub_label       = _L("Prints go to a card.");
+        // Connect… is deferred to a later slice, so the sub-line says what the
+        // person can do instead: Print refuses without a connection.
+        machine.decoration.sub_label       = _L("Export the G-code to print from a card.");
         machine.decoration.sub_label_role  = TextRole::Label;
         machine.decoration.sub_label_faint = true;
         break;
@@ -211,21 +211,35 @@ void PrinterMenu::show_root(const Ptr& self)
     if (has_other_printers)
         rows.push_back(separator());
 
-    // Printer settings and Add a printer open the printer conversation.
-    // Settings are about the selected preset, named as Orca keys it: the
+    // Printer settings opens Orca's settings window on the selected printer;
+    // the row under it asks the printer conversation about them. The
+    // conversation is about the selected preset, named as Orca keys it: the
     // header shows a stock profile's model instead, which names no preset.
-    // Orca's placeholder is no printer at all, so its settings are adding one.
+    // Orca's placeholder is no printer at all, so both rows are adding one.
     const bool placeholder = wxGetApp().preset_bundle->printers.get_selected_preset().is_default;
+    const std::string preset = placeholder ? std::string() : printer.preset_name;
     HeaderMenuItem settings;
     settings.label  = _L("Printer settings…");
-    settings.invoke = [preset = placeholder ? std::string() : printer.preset_name] {
+    settings.invoke = [placeholder] {
+        if (!placeholder) {
+            SetupCommands::open_settings_tab(Preset::TYPE_PRINTER);
+            return;
+        }
         if (ShellController* shell = installed_shell())
-            shell->open_printer_conversation(preset);
+            shell->open_printer_conversation();
     };
     rows.push_back(std::move(settings));
 
+    HeaderMenuItem ask;
+    ask.label  = _L("Ask AI about printer settings…");
+    ask.invoke = [preset] {
+        if (ShellController* shell = installed_shell())
+            shell->open_printer_conversation(preset);
+    };
+    rows.push_back(std::move(ask));
+
     // A calibration of the first slot's filament on this printer; which test
-    // is the assistant's question. Board 1 puts it after Printer settings….
+    // is the assistant's question. Board 1 puts it after the settings rows.
     HeaderMenuItem calibrate;
     calibrate.label   = _L("Calibrate…");
     calibrate.enabled = !placeholder && printer.valid;

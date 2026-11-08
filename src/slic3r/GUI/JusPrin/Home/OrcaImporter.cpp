@@ -11,6 +11,8 @@
 #include "slic3r/GUI/JusPrin/Printers/NamedPrinters.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Shell/SetupCommands.hpp"
+#include "slic3r/GUI/JusPrin/Support/AppFolders.hpp"
+#include "slic3r/GUI/JusPrin/V1Import/V1Import.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
 
@@ -67,28 +69,69 @@ const char* orca_import_kind(OrcaImportItem::Kind kind)
     return "printer";
 }
 
-std::string orca_import_reason(const OrcaImportItem& item)
+std::string orca_import_reason(const ImportApp& app, const OrcaImportItem& item)
 {
     using Reason = OrcaImportItem::Reason;
     const wxString base = wxString::FromUTF8(item.base);
+    const wxString name = wxString::FromUTF8(app.name);
     switch (item.reason) {
-    case Reason::Unreadable: return into_u8(_L("Not imported. The file couldn't be read."));
+    // These two can go another way next time, so they say how to try again.
+    case Reason::Unreadable:
+        return into_u8(wxString::Format(_L("JusPrin couldn't read this file. To try again, choose File › Import › Import from %s…"), name));
     case Reason::NoVersion: return into_u8(_L("Not imported. The file has no version."));
     case Reason::NotAPreset: return into_u8(_L("Not imported. It isn't a printer, filament or process preset."));
+    // The file keeps only what the person changed from its base, so without
+    // the base there is nothing to apply the changes to.
     case Reason::MissingBase:
         switch (item.kind) {
         case OrcaImportItem::Kind::Filament:
-            return into_u8(wxString::Format(_L("This filament is built on %s, which JusPrin doesn't have."), base));
+            return into_u8(wxString::Format(_L("Not imported, because it's based on %s, which JusPrin doesn't have. It stays in %s. "
+                                               "When you prepare a print, choose a similar filament instead."),
+                                            base, name));
         case OrcaImportItem::Kind::Process:
-            return into_u8(wxString::Format(_L("These settings are built on %s, which JusPrin doesn't have."), base));
+            return into_u8(wxString::Format(_L("Not imported, because they're based on %s, which JusPrin doesn't have. They stay in %s. "
+                                               "When you prepare a print, choose similar print settings instead."),
+                                            base, name));
         case OrcaImportItem::Kind::Printer: break;
         }
-        return into_u8(wxString::Format(_L("This printer is built on %s, which JusPrin doesn't have."), base));
-    case Reason::NotLoaded: return into_u8(_L("Not imported. JusPrin couldn't load it."));
+        return into_u8(wxString::Format(_L("Not imported, because it's based on %s, which JusPrin doesn't have. It stays in %s. "
+                                           "When you add a printer, choose a similar one instead."),
+                                        base, name));
+    case Reason::NotLoaded:
+        return into_u8(wxString::Format(_L("JusPrin couldn't load this preset. To try again, choose File › Import › Import from %s…"), name));
     case Reason::None: break;
     }
     return {};
 }
+
+std::string orca_import_detail(const ImportApp& app, const OrcaImportItem& item)
+{
+    if (item.reason != OrcaImportItem::Reason::MissingBase)
+        return orca_import_reason(app, item);
+    // "It's" for print settings too: the name above says which item it is.
+    const wxString base = wxString::FromUTF8(item.base);
+    switch (item.kind) {
+    case OrcaImportItem::Kind::Filament:
+        return into_u8(wxString::Format(_L("It's based on %s, which JusPrin doesn't have. When you prepare a print, choose a similar "
+                                           "filament instead."),
+                                        base));
+    case OrcaImportItem::Kind::Process:
+        return into_u8(wxString::Format(_L("It's based on %s, which JusPrin doesn't have. When you prepare a print, choose similar "
+                                           "print settings instead."),
+                                        base));
+    case OrcaImportItem::Kind::Printer: break;
+    }
+    return into_u8(wxString::Format(_L("It's based on %s, which JusPrin doesn't have. When you add a printer, choose a similar one "
+                                       "instead."),
+                                    base));
+}
+
+fs::path orca_folder()
+{
+    return installed_app_folder(orca_data_folders(user_folders()), default_app_folder("OrcaSlicer"), "JUSPRIN_ORCA_DATADIR");
+}
+
+fs::path import_app_folder(const ImportApp& app) { return &app == &kJusPrin1 ? V1Import::v1_folder() : orca_folder(); }
 
 std::vector<std::string> OrcaProfileSource::printer_names() const
 {
@@ -102,28 +145,28 @@ OrcaImporter::OrcaImporter(MainFrame& frame) : m_frame(frame) {}
 
 OrcaImporter::~OrcaImporter() = default;
 
-OrcaProfileSource OrcaImporter::detect(const std::optional<fs::path>& picked)
+OrcaProfileSource OrcaImporter::detect(const ImportApp& app, const std::optional<fs::path>& picked)
 {
     OrcaProfileSource       source;
+    source.app = &app;
     std::optional<fs::path> account;
     fs::path                root;
     if (picked) {
         source.root = picked->u8string();
         root        = *picked;
-        account     = orca_account_folder_for_pick(*picked);
+        account     = orca_account_folder_for_pick(app, *picked);
     } else {
-        const fs::path data = fs::u8path(data_dir());
-        root                = data.parent_path() / "OrcaSlicer";
+        root = import_app_folder(app);
         std::error_code error;
-        if (!fs::is_directory(root, error) || root == data)
+        if (root.empty() || !fs::is_directory(root, error) || root == fs::u8path(data_dir()))
             return source;
         source.root = root.u8string();
-        account     = orca_account_folder(root);
+        account     = orca_account_folder(app, root);
     }
     if (account)
         source.presets = scan_orca_presets(*account);
-    source.selected = orca_selected_printer(root);
-    source.ticked   = orca_profile_printers(root, account, [this]() -> const auto& { return profile_catalog().candidates(); });
+    source.selected = orca_selected_printer(app, root);
+    source.ticked   = orca_profile_printers(app, root, account, [this]() -> const auto& { return profile_catalog().candidates(); });
     if (!source.ticked.empty()) {
         const PresetBundle& presets = preset_bundle();
         for (OrcaImportItem& item : source.ticked)
@@ -151,9 +194,11 @@ OrcaImportCatalog OrcaImporter::catalog() const
     return catalog;
 }
 
-std::vector<OrcaImportItem> OrcaImporter::bring(std::vector<OrcaImportItem> ticked, const std::vector<std::string>& files,
-                                                const std::string& preferred, Selection selection)
+std::vector<OrcaImportItem> OrcaImporter::bring(const OrcaProfileSource& source, std::vector<OrcaImportItem> ticked,
+                                                const std::vector<std::string>& files, Selection selection)
 {
+    const ImportApp&  app       = *source.app;
+    const std::string preferred = source.selected;
     // Naming a printer selects it, so the project's choices are put back
     // afterwards.
     PresetBundle&                  presets        = preset_bundle();
@@ -179,15 +224,19 @@ std::vector<OrcaImportItem> OrcaImporter::bring(std::vector<OrcaImportItem> tick
     std::string problem;
     const bool  installed = SetupCommands::install_printer_profiles(plater, profiles, problem);
     if (!installed)
-        BOOST_LOG_TRIVIAL(error) << "Installing the profiles of OrcaSlicer's printers failed: " << problem;
+        BOOST_LOG_TRIVIAL(error) << "Installing the profiles of " << app.name << "'s printers failed: " << problem;
 
-    std::vector<OrcaImportItem>        items = import_files(files);
+    std::vector<OrcaImportItem>        items = import_files(app, files);
+    // JusPrin 1's Bambu printers connect through Bambu's network file, not
+    // through their presets.
+    if (&app == &kJusPrin1)
+        V1Import::copy_network_settings(fs::u8path(source.root), fs::u8path(data_dir()));
     const std::map<std::string, std::string> saved = name_ticked(ticked, installed);
     items.insert(items.end(), std::make_move_iterator(ticked.begin()), std::make_move_iterator(ticked.end()));
 
     if (selection == Selection::Kept) {
         if (presets.printers.get_selected_preset_name() != kept_printer && !SetupCommands::select_printer_preset(plater, kept_printer))
-            throw std::logic_error("The project's printer " + kept_printer + " was gone after an OrcaSlicer import");
+            throw std::logic_error("The project's printer " + kept_printer + " was gone after an import from " + app.name);
         for (std::size_t slot = 0; slot < kept_filaments.size() && slot < presets.filament_presets.size(); ++slot)
             if (presets.filament_presets[slot] != kept_filaments[slot])
                 SetupCommands::select_filament_preset(plater, slot, kept_filaments[slot]);
@@ -195,7 +244,7 @@ std::vector<OrcaImportItem> OrcaImporter::bring(std::vector<OrcaImportItem> tick
             SetupCommands::select_process_preset(plater, kept_process);
         return items;
     }
-    // The printer OrcaSlicer had selected, otherwise the first one brought.
+    // The printer the app had selected, otherwise the first one brought.
     const auto saved_as = [&saved](const OrcaImportItem& item) {
         if (!item.vendor.empty())
             return saved.at(item.name);
@@ -212,60 +261,28 @@ std::vector<OrcaImportItem> OrcaImporter::bring(std::vector<OrcaImportItem> tick
     return items;
 }
 
-void OrcaImporter::retry(std::vector<OrcaImportItem>& result, const std::string& preferred, Selection selection)
+OrcaImporter::FolderChoice OrcaImporter::choose_folder(const ImportApp& app, wxWindow* parent)
 {
-    // A failed ticked printer is installed again; a failed file is imported
-    // again. One that would fail the same way stays as it is.
-    std::vector<OrcaImportItem> ticked;
-    std::vector<std::string>    failed;
-    for (const OrcaImportItem& item : result)
-        if (orca_import_retryable(item)) {
-            if (item.vendor.empty())
-                failed.push_back(item.source);
-            else
-                ticked.push_back(item);
-        }
-    // The printer the first try selected stays selected, unless this try
-    // brings OrcaSlicer's selected printer.
-    const auto imported_printer = [](const OrcaImportItem& item) {
-        return item.kind == OrcaImportItem::Kind::Printer && item.outcome == OrcaImportItem::Outcome::Imported;
-    };
-    const bool        had_printer = std::any_of(result.begin(), result.end(), imported_printer);
-    const std::string kept        = preset_bundle().printers.get_selected_preset_name();
-    // Each failed item is replaced by its new outcome, in place. bring lists
-    // the files' items before the ticked ones.
-    std::vector<OrcaImportItem> again = bring(std::move(ticked), failed, preferred, selection);
-    const bool brought_selected = std::any_of(again.begin(), again.end(), [&](const OrcaImportItem& item) {
-        return imported_printer(item) && item.name == preferred;
-    });
-    if (selection == Selection::Brought && had_printer && !brought_selected)
-        SetupCommands::select_printer_preset(*wxGetApp().plater(), kept);
-    auto next_file   = again.begin();
-    auto next_ticked = again.begin() + std::ptrdiff_t(failed.size());
-    for (OrcaImportItem& item : result)
-        if (orca_import_retryable(item))
-            item = item.vendor.empty() ? std::move(*next_file++) : std::move(*next_ticked++);
-}
-
-OrcaImporter::FolderChoice OrcaImporter::choose_folder(wxWindow* parent)
-{
-    wxDirDialog dialog(parent, _L("Choose your OrcaSlicer folder"), wxEmptyString, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    const wxString name = wxString::FromUTF8(app.name);
+    wxDirDialog dialog(parent, wxString::Format(_L("Choose your %s folder"), name), wxEmptyString, wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
     if (dialog.ShowModal() != wxID_OK)
         return {};
     const fs::path picked = fs::u8path(into_u8(dialog.GetPath()));
-    if (!detect(picked).has_printers())
-        return {std::nullopt, into_u8(_L("JusPrin found no OrcaSlicer printers in that folder."))};
+    if (!detect(app, picked).has_printers())
+        return {std::nullopt, into_u8(wxString::Format(
+                                  _L("JusPrin found no %s printers in that folder. If %s keeps its settings somewhere else, choose that folder."),
+                                  name, name))};
     return {picked, {}};
 }
 
-bool OrcaImporter::installs_profiles(const std::vector<OrcaImportItem>& ticked, const std::vector<std::string>& files)
+bool OrcaImporter::installs_profiles(const ImportApp& app, const std::vector<OrcaImportItem>& ticked, const std::vector<std::string>& files)
 {
     if (std::any_of(ticked.begin(), ticked.end(), [](const OrcaImportItem& item) { return item.outcome != OrcaImportItem::Outcome::AlreadyThere; }))
         return true;
     const OrcaImportCatalog lookup = catalog();
     std::vector<std::string> wanted;
     for (const std::string& file : files)
-        if (!orca_preset_in_jusprin(file, lookup))
+        if (!orca_preset_in_jusprin(app, file, lookup))
             wanted.push_back(file);
     const std::vector<std::string> bases = orca_printer_bases(wanted);
     return std::any_of(bases.begin(), bases.end(), [this](const std::string& base) { return missing_base(base) != nullptr; });
@@ -317,7 +334,7 @@ std::map<std::string, std::string> OrcaImporter::name_ticked(std::vector<OrcaImp
             item.outcome     = OrcaImportItem::Outcome::Imported;
             item.reason      = OrcaImportItem::Reason::None;
         } else {
-            BOOST_LOG_TRIVIAL(error) << "Selecting " << item.model << " from OrcaSlicer's printer list failed after its profile was "
+            BOOST_LOG_TRIVIAL(error) << "Selecting " << item.model << " from a ticked printer list failed after its profile was "
                                      << (installed ? "installed" : "not installed");
             item.outcome = OrcaImportItem::Outcome::NotImported;
             item.reason  = OrcaImportItem::Reason::NotLoaded;
@@ -326,7 +343,7 @@ std::map<std::string, std::string> OrcaImporter::name_ticked(std::vector<OrcaImp
     return saved;
 }
 
-std::vector<OrcaImportItem> OrcaImporter::import_files(const std::vector<std::string>& files)
+std::vector<OrcaImportItem> OrcaImporter::import_files(const ImportApp& app, const std::vector<std::string>& files)
 {
     PresetBundle&           presets = preset_bundle();
     AppConfig&              config  = *wxGetApp().app_config;
@@ -336,7 +353,7 @@ std::vector<OrcaImportItem> OrcaImporter::import_files(const std::vector<std::st
     const fs::path staging = fs::temp_directory_path() / ("jusprin-orca-import-" + std::to_string(wxGetProcessId()));
     fs::remove_all(staging);
     fs::create_directories(staging);
-    std::vector<OrcaImportItem> items = plan_orca_import(files, lookup, staging);
+    std::vector<OrcaImportItem> items = plan_orca_import(app, files, lookup, staging);
 
     std::vector<std::string> pending;
     for (const OrcaImportItem& item : items)

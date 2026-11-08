@@ -496,9 +496,11 @@ std::optional<Agent::SessionSkill> PrinterConversation::connection_skill() const
     const SavedPrinter printer = saved(m_printer_name);
     if (printer.name.empty())
         return std::nullopt;
+    // Either comes with issue_report_open: Kenneth, 2026-11-06, offered it for
+    // all printer connections.
     if (printer.vendor_id == "BBL")
         return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectBambu, {"issue_report_open"}};
-    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {}};
+    return Agent::SessionSkill{Agent::Protocol::SkillTrigger::kConnectPrintHost, {"issue_report_open"}};
 }
 
 std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler, ToolActivity& activity)
@@ -563,8 +565,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
         // A call written for a print host names an address instead of an id,
         // and may be naming a printer the app has seen.
         if (handler == ToolHandler::PrinterHostConnect)
-            return ToolError{"unknown_device", "This is a Bambu Lab printer, connected with printer_bambu_connect. " +
-                                                   unknown_device_text(info, arguments.value("address", std::string()))};
+            return unknown_device_error(info, arguments.value("address", std::string()),
+                                        "This is a Bambu Lab printer, connected with printer_bambu_connect. ");
         // The person names the printer as its list shows it, so its name
         // finds it as surely as its id.
         const std::string device = arguments.value("deviceId", std::string());
@@ -572,7 +574,7 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
             return offered(candidate) && (candidate.id == device || candidate.name == device);
         });
         if (found == info.candidates.end())
-            return ToolError{"unknown_device", unknown_device_text(info, device)};
+            return unknown_device_error(info, device);
         activity.title = "Waiting for the access code for " + found->name;
         arguments["deviceId"] = found->id;
         arguments["target"]   = found->name;
@@ -592,7 +594,8 @@ std::optional<ToolError> PrinterConversation::preflight_tool(ToolHandler handler
     return std::nullopt;
 }
 
-std::string PrinterConversation::unknown_device_text(const PrinterConnectionInfo& info, const std::string& asked) const
+ToolError PrinterConversation::unknown_device_error(const PrinterConnectionInfo& info, const std::string& asked,
+                                                    const std::string& lead) const
 {
     // What it was asked for may be a printer the app has seen and does not
     // offer. An empty id or address is not a match for one with none known.
@@ -600,8 +603,8 @@ std::string PrinterConversation::unknown_device_text(const PrinterConnectionInfo
         return !offered(candidate) && !asked.empty() && (candidate.id == asked || candidate.name == asked || candidate.address == asked);
     });
     if (wanted != info.candidates.end())
-        return not_offered_text(*wanted) + " It cannot be connected as it is." +
-               (in_cloud_mode(*wanted) ? std::string(" ") + kPersonsChoice : std::string());
+        return ToolError{"unknown_device", lead + not_offered_text(*wanted) + " It cannot be connected as it is." +
+                                               (in_cloud_mode(*wanted) ? std::string(" ") + kPersonsChoice : std::string())};
 
     std::string listed;
     std::string others;
@@ -613,8 +616,11 @@ std::string PrinterConversation::unknown_device_text(const PrinterConnectionInfo
             others += " " + not_offered_text(candidate);
             cloud = cloud || in_cloud_mode(candidate);
         }
-    return (listed.empty() ? search_text() : "Pass the deviceId of one of these printers in LAN mode: " + listed + ".") + others +
-           (cloud ? std::string(" ") + kPersonsChoice : std::string());
+    const std::string tail = others + (cloud ? std::string(" ") + kPersonsChoice : std::string());
+    if (listed.empty())
+        return ToolError{"unknown_device", lead + search_text() + tail};
+    return ToolError{"unknown_device", lead + "Pass the deviceId of one of these printers in LAN mode: " + listed + "." + tail,
+                     json{{"shown", "Pick one of these printers to connect."}}.dump()};
 }
 
 std::string PrinterConversation::search_text() const
@@ -1050,11 +1056,11 @@ IssueLink issue_link(const std::string& title, const std::string& body, const st
 
 Result PrinterConversation::open_issue(const json& arguments)
 {
-    // The tool is offered only with the connection skill, and the footer
-    // below is the Bambu Lab one: another connection type's needs its own.
+    // The tool is offered only with a connection skill.
     const std::optional<Agent::SessionSkill> skill = connection_skill();
-    if (!skill || skill->trigger != Agent::Protocol::SkillTrigger::kConnectBambu)
-        throw std::logic_error("issue_report_open ran in a printer chat without the Bambu Lab connection skill in force");
+    if (!skill)
+        throw std::logic_error("issue_report_open ran in a printer chat without a connection skill in force");
+    const bool bambu = skill->trigger == Agent::Protocol::SkillTrigger::kConnectBambu;
     const SavedPrinter          printer = saved(m_printer_name);
     const PrinterConnectionInfo info    = m_backend.connection(m_printer_name);
     std::vector<std::string>    known{printer.device_id, info.device_id, info.address};
@@ -1062,9 +1068,13 @@ Result PrinterConversation::open_issue(const json& arguments)
         known.push_back(candidate.id);
         known.push_back(candidate.address);
     }
-    // The app's own facts, which the model may have wrong or left out.
-    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() + "\nConnection: Bambu Lab, LAN mode\nPrinter: " +
-                               printer.model;
+    // The app's own facts, which the model may have wrong or left out. A
+    // print host is named once the chat or its saved connection says which
+    // program it is.
+    const std::string& type = m_host_type.empty() ? info.host_type : m_host_type;
+    const std::string  host = type == "moonraker" ? "Moonraker" : type == "octoprint" ? "OctoPrint" : "print host";
+    const std::string footer = "\n\n---\nApp version: " + m_host.app_version() +
+                               "\nConnection: " + (bambu ? "Bambu Lab, LAN mode" : host) + "\nPrinter: " + printer.model;
     const IssueLink link = issue_link(for_public(arguments.at("title").get<std::string>(), known),
                                     for_public(arguments.at("body").get<std::string>(), known), footer);
     if (!m_host.open_in_browser(link.url))

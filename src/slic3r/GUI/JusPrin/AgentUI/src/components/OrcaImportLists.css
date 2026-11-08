@@ -74,6 +74,66 @@ p.orca-import-count {
   min-width: 0;
 }
 
+/* A result: the printers imported, then a line on the rest, then what
+   wasn't imported and, on asking, why (boards first-run 17 and 17b). */
+.orca-import-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orca-import-skipped {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
+.orca-import-details-toggle {
+  flex: none;
+  height: var(--button-link-height);
+  padding: var(--button-link-padding);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.orca-import-details-toggle:hover {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
+}
+
+/* Under the line, in from its icon: each item's name, and why under it. */
+.orca-import-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 0 24px;
+  list-style: none;
+}
+
+.orca-import-details li {
+  display: flex;
+  flex-direction: column;
+}
+
+.orca-import-details-name {
+  font: var(--font-body-small);
+  color: var(--text-primary);
+}
+
+.orca-import-details-reason {
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
 /* An icon beside text, the size of a button's. */
 .orca-import-icon {
   display: inline-block;
@@ -91,4 +151,5 @@ p.orca-import-count {
 .orca-import-icon--printer { -webkit-mask-image: url('@resources/jusprin/ui/icons/printer.svg'); mask-image: url('@resources/jusprin/ui/icons/printer.svg'); }
 .orca-import-icon--check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
 .orca-import-icon--done { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); color: var(--status-success); }
+.orca-import-icon--new { -webkit-mask-image: url('@resources/jusprin/ui/icons/plus.svg'); mask-image: url('@resources/jusprin/ui/icons/plus.svg'); color: var(--action-primary); }
 .orca-import-icon--warning { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); color: var(--status-warning); }

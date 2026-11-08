@@ -27,15 +27,30 @@ export function messageCostSentence(model: ModelOptionInfo | undefined, account:
   return cost === undefined ? undefined : `Each message you send in this chat costs ${creditCount(cost)}.`;
 }
 
+export const TIER_NAMES: Record<string, string> = { basic: 'Standard', expert: 'Expert' };
+
 // The sign-up offer, wherever someone can make an account. The gateway grants
 // a new account 500 credits (JUSPRIN_V2_SIGNUP_CREDITS) for a month from the
-// day it is granted, and an Expert message costs 5 (its model aliases,
-// checked on staging 2026-11-05). Nothing asks the gateway before sign-in.
+// day it is granted. A Standard message costs 1 and an Expert message 5 (the
+// gateway's model aliases, checked on staging 2026-11-07). Nothing asks the
+// gateway before sign-in.
+// No plan is named: someone who has not signed up has none to choose.
 export const SIGNUP_CREDITS = 500;
+const STANDARD_MESSAGE_CREDITS = 1;
 const EXPERT_MESSAGE_CREDITS = 5;
 export const SIGNUP_OFFER = `Sign up and get ${creditNumber(SIGNUP_CREDITS)} free credits`;
 export const SIGNUP_SCALE =
-  `Good for your first month. That’s about ${SIGNUP_CREDITS / EXPERT_MESSAGE_CREDITS} messages to the agent on Expert.`;
+  `Good for your first month: about ${SIGNUP_CREDITS / STANDARD_MESSAGE_CREDITS} ${TIER_NAMES.basic} ` +
+  `or ${SIGNUP_CREDITS / EXPERT_MESSAGE_CREDITS} ${TIER_NAMES.expert} messages.`;
+// The price of a message on Account. GET /account carries no prices, so these
+// are the same constants as the offer's.
+export const MESSAGE_PRICES =
+  `Each message you send costs credits: ${TIER_NAMES.basic} ${STANDARD_MESSAGE_CREDITS}, ` +
+  `${TIER_NAMES.expert} ${EXPERT_MESSAGE_CREDITS}.`;
+// What a free account gets once the first month is over, under the offer
+// where it is drawn at rest. 50 a month is the free plan's monthly grant,
+// confirmed for the welcome on 2026-11-06; nothing here reads it.
+export const SIGNUP_AFTER = 'After that, 50 free credits a month. No card needed.';
 
 // "4 December".
 const longDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
@@ -49,8 +64,6 @@ export function signedInCredits(account: CreditAccount, now: Date = new Date()):
     return `You got ${creditNumber(signup.granted)} free credits for signing up, good until ${longDate(signup.expires_at)}.`;
   return `You have ${creditCount(account.credits.total)}.`;
 }
-
-export const TIER_NAMES: Record<string, string> = { basic: 'Standard', expert: 'Expert' };
 
 // Why the next message of this chat cannot be paid, or nothing when it can.
 export function sendBlock(account: CreditAccount | null | undefined, model: ModelOptionInfo | undefined): string | undefined {

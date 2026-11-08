@@ -164,10 +164,10 @@ struct Fixture
 
 } // namespace
 
-TEST_CASE("signing in sends the browser to the authorize page with PKCE and a loopback redirect", "[agent][account]")
+TEST_CASE("signing in sends the browser through Google to the authorize page with PKCE and a loopback redirect", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     CHECK(f.sign_in->phase() == CloudSignInPhase::Browser);
     REQUIRE(f.machine.authorizations.size() == 1);
     const CloudAuthorization& sent = f.machine.authorizations.front();
@@ -178,15 +178,14 @@ TEST_CASE("signing in sends the browser to the authorize page with PKCE and a lo
     CHECK(sent.token_url == "https://jusprin.test/o/token/");
     CHECK(sent.code_verifier == "the-verifier");
     CHECK(sent.state == "the-state");
-    CHECK_THAT(sent.authorize_url, ContainsSubstring("https://jusprin.test/o/authorize/?response_type=code&client_id=JusPrin2"));
-    CHECK_THAT(sent.authorize_url, ContainsSubstring("redirect_uri=http%3A%2F%2F127.0.0.1%3A" + port + "%2Fcallback"));
-    CHECK_THAT(sent.authorize_url, ContainsSubstring("scope=read%20write"));
-    CHECK_THAT(sent.authorize_url, ContainsSubstring("code_challenge=the-challenge&code_challenge_method=S256"));
+    // The authorize page's query rides inside Google's "next"; the Google
+    // test below reads it there.
+    CHECK_THAT(sent.authorize_url, StartsWith("https://jusprin.test/accounts/google/login/?"));
     // The verifier never travels in the browser.
     CHECK_THAT(sent.authorize_url, !ContainsSubstring("the-verifier"));
     CHECK(f.sign_in->browser_url() == sent.authorize_url);
     // One at a time.
-    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::Google));
 }
 
 TEST_CASE("signing in with Google sends the browser to Google, then on to the authorize page", "[agent][account]")
@@ -213,14 +212,14 @@ TEST_CASE("a sign-in that cannot listen for the browser does not start", "[agent
 {
     Fixture f;
     f.machine.port_free = false;
-    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::Google));
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
 }
 
 TEST_CASE("a token the browser brings back is checked, stored and handed over as an agent", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     f.browser_returns("tok-1");
 
     // Who the account is, and which models it is served, both with the token.
@@ -249,7 +248,7 @@ TEST_CASE("a token the browser brings back is checked, stored and handed over as
 TEST_CASE("an account without the default model gets the first one listed", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     f.browser_returns("tok-1");
     f.machine.answer(kModels, 200, models_body({{"slicer-2", "responses"}, {"slicer-3", "anthropic"}}));
     f.machine.answer(kWho, 200, me_body("alex@example.com"));
@@ -262,7 +261,7 @@ TEST_CASE("an account without the default model gets the first one listed", "[ag
 TEST_CASE("an account with no models cannot sign in, and nothing is stored", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     f.browser_returns("tok-1");
     f.machine.answer(kWho, 200, me_body("alex@example.com"));
     f.machine.answer(kModels, 200, models_body({}));
@@ -276,7 +275,7 @@ TEST_CASE("an account with no models cannot sign in, and nothing is stored", "[a
 TEST_CASE("a sign-in the browser did not finish fails and stores nothing", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     f.machine.browser({false, {}, "access_denied"});
     const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
     REQUIRE(outcome.has_value());
@@ -291,7 +290,7 @@ TEST_CASE("a sign-in the browser did not finish fails and stores nothing", "[age
 TEST_CASE("a server that cannot be reached leaves the account as it was", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     f.browser_returns("tok-1");
     f.machine.answer(kWho, 0, "");
     f.machine.answer(kModels, 503, "");
@@ -345,7 +344,7 @@ TEST_CASE("nothing to check without a stored sign-in", "[agent][account]")
 TEST_CASE("cancelling a sign-in drops what the browser or server says afterwards", "[agent][account]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     auto late_browser = f.machine.browser;
     f.sign_in->cancel();
     CHECK(f.machine.cancels == 1);
@@ -735,6 +734,29 @@ TEST_CASE("every gateway reply names its chat with 32 hex digits from the projec
     CHECK(chat_header("").empty());
 }
 
+TEST_CASE("every gateway reply carries its chat's title, percent-encoded, for Billing and usage", "[agent][account]")
+{
+    const auto title_header = [](const std::string& chat_key, const std::string& title) {
+        std::vector<AgentHttpRequest>             requests;
+        std::vector<IAgentHttpTransport::EventFn> callbacks;
+        AgentServicePtr                           agent = account_agent(kFormatAnthropic, requests, callbacks);
+        AgentRequest                              request;
+        JusPrinTest::kept_nowhere(request);
+        request.request_id = "turn";
+        request.chat_key   = chat_key;
+        request.chat_title = title;
+        request.user_text  = "hello";
+        REQUIRE(agent->start(request));
+        REQUIRE(requests.size() == 1);
+        return requests[0].header("X-JusPrin-Chat-Title");
+    };
+    CHECK(title_header("p-1/c-1", "Warping on a 30% PETG panel") == "Warping%20on%20a%2030%25%20PETG%20panel");
+    CHECK(title_header("p-1/c-1", "Café ✓") == "Caf%C3%A9%20%E2%9C%93");
+    // A chat with no title yet, and a request of no chat, send none.
+    CHECK(title_header("p-1/c-1", "").empty());
+    CHECK(title_header("", "Orphan").empty());
+}
+
 TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][account]")
 {
     const auto failure = [](unsigned status) {
@@ -756,8 +778,11 @@ TEST_CASE("the gateway's refusals read as the account's, not a key's", "[agent][
     CHECK(expired.code == "invalid_credentials");
     CHECK_THAT(expired.message, ContainsSubstring("sign-in has ended"));
     CHECK_FALSE(expired.retryable);
+    // A refusal for payment without the gateway's own code is the same want
+    // of credits: the Get more credits button goes with its code.
     const AgentError quota = failure(402);
-    CHECK(quota.code == "quota_exhausted");
+    CHECK(quota.code == "credits_exhausted");
+    CHECK(quota.message == "You're out of credits.");
     CHECK_FALSE(quota.retryable);
     // Upstream trouble the gateway reports as its own is the service's.
     CHECK(failure(502).code == "service_unavailable");
@@ -999,11 +1024,11 @@ TEST_CASE("cancelling an email sign-in drops the server's late answer", "[agent]
 TEST_CASE("an email sign-in waits for the browser's to finish, and the other way round", "[agent][account][email]")
 {
     Fixture f;
-    REQUIRE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
     CHECK_FALSE(f.sign_in->start_email("alex@example.com"));
     f.sign_in->cancel();
     REQUIRE(f.sign_in->start_email("alex@example.com"));
-    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::SignInPage));
+    CHECK_FALSE(f.sign_in->start(CloudBrowserStart::Google));
     CHECK_FALSE(f.sign_in->start_email(""));
     CHECK_FALSE(f.sign_in->submit_code("418203")); // no code was sent
 }

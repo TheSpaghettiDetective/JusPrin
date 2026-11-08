@@ -41,12 +41,14 @@ std::string shown_path(const fs::path& path)
 
 } // namespace
 
-OrcaImportWindow::OrcaImportWindow(MainFrame& frame, const ShellTheme& theme, Workspace::IWorkspace& workspace)
-    : wxDialog(&frame, wxID_ANY, _L("Import from OrcaSlicer"), wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE)
+OrcaImportWindow::OrcaImportWindow(MainFrame& frame, const ShellTheme& theme, Workspace::IWorkspace& workspace, const ImportApp& app)
+    : wxDialog(&frame, wxID_ANY, wxString::Format(_L("Import from %s"), wxString::FromUTF8(app.name)), wxDefaultPosition, wxDefaultSize,
+               wxDEFAULT_DIALOG_STYLE)
+    , m_app(app)
     , m_importer(frame)
-    , m_looked_in(fs::u8path(data_dir()).parent_path() / "OrcaSlicer")
+    , m_looked_in(import_app_folder(app))
 {
-    SetName("JusPrin Import from OrcaSlicer");
+    SetName(wxString::Format("JusPrin Import from %s", wxString::FromUTF8(app.name)));
     SetClientSize(FromDIP(wxSize(theme.metrics().orca_import.width, theme.metrics().orca_import.height)));
     SetSizer(new wxBoxSizer(wxVERTICAL));
     look(std::nullopt);
@@ -57,7 +59,7 @@ OrcaImportWindow::OrcaImportWindow(MainFrame& frame, const ShellTheme& theme, Wo
     m_persistence     = std::make_unique<Agent::ProjectPersistence>(workspace, std::move(storage));
     m_view = new AgentWebView(this, theme, workspace, *m_persistence, Agent::load_agent_runtime(wxGetApp().app_config).availability,
                               {}, {}, AgentPageMode::OrcaImport);
-    m_view->SetName(_L("Import from OrcaSlicer"));
+    m_view->SetName(GetTitle());
     GetSizer()->Add(m_view, 1, wxEXPAND);
 
     Agent::AgentHost& host = m_view->host();
@@ -92,31 +94,14 @@ bool OrcaImportWindow::imported() const
 
 void OrcaImportWindow::look(const std::optional<fs::path>& picked)
 {
-    m_source = m_importer.detect(picked);
-    m_printers.clear();
-    m_new_printers = m_new_filaments = m_new_processes = 0;
-    // scan_orca_presets lists the printers' files first, then the
-    // filaments' and the processes'.
-    const OrcaImportCatalog  catalog   = m_importer.catalog();
-    const OrcaPresetFiles&   presets   = m_source.presets;
-    const std::size_t        filaments = presets.printers.size() + presets.filaments.size();
-    for (std::size_t index = 0; index < presets.files.size(); ++index) {
-        const bool there = orca_preset_in_jusprin(presets.files[index], catalog);
-        if (index < presets.printers.size())
-            m_printers.emplace_back(presets.printers[index], there);
-        int& count = index < presets.printers.size() ? m_new_printers : index < filaments ? m_new_filaments : m_new_processes;
-        count += there ? 0 : 1;
-    }
-    for (const OrcaImportItem& item : m_source.ticked) {
-        const bool there = item.outcome == OrcaImportItem::Outcome::AlreadyThere;
-        m_printers.emplace_back(item.name, there);
-        m_new_printers += there ? 0 : 1;
-    }
+    m_source = m_importer.detect(m_app, picked);
+    m_offer  = orca_import_offer(m_app, m_source.presets, m_source.ticked, m_importer.catalog(),
+                                 [this](const std::string& base) { return m_importer.missing_base(base) != nullptr; });
 }
 
 json OrcaImportWindow::state() const
 {
-    json payload{{"kind", "orca_import"}, {"error", m_error}};
+    json payload{{"kind", "orca_import"}, {"app", m_app.name}, {"error", m_error}};
     if (m_result) {
         payload["screen"] = "imported";
         json lines        = json::array();
@@ -126,8 +111,7 @@ json OrcaImportWindow::state() const
                                  {"name", item.name},
                                  {"renamedTo", item.renamed_to},
                                  {"imported", item.outcome == OrcaImportItem::Outcome::Imported},
-                                 {"reason", orca_import_reason(item)},
-                                 {"retryable", orca_import_retryable(item)}});
+                                 {"reason", orca_import_detail(m_app, item)}});
         payload["result"] = std::move(lines);
         return payload;
     }
@@ -137,18 +121,26 @@ json OrcaImportWindow::state() const
         return payload;
     }
     payload["folder"] = shown_path(fs::u8path(m_source.root));
-    if (m_printers.empty()) {
+    if (!m_source.has_printers()) {
         payload["screen"] = "no_printers";
         return payload;
     }
-    const bool nothing_new = m_new_printers + m_new_filaments + m_new_processes == 0;
-    payload["screen"]       = nothing_new ? "nothing_new" : "found";
-    json printers           = json::array();
-    for (const auto& [name, there] : m_printers)
+    payload["screen"] = m_offer.nothing_new() ? "nothing_new" : "found";
+    json printers     = json::array();
+    for (const auto& [name, there] : m_offer.printers)
         printers.push_back({{"name", name}, {"already", there}});
-    payload["printers"]     = std::move(printers);
-    payload["newPrinters"]  = m_new_printers;
-    payload["newFilaments"] = m_new_filaments;
+    json skipped = json::array();
+    for (const OrcaImportItem& item : m_offer.skipped)
+        skipped.push_back({{"kind", orca_import_kind(item.kind)},
+                           {"name", item.name},
+                           {"renamedTo", ""},
+                           {"imported", false},
+                           {"reason", orca_import_reason(m_app, item)}});
+    payload["printers"]    = std::move(printers);
+    payload["newPrinters"] = m_offer.new_printers;
+    payload["filaments"]   = m_offer.filaments;
+    payload["processes"]   = m_offer.processes;
+    payload["skipped"]     = std::move(skipped);
     return payload;
 }
 
@@ -163,8 +155,6 @@ bool OrcaImportWindow::on_page_message(const std::string& type, const json& payl
         CallAfter([this] { EndModal(wxID_OK); });
     else if (action == "import")
         CallAfter([this, printers = payload.at("printers").get<std::vector<std::string>>()] { import(printers); });
-    else if (action == "retry")
-        CallAfter([this] { retry(); });
     else if (action == "choose_folder")
         CallAfter([this] { choose_folder(); });
     else
@@ -178,31 +168,21 @@ void OrcaImportWindow::import(const std::vector<std::string>& printers)
     // Installing a printer profile reloads every preset, so the project's
     // unsaved preset changes are saved or dropped first, as OrcaSlicer asks
     // before it loads other presets.
-    if (m_importer.installs_profiles(chosen.profile_printers, chosen.files) &&
-        !wxGetApp().check_and_save_current_preset_changes(_L("Import from OrcaSlicer"),
+    if (m_importer.installs_profiles(m_app, chosen.profile_printers, chosen.files) &&
+        !wxGetApp().check_and_save_current_preset_changes(wxString::Format(_L("Import from %s"), wxString::FromUTF8(m_app.name)),
                                                           _L("Importing these printers loads their profiles, which replaces "
                                                              "unsaved changes to the project's settings."),
                                                           false))
         return;
     m_error.clear();
-    m_result = m_importer.bring(chosen.profile_printers, chosen.files, m_source.selected, OrcaImporter::Selection::Kept);
-    SetTitle(_L("Imported from OrcaSlicer"));
-    m_view->host().refresh_page_state();
-}
-
-void OrcaImportWindow::retry()
-{
-    if (!m_result)
-        throw std::logic_error("The Import from OrcaSlicer window retried with no result on screen");
-    // The window is modal, so nothing was edited since import() asked about
-    // unsaved changes.
-    m_importer.retry(*m_result, m_source.selected, OrcaImporter::Selection::Kept);
+    m_result = m_importer.bring(m_source, chosen.profile_printers, chosen.files, OrcaImporter::Selection::Kept);
+    SetTitle(wxString::Format(_L("Imported from %s"), wxString::FromUTF8(m_app.name)));
     m_view->host().refresh_page_state();
 }
 
 void OrcaImportWindow::choose_folder()
 {
-    const OrcaImporter::FolderChoice choice = m_importer.choose_folder(this);
+    const OrcaImporter::FolderChoice choice = m_importer.choose_folder(m_app, this);
     if (choice.folder) {
         m_error.clear();
         look(choice.folder);

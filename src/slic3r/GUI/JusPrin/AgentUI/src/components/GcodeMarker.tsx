@@ -1,11 +1,6 @@
 import { GcodeMarkerInfo } from '../bridge/protocol';
 import { chatTimestamp } from './ChatNavigation';
 
-// The leading eight hex digits in the two groups the history reads them as.
-export function shortHash(hash: string): string {
-  return `${hash.slice(0, 4)} ${hash.slice(4, 8)}`;
-}
-
 // What a marker does: its "history" link opens the Print history at its
 // G-code, and the history's Open in chat comes back to it, marked.
 export interface MarkerActions {
@@ -19,7 +14,7 @@ export function GcodeMarker({ marker, actions }: { marker: GcodeMarkerInfo; acti
   const time = chatTimestamp(marker.at);
   const subject = marker.kind === 'export'
     ? `${marker.fileName} · exported`
-    : `${marker.plateName || `Plate ${marker.plateIndex + 1}`} · ${shortHash(marker.hash)} → ${marker.printerName}`;
+    : `${marker.plateName || `Plate ${marker.plateIndex + 1}`} → ${marker.printerName}`;
   const revealed = actions?.revealedId === marker.id;
   return (
     <div className={revealed ? 'gcode-marker revealed' : 'gcode-marker'} role="note" data-item-id={marker.id}>

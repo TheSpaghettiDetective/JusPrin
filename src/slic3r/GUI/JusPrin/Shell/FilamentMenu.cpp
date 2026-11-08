@@ -31,13 +31,13 @@ wxString middot() { return wxString::FromUTF8(" \xC2\xB7 "); }
 
 wxString nozzle_text(double nozzle) { return wxString::Format("%g", nozzle); }
 
-// "PRUSA MK4 · 0.4", or the name alone on a printer whose nozzles differ,
-// where one number would be wrong for some slots.
+// "PRUSA MK4, 0.4 MM NOZZLE", or the name alone on a printer whose nozzles
+// differ, where one number would be wrong for some slots.
 wxString printer_caption(const SetupCommands::PrinterInfo& printer, double nozzle)
 {
     wxString caption = printer.nickname.Upper();
     if (nozzle > 0.)
-        caption += middot() + nozzle_text(nozzle);
+        caption += wxString::Format(_L(", %s MM NOZZLE"), nozzle_text(nozzle));
     return caption;
 }
 
@@ -366,7 +366,7 @@ void FilamentMenu::show_slots(const Ptr& self)
 
     std::vector<HeaderMenuItem> rows;
     add_tray_row(self, rows);
-    rows.push_back(title_row(wxString::Format(_L("FILAMENTS ON %s"), printer_caption(printer, shared_nozzle(printer)))));
+    rows.push_back(title_row(wxString::Format(_L("FILAMENTS FOR %s"), printer_caption(printer, shared_nozzle(printer)))));
     for (const auto& slot : slots) {
         HeaderMenuItem row;
         // Number, dot, name, as the design reads. The number is drawn ahead
@@ -389,7 +389,7 @@ void FilamentMenu::show_slots(const Ptr& self)
 
     HeaderMenuItem add;
     add.separator  = true;
-    add.label      = _L("Add a slot");
+    add.label      = _L("Add another filament to this print");
     add.keeps_open = true;
     add.invoke     = [self] {
         if (!self->m_host.plater) return;
@@ -423,7 +423,7 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
         rows.push_back(std::move(back));
     } else {
         add_tray_row(self, rows);
-        rows.push_back(title_row(wxString::Format(_L("FILAMENT ON %s"), printer_caption(printer, printer.nozzle))));
+        rows.push_back(title_row(wxString::Format(_L("FILAMENT FOR %s"), printer_caption(printer, printer.nozzle))));
     }
     // The colour row sits directly under the title: colour is the most
     // frequent change. The popup counts rows it places, and a bare separator
@@ -432,7 +432,7 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
                                                [](const HeaderMenuItem& row) { return !(row.title && row.label.empty()); }));
     menu->set_header_builder([self, here](wxWindow* parent) { return build_colour_row(self, parent, here); }, colour_after);
 
-    rows.push_back(title_row(_L("INSTALLED")));
+    rows.push_back(title_row(_L("FILAMENTS FOR THIS PRINTER")));
     for (const auto& filament : SetupCommands::compatible_filaments()) {
         HeaderMenuItem row;
         row.label            = filament.alias;
@@ -466,16 +466,23 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
     };
     rows.push_back(std::move(other));
 
+    // Orca's settings window on this slot's filament, and the row under it
+    // asks the filament conversation about them.
     HeaderMenuItem settings;
     settings.label  = _L("Filament settings…");
-    settings.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
+    settings.invoke = [slot] { SetupCommands::open_filament_settings(slot); };
+    rows.push_back(std::move(settings));
+
+    HeaderMenuItem ask;
+    ask.label  = _L("Ask AI about filament settings…");
+    ask.invoke = [slot, preset = current.filament.preset_name, shown = current.filament.alias.ToStdString()] {
         if (ShellController* shell = installed_shell())
             shell->open_filament_help(slot, preset, shown);
     };
-    rows.push_back(std::move(settings));
+    rows.push_back(std::move(ask));
 
     // This slot's filament on the printer in use; which test is the
-    // assistant's question. Board 1 puts it after Filament settings….
+    // assistant's question. Board 1 puts it after the settings rows.
     HeaderMenuItem calibrate;
     calibrate.label  = _L("Calibrate this filament…");
     calibrate.invoke = [printer  = std::string(SetupCommands::current_printer().nickname.ToUTF8()),
@@ -489,7 +496,7 @@ void FilamentMenu::show_slot(const Ptr& self, std::size_t slot, bool from_list)
     // slot list with the new slot open; a slot's own view does not offer it.
     if (!from_list) {
         HeaderMenuItem add;
-        add.label      = _L("Add a slot");
+        add.label      = _L("Add another filament to this print");
         add.keeps_open = true;
         add.invoke     = [self] {
             if (!self->m_host.plater) return;

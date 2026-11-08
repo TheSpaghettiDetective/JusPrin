@@ -37,6 +37,13 @@ export function ToolStatus({ state, children }: { state: ToolStateName; children
   );
 }
 
+// A refusal whose message is written for the model can carry the card's own
+// line in its details as "shown".
+function shownLine(activity: ToolActivityInfo): string | undefined {
+  const shown = activity.error?.details?.shown;
+  return typeof shown === 'string' && shown ? shown : undefined;
+}
+
 export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props) {
   const { state } = activity;
   const stale = isStale(activity);
@@ -47,8 +54,8 @@ export function ToolActivityCard({ activity, onCancel, readOnly = false }: Props
       ? `Running… · ${percent}%`
       : state === 'failed'
         ? stale
-          ? 'The project changed before this could run. Ask the Agent again.'
-          : activity.error?.message ?? stateLabels.failed
+          ? 'The project changed before this could run. Ask AI again.'
+          : shownLine(activity) ?? activity.error?.message ?? stateLabels.failed
         : stateLabels[state];
 
   return (

@@ -11,6 +11,9 @@ namespace Slic3r::GUI::JusPrin::Home {
 
 namespace fs = std::filesystem;
 
+const ImportApp kOrcaSlicer{"orcaslicer", "OrcaSlicer", "OrcaSlicer", "Orca copy"};
+const ImportApp kJusPrin1{"jusprin1", "JusPrin 1", "JusPrin", "JusPrin 1 copy"};
+
 namespace {
 
 // OrcaSlicer's own names (Preset.hpp, PresetBundle.hpp), repeated here so
@@ -52,8 +55,8 @@ std::optional<nlohmann::json> read_json(const fs::path& file)
     return json;
 }
 
-// OrcaSlicer.conf: JSON, then possibly a "# MD5 checksum" line, which reading
-// one value leaves unread.
+// OrcaSlicer.conf (JusPrin.conf for JusPrin 1): JSON, then possibly a
+// "# MD5 checksum" line, which reading one value leaves unread.
 std::optional<nlohmann::json> read_config(const fs::path& file)
 {
     std::ifstream stream(file);
@@ -85,30 +88,33 @@ bool has_json_files(const fs::path& folder)
 
 // The name an import gives the `copy`th renamed copy of `name`; the 0th is
 // the name itself.
-std::string copy_name(const std::string& name, int copy)
+std::string copy_name(const ImportApp& app, const std::string& name, int copy)
 {
     if (copy == 0)
         return name;
-    return name + (copy == 1 ? " (Orca copy)" : " (Orca copy " + std::to_string(copy) + ")");
+    const std::string label = app.copy;
+    return name + (copy == 1 ? " (" + label + ")" : " (" + label + " " + std::to_string(copy) + ")");
 }
+
+fs::path config_file(const ImportApp& app, const fs::path& root) { return root / (std::string(app.key) + ".conf"); }
 
 // See orca_preset_in_jusprin. An import renames only a taken name, so the
 // copies are looked for only while JusPrin has the name before them.
-bool in_jusprin(Kind kind, const std::string& name, const std::string& base, const OrcaImportCatalog& catalog)
+bool in_jusprin(const ImportApp& app, Kind kind, const std::string& name, const std::string& base, const OrcaImportCatalog& catalog)
 {
     // JusPrin's copy inherits the base as JusPrin loaded it.
     std::string loaded = base.empty() ? base : catalog.base(kind, base);
     if (loaded.empty())
         loaded = base;
-    for (int copy = 0; catalog.has(kind, copy_name(name, copy)); ++copy)
-        if (catalog.inherits(kind, copy_name(name, copy)) == loaded)
+    for (int copy = 0; catalog.has(kind, copy_name(app, name, copy)); ++copy)
+        if (catalog.inherits(kind, copy_name(app, name, copy)) == loaded)
             return true;
     return false;
 }
 
 } // namespace
 
-bool orca_preset_in_jusprin(const std::string& file, const OrcaImportCatalog& catalog)
+bool orca_preset_in_jusprin(const ImportApp& app, const std::string& file, const OrcaImportCatalog& catalog)
 {
     const fs::path path = fs::u8path(file);
     const std::optional<nlohmann::json> json = read_json(path);
@@ -117,10 +123,10 @@ bool orca_preset_in_jusprin(const std::string& file, const OrcaImportCatalog& ca
     std::string name = string_value(*json, "name");
     if (name.empty())
         name = path.stem().u8string();
-    return in_jusprin(kind_of_folder(path), name, string_value(*json, "inherits"), catalog);
+    return in_jusprin(app, kind_of_folder(path), name, string_value(*json, "inherits"), catalog);
 }
 
-std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& files, const OrcaImportCatalog& catalog,
+std::vector<OrcaImportItem> plan_orca_import(const ImportApp& app, const std::vector<std::string>& files, const OrcaImportCatalog& catalog,
                                              const fs::path& staging)
 {
     std::vector<OrcaImportItem> items;
@@ -160,7 +166,7 @@ std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& fil
             continue;
         nlohmann::json& json = contents[index];
         item.base            = string_value(json, "inherits");
-        if (in_jusprin(item.kind, item.name, item.base, catalog)) {
+        if (in_jusprin(app, item.kind, item.name, item.base, catalog)) {
             item.outcome = OrcaImportItem::Outcome::AlreadyThere;
             continue;
         }
@@ -176,10 +182,13 @@ std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& fil
             continue;
 
         int         number  = 1;
-        std::string renamed = copy_name(item.name, number);
+        std::string renamed = copy_name(app, item.name, number);
         while (catalog.has(item.kind, renamed) || taken.count({item.kind, renamed}) != 0)
-            renamed = copy_name(item.name, ++number);
+            renamed = copy_name(app, item.name, ++number);
         taken.insert({item.kind, renamed});
+        item.renamed_to = renamed;
+        if (staging.empty())
+            continue;
         json["name"]                    = renamed;
         json[settings_id_key(item.kind)] = renamed;
         // Numbered, not named: a preset name can hold characters a file name cannot.
@@ -188,10 +197,42 @@ std::vector<OrcaImportItem> plan_orca_import(const std::vector<std::string>& fil
         stream << json.dump(4);
         if (!stream)
             throw std::runtime_error("Could not write the renamed copy " + copy.u8string());
-        item.file       = copy.u8string();
-        item.renamed_to = renamed;
+        item.file = copy.u8string();
     }
     return items;
+}
+
+OrcaImportOffer orca_import_offer(const ImportApp& app, const OrcaPresetFiles& presets, const std::vector<OrcaImportItem>& ticked,
+                                  const OrcaImportCatalog& catalog, const std::function<bool(const std::string&)>& installs_base)
+{
+    using Outcome = OrcaImportItem::Outcome;
+    OrcaImportOffer                   offer;
+    const std::vector<OrcaImportItem> plan = plan_orca_import(app, presets.files, catalog, {});
+    const auto offers = [&](const std::string& name, bool there) {
+        offer.printers.emplace_back(name, there);
+        offer.new_printers += there ? 0 : 1;
+    };
+    // scan_orca_presets lists the printers' files first.
+    for (std::size_t index = 0; index < presets.printers.size(); ++index) {
+        const OrcaImportItem& item = plan[index];
+        if (item.outcome == Outcome::NotImported &&
+            !(item.reason == OrcaImportItem::Reason::MissingBase && installs_base(item.base)))
+            offer.skipped.push_back(item);
+        else
+            offers(presets.printers[index], item.outcome == Outcome::AlreadyThere);
+    }
+    for (const OrcaImportItem& item : ticked)
+        offers(item.name, item.outcome == Outcome::AlreadyThere);
+    for (std::size_t index = presets.printers.size(); index < plan.size(); ++index) {
+        const OrcaImportItem& item = plan[index];
+        if (item.outcome == Outcome::AlreadyThere)
+            continue;
+        if (item.outcome == Outcome::NotImported && !(item.reason == OrcaImportItem::Reason::MissingBase && offer.new_printers > 0))
+            offer.skipped.push_back(item);
+        else
+            (item.kind == Kind::Filament ? offer.filaments : offer.processes).push_back(item.name);
+    }
+    return offer;
 }
 
 void settle_orca_import(std::vector<OrcaImportItem>& items, const std::vector<std::string>& imported)
@@ -263,17 +304,11 @@ OrcaImportChoice orca_import_chosen(const OrcaPresetFiles& presets, const std::v
     return choice;
 }
 
-bool orca_import_retryable(const OrcaImportItem& item)
-{
-    using Reason = OrcaImportItem::Reason;
-    return item.outcome == OrcaImportItem::Outcome::NotImported && (item.reason == Reason::Unreadable || item.reason == Reason::NotLoaded);
-}
-
-std::vector<OrcaTickedPrinter> orca_ticked_printers(const fs::path& orca_root)
+std::vector<OrcaTickedPrinter> orca_ticked_printers(const ImportApp& app, const fs::path& orca_root)
 {
     std::vector<OrcaTickedPrinter> ticked;
     std::error_code error;
-    const fs::path config = orca_root / "OrcaSlicer.conf";
+    const fs::path config = config_file(app, orca_root);
     if (!fs::is_regular_file(config, error))
         return ticked;
     const std::optional<nlohmann::json> json = read_config(config);
@@ -303,10 +338,10 @@ std::vector<OrcaTickedPrinter> orca_ticked_printers(const fs::path& orca_root)
     return ticked;
 }
 
-std::string orca_selected_printer(const fs::path& orca_root)
+std::string orca_selected_printer(const ImportApp& app, const fs::path& orca_root)
 {
     std::error_code error;
-    const fs::path config = orca_root / "OrcaSlicer.conf";
+    const fs::path config = config_file(app, orca_root);
     if (!fs::is_regular_file(config, error))
         return {};
     const std::optional<nlohmann::json> json = read_config(config);
@@ -316,13 +351,13 @@ std::string orca_selected_printer(const fs::path& orca_root)
     return presets != json->end() && presets->is_object() ? string_value(*presets, "machine") : std::string();
 }
 
-std::vector<OrcaImportItem> orca_profile_printers(const fs::path& orca_root, const std::optional<fs::path>& account_folder,
+std::vector<OrcaImportItem> orca_profile_printers(const ImportApp& app, const fs::path& orca_root, const std::optional<fs::path>& account_folder,
                                                   const std::function<const std::vector<PrinterSetup::PrinterCandidate>&()>& profiles)
 {
     using PrinterSetup::PrinterCandidate;
     std::vector<OrcaImportItem>    items;
-    std::vector<OrcaTickedPrinter> named    = orca_ticked_printers(orca_root);
-    const std::string              selected = orca_selected_printer(orca_root);
+    std::vector<OrcaTickedPrinter> named    = orca_ticked_printers(app, orca_root);
+    const std::string              selected = orca_selected_printer(app, orca_root);
     if (named.empty() && selected.empty())
         return items;
     const std::vector<PrinterCandidate>& candidates = profiles();
@@ -351,10 +386,10 @@ std::vector<OrcaImportItem> orca_profile_printers(const fs::path& orca_root, con
     return items;
 }
 
-std::optional<fs::path> orca_account_folder(const fs::path& orca_root)
+std::optional<fs::path> orca_account_folder(const ImportApp& app, const fs::path& orca_root)
 {
     std::string configured;
-    const fs::path config = orca_root / "OrcaSlicer.conf";
+    const fs::path config = config_file(app, orca_root);
     std::error_code error;
     if (fs::is_regular_file(config, error)) {
         std::optional<nlohmann::json> json = read_config(config);
@@ -384,11 +419,11 @@ std::optional<fs::path> orca_account_folder(const fs::path& orca_root)
     return newest;
 }
 
-std::optional<fs::path> orca_account_folder_for_pick(const fs::path& picked)
+std::optional<fs::path> orca_account_folder_for_pick(const ImportApp& app, const fs::path& picked)
 {
     std::error_code error;
     if (fs::is_directory(picked / kUserFolder, error))
-        return orca_account_folder(picked);
+        return orca_account_folder(app, picked);
     if (has_json_files(picked / kPrinterFolder) || has_json_files(picked / kFilamentFolder) ||
         has_json_files(picked / kProcessFolder))
         return picked;
@@ -396,7 +431,7 @@ std::optional<fs::path> orca_account_folder_for_pick(const fs::path& picked)
         return picked.parent_path();
     // The user folder: its account folders hold the presets.
     if (picked.filename() == kUserFolder)
-        return orca_account_folder(picked.parent_path());
+        return orca_account_folder(app, picked.parent_path());
     return std::nullopt;
 }
 

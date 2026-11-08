@@ -107,7 +107,7 @@ describe('change rows in the thread', () => {
     expect(text[3]).toContain('Sparse infill density 35% → 45%');
     expect(text[3]).toContain('you, in Strong');
     expect(text[4]).toContain('Switched to Strong');
-    expect(text[5]).toContain('DuplicateAgent');
+    expect(text[5]).toContain('DuplicateAI');
   });
 
   it('shows a run of edits to one setting as its net change', () => {
@@ -124,7 +124,7 @@ describe('change rows in the thread', () => {
     thread(['Brim', 'Plate temp', 'Layer height'].map((label, index) => change(index + 1, {
       kind: 'setting', actor: 'agent', external: true, label, from: 'old', to: 'new', preset: 'Strong',
     })));
-    expect(screen.queryByRole('region', { name: 'Agent setting changes' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'AI setting changes' })).toBeNull();
     expect(rows()).toHaveLength(3);
     for (const row of rows()) expect(row).toContain('External tool, in Strong');
   });
@@ -144,7 +144,7 @@ describe('change rows in the thread', () => {
     thread(settings.map((label, index) => change(index + 1, {
       kind: 'setting', actor: 'agent', label, from: 'old', to: 'new', preset: '0.20 mm Standard',
     })));
-    expect(screen.getByRole('region', { name: 'Agent setting changes' })).toHaveTextContent('4 of 5 settings');
+    expect(screen.getByRole('region', { name: 'AI setting changes' })).toHaveTextContent('4 of 5 settings');
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
     expect(screen.queryByText('First-layer line width')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'See the other 1 →' }));
@@ -159,7 +159,7 @@ describe('change rows in the thread', () => {
     }));
     changes.push(change(6, { label: 'Rotated bracket to 45°' }));
     render(<ChangeRows changes={changes} />);
-    expect(screen.getByRole('region', { name: 'Agent setting changes' })).toHaveTextContent('4 of 5 settings');
+    expect(screen.getByRole('region', { name: 'AI setting changes' })).toHaveTextContent('4 of 5 settings');
     expect(screen.getByText('Rotated bracket to 45°')).toBeInTheDocument();
     expect(screen.queryByText('Brim gap')).not.toBeInTheDocument();
   });
@@ -238,7 +238,7 @@ describe('a printer setup', () => {
     const merged = rows();
     expect(merged).toHaveLength(1);
     expect(merged[0]).toContain('Switched to Bambu Lab A1');
-    expect(merged[0]).toContain('0.20mm Standard @BBL A1 · Bambu PLA Basic @BBL A1 · Agent');
+    expect(merged[0]).toContain('0.20mm Standard @BBL A1 · Bambu PLA Basic @BBL A1 · AI');
   });
 
   it('keeps a person’s switches, and switches after different calls, as rows of their own', () => {

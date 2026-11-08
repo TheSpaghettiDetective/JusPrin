@@ -340,14 +340,17 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kRefreshAccountBox, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
                                               Protocol::kSettingsAction, Protocol::kSaveProposal,
                                               Protocol::kUndoReceipt, Protocol::kSetupRemoveKey,
                                               Protocol::kPreferencesAction, Protocol::kAccountSignIn,
-                                              Protocol::kAccountCheck, Protocol::kAccountCancel});
+                                              Protocol::kAccountCheck, Protocol::kAccountCancel,
+                                              Protocol::kAccountEmail, Protocol::kAccountSendCode,
+                                              Protocol::kAccountCode, Protocol::kAccountPassword,
+                                              Protocol::kAccountReopen, Protocol::kAccountOpenLink});
 
     const std::set<std::string> host_types(shared["hostMessageTypes"].begin(), shared["hostMessageTypes"].end());
     CHECK(host_types == std::set<std::string>{Protocol::kHelloAck, Protocol::kHelloReject, Protocol::kState, Protocol::kConversationsUpdated,
@@ -360,7 +363,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kModelCatalog, Protocol::kChatModel,
                                               Protocol::kBridgeError, Protocol::kAttachmentUpdated,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
-                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount});
+                                              Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount, Protocol::kAccountBox});
 }
 
 TEST_CASE("settings_catalog_request answers with every setting in force", "[agent][all_settings]")
@@ -2109,6 +2112,8 @@ struct FakeModelSource final : IChatModelSource
     void list_models(const std::string& provider, ModelsDone done) override { asked[provider] = std::move(done); }
     AccountDone account_done;
     void fetch_account(AccountDone done) override { account_done = std::move(done); }
+    std::vector<AccountBoxDone> box_asked;
+    void fetch_account_box(AccountBoxDone done) override { box_asked.push_back(std::move(done)); }
     // An account's aliases and the format each is served in now.
     std::map<std::string, std::string> formats;
     std::string model_format(const std::string& provider, const std::string& model) const override
@@ -2180,7 +2185,7 @@ TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][
     h.handshake();
     // The first list failed, so it can be asked for again.
     REQUIRE(source->asked.count("jusprin") == 1);
-    source->asked["jusprin"](false, {});
+    source->asked["jusprin"](false, {}, false);
     source->asked.clear();
 
     h.send_user_message("hello", "c-1");
@@ -2238,6 +2243,30 @@ TEST_CASE("the account comes with the titles of the chats it charged", "[agent][
     CHECK((*account)["payload"]["chatTitles"] == json{{charged, "Resizing a print"}});
     CHECK((*account)["payload"]["account"]["usage_30d"]["credits"] == 15);
     std::filesystem::remove_all(file.parent_path());
+}
+
+// Each refresh_account_box gets one answer, the server's HTML or null for no
+// box; an answer to an earlier request, from before a sign-in, is dropped.
+TEST_CASE("the account box answers the latest request only", "[agent][account]")
+{
+    Harness h;
+    auto source = std::make_shared<FakeModelSource>();
+    h.host.set_chat_model_source(source);
+    h.handshake();
+
+    h.deliver("refresh_account_box", json::object());
+    h.deliver("refresh_account_box", json::object());
+    REQUIRE(source->box_asked.size() == 2);
+    source->box_asked[1](std::string("<p>Double credits</p>"));
+    source->box_asked[0](std::string("<p>Sign up today</p>"));
+    const std::vector<json> boxes = h.of_type("account_box");
+    REQUIRE(boxes.size() == 1);
+    CHECK(boxes[0]["payload"] == json{{"html", "<p>Double credits</p>"}});
+
+    h.deliver("refresh_account_box", json::object());
+    REQUIRE(source->box_asked.size() == 3);
+    source->box_asked[2](std::nullopt);
+    CHECK(h.last_of_type("account_box")->at("payload") == json{{"html", nullptr}});
 }
 
 // The printer and filament chats have the pickers too: the model the person
@@ -2298,8 +2327,8 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     CHECK((*catalog)["payload"]["providers"][0]["state"] == "loading");
     CHECK((*catalog)["payload"]["providers"][1]["label"] == profile_for("anthropic")->display_name);
 
-    source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}});
-    source->asked["openai"](false, {});
+    source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}}, false);
+    source->asked["openai"](false, {}, false);
     catalog = h.last_of_type("model_catalog");
     CHECK((*catalog)["payload"]["providers"][0]["state"] == "failed");
     const json& anthropic = (*catalog)["payload"]["providers"][1];
@@ -2440,7 +2469,7 @@ TEST_CASE("a turn the app started runs on Expert and does not fix the chat's mod
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases());
+    source->asked["jusprin"](true, account_aliases(), false);
     const std::string chat = h.persistence.document().active_conversation_id();
 
     SECTION("in a fresh chat the next message from the person sets it")
@@ -2488,7 +2517,7 @@ TEST_CASE("a new chat on the account is on Expert in the first month and on Stan
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases());
+    source->asked["jusprin"](true, account_aliases(), false);
     REQUIRE(source->account_done);
     const auto account = [](const char* kind) {
         return json{{"credits", {{"total", 50}, {"lots", json::array({json{{"kind", kind}, {"credits", 50}}})}}}};
@@ -2524,7 +2553,7 @@ TEST_CASE("the catalog carries an account model's tier, price and whether it see
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases());
+    source->asked["jusprin"](true, account_aliases(), false);
     const json* catalog = h.last_of_type("model_catalog");
     REQUIRE(catalog != nullptr);
     const json& models = (*catalog)["payload"]["providers"][0]["models"];
@@ -3079,6 +3108,7 @@ public:
     }
 
     bool remove_key(const std::string& provider) override { return stored.erase(provider) > 0; }
+    ICloudSignIn* cloud_sign_in() override { return cloud; }
 
     void answer_verified(int elapsed_ms = 800)
     {
@@ -3103,10 +3133,90 @@ public:
     bool                          accept_checks{true};
     bool                          commit_succeeds{true};
     int                           cancels{0};
+    // The JusPrin sign-in this build offers, when a test gives it one.
+    ICloudSignIn*                 cloud{nullptr};
 
 private:
     std::optional<SetupOutcome> m_pending;
     bool                        m_busy{false};
+};
+
+// Stands in for the JusPrin sign-in: records what the host asked of it, and
+// the test moves the email step the way the server's answers would.
+class ScriptedSignIn final : public ICloudSignIn
+{
+public:
+    CloudSignInPhase                  phase() const override { return m_phase; }
+    std::string                       browser_url() const override
+    {
+        return m_phase == CloudSignInPhase::Browser ? "https://jusprin.test/accounts/google/login/?next=x" : std::string();
+    }
+    bool start(CloudBrowserStart) override
+    {
+        if (m_phase != CloudSignInPhase::Idle)
+            return false;
+        ++browser_starts;
+        m_phase = CloudSignInPhase::Browser;
+        return true;
+    }
+    bool                              check_stored() override { return false; }
+    void                              cancel() override { m_phase = CloudSignInPhase::Idle; m_email.reset(); }
+    std::optional<CloudSignInOutcome> poll() override
+    {
+        if (m_answer && m_email) {
+            m_email->busy    = false;
+            m_email->step    = m_answer->first;
+            m_email->refusal = m_answer->second;
+            m_answer.reset();
+        }
+        return std::nullopt;
+    }
+    std::optional<CloudEmailStep>     email_step() const override { return m_email; }
+    bool start_email(const std::string& email) override
+    {
+        if (m_phase != CloudSignInPhase::Idle || email.empty())
+            return false;
+        m_phase        = CloudSignInPhase::Email;
+        m_email        = CloudEmailStep{};
+        m_email->email = email;
+        return true;
+    }
+    bool send_code() override { return take("send_code"); }
+    bool submit_code(const std::string& code) override
+    {
+        return m_email && m_email->step == CloudEmailStep::Step::Code && take("code " + code);
+    }
+    bool submit_password(const std::string& password) override
+    {
+        return m_email && m_email->step == CloudEmailStep::Step::Choose && take("password " + password);
+    }
+    std::string link_url(const std::string& link) const override
+    {
+        return link == "terms" ? "https://www.obico.io/terms.html" : std::string();
+    }
+    std::optional<CloudAccountRecord> account() const override { return std::nullopt; }
+    bool                              sign_out() override { return false; }
+
+    // The server's answer, which the next poll reads: the step is no longer
+    // busy, and is now `step`.
+    void answer(CloudEmailStep::Step step, std::string refusal = {}) { m_answer.emplace(step, std::move(refusal)); }
+
+    std::vector<std::string> asked;
+    int                      browser_starts{0};
+
+private:
+    bool take(std::string what)
+    {
+        if (m_phase != CloudSignInPhase::Email || !m_email || m_email->busy)
+            return false;
+        asked.push_back(std::move(what));
+        m_email->busy = true;
+        return true;
+    }
+
+    CloudSignInPhase                                              m_phase{CloudSignInPhase::Idle};
+    std::optional<CloudEmailStep>                                 m_email;
+    std::optional<std::pair<CloudEmailStep::Step, std::string>>   m_answer;
 };
 
 json check_key_payload(const std::string& key = "sk-test-key")
@@ -3153,6 +3263,72 @@ TEST_CASE("a verified key stores the credential and connects the Agent in one st
     harness.send_user_message("hello", "c-after-setup");
     harness.pump_all();
     REQUIRE(harness.last_of_type("assistant_completed") != nullptr);
+}
+
+TEST_CASE("the account signs in by email inside the page, step by step, as first launch does", "[agent][account]")
+{
+    ScriptedSignIn cloud;
+    auto           setup = std::make_shared<ScriptedSetup>();
+    setup->cloud         = &cloud;
+    Harness harness(setup);
+    std::vector<std::string> opened;
+    harness.host.set_url_opener([&opened](const std::string& url) { opened.push_back(url); });
+    harness.handshake();
+
+    harness.deliver("account_email", json{{"email", "alex@example.com"}});
+    const json* choose = harness.last_of_type("account_status");
+    REQUIRE(choose != nullptr);
+    CHECK((*choose)["payload"]["phase"] == "email");
+    CHECK((*choose)["payload"]["email"] == json{{"step", "choose"}, {"email", "alex@example.com"}, {"busy", false},
+                                                 {"refusal", ""}, {"codeResent", false}});
+
+    // A code asked for is with the server until it answers.
+    harness.deliver("account_send_code");
+    CHECK((*harness.last_of_type("account_status"))["payload"]["email"]["busy"] == true);
+    cloud.answer(CloudEmailStep::Step::Code);
+    harness.host.pump_setup();
+    const json* code = harness.last_of_type("account_status");
+    CHECK((*code)["payload"]["email"]["step"] == "code");
+    CHECK((*code)["payload"]["email"]["busy"] == false);
+
+    // A password belongs to the choosing step; on the code step it changes nothing.
+    harness.deliver("account_password", json{{"password", "hunter2"}});
+    harness.deliver("account_code", json{{"code", "123456"}});
+    CHECK(cloud.asked == std::vector<std::string>{"send_code", "code 123456"});
+    cloud.answer(CloudEmailStep::Step::Code, "wrong_code");
+    harness.host.pump_setup();
+    CHECK((*harness.last_of_type("account_status"))["payload"]["email"]["refusal"] == "wrong_code");
+
+    // The page names a link, never a URL; an unknown name opens nothing.
+    harness.deliver("account_open_link", json{{"link", "terms"}});
+    harness.deliver("account_open_link", json{{"link", "https://elsewhere.test/"}});
+    CHECK(opened == std::vector<std::string>{"https://www.obico.io/terms.html"});
+
+    harness.deliver("account_cancel");
+    CHECK((*harness.last_of_type("account_status"))["payload"]["phase"] == "idle");
+}
+
+TEST_CASE("the account's browser sign-in goes to Google, never to the server's sign-in page", "[agent][account]")
+{
+    ScriptedSignIn cloud;
+    auto           setup = std::make_shared<ScriptedSetup>();
+    setup->cloud         = &cloud;
+    Harness harness(setup);
+    std::vector<std::string> opened;
+    harness.host.set_url_opener([&opened](const std::string& url) { opened.push_back(url); });
+    harness.handshake();
+
+    harness.deliver("account_sign_in");
+    CHECK(cloud.browser_starts == 1);
+    const json* browser = harness.last_of_type("account_status");
+    REQUIRE(browser != nullptr);
+    CHECK((*browser)["payload"]["phase"] == "browser");
+    // "Open the browser again" reopens the same page.
+    harness.deliver("account_reopen");
+    CHECK(opened == std::vector<std::string>{"https://jusprin.test/accounts/google/login/?next=x"});
+    // An address typed while the browser has the sign-in is refused, not mixed in.
+    harness.deliver("account_email", json{{"email", "alex@example.com"}});
+    CHECK((*harness.last_of_type("bridge_error"))["payload"]["code"] == "setup_busy");
 }
 
 TEST_CASE("a rejected key reports the reason and leaves the Agent unconfigured", "[agent][setup]")
@@ -3322,7 +3498,22 @@ struct StoredKeysModelSource final : IChatModelSource
             return std::make_unique<RejectingAgent>();
         return std::make_unique<DeterministicMockAgent>();
     }
-    void list_models(const std::string&, ModelsDone done) override { done(true, {}); }
+    // How every model list answers: listed, failed, or refused (401 or 403).
+    enum class Lists { Listed, Failed, Refused } lists{Lists::Listed};
+    int lists_asked{0};
+    void list_models(const std::string&, ModelsDone done) override
+    {
+        ++lists_asked;
+        done(lists == Lists::Listed, {}, lists == Lists::Refused);
+    }
+    // Whether the server deletes the account when asked.
+    bool server_deletes{false};
+    int  deletes_asked{0};
+    void delete_account(DeleteAccountDone done) override
+    {
+        ++deletes_asked;
+        done(server_deletes);
+    }
 };
 
 std::vector<json> saved_keys_of(const Harness& harness)
@@ -3477,6 +3668,69 @@ TEST_CASE("a key the provider refuses shows as rejected until it is replaced", "
     harness.host.pump_setup();
     CHECK(setup->stored["openai"] == replacement);
     CHECK(saved_keys_of(harness)[0] == json{{"provider", "openai"}, {"hint", "sk-proj-…abcd"}, {"rejected", false}});
+}
+
+// A model list the provider refuses is a key or sign-in that no longer works,
+// as a refused turn is. One that fails any other way leaves the key standing:
+// the list is "failed", and for the JusPrin account Preferences then says AI
+// is unavailable. Coming back to the page, or Try again, asks for it again.
+TEST_CASE("a refused model list rejects the key, and a failed one is asked again", "[agent][setup][saved_keys][models]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"openai", kOpenAiKey}};
+    Harness harness(setup);
+    auto source = std::make_shared<StoredKeysModelSource>(setup);
+    source->lists = StoredKeysModelSource::Lists::Failed;
+    harness.host.set_chat_model_source(source);
+    harness.handshake();
+    CHECK(saved_keys_of(harness)[0]["rejected"] == false);
+    const json* catalog = harness.last_of_type("model_catalog");
+    REQUIRE(catalog != nullptr);
+    CHECK((*catalog)["payload"]["providers"][0]["state"] == "failed");
+
+    const int asked = source->lists_asked;
+    source->lists   = StoredKeysModelSource::Lists::Refused;
+    harness.deliver("refresh_account", json::object());
+    CHECK(source->lists_asked == asked + 1);
+    CHECK(saved_keys_of(harness)[0] == json{{"provider", "openai"}, {"hint", "sk-proj-…wxyz"}, {"rejected", true}});
+
+    // A list that answered is not asked for again.
+    source->lists = StoredKeysModelSource::Lists::Listed;
+    harness.deliver("refresh_account", json::object());
+    harness.deliver("refresh_account", json::object());
+    CHECK(source->lists_asked == asked + 2);
+    CHECK(harness.last_of_type("model_catalog")->at("payload")["providers"][0]["state"] == "ready");
+}
+
+TEST_CASE("deleting the account signs out of it once the server has deleted it", "[agent][setup][saved_keys][account]")
+{
+    auto setup = std::make_shared<ScriptedSetup>();
+    setup->stored = {{"jusprin", "jusprin-TESTONLY-token-0000"}, {"openai", kOpenAiKey}};
+    Harness harness(setup);
+    auto source = std::make_shared<StoredKeysModelSource>(setup);
+    harness.host.set_chat_model_source(source);
+    harness.handshake();
+    const auto providers = [&harness] {
+        std::vector<std::string> names;
+        for (const json& key : saved_keys_of(harness))
+            names.push_back(key["provider"]);
+        return names;
+    };
+    REQUIRE(providers() == std::vector<std::string>{"jusprin", "openai"});
+
+    // The server could not delete it: nothing changes.
+    harness.deliver("delete_account", json::object());
+    CHECK(source->deletes_asked == 1);
+    CHECK(harness.last_of_type("account_deleted")->at("payload") == json{{"deleted", false}});
+    CHECK(setup->stored.count("jusprin") == 1);
+    CHECK(providers() == std::vector<std::string>{"jusprin", "openai"});
+
+    // Deleted: the account's sign-in goes and the person's own key stays.
+    source->server_deletes = true;
+    harness.deliver("delete_account", json::object());
+    CHECK(harness.last_of_type("account_deleted")->at("payload") == json{{"deleted", true}});
+    CHECK(setup->stored.count("jusprin") == 0);
+    CHECK(providers() == std::vector<std::string>{"openai"});
 }
 
 TEST_CASE("a failed replacement leaves the saved key in place", "[agent][setup][saved_keys]")

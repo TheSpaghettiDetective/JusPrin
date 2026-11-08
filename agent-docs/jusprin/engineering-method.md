@@ -97,6 +97,38 @@ rendering and hit-testing separately. Compare a stock window with the product
 policy, then exercise selection, orbit, pan, zoom, active gizmo input, slicing,
 Preview, and restoration of the prior presentation state.
 
+### First launch against a staging server
+
+First launch looks for OrcaSlicer and JusPrin 1 in their default folders for
+the platform (on macOS `~/Library/Application Support/OrcaSlicer` and
+`.../JusPrin`), whatever `--datadir` says, and only reads them. Its Printers
+step opens JusPrin 1's import screen when JusPrin 1 has printers, otherwise
+OrcaSlicer's, otherwise the printer form. Two variables set up a test run on a
+throwaway data folder:
+
+- `JUSPRIN_SERVER_URL` names the JusPrin server and wins over
+  `jusprin_server.base_url` in the settings file.
+- `JUSPRIN_ORCA_DATADIR` names another OrcaSlicer folder; set to `""`, there
+  is none. Unset, the real folder is used (on Linux a Flatpak's, on Windows a
+  `data_dir` beside an installed OrcaSlicer, when there is one). On Windows an
+  empty variable cannot be set; name a folder that does not exist instead.
+
+JusPrin 1's folder has no variable. To start as a new person on a Mac that has
+JusPrin 1, point `HOME` at an empty folder: JusPrin 1's folder is then
+missing, and `JUSPRIN_ORCA_DATADIR` brings back the real OrcaSlicer folder. To
+test the JusPrin 1 screen from a fixture, put the fixture at
+`<that HOME>/Library/Application Support/JusPrin`. The shell and real-adapter
+harnesses point `JUSPRIN_ORCA_DATADIR` at a folder that does not exist, and
+choose their way on the Printers step, since they may see the person's
+JusPrin 1 printers.
+
+```bash
+# a new person who has JusPrin 1 and OrcaSlicer: the welcome, then JusPrin 1's import
+D=/tmp/JusPrin2-stg; H=/tmp/JusPrin2-stg-home; rm -rf "$D" "$H" && mkdir -p "$H/Library/Application Support" && cp -R "$HOME/Library/Application Support/JusPrin" "$H/Library/Application Support/" && JUSPRIN_ORCA_DATADIR="$HOME/Library/Application Support/OrcaSlicer" HOME="$H" JUSPRIN_SERVER_URL=https://jusprinv2-stg.obico.io <app>/Contents/MacOS/OrcaSlicer --datadir "$D"
+# a new person who has only OrcaSlicer: the welcome, then the OrcaSlicer import
+D=/tmp/JusPrin2-stg; H=/tmp/JusPrin2-stg-home; rm -rf "$D" "$H" && mkdir "$H" && JUSPRIN_ORCA_DATADIR="$HOME/Library/Application Support/OrcaSlicer" HOME="$H" JUSPRIN_SERVER_URL=https://jusprinv2-stg.obico.io <app>/Contents/MacOS/OrcaSlicer --datadir "$D"
+```
+
 ### Printer tests without hardware
 
 Bambu paths (printer-menu Idle / Printing / Offline, Select Machine, print job)

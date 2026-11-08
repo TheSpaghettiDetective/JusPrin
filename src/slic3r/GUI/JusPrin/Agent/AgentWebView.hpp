@@ -32,11 +32,10 @@ namespace Slic3r::GUI::JusPrin {
 //                  header, pinned card and chips around the same thread;
 //   Preferences    JusPrin's Preferences window, whose Agent section is
 //                  where the agent is set up and changed.
-//   WelcomeBack    the window shown once after a JusPrin v1 setup was
-//                  imported: what came along, and the account it signs in to.
-//   OrcaImport     File › Import › Import from OrcaSlicer…: the printers an
-//                  OrcaSlicer folder has that JusPrin doesn't, and the result.
-enum class AgentPageMode { Conversation, PrinterPanel, Preferences, WelcomeBack, OrcaImport };
+//   OrcaImport     File › Import › Import from OrcaSlicer… or from JusPrin 1…:
+//                  the printers that app's folder has that JusPrin doesn't,
+//                  and the result.
+enum class AgentPageMode { Conversation, PrinterPanel, Preferences, OrcaImport };
 
 class AgentWebView : public wxPanel
 {

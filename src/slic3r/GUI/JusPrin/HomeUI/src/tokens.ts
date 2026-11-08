@@ -27,8 +27,6 @@
 // and the first launch:
 //   --onboarding-<name>     the welcome's row and clip, the corner lockup's
 //                           height, and the Printers step's column
-//   --onboarding-spin-duration  one turn of the sign-in card's spinner, the
-//                           Agent page's working glyph's
 
 import tokens from '@resources/jusprin/ui/design-tokens.json';
 import {
@@ -77,7 +75,6 @@ const ASPECT = '--project-card-thumbnail-aspect';
 const GLYPH = '--glyph-size';
 // The drop target's upload glyph is the largest size on the same scale.
 const GLYPH_LARGE = '--glyph-size-large';
-const SPIN = '--onboarding-spin-duration';
 
 // A field's text role is a name, not a length; only its sizes become variables.
 function pixels(section: Record<string, number | string>): Record<string, number> {
@@ -126,7 +123,6 @@ export function staticVariableNames(): string[] {
     ...elevationVariableNames(),
     GLYPH,
     GLYPH_LARGE,
-    SPIN,
   ];
 }
 
@@ -156,7 +152,6 @@ export function applyStaticTokens(): void {
   }
   applyPixelTokens('confirmation-dialog', component.confirmationDialog);
   applyPixelTokens('onboarding', component.onboarding);
-  document.documentElement.style.setProperty(SPIN, `${component.turnActivity.spinMs}ms`);
   document.documentElement.style.setProperty(GLYPH, `${Math.min(...component.icon.sizes)}px`);
   document.documentElement.style.setProperty(GLYPH_LARGE, `${Math.max(...component.icon.sizes)}px`);
 }

@@ -68,6 +68,8 @@ describe('the balance panel', () => {
       },
     });
     expect(lotRows()).toEqual(['Bought credits800 of 1,000 leftNever expire']);
+    // One bar: nothing goes down before anything else.
+    expect(screen.queryByText('Expiring credits are used first.')).toBeNull();
   });
 
   it('says plan credits do not carry over', async () => {

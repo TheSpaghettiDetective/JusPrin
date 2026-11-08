@@ -1129,7 +1129,7 @@ class SavedPrinterCase:
         candidates = self.status.get("candidates", [])
         listed = [c for c in candidates if arguments.get("deviceId") in (c["deviceId"], c["name"])]
         if not listed:
-            # PrinterConversation::unknown_device_text, for a status with nothing in cloud mode.
+            # PrinterConversation::unknown_device_error, for a status with nothing in cloud mode.
             lan = ", ".join(f'{c["deviceId"]} ({c["name"]})' for c in candidates)
             message = ("Pass the deviceId of one of these printers in LAN mode: " + lan + "." if lan else
                        "The network search has listened for 20 seconds and has heard no printer of this model in LAN "

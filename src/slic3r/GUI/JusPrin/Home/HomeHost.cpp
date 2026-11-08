@@ -272,8 +272,8 @@ void HomeHost::on_page_message(const std::string& text)
         push_state();
     }
     else if (type == "onboarding_sign_in" || type == "onboarding_sign_in_cancel" || type == "onboarding_leave_welcome" ||
-             type == "onboarding_back" || type == "onboarding_start_fresh" || type == "onboarding_ask_agent" ||
-             type == "agent_card_dismiss") {
+             type == "onboarding_back" || type == "onboarding_way" || type == "onboarding_ask_agent" ||
+             type == "agent_card_dismiss" || type == "onboarding_see_prices") {
         if (type == "onboarding_sign_in")
             m_backend.start_sign_in();
         else if (type == "onboarding_sign_in_cancel")
@@ -282,10 +282,12 @@ void HomeHost::on_page_message(const std::string& text)
             m_backend.leave_welcome();
         else if (type == "onboarding_back")
             m_backend.step_back();
-        else if (type == "onboarding_start_fresh")
-            m_backend.start_fresh();
+        else if (type == "onboarding_way")
+            m_backend.choose_printers_way(payload.value("way", std::string()));
         else if (type == "onboarding_ask_agent")
             m_backend.ask_agent_for_printer();
+        else if (type == "onboarding_see_prices")
+            m_backend.open_prices();
         else
             m_backend.dismiss_account_card();
         push_state();
@@ -315,30 +317,29 @@ void HomeHost::on_page_message(const std::string& text)
     }
     else if (type == "onboarding_import" || type == "onboarding_assume_default") {
         const std::string problem = type == "onboarding_import"
-                                        ? m_backend.import_orca_printers(payload.at("printers").get<std::vector<std::string>>())
+                                        ? m_backend.import_printers(payload.at("app").get<std::string>(),
+                                                                    payload.at("printers").get<std::vector<std::string>>())
                                         : m_backend.assume_default_printer();
         if (!problem.empty())
             send("onboarding_error", json{{"message", problem}}, correlation);
         push_state();
     }
-    else if (type == "onboarding_import_retry" || type == "onboarding_import_continue") {
-        if (type == "onboarding_import_retry")
-            m_backend.retry_orca_import();
-        else
-            m_backend.finish_orca_import();
+    else if (type == "onboarding_import_continue") {
+        m_backend.finish_import();
         push_state();
     }
     else if (type == "onboarding_printer_form") {
         m_backend.printer_form_message(payload);
         push_state();
     }
-    else if (type == "open_printer_settings" || type == "rename_printer" || type == "remove_printer" || type == "connect_printer" ||
-             type == "calibrate_printer") {
+    else if (type == "open_printer_settings" || type == "ask_about_printer_settings" || type == "rename_printer" ||
+             type == "remove_printer" || type == "connect_printer" || type == "calibrate_printer") {
         const std::string id = payload.value("id", std::string());
         const std::string problem =
             type == "connect_printer"       ? m_backend.connect_printer(id)
             : type == "calibrate_printer"   ? m_backend.calibrate_printer(id)
             : type == "open_printer_settings" ? m_backend.open_printer_settings(id)
+            : type == "ask_about_printer_settings" ? m_backend.ask_about_printer_settings(id)
             : type == "rename_printer"      ? m_backend.rename_printer(id, payload.value("name", std::string()))
                                             : m_backend.remove_printer(id);
         if (!problem.empty())

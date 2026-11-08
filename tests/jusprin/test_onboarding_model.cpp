@@ -32,20 +32,21 @@ TEST_CASE("the welcome shows once even with something already set up", "[home][o
 {
     OnboardingProgress progress;
     OnboardingFacts facts;
-    facts.v1_imported       = true;
+    facts.v1_printers       = true;
     facts.printer_from_file = true;
     facts.orca_printers     = true;
     CHECK(next_onboarding_step(progress, facts) == OnboardingStep::Welcome);
 }
 
-TEST_CASE("a v1 import or a file's printer skips the printers step", "[home][onboarding]")
+TEST_CASE("a file's printer skips the printers step, and JusPrin 1 on this computer does not", "[home][onboarding]")
 {
     OnboardingProgress progress;
     progress.welcome_left = true;
 
+    // JusPrin 1's printers are brought only when the person asks.
     OnboardingFacts v1;
-    v1.v1_imported = true;
-    CHECK(next_onboarding_step(progress, v1) == OnboardingStep::Hidden);
+    v1.v1_printers = true;
+    CHECK(next_onboarding_step(progress, v1) == OnboardingStep::Printers);
 
     OnboardingFacts file;
     file.printer_from_file = true;
@@ -59,7 +60,7 @@ TEST_CASE("completed onboarding never shows again", "[home][onboarding]")
     CHECK(next_onboarding_step(progress, OnboardingFacts{}) == OnboardingStep::Hidden);
 }
 
-TEST_CASE("the printers step offers OrcaSlicer's printers until start fresh", "[home][onboarding]")
+TEST_CASE("the printers step offers JusPrin 1's printers first, then OrcaSlicer's, then the printer screen", "[home][onboarding]")
 {
     OnboardingProgress progress;
     OnboardingFacts facts;
@@ -68,8 +69,32 @@ TEST_CASE("the printers step offers OrcaSlicer's printers until start fresh", "[
     facts.orca_printers = true;
     CHECK(printers_screen(progress, facts) == PrintersScreen::OrcaImport);
 
-    progress.fresh_start = true;
+    facts.v1_printers = true;
+    CHECK(printers_screen(progress, facts) == PrintersScreen::V1Import);
+}
+
+TEST_CASE("an other-ways link opens the way it names while that way has something to show", "[home][onboarding]")
+{
+    OnboardingProgress progress;
+    OnboardingFacts facts;
+    facts.v1_printers   = true;
+    facts.orca_printers = true;
+
+    progress.way = PrintersWay::OrcaImport;
+    CHECK(printers_screen(progress, facts) == PrintersScreen::OrcaImport);
+    progress.way = PrintersWay::AddPrinter;
     CHECK(printers_screen(progress, facts) == PrintersScreen::AddPrinter);
+    progress.way = PrintersWay::V1Import;
+    CHECK(printers_screen(progress, facts) == PrintersScreen::V1Import);
+
+    // A way whose folder is gone, as after a relaunch forgot a folder picked
+    // by hand, shows what the app found instead.
+    facts.v1_printers = false;
+    CHECK(printers_screen(progress, facts) == PrintersScreen::OrcaImport);
+
+    for (PrintersWay way : {PrintersWay::None, PrintersWay::V1Import, PrintersWay::OrcaImport, PrintersWay::AddPrinter})
+        CHECK(printers_way_from_string(to_string(way)) == way);
+    CHECK(printers_way_from_string("fresh_start") == PrintersWay::None);
 }
 
 TEST_CASE("an import's result holds the printers step until continue", "[home][onboarding]")

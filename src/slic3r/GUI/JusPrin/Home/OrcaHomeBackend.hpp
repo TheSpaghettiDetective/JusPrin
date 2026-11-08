@@ -91,19 +91,20 @@ public:
     void send_sign_in_code() override;
     void reopen_sign_in_browser() override;
     void open_sign_in_link(const std::string& link) override;
+    void open_prices() override;
     void open_agent_door(const std::string& door) override;
     void leave_welcome() override;
     void step_back() override;
     void ask_agent_for_printer() override;
-    void start_fresh() override;
-    std::string import_orca_printers(const std::vector<std::string>& printers) override;
+    void choose_printers_way(const std::string& way) override;
+    std::string import_printers(const std::string& app, const std::vector<std::string>& printers) override;
     std::string assume_default_printer() override;
-    void retry_orca_import() override;
-    void finish_orca_import() override;
+    void finish_import() override;
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
+    std::string ask_about_printer_settings(const std::string& printer_id) override;
     std::string connect_printer(const std::string& printer_id) override;
     std::string calibrate_printer(const std::string& printer_id) override;
     std::string rename_printer(const std::string& printer_id, const std::string& new_name) override;
@@ -158,12 +159,14 @@ private:
     void complete_onboarding();
     // The Printers step has its printer: imported, added or assumed.
     void printer_chosen();
-    // Brings the OrcaSlicer items the person asked for and selects the
-    // printer OrcaSlicer had selected, otherwise the first one brought; the
-    // Printers step then has its printer.
-    std::vector<OrcaImportItem> bring_orca_items(std::vector<OrcaImportItem> ticked, const std::vector<std::string>& files);
+    // The app's folder on offer: the one the person picked for it with an
+    // "Other ways" link, otherwise its own on this computer.
+    OrcaProfileSource detect_import(const ImportApp& app);
+    // An "Other ways" link opened this screen.
+    void open_printers_way(PrintersWay way);
     const PrinterSetup::PrinterCatalog& profile_catalog();
-    static std::vector<Snapshot::Onboarding::ImportItem> import_result_lines(const std::vector<OrcaImportItem>& items);
+    static std::vector<Snapshot::Onboarding::ImportItem> import_result_lines(const ImportApp& app,
+                                                                             const std::vector<OrcaImportItem>& items);
     Agent::ICloudSignIn& sign_in();
     void request_account();
 
@@ -191,10 +194,14 @@ private:
     bool                                               m_account_requested{false};
     nlohmann::json                                     m_account;
     std::unique_ptr<PrinterFormSession>                m_printer_form;
-    // The OrcaSlicer import's result while it is on screen.
+    // The import's result while it is on screen, and the app it came from.
     std::optional<std::vector<OrcaImportItem>>         m_import_result;
-    // The printer OrcaSlicer had selected, for the import and its retry.
-    std::string                                        m_orca_selected;
+    const ImportApp*                                   m_import_app{nullptr};
+    // The folder the person picked for an app the app did not find, by
+    // ImportApp::id; kept until the app quits.
+    std::map<std::string, std::filesystem::path>       m_picked_folders;
+    // Why the folder picked by the last "Other ways" link has nothing.
+    std::string                                        m_way_problem;
     OrcaImporter                                       m_importer;
     bool                                               m_onboarding_changed{false};
     // An upload's answer can arrive after the backend is gone.

@@ -57,8 +57,9 @@ interface Props {
   onSaveProposal?: (actionId: string) => void;
   // Undo on a saved preset's receipt, by the receipt note's id.
   onUndoReceipt?: (messageId: string) => void;
-  // The actions on a message the gateway refused for want of credits.
-  creditActions?: { onGetMore: () => void };
+  // The actions on a message the gateway refused for want of credits and,
+  // when the chat runs on the JusPrin account, for an ended sign-in.
+  creditActions?: { onGetMore: () => void; onSignIn?: () => void };
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
   replyDisabled?: boolean;
@@ -147,7 +148,7 @@ function openedLine(message: Message, report: FileReport, isFirst: boolean): Rea
   const files = report.loads.flatMap((load) => load.files);
   const name = (files[0] ?? '').split(/[\\/]/).pop() || 'a file';
   const text = [`Opened ${name}${files.length > 1 ? ` and ${files.length - 1} more` : ''}${isFirst ? ' as a new project' : ''}`,
-    report.startedBy === 'agent' ? 'Agent' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
+    report.startedBy === 'agent' ? 'AI' : 'you', message.createdAt ? chatTimestamp(message.createdAt) : '']
     .filter(Boolean).join(' · ');
   return <div className="message note" role="status">
     <span className="note-text" title={text}>{text}</span>
@@ -194,6 +195,8 @@ export function MessageList({
   onScrolledChange,
 }: Props) {
   const attachmentsById = new Map(attachments.map((attachment) => [attachment.id, attachment]));
+  // Only the chat's last reply can be retried; a stopped one offers it.
+  const lastReplyId = [...messages].reverse().find((message) => message.role === 'assistant')?.id;
   // use-stick-to-bottom tells the person's scrolling from content growing
   // under them. It opens at the bottom at once and eases after the stream,
   // or jumps when the system asks for reduced motion.
@@ -399,12 +402,21 @@ export function MessageList({
               <div className="error">{message.error.message}</div>
               {message.error.code === 'credits_exhausted' && creditActions &&
                 <button className="primary" onClick={creditActions.onGetMore}>Get more credits</button>}
+              {message.error.code === 'invalid_credentials' && creditActions?.onSignIn && !readOnly &&
+                <button className="primary" onClick={creditActions.onSignIn}>Sign in</button>}
               {message.error.retryable && !readOnly && (
                 <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
               )}
             </div>
           )}
-          {message.state === 'stopped' && <div className="meta">Stopped</div>}
+          {message.state === 'stopped' && (
+            <div className="message-failure">
+              <div className="meta">Stopped before it finished.</div>
+              {message.id === lastReplyId && !readOnly && (
+                <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -433,7 +445,7 @@ export function MessageList({
 
   return (
     <div className="message-thread">
-      <div className="message-list" role="log" aria-label="Agent conversation"
+      <div className="message-list" role="log" aria-label="AI conversation"
         ref={scrollRef} onScroll={handleScroll}>
         <div className="message-list-content" ref={contentRef}>
           <TimelineBlocks blocks={timeline(leadingMarkers, leadingChanges, leadingWork)} onWorkCancel={onWorkCancel} readOnly={readOnly} restorePoints={readOnly ? [] : restorePoints} onRevert={readOnly ? undefined : onRevert} markerActions={markerActions} />

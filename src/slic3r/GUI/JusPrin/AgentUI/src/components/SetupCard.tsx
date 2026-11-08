@@ -95,16 +95,20 @@ export function changedSettingCount(context: WorkspaceContext): number {
   return context.presetDeltas.length + (context.appliedSetup?.localOverrides ?? []).filter((local) => local.key).length;
 }
 
-// Process · first filament (+ how many more) · how many settings changed.
+// The process with the first filament and how many more, then how many
+// settings differ from the presets: "0.20mm Standard with Generic ABS and 2
+// other filaments. 7 settings differ from the presets."
 export function presetsLine(context: WorkspaceContext): string {
   const process = context.printer.process.trim();
   if (!process) return '';
   const filaments = context.setupIdentity?.filaments ?? [];
   const first = (filaments[0]?.preset || context.printer.filament).trim();
-  const filament = first ? `${shortPreset(first)}${filaments.length > 1 ? ` +${filaments.length - 1}` : ''}` : '';
+  const more = filaments.length - 1;
+  const filament = first
+    ? ` with ${shortPreset(first)}${more > 0 ? ` and ${more} other ${more === 1 ? 'filament' : 'filaments'}` : ''}` : '';
   const changed = changedSettingCount(context);
-  return [shortPreset(process), filament, changed > 0 ? `${changed} ${changed === 1 ? 'setting' : 'settings'} changed` : '']
-    .filter(Boolean).join(' · ');
+  const differ = changed > 0 ? ` ${changed} ${changed === 1 ? 'setting differs' : 'settings differ'} from the presets.` : '';
+  return `${shortPreset(process)}${filament}.${differ}`;
 }
 
 // The app's own mark that the project moved on since the plan was recorded,
@@ -151,7 +155,7 @@ export function SetupCard({ context, working: busy = false, historical = false, 
   const ariaLabel = historical ? 'Earlier setup — saved with this conversation' : 'Current setup';
   const eyebrow = sent ? 'Saved sliced snapshot' : historical ? 'Earlier setup' : 'Setup summary';
   const saved = formatMoment(savedAt);
-  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'Agent working' : '';
+  const state = historical ? (sent ? 'Sliced & sent' : saved ? `Saved ${saved}` : '') : working ? 'AI working' : '';
 
   const purpose = context.setupIntent.trim();
   const plan = context.planHeadline.trim();
@@ -191,12 +195,12 @@ export function SetupCard({ context, working: busy = false, historical = false, 
       : <div className="current-setup-facts">
         <p className="current-setup-line">{estimate.line}</p>
         {live && estimate.status === 'none' && !estimate.sliced &&
-          <button type="button" className="current-setup-link" onClick={onCompute}>Compute estimates</button>}
+          <button type="button" className="current-setup-link" onClick={onCompute}>Slice to see time and filament</button>}
       </div>}
-    <Note text={estimate.status === 'stale' ? 'Previous estimates · not current' : ''}
-      action={live ? { label: 'Recompute', onClick: onCompute! } : undefined} />
+    <Note text={estimate.status === 'stale' ? 'From before the last change.' : ''}
+      action={live ? { label: 'Slice again to update', onClick: onCompute! } : undefined} />
     {!historical && !agentAvailable && <p className="current-setup-line">{changedSettingCount(context) > 0
-      ? 'No agent configured.' : 'No agent configured · using the selected preset.'}</p>}
+      ? 'No AI configured.' : 'No AI configured · using the selected preset.'}</p>}
     {historical && <p className="current-setup-line">{sent
       ? `${sent.printer ? `Sent to ${sent.printer}` : 'Sent'}${sentWhen ? ` · ${sentWhen}` : ''}. Saved snapshot: the canvas shows your current project.`
       : 'Saved with this chat. The canvas shows your current project.'}</p>}

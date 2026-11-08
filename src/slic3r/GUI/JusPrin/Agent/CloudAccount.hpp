@@ -35,6 +35,10 @@
 
 namespace Slic3r::GUI::JusPrin::Agent {
 
+// Every byte but A-Z, a-z, 0-9 and -_.~ as %XX: for a query string, or a
+// header value that may hold any UTF-8.
+std::string percent_encoded(const std::string& text);
+
 // The application JusPrin 2 is registered as on the JusPrin server: a public
 // client using the authorization code grant, added by hand in the server's
 // admin like v1's "JusPrin" application.
@@ -120,9 +124,9 @@ struct CloudAccountStore
 enum class CloudSignInPhase { Idle, Browser, Email, Checking };
 
 // Where the browser starts: Google's sign-in, which comes back to the server
-// and on to the app, or the server's own sign-in page, which offers email and
-// Google both.
-enum class CloudBrowserStart { Google, SignInPage };
+// and on to the app. Email and password sign-ins stay in the app (start_email
+// below); the server's own sign-in page is never shown, on any screen.
+enum class CloudBrowserStart { Google };
 
 // The email sign-in, while the phase is Email.
 struct CloudEmailStep
@@ -192,6 +196,10 @@ public:
     virtual bool submit_code(const std::string& code) = 0;
     virtual bool submit_password(const std::string& password) = 0;
 
+    // A page the sign-in links to, opened in the browser: "terms", "privacy"
+    // or "reset_password". Empty for any other name.
+    virtual std::string link_url(const std::string& link) const { (void) link; return {}; }
+
     // The stored account, or nothing when signed out.
     virtual std::optional<CloudAccountRecord> account() const = 0;
     // Forgets the account on this computer and revokes its token. False when
@@ -227,6 +235,7 @@ public:
     bool                              submit_code(const std::string& code) override;
     bool                              submit_password(const std::string& password) override;
     bool                              send_code() override;
+    std::string                       link_url(const std::string& link) const override;
     std::optional<CloudAccountRecord> account() const override;
     bool                              sign_out() override;
 

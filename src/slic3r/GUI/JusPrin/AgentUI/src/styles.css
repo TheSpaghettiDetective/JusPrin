@@ -470,6 +470,7 @@ body {
 .jp-icon-package { -webkit-mask-image: url('@resources/jusprin/ui/icons/package.svg'); mask-image: url('@resources/jusprin/ui/icons/package.svg'); }
 .jp-icon-grid-3x3 { -webkit-mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); mask-image: url('@resources/jusprin/ui/icons/grid-3x3.svg'); }
 .jp-icon-info { -webkit-mask-image: url('@resources/jusprin/ui/icons/info.svg'); mask-image: url('@resources/jusprin/ui/icons/info.svg'); }
+.jp-icon-key { -webkit-mask-image: url('@resources/jusprin/ui/icons/key.svg'); mask-image: url('@resources/jusprin/ui/icons/key.svg'); }
 .jp-icon-triangle-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/triangle-alert.svg'); }
 .jp-icon-rotate-ccw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-ccw.svg'); }
 .jp-icon-rotate-cw { -webkit-mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); mask-image: url('@resources/jusprin/ui/icons/rotate-cw.svg'); }
@@ -1008,6 +1009,8 @@ button.configure-agent:disabled { background: var(--action-disabled); box-shadow
   overflow-wrap: anywhere;
 }
 .message-failure > button.primary { padding: var(--button-primary-padding); border: 0; font: var(--font-body-small-bold); }
+/* A stopped reply's line sits in the same column, spaced by its gap. */
+.message-failure > .meta { margin-top: 0; }
 
 .message-group {
   display: flex;
@@ -1965,6 +1968,15 @@ input[type='radio']:checked {
 }
 
 /* Board 3a: one line, the action and the close button at its end. */
+/* A quiet line, as board money-05 draws it: no card around it. */
+.composer-credits--added {
+  padding: 0 4px;
+  background: none;
+  box-shadow: none;
+  color: var(--status-success);
+  font: var(--font-label);
+}
+
 .composer-credits--low {
   flex-direction: row;
   align-items: center;
@@ -2620,8 +2632,17 @@ h2.credit-offer-title {
   color: var(--text-primary);
 }
 
-.credit-offer-action {
-  align-self: stretch;
+/* The sign-in every screen shares (SignInDoor.css), in a column as the
+   first-launch welcome's offer card spaces it. */
+.account-sign-in {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.account-sign-in .credit-offer-copy {
+  margin-bottom: 8px;
 }
 
 /* What the account row says under its line: the browser it is waiting on,
@@ -2686,6 +2707,15 @@ h2.credit-offer-title {
 .agent-row-status--sessionOnly { color: var(--text-primary); }
 .agent-row-status--sessionOnly .jp-icon { color: var(--status-warning); }
 .agent-row-status--rejected { color: var(--status-danger); }
+.agent-row-status--unavailable { color: var(--text-primary); }
+
+.agent-row-status-dot {
+  flex: 0 0 auto;
+  width: var(--status-dot-size);
+  height: var(--status-dot-size);
+  border-radius: var(--radius-full);
+  background: var(--status-warning);
+}
 
 /* A key's hint is code, and always at full contrast: it is what tells two
    keys apart. */
@@ -4139,6 +4169,25 @@ p.agent-row-note {
   margin-left: auto;
 }
 
+/* A label with a hint under it: the row grows to fit both lines. */
+.prefs-nav-item:has(.prefs-nav-copy) {
+  height: auto;
+  min-height: var(--preferences-nav-row-height);
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.prefs-nav-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prefs-nav-hint {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
 .prefs-dot {
   flex: 0 0 auto;
   width: var(--status-dot-size);
@@ -4254,9 +4303,43 @@ button.link.prefs-inline-link {
   color: var(--text-secondary);
 }
 
+/* Delete account…: the design system's Button/Danger, a secondary button in
+   the danger colours. */
+button.prefs-danger {
+  flex: 0 0 auto;
+  min-height: var(--button-secondary-height);
+  border-color: var(--status-danger);
+  font: var(--font-body-small);
+}
+
+button.prefs-danger:hover:enabled {
+  border-color: var(--status-danger);
+  background: var(--surface-subtle);
+}
+
 .prefs-check {
   justify-content: flex-start;
   width: 100%;
+}
+
+/* The box the server fills on Account (AccountBox.tsx): out of the column,
+   so it leaves no gap, until its content is measured. It takes no clicks. */
+.prefs-account {
+  position: relative;
+}
+
+.prefs-box {
+  display: block;
+  width: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.prefs-box[data-measuring] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
 }
 
 /* Account's plan, credits and usage (boards 4a to 4c). The bars are the
@@ -4265,6 +4348,11 @@ button.link.prefs-inline-link {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.prefs-credits-plan-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .prefs-credits-plan-name {
@@ -4299,94 +4387,6 @@ button.link.prefs-inline-link {
 .prefs-credits-total {
   font: var(--font-body-bold);
   color: var(--text-primary);
-}
-
-.prefs-usage {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.prefs-usage-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-self: stretch;
-}
-
-.prefs-usage-bars {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: var(--credits-usage-chart-height);
-  box-shadow: inset 0 1px 0 0 var(--border-subtle), inset 0 -1px 0 0 var(--border-subtle);
-}
-
-.prefs-usage-bar {
-  flex: 1 1 0;
-  min-width: 0;
-  border-radius: var(--radius-small) var(--radius-small) 0 0;
-  background: var(--action-primary);
-}
-
-.prefs-usage-most {
-  position: absolute;
-  top: 2px;
-  left: 0;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
-}
-
-.prefs-usage-axis {
-  display: flex;
-  justify-content: space-between;
-  font: var(--font-metadata);
-  color: var(--text-secondary);
-}
-
-.prefs-usage-table {
-  align-self: stretch;
-  border-collapse: collapse;
-  table-layout: auto;
-}
-
-.prefs-usage-table th,
-.prefs-usage-table td {
-  padding: 4px 0 4px 8px;
-  box-shadow: inset 0 -1px 0 0 var(--border-subtle);
-  text-align: left;
-  white-space: nowrap;
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.prefs-usage-table th {
-  font: var(--font-label);
-}
-
-.prefs-usage-table th:first-child,
-.prefs-usage-table td:first-child {
-  padding-left: 0;
-}
-
-/* The chat's title takes the room left and is cut short with an ellipsis. */
-.prefs-usage-table th:nth-child(2),
-.prefs-usage-table td:nth-child(2) {
-  width: 100%;
-  max-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.prefs-usage-table td:nth-child(2) {
-  color: var(--text-primary);
-}
-
-.prefs-usage-table th:last-child,
-.prefs-usage-table td:last-child {
-  text-align: right;
 }
 
 .prefs-select {
@@ -4541,141 +4541,7 @@ button.prefs-button:hover:enabled {
   font: var(--font-body-small);
 }
 
-/* The welcome-back window (canvas boards V1-01 to V1-03): one card of what
-   came from JusPrin v1, centred in the window. */
-.app--welcome {
-  background: var(--surface-canvas);
-}
-
-.welcome {
-  display: flex;
-  flex: 1 1 auto;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 32px 16px;
-}
-
-.welcome-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 480px;
-  box-sizing: border-box;
-  padding: 24px;
-  border-radius: var(--radius-medium);
-  background: var(--surface-subtle);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-}
-
-.welcome-head,
-.welcome-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.welcome-eyebrow {
-  font: var(--font-label-bold);
-  color: var(--text-secondary);
-}
-
-.welcome-title {
-  margin: 0;
-  font: var(--font-page-title);
-  color: var(--text-primary);
-}
-
-p.welcome-intro {
-  margin: 0;
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.welcome-account {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  border-radius: var(--radius-small);
-  background: var(--surface-canvas);
-}
-
-.welcome-offer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.welcome-account-line,
-.welcome-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.welcome-account-title {
-  font: var(--font-body-small-bold);
-  color: var(--text-primary);
-}
-
-.welcome-account-action {
-  min-height: var(--button-secondary-height);
-  padding: var(--button-secondary-padding);
-  border: 0;
-  border-radius: var(--radius-small);
-  background: none;
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-  font: var(--font-body-small);
-  color: var(--text-primary);
-}
-
-.welcome-row {
-  min-height: 40px;
-  box-sizing: border-box;
-  padding: 8px 12px;
-  border-radius: var(--radius-small);
-  background: var(--surface-canvas);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-}
-
-.welcome-row-copy {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.welcome-row-title {
-  font: var(--font-body);
-  color: var(--text-primary);
-}
-
-.welcome-row-detail,
-.welcome-row-count {
-  font: var(--font-label);
-  color: var(--text-secondary);
-}
-
-.welcome-row-count {
-  flex: none;
-}
-
-.welcome-icon--done {
-  color: var(--status-success);
-}
-
-.welcome-icon--warning {
-  color: var(--status-warning);
-}
-
-.welcome-continue {
-  align-self: stretch;
-}
-
-/* File › Import › Import from OrcaSlicer…'s window (canvas boards
+/* File › Import › Import from OrcaSlicer…'s and Import from JusPrin 1…'s window (canvas boards
    orca-import-02 to 05): what it found above, the buttons in a bar under a
    hairline. The window's title bar carries the title. */
 .app--orca-import {

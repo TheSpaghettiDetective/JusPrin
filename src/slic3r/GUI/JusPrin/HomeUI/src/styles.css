@@ -266,164 +266,59 @@ body {
   margin-top: 8px;
 }
 
-/* The sign-in door (canvas boards first-run-01, 04, 12 to 16): Google in the
-   browser, or an address that stays in the app, then its code or password. */
-.onboarding-door-note {
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.onboarding-google {
-  align-self: stretch;
-  justify-content: center;
-  min-height: var(--button-primary-height);
-  margin-top: 8px;
-  font: var(--font-body-small-bold);
-  background: var(--surface-raised);
-}
-
-.onboarding-google img {
-  width: var(--glyph-size);
-  height: var(--glyph-size);
-}
-
-/* "or" between two rules. */
-.onboarding-or {
+/* "Use your own AI account": a card under the offer, what it is on the
+   left and what it costs on the right (board first-run-welcome-01). */
+.onboarding-door {
   display: flex;
-  align-self: stretch;
-  align-items: center;
-  gap: 12px;
-  font: var(--font-body-small);
-  color: var(--text-secondary);
-}
-
-.onboarding-or::before,
-.onboarding-or::after {
-  content: '';
-  flex: 1 1 auto;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.onboarding-email-row {
-  display: flex;
-  align-self: stretch;
-  gap: 12px;
-  margin: 0;
-}
-
-.onboarding-field {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: var(--button-primary-height);
-  padding: 0 var(--field-padding-x);
-  font: var(--font-body);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--field-radius);
-}
-
-.onboarding-field:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
-}
-
-.onboarding-email-row .button-primary,
-.onboarding-email-row .button-secondary {
-  flex: 0 0 auto;
-  justify-content: center;
-}
-
-/* The email door's choice: the code button spans the card. */
-.onboarding-code-button {
-  align-self: stretch;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-/* A link inside a sentence: the sentence's own type, in the link colour. */
-.onboarding-link.inline {
-  display: inline;
-  padding: 0;
-  font: inherit;
-}
-
-.onboarding-link-row {
-  display: flex;
-  align-self: stretch;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  text-align: left;
+  background: var(--surface-raised);
+  border: 0;
+  border-radius: var(--radius-medium);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
 }
 
-.onboarding-links {
+.onboarding-door:hover:not(:disabled) {
+  background: var(--surface-raised-hover);
+}
+
+.onboarding-door:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+.onboarding-door-text {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
-.onboarding-link-dot {
-  padding: 0 4px;
+.onboarding-door-name {
+  font: var(--font-body-bold);
+}
+
+.onboarding-door-what {
+  font: var(--font-label);
   color: var(--text-secondary);
 }
 
-/* The design system's Field/Verification Code: six cells, one input. */
-.code-field {
-  position: relative;
-  display: flex;
-  gap: 8px;
-  margin: 8px 0 4px;
+.onboarding-door-cost {
+  font: var(--font-label-bold);
+  color: var(--status-success);
+  white-space: nowrap;
 }
 
-.code-field input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  padding: 0;
-  color: transparent;
-  caret-color: transparent;
-  background: transparent;
-  border: 0;
-  outline: none;
-  opacity: 0;
+.onboarding-door:disabled .onboarding-door-what,
+.onboarding-door:disabled .onboarding-door-cost {
+  color: var(--action-disabled-text);
 }
 
-.code-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--onboarding-code-cell);
-  height: var(--onboarding-code-cell);
-  font: var(--font-section);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border-radius: var(--radius-small);
-  box-shadow: inset 0 0 0 1px var(--border-subtle);
-}
-
-.code-cell.active {
-  box-shadow: inset 0 0 0 2px var(--action-primary);
-}
-
-.code-field.refused .code-cell {
-  box-shadow: inset 0 0 0 1px var(--status-danger);
-}
-
-.onboarding-spinner {
-  flex: 0 0 auto;
-  width: var(--glyph-size-large);
-  height: var(--glyph-size-large);
-  background: currentColor;
-  -webkit-mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
-  mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
-  animation: onboarding-spin var(--onboarding-spin-duration) linear infinite;
-}
-
-@keyframes onboarding-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* Printers: one column under the lockup. */
 .onboarding-step {
@@ -511,6 +406,19 @@ body {
   color: var(--text-tertiary);
 }
 
+/* The other two ways to set up printers, under every printer screen. */
+.onboarding-ways {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.onboarding-ways-label {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
 
 /* Below the width of the welcome row its two columns stack. */
 @media (max-width: 1168px) {
@@ -539,14 +447,17 @@ body {
   box-shadow: inset 0 0 0 1px var(--border-subtle);
 }
 
+/* The own-account card, smaller in the narrow column (board first-run-10). */
 .agent-card .onboarding-door {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  background: var(--surface-raised);
+  padding: 8px 12px;
 }
 
-.agent-card .onboarding-door-title {
+.agent-card .onboarding-door-name {
+  font: var(--font-body-small-bold);
+}
+
+.agent-card .onboarding-door-title,
+.agent-card .sign-in-title {
   font: var(--font-body-bold);
 }
 
@@ -562,7 +473,7 @@ body {
 
 /* The column is too narrow for a field beside its button: the button goes
    under the field, each the card's width. */
-.agent-card .onboarding-email-row {
+.agent-card .sign-in-email-row {
   flex-direction: column;
 }
 
@@ -576,16 +487,16 @@ body {
 }
 
 /* The links wrap here; without the dots a wrapped line does not start with one. */
-.agent-card .onboarding-links {
+.agent-card .sign-in-links {
   column-gap: 12px;
 }
 
-.agent-card .onboarding-link-dot {
+.agent-card .sign-in-link-dot {
   display: none;
 }
 
 /* A spent code's "Send a new code" takes the card's width, its links under it. */
-.agent-card .onboarding-new-code-row {
+.agent-card .sign-in-new-code-row {
   flex-direction: column;
   align-items: stretch;
 }
@@ -623,18 +534,9 @@ body {
   color: var(--text-primary);
 }
 
-.agent-card-close {
-  display: flex;
-  padding: 4px;
-  color: var(--text-secondary);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-small);
-  cursor: pointer;
-}
-
-.agent-card-close:hover {
-  background: var(--surface-raised-hover);
+/* "Hide", level with the first line of the title. */
+.agent-card-hide {
+  padding: 0;
 }
 
 .agent-card-lot {
@@ -1313,7 +1215,7 @@ body {
   background: var(--action-primary-hover);
 }
 
-/* Import and Launch monitor are outlined, not plain text: as text they
+/* Import and Open printer window are outlined, not plain text: as text they
    stopped reading as controls. */
 .button-secondary,
 .launch-monitor {
@@ -1964,12 +1866,6 @@ body {
   color: var(--text-tertiary);
 }
 
-/* The hash is a secondary id: in the code face, quiet. */
-.history-hash {
-  font: var(--font-code);
-  color: var(--text-tertiary);
-}
-
 .history-stats {
   min-width: 0;
   overflow: hidden;
@@ -2084,10 +1980,6 @@ body {
 
 .history-print-state {
   color: var(--status-success);
-}
-
-.history-print-state.started {
-  color: var(--text-secondary);
 }
 
 .history-actions {

@@ -4,6 +4,7 @@
 // silently disagree about the protocol name or version.
 
 import protocolJson from '@resources/jusprin/agent/protocol.json';
+import type { SignInEmailStep, SignInPhase } from '../components/SignInDoor';
 
 export const PROTOCOL_NAME: string = protocolJson.name;
 export const PROTOCOL_VERSION: number = protocolJson.version;
@@ -34,6 +35,8 @@ export type PageMessageType =
   | 'pick_attachment'
   | 'set_chat_model'
   | 'refresh_account'
+  | 'refresh_account_box'
+  | 'delete_account'
   | 'printer_action'
   | 'printer_instructions'
   | 'printer_opening'
@@ -49,6 +52,12 @@ export type PageMessageType =
   | 'account_sign_in'
   | 'account_check'
   | 'account_cancel'
+  | 'account_email'
+  | 'account_send_code'
+  | 'account_code'
+  | 'account_password'
+  | 'account_reopen'
+  | 'account_open_link'
   | 'preferences_action';
 
 export type HostMessageType =
@@ -83,6 +92,8 @@ export type HostMessageType =
   | 'setup_keys'
   | 'account_status'
   | 'account'
+  | 'account_box'
+  | 'account_deleted'
   | 'preferences';
 
 // A question the host asks before an action it cannot take back, drawn as
@@ -271,7 +282,14 @@ export interface CreditAccount {
     name: string;
     renews_at: string | null;
     unlimited_basic: boolean;
+    // The plan's price as a finished sentence, "$20 a month.": the app shows
+    // the server's words and has no price of its own. Missing from servers
+    // before it.
+    price_line?: string;
   } | null;
+  // What Delete account's confirmation says: which plan ends and which
+  // credits go. Missing from servers before it.
+  delete_warning?: string;
   v1_subscription: { plan_id: string; cents: number; period: 'month' | 'year' } | null;
   usage_30d: {
     credits: number;
@@ -354,11 +372,14 @@ export interface SavedKeyInfo {
 }
 
 // Where a JusPrin sign-in has got to (cloud_account capability). 'browser'
-// waits for the person in the browser tab at `url`; 'checking' asks the
-// server about the account. `expired` says the stored sign-in has ended.
+// waits for the person on Google's page at `url`; 'email' is the email
+// sign-in inside the page, at the step `email` says (account_email
+// capability); 'checking' asks the server about the account. `expired` says
+// the stored sign-in has ended.
 export interface AccountStatusPayload {
-  phase: 'idle' | 'browser' | 'checking';
+  phase: SignInPhase;
   url?: string;
+  email?: SignInEmailStep;
   expired?: boolean;
   error?: AgentErrorInfo;
   warning?: string;
@@ -853,29 +874,22 @@ export interface FilamentSessionPayload {
   copyName?: string; // the copy a change to a stock filament is saved as
 }
 
-// What JusPrin copied from JusPrin v1 on this computer at its first start,
-// as the welcome-back window lists it (canvas boards V1-01 to V1-03).
-export interface WelcomeBackPayload {
-  kind: 'welcome_back';
-  printers: string[];
-  presets: string[]; // filament and process presets
-  connections: string[]; // printers with a network connection
-  preferences: boolean;
-  failed: string[]; // files that could not be copied
-  unusable: string[]; // imported presets OrcaSlicer could not load
-}
-
 // File › Import › Import from OrcaSlicer…'s window (canvas boards
 // orca-import-02 to 05): an OrcaSlicer folder's printers, with the ones
 // JusPrin has marked, and once imported, what became of each preset.
 export interface OrcaImportPayload {
   kind: 'orca_import';
+  app: string; // the app it imports from, as the window names it: "OrcaSlicer" or "JusPrin 1"
   // no_folder: none beside JusPrin's; no_printers: a folder with none in it.
   screen: 'found' | 'nothing_new' | 'no_folder' | 'no_printers' | 'imported';
   folder?: string; // where it looked, under ~ when in the home folder
   printers?: { name: string; already: boolean }[];
   newPrinters?: number;
-  newFilaments?: number;
+  // The new filaments and processes an import copies, by name.
+  filaments?: string[];
+  processes?: string[];
+  // What an import would skip, each with its reason (imported is false).
+  skipped?: OrcaImportLine[];
   result?: OrcaImportLine[];
   error: string;
 }
@@ -885,8 +899,7 @@ export interface OrcaImportLine {
   name: string;
   renamedTo: string; // the name it was imported under, when its own was taken
   imported: boolean;
-  reason: string; // why it was not imported, as a sentence
-  retryable: boolean; // not imported, and bringing it again can succeed
+  reason: string; // why it was not imported, and what to do, as a sentence
 }
 
 export type PreferencesSection = 'account' | 'agent' | 'appearance' | 'view3d' | 'projects' | 'updates';
@@ -1075,9 +1088,9 @@ export interface StatePayload {
   draft: string;
   attachments?: AttachmentInfo[]; // staged (composer) and sent (history) attachments
   context: WorkspaceContext;
-  // the printer and filament chats, Preferences, the welcome-back window and
-  // the Import from OrcaSlicer window
-  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload | WelcomeBackPayload | OrcaImportPayload;
+  // the printer and filament chats, Preferences, and the Import from
+  // OrcaSlicer and Import from JusPrin 1 window
+  session?: PrinterSessionPayload | FilamentSessionPayload | PreferencesPayload | OrcaImportPayload;
   navigation?: { focused: boolean; returnLabel?: string }; // shell-owned full-screen project chat
 }
 

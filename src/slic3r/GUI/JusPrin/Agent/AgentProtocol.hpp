@@ -32,7 +32,7 @@ inline const std::vector<std::string>& capabilities()
                                                  "printer_panel", "file_reports", "setup_differences", "work_log",
                                                  "project_instructions", "project_skills", "native_file_picker",
                                                  "model_choice", "all_settings", "settings_actions", "proposals",
-                                                 "saved_keys", "preferences", "cloud_account"};
+                                                 "saved_keys", "preferences", "cloud_account", "account_email"};
     return values;
 }
 
@@ -59,15 +59,26 @@ inline constexpr const char* kSetupCancel        = "setup_cancel";
 // as setup_keys; a refusal comes back as bridge_error. Added additively; the
 // saved_keys capability advertises it.
 inline constexpr const char* kSetupRemoveKey     = "setup_remove_key";
-// Signing in to a JusPrin account (cloud_account capability): start the
-// browser sign-in, check the stored account again (its sign-in may have
-// expired; one imported from JusPrin v1 is checked this way), or stop
-// either. Progress comes back as account_status; the signed-in account
-// travels in setup_keys as the "jusprin" entry's account. Signing out is
-// setup_remove_key for "jusprin".
+// Signing in to a JusPrin account (cloud_account capability): start
+// Google's sign-in in the browser, check the stored account again (its
+// sign-in may have expired; one imported from JusPrin v1 is checked this
+// way), or stop either. Progress comes back as account_status; the signed-in
+// account travels in setup_keys as the "jusprin" entry's account. Signing out
+// is setup_remove_key for "jusprin".
 inline constexpr const char* kAccountSignIn      = "account_sign_in";
 inline constexpr const char* kAccountCheck       = "account_check";
 inline constexpr const char* kAccountCancel      = "account_cancel";
+// Signing in by email, inside the page as first launch does (account_email
+// capability): the address {email}, then an emailed code asked for
+// (account_send_code) and typed {code}, or the password {password}.
+// account_reopen opens Google's page again for a browser that did not open;
+// account_open_link opens {link}: "terms", "privacy" or "reset_password".
+inline constexpr const char* kAccountEmail       = "account_email";
+inline constexpr const char* kAccountSendCode    = "account_send_code";
+inline constexpr const char* kAccountCode        = "account_code";
+inline constexpr const char* kAccountPassword    = "account_password";
+inline constexpr const char* kAccountReopen      = "account_reopen";
+inline constexpr const char* kAccountOpenLink    = "account_open_link";
 inline constexpr const char* kMcpCatalog         = "mcp_catalog";
 inline constexpr const char* kMcpPreview         = "mcp_preview";
 inline constexpr const char* kMcpConnect         = "mcp_connect";
@@ -85,6 +96,13 @@ inline constexpr const char* kPickAttachment     = "pick_attachment";
 // pickers: {provider, model, effort}. It applies from the next turn. Added
 // additively; the model_choice capability advertises it.
 inline constexpr const char* kRefreshAccount      = "refresh_account";
+// Asks again for the box the JusPrin server fills on Preferences › Account;
+// the answer comes back as account_box.
+inline constexpr const char* kRefreshAccountBox   = "refresh_account_box";
+// Delete account on Preferences › Account, once the person has confirmed it:
+// the server deletes the account, then the app signs out of it. The answer is
+// account_deleted.
+inline constexpr const char* kDeleteAccount       = "delete_account";
 inline constexpr const char* kSetChatModel       = "set_chat_model";
 // The All settings panel asks for every setting in force, in one message;
 // the host answers with settings_catalog. Added additively; the all_settings
@@ -129,10 +147,13 @@ inline constexpr const char* kSetupStatus        = "setup_status";
 // an account provider. Sent after the handshake and whenever one
 // of them changes. saved_keys capability.
 inline constexpr const char* kSetupKeys          = "setup_keys";
-// Where a JusPrin sign-in has got to: {phase: idle|browser|checking, url?,
-// expired?, error?: {code, message, retryable}, warning?}. url is the page
-// the browser was sent to, while in the browser phase; expired says the
-// stored account's sign-in has ended. cloud_account capability.
+// Where a JusPrin sign-in has got to: {phase: idle|browser|email|checking,
+// url?, email?, expired?, error?: {code, message, retryable}, warning?}. url
+// is the page the browser was sent to, while in the browser phase; email is
+// the email sign-in's step while in the email phase: {step: choose|code,
+// email, busy, refusal, codeResent}, as Home's onboarding state words it;
+// expired says the stored account's sign-in has ended. cloud_account
+// capability.
 inline constexpr const char* kAccountStatus      = "account_status";
 inline constexpr const char* kMcpStatus          = "mcp_status";
 // One new change log entry; the full list travels in `state`.
@@ -147,6 +168,14 @@ inline constexpr const char* kRevealItem         = "reveal_item";
 // [{id, label, efforts, defaultEffort}]}]}. model_choice capability.
 inline constexpr const char* kModelCatalog       = "model_catalog";
 inline constexpr const char* kAccount            = "account";
+// The box on Preferences › Account: {html}, the HTML the JusPrin server sent,
+// or null for no box (it sent none, or could not be asked). One answer to the
+// latest refresh_account_box; an earlier one still on its way is dropped.
+inline constexpr const char* kAccountBox         = "account_box";
+// The answer to delete_account: {deleted}. When true the account is gone and
+// the app has signed out of it (setup_keys follows); when false nothing
+// changed: the server could not be reached or refused, or a reply is running.
+inline constexpr const char* kAccountDeleted     = "account_deleted";
 // The active chat's choice after a set_chat_model: {conversationId, chatModel}.
 inline constexpr const char* kChatModel          = "chat_model";
 // Every setting in force, for the All settings panel, in answer to
@@ -218,7 +247,7 @@ inline constexpr const char* kCalibrationStarted = "calibration_started";
 // a saved printer is opened for (with its first request). The trigger is
 // chosen by the app from the printer's vendor, and the skill stays in that
 // conversation from then on, with issue_report_open offered beside it
-// (PrinterConversation::connection_skill).
+// (PrinterConversation::connection_skill), as it is with kConnectPrintHost.
 inline constexpr const char* kConnectBambu = "connect_bambu";
 // The same for any other printer, which connects through a print host. The
 // app cannot know which kind until the person says, so one skill covers

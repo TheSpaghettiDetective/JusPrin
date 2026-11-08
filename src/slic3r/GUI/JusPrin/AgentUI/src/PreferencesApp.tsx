@@ -9,6 +9,7 @@ import { initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { BridgeErrorPane, ConnectingPane } from './components/Panels';
 import { Preferences, PreferencesActions } from './components/Preferences';
+import { accountSignInActions } from './components/AgentConnection';
 
 export function PreferencesApp({ getTransport }: { getTransport: () => Transport | null }) {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -59,9 +60,11 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
       previewTool: (toolId) => client.send('mcp_preview', { toolId }),
       connectTool: (toolId) => client.send('mcp_connect', { toolId }),
       revealTool: (toolId) => client.send('reveal_path', { toolId }),
-      signIn: () => client.send('account_sign_in', {}),
-      cancelSignIn: () => client.send('account_cancel', {}),
-      getMoreCredits: () => client.send('shell_action', { action: 'open_pricing' }),
+      signIn: accountSignInActions((type, payload) => client.send(type, payload)),
+      openServerPage: (page) => client.send('shell_action', { action: 'open_server_page', page, from: 'account' }),
+      deleteAccount: () => client.send('delete_account', {}),
+      refreshAccountBox: () => client.send('refresh_account_box', {}),
+      refreshAccount: () => client.send('refresh_account', {}),
     }),
     [client],
   );
@@ -84,7 +87,9 @@ export function PreferencesApp({ getTransport }: { getTransport: () => Transport
         savedKeys={state.savedKeys}
         account={state.account}
         creditAccount={state.creditAccount}
-        chatTitles={state.chatTitles}
+        accountBox={state.accountBox}
+        accountDeleted={state.accountDeleted}
+        modelCatalog={state.modelCatalog}
         mcpCatalog={state.mcpCatalog}
         mcpPreview={state.mcpPreview}
         mcpStatus={state.mcpStatus}

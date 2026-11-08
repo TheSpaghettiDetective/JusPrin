@@ -56,14 +56,14 @@ export function PrinterPickerHost({ form, pick, onPick, onAskAgent, reading }: P
   useEffect(() => {
     const askAgent: ReactNode = onAskAgent && <p className="printer-form-note">
       Can’t find your printer?{' '}
-      <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask the agent</button>
+      <button type="button" className="panel-link-button" onClick={onAskAgent}>Ask AI</button>
     </p>;
     root.current?.render(<div className="chat-dialog printer-form onboarding-picker">
       <PrinterPicker form={form} pick={pick} onPick={onPick} underMenus={askAgent} nozzleUnit
         nozzleNote={reading ? (
           <p className="printer-form-note onboarding-reading" role="status">
             <span className="jp-icon jp-icon-rotate-cw turn-activity-spinner" aria-hidden="true" />
-            Reading this printer’s settings…
+            Loading JusPrin’s settings for this printer…
           </p>
         ) : <p className="printer-form-note">Most printers ship with 0.4 mm.</p>} />
     </div>);

@@ -46,6 +46,7 @@ class StatusRow;
 
 namespace Home {
 class HomeWebView;
+struct ImportApp;
 }
 
 namespace PrinterSetup {
@@ -174,13 +175,10 @@ public:
     // The agent settings changed outside Preferences (Home's sign-in): the
     // docked agent, and an open printer chat, pick them up.
     void reload_agent_settings();
-    // The window shown once after JusPrin v1's setup was imported at this
-    // start (V1Import.hpp); returns once it is closed. Nothing when there is
-    // no import still to show.
-    void open_welcome_back();
-    // File › Import › Import from OrcaSlicer… (Home/OrcaImportWindow.hpp);
-    // returns once it is closed.
+    // File › Import › Import from OrcaSlicer… and Import from JusPrin 1…
+    // (Home/OrcaImportWindow.hpp); each returns once its window is closed.
     void open_orca_import();
+    void open_jusprin1_import();
 
     // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
     // decoupled from the add-printer request that opened it, so nothing else
@@ -214,6 +212,7 @@ public:
     void print_again(const std::string& project_id, const std::string& hash);
 
 private:
+    void open_import(const Home::ImportApp& app);
     // OrcaSlicer's load_files(wxArrayString) hands a person's files here
     // first (Plater::set_external_file_open_handler): files from the OS,
     // another instance, the command line, a download, and the two calls
@@ -300,8 +299,6 @@ private:
     bool m_agent_pane_user_collapsed{false};
     bool m_preferences_open{false};
     bool m_preferences_requested{false};
-    // Waits for the main window to be up before the welcome-back window.
-    std::unique_ptr<wxTimer> m_welcome_wait;
     bool m_task_open{false};
     int  m_task_origin_tab{-1};
     // Home tells its page which screen to show each time Home comes on

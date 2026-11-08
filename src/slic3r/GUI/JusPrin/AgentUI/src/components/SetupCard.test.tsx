@@ -192,14 +192,16 @@ describe('below the rule: the presets in force', () => {
   it('names the process and the first filament, each without its printer suffix', () => {
     const value = context();
     value.printer.process = '0.20mm Standard @BBL A1';
-    expect(presetsLine(value)).toBe('0.20mm Standard · PETG Basic');
-    expect(show(value)).toHaveTextContent('0.20mm Standard · PETG Basic');
+    expect(presetsLine(value)).toBe('0.20mm Standard with PETG Basic.');
+    expect(show(value)).toHaveTextContent('0.20mm Standard with PETG Basic.');
   });
 
   it('counts the filament slots it does not name', () => {
     const value = context();
     value.setupIdentity!.filaments.push({ preset: 'PLA Basic @BBL A1', material: 'PLA' }, { preset: 'PLA Basic @BBL A1', material: 'PLA' });
-    expect(presetsLine(value)).toBe('0.20 mm Standard · PETG Basic +2');
+    expect(presetsLine(value)).toBe('0.20 mm Standard with PETG Basic and 2 other filaments.');
+    value.setupIdentity!.filaments.pop();
+    expect(presetsLine(value)).toBe('0.20 mm Standard with PETG Basic and 1 other filament.');
   });
 
   it('counts the settings that differ from the presets, the objects\' own included, and names none', () => {
@@ -212,21 +214,21 @@ describe('below the rule: the presets in force', () => {
       { object: 2, target: 'c', kind: 'support painting', key: '', value: '' }];
     expect(changedSettingCount(value)).toBe(4);
     const card = show(value);
-    expect(card).toHaveTextContent('0.20 mm Standard · PETG Basic · 4 settings changed');
+    expect(card).toHaveTextContent('0.20 mm Standard with PETG Basic. 4 settings differ from the presets.');
     expect(card).not.toHaveTextContent(/Wall loops|Brim type|→|with overrides/);
     cleanup();
     value.presetDeltas = [];
     value.appliedSetup!.localOverrides.length = 1;
-    expect(presetsLine(value)).toBe('0.20 mm Standard · PETG Basic · 1 setting changed');
+    expect(presetsLine(value)).toBe('0.20 mm Standard with PETG Basic. 1 setting differs from the presets.');
     value.appliedSetup = null;
-    expect(presetsLine(value)).toBe('0.20 mm Standard · PETG Basic');
+    expect(presetsLine(value)).toBe('0.20 mm Standard with PETG Basic.');
   });
 
   it('keeps long preset names on one line, whole in the tooltip', () => {
     const value = context();
     value.printer.process = 'Draft quality profile for the large enclosure panels with thick walls';
     const line = show(value).querySelector('.current-setup-facts-text')!;
-    expect(line).toHaveTextContent('Draft quality profile for the large enclosure panels with thick walls · PETG Basic');
+    expect(line).toHaveTextContent('Draft quality profile for the large enclosure panels with thick walls with PETG Basic.');
     expect(line).toHaveAttribute('title', line.textContent);
   });
 
@@ -301,7 +303,7 @@ describe('below the rule: time and material', () => {
     const onCompute = vi.fn();
     const card = show(value, { onCompute });
     expect(card).toHaveTextContent('Not sliced yet');
-    await userEvent.click(within(card).getByRole('button', { name: 'Compute estimates' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Slice to see time and filament' }));
     expect(onCompute).toHaveBeenCalledOnce();
   });
 
@@ -321,12 +323,12 @@ describe('below the rule: time and material', () => {
     const onCompute = vi.fn();
     const card = show(value, { onCompute });
     expect(card).toHaveTextContent('~2h 18m');
-    expect(annotations(card)).toEqual(['Previous estimates · not current']);
+    expect(annotations(card)).toEqual(['From before the last change.']);
     // The card stays the live one: the annotation is the whole warning.
     expect(card).toHaveTextContent('Setup summary');
     expect(card).toHaveClass('current-setup--live');
     expect(card).not.toHaveTextContent(/Out of date|Earlier setup|Wall loops changed/);
-    await userEvent.click(within(card).getByRole('button', { name: 'Recompute' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Slice again to update' }));
     expect(onCompute).toHaveBeenCalledOnce();
   });
 
@@ -350,15 +352,15 @@ describe('below the rule: time and material', () => {
 });
 
 describe('one card-wide state', () => {
-  it('says "Agent working" and nothing else while the agent works, and offers no action', () => {
+  it('says "AI working" and nothing else while the agent works, and offers no action', () => {
     const value = context();
     value.plates[0].estimateStatus = 'stale';
     const card = show(value, { working: true, onCompute: () => {} });
-    expect(card.querySelector('.current-setup-state')).toHaveTextContent(/^Agent working$/);
+    expect(card.querySelector('.current-setup-state')).toHaveTextContent(/^AI working$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).not.toHaveTextContent(/Agent is applying|Last confirmed/);
     expect(card).toHaveAttribute('aria-busy', 'true');
-    expect(within(card).queryByRole('button', { name: /Recompute|Compute/ })).toBeNull();
+    expect(within(card).queryByRole('button', { name: /Slice/ })).toBeNull();
   });
 
   it('has no state at all otherwise, and no all-clear', () => {
@@ -387,12 +389,12 @@ describe('saved and no-agent cards', () => {
     expect(card.querySelector('.current-setup-label')).toHaveTextContent('Earlier setup');
     expect(card.querySelector('.current-setup-state')).toHaveTextContent('Saved Oct 3, 10:42');
     expect(card.querySelector('.current-setup-strategy')).toHaveTextContent(HEADLINE);
-    expect(annotations(card)).toEqual(['Previous estimates · not current']);
+    expect(annotations(card)).toEqual(['From before the last change.']);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('Saved with this chat. The canvas shows your current project.');
-    expect(card).not.toHaveTextContent(/Agent working/);
+    expect(card).not.toHaveTextContent(/AI working/);
     expect(card).not.toHaveAttribute('aria-busy');
-    expect(within(card).queryByRole('button', { name: /Recompute|Compute/ })).toBeNull();
+    expect(within(card).queryByRole('button', { name: /Slice/ })).toBeNull();
   });
 
   it('says where and when a saved sliced snapshot was sent', () => {
@@ -409,10 +411,10 @@ describe('saved and no-agent cards', () => {
     value.presetDeltas = [delta('a', 'Wall loops', '2 → 3')];
     const card = show(value, { agentAvailable: false, working: true });
     expect(card.querySelector('.current-setup-label')).toHaveTextContent('Setup summary');
-    expect(card).toHaveTextContent('0.20 mm Standard · PETG Basic · 1 setting changed');
+    expect(card).toHaveTextContent('0.20 mm Standard with PETG Basic. 1 setting differs from the presets.');
     // Someone changed a setting, so the preset alone is not what is in force.
-    expect(card).toHaveTextContent('No agent configured.');
-    expect(card).not.toHaveTextContent(/using the selected preset|Preset fallback|Edited by|Updated|Agent working/);
+    expect(card).toHaveTextContent('No AI configured.');
+    expect(card).not.toHaveTextContent(/using the selected preset|Preset fallback|Edited by|Updated|AI working/);
     expect(within(card).queryByRole('button')).toBeNull();
   });
 
@@ -426,7 +428,7 @@ describe('saved and no-agent cards', () => {
     const card = show(value);
     expect(card).toHaveTextContent('No settings read from the project');
     expect(card).toHaveTextContent('Estimate unavailable');
-    expect(card).not.toHaveTextContent(/settings changed|0 g/);
+    expect(card).not.toHaveTextContent(/settings differ|0 g/);
     expect(within(card).queryByRole('button')).toBeNull();
   });
 

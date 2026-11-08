@@ -47,7 +47,7 @@ describe('the three designed frames', () => {
       'Wide brim and a slow first layer for adhesion');
     // Five settings differ from the presets, and the object sets two itself.
     expect(card.querySelector('.current-setup-facts-text')).toHaveTextContent(
-      /^0\.20mm Standard · Generic ABS \+2 · 7 settings changed$/);
+      /^0\.20mm Standard with Generic ABS and 2 other filaments\. 7 settings differ from the presets\.$/);
     expect(card).toHaveTextContent('~2h 18m');
     expect(card).toHaveTextContent('41 g');
     await userEvent.click(within(card).getByRole('button', { name: 'All settings' }));
@@ -58,10 +58,10 @@ describe('the three designed frames', () => {
     const { root: card, onCompute } = visual('A2');
     expect(within(card).queryByRole('heading')).toBeNull();
     expect(card.querySelector('.current-setup-divider')).toBeNull();
-    expect(card.querySelector('.current-setup-facts-text')).toHaveTextContent(/^0\.20mm Standard · Generic ABS \+2$/);
+    expect(card.querySelector('.current-setup-facts-text')).toHaveTextContent(/^0\.20mm Standard with Generic ABS and 2 other filaments\.$/);
     expect([...card.querySelectorAll('.current-setup-line')].map((line) => line.textContent)).toEqual(['Not sliced yet']);
     expect(card.querySelector('.current-setup-strategy')).toBeNull();
-    await userEvent.click(within(card).getByRole('button', { name: 'Compute estimates' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Slice to see time and filament' }));
     expect(onCompute).toHaveBeenCalledOnce();
     expect(within(card).getByRole('button', { name: 'All settings' })).toBeInTheDocument();
   });
@@ -94,20 +94,20 @@ describe('the three designed frames', () => {
 describe('the card\'s other states', () => {
   const expected: Record<string, (string | RegExp)[]> = {
     earlier: ['Earlier setup', 'Saved Oct 8, 10:42', 'Wide brim and a slow first layer for adhesion', 'Saved with this chat.'],
-    working: ['Agent working', 'Stop the corners lifting', '~2h 18m'],
+    working: ['AI working', 'Stop the corners lifting', '~2h 18m'],
     recomputing: ['Time & material estimates recomputing…'],
-    stale: ['Setup summary', '~2h 18m', 'Previous estimates · not current', 'Recompute'],
+    stale: ['Setup summary', '~2h 18m', 'From before the last change.', 'Slice again to update'],
     'plan-mark': ['Stop the corners lifting', 'Wide brim and a slow first layer for adhesion',
       'Filament changed to Generic ABS by hand', 'Check plan', 'Time & material estimates recomputing…'],
-    material: ['Generic ABS +2 · 7 settings changed', 'Printer last reported PLA'],
-    'no-agent': ['0.20mm Standard · Generic ABS +2', 'Not sliced yet', 'No agent configured · using the selected preset.'],
+    material: ['Generic ABS and 2 other filaments. 7 settings differ from the presets.', 'Printer last reported PLA'],
+    'no-agent': ['0.20mm Standard with Generic ABS and 2 other filaments.', 'Not sliced yet', 'No AI configured · using the selected preset.'],
     sent: ['Saved sliced snapshot', 'Sliced & sent', 'Sent to MyKlipper · Oct 8, 10:42. Saved snapshot: the canvas shows your current project.'],
     'with-currency': [/1\.12/],
     missing: ['No settings read from the project', 'Estimate unavailable'],
     dense: ['Extra-wide brim, a slow first layer and a cooler bed so the long fixture stays flat on the plate',
-      '+5 · 22 settings changed'],
-    'no-plan': ['Stop the corners lifting', '7 settings changed'],
-    'plan-only': ['Wide brim and a slow first layer for adhesion', '7 settings changed'],
+      'and 5 other filaments. 22 settings differ from the presets.'],
+    'no-plan': ['Stop the corners lifting', '7 settings differ from the presets.'],
+    'plan-only': ['Wide brim and a slow first layer for adhesion', '7 settings differ from the presets.'],
     'page-untouched': ['0.20mm Standardfrom the preset', 'Qualityfrom the preset', 'Strengthfrom the preset'],
     'page-objects': ['Shown: only what bracket.stl sets itself.',
       'bracket.stl uses the project’s settings, except in 2 regions: Mounting tabs and Screw holes.',
@@ -139,7 +139,7 @@ describe('the card\'s other states', () => {
     expect(notes('plan-mark')).toEqual([{ text: 'Filament changed to Generic ABS by handCheck plan',
       after: 'current-setup-strategy' }]);
     expect(notes('material')).toEqual([{ text: 'Printer last reported PLA', after: 'current-setup-facts' }]);
-    expect(notes('stale')).toEqual([{ text: 'Previous estimates · not currentRecompute', after: 'current-setup-metrics' }]);
+    expect(notes('stale')).toEqual([{ text: 'From before the last change.Slice again to update', after: 'current-setup-metrics' }]);
     for (const id of ['A1', 'A2', 'working', 'recomputing', 'no-plan', 'plan-only']) expect(notes(id)).toEqual([]);
   });
 

@@ -121,7 +121,6 @@ describe('styles.css stays on the design tokens', () => {
     ['.message-failure > button.primary', ['--button-primary-padding', '--font-body-small-bold']],
     ['.attachment-remove', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['button.prefs-button', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
-    ['.welcome-account-action', ['--button-secondary-height', '--button-secondary-padding', '--font-body-small']],
     ['.agent-key-field', ['--provider-row-field-height', '--field-padding-x', '--radius-small', '--border-subtle']],
     ['.change-revert-tooltip', ['--tooltip-height', '--tooltip-padding-y', '--tooltip-padding-x', '--tooltip-radius',
       '--font-metadata']],

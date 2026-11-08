@@ -48,6 +48,7 @@ describe('protocol constants', () => {
       'pick_attachment',
       'set_chat_model',
       'refresh_account',
+      'refresh_account_box',
       'printer_action',
       'printer_instructions',
       'printer_opening',
@@ -64,6 +65,12 @@ describe('protocol constants', () => {
       'account_sign_in',
       'account_check',
       'account_cancel',
+      'account_email',
+      'account_send_code',
+      'account_code',
+      'account_password',
+      'account_reopen',
+      'account_open_link',
     ]);
     expect(protocolJson.hostMessageTypes).toContain('hello_ack');
     expect(protocolJson.hostMessageTypes).toContain('assistant_delta');

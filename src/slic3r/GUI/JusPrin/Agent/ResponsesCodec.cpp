@@ -141,7 +141,7 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
     };
     const json event = json::parse(payload, nullptr, false);
     if (!event.is_object()) {
-        push(StreamEvent::Kind::Failed).error = {"malformed_response", "The Agent service returned an unreadable streaming response.", false};
+        push(StreamEvent::Kind::Failed).error = {"malformed_response", "The AI service returned an unreadable streaming response.", false};
         return events;
     }
     const std::string type = event.value("type", "");
@@ -153,7 +153,7 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
         m_completed = true;
         const json& response = event["response"];
         if (!response.is_object() || !response.contains("output") || !response["output"].is_array()) {
-            push(StreamEvent::Kind::Failed).error = {"malformed_response", "The Agent service response did not contain valid output.", false};
+            push(StreamEvent::Kind::Failed).error = {"malformed_response", "The AI service response did not contain valid output.", false};
             return events;
         }
         StreamEvent& complete = push(StreamEvent::Kind::TurnComplete);
@@ -174,7 +174,7 @@ std::vector<StreamEvent> ResponsesCodec::parse(const std::string& payload)
     } else if (type == "response.incomplete") {
         push(StreamEvent::Kind::Incomplete);
     } else if (type == "response.failed" || type == "error") {
-        push(StreamEvent::Kind::Failed).error = {"agent_service_error", "The Agent service could not complete the response.", true};
+        push(StreamEvent::Kind::Failed).error = {"agent_service_error", "The AI service could not complete the response.", true};
     }
     return events;
 }

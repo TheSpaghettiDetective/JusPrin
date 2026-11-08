@@ -76,7 +76,7 @@ TEST_CASE("an orca import keeps each file's reason and renames what JusPrin alre
         return base == "Bambu Lab X1 Carbon 0.4 nozzle" ? base : std::string();
     };
 
-    std::vector<OrcaImportItem> items = plan_orca_import({mine, taken, orphan, broken, no_ver, not_one}, catalog, staging.path);
+    std::vector<OrcaImportItem> items = plan_orca_import(kOrcaSlicer, {mine, taken, orphan, broken, no_ver, not_one}, catalog, staging.path);
     REQUIRE(items.size() == 6);
 
     CHECK(items[0].name == "My X1C");
@@ -137,7 +137,7 @@ TEST_CASE("an orca import numbers a second copy and finds bases among its own fi
     catalog.inherits = [](Kind, const std::string&) { return std::string("Generic PLA @System"); };
     catalog.base     = [](Kind, const std::string& name) { return name == "Generic PLA @System" ? name : std::string(); };
 
-    const std::vector<OrcaImportItem> items = plan_orca_import({base, child}, catalog, staging.path);
+    const std::vector<OrcaImportItem> items = plan_orca_import(kOrcaSlicer, {base, child}, catalog, staging.path);
     CHECK(items[0].outcome == Outcome::Pending);
     CHECK(items[1].outcome == Outcome::Pending);
     CHECK(items[1].renamed_to == "My PLA (Orca copy 2)");
@@ -180,13 +180,13 @@ TEST_CASE("an orca import leaves alone what JusPrin already has", "[home][orca_i
         return base == "Elegoo Generic ABS" ? std::string("Generic ABS @System") : base;
     };
 
-    CHECK(orca_preset_in_jusprin(shop, catalog));
-    CHECK(orca_preset_in_jusprin(abs, catalog));
-    CHECK(orca_preset_in_jusprin(mine, catalog));
-    CHECK_FALSE(orca_preset_in_jusprin(silk, catalog));
-    CHECK_FALSE(orca_preset_in_jusprin(broken, catalog));
+    CHECK(orca_preset_in_jusprin(kOrcaSlicer, shop, catalog));
+    CHECK(orca_preset_in_jusprin(kOrcaSlicer, abs, catalog));
+    CHECK(orca_preset_in_jusprin(kOrcaSlicer, mine, catalog));
+    CHECK_FALSE(orca_preset_in_jusprin(kOrcaSlicer, silk, catalog));
+    CHECK_FALSE(orca_preset_in_jusprin(kOrcaSlicer, broken, catalog));
 
-    std::vector<OrcaImportItem> items = plan_orca_import({shop, mine, silk}, catalog, staging.path);
+    std::vector<OrcaImportItem> items = plan_orca_import(kOrcaSlicer, {shop, mine, silk}, catalog, staging.path);
     REQUIRE(items.size() == 3);
     CHECK(items[0].outcome == Outcome::AlreadyThere);
     CHECK(items[1].outcome == Outcome::AlreadyThere);
@@ -214,12 +214,12 @@ TEST_CASE("an orca account folder is found from what the person picks", "[home][
     preset(root / "user" / "1234" / "machine" / "New.json", printer("New"));
     const fs::path account = root / "user" / "1234";
 
-    CHECK(orca_account_folder(root) == account);
-    CHECK(orca_account_folder_for_pick(root) == account);
-    CHECK(orca_account_folder_for_pick(root / "user") == account);
-    CHECK(orca_account_folder_for_pick(account) == account);
-    CHECK(orca_account_folder_for_pick(account / "machine") == account);
-    CHECK_FALSE(orca_account_folder_for_pick(orca.path).has_value());
+    CHECK(orca_account_folder(kOrcaSlicer, root) == account);
+    CHECK(orca_account_folder_for_pick(kOrcaSlicer, root) == account);
+    CHECK(orca_account_folder_for_pick(kOrcaSlicer, root / "user") == account);
+    CHECK(orca_account_folder_for_pick(kOrcaSlicer, account) == account);
+    CHECK(orca_account_folder_for_pick(kOrcaSlicer, account / "machine") == account);
+    CHECK_FALSE(orca_account_folder_for_pick(kOrcaSlicer, orca.path).has_value());
 
     const OrcaPresetFiles presets = scan_orca_presets(account);
     CHECK(presets.printers == std::vector<std::string>{"New"});
@@ -228,12 +228,12 @@ TEST_CASE("an orca account folder is found from what the person picks", "[home][
     SECTION("OrcaSlicer.conf names the account, after its JSON a checksum line")
     {
         write(root / "OrcaSlicer.conf", R"({"app": {"preset_folder": "default"}})" "\n# MD5 checksum 0123\n");
-        CHECK(orca_account_folder(root) == root / "user" / "default");
+        CHECK(orca_account_folder(kOrcaSlicer, root) == root / "user" / "default");
     }
     SECTION("an unreadable OrcaSlicer.conf names nothing")
     {
         write(root / "OrcaSlicer.conf", "{ broken");
-        CHECK_FALSE(orca_account_folder(root).has_value());
+        CHECK_FALSE(orca_account_folder(kOrcaSlicer, root).has_value());
     }
 }
 
@@ -274,14 +274,14 @@ TEST_CASE("an orca folder with only ticked printers offers JusPrin's own profile
         return names;
     };
 
-    CHECK(orca_selected_printer(root) == "Bambu Lab P1S 0.4 nozzle");
-    REQUIRE(orca_ticked_printers(root).size() == 4);
-    CHECK(orca_ticked_printers(root)[2].nozzle == "0.6");
+    CHECK(orca_selected_printer(kOrcaSlicer, root) == "Bambu Lab P1S 0.4 nozzle");
+    REQUIRE(orca_ticked_printers(kOrcaSlicer, root).size() == 4);
+    CHECK(orca_ticked_printers(kOrcaSlicer, root)[2].nozzle == "0.6");
 
     SECTION("no saved presets: every ticked printer JusPrin has, then the selected one")
     {
         const std::vector<OrcaImportItem> items =
-            orca_profile_printers(root, std::nullopt, [&]() -> const auto& { return profiles; });
+            orca_profile_printers(kOrcaSlicer, root, std::nullopt, [&]() -> const auto& { return profiles; });
         CHECK(names(items) == std::vector<std::string>{"Bambu Lab A1 mini 0.4 nozzle", "Creality K1C 0.4 nozzle",
                                                        "Creality K1C 0.6 nozzle", "Bambu Lab P1S 0.4 nozzle"});
         REQUIRE(items.size() == 4);
@@ -296,7 +296,7 @@ TEST_CASE("an orca folder with only ticked printers offers JusPrin's own profile
         const fs::path account = root / "user" / "default";
         preset(account / "machine" / "My A1 mini.json", printer("My A1 mini", "Bambu Lab A1 mini 0.4 nozzle"));
         const std::vector<OrcaImportItem> items =
-            orca_profile_printers(root, account, [&]() -> const auto& { return profiles; });
+            orca_profile_printers(kOrcaSlicer, root, account, [&]() -> const auto& { return profiles; });
         CHECK(names(items) == std::vector<std::string>{"Creality K1C 0.4 nozzle", "Creality K1C 0.6 nozzle", "Bambu Lab P1S 0.4 nozzle"});
     }
     SECTION("a selected printer that is also ticked is listed once")
@@ -304,14 +304,14 @@ TEST_CASE("an orca folder with only ticked printers offers JusPrin's own profile
         write(root / "OrcaSlicer.conf",
               R"({"models": [{"vendor": "BBL", "model": "Bambu Lab A1 mini", "nozzle_diameter": "0.4"}],
                   "presets": {"machine": "Bambu Lab A1 mini 0.4 nozzle"}})");
-        CHECK(names(orca_profile_printers(root, std::nullopt, [&]() -> const auto& { return profiles; })) ==
+        CHECK(names(orca_profile_printers(kOrcaSlicer, root, std::nullopt, [&]() -> const auto& { return profiles; })) ==
               std::vector<std::string>{"Bambu Lab A1 mini 0.4 nozzle"});
     }
     SECTION("a folder that names no printer never reads the profiles")
     {
         write(root / "OrcaSlicer.conf", R"({"app": {"preset_folder": "default"}})");
         bool read = false;
-        CHECK(orca_profile_printers(root, std::nullopt, [&]() -> const auto& {
+        CHECK(orca_profile_printers(kOrcaSlicer, root, std::nullopt, [&]() -> const auto& {
                   read = true;
                   return profiles;
               }).empty());
@@ -377,19 +377,117 @@ TEST_CASE("an orca import brings only the printers the person left chosen, and e
     }
 }
 
-TEST_CASE("an orca import offers a retry only for a failure a retry can fix", "[home][onboarding][orca_import]")
+TEST_CASE("a JusPrin 1 folder is read from JusPrin.conf, and its copies are named after JusPrin 1", "[home][onboarding][orca_import]")
 {
-    const auto item = [](Outcome outcome, Reason reason) {
-        OrcaImportItem made;
-        made.outcome = outcome;
-        made.reason  = reason;
-        return made;
+    TempFolder v1, staging;
+    const fs::path root = v1.path / "JusPrin";
+    preset(root / "user" / "default" / "machine" / "Old.json", printer("Old"));
+    const std::string mine = preset(root / "user" / "1234" / "machine" / "Shop X1C.json", printer("Shop X1C"));
+    // JusPrin 1 keeps OrcaSlicer's settings file under its own name; an
+    // OrcaSlicer.conf beside it is not JusPrin 1's.
+    write(root / "JusPrin.conf", R"({"app": {"preset_folder": "1234"}, "presets": {"machine": "Shop X1C"},
+        "models": [{"vendor": "BBL", "model": "Bambu Lab P1S", "nozzle_diameter": "0.4"}]})" "\n# MD5 checksum 0123\n");
+    write(root / "OrcaSlicer.conf", R"({"app": {"preset_folder": "default"}, "presets": {"machine": "Old"}})");
+
+    CHECK(orca_account_folder(kJusPrin1, root) == root / "user" / "1234");
+    CHECK(orca_selected_printer(kJusPrin1, root) == "Shop X1C");
+    REQUIRE(orca_ticked_printers(kJusPrin1, root).size() == 1);
+    CHECK(orca_ticked_printers(kJusPrin1, root)[0].model == "Bambu Lab P1S");
+
+    OrcaImportCatalog catalog;
+    catalog.has      = [](Kind, const std::string& name) { return name == "Shop X1C"; };
+    catalog.base     = [](Kind, const std::string& name) { return name; };
+    // JusPrin's "Shop X1C" is another printer: the base differs.
+    catalog.inherits = [](Kind, const std::string&) { return std::string("Bambu Lab P1S 0.4 nozzle"); };
+    const std::vector<OrcaImportItem> items = plan_orca_import(kJusPrin1, {mine}, catalog, staging.path);
+    CHECK(items[0].renamed_to == "Shop X1C (JusPrin 1 copy)");
+}
+
+// Reported 2026-11-08: after a first launch had imported from JusPrin 1,
+// File › Import › Import from JusPrin 1… said it found filaments or settings
+// JusPrin doesn't have, because the one file it didn't have was settings
+// built on a profile JusPrin doesn't have, which no import can bring.
+TEST_CASE("the import window offers only what an import can bring, and lists the rest with its reason", "[home][orca_import]")
+{
+    TempFolder v1;
+    const fs::path account = v1.path / "user" / "default";
+    const auto process = [&](const std::string& name, const std::string& base) {
+        return preset(account / "process" / (name + ".json"),
+                      {{"name", name}, {"version", "1.0"}, {"print_settings_id", name}, {"inherits", base}});
     };
-    CHECK(orca_import_retryable(item(Outcome::NotImported, Reason::Unreadable)));
-    CHECK(orca_import_retryable(item(Outcome::NotImported, Reason::NotLoaded)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::MissingBase)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::NoVersion)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::NotImported, Reason::NotAPreset)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::Imported, Reason::None)));
-    CHECK_FALSE(orca_import_retryable(item(Outcome::AlreadyThere, Reason::None)));
+    preset(account / "machine" / "MyKlipper 0.4 nozzle - Copy.json", printer("MyKlipper 0.4 nozzle - Copy"));
+    process("0.08mm Extra Fine @MyMarlin - Copy", "0.08mm Extra Fine @MyMarlin");
+    process("0.20mm Detail @MK3S 0.6 - Copy", "0.20mm Detail @MK3S 0.6");
+
+    // JusPrin has the printer and the first process from the first launch.
+    std::set<std::string> jusprin{"MyKlipper 0.4 nozzle - Copy", "0.08mm Extra Fine @MyMarlin - Copy"};
+    OrcaImportCatalog catalog;
+    catalog.has      = [&](Kind, const std::string& name) { return jusprin.count(name) != 0; };
+    catalog.inherits = [](Kind kind, const std::string&) {
+        return std::string(kind == Kind::Printer ? "Bambu Lab X1 Carbon 0.4 nozzle" : "0.08mm Extra Fine @MyMarlin");
+    };
+    catalog.base = [](Kind, const std::string& base) {
+        return base == "0.20mm Detail @MK3S 0.6" || base == "Some Retired Printer" ? std::string() : base;
+    };
+    const auto ships_nothing = [](const std::string&) { return false; };
+
+    OrcaImportOffer offer = orca_import_offer(kJusPrin1, scan_orca_presets(account), {}, catalog, ships_nothing);
+    CHECK(offer.nothing_new());
+    REQUIRE(offer.printers.size() == 1);
+    CHECK(offer.printers[0] == std::make_pair(std::string("MyKlipper 0.4 nozzle - Copy"), true));
+    CHECK(offer.processes.empty());
+    REQUIRE(offer.skipped.size() == 1);
+    CHECK(offer.skipped[0].name == "0.20mm Detail @MK3S 0.6 - Copy");
+    CHECK(offer.skipped[0].reason == Reason::MissingBase);
+    CHECK(offer.skipped[0].base == "0.20mm Detail @MK3S 0.6");
+
+    SECTION("a process JusPrin can import is on offer")
+    {
+        jusprin.erase("0.08mm Extra Fine @MyMarlin - Copy");
+        offer = orca_import_offer(kJusPrin1, scan_orca_presets(account), {}, catalog, ships_nothing);
+        CHECK_FALSE(offer.nothing_new());
+        CHECK(offer.processes == std::vector<std::string>{"0.08mm Extra Fine @MyMarlin - Copy"});
+        CHECK(offer.skipped.size() == 1);
+    }
+
+    SECTION("a printer is offered when JusPrin ships its base, and listed with its reason when it doesn't")
+    {
+        preset(account / "machine" / "Shop A1.json", printer("Shop A1", "Bambu Lab A1 0.4 nozzle"));
+        preset(account / "machine" / "Old.json", printer("Old", "Some Retired Printer"));
+        catalog.base = [](Kind, const std::string& base) {
+            return base == "Bambu Lab X1 Carbon 0.4 nozzle" || base == "0.08mm Extra Fine @MyMarlin" ? base : std::string();
+        };
+        offer = orca_import_offer(kJusPrin1, scan_orca_presets(account), {}, catalog,
+                                  [](const std::string& base) { return base == "Bambu Lab A1 0.4 nozzle"; });
+        CHECK(offer.new_printers == 1);
+        CHECK(offer.printers == std::vector<std::pair<std::string, bool>>{
+                                    {"MyKlipper 0.4 nozzle - Copy", true}, {"Shop A1", false}});
+        // With a new printer on offer, settings whose base is missing may
+        // come with its profiles, so they are offered and the import tells.
+        CHECK(offer.processes == std::vector<std::string>{"0.20mm Detail @MK3S 0.6 - Copy"});
+        REQUIRE(offer.skipped.size() == 1);
+        CHECK(offer.skipped[0].name == "Old");
+    }
+
+    SECTION("a ticked printer JusPrin doesn't have is on offer")
+    {
+        OrcaImportItem p1s;
+        p1s.name = "Bambu Lab P1S 0.4 nozzle";
+        offer    = orca_import_offer(kJusPrin1, scan_orca_presets(account), {p1s}, catalog, ships_nothing);
+        CHECK(offer.new_printers == 1);
+        CHECK(offer.printers.back() == std::make_pair(std::string("Bambu Lab P1S 0.4 nozzle"), false));
+    }
+}
+
+TEST_CASE("planning an orca import without a staging folder writes no copy", "[home][orca_import]")
+{
+    TempFolder orca;
+    const std::string taken = preset(orca.path / "user" / "default" / "machine" / "Shop X1C.json", printer("Shop X1C"));
+    OrcaImportCatalog catalog;
+    catalog.has      = [](Kind, const std::string& name) { return name == "Shop X1C"; };
+    catalog.inherits = [](Kind, const std::string&) { return std::string("Bambu Lab P1S 0.4 nozzle"); };
+    catalog.base     = [](Kind, const std::string& base) { return base; };
+    const std::vector<OrcaImportItem> items = plan_orca_import(kOrcaSlicer, {taken}, catalog, {});
+    CHECK(items[0].renamed_to == "Shop X1C (Orca copy)");
+    CHECK(items[0].file == taken);
 }

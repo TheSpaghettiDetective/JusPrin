@@ -55,7 +55,7 @@ export const printerCases: VisualCase[] = [
     block({ kind: 'printers', printers: [{ catalogId: 'a1-mini', name: 'Bambu Lab A1 mini', brand: 'Bambu Lab', model: 'A1 mini',
       buildVolume: '180 × 180 × 180 mm', picture: '' }] })),
   { node: '1572:2336', matrix: 'Printer chat', id: 'printer-close', name: 'Close conversation confirmation', frame: 'pane',
-    expects: ['Close this conversation?', 'Close conversation', 'role="dialog"'],
+    expects: ['Close this chat?', 'Printers already added stay added.', 'Close chat', 'role="dialog"'],
     build: () => mountedApp(session(), { props: { printerPanel: true }, after: async () => {
       await userEvent.click(screen.getByRole('button', { name: /Back/ }));
     } }) },

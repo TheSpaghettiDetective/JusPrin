@@ -14,7 +14,6 @@ import {
   REPORT_OFFER,
   reportSentDetail,
   rowTime,
-  shortHash,
   statsLine,
 } from '../history';
 import {
@@ -46,23 +45,25 @@ type HistoryScreen = Extract<Screen, { kind: 'history' }>;
 type Row = { at: string; destination: HistoryDestination; print?: undefined } | { at: string; print: HistoryPrint; destination?: undefined };
 
 // An entry's rows in the order they happened: where it went, and what the
-// printer reported.
+// printer reported. A print that is neither printing nor reported finished
+// gets no row: nobody knows how it ended, so the page does not say.
 function rowsOf(entry: HistoryEntry): Row[] {
   const rows: Row[] = [
     ...entry.destinations.map((destination) => ({ at: destination.at, destination })),
-    ...entry.prints.map((print) => ({ at: print.startedAt, print })),
+    ...entry.prints.filter((print) => print.finishedAt || print.live).map((print) => ({ at: print.startedAt, print })),
   ];
   return rows.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
 function DestinationRow({ entry, row, onExport }: { entry: HistoryEntry; row: HistoryDestination; onExport: PrintHistoryActions['onExport'] }) {
   if (row.kind === 'send') {
-    const delivery = row.delivered
-      ? `on the printer’s SD · ${row.startRequested ? 'started' : 'not started'}`
-      : 'sent, delivery not confirmed';
+    // Where the file went is said only when the print did not start from it.
+    const time = rowTime(row.at, entry.createdAt);
+    const note = !row.delivered ? 'The printer hasn’t confirmed it got the file.'
+      : row.startRequested ? undefined : 'The file is on the printer but was not started.';
     return (
-      <HistoryRow icon={<span className="history-icon-send"><PrinterGlyph /></span>} label={`Sent to ${row.printerName}`}
-        detail={`${rowTime(row.at, entry.createdAt)} · ${delivery}`} />
+      <HistoryRow icon={<span className="history-icon-send"><PrinterGlyph /></span>}
+        label={time ? `Sent to ${row.printerName} at ${time}` : `Sent to ${row.printerName}`} detail={note} />
     );
   }
   const where = folderOf(row.path);
@@ -84,10 +85,9 @@ function DestinationRow({ entry, row, onExport }: { entry: HistoryEntry; row: Hi
   );
 }
 
-// Only what the printer reported: printing, finished. A print that stopped
-// early is neither, and says only when it started.
+// Only what the printer reported: printing, finished.
 function PrintRow({ entry, print }: { entry: HistoryEntry; print: HistoryPrint }) {
-  const state = print.finishedAt ? 'Finished' : print.live ? 'Printing' : 'Started';
+  const state = print.finishedAt ? 'Finished' : 'Printing';
   const live = print.live && [
     print.live.percent !== undefined ? `${print.live.percent}%` : '',
     print.live.remainingSeconds ? `${duration(print.live.remainingSeconds)} left` : '',
@@ -95,20 +95,20 @@ function PrintRow({ entry, print }: { entry: HistoryEntry; print: HistoryPrint }
   const span = printSpan(print.startedAt, print.finishedAt, entry.createdAt);
   return (
     <HistoryRow
-      icon={<span className={state === 'Started' ? 'status-dot' : 'status-dot printing'} aria-hidden="true" />}
-      label={<><span className={state === 'Started' ? 'history-print-state started' : 'history-print-state'}>{state}</span> · {print.printerName}</>}
+      icon={<span className="status-dot printing" aria-hidden="true" />}
+      label={<><span className="history-print-state">{state}</span> · {print.printerName}</>}
       detail={live ? `${span} · ${live}` : span}
     />
   );
 }
 
-function HistoryRow({ icon, label, detail, action, greyed }: { icon: ReactNode; label: ReactNode; detail: string; action?: ReactNode; greyed?: boolean }) {
+function HistoryRow({ icon, label, detail, action, greyed }: { icon: ReactNode; label: ReactNode; detail?: string; action?: ReactNode; greyed?: boolean }) {
   return (
     <li className={greyed ? 'history-row greyed' : 'history-row'}>
       <span className="history-row-icon">{icon}</span>
       <span className="history-row-text">
         <span className="history-row-label">{label}</span>
-        <span className="history-row-detail">{detail}</span>
+        {detail && <span className="history-row-detail">{detail}</span>}
       </span>
       {action}
     </li>
@@ -120,7 +120,7 @@ function HistoryRow({ icon, label, detail, action, greyed }: { icon: ReactNode; 
 function printAgainNote(entry: HistoryEntry) {
   switch (entry.printAgain) {
     case 'not_kept':
-      return <span className="history-note">File no longer kept · slice again to print it</span>;
+      return <span className="history-note">This G-code is no longer kept. Open the project and slice it to print it again.</span>;
     case 'not_for_this_printer':
       return <span className="history-note">Not kept for this printer · slice again to print it</span>;
     case 'changed':
@@ -149,7 +149,6 @@ function Entry({ entry, showProject, focused, reportsOffered, actions }: { entry
             </>
           )}
           <span className="history-entry-name">{entry.name}</span>
-          <span className="history-hash">{shortHash(entry.hash)}</span>
           {stats && <span className="history-stats">{stats}</span>}
         </span>
         <span className="history-entry-time">{entryTime(entry.createdAt)}</span>

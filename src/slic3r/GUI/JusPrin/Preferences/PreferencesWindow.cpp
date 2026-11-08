@@ -19,6 +19,8 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateCheck.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
@@ -231,9 +233,19 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
         CallAfter([this, after] { close_for(after); });
         return true;
     }
-    if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_pricing") {
-        // Account's Get more credits, as the composer's opens it.
-        wxLaunchDefaultBrowser(wxString::FromUTF8(Agent::cloud_pricing_url(wxGetApp().app_config)));
+    if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_server_page") {
+        // Account's Get more credits, in the sheet the composer's opens,
+        // here over this window. Both chats' balances are read again after.
+        const std::string page = payload.value("page", std::string());
+        const std::string from = payload.value("from", std::string());
+        CallAfter([this, page, from] {
+            ServerSheet::open(this, page, from, [this] {
+                if (m_view != nullptr)
+                    m_view->host().refresh_account();
+                if (ShellController* shell = installed_shell(); shell != nullptr && shell->agent_pane() != nullptr)
+                    shell->agent_pane()->web_view().host().refresh_account();
+            });
+        });
         return true;
     }
     if (type != Agent::Protocol::kPreferencesAction)

@@ -1,0 +1,203 @@
+/* SignInDoor.tsx and CodeField.tsx: the Home page and the Agent page both
+   load this, so it uses only the variables both define. Buttons are each
+   page's own; this places them. The caller's column spaces the lines. */
+
+.sign-in-title,
+.sign-in-detail,
+.sign-in-note,
+.sign-in-error,
+.sign-in-or {
+  margin: 0;
+}
+
+.sign-in-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--font-section);
+  color: var(--text-primary);
+}
+
+.sign-in-detail,
+.sign-in-note {
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.sign-in-error {
+  font: var(--font-label);
+  color: var(--status-danger);
+}
+
+/* The design system's Button/Link: text only, Label Bold, action/primary. */
+.sign-in-link {
+  align-self: flex-start;
+  padding: 4px 0;
+  font: var(--font-label-bold);
+  color: var(--action-primary);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.sign-in-link:hover:not(:disabled) {
+  color: var(--action-primary-hover);
+  text-decoration: underline;
+}
+
+.sign-in-link:disabled {
+  color: var(--action-disabled-text);
+  cursor: default;
+}
+
+/* A link inside a sentence: the sentence's own type, in the link colour. */
+.sign-in-link.inline {
+  display: inline;
+  padding: 0;
+  font: inherit;
+}
+
+.sign-in-google {
+  align-self: stretch;
+  justify-content: center;
+  min-height: var(--button-primary-height);
+  margin-top: 8px;
+  font: var(--font-body-small-bold);
+  background: var(--surface-raised);
+}
+
+.sign-in-google img {
+  width: var(--sign-in-glyph-size);
+  height: var(--sign-in-glyph-size);
+}
+
+/* "or" between two rules. */
+.sign-in-or {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: 12px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.sign-in-or::before,
+.sign-in-or::after {
+  content: '';
+  flex: 1 1 auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sign-in-email-row {
+  display: flex;
+  align-self: stretch;
+  gap: 12px;
+  margin: 0;
+}
+
+.sign-in-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--button-primary-height);
+  padding: 0 var(--sign-in-field-padding-x);
+  font: var(--font-body);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--sign-in-field-radius);
+}
+
+.sign-in-field:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.sign-in-email-row button {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+/* The choice before anything is sent: the code button spans the column. */
+.sign-in-code-button {
+  align-self: stretch;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.sign-in-link-row {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sign-in-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sign-in-link-dot {
+  padding: 0 4px;
+  color: var(--text-secondary);
+}
+
+.sign-in-spinner {
+  flex: 0 0 auto;
+  width: var(--sign-in-spinner-size);
+  height: var(--sign-in-spinner-size);
+  background: currentColor;
+  -webkit-mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
+  mask: url('@resources/jusprin/ui/icons/refresh-cw.svg') center / contain no-repeat;
+  animation: sign-in-spin var(--sign-in-spin-duration) linear infinite;
+}
+
+@keyframes sign-in-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The design system's Field/Verification Code: six cells, one input. */
+.code-field {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.code-field input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: 0;
+  outline: none;
+  opacity: 0;
+}
+
+.code-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sign-in-code-cell);
+  height: var(--sign-in-code-cell);
+  font: var(--font-section);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.code-cell.active {
+  box-shadow: inset 0 0 0 2px var(--action-primary);
+}
+
+.code-field.refused .code-cell {
+  box-shadow: inset 0 0 0 1px var(--status-danger);
+}

@@ -10,6 +10,7 @@ const char* to_string(ProjectStatusKind kind)
 {
     switch (kind) {
     case ProjectStatusKind::Draft: return "draft";
+    case ProjectStatusKind::Exported: return "exported";
     case ProjectStatusKind::Sent: return "sent";
     case ProjectStatusKind::Printing: return "printing";
     case ProjectStatusKind::Completed: return "completed";
@@ -36,8 +37,6 @@ const char* to_string(LastPrint last)
 {
     switch (last) {
     case LastPrint::Finished: return "finished";
-    case LastPrint::Failed: return "failed";
-    case LastPrint::Cancelled: return "cancelled";
     case LastPrint::Unknown: break;
     }
     return "unknown";
@@ -182,8 +181,7 @@ json import_result_json(const std::optional<std::vector<Snapshot::Onboarding::Im
                          {"name", item.name},
                          {"renamedTo", item.renamed_to},
                          {"imported", item.imported},
-                         {"reason", item.reason},
-                         {"retryable", item.retryable}});
+                         {"reason", item.reason}});
     return lines;
 }
 
@@ -213,20 +211,21 @@ json state_payload(const Snapshot& snapshot)
              {"printersScreen", to_string(onboarding.printers_screen)},
              {"signIn", onboarding.sign_in},
              {"email", email_step_json(onboarding.email_step)},
-             {"v1Imported", onboarding.facts.v1_imported},
              {"signInError", onboarding.sign_in_error},
              {"accountEmail", onboarding.account_email},
              {"agentConfigured", onboarding.agent_configured},
              {"agentKeyProvider", onboarding.agent_key_provider},
-             {"orca",
+             {"printerImport",
               json{
-                  {"source", onboarding.orca_source},
-                  {"printers", onboarding.orca_printers},
-                  {"selected", onboarding.orca_selected},
-                  {"filamentCount", onboarding.orca_filaments},
-                  {"found", onboarding.facts.orca_printers},
-                  {"importResult", import_result_json(onboarding.import_result)},
+                  {"app", onboarding.import_app},
+                  {"source", onboarding.import_source},
+                  {"printers", onboarding.import_printers},
+                  {"selected", onboarding.import_selected},
+                  {"filamentCount", onboarding.import_filaments},
+                  {"settingsCount", onboarding.import_processes},
+                  {"result", import_result_json(onboarding.import_result)},
               }},
+             {"wayProblem", onboarding.way_problem},
              {"printerForm", onboarding.printer_form},
              {"agentCard", to_string(onboarding.agent_card)},
              {"account", onboarding.account},

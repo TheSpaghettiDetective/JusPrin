@@ -32,16 +32,16 @@ const pick = async (item: string) => { await openMenu(); await userEvent.click(s
 const busyState = () => chatState({ conversationBusy: true });
 
 export const runtimeCases: VisualCase[] = [
-  runtime('connecting', 'Mode=Connecting', ['Connecting…', 'Starting the Agent panel.'], () => mountedApp(null)),
+  runtime('connecting', 'Mode=Connecting', ['Connecting…', 'Starting the AI panel.'], () => mountedApp(null)),
   runtime('bridge-error', 'Mode=Bridge error · Diagnostics=Collapsed', ['data-testid="bridge-error"', 'Retry', 'Diagnostics'],
     () => timedOut(false)),
   runtime('bridge-error-diagnostics', 'Mode=Bridge error · Diagnostics=Expanded', ['<details class="diagnostics" open', 'diagnostics-code'],
     () => timedOut(true)),
-  runtime('command-error', 'Transient command error', ['Resolve pending actions before deleting this chat.', 'Dismiss error'],
+  runtime('command-error', 'Transient command error', ['This chat is still working. Stop it or let it finish, then delete it.', 'Dismiss error'],
     () => mountedApp(chatState(), { after: ({ deliver }: ScriptedHost) =>
-      deliver('bridge_error', { code: 'pending_actions', message: 'Resolve pending actions before deleting this chat.' }) })),
+      deliver('bridge_error', { code: 'pending_actions', message: 'This chat is still working. Stop it or let it finish, then delete it.' }) })),
 
-  header('default', 'State=Default', ['Strong print', 'Hide the Agent panel'], () => mountedApp(chatState())),
+  header('default', 'State=Default', ['Strong print', 'Hide the AI panel'], () => mountedApp(chatState())),
   header('long-title', 'State=Long title', [longTitle], () => mountedApp(chatState({
     conversations: [{ id: 'conv-1', title: longTitle, createdAt: '2026-10-05T10:42:00' }] }))),
   header('busy', 'State=Busy', ['aria-label="New chat" title="New chat" disabled'], () => mountedApp(busyState())),
@@ -54,7 +54,7 @@ export const runtimeCases: VisualCase[] = [
     } })),
   header('delete', 'Delete ready', ['Delete chat?', 'Delete ‘Strong print’ and its messages?'],
     () => mountedApp(chatState(), { after: () => pick('Delete') })),
-  header('delete-busy', 'Delete busy', ['Wait for the current action to finish before deleting.'],
+  header('delete-busy', 'Delete busy', ['This chat is still working. Stop it or let it finish, then delete it.'],
     () => mountedApp(chatState(), { after: async ({ deliver }: ScriptedHost) => {
       await pick('Delete');
       deliver('state', busyState());

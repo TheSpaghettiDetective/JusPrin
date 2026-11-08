@@ -81,7 +81,7 @@ export function PrintReportForm({
 
   return shell(
     <>
-      <p>A photo of the printed object and a few sentences earn {REPORT_CREDITS} credits.</p>
+      <p>To send this and get {REPORT_CREDITS} credits, add a photo of the printed object, write what happened, and pick how it came out.</p>
       <div className="print-report-field">
         <span className="print-report-label">Photo of the printed object</span>
         {photo ? (
@@ -98,9 +98,9 @@ export function PrintReportForm({
         )}
       </div>
       <label className="print-report-field">
-        <span className="print-report-label">What happened, in a few sentences</span>
+        <span className="print-report-label">What happened</span>
         <textarea rows={5} value={text} disabled={sending} onChange={(event) => setText(event.target.value)} />
-        {length < REPORT_MIN_TEXT && <span className="print-report-hint">{length} of {REPORT_MIN_TEXT} characters</span>}
+        {length < REPORT_MIN_TEXT && <span className="print-report-hint">Write at least {REPORT_MIN_TEXT} characters ({length} so far).</span>}
       </label>
       <div className="print-report-field">
         <span className="print-report-label" id="print-report-outcome">How did it come out?</span>

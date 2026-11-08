@@ -98,27 +98,32 @@ public:
     // A page in the browser: "reset_password" on the account's server,
     // "terms" or "privacy".
     virtual void open_sign_in_link(const std::string& link) = 0;
+    // The offer's "See prices": the server's Credits and plans in the app's
+    // sheet over the welcome, as someone without an account sees it.
+    virtual void open_prices() = 0;
     // Preferences › Agent over the welcome, for "key" or "tool": closed with
     // a verified key or with Done on an AI tool, the welcome is left.
     virtual void open_agent_door(const std::string& door) = 0;
     // "Just slice for now", and the end of a sign-in.
     virtual void leave_welcome()                  = 0;
-    // The Printers step. Back returns to the screen before: the OrcaSlicer
-    // screen from the add-printer form its Start fresh opened, otherwise
-    // the welcome.
+    // The Printers step. Back returns to the welcome from every printer
+    // screen.
     virtual void step_back()                      = 0;
-    virtual void start_fresh()                    = 0;
+    // An "Other ways" link: "jusprin1" or "orcaslicer" for that app's
+    // import, "printer" for the printer screen. An app whose folder has no
+    // printers asks for its folder first, on the frame's next turn, and the
+    // poll brings the screen, or why the folder picked has nothing.
+    virtual void choose_printers_way(const std::string& way) = 0;
     // "Can't find your printer? Ask the agent": Home, with the printer chat.
     virtual void ask_agent_for_printer()          = 0;
     // Each returns a message for the person when it could not finish.
-    // `printers` names the printers the person left chosen, as the
-    // OrcaSlicer screen lists them.
-    virtual std::string import_orca_printers(const std::vector<std::string>& printers) = 0;
+    // `printers` names the printers the person left chosen, as the import
+    // screen of `app` ("jusprin1" or "orcaslicer") lists them.
+    virtual std::string import_printers(const std::string& app, const std::vector<std::string>& printers) = 0;
     virtual std::string assume_default_printer()  = 0;
-    // The import's result: the items that failed, imported again, and
-    // Continue, which leaves for the add-printer form when no printer came.
-    virtual void retry_orca_import()              = 0;
-    virtual void finish_orca_import()             = 0;
+    // The import's result: Continue, which leaves for the add-printer form
+    // when no printer came.
+    virtual void finish_import()                  = 0;
     // The add-printer form's own requests: form_options and form_finish.
     virtual void printer_form_message(const nlohmann::json& payload) = 0;
     // Home's Agent group: the account's credits are shown once.
@@ -129,6 +134,8 @@ public:
     // already translated: the request was understood but cannot be carried
     // out, such as a name another profile has.
     virtual std::string open_printer_settings(const std::string& printer_id)                       = 0;
+    // The printer's own chat, to ask about those settings.
+    virtual std::string ask_about_printer_settings(const std::string& printer_id)                  = 0;
     virtual std::string connect_printer(const std::string& printer_id) { return "Connection is unavailable."; }
     // A calibration of a filament on this printer, in the project chat.
     virtual std::string calibrate_printer(const std::string& printer_id) { return "Calibration is unavailable."; }

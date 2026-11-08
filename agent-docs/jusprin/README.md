@@ -10,9 +10,10 @@ Read these documents in order:
 4. [OrcaSlicer integration guide](orca-integration-guide.md) — known Orca behaviors, lifecycle traps, event and history constraints, and testing lessons.
 5. [Fork stewardship](fork-stewardship.md) — required before changing any OrcaSlicer-owned file: where a seam belongs, why additive beats rewritten, how to leave a conflict that resolves correctly, and what evidence a change must record.
 6. [Design system](design-system.md) — brand behavior, semantic UI tokens, typography, spacing, accessibility, and asset rules.
-7. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
-8. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, execution and verification requirements.
-9. [Local autosave and version history](autosave-version-history.md) — managed project storage, migration, restore, export, retention, and failure behavior.
+7. [Design guidelines](design-guidelines.md) — how a screen gets designed and checked, the cold-reader check, and the wording rule for on-screen text.
+8. [POC reference](poc-reference.md) — exact pointers to the spike-only documents, code, commits, logs, screenshots, and generated brand artifacts left on `jusprin-v2-poc`.
+9. [Tool extension guide](mcp-tool-extension-guide.md) — shared Agent/MCP contracts, process-settings workflow, execution and verification requirements.
+10. [Local autosave and version history](autosave-version-history.md) — managed project storage, migration, restore, export, retention, and failure behavior.
 
 Printer UI without hardware (Bambu in-process fake; control file; isolated app): [Fake Bambu README](../../src/slic3r/GUI/JusPrin/Testing/README.md). Moonraker and OctoPrint without hardware (Docker, real host software, simulated boards): [print hosts README](../../tests/printer_hosts/README.md).
 

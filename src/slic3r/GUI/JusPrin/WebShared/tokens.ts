@@ -49,7 +49,30 @@ interface StaticTokens {
     code: TypeRole & { cssFamily: string };
     roles: Record<string, TypeRole>;
   };
-  component: { button: Record<string, ButtonRecipe>; progress: { height: number } };
+  component: {
+    button: Record<string, ButtonRecipe>;
+    progress: { height: number };
+    onboarding: { codeCell: number };
+    field: { paddingX: number; radius: number };
+    icon: { sizes: number[] };
+    turnActivity: { spinMs: number };
+  };
+}
+
+// The JusPrin sign-in (AgentUI's SignInDoor.css), which both pages draw: a
+// verification-code cell, the email field's inset and radius, the Google
+// mark, and the spinner and its turn, the Agent page's working glyph's.
+function signInVariables(): [string, string][] {
+  const { component } = tokens as unknown as StaticTokens;
+  const { sizes } = component.icon;
+  return [
+    ['--sign-in-code-cell', `${component.onboarding.codeCell}px`],
+    ['--sign-in-field-padding-x', `${component.field.paddingX}px`],
+    ['--sign-in-field-radius', `${component.field.radius}px`],
+    ['--sign-in-glyph-size', `${Math.min(...sizes)}px`],
+    ['--sign-in-spinner-size', `${Math.max(...sizes)}px`],
+    ['--sign-in-spin-duration', `${component.turnActivity.spinMs}ms`],
+  ];
 }
 
 function fontShorthand(role: TypeRole, family: string): string {
@@ -92,6 +115,7 @@ export function sharedStaticVariableNames(): string[] {
       .map(([name]) => `--button-${kebab(name)}-icon-gap`),
     ...buttonSizeVariables(component.button).map(([name]) => name),
     ...pixelVariableNames('progress', component.progress),
+    ...signInVariables().map(([name]) => name),
   ];
 }
 
@@ -105,6 +129,7 @@ export function sharedStaticVariableNames(): string[] {
 //   --button-<recipe>-icon-gap  the space between a button's icon and its
 //                         label, also a recipe-internal size, not a layout gap
 //   --button-<recipe>-<size>  a recipe's fixed width, height or icon size
+//   --sign-in-<name>      the JusPrin sign-in's code cell, field, glyphs and spin
 export function applySharedStaticTokens(): void {
   const { dimension, typography, component } = tokens as unknown as StaticTokens;
   const root = document.documentElement;
@@ -128,6 +153,7 @@ export function applySharedStaticTokens(): void {
     root.style.setProperty(name, `${value}px`);
   }
   applyPixelTokens('progress', component.progress);
+  for (const [name, value] of signInVariables()) root.style.setProperty(name, value);
 }
 
 interface ElevationTier {
