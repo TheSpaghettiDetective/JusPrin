@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6XQR1KGF014X13WATWHPG5D",
+  "strategy": "manual-commit",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "design-captures/first-run-2026-11/v104/first-run-07-orcaslicer-import.png",
+    "design-captures/first-run-2026-11/v104/first-run-08-add-printer-dark.png",
+    "design-captures/first-run-2026-11/v104/first-run-08-add-printer.png",
+    "design-captures/first-run-2026-11/v104/first-run-09-home-after-sign-in.png",
+    "design-captures/first-run-2026-11/v104/first-run-10-home-after-just-slice-dark.png",
+    "design-captures/first-run-2026-11/v104/first-run-10-home-after-just-slice.png",
+    "design-captures/first-run-2026-11/v104/first-run-11-flow.png",
+    "design-captures/first-run-2026-11/v104/first-run-17-import-result.png",
+    "design-captures/first-run-2026-11/v111/orca-import-01-file-menu-dark.png",
+    "design-captures/first-run-2026-11/v111/orca-import-01-file-menu.png",
+    "design-captures/first-run-2026-11/v111/orca-import-02-found-dark.png",
+    "design-captures/first-run-2026-11/v111/orca-import-02-found.png",
+    "design-captures/first-run-2026-11/v111/orca-import-03-imported.png",
+    "design-captures/first-run-2026-11/v111/orca-import-04-nothing-new.png",
+    "design-captures/first-run-2026-11/v111/orca-import-05-no-folder.png",
+    "first-run-printer-step-spec-2026-11-05.md",
+    "log_iotc.txt",
+    "money-pages-app-server-split-2026-11-06.md",
+    "resources/JusPrin.icns",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 156,
+    "cache_creation_tokens": 258236,
+    "cache_read_tokens": 12321217,
+    "output_tokens": 42798,
+    "api_call_count": 78
+  }
+}

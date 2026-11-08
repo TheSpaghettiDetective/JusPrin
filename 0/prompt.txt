@@ -1,0 +1,13 @@
+does it contain unsquashed commits?
+
+---
+
+how do I check jusprin-newui-integration commits?
+
+---
+
+so it doesn't not have d7975301fd0 (HEAD -> jusprin-newui) First launch, Account and wording: the AI name, settings menus, a server-filled Account box, no import Retry ? it only has the unsquashed commits ?
+
+---
+
+it's a yes no qeustion
