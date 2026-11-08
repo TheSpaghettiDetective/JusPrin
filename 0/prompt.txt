@@ -86,3 +86,7 @@ Also in your queue from earlier, not yet decided: the Help › Report a problem 
 ---
 
 Delete them
+
+---
+
+branch out a jusprin-dev from the upstream merge commit, and use this branch as the dev branch. update relevant docs to reflect this branching strategy. also if your code is ready, commit them to the new branch. create a task chip to work on the 2.0.0. release note
