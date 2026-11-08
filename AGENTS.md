@@ -13,7 +13,9 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 ## Branches
 
 - `jusprin-dev` is the development branch. Start each change on a new branch from it and land the change there. It began at `975c703f08`, the merge of OrcaSlicer 2.5.0, and contains the earlier development branches `jusprin-newui` and `ui-walkthrough`; start nothing new on those.
-- `main` is GitHub's default branch: the repository's front page, its issue forms, and the workflows GitHub runs on a schedule come from it.
+- `main` is the stable branch and GitHub's default branch: the repository's front page, its issue forms, and the workflows GitHub runs on a schedule come from it.
+  - Never force-push `main`, so that people who cloned the repository never have to force-pull. Only in an extreme case with no other way out, and with Kenneth's yes, may an admin lift the GitHub protection that blocks force pushes and deletion.
+  - For now `main` is also the release branch: it moves forward from `jusprin-dev` when a version is released, and releases are built from it. This may change if a separate release branch is added later.
 - `jusprin-v1` holds JusPrin 1, for fixes to that version only.
 - `jusprin-v2-poc` holds the experiments described below.
 - Take each OrcaSlicer release into `jusprin-dev` as `agent-docs/jusprin/fork-stewardship.md` rule 10 describes.
