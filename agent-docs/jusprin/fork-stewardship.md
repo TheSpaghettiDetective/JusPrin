@@ -104,24 +104,33 @@ Two mechanical facts drive everything else. Git merges text, not meaning: it con
 
 **Violation.** A report that lists which files are rebase-sensitive and calls the change narrow, without having run the merge simulation that would have found two lossy resolutions waiting in it.
 
-### 10. Pull direction dominates every local edit
+### 10. Take each upstream release by merging from the release we last took
 
-**Rule.** Replay the fork's own commits onto upstream. Never merge upstream in, and never rebase the whole branch.
+**Rule.** Take a new upstream release with a merge whose base is the upstream release the fork last took. Never run a plain `git merge` of upstream, and never rewrite the fork's history to take a release.
 
-**Mechanism.** The fork's own footprint is small; the inherited release-branch history is not. Merging upstream in makes the conflict surface the entire divergence between the release branch and upstream's development line — none of it ours. Rebasing only our commits discards that inherited history by taking upstream's version of every file we never touched.
+**Mechanism.** The fork follows upstream's release branches, and each release branch splits off upstream's development line on its own. A plain merge picks the common ancestor itself, a development-line commit from before both release branches. Its conflict list is then everything that differs between the two release branches: vendor profiles, translations, CI files, none of it ours. Naming the last release we took as the base limits the merge to the fork's own changes. That gives the same conflicts a replay would hit, resolved once, with no commits rewritten, so branches in progress merge forward without a rebase. Measured on 2026-11-07, going from v2.4.2 to v2.5.0: 22 conflicted files either way, and a branch in progress merged into the trial result with no conflicts.
 
-**The test.** Am I replaying our commits onto upstream, or bringing upstream into ours?
+**How.** In a worktree on a new branch from the fork's main branch:
 
-**Violation.** `git merge upstream/main`, which produces a conflict list dominated by vendor profiles, translations, and CI files that JusPrin has never edited.
+```bash
+git rev-parse <new release>^{commit} > "$(git rev-parse --git-dir)/MERGE_HEAD"
+git merge-recursive <last release taken> -- HEAD <new release>
+```
+
+Resolve the conflicts, then `git commit`. A later patch release on the same release branch, such as 2.5.1 after 2.5.0, needs no override: a plain `git merge` finds the right base.
+
+**The test.** Is the merge base the release we last took, and not a commit on upstream's development line?
+
+**Violation.** `git merge upstream/main` or `git merge v2.5.0` with no base given. Each produces thousands of conflicts in files JusPrin never edited.
 
 ## Before you finish
 
 A change that touches upstream-owned files is not done until this is recorded in the handback or pull request:
 
-1. **The rebase simulation and its result.** Run it against current upstream and name both endpoint commits — measurements are not reproducible otherwise.
+1. **The rebase simulation and its result.** Run it against the newest upstream release, with the release the fork last took as the base (rule 10), and name both endpoint commits — measurements are not reproducible otherwise.
 
    ```bash
-   git merge-tree --write-tree --merge-base=<fork base> upstream/main HEAD
+   git merge-tree --write-tree --merge-base=<last release taken> <newest upstream release> HEAD
    ```
 
    For each conflicted file, state whether the natural resolution is correct or lossy. A lossy one is a defect to fix now, not a note for later.
