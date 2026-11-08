@@ -55,9 +55,38 @@ if (SLIC3R_GUI)
     target_compile_definitions(libslic3r_gui PRIVATE SLIC3R_NO_ORCASLICER_URL_ASSOCIATION)
 endif ()
 
+# OrcaSlicer's version resource leaves LegalCopyright empty, and JusPrin does
+# not edit OrcaSlicer's line. orca-slicer.exe is built instead from a copy of
+# the configured resource with JusPrin's copyright, written beside it so its
+# relative "OrcaSlicer.manifest" still resolves.
+set(_jusprin_rc_orca "${CMAKE_BINARY_DIR}/src/OrcaSlicer.rc")
+set(_jusprin_rc "${CMAKE_BINARY_DIR}/src/JusPrin.rc")
+file(READ "${_jusprin_rc_orca}" _jusprin_rc_text)
+string(FIND "${_jusprin_rc_text}" "VALUE \"LegalCopyright\", \"\"" _jusprin_rc_at)
+if (_jusprin_rc_at EQUAL -1)
+    message(FATAL_ERROR "OrcaSlicer.rc.in no longer has an empty LegalCopyright; "
+                        "update src/slic3r/GUI/JusPrin/Packaging/packaging.cmake to match.")
+endif ()
+string(REPLACE "VALUE \"LegalCopyright\", \"\"" "VALUE \"LegalCopyright\", \"${JUSPRIN_COPYRIGHT}\""
+       _jusprin_rc_text "${_jusprin_rc_text}")
+# Rewrite the copy only when it changes, so a reconfigure does not relink the exe.
+file(WRITE "${_jusprin_rc}.edit" "${_jusprin_rc_text}")
+configure_file("${_jusprin_rc}.edit" "${_jusprin_rc}" COPYONLY)
+if (TARGET OrcaSlicer_app_gui)
+    get_target_property(_jusprin_gui_sources OrcaSlicer_app_gui SOURCES)
+    list(FIND _jusprin_gui_sources "${_jusprin_rc_orca}" _jusprin_rc_at)
+    if (_jusprin_rc_at EQUAL -1)
+        message(FATAL_ERROR "orca-slicer.exe is no longer built from ${_jusprin_rc_orca}; "
+                            "update src/slic3r/GUI/JusPrin/Packaging/packaging.cmake to match.")
+    endif ()
+    list(REMOVE_AT _jusprin_gui_sources ${_jusprin_rc_at})
+    list(INSERT _jusprin_gui_sources ${_jusprin_rc_at} "${_jusprin_rc}")
+    set_target_properties(OrcaSlicer_app_gui PROPERTIES SOURCES "${_jusprin_gui_sources}")
+endif ()
+
 # CMake writes every macOS app bundle's Info.plist from OrcaSlicer's
 # cmake/modules/MacOSXBundleInfo.plist.in. JusPrin's bundles use a copy that
-# has JusPrin's bundle identifier and no CFBundleURLTypes. That template asks
+# has JusPrin's bundle identifier and copyright and no CFBundleURLTypes. That template asks
 # macOS to send orcaslicer:// links, such as Thingiverse's and MakerWorld's
 # "Open in Orca Slicer" buttons, to the app; JusPrin must leave them to
 # OrcaSlicer. JusPrin answers no link on macOS: its "Open in slicer" links
@@ -66,7 +95,8 @@ if (APPLE)
     set(_jusprin_plist "${CMAKE_BINARY_DIR}/jusprin/MacOSXBundleInfo.plist.in")
     configure_file("${CMAKE_SOURCE_DIR}/cmake/modules/MacOSXBundleInfo.plist.in" "${_jusprin_plist}.orca" COPYONLY)
     configure_file("${_jusprin_plist}.orca" "${_jusprin_plist}.edit" COPYONLY)
-    foreach (_jusprin_plist_edit "-remove;CFBundleURLTypes" "-replace;CFBundleIdentifier;-string;io.jusprin.JusPrin")
+    foreach (_jusprin_plist_edit "-remove;CFBundleURLTypes" "-replace;CFBundleIdentifier;-string;io.jusprin.JusPrin"
+                                 "-replace;NSHumanReadableCopyright;-string;${JUSPRIN_COPYRIGHT}")
         execute_process(COMMAND plutil ${_jusprin_plist_edit} "${_jusprin_plist}.edit"
                         RESULT_VARIABLE _jusprin_plist_result ERROR_VARIABLE _jusprin_plist_error)
         if (NOT _jusprin_plist_result EQUAL 0)
