@@ -1,0 +1,53 @@
+Move main now
+
+---
+
+Fix the v1 logo
+
+---
+
+we want to clean up the docs that repo visitors are likely to see such as readme (maybe others?). let's see if/how much we can borrow it from v1
+
+---
+
+<!-- reply 2 -->
+> Should the README lead with them?
+
+use the v1 line
+
+<!-- reply -->
+> Decision needed: where visitors reach you.
+
+jusprin-support@obico.io
+
+
+Draft the README and the other visitor files now
+
+---
+
+Commit and push
+
+---
+
+<!-- reply 4 -->
+> The About box still shows OrcaSlicer’s description and its Discord link.
+
+can you update it? find obico discord link yourself, or ask me
+
+<!-- reply -->
+> The empty Wiki tab is still switched on.
+
+why didn't you turn it off?
+
+<!-- reply -->
+> “Latest release” is v1.4.0, so the README’s Download link hands people v1 until v2 is released.
+
+update the version to 2.0.0 in all places. check with me if it touches upstream. ideally you find a way to not touch upstream
+
+<!-- reply -->
+> The 2025 “JusPrin Nightly Builds” pre-release is still listed.
+
+can you check how v1 was built, and create a similar github action to build v2?
+
+
+Also, use the lockup logo for the logo line in readme
