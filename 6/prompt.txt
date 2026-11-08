@@ -1,0 +1,29 @@
+has the upstream gained a new stable release compared to the base for our fork? I guess I'm trying to figure out if we need to rebase our fork to the latest stable release before our own first release.
+
+---
+
+does 2.5.0 contain any ai features?
+
+---
+
+Okay, what's your suggestion for Rebasing our fork to 2.5.0?
+
+---
+
+<!-- reply 1 -->
+> . agent-docs/jusprin/fork-stewardship.md (rule 10) says never to merge upstream in, because a merge counts every difference between upstream’s 2.4 release branch and its development line, and none of that is ours.
+
+Does this sound reasonable? Because replay seems painful too. I don't know how this rule was written into the document to begin with, so don't just assume that the rule is correct. Do your own research.
+
+
+check if jusprin-newui-integration has been merged to jusprin-newui or ui-walkthrough and can be deleted. if so, delete it to avoid future confusion. We shouldn't have any active sessions using work trees based on jusprin-newui-integration
+
+I'm actually fine with squashing everything if the only thing against it is the history search, because we can always keep the old branch and searc there. Previously an agent told me that there is an advantage of keeping the commits that touched upstream. to a small commits to avoid conflict. Was that a sound advice because it doesn't seem to pan out that way?
+
+---
+
+Okay, now I understand. I agree with you to merge using v2.4.2 as its base. The same that we need to update our, stewardship document?
+
+---
+
+Okay, now I understand. I agree with you to merge using v2.4.2 as its base. does it mean we need to update our, stewardship document?
