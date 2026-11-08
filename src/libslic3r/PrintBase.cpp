@@ -1,11 +1,23 @@
+#include "Config.hpp"
 #include "Exception.hpp"
 #include "PrintBase.hpp"
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/log/trivial.hpp>
+#include <cstddef>
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include <mutex>
+#include <functional>
 
 #include "I18N.hpp"
+#include "Model.hpp"
+#include "libslic3r.h"
+#include "libslic3r_version.h"
+#include "PlaceholderParser.hpp"
 
 //! macro used to mark string used at localization,
 //! return same string
@@ -87,7 +99,7 @@ std::string PrintBase::output_filename(const std::string &format, const std::str
             filename.replace_extension(default_ext);
         return filename.string();
     } catch (std::runtime_error &err) {
-        throw Slic3r::PlaceholderParserError(L("Failed processing of the filename_format template.") + "\n" + err.what());
+        throw Slic3r::PlaceholderParserError(L("Processing of the filename_format template failed.") + "\n" + err.what());
     }
 }
 

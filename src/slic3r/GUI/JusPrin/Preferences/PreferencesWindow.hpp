@@ -22,6 +22,10 @@
 #include <memory>
 #include <string>
 
+namespace Slic3r::GUI {
+enum class PreferencesTab;
+}
+
 namespace Slic3r::GUI::JusPrin {
 class AgentWebView;
 namespace Workspace { class IWorkspace; }
@@ -91,7 +95,7 @@ private:
 // Whether open_preferences() should open this window for these arguments.
 // OrcaSlicer asks for a tab or an option only to point at its own dialog,
 // and the window's own link asks for that dialog.
-bool answers_open_request(size_t open_on_tab, const std::string& highlight_option);
+bool answers_open_request(PreferencesTab open_on_tab, const std::string& highlight_option);
 
 // Carries out what the window was closed for, after it is gone.
 void run_after_close(const AfterClose& after);

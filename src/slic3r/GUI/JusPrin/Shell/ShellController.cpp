@@ -921,7 +921,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         // The hook asks for whichever shell is installed when it runs: a
         // language reload installs the next shell before this one is gone,
         // so this one must not own the hook, nor clear it on the way out.
-        wxGetApp().set_preferences_handler([](size_t tab, const std::string& option) {
+        wxGetApp().set_preferences_handler([](PreferencesTab tab, const std::string& option) {
             ShellController* shell = installed_shell();
             if (shell == nullptr || !shell->is_installed() || !Preferences::answers_open_request(tab, option))
                 return false;

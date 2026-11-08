@@ -469,7 +469,7 @@ ManualPrinterResult OrcaPrinterBackend::run_manual_setup()
     // manual path did.
     const Printers::VendorMap before = wxGetApp().app_config->vendors();
     // False when the person closed the wizard without applying it.
-    if (!wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS))
+    if (!wxGetApp().run_wizard(RunReason::RR_USER, StartPage::SP_PRINTERS))
         return {};
     const auto names = Printers::name_installed_printers(m_plater, before);
     ManualPrinterResult result;

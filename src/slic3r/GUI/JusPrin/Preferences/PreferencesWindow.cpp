@@ -14,6 +14,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/Preferences.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
@@ -429,9 +430,9 @@ void restart_application()
     }
 }
 
-bool answers_open_request(size_t open_on_tab, const std::string& highlight_option)
+bool answers_open_request(PreferencesTab open_on_tab, const std::string& highlight_option)
 {
-    return !g_opening_orca_dialog && open_on_tab == 0 && highlight_option.empty();
+    return !g_opening_orca_dialog && open_on_tab == PreferencesTab::General && highlight_option.empty();
 }
 
 void run_after_close(const AfterClose& after)
