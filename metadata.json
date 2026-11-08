@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M6X2YNXNTG2Y46T65M39HGXC",
+  "strategy": "manual-commit",
+  "branch": "claude/upstream-2.5.0",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "src/libslic3r/PresetBundle.cpp",
+    "src/libslic3r/PresetBundle.hpp",
+    "src/slic3r/GUI/Jobs/OrientJob.cpp",
+    "src/slic3r/GUI/Jobs/OrientJob.hpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrintIssues/NoticeKinds.cpp",
+    "src/slic3r/GUI/JusPrin/PrintIssues/NoticeKinds.hpp",
+    "src/slic3r/GUI/JusPrin/PrintIssues/PrintIssueMonitor.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/OrcaPrinterBackend.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/PrinterDiscovery.cpp",
+    "src/slic3r/GUI/JusPrin/PrinterSetup/SetupOptionsLoader.cpp",
+    "src/slic3r/GUI/JusPrin/Printers/NamedPrinters.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/AppMenus.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/StatusRow.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp",
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaOutputs.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaReshape.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaSettings.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/Plater.hpp",
+    "tests/agent/CMakeLists.txt",
+    "tests/agent/test_printer_conversation.cpp",
+    "tests/jusprin/CMakeLists.txt",
+    "tests/jusprin/test_fake_bambu_agent.cpp",
+    "tests/jusprin/test_notice_kinds.cpp",
+    "tests/jusprin_support/PythonRuntime.cmake",
+    "tests/shell/CMakeLists.txt",
+    "tests/shell/check_print_scenario.inc",
+    "tests/shell/print_issue_readers_scenario.inc",
+    "tests/shell/print_issues_scenario.inc",
+    "tests/shell/project_prompt_scenario.inc",
+    "tests/shell/shell_harness.cpp",
+    "tests/workspace/CMakeLists.txt",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 926,
+    "cache_creation_tokens": 625831,
+    "cache_read_tokens": 168731943,
+    "output_tokens": 222623,
+    "api_call_count": 449
+  }
+}
