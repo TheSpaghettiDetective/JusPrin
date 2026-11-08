@@ -1,6 +1,6 @@
 # JusPrin production documentation
 
-This directory is the canonical starting point for production work on `jusprin-newui`. It preserves the durable product and engineering decisions from `jusprin-v2-poc` without importing the POC's temporary windows, probes, static mocks, generated evidence, or environment-gated startup paths.
+This directory is the canonical starting point for production work on `jusprin-dev`. It preserves the durable product and engineering decisions from `jusprin-v2-poc` without importing the POC's temporary windows, probes, static mocks, generated evidence, or environment-gated startup paths.
 
 Read these documents in order:
 
@@ -30,4 +30,4 @@ Printer UI without hardware (Bambu in-process fake; control file; isolated app):
 
 ## Source lineage
 
-`jusprin-newui` and `jusprin-v2-poc` share base commit `8500fcdcca` (`v2.4.2`). The POC reference is pinned to final POC commit `9bba835b92`, so future changes to branch names do not make the historical evidence ambiguous.
+`jusprin-newui` and `jusprin-v2-poc` share base commit `8500fcdcca` (`v2.4.2`). `jusprin-dev` continues `jusprin-newui` and `ui-walkthrough`: it starts at `975c703f08`, the merge of OrcaSlicer 2.5.0, and contains both. The POC reference is pinned to final POC commit `9bba835b92`, so future changes to branch names do not make the historical evidence ambiguous.

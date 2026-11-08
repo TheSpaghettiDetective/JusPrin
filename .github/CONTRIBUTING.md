@@ -14,6 +14,7 @@ JusPrin is built on [OrcaSlicer](https://github.com/OrcaSlicer/OrcaSlicer). If a
 
 ## Pull requests
 
+- Open pull requests against `jusprin-dev`, the development branch.
 - Open an issue first for anything larger than a small fix, so we can agree on the approach.
 - Keep each pull request to one topic.
 - Explain why the change is needed and how you tested it. Add an automated test when the code can be tested.

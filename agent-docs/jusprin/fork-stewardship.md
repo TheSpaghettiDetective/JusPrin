@@ -1,6 +1,6 @@
 # Fork stewardship
 
-**Status:** Required discipline for every change to an upstream-owned file on `jusprin-newui`.
+**Status:** Required discipline for every change to an upstream-owned file on `jusprin-dev`.
 
 JusPrin is a long-lived fork. Every line it changes in an OrcaSlicer-owned file is a line it re-resolves at every rebase, forever, by a person who was not there when the line was written. The rules below exist to keep that permanent cost small and, where it cannot be small, to keep it visible.
 
@@ -110,7 +110,7 @@ Two mechanical facts drive everything else. Git merges text, not meaning: it con
 
 **Mechanism.** The fork follows upstream's release branches, and each release branch splits off upstream's development line on its own. A plain merge picks the common ancestor itself, a development-line commit from before both release branches. Its conflict list is then everything that differs between the two release branches: vendor profiles, translations, CI files, none of it ours. Naming the last release we took as the base limits the merge to the fork's own changes. That gives the same conflicts a replay would hit, resolved once, with no commits rewritten, so branches in progress merge forward without a rebase. Measured on 2026-11-07, going from v2.4.2 to v2.5.0: 22 conflicted files either way, and a branch in progress merged into the trial result with no conflicts.
 
-**How.** In a worktree on a new branch from the fork's main branch:
+**How.** In a worktree on a new branch from `jusprin-dev`, the development branch:
 
 ```bash
 git rev-parse <new release>^{commit} > "$(git rev-parse --git-dir)/MERGE_HEAD"

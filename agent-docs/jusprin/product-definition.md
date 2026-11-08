@@ -1,6 +1,6 @@
 # JusPrin product definition
 
-**Status:** Canonical product direction for the `jusprin-newui` production branch.
+**Status:** Canonical product direction for the `jusprin-dev` production branch.
 
 **Source:** Consolidated from product discovery on `jusprin-v2-poc`. Historical inspection evidence remains on that branch; see [POC reference](poc-reference.md).
 

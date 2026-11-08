@@ -1,6 +1,6 @@
 # JusPrin design system
 
-**Status:** Canonical product and brand guidance for `jusprin-newui`.
+**Status:** Canonical product and brand guidance for `jusprin-dev`.
 
 JusPrin should make advanced 3D printing feel immediate: a confident path from model to machine that removes detours without hiding control. The product should feel focused, assured, inventive, and approachable. Its voice is direct, capable, and optimistic—never cute, cryptic, or over-engineered.
 

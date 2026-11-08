@@ -1,6 +1,6 @@
 # JusPrin design guidelines
 
-**Status:** Canonical guidance for `jusprin-newui` on how a screen gets designed and checked, and on the words it shows. The visual system (tokens, type, color, components, logo) lives in [Design system](design-system.md); this document does not repeat it.
+**Status:** Canonical guidance for `jusprin-dev` on how a screen gets designed and checked, and on the words it shows. The visual system (tokens, type, color, components, logo) lives in [Design system](design-system.md); this document does not repeat it.
 
 Design agents tend to write on-screen text that only they can read. The agent knows how the screen works, so a line like "The sixth digit signs you in." reads clearly to it and to any reviewer who knows the same. A person opening the app for the first time has to decode it, and often can't. The First-Launch Confusion Review (https://claude.ai/artifact/91wmdS3QU8UkzbPi1zog15, 2026-11-06) found 23 places on the first launch where a newcomer would misread or stall, and most of them were wording. The rules below exist to stop that at the source and to catch what still gets through.
 

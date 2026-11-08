@@ -1,6 +1,6 @@
 # JusPrin production architecture
 
-**Status:** This is the architecture chosen for the `jusprin-newui` branch. It also says where production code may and may not reach into OrcaSlicer.
+**Status:** This is the architecture chosen for the `jusprin-dev` branch. It also says where production code may and may not reach into OrcaSlicer.
 
 JusPrin replaces what OrcaSlicer looks like and how people move through it. It keeps everything OrcaSlicer already does well to turn a model into a print. Product work should make it easier for people to say what they want and to check a print before sending it. It must not create JusPrin's own version of slicing, geometry, rendering, picking (working out which object the pointer is on), saving and loading, or undo history.
 

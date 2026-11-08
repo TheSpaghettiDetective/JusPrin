@@ -10,6 +10,14 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 - Check before attributing; the file path is not enough. Run `git blame` on the line, then `git branch -r --contains <sha> 'upstream/*'`. No upstream branch containing the commit means the fork owns it. Run `git fetch upstream` first if the remote may be stale.
 - If you have not checked, say it is unverified whether the behavior is upstream or fork.
 
+## Branches
+
+- `jusprin-dev` is the development branch. Start each change on a new branch from it and land the change there. It began at `975c703f08`, the merge of OrcaSlicer 2.5.0, and contains the earlier development branches `jusprin-newui` and `ui-walkthrough`; start nothing new on those.
+- `main` is GitHub's default branch: the repository's front page, its issue forms, and the workflows GitHub runs on a schedule come from it.
+- `jusprin-v1` holds JusPrin 1, for fixes to that version only.
+- `jusprin-v2-poc` holds the experiments described below.
+- Take each OrcaSlicer release into `jusprin-dev` as `agent-docs/jusprin/fork-stewardship.md` rule 10 describes.
+
 ## Error handling discipline
 
 - Do not catch an error merely because it can be caught. Catch only when the code can recover, translate the error at an abstraction boundary, or add context that is essential for diagnosis. Logging alone is not recovery.
