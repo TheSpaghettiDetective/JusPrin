@@ -1,0 +1,18 @@
+Not now
+
+---
+
+<!-- reply 3 -->
+> Speed Dial: keep 2.5.0’s new “Open Speed Dial” menu item, or hide it.
+
+In a recent commit we adjusted the menu. Find that commit and hide the menu in the same way as the other document does to other menu items.
+
+<!-- reply -->
+> OrcaSlicer G-code: whether JusPrin should accept G-code made by OrcaSlicer.
+
+Are we talking about opening directly the G-code in JusPrin? If so, no.
+
+<!-- reply -->
+> Landing: when to push claude/upstream-2.5.0 and land it on jusprin-newui.
+
+Just push to the merge branch.. I'll have a Mac run the testing.
