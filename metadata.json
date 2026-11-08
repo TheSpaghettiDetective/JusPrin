@@ -3,8 +3,11 @@
   "checkpoint_id": "01M6WNMN4JTA6EN2BWSJ64ACZ8",
   "strategy": "manual-commit",
   "branch": "jusprin-newui",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "agent-docs/jusprin/engineering-method.md",
+    "agent-docs/jusprin/fork-stewardship.md"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -12,13 +15,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5806,
-    "cache_creation_tokens": 2477011,
-    "cache_read_tokens": 40620397,
-    "output_tokens": 164206,
-    "api_call_count": 234
+    "input_tokens": 5824,
+    "cache_creation_tokens": 2483898,
+    "cache_read_tokens": 42541123,
+    "output_tokens": 168778,
+    "api_call_count": 243,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
   }
 }
