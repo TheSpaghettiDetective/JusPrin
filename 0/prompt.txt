@@ -1,0 +1,88 @@
+Move main now
+
+---
+
+Fix the v1 logo
+
+---
+
+we want to clean up the docs that repo visitors are likely to see such as readme (maybe others?). let's see if/how much we can borrow it from v1
+
+---
+
+<!-- reply 2 -->
+> Should the README lead with them?
+
+use the v1 line
+
+<!-- reply -->
+> Decision needed: where visitors reach you.
+
+jusprin-support@obico.io
+
+
+Draft the README and the other visitor files now
+
+---
+
+Commit and push
+
+---
+
+<!-- reply 4 -->
+> The About box still shows OrcaSlicer’s description and its Discord link.
+
+can you update it? find obico discord link yourself, or ask me
+
+<!-- reply -->
+> The empty Wiki tab is still switched on.
+
+why didn't you turn it off?
+
+<!-- reply -->
+> “Latest release” is v1.4.0, so the README’s Download link hands people v1 until v2 is released.
+
+update the version to 2.0.0 in all places. check with me if it touches upstream. ideally you find a way to not touch upstream
+
+<!-- reply -->
+> The 2025 “JusPrin Nightly Builds” pre-release is still listed.
+
+can you check how v1 was built, and create a similar github action to build v2?
+
+
+Also, use the lockup logo for the logo line in readme
+
+---
+
+<task-notification>
+<task-id>bufhokh8o</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b5623e1a-a18f-419a-a231-dcd19830f813/tasks/bufhokh8o.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the nightly run to finish and report each job's result" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+can we build our own about and splash? how much work?
+
+---
+
+<cross-session-message from="local_16b7ca42-e4ca-46f1-b167-d99a46751f82">
+Kenneth's instructions from a side session forked from yours: propose a task chip (start_session, own_initiative) for a JusPrin startup hook, a JusPrin splash and a JusPrin About window, then finish your remaining items here and ask him about any pending decisions.
+
+His words: "tell the main session to create a task chip to work on the new seam, the splash, and the new about dialog. and finish the other items in session (and ask me if decisions are pending)". He agreed ("sounds good", "ok") to this design, worked out in the fork:
+
+1. One shared fork header for every place OrcaSlicer calls into JusPrin, e.g. src/slic3r/GUI/JusPrin/OrcaHooks.hpp. GUI_App.cpp gets one JusPrin #include and one-line calls marked "// JusPrin:". Move the existing JusPrin::apply_brand_palette() call (end of GUI_App::init_label_colours, around line 4597, today via JusPrin/Brand/BrandPalette.hpp) under that header. The two calls stay separate: the palette must re-run after every init_label_colours (three times at startup, plus each light/dark switch from MainFrame.cpp:2837).
+2. Startup hook: JusPrin::startup_begin(*this), folded into OrcaSlicer's splash check in GUI_App::on_init_inner (around line 3451, after the config and language load at line 3374 and before `new SplashScreen`). It returns whether JusPrin showed its own splash, so OrcaSlicer skips its splash without writing show_splash_screen to the config file; classic view is unchanged. The logic lives in fork-owned src/slic3r/GUI/JusPrin/Startup/, built so a later stage costs one more upstream line.
+3. JusPrin splash: it shows a moving indicator, not OrcaSlicer's 8-step percentage, so no extra seams are needed. It is closed by JusPrin's existing shell attach code, with no second upstream line. Today OrcaSlicer's splash is up about 10 to 11 s on this Mac, and its only OrcaSlicer part is the version "2.5.0" from GUI_App::format_display_version. The JusPrin version is Updates::kVersion = "2.0.0".
+4. JusPrin About window, with no upstream change: AppMenus (fork-owned) finds both "&About JusPrin" items, the Help one on Windows/Linux (MainFrame.cpp ~2966) and the macOS app-menu one (MainFrame.cpp ~3615, OSXGetAppleMenu), and points them at a JusPrin window. The window shows the lockup, Version 2.0.0, Built on OrcaSlicer 2.5.0 (SoftFever_VERSION), the build commit, Copy version, jusprin-support@obico.io, Discord https://discord.gg/hsMwGpD and GitHub. It has a License button that opens OrcaSlicer's existing CopyrightsDialog (AGPL attribution). Classic view keeps OrcaSlicer's About.
+5. Design boards on the Claude design canvas come before code (the design rules), and Kenneth reviews them. Verify in the real app on Mac: first launch, normal launch, classic view, splash closing on time. Windows through the nightly build.
+Rough size: about a day plus the design review.
+
+Also in your queue from earlier, not yet decided: the Help › Report a problem footer prints "OrcaSlicer 02.08.01.55" (SLIC3R_VERSION) instead of 2.5.0 (SoftFever_VERSION), in AppMenus.cpp ~line 427. Old nightly assets from v1 (two flatpaks, three profile validators, orca_custom_preset_tests.zip) still sit on the nightly-builds release. Publishing the 2.0.0 release fixes the README Download link. Nightly run 42528151704 result: check it. Your watcher was stopped when the session restarted.
+</cross-session-message>
+
+---
+
+Delete them
