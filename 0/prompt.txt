@@ -1,0 +1,89 @@
+I think we should come up with Terms and Privacy Policy for a jusprin, instead of reusing orcaslicer's, or obico's, correct?
+
+---
+
+Yes, draft them
+
+---
+
+<task-notification>
+<task-id>a3b0dd8a5e92264bb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/1ca58b43-fa61-449f-8bfd-ee1e79df1dd4/tasks/a3b0dd8a5e92264bb.output</output-file>
+<status>completed</status>
+<summary>Agent "Inventory app data flows" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All paths below are relative to `/Users/kenneth/Projects/JusPrin/src/slic3r/GUI/JusPrin/` unless they start with `src/` (repo root) or `agent-docs/`.
+
+**1. Accounts and sign-in**
+- The only sign-in server is `https://jusprinv2.obico.io` (`Agent/ProviderProfile.hpp:71`, `Agent/CloudAccount.hpp:212`). It can be changed through the AppConfig setting `jusprin_server/base_url` (`Agent/AgentConfiguration.cpp:24,36`) or the env var `JUSPRIN_AGENT_ENDPOINT` (`Agent/ProviderFactory.cpp:126`).
+- Browser sign-in uses OAuth with PKCE, returning to `127.0.0.1:41172`. The token is fetched from `/o/token/` and revoked at `/o/revoke_token/` (`Agent/CloudAccount.cpp:105-127,405`).
+- Google sign-in: yes, through the server's `/accounts/google/login/` (`Agent/CloudAccount.cpp:124-126`).
+- Email sign-in: by emailed code or password, through `/ent/jusprin/v2/auth/code/request`, `code/confirm` and `login` (`Agent/CloudAccount.cpp:197,224-241`).
+- After sign-in the app calls `/jusprin/api/me/` (returns email and `ai_credits`) and the gateway's `/models` (`Agent/CloudAccount.cpp:166,175,351`).
+- Stored locally: the token, email and model list go in plain text in AppConfig, section `jusprin_agent`, as `jusprin_api_key`, `jusprin_account` and `jusprin_model_formats` (`Agent/AgentConfiguration.cpp:26-30,213-222`). The OS keychain is deliberately not used (`Agent/AgentConfiguration.hpp:31-35`).
+
+**2. AI chat**
+- Four providers are possible: the JusPrin gateway at `jusprinv2.obico.io/ent/jusprin/v2/responses` or `/messages`, OpenAI at `api.openai.com`, OpenRouter at `openrouter.ai` (adds `X-Title: JusPrin`), and Anthropic at `api.anthropic.com` (`Agent/ProviderProfile.hpp:71-86`).
+- DeepSeek and Google are not providers. DeepSeek is only reachable as a model through OpenRouter (it appears only in a test, `AgentUI/src/components/ModelPickers.test.tsx:13`). Direct Google/Gemini: not found.
+- With your own key, requests go straight from the desktop to the provider. With an account, they go to the JusPrin gateway, which forwards them to the provider (`Agent/ProviderProfile.hpp:45-57`). The gateway's own model names (like "slicer-1") map to providers chosen on the server side, which is not in this repo.
+- Your own key: yes, for OpenAI, OpenRouter or Anthropic. It is stored in plain text in AppConfig as `&lt;provider&gt;_api_key` (`Agent/AgentConfiguration.cpp:154-166`).
+- A request contains:
+  - the typed text and any print-issue details (`Agent/ProviderAgent.cpp:291-293`);
+  - a project summary: project name, printer/filament/process preset names, plate and object names, selection, plan, and G-code history with export file names and printer names (`Agent/ProviderAgent.cpp:38-120,295`);
+  - attachments: name and text, plus image and PDF bytes (`Agent/ProviderAgent.cpp:296-316`).
+- Tool results add plate pictures (`view_render`), project images (`Agent/ToolRegistry.cpp:1238-1250`), mesh measurements from `object_analyze` (`Workspace/Workspace.hpp:355-373`) and settings values. Raw mesh files are only sent if image/PDF counts; otherwise not found.
+- Extra request fields:
+  - Headers to the gateway: `X-JusPrin-Turn`, `X-JusPrin-Request`, and `X-JusPrin-Chat`, a SHA-256 hash of the chat key (`Agent/ProviderAgent.cpp:441-447,719`).
+  - OpenAI and OpenRouter get `"store": false`, plus `prompt_cache_key`, which is the unhashed project/conversation ID (`Agent/ResponsesCodec.cpp:120,129-130`).
+  - The provider's own web search tool is offered (`Agent/AnthropicCodec.cpp:92`).
+
+**3. Chat history**
+- Chats are saved locally in the project state under `&lt;data_dir&gt;/jusprin/projects` (`Shell/ShellController.cpp:383`, `Agent/ProjectPersistence.cpp:200-209`). Chat titles go in `&lt;data_dir&gt;/jusprin/chat-titles.json` (`Agent/AgentWebView.cpp:78`).
+- There is a local request log that is on by default with no switch found. It keeps every request body as sent, except picture and file bytes, in `&lt;data_dir&gt;/jusprin/request-log/`, keeping the newest 200 files (`Agent/AgentConfiguration.cpp:109`, `Agent/ProviderFactory.cpp:80-103`, `Agent/ProviderFactory.hpp:29`). Nothing in the code uploads it.
+- Server-side capture: the code itself only says the header exists "so the gateway can keep the chat whole" (`Agent/ProviderProfile.hpp:51`). Commit `f00a6bdcff` says the gateway "keeps each chat's newest request and reply for future fine-tuning" (server repo `tsd-enterprise`). How long the server keeps chats is not in this repo.
+
+**4. Credits and billing**
+- Credits and usage are read from the gateway's `/account` endpoint (`Agent/ModelCatalog.cpp:146-150`, `Agent/ModelCatalogFetch.cpp:71`). They are shown in `AgentUI/src/components/Preferences.tsx:200-233`.
+- "Get more credits" opens `&lt;server&gt;/ent/jusprin/pricing/` in the browser (`Agent/AgentConfiguration.cpp:176-179`, `Preferences/PreferencesWindow.cpp:236`). There is no in-app purchase.
+- Payment provider: not found (no Stripe, Paddle or PayPal).
+
+**5. Printers**
+- OctoPrint/Moonraker address and API key are stored in the printer preset as `print_host` and `printhost_apikey` (`Printers/NamedPrinters.cpp:359-360`).
+- Bambu access codes are stored in AppConfig `user_access_code` (`src/slic3r/GUI/DeviceManager.cpp:443`).
+- Bambu cloud sign-in is inherited from OrcaSlicer (`PrinterSetup/OrcaPrinterBackend.cpp:546`).
+- Settings tools never return host addresses or keys to the AI (`Workspace/SettingsSupport.hpp:50-59`).
+- However, these do reach the AI provider:
+  - The connection-status tool returns printer IP addresses and `print_host` to the model (`PrinterSetup/PrinterConversation.cpp:253-268`, `PrinterSetup/OrcaPrinterBackend.cpp:572`).
+  - The add-printer prompt includes printer serial numbers (`PrinterSetup/PrinterConversation.cpp:417`, `AgentUI/src/printerInstructions.ts:201`).
+- The access-code form says "Stays on this computer" (`AgentUI/src/components/PrinterPanel.tsx:205`).
+- Print reports (only when signed in) send a POST to `&lt;server&gt;/ent/jusprin/v2/print_reports` with: G-code hash, outcome, your text, a photo, and project/plate/printer/material/process names plus print time, grams and layer count (`Home/OrcaHomeBackend.cpp:1287-1299`, `Home/PrintHistory.cpp:194-206`).
+
+**6. Crash reports and telemetry**
+- Sentry: not found in code. It is only mentioned in comments and docs (`AgentUI/src/wording.test.ts:36`, `agent-docs/jusprin/mcp-tool-extension-guide.md:365,392`). Analytics: not found.
+- Update check calls `api.github.com/repos/TheSpaghettiDetective/JusPrin/releases`, 10 seconds after launch and then hourly. It is on by default, can be turned off in Preferences ("checkUpdates") or by stealth mode, and sends only the User-Agent `JusPrin/&lt;ver&gt;` (`Updates/UpdateCheck.cpp:20-23,79,93-97`, `Updates/UpdateRecord.cpp:29`, `Preferences/PreferencesSettings.cpp:66`).
+- OrcaSlicer's own version check is replaced by JusPrin's (`src/slic3r/GUI/GUI_App.cpp:5634-5636`), and its profile sync is forced off (`Shell/ShellController.cpp:1979-1986`).
+- OrcaSlicer's startup sync, which includes the Bambu plug-in check against `api.bambulab.com`, only runs once OrcaSlicer's setup guide is finished. JusPrin never finishes it (`src/slic3r/GUI/GUI_App.cpp:939-944`, `src/libslic3r/AppConfig.cpp:87-93`, `Updates/UpdateCheck.cpp:76-78`). One unverified exception: a v1 import might carry that "finished" flag over.
+- Bambu telemetry is forced off (`src/slic3r/GUI/GUI_App.cpp:5229-5235,3522`). The Bambu network plug-in is downloaded only when you connect a Bambu printer (`PrinterSetup/OrcaPrinterBackend.cpp:553`).
+
+**7. Connection report and GitHub issue**
+- The connection report is offered after two failed connections. If you say yes, it is only saved to `&lt;data_dir&gt;/jusprin/connection_reports/`; the app says sending "is not built yet" (`PrinterSetup/PrinterConversation.cpp:984-1019`, `PrinterSetup/OrcaPrinterBackend.cpp:742-753`).
+- The GitHub issue feature opens `github.com/TheSpaghettiDetective/JusPrin/issues/new` in your browser, pre-filled with an AI-written title and body plus app version and printer model. Serial numbers, IPs and key-like strings are removed first. Nothing is posted until you submit it yourself (`PrinterSetup/PrinterConversation.cpp:150-185,1024-1070`, `Agent/ToolRegistry.cpp:1668-1677`).
+
+**8. Importing from JusPrin v1 or OrcaSlicer**
+- Both imports only copy local files; no network calls were found (`V1Import/V1Import.hpp:3-17`, `Home/OrcaImporter.cpp:115`).
+- v1's `jusprin_server` setting is dropped (`V1Import/V1Import.cpp:96-106`). The header comment says the opposite, that v1's sign-in becomes JusPrin 2's (`V1Import/V1Import.hpp:11`).
+
+**9. Existing terms, privacy and consent text**
+- Sign-up says "By continuing you agree to the Terms and Privacy Policy", linking to `https://www.obico.io/terms.html` and `https://www.obico.io/privacy.html` (`HomeUI/src/components/Onboarding.tsx:288-297`, `Home/OrcaHomeBackend.cpp:704-707`).
+- Other disclosures:
+  - Your own key: "Billed by your provider, not JusPrin. Stored on this computer only." (`AgentUI/src/components/AgentConnection.tsx:363`)
+  - With an account, JusPrin receives your messages, settings and attachments and passes them to the model provider (`AgentUI/src/components/Preferences.tsx:338-340`).
+  - "Local work never needs an account." (`AgentUI/src/components/Preferences.tsx:298`)
+- Consent flag: saving a key or signing in sets `cloud_consent=true`, and the AI is off without it (`Agent/AgentConfiguration.cpp:160,221`, `Agent/ProviderFactory.cpp:147-150`).
+- Age requirement: not found. `agent-docs/jusprin/` only lists privacy as a planned Preferences topic (`agent-docs/jusprin/product-definition.md:659-689,752`).
+
+**Other**
+- External AI tools can connect over a local MCP server on `127.0.0.1` (`Mcp/McpServer.cpp:191`). JusPrin itself sends nothing there; whatever that tool sends to its own provider is outside JusPrin.</result>
+<usage><subagent_tokens>173083</subagent_tokens><tool_uses>74</tool_uses><duration_ms>373652</duration_ms></usage>
+</task-notification>
