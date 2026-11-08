@@ -10,7 +10,6 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
-#include "libslic3r_version.h"
 #include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
@@ -424,8 +423,8 @@ void AppMenus::build_help(wxMenu* menu)
             m_shell.toggle_agent_pane();
     }, [this] { return !m_shell.task_open() && m_shell.agent_pane() != nullptr; }}));
     items.push_back(command(menu, _L("Report a problem…"), {[this] {
-        const std::string footer = "\n\n---\nApp version: JusPrin " + std::string(Updates::kVersion) + " (OrcaSlicer " +
-                                   SLIC3R_VERSION + ")\nSystem: " + std::string(wxGetOsDescription().ToUTF8());
+        const std::string footer = "\n\n---\nApp version: " + Updates::version_label() + "\nSystem: " +
+                                   std::string(wxGetOsDescription().ToUTF8());
         const PrinterSetup::IssueLink link = PrinterSetup::issue_link("", "What happened:\n\n\nWhat you expected:\n\n\nSteps to make it happen again:\n", footer);
         if (!wxLaunchDefaultBrowser(wxString::FromUTF8(link.url)))
             MessageDialog(&m_frame, _L("The app couldn't open your browser."), _L("Report a problem"), wxOK | wxICON_ERROR).ShowModal();

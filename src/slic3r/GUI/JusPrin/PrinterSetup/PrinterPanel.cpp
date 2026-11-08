@@ -7,7 +7,7 @@
 #include "OrcaPrinterBackend.hpp"
 #include "PrinterCatalog.hpp"
 #include "libslic3r/Utils.hpp"
-#include "libslic3r_version.h"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
@@ -419,7 +419,7 @@ nlohmann::json PrinterPanel::chat_record() const
 {
     const Agent::ProjectStateDocument& document = m_persistence->document();
     nlohmann::json record = connection_chat_record(document.messages(document.active_conversation_id()), m_web_view->host().tools().activities());
-    record["app"] = SLIC3R_VERSION;
+    record["app"] = Updates::version_label();
     return record;
 }
 
@@ -482,6 +482,6 @@ bool PrinterPanel::open_in_browser(const std::string& url)
     return wxLaunchDefaultBrowser(wxString::FromUTF8(url));
 }
 
-std::string PrinterPanel::app_version() const { return SLIC3R_VERSION; }
+std::string PrinterPanel::app_version() const { return Updates::version_label(); }
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

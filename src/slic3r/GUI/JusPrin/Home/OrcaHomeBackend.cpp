@@ -30,7 +30,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
-#include "libslic3r_version.h"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/UtcTime.hpp"
@@ -489,13 +489,13 @@ public:
     nlohmann::json chat_record() const override
     {
         nlohmann::json record = PrinterSetup::connection_chat_record({}, {});
-        record["app"]         = SLIC3R_VERSION;
+        record["app"]         = Updates::version_label();
         return record;
     }
     bool finish_tool(const std::string&, const Agent::ToolExecutionCoordinator::ExtensionResult&) override { return false; }
     bool update_tool(const std::string&, const std::string&, bool) override { return false; }
     bool open_in_browser(const std::string& url) override { return wxLaunchDefaultBrowser(wxString::FromUTF8(url)); }
-    std::string app_version() const override { return SLIC3R_VERSION; }
+    std::string app_version() const override { return Updates::version_label(); }
     std::string post_note(const std::string&) override { return "home-note-" + std::to_string(++m_notes); }
     std::string post_opening(const std::string&) override { return "home-note-" + std::to_string(++m_notes); }
     void        start_turn() override {}

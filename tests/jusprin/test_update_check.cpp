@@ -5,6 +5,7 @@
 
 #include "slic3r/GUI/JusPrin/Updates/ReleaseFeed.hpp"
 #include "slic3r/GUI/JusPrin/Updates/UpdateRecord.hpp"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 
 #include "libslic3r/AppConfig.hpp"
 
@@ -193,4 +194,12 @@ TEST_CASE("New JusPrin versions can be turned off", "[Updates]")
     CHECK(auto_check_enabled(config));
     config.set_bool(kAutoCheckKey, false);
     CHECK_FALSE(auto_check_enabled(config));
+}
+
+TEST_CASE("Problem reports name JusPrin's version and the OrcaSlicer release under it", "[updates]")
+{
+    // SLIC3R_VERSION (02.08.01.55) is OrcaSlicer's network-plugin number,
+    // which reads as an OrcaSlicer release nobody can find.
+    CHECK(version_label() == std::string("JusPrin ") + kVersion + " (OrcaSlicer " + SoftFever_VERSION + ")");
+    CHECK(version_label().find(SLIC3R_VERSION) == std::string::npos);
 }
