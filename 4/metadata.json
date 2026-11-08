@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6WNMN4JTA6EN2BWSJ64ACZ8",
+  "session_id": "6f4d4813-32a8-4bc9-a7bf-6d03189029ad",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-08T04:12:03.47973Z",
+  "branch": "jusprin-newui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "agent-docs/jusprin/engineering-method.md",
+    "agent-docs/jusprin/fork-stewardship.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "e187d450ca3d",
+  "checkpoint_transcript_start": 3133,
+  "transcript_lines_at_start": 3133,
+  "compact_transcript_start": 397,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-08T04:12:02.437825Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 377,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 377,
+    "total_lines_changed": 377,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
