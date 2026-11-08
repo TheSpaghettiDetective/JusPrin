@@ -1,0 +1,76 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6Y1Y5AMZHSZAMK1MKSRJZPW",
+  "session_id": "ec62a56e-56ae-4fe0-9b68-9564ed3d532f",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-08T17:05:22.700717Z",
+  "branch": "claude/printer-setup-ways-8564f7",
+  "checkpoints_count": 6,
+  "save_step_count": 6,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "634cc8b14ee8",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 106,
+    "cache_creation_tokens": 97964,
+    "cache_read_tokens": 6817469,
+    "output_tokens": 14732,
+    "api_call_count": 53
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+claude/upstream-2.5.0 is the merge branch that we are using to rebase our fork on top of upstream 2.5.0 veresion. pull and test it on this mac
+
+---
+
+<task-notification>
+<task-id>bht3ig7nn</task-id>
+<summary>Monitor event: "2.5.0 deps build progress and failures"</summary>
+<event>[ 14%] Performing build step for 'dep_wxInspector'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bht3ig7nn</task-id>
+<summary>Monitor event: "2.5.0 deps build progress and failures"</summary>
+<event>[ 14%] Performing build step for 'dep_Boost'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bht3ig7nn</task-id>
+<summary>Monitor event: "2.5.0 deps build progress and failures"</summary>
+<event>[ 35%] Performing build step for 'dep_OpenEXR'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bht3ig7nn</task-id>
+<summary>Monitor event: "2.5.0 deps build progress and failures"</summary>
+<event>[ 40%] Performing build step for 'dep_Blosc'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bht3ig7nn</task-id>
+<summary>Monitor event: "2.5.0 deps build progress and failures"</summary>
+<event>[ 45%] Performing build step for 'dep_OpenVDB'</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
