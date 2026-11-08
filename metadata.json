@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6XQD3B5DAW0JDDTA5C0EP9Q",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-setup-ways-8564f7",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/OrcaImport.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/OrcaImport.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 17456,
+    "cache_read_tokens": 4865207,
+    "output_tokens": 10845,
+    "api_call_count": 15
+  }
+}
