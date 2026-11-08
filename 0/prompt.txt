@@ -386,3 +386,138 @@ If this event is something the user would act on now, send a PushNotification. R
 <status>failed</status>
 <summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/scratchpad; rm -f $S/homedev/snap-*; rm -rf $S/fl/data-merge $S/fl/home-merge; cp -R $S/fl/home-both $S/fl/home-merge; cd $S &amp;&amp; JUSPRIN_HOME_DEV_URL=http://127.0.0.1:48731/index.html JUSPRIN_AGENT_ENDPOINT=http://127.0.0.1:9/v1 JUSPRIN_ORCA_DATADIR="/Users/kenneth/Library/Application Support/OrcaSlicer" HOME="$S/fl/home-merge" JUSPRIN_SERVER_URL=https://jusprinv2-stg.obico.io exec $S/app/JusPrinWays.app/Contents/MacOS/OrcaSlicer --datadir $S/fl/data-merge &gt; $S/fl/run-merge.log 2&gt;&amp;1" failed with exit code 144</summary>
 </task-notification>
+
+---
+
+<cross-session-message from="local_c23b67d2-bb15-4d7d-b393-db6cf7565a2f" from-name="Account and AI preferences clarity">
+Kenneth approved a fix: File › Import › Import from JusPrin 1… says it found something new but lists nothing new.
+
+How I saw it: I clicked through the combined build on ui-walkthrough at 473589d032 in the real app, with a fresh --datadir and a test HOME holding copies of Kenneth's JusPrin 1 and OrcaSlicer folders.
+1. On first launch, I imported from JusPrin 1. The result screen showed: MyKlipper 0.4 nozzle - Copy, Qidi X-Plus 4 0.4 nozzle - Copy and 0.08mm Extra Fine ＠MyMarlin - Copy imported; 2 filaments imported; and 0.20mm Detail ＠MK3S 0.6 - Copy skipped, because it's built on 0.20mm Detail ＠MK3S 0.6, which JusPrin doesn't have.
+2. Then on Home I chose File › Import › Import from JusPrin 1…. The window's first line says "JusPrin found filaments or settings in JusPrin 1 that it doesn't have yet. JusPrin copies them. JusPrin 1 keeps its own copy." But the list shows only the two printers, each marked "Already in JusPrin". The Import button is enabled.
+3. On disk, the only JusPrin 1 user presets missing from the new profile are process/0.20mm Detail ＠MK3S 0.6 - Copy.json (which can't import: missing base) and machine/base/Untitled.json.
+
+What Kenneth wants: the window's sentence and its list should agree. If something new can be copied, list it. If nothing can be (only items already in JusPrin, or items that can't be imported), say so plainly. Show items that can't be imported with their reason, as the first-launch result screen does, and don't offer Import when there's nothing to copy. My guess is that the skipped 0.20mm preset triggers the sentence, but I haven't checked the code. Please confirm the actual cause before changing anything.
+
+Check whether the same thing happens in File › Import › Import from OrcaSlicer…, which I expect shares the window, and fix it there too.
+
+Steps:
+1. Reproduce it.
+2. Update the design canvas board for this window first, if one covers it.
+3. Fix it and add or adjust tests.
+4. Run jusprin_tests, the HomeUI vitest suite and the shell harness.
+5. Commit on your branch, merge into ui-walkthrough and push.
+6. Reply with the commit, what you changed, what you tested, and a screenshot of the window after the fix.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bylqm2xfq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/tasks/bylqm2xfq.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 50627 2&gt;/dev/null; do sleep 15; done; tail -5 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/scratchpad/fix-build.log | cut -c1-250; grep -c "error:" /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/scratchpad/fix-build.log" completed (exit code 1: No matches found)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2671f81a0f7d2ea2</task-id>
+<tool-use-id>toolu_01LLLxBwvcirpMHU91oqKbSL</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/tasks/a2671f81a0f7d2ea2.output</output-file>
+<status>completed</status>
+<summary>Agent "Cold-reader check of two screens" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I read both screenshots as a busy newcomer would.
+
+**Window 1: "Import from JusPrin 1"**
+
+- "JusPrin already has everything it can import from this JusPrin 1 folder, so there is nothing to import. Below, each item JusPrin can't import says why." This means nothing new will come over, and the items listed below are the ones that didn't.
+- "MyKlipper 0.4 nozzle - Copy" with "Already in JusPrin": I already have this one.
+- "Qidi X-Plus 4 0.4 nozzle - Copy" with "Already in JusPrin": same as the line above.
+- A warning icon, then "0.20mm Detail @MK3S 0.6 - Copy" and "These settings are built on 0.20mm Detail @MK3S 0.6, which JusPrin doesn't have." This one can't come over because something it depends on is missing.
+- A monitor icon next to "~/Library/Application Support/JusPrin": this is the folder it read from.
+- "Choose another folder…": lets me pick a different folder to read.
+- "Close": closes the window.
+
+Where I'd hesitate:
+- The sentence says each listed item "can't import". But two of them have checkmarks and "Already in JusPrin", so they look fine. I'm not sure whether they count as failures.
+- The folder path says "JusPrin", not "JusPrin 1". I'd worry it read the new app's own folder by mistake.
+- I can't tell whether "- Copy" is part of my own names or whether JusPrin made copies.
+- Nothing tells me what kind of thing each item is. "MyKlipper" sounds like a printer, and "0.20mm Detail" sounds like print quality.
+- The warning gives me no next step. I don't know how to get "0.20mm Detail @MK3S 0.6", and the window offers no button to fix it.
+- I can't tell what the monitor icon means.
+
+**Window 2: "Import from OrcaSlicer"**
+
+- "JusPrin found settings in OrcaSlicer that it doesn't have yet. JusPrin copies them. OrcaSlicer keeps its own copy. Below, each item JusPrin can't import says why." There is something new, and OrcaSlicer won't lose its copy.
+- The same two "- Copy" items with "Already in JusPrin": already here.
+- "New settings: 0.12mm Fine @MyMarlin - Mine." This is the one thing that will be imported.
+- The same warning item, with the same text as window 1.
+- A long folder path: where it read from.
+- "Choose another folder…", "Cancel", and "Import": Import brings the new settings in, and Cancel leaves everything as it was.
+
+Where I'd hesitate:
+- "JusPrin copies them" is in the present tense. I can't tell whether it has already copied them or will copy them when I press Import.
+- The only item that will actually import is plain text without a box, while the items that won't import get boxes. My eye skips over it.
+- The trailing period makes "Mine." look like part of the name.
+- The intro talks about "settings" in the plural, but there's only one. I also can't untick it, and I can't see what it contains.
+- Exactly the same items appear in both JusPrin 1 and OrcaSlicer. I'd wonder whether it's reading the same folder twice.
+- The warning comes up again with no fix. I'd wonder whether pressing Import still leaves my 0.20mm Detail settings behind for good.
+- Nothing says where the imported settings will show up afterward, or whether I'll see a confirmation.</result>
+<usage><subagent_tokens>72253</subagent_tokens><tool_uses>2</tool_uses><duration_ms>24268</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac3e37b47752710d6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-printer-setup-ways-8564f7/21209ef0-492d-4641-ab5f-85146ab8b348/tasks/ac3e37b47752710d6.output</output-file>
+<status>completed</status>
+<summary>Agent "Cold-reader recheck of two screens" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I read both screenshots literally. Screen 1 contradicts itself, and on screen 2 the one item that Import will actually bring in is the easiest line to miss.
+
+**Screen 1 – "Import from JusPrin 1"**
+
+- "JusPrin already has everything it can import from this JusPrin 1 folder, so there is nothing to import." There is nothing new for me here.
+- "JusPrin can't import the item with the warning sign; the reason is under its name." One item is blocked, and the reason is printed under it.
+- "MyKlipper 0.4 nozzle - Copy" / "Already in JusPrin": I already have this printer.
+- "Qidi X-Plus 4 0.4 nozzle - Copy" / "Already in JusPrin": the same for this printer.
+- "0.20mm Detail @MK3S 0.6 - Copy" / "These settings are built on 0.20mm Detail @MK3S 0.6, which JusPrin doesn't have." This depends on something that is missing.
+- "~/Library/Application Support/JusPrin": this is the folder it read.
+- "Choose another folder…": lets me pick a different folder.
+- "Close": closes the window.
+
+Where I'd hesitate:
+- The folder is called "JusPrin", the same as the new app. Did it read my old JusPrin 1 data or the new app's own folder? If it's the new app's folder, "already in JusPrin" would be true by definition.
+- It says "nothing to import" and also "can't import" one item. I had to stop and work out that both are true.
+- Why does every name end in "- Copy"? Did bringing my printers over make copies of them?
+- The list mixes printers with print settings, and nothing says which is which.
+- "Built on" is jargon to me. The screen also doesn't say what to do next. Do I add an MK3S printer? Is that setting lost for good?
+
+**Screen 2 – "Import from OrcaSlicer"**
+
+- "JusPrin found settings in OrcaSlicer that it doesn't have yet." There is something new.
+- "JusPrin copies them." I can't tell if it already did this or will do it when I press Import.
+- "OrcaSlicer keeps its own copy." Nothing gets deleted from OrcaSlicer.
+- The warning sentence and the two "Already in JusPrin" rows are the same as on screen 1.
+- "New settings: 0.12mm Fine @MyMarlin - Mine": this is what will be imported.
+- The same blocked item, with the same reason under it.
+- The long path and "Choose another folder…" work as on screen 1.
+- "Cancel": leaves without importing.
+- "Import": copies the new setting.
+
+Where I'd hesitate:
+- **"New settings:" is a plain line above the warning box.** On first read I took it as the heading for the blocked item, so I thought the thing I'd get was the one that fails.
+- The one item that will actually be imported has no box, check mark or icon. It's the least visible thing on the screen.
+- "Copies them" is in present tense. Has it already happened?
+- Both screens list the same three items. Are JusPrin 1 and OrcaSlicer the same data? Which one supplied each item?
+- I don't have a printer called "MyMarlin". Will this setting show up anywhere I can use it?
+- I can't untick anything, and the Import button doesn't say how many items it will bring in.
+- Is "- Mine" part of the name or a label?
+- I still don't know how to fix the blocked item.</result>
+<usage><subagent_tokens>71827</subagent_tokens><tool_uses>2</tool_uses><duration_ms>30048</duration_ms></usage>
+</task-notification>
