@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6YMMQ2854FNQ97RGERR2NJ6",
+  "strategy": "manual-commit",
+  "branch": "ui-walkthrough",
+  "checkpoints_count": 12,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 246,
+    "cache_creation_tokens": 308481,
+    "cache_read_tokens": 22742474,
+    "output_tokens": 70017,
+    "api_call_count": 123,
+    "subagent_tokens": {
+      "input_tokens": 16,
+      "cache_creation_tokens": 218135,
+      "cache_read_tokens": 254999,
+      "output_tokens": 15284,
+      "api_call_count": 8
+    }
+  }
+}
