@@ -1,0 +1,17 @@
+<task-notification>
+<task-id>bdgrazdve</task-id>
+<tool-use-id>toolu_01PcgNquZuvXFcngHXB5ZRLe</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\9737514b-bc2d-4305-94f8-3b5d4fccba92\tasks\bdgrazdve.output</output-file>
+<status>completed</status>
+<summary>Background command "Run nine shell harness modes on the 2.5.0 build (background)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8ka9f6b</task-id>
+<tool-use-id>toolu_01L5yNFETyEPKpy7CB5jZ5uA</tool-use-id>
+<output-file>C:\Users\guitest\AppData\Local\Temp\claude\C--src-JusPrin\9737514b-bc2d-4305-94f8-3b5d4fccba92\tasks\bm8ka9f6b.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the nine harness modes properly (background)" completed (exit code 0)</summary>
+</task-notification>

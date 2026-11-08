@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M6X49BNXK0G3E2P48ZWTHYEN",
+  "strategy": "manual-commit",
+  "branch": "claude/upstream-2.5.0",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Testing/FakeBambuAgent.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 15605,
+    "cache_read_tokens": 12114501,
+    "output_tokens": 7804,
+    "api_call_count": 19
+  }
+}
