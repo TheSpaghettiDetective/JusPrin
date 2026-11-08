@@ -79,9 +79,15 @@ inline void skipped_edit_confirmations(SettingsScope scope, const std::vector<Se
     const bool                tower   = after.opt_bool("enable_prime_tower");
     const bool                smooth  = after.opt_enum<TimelapseType>("timelapse_type") == tlSmooth;
 
-    if (changed("enable_prime_tower") && !tower && smooth) {
-        ask("enable_prime_tower", _u8L("A prime tower is required for smooth timelapse. There may be flaws on the model without prime tower. Are you sure you want to disable prime tower?"));
-        // Asked of a person who went on without the tower.
+    if (changed("enable_prime_tower") && !tower) {
+        // A printer with more than one nozzle on an extruder changes them at the tower.
+        const auto* nozzles = printer.option<ConfigOptionIntsNullable>("extruder_max_nozzle_count");
+        if (nozzles != nullptr && std::any_of(nozzles->values.begin(), nozzles->values.end(),
+                                              [](int count) { return count > 1 && count != ConfigOptionIntsNullable::nil_value(); }))
+            ask("enable_prime_tower", _u8L("Prime tower is required for nozzle changing. There may be flaws on the model without prime tower. Are you sure you want to disable prime tower?"));
+        if (smooth)
+            ask("enable_prime_tower", _u8L("A prime tower is required for smooth timelapse mode. There may be flaws on the model without a prime tower. Are you sure you want to disable the prime tower?"));
+        // Asked too of a person who went on without the tower at the question above.
         if (after.opt_bool("enable_wrapping_detection"))
             ask("enable_prime_tower", _u8L("A prime tower is required for clumping detection. There may be flaws on the model without prime tower. Are you sure you want to disable prime tower?"));
     }
@@ -92,7 +98,7 @@ inline void skipped_edit_confirmations(SettingsScope scope, const std::vector<Se
     if (changed("precise_z_height") && after.opt_bool("precise_z_height") && tower)
         ask("precise_z_height", _u8L("Enabling both precise Z height and the prime tower may cause slicing errors. Do you still want to enable precise Z height?"));
     if (changed("timelapse_type") && smooth && !tower)
-        ask("timelapse_type", _u8L("A prime tower is required for smooth timelapse. There may be flaws on the model without prime tower. Do you want to enable prime tower?"),
+        ask("timelapse_type", _u8L("A prime tower is required for smooth timelapse mode. There may be flaws on the model without prime tower. Do you want to enable the prime tower?"),
             {"enable_prime_tower=1"});
 
     if (changed("print_sequence") && after.opt_enum<PrintSequence>("print_sequence") == PrintSequence::ByObject) {
@@ -131,13 +137,13 @@ inline void skipped_edit_confirmations(SettingsScope scope, const std::vector<Se
                 set("support_filament", std::to_string(contact + 1));
             ask("support_interface_filament",
                 (soluble ? _u8L("When using soluble material for the support interface, we recommend the following settings:\n"
-                                "0 top Z distance, 0 interface spacing, interlaced rectilinear pattern, disable independent support layer height\n"
+                                "0 top Z distance, 0 interface spacing, interlaced rectilinear pattern, disable independent support layer height "
                                 "and use soluble materials for both support interface and support base.") :
                            _u8L("When using support material for the support interface, we recommend the following settings:\n"
                                 "0 top Z distance, 0 interface spacing, interlaced rectilinear pattern and disable independent support layer height.")) +
                     "\n\n" + _u8L("Change these settings automatically?\n"
-                                  "Yes - Change these settings automatically\n"
-                                  "No  - Do not change these settings for me"),
+                                  "Yes - Change these settings automatically.\n"
+                                  "No  - Do not change these settings for me."),
                 std::move(yes));
         }
     }
@@ -171,11 +177,13 @@ inline void skipped_edit_confirmations(SettingsScope scope, const std::vector<Se
         if (lowest != nullptr && highest != nullptr && !lowest->values.empty() && !highest->values.empty()) {
             const double floor = *std::min_element(lowest->values.begin(), lowest->values.end());
             const double ceil  = *std::max_element(highest->values.begin(), highest->values.end());
-            if (height < floor || height > ceil)
+            // As ConfigManipulation::check_layer_height: the limit crossed, the upper one first.
+            const bool above = ceil > EPSILON && height > ceil + EPSILON, below = floor > EPSILON && height < floor - EPSILON;
+            if (above || below)
                 warnings.push_back({"layer_height", kSkippedConfirmation,
-                                    _u8L("Layer height exceeds the limit in Printer Settings -> Extruder -> Layer height limits, "
+                                    _u8L("Layer height is outside the limits set in Printer Settings -> Extruder -> Layer height limits, "
                                          "this may cause printing quality issues.") +
-                                        "\n\n" + _u8L("Adjust to the set range automatically?\n"),
+                                        "\n\n" + wxString::Format(_L("Adjust it to the limit (%g mm) automatically?"), above ? ceil : floor).ToUTF8().data(),
                                     {}, {}, floor, ceil});
         }
     }
@@ -194,7 +202,7 @@ inline void skipped_save_confirmations(const DynamicPrintConfig& config, std::ve
         const int   a = first && !first->values.empty() ? first->get_at(0) : 0, b = other && !other->values.empty() ? other->get_at(0) : 0;
         if (a <= 0 || b <= 0 || std::abs(a - b) <= limit)
             return;
-        const wxString degrees = wxString::FromUTF8("°C"), bullet = wxString::FromUTF8("•");
+        const wxString degrees = wxString::FromUTF8(u8"℃" /* °C */), bullet = wxString::FromUTF8("•");
         const wxString words = _L("Some first-layer and other-layer temperature pairs exceed safety limits.\n") + _L("\nInvalid pairs:\n") +
             wxString::Format(_L(" - %s:\n    %s first layer %d %s, other layers %d %s\n    %s max delta %d %s, current delta %d %s\n"),
                              label, bullet, a, degrees, b, degrees, bullet, limit, degrees, std::abs(a - b), degrees) +

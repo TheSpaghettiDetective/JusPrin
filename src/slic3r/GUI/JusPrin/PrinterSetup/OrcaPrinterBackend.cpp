@@ -11,6 +11,7 @@
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/ConfigWizard.hpp"
+#include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/Plater.hpp"
@@ -469,7 +470,7 @@ ManualPrinterResult OrcaPrinterBackend::run_manual_setup()
     // manual path did.
     const Printers::VendorMap before = wxGetApp().app_config->vendors();
     // False when the person closed the wizard without applying it.
-    if (!wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS))
+    if (!wxGetApp().run_wizard(RunReason::RR_USER, StartPage::SP_PRINTERS))
         return {};
     const auto names = Printers::name_installed_printers(m_plater, before);
     ManualPrinterResult result;
@@ -639,7 +640,7 @@ PrinterConnectionInfo OrcaPrinterBackend::connection(const std::string& name)
             continue;
         ConnectionCandidate candidate{id, machine->get_dev_name(), machine->get_dev_ip(), machine->is_lan_mode_printer(),
                                       nearby.find(id) == nearby.end()};
-        const auto linked_to = std::find_if(saved.begin(), saved.end(), [&](const SavedPrinter& p) {
+        const auto linked_to = std::find_if(saved.begin(), saved.end(), [&, &id = id](const SavedPrinter& p) {
             return p.name != name && p.device_id == id;
         });
         if (machine->printer_type != model->device_model_id) {
@@ -788,7 +789,7 @@ std::string OrcaPrinterBackend::connect_printer(const std::string& name, const s
         return problem.ToStdString();
     prepare_connection(name);
     if (machine->is_lan_mode_printer() && !access_code.empty())
-        machine->set_user_access_code(access_code);
+        machine->set_access_code(access_code);
     m_connection_attempt = ConnectionAttempt{name, device_id, std::chrono::steady_clock::now(),
                                               std::chrono::system_clock::now(), std::chrono::steady_clock::now()};
     if (machine->is_lan_mode_printer() && !machine->get_dev_ip().empty()) {

@@ -101,7 +101,7 @@ public:
     void set_cloud_agent(std::shared_ptr<ICloudServiceAgent> cloud) override;
 
     int  send_message(std::string dev_id, std::string json_str, int qos, int flag) override;
-    int  connect_printer(std::string dev_id, std::string dev_ip, std::string username, std::string password, bool use_ssl) override;
+    int  connect_printer(const PrinterConnectionParams& params) override;
     int  disconnect_printer() override;
     int  send_message_to_printer(std::string dev_id, std::string json_str, int qos, int flag) override;
 
@@ -114,6 +114,7 @@ public:
     int bind_detect(std::string dev_ip, std::string sec_link, detectResult& detect) override;
     int bind(std::string          dev_ip,
              std::string          dev_id,
+             std::string          dev_model,
              std::string          sec_link,
              std::string          timezone,
              bool                 improved,

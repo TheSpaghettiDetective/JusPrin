@@ -10,6 +10,7 @@
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/MeshBoolean.hpp"
+#include "libslic3r/MeshRepair.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
@@ -358,7 +359,7 @@ CommandResult OrcaWorkspaceAdapter::repair_object(ObjectId id, RepairResult& res
     for (ModelVolume* part : broken) {
         TriangleMesh mesh = part->mesh();
         std::string  error;
-        if (!MeshBoolean::cgal::repair(mesh, nullptr, &error)) {
+        if (!repair_mesh(mesh, nullptr, &error)) {
             // What already happened stays: the paint is gone and the parts
             // before this one are repaired.
             std::string message = "The app could not repair " + object.name + ": " + error;

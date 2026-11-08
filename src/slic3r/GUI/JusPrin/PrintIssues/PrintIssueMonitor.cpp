@@ -378,8 +378,8 @@ void PrintIssueMonitor::find_placement(PartPlate& plate, const std::vector<Notic
 }
 
 // OrcaSlicer's own validation of the print, asked again for the object and
-// the setting its notification does not carry. It holds one error and one
-// warning at most; a later check overwrites an earlier warning.
+// the setting its notification does not carry. It holds one error at most,
+// and every warning its checks raised.
 void PrintIssueMonitor::find_validation(PartPlate& plate, Print& print, const std::vector<Notice>& held, std::vector<PrintIssue>& found)
 {
     if (!holds(held, NotificationType::ValidateError) && !holds(held, NotificationType::ValidateWarning)) {
@@ -390,12 +390,12 @@ void PrintIssueMonitor::find_validation(PartPlate& plate, Print& print, const st
     // that invalidates it would have stopped it, so the last answer stands.
     if (!m_plater.is_background_process_slicing()) {
         const auto started = std::chrono::steady_clock::now();
-        StringObjectException warning{};
+        std::vector<StringObjectException> warnings;
         Polygons              polygons;
         std::vector<std::pair<Polygon, float>> height_polygons;
         // As BackgroundSlicingProcess::validate does before it asks.
         print.is_BBL_printer() = wxGetApp().preset_bundle->is_bbl_vendor();
-        StringObjectException error = print.validate(&warning, &polygons, &height_polygons);
+        StringObjectException error = print.validate(&warnings, &polygons, &height_polygons);
         if (!error.string.empty())
             m_plater.post_process_string_object_exception(error);
         m_last_validate_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
@@ -418,7 +418,8 @@ void PrintIssueMonitor::find_validation(PartPlate& plate, Print& print, const st
             m_validation.push_back(std::move(issue));
         };
         add(error, true);
-        add(warning, false);
+        for (const StringObjectException& warning : warnings)
+            add(warning, false);
     }
     found.insert(found.end(), m_validation.begin(), m_validation.end());
 }

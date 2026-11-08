@@ -36,7 +36,15 @@ namespace Slic3r::GUI::JusPrin::PrintIssues {
     X(BBLSliceMultiExtruderHeightOutside) \
     X(BBLBedFilamentIncompatible) \
     X(BBLMixUsePLAAndPETG) \
-    X(BBLNozzleFilamentIncompatible)
+    X(BBLNozzleFilamentIncompatible) \
+    X(BBLMixedFilamentBroken) \
+    X(BBLSingleExtruderMixedFilamentRisk) \
+    /* The preset needs a plug-in that is missing, inactive or outdated, which blocks slicing.   */ \
+    /* MISSING: OrcaSlicer's button that installs, finds or activates it, and the settings list. */ \
+    X(OrcaLocalPluginMissingError) \
+    X(OrcaCloudPluginMissingError) \
+    X(OrcaPluginInactiveError) \
+    X(OrcaPluginCapabilityUnavailableError)
 
 // The outcome of something the person just did, or a remark from the tool they
 // are using. Drawn as a short confirmation above the status pill, in
@@ -140,7 +148,8 @@ const char* notice_kind_name(NotificationType kind)
 
 bool notice_comes_in_several(NotificationType kind)
 {
-    return kind == NotificationType::PlaterWarning || kind == NotificationType::SlicingWarning;
+    return kind == NotificationType::PlaterWarning || kind == NotificationType::SlicingWarning ||
+           kind == NotificationType::ValidateWarning;
 }
 
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

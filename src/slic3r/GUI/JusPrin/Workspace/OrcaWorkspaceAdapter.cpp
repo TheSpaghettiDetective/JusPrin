@@ -55,7 +55,6 @@
 #include <array>
 #include <cctype>
 #include <cmath>
-#include <cstring>
 #include <iterator>
 #include <limits>
 #include <set>
@@ -186,9 +185,9 @@ std::string index_key(const std::string& option, Preset::Type type)
 // with one value per extruder is registered as key#0.
 Search::GroupAndCategory tab_location(Search::OptionsSearcher& searcher, const std::string& key, Preset::Type type)
 {
-    Search::GroupAndCategory location = searcher.get_group_and_category(index_key(key, type));
+    Search::GroupAndCategory location = searcher.index().get_group_and_category(index_key(key, type));
     if (location.group.empty())
-        location = searcher.get_group_and_category(index_key(key + "#0", type));
+        location = searcher.index().get_group_and_category(index_key(key + "#0", type));
     return location;
 }
 
@@ -2061,8 +2060,7 @@ CommandResult OrcaWorkspaceAdapter::analyze_object(ObjectId id, const AnalysisRe
             orientation::OrientParams params;
             if (m_plater.canvas3D()->get_orient_settings().min_area) {
                 // Exactly as OrientJob::process builds it.
-                orientation::OrientParamsArea area;
-                std::memcpy(static_cast<void*>(&params), &area, sizeof(params));
+                setMinimalSupportAreaPrams(params);
                 params.min_volume = false;
             } else {
                 params.min_volume = true;
@@ -3546,8 +3544,7 @@ CommandResult OrcaWorkspaceAdapter::remove_filament_preset(const PresetRemoval& 
     // selection index where it was, so the selected preset is selected again
     // by name, keeping its unsaved edits.
     preset = filaments.find_preset(removal.name, false);
-    if (!preset->setting_id.empty())
-        wxGetApp().delete_preset_from_cloud(preset->setting_id, preset->file);
+    wxGetApp().delete_preset_from_cloud(*preset);
     const std::string        selected = filaments.get_selected_preset_name();
     const DynamicPrintConfig edits    = filaments.get_edited_preset().config;
     if (!filaments.delete_preset(removal.name))

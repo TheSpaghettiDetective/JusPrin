@@ -41,7 +41,7 @@ public:
                 const auto preset = m_settings.preset_values.find(key);
                 if (preset == m_settings.preset_values.end() || preset->second == value) continue;
                 const auto definition = std::find_if(m_settings.definitions.begin(), m_settings.definitions.end(),
-                                                     [&](const auto& candidate) { return candidate.key == key; });
+                                                     [&key = key](const auto& candidate) { return candidate.key == key; });
                 const std::string label = definition == m_settings.definitions.end() ? key : definition->label;
                 result.preset_deltas.push_back(
                     {key, label, preset->second, value, "process", m_process_preset,

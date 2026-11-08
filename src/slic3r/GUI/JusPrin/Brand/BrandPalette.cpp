@@ -136,6 +136,14 @@ void apply_brand_palette()
     // one copy made at start-up, before this runs, so it is filled again.
     ColorRGB::orca_accent() = ColorRGB(p.action_primary.Red() / 255.f, p.action_primary.Green() / 255.f,
                                        p.action_primary.Blue() / 255.f);
+    // Its other shades: OrcaSlicer draws the dark ones on a dark canvas, and
+    // p is already this appearance's palette, so both pairs take the same
+    // tokens. They colour the plate-select toolbar and the gizmos' round
+    // toolbar buttons.
+    const auto im_colour = [](const wxColour& c) { return ImVec4(c.Red() / 255.f, c.Green() / 255.f, c.Blue() / 255.f, 1.f); };
+    ImGuiWrapper::col_orca_dark()       = im_colour(p.action_primary);
+    ImGuiWrapper::col_orca_hover()      = im_colour(p.action_primary_hover);
+    ImGuiWrapper::col_orca_hover_dark() = im_colour(p.action_primary_hover);
     if (ImGuiWrapper* imgui = wxGetApp().imgui())
         imgui->reset_style();
 }

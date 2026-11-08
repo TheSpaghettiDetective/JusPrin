@@ -1319,11 +1319,11 @@ void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::functi
     const std::filesystem::path photo = std::filesystem::u8path(m_report_photos.at(form.photo_id));
 
     AppConfig* config  = wxGetApp().app_config;
-    const auto finish  = [this, alive = std::weak_ptr<void>(m_alive), form, done = std::move(done)](unsigned status, const std::string& body) {
+    const auto finish  = [alive = std::weak_ptr<void>(m_alive), form, done = std::move(done)](unsigned status, const std::string& body) {
         PrintReportAnswer answer = print_report_answer(status, body);
         if (answer.state == PrintReportAnswer::State::Failed)
             BOOST_LOG_TRIVIAL(warning) << "Print report for G-code " << form.hash << " answered " << status;
-        wxGetApp().CallAfter([this, alive, form, done, answer] {
+        wxGetApp().CallAfter([alive, form, done, answer] {
             if (alive.expired())
                 return;
             ShellController* shell = installed_shell();
@@ -1358,7 +1358,7 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
         return;
     }
     complete_onboarding();
-    m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+    m_frame.select_tab(TAB_ID_PREPARE);
 }
 
 void OrcaHomeBackend::new_project()
@@ -1369,7 +1369,7 @@ void OrcaHomeBackend::new_project()
     // new_project saves the open project through the autosave hook first;
     // when that save fails it cancels, and Home stays where it was.
     if (plater->new_project() != wxID_CANCEL)
-        m_frame.select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame.select_tab(TAB_ID_PREPARE);
 }
 
 void OrcaHomeBackend::open_file()

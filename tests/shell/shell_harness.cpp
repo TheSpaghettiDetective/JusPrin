@@ -360,7 +360,10 @@
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/libslic3r.h"
+#include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/MsgDialog.hpp"
+#include <wx/evtloop.h>
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectState.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/DialogListeners.hpp"
@@ -395,6 +398,7 @@
 #include "figma_timeline_fixture.hpp"
 #include "dialog_witness.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
+#include "slic3r/GUI/JusPrin/Shell/AppMenus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ClassicView.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/JusPrin/Shell/LeftPane.hpp"
@@ -1465,7 +1469,7 @@ struct HarnessState
 Notebook* find_notebook(wxWindow* root, Plater* plater)
 {
     if (auto* notebook = dynamic_cast<Notebook*>(root))
-        if (notebook->FindPage(plater) == MainFrame::tp3DEditor) return notebook;
+        if (notebook->GetPageByName(TAB_ID_PREPARE) == plater) return notebook;
     for (wxWindow* child : root->GetChildren())
         if (Notebook* notebook = find_notebook(child, plater))
             return notebook;
@@ -1498,8 +1502,8 @@ public:
                 return;
             }
             // GUI_App::post_init runs from the first idle event after the main
-            // loop starts and ends with select_tab(0) (GUI_App.cpp, "if
-            // (is_editor()) mainframe->select_tab(size_t(0))"). This scenario
+            // loop starts and can end by selecting a tab (GUI_App.cpp, "if
+            // (starts_on_prepare()) mainframe->select_tab(TAB_ID_PREPARE)"). This scenario
             // starts from a CallAfter, which the loop drains before it idles,
             // so every mode used to drive the shell ahead of post_init, and
             // post_init later undid whatever tab the scenario had chosen --
@@ -1524,7 +1528,7 @@ public:
         try {
             if (m_state->mode == HarnessState::Mode::Stock) {
                 wait_until([this] { return m_plater->canvas3D()->is_initialized() &&
-                    m_notebook->GetSelection() == MainFrame::tpHome; }, "stock_startup_ready",
+                    m_notebook->GetSelectedPageName() == TAB_ID_HOME; }, "stock_startup_ready",
                            [self = shared_from_this()] { self->verify_stock_slice(); });
                 return;
             }
@@ -1558,7 +1562,7 @@ public:
         check(std::none_of(printers.begin(), printers.end(), [](const Preset& preset) { return preset.is_visible && !preset.is_default; }),
               "fresh_example_starts_with_no_printer");
         auto& backend = installed_shell()->home_view()->backend();
-        check(m_notebook->GetSelection() == MainFrame::tpHome, "first_launch_opens_on_home");
+        check(m_notebook->GetSelectedPageName() == TAB_ID_HOME, "first_launch_opens_on_home");
         check(backend.onboarding().step == Home::OnboardingStep::Welcome, "first_launch_shows_the_welcome");
 
         backend.leave_welcome(); // Just slice for now
@@ -1797,9 +1801,9 @@ public:
                 return;
             }
             if (m_state->mode == HarnessState::Mode::FigmaTimelineCapture) {
-                m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                m_frame->select_tab(TAB_ID_PREPARE);
                 wait_until([this] {
-                    return m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                    return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE &&
                            m_plater->canvas3D()->is_initialized();
                 }, "figma_timeline_canvas_ready", [self = shared_from_this()] {
                     self->load_multi_plate_fixture();
@@ -1828,9 +1832,9 @@ public:
                 return;
             }
             if (m_state->mode == HarnessState::Mode::TaskChat) {
-                m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                m_frame->select_tab(TAB_ID_PREPARE);
                 wait_until([this] {
-                    return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_notebook->IsShownOnScreen();
+                    return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_notebook->IsShownOnScreen();
                 }, "task_chat_starts_on_prepare", [self = shared_from_this()] {
                     self->verify_header_setup(Preset::TYPE_PRINTER);
                 });
@@ -1868,7 +1872,7 @@ public:
                     // has actually been idle, and the READY line carries
                     // that result.
                     self->wait_until_settled("mcp_fixture_settled", [self] {
-                        self->check(self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                        self->check(self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
                                     "mcp_fixture_tab_survives_settle");
                         self->check(!self->m_plater->is_preview_shown(), "mcp_fixture_view_survives_settle");
                         // The hand-over screen is what gets photographed, so
@@ -1972,9 +1976,9 @@ public:
 private:
     void verify_left_pane_editor()
     {
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wait_until([this] {
-            return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
+            return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_plater->canvas3D()->is_initialized();
         }, "editor_prepare_ready", [self = shared_from_this()] {
             self->wait_until_settled("editor_prepare_settled", [self] {
                 if (installed_shell()->is_left_pane_collapsed()) {
@@ -1996,17 +2000,20 @@ private:
                     return;
                 }
                 self->click_pane(pane, edit);
-                self->wait_until([self] { return self->m_notebook->GetCurrentPage() == self->m_frame->m_project; },
+                self->wait_until([self] { return self->m_notebook->GetSelectedPageName() == TAB_ID_PROJECT; },
                                  "editor_project_page_open", [self] {
                                      self->wait_until_settled("editor_page_settled", [self] {
-                                         self->check(self->m_frame->m_project->IsShownOnScreen(),
+                                         // The page holds the panel, built when it was first shown.
+                                         ProjectPanel* project = ProjectPanel::if_built();
+                                         self->check(project != nullptr && project->IsShownOnScreen(),
                                                      "editor_project_page_visible");
-                                         self->check(std::any_of(self->m_frame->m_project->GetChildren().begin(),
-                                                                 self->m_frame->m_project->GetChildren().end(),
-                                                                 [](wxWindow* child) {
-                                                                     return dynamic_cast<AuxiliaryPanel*>(child) != nullptr &&
-                                                                            child->IsShownOnScreen();
-                                                                 }), "editor_form_visible");
+                                         self->check(project != nullptr &&
+                                                         std::any_of(project->GetChildren().begin(), project->GetChildren().end(),
+                                                                     [](wxWindow* child) {
+                                                                         return dynamic_cast<AuxiliaryPanel*>(child) != nullptr &&
+                                                                                child->IsShownOnScreen();
+                                                                     }),
+                                                     "editor_form_visible");
                                          self->finish();
                                      });
                                  });
@@ -2016,9 +2023,9 @@ private:
 
     void capture_sliced_left_pane()
     {
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wait_until([this] {
-            return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
+            return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_plater->canvas3D()->is_initialized();
         }, "sliced_pane_prepare_ready", [self = shared_from_this()] {
             self->wait_until_settled("sliced_pane_settled", [self] {
                 if (installed_shell()->is_left_pane_collapsed()) {
@@ -2053,9 +2060,9 @@ private:
     // control was painted, so a hit region that drifted from its drawing fails.
     void verify_left_pane()
     {
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wait_until([this] {
-            return m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->canvas3D()->is_initialized();
+            return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_plater->canvas3D()->is_initialized();
         }, "left_pane_prepare_ready", [self = shared_from_this()] {
             self->wait_until_settled("left_pane_settled", [self] { self->run_left_pane_checks(); });
         });
@@ -2384,13 +2391,13 @@ private:
         check(workspace->undo().succeeded() && plate_count() == plates_before, "left_pane_add_plate_undone_again");
 
         // Check print is not touched: the pane is not there, and it returns with Prepare.
-        m_frame->select_tab(size_t(MainFrame::tpPreview));
+        m_frame->select_tab(TAB_ID_PREVIEW);
         wxYield();
         auto* left_divider = wxWindow::FindWindowByName("Resize Plates and Project panel", m_frame);
-        check(m_notebook->GetSelection() == MainFrame::tpPreview && !pane->IsShown(), "left_pane_is_absent_on_check_print");
+        check(m_notebook->GetSelectedPageName() == TAB_ID_PREVIEW && !pane->IsShown(), "left_pane_is_absent_on_check_print");
         check(left_divider != nullptr && !left_divider->IsShown(), "left_resize_handle_is_absent_on_check_print");
         window_shot("check-print");
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wxYield();
         check(pane->IsShown() && left_divider->IsShown(), "left_pane_and_resize_handle_return_with_prepare");
         window_shot("back-on-prepare");
@@ -2407,7 +2414,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_fixture_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const auto loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
             false);
         check(loaded.size() == 1, "figma_fixture_bracket_loaded");
         if (loaded.size() != 1)
@@ -2467,7 +2474,7 @@ private:
 
         check(m_plater->new_project(true, true) != wxID_CANCEL, "figma_complex_new_project");
         const auto complex_loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
             false);
         check(complex_loaded.size() == 1, "figma_complex_case_loaded");
         if (complex_loaded.size() != 1)
@@ -2646,7 +2653,7 @@ private:
         const fs::path source = fs::path(data_dir()) / "chat-restoration-cube.stl";
         fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
                       source, fs::copy_option::overwrite_if_exists);
-        const bool loaded = m_plater->load_files(std::vector<std::string>{source.string()},
+        const bool loaded = m_plater->load_files(std::vector<boost::filesystem::path>{source.string()},
                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
                    false).size() == 1;
         check(loaded, "chat_restore_model_loaded");
@@ -2809,7 +2816,7 @@ private:
         const fs::path source = fs::path(data_dir()) / "restart-source.stl";
         fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl",
                       source, fs::copy_option::overwrite_if_exists);
-        check(m_plater->load_files(std::vector<std::string>{source.string()},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{source.string()},
               LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               "restart_seed_model_loaded");
         auto& document = persistence().document();
@@ -2984,7 +2991,7 @@ private:
     {
         auto* autosave = installed_shell()->autosave();
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
               LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               "unavailable_storage_model_loaded");
         check(autosave->save_now(), "unavailable_storage_project_saved");
@@ -3094,7 +3101,7 @@ private:
                   persistence().document().project_id() == project_id && m_plater->model().objects.size() == objects,
               "unavailable_projects_folder_person_open_says_why_and_opens_nothing");
 
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         wait_for_home_projects([problem = listed.problem](const nlohmann::json& page) {
             return page.value("cards", -1) == 0 && page.value("text", "").find(problem) != std::string::npos;
         }, "unavailable_projects_folder_home_says_so", [self = shared_from_this(), folder, project_id]() mutable {
@@ -3257,7 +3264,7 @@ private:
         load_multi_plate_fixture();
         m_plater->update(true, true);
         wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_PLATE));
-        m_frame->select_tab(MainFrame::tpPreview);
+        m_frame->select_tab(TAB_ID_PREVIEW);
         wait_until([this] { return m_plater->is_preview_shown() && !m_plater->is_background_process_slicing() &&
             m_plater->get_partplate_list().get_curr_plate()->is_slice_result_valid(); }, "stock_slice_opens_preview",
             [self = shared_from_this()] {
@@ -3271,15 +3278,32 @@ private:
     {
         if (!verify_classic_view_offered("stock"))
             return;
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         ClassicViewReturn* classic = installed_classic_view();
         wxMenu* view_menu = classic->view_menu();
-        const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
+        // OrcaSlicer's menus as it built them, with classic view's row.
+        const std::vector<std::string> stock_menus = menu_signature();
         press_button(*classic->back_button());
         wait_until([] { return installed_shell() != nullptr; }, "stock_banner_opens_jusprin",
-            [self = shared_from_this(), view_menu, view_menu_items] {
-                self->verify_shell_back("stock_return", view_menu, view_menu_items);
-                self->finish();
+            [self = shared_from_this(), view_menu, stock_menus] {
+                self->verify_shell_back("stock_return", view_menu);
+                self->check(self->menu_signature() != stock_menus && installed_shell()->app_menus() != nullptr,
+                            "stock_return_installs_the_app_menus");
+                detach_shell();
+                self->wait_until([] { return installed_classic_view() != nullptr; }, "stock_switches_back_to_classic",
+                    [self, stock_menus] {
+                        const std::vector<std::string> after = self->menu_signature();
+                        self->check(after == stock_menus, "classic_view_gets_orca_menus_back_exactly");
+                        if (after != stock_menus)
+                            for (std::size_t i = 0; i < std::max(after.size(), stock_menus.size()); ++i)
+                                if (i >= after.size() || i >= stock_menus.size() || after[i] != stock_menus[i]) {
+                                    std::cerr << "HARNESS MENU DIFF at " << i << ": stock \""
+                                              << (i < stock_menus.size() ? stock_menus[i] : "") << "\" now \""
+                                              << (i < after.size() ? after[i] : "") << "\"\n";
+                                    break;
+                                }
+                        self->finish();
+                    });
             });
     }
 
@@ -3720,7 +3744,7 @@ private:
         using namespace std::chrono_literals;
         PresetBundle& bundle = *wxGetApp().preset_bundle;
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         const std::string filament = bundle.filament_presets.front();
         Preset* const     hidden[] = {bundle.printers.find_preset(kSetupFixturePrinter, false), bundle.filaments.find_preset(filament, false)};
         for (Preset* preset : hidden)
@@ -3767,7 +3791,7 @@ private:
         for (Preset* preset : {&fixture_printers.get_selected_preset(), &fixture_printers.get_edited_preset()})
             Preset::inherits(preset->config) = "A printer that is not installed";
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/20mm_cube.obj";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               "file_printer_fixture_has_a_model");
         const boost::filesystem::path file = boost::filesystem::path(data_dir()) / "printer-in-a-file.3mf";
@@ -3776,7 +3800,7 @@ private:
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
         check(Printers::remove_named_printer(*m_plater, name).empty(), "file_printer_fixture_removed");
 
-        m_plater->load_files(std::vector<std::string>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::LoadConfig, false);
+        m_plater->load_files(std::vector<boost::filesystem::path>{file.string()}, LoadStrategy::LoadModel | LoadStrategy::LoadConfig, false);
         const PresetCollection& printers = wxGetApp().preset_bundle->printers;
         std::cerr << "HARNESS NOTE file_printer preset=" << printers.get_selected_preset_name()
                   << " stored_embedded=" << printers.get_selected_preset().is_project_embedded
@@ -3797,7 +3821,7 @@ private:
         const std::string other_name = Printers::add_named_printer(*m_plater, "Other Lab Printer", {});
         check(SetupCommands::select_named_printer(*m_plater, selected_name),
               "printer_menu_fixture_selects_first_saved_printer");
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wxYield();
 
         auto* header = installed_shell()->status_row();
@@ -3834,7 +3858,7 @@ private:
               "printer_menu_fixture_removes_other_printer");
         check(Printers::remove_named_printer(*m_plater, selected_name).empty(),
               "printer_menu_fixture_removes_first_printer");
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         wxYield();
     }
 
@@ -4596,7 +4620,7 @@ private:
                                 }});
         // Types the code in the local form and taps Connect, then waits for the
         // app's note about how it went.
-        const auto connect = [this, card, credential](const std::string& label, const char* verified_check) {
+        const auto connect = [this, credential](const std::string& label, const char* verified_check) {
             m_live_steps.push_back({label,
                                     [this, credential] {
                                         const auto request = credential();
@@ -4604,7 +4628,7 @@ private:
                                             live_send("printer_action", {{"action", "connect"}, {"actionId", request["actionId"]},
                                                                           {"credential", kCode}});
                                     },
-                                    [this, card] {
+                                    [this] {
                                         const auto calls = live_calls("printer_bambu_connect");
                                         return !calls.empty() && live_note_after(calls.back()->correlation_id) && live_settled();
                                     },
@@ -4882,6 +4906,7 @@ private:
     void queue_connect_capture()
     {
         using Mode = PrinterSetup::ConversationMode;
+        using namespace std::chrono_literals;
         const auto answering = std::make_shared<StandInHost>(3000ms, /*answer=*/true);
 
         m_live_steps.push_back({"make: a Klipper printer",
@@ -5731,7 +5756,7 @@ private:
     {
         using namespace std::chrono_literals;
         const std::string selected_before = selected_printer();
-        const int         tab_before      = m_notebook->GetSelection();
+        const wxString    tab_before      = m_notebook->GetSelectedPageName();
         check(selected_before != kAddedPrinter && printer_windows().empty(), "printer_window_fixture_starts_on_another_printer");
         {
             Home::OrcaHomeBackend home(*m_frame);
@@ -5740,7 +5765,7 @@ private:
             check(opened.size() == 1 && opened.front()->GetTitle() == wxString::FromUTF8(kAddedPrinter) &&
                       opened.front()->IsShown(),
                   "printer_window_opens_for_the_printer");
-            check(selected_printer() == selected_before && m_notebook->GetSelection() == tab_before,
+            check(selected_printer() == selected_before && m_notebook->GetSelectedPageName() == tab_before,
                   "printer_window_leaves_the_project_printer_and_page");
             // Its browser is asked for the saved address.
             wxWebView* browser = nullptr;
@@ -6054,7 +6079,7 @@ private:
         check(problem.empty(), "host_check_printer_saved");
         if (!problem.empty())
             return finish();
-        const auto print_state = [&added](const char* when, const PrinterSetup::PrinterConnectionInfo& info) {
+        const auto print_state = [](const char* when, const PrinterSetup::PrinterConnectionInfo& info) {
             std::cerr << "HARNESS HOST state " << when << ": " << info.provider << ' ' << info.state << " (host type " << info.host_type
                       << ", address " << info.address << ")\n";
         };
@@ -7006,8 +7031,11 @@ private:
         check(wrong.state == "failed" && wrong.message.find("access code") != std::string::npos,
               "wrong_access_code_names_the_access_code");
         check(wrong.message.find("no longer available") == std::string::npos, "wrong_access_code_is_not_reported_as_a_vanished_printer");
-        // Upstream erased the saved code; the model hears that the person must give it again.
-        check(wxGetApp().app_config->get("user_access_code", device).empty() && wrong.message.find("again") != std::string::npos,
+        // Upstream erased the saved code, kept on the printer's local record since 2.5.0;
+        // the model hears that the person must give it again.
+        const auto& local_machines = wxGetApp().app_config->get_local_machines();
+        const auto  saved          = local_machines.find(device);
+        check((saved == local_machines.end() || saved->second.access_code.empty()) && wrong.message.find("again") != std::string::npos,
               "wrong_access_code_says_the_saved_code_is_gone");
         // The fake answers as the plug-in does (ConnectStatusFailed with a code,
         // ConnectStatusLost); the codes were not observed from the real plug-in,
@@ -7190,9 +7218,9 @@ private:
         m_home_live_control = (fs::path(Slic3r::data_dir()) / "jusprin" / "fake_printer.json").string();
         write_home_live_control(R"({"state":"idle"})");
         connect_fixture_to_fake_printer([self = shared_from_this()] {
-            self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+            self->m_frame->select_tab(TAB_ID_PREPARE);
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-            self->check(self->m_plater->load_files(std::vector<std::string>{cube},
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
                                                    false).size() == 1,
                         "print_history_model_loaded");
@@ -7402,7 +7430,9 @@ private:
     void read_page_piece(wxWebView* view, const std::string& tag, const std::string& name, size_t index, const std::string& so_far,
                          std::function<void(const nlohmann::json&)> then)
     {
-        constexpr size_t kPiece = 800;
+        // static: MSVC will not use a local constexpr in a lambda that does
+        // not capture it.
+        static constexpr size_t kPiece = 800;
         const std::string piece_tag = tag + "-" + std::to_string(index) + ":";
         WebView::RunScript(view, wxString::FromUTF8("document.title = '" + piece_tag + "' + window.__harnessRead.slice(" +
                                                     std::to_string(index * kPiece) + ", " + std::to_string((index + 1) * kPiece) + ")"));
@@ -7462,7 +7492,7 @@ private:
         check(pane->print_history_detail().StartsWith(_L("1 G-code")) && pane->print_history_detail().Contains(_L("last finished")),
               "print_history_pane_row_says_how_it_stands");
         check(pane->press_action(_L("Print history")), "print_history_pane_row_pressed");
-        print_history_wait([this] { return m_notebook->GetSelection() == MainFrame::tpHome; }, "print_history_opens_over_home",
+        print_history_wait([this] { return m_notebook->GetSelectedPageName() == TAB_ID_HOME; }, "print_history_opens_over_home",
                            [self = shared_from_this()] {
                                self->read_page(self->home_page(), "history", "document.querySelectorAll('.history-entry').length > 0",
                                                kHistoryRead, "print_history_screen_drawn",
@@ -7490,7 +7520,7 @@ private:
         capture_history("print-history-from-project");
         print_history_preferences_routes([self = shared_from_this()] {
             WebView::RunScript(self->home_page(), "document.querySelector('[aria-label=Back]').click()");
-            self->print_history_wait([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor; },
+            self->print_history_wait([self] { return self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE; },
                                      "print_history_back_returns_to_the_project", [self] { self->print_history_from_home(); });
         });
     }
@@ -7625,7 +7655,7 @@ private:
             config->set("jusprin_server", "base_url", std::string(report_gateway()));
             config->set("jusprin_agent", "jusprin_api_key", std::string(std::getenv("JUSPRIN_HARNESS_GATEWAY_TOKEN")));
         }
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         read_page(home_page(), "cards", "!document.querySelector('.history-title') && document.querySelectorAll('.project-history-text').length > 0",
                   "Array.prototype.map.call(document.querySelectorAll('.project-history-text, .project-report'), function (t) { return t.textContent; })",
                   "print_history_home_card_drawn", [self = shared_from_this()](const nlohmann::json& all) {
@@ -7718,7 +7748,7 @@ private:
         }
         WebView::RunScript(home_page(), "Array.prototype.filter.call(document.querySelectorAll('.history-link'),"
                                         " function (b) { return b.textContent === 'Open in chat'; })[0].click()");
-        print_history_wait([this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor; }, "print_history_open_in_chat_leaves_home",
+        print_history_wait([this] { return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE; }, "print_history_open_in_chat_leaves_home",
                            [self = shared_from_this()] {
                                self->read_page(installed_shell()->agent_pane()->web_view().webview(), "marker",
                                                "document.querySelector('.gcode-marker.revealed')",
@@ -7802,7 +7832,7 @@ private:
                 m_send_pressed = press_send_print_job();
         });
         m_send_presser->Start(250);
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         read_page(home_page(), "gallery", "document.querySelector('.history-header-link')",
                   "(function () { document.querySelector('.history-header-link').click(); return true; })()",
                   "print_history_again_from_home", [self = shared_from_this(), package = *package, sends](const nlohmann::json&) {
@@ -7987,7 +8017,7 @@ private:
 
     bool still_on_home() const
     {
-        return m_notebook->GetSelection() == MainFrame::tpHome && installed_shell()->home_view()->IsShown() &&
+        return m_notebook->GetSelectedPageName() == TAB_ID_HOME && installed_shell()->home_view()->IsShown() &&
                installed_shell()->home_view()->webview()->IsShownOnScreen();
     }
 
@@ -8027,8 +8057,8 @@ private:
     // The one look on the way in. Everything after it has to arrive live.
     void home_live_online()
     {
-        if (m_notebook->GetSelection() != MainFrame::tpHome)
-            m_frame->select_tab(size_t(MainFrame::tpHome));
+        if (m_notebook->GetSelectedPageName() != TAB_ID_HOME)
+            m_frame->select_tab(TAB_ID_HOME);
         installed_shell()->home_view()->refresh();
         wait_for_home_page(
             [](const nlohmann::json& card) { return !card.value("printing", true) && card_says(card, "Online") && has_button(card, "Launch monitor"); },
@@ -8095,7 +8125,7 @@ private:
                 self->check(self->still_on_home(), "home_live_offline_without_leaving_home");
                 self->check(self->home_page_card().value("menuOpen", false), "home_live_offline_keeps_the_card_menu_open");
                 // Off Home, the rail stops being read.
-                self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                self->m_frame->select_tab(TAB_ID_PREPARE);
                 Home::HomeHost& host = installed_shell()->home_view()->host();
                 const auto      sent = host.messages_sent();
                 self->write_home_live_control(R"({"state":"idle"})");
@@ -8120,7 +8150,7 @@ private:
         write_home_live_control(
             R"({"state":"idle","spools":[{"subBrands":"PLA Matte","trayType":"PLA","colour":"5F7D4FFF","filamentId":"GFA01"},)"
             R"({"subBrands":"PETG HF","trayType":"PETG","filamentId":"GFG02"}]})");
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wait_until([] { return SetupCommands::printer_trays() == SetupCommands::TrayState::Available; },
                    "home_live_printer_reports_trays", [self = shared_from_this()] {
                        installed_shell()->status_row()->open_filament_menu();
@@ -8249,7 +8279,10 @@ private:
         // Startup lands on Home, which shows no header and collapses the Agent
         // pane on the person's behalf. verify_agent_pane_follows_page checks
         // both return on Prepare, and checks the header's layout there.
-        check(m_notebook->GetSelection() == MainFrame::tpHome, "shell_starts_on_home");
+        check(m_notebook->GetSelectedPageName() == TAB_ID_HOME, "shell_starts_on_home");
+        check(wxGetApp().app_config->get_bool("legacy_user_filament_presets_dont_remind"),
+              "startup_no_legacy_filament_preset_offer");
+        check(!wxGetApp().app_config->get_bool("enable_speed_dial"), "space_does_not_open_speed_dial");
         check(shell->status_row() != nullptr && !shell->status_row()->IsShown(), "status_row_hidden_on_home");
         check(shell->persistence()->document().gcode_record_count() == 0 &&
                   shell->status_row()->project_summary().Find('\n') == wxNOT_FOUND,
@@ -8279,11 +8312,148 @@ private:
         check(second_install_failed, "second_install_rejected");
         check(installed_shell()->is_installed() && installed_shell()->status_row()->GetContainingSizer() != nullptr,
               "shell_survives_rejected_install");
+        verify_app_menus_on_home();
+    }
+
+    // A menu's items as a person reads them, a separator as "---".
+    static std::vector<wxString> menu_labels(wxMenu* menu)
+    {
+        std::vector<wxString> labels;
+        for (wxMenuItem* item : menu->GetMenuItems())
+            labels.push_back(item->IsSeparator() ? wxString("---") : item->GetItemLabelText());
+        return labels;
+    }
+
+    static wxMenuItem* labelled(wxMenu* menu, const wxString& label)
+    {
+        for (wxMenuItem* item : menu->GetMenuItems())
+            if (!item->IsSeparator() && item->GetItemLabelText() == label)
+                return item;
+        return nullptr;
+    }
+
+    // Every menu of the window, item by item with its full label, kind and
+    // submenu, in order: what a person can see in them.
+    std::vector<std::string> menu_signature() const
+    {
+        std::vector<std::string> lines;
+        std::function<void(wxMenu*, const std::string&)> walk = [&](wxMenu* menu, const std::string& indent) {
+            for (wxMenuItem* item : menu->GetMenuItems()) {
+                lines.push_back(indent + (item->IsSeparator() ? std::string("---") : std::string(item->GetItemLabel().ToUTF8())) +
+                                " #" + std::to_string(int(item->GetKind())));
+                if (item->GetSubMenu() != nullptr)
+                    walk(item->GetSubMenu(), indent + "  ");
+            }
+        };
+#ifdef __APPLE__
+        wxMenuBar* bar = m_frame->GetMenuBar();
+        for (size_t at = 0; at < bar->GetMenuCount(); ++at) {
+            lines.push_back(std::string(bar->GetMenuLabelText(at).ToUTF8()));
+            walk(bar->GetMenu(at), "  ");
+        }
+#else
+        lines.push_back("File");
+        walk(m_frame->topbar()->GetFileMenu(), "  ");
+        lines.push_back("Title bar menu");
+        walk(m_frame->topbar()->GetTopMenu(), "  ");
+#endif
+        return lines;
+    }
+
+    // The app's menus on Home: JusPrin's commands in OrcaSlicer's menus, a
+    // Print and a Printer menu after View, and what cannot run on Home
+    // greyed out rather than hidden.
+    void verify_app_menus_on_home()
+    {
+        AppMenus* menus = installed_shell()->app_menus();
+        check(menus != nullptr, "app_menus_installed");
+        if (menus == nullptr)
+            return;
+#ifdef _WIN32
+        const wxString quit = _L("Exit");
+#else
+        const wxString quit = _L("Quit");
+#endif
+        std::vector<wxString> file{_L("New project"), _L("Open…"), _L("Open recent"), "---", _L("Save"),
+                                   _L("Version history…"), "---", _L("Import"), _L("Export"), "---", quit};
+#ifdef __APPLE__
+        file.push_back(_L("Preset Bundle"));
+#endif
+        check(menu_labels(menus->file_menu()) == file, "app_menus_file_menu");
+        const std::vector<wxString> exports = menu_labels(labelled(menus->file_menu(), _L("Export"))->GetSubMenu());
+        check(exports.size() > 2 && exports[0] == _L("Project 3MF…") && exports[1] == "---", "app_menus_export_starts_with_project_3mf");
+        check(menu_labels(menus->print_menu()) ==
+                  std::vector<wxString>{_L("Slice plate"), _L("Slice all plates"), "---", _L("Check print…"), _L("Print…"),
+                                        _L("Print all plates…"), _L("Export sliced file…")},
+              "app_menus_print_menu");
+        check(menu_labels(menus->printer_menu()) ==
+                  std::vector<wxString>{_L("Add a printer…"), "---", _L("Printer settings…"), _L("Ask AI about printer settings…"),
+                                        _L("Filament settings…"), _L("Ask AI about filament settings…"), "---", _L("Calibrate…")},
+              "app_menus_printer_menu");
+        const std::vector<wxString> help = menu_labels(menus->help_menu());
+        check(help.size() > 3 && help[0] == _L("Ask AI…") && help[1] == _L("Report a problem…") && help[2] == "---" &&
+                  labelled(menus->help_menu(), _L("Setup Wizard")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Show Tip of the Day")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Check for Updates")) != nullptr,
+              "app_menus_help_menu");
+        const std::vector<wxString> view = menu_labels(menus->view_menu());
+        check(view.size() > 5 && view[0] == _L("Home") && view[3] == "---" && view.back() == _L("Switch to classic view…") &&
+                  labelled(menus->view_menu(), _L("Reset Window Layout")) == nullptr &&
+                  labelled(menus->view_menu(), _L("Show Gridlines")) != nullptr,
+              "app_menus_view_menu");
+#ifdef __APPLE__
+        wxMenuBar* bar = m_frame->GetMenuBar();
+        const int view_at = bar->FindMenu(_L("View"));
+        check(bar->FindMenu(_L("Print")) == view_at + 1 && bar->FindMenu(_L("Printer")) == view_at + 2 &&
+                  bar->FindMenu(_L("Calibration")) == wxNOT_FOUND,
+              "app_menus_print_and_printer_follow_view");
+#else
+        check(menu_labels(m_frame->topbar()->GetTopMenu()) ==
+                  std::vector<wxString>{_L("Edit"), _L("View"), _L("Print"), _L("Printer"), _L("Preferences"), "---",
+                                        _L("Preset Bundle"), "---", _L("Help")},
+              "app_menus_title_bar_menu");
+#endif
+
+        // Greyed out on Home: what needs the project in front.
+        for (wxMenu* menu : {menus->file_menu(), menus->view_menu(), menus->print_menu(), menus->printer_menu(), menus->help_menu()})
+            menu->UpdateUI(m_frame->GetEventHandler());
+        const auto enabled = [](wxMenu* menu, const wxString& label) {
+            wxMenuItem* item = labelled(menu, label);
+            return item != nullptr && item->IsEnabled();
+        };
+        check(enabled(menus->file_menu(), _L("New project")) && enabled(menus->file_menu(), _L("Open…")) &&
+                  !enabled(menus->file_menu(), _L("Save")) && !enabled(menus->file_menu(), _L("Version history…")),
+              "app_menus_file_greys_out_project_commands_on_home");
+        check(!menus->view_menu()->FindItemByPosition(0)->IsEnabled() && !menus->view_menu()->FindItemByPosition(1)->IsEnabled() &&
+                  !menus->view_menu()->FindItemByPosition(2)->IsEnabled(),
+              "app_menus_view_greys_out_home_and_panels_on_home");
+        bool print_greyed = true;
+        for (wxMenuItem* item : menus->print_menu()->GetMenuItems())
+            print_greyed = print_greyed && (item->IsSeparator() || !item->IsEnabled());
+        check(print_greyed, "app_menus_print_greyed_out_on_home");
+        check(enabled(menus->printer_menu(), _L("Add a printer…")) && enabled(menus->printer_menu(), _L("Printer settings…")),
+              "app_menus_printer_works_from_home");
+        check(enabled(menus->help_menu(), _L("Ask AI…")), "app_menus_ask_ai_works_from_home");
+#ifdef __APPLE__
+        check(menus->view_menu()->FindItemByPosition(2)->GetItemLabelText() == _L("Show AI panel"),
+              "app_menus_mac_panel_label_says_what_it_does");
+#else
+        check(menus->view_menu()->FindItemByPosition(2)->IsCheckable() && !menus->view_menu()->FindItemByPosition(2)->IsChecked(),
+              "app_menus_panel_is_a_check_item");
+#endif
+
+        // Cmd+S on Home is spent, never handed to OrcaSlicer's Save.
+        wxKeyEvent save(wxEVT_CHAR_HOOK);
+        save.m_keyCode     = 'S';
+        save.m_controlDown = true;
+        wxKeyEvent quit_key(save);
+        quit_key.m_keyCode = 'Q';
+        check(menus->run_shortcut(save) && !menus->run_shortcut(quit_key), "app_menus_answer_their_own_shortcuts_only");
     }
 
     struct PaneStep
     {
-        int                   tab;
+        wxString              tab;
         std::string           name;
         std::function<void()> on_arrival;
     };
@@ -8298,7 +8468,7 @@ private:
         auto collapsed = [shell] { return shell->is_agent_pane_collapsed() && !shell->agent_pane()->IsShown(); };
         auto expanded  = [shell] { return !shell->is_agent_pane_collapsed() && shell->agent_pane()->IsShown(); };
         auto steps = std::make_shared<std::vector<PaneStep>>(std::vector<PaneStep>{
-            {MainFrame::tp3DEditor, "agent_pane_prepare_first_visit", [this, shell, collapsed, expanded] {
+            {TAB_ID_PREPARE, "agent_pane_prepare_first_visit", [this, shell, collapsed, expanded] {
                  check(shell->status_row()->IsShown(), "status_row_shown_on_prepare");
                  verify_header_layout();
                  check(shell->is_left_pane_collapsed() && !shell->left_pane()->IsShown(),
@@ -8307,20 +8477,20 @@ private:
                  shell->toggle_agent_pane();
                  check(collapsed(), "agent_pane_user_collapses_on_prepare");
              }},
-            {MainFrame::tpHome, "agent_pane_home_after_user_collapse", [this, shell, collapsed] {
+            {TAB_ID_HOME, "agent_pane_home_after_user_collapse", [this, shell, collapsed] {
                  check(!shell->status_row()->IsShown(), "status_row_hidden_on_return_to_home");
                  check(collapsed(), "agent_pane_collapsed_on_home_after_user_collapse");
              }},
-            {MainFrame::tp3DEditor, "agent_pane_prepare_after_user_collapse", [this, shell, collapsed, expanded] {
+            {TAB_ID_PREPARE, "agent_pane_prepare_after_user_collapse", [this, shell, collapsed, expanded] {
                  check(collapsed(), "agent_pane_user_collapse_restored_on_prepare");
                  shell->toggle_agent_pane();
                  check(expanded(), "agent_pane_user_expands_on_prepare");
              }},
-            {MainFrame::tpHome, "agent_pane_home_after_user_expand",
+            {TAB_ID_HOME, "agent_pane_home_after_user_expand",
              [this, collapsed] { check(collapsed(), "agent_pane_collapsed_on_home_after_user_expand"); }},
-            {MainFrame::tp3DEditor, "agent_pane_prepare_after_user_expand",
+            {TAB_ID_PREPARE, "agent_pane_prepare_after_user_expand",
              [this, expanded] { check(expanded(), "agent_pane_user_expand_restored_on_prepare"); }},
-            {MainFrame::tpHome, "agent_pane_returns_home", [] {}},
+            {TAB_ID_HOME, "agent_pane_returns_home", [] {}},
         });
         run_pane_steps(steps, 0, std::move(next));
     }
@@ -8335,12 +8505,12 @@ private:
         // The header's Home button goes to Home; Home's own page returns to
         // Prepare through the same request its backend makes.
         StatusRow* row = installed_shell()->status_row();
-        if (step.tab == MainFrame::tpHome)
+        if (step.tab == TAB_ID_HOME)
             row->request_home();
         else
             row->request_prepare();
-        const int tab = step.tab;
-        wait_until([this, tab] { return m_notebook->GetSelection() == tab; }, step.name,
+        const wxString tab = step.tab;
+        wait_until([this, tab] { return m_notebook->GetSelectedPageName() == tab; }, step.name,
                    [self = shared_from_this(), steps, index, next] {
                        (*steps)[index].on_arrival();
                        self->run_pane_steps(steps, index + 1, next);
@@ -8365,7 +8535,7 @@ private:
         check(m_plater->new_project(true, true) != wxID_CANCEL, "fixture_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> loaded = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
             false);
         check(loaded.size() == 1, "fixture_cube_loaded");
         check(m_plater->duplicate_object(0) == 1, "fixture_second_object");
@@ -8443,7 +8613,7 @@ private:
             self->check(preview && preview->is_loaded() &&
                             preview->get_canvas3d() != self->m_plater->get_preview_canvas3D(),
                         "check_print_uses_current_orca_preview_result");
-            self->check(self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(),
+            self->check(self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && !self->m_plater->is_preview_shown(),
                         "check_print_keeps_prepare_under_window");
             dialog->EndModal(wxID_CANCEL);
         });
@@ -8542,12 +8712,12 @@ private:
         check(chevron && !chevron->is_open(),"header_menu_trigger_open_state_cleared");
         verify_header_menu_open_paths(chevron);
         row->request_home();
-        wait_until([this] { return m_notebook->GetSelection() == MainFrame::tpHome &&
-            m_notebook->GetPage(MainFrame::tpHome)->IsShown(); },"header_home_opens_native_home",
+        wait_until([this] { return m_notebook->GetSelectedPageName() == TAB_ID_HOME &&
+            m_notebook->GetPageByName(TAB_ID_HOME)->IsShown(); },"header_home_opens_native_home",
             [self=shared_from_this()] {
                 self->check(!installed_shell()->status_row()->IsShown(), "header_hidden_on_home");
                 installed_shell()->status_row()->request_prepare();
-                self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown(); },
+                self->wait_until([self] { return self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && !self->m_plater->is_preview_shown(); },
                     "home_returns_to_prepare",[self] {
                         self->verify_chip_keyboard();
                         self->verify_menu_in_place_navigation();
@@ -8705,7 +8875,7 @@ private:
         const Preset& selected = wxGetApp().preset_bundle->printers.get_selected_preset();
         const std::string preset = selected.name;
         const bool        stock  = selected.is_system;
-        wait_until([this] {
+        wait_until([] {
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
                 return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr && panel->host()->handshake_complete();
             }, "header_stock_printer_settings_opens",
@@ -9493,7 +9663,7 @@ private:
         wait_until([this] {
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
                 return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr &&
-                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tp3DEditor;
+                       panel->host()->handshake_complete() && m_notebook->GetSelectedPageName() == TAB_ID_PREPARE;
             }, "header_printer_settings_covers_prepare",
             [self=shared_from_this()] {
                 PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
@@ -9512,7 +9682,7 @@ private:
                 self->wait_until([self,panel] { return !panel->IsShown() && self->m_notebook->IsShownOnScreen(); },
                     "header_printer_conversation_restores_prepare",
                     [self] {
-                        self->check(self->m_notebook->GetSelection() == MainFrame::tp3DEditor &&
+                        self->check(self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE &&
                                         !self->m_plater->is_preview_shown(),
                                     "header_printer_settings_returns_to_prepare");
                         installed_shell()->open_printer_conversation(self->m_header_setup_printer);
@@ -9524,7 +9694,7 @@ private:
                                 self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
                                     "header_printer_manual_settings_open", [self] {
                                         self->check(self->m_notebook->IsShownOnScreen() &&
-                                                        self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                                        self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
                                                     "header_printer_manual_action_restores_prepare");
                                         wxGetApp().params_dialog()->Close();
                                         self->check(Printers::remove_named_printer(*self->m_plater,
@@ -9550,7 +9720,7 @@ private:
         wait_until([this] {
                 auto* panel = installed_shell()->printer_panel();
                 return panel != nullptr && panel->IsShownOnScreen() && panel->host() != nullptr &&
-                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tp3DEditor;
+                       panel->host()->handshake_complete() && m_notebook->GetSelectedPageName() == TAB_ID_PREPARE;
             }, "header_setup_opens_temporary_" + kind + "_chat",
             [self=shared_from_this(),type,kind] {
                 auto* panel = installed_shell()->printer_panel();
@@ -9571,7 +9741,7 @@ private:
                 self->wait_until([] { return wxGetApp().params_dialog()->IsShown(); },
                     "header_setup_opens_" + kind + "_editor", [self,type,kind] {
                         self->check(self->m_notebook->IsShownOnScreen() &&
-                                        self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                        self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
                                     "header_filament_manual_action_restores_prepare");
                         self->check(wxGetApp().params_dialog()->panel()->get_current_tab() == wxGetApp().get_tab(type),
                                     "header_setup_selects_" + kind + "_tab");
@@ -9591,7 +9761,7 @@ private:
         wait_until([this] {
                 auto* panel = installed_shell()->printer_panel();
                 return panel->IsShownOnScreen() && panel->host() != nullptr &&
-                       panel->host()->handshake_complete() && m_notebook->GetSelection() == MainFrame::tpHome;
+                       panel->host()->handshake_complete() && m_notebook->GetSelectedPageName() == TAB_ID_HOME;
             }, "home_" + name + "_opens_task_chat", [self = shared_from_this(),name,mode,next = std::move(next)] {
                 auto* panel = installed_shell()->printer_panel();
                 self->check(panel->session_json().value("mode", "") == mode &&
@@ -9608,8 +9778,8 @@ private:
 
     void verify_home_task_routes()
     {
-        m_frame->select_tab(size_t(MainFrame::tpHome));
-        wait_until([this] { return installed_shell()->home_view()->IsShownOnScreen(); },
+        m_frame->select_tab(TAB_ID_HOME);
+        wait_until([] { return installed_shell()->home_view()->IsShownOnScreen(); },
             "home_task_routes_start_on_home", [self = shared_from_this()] {
                 auto& backend = installed_shell()->home_view()->backend();
                 self->verify_home_task_route("add", "add", [&backend] { backend.add_printer(); }, [self] {
@@ -9688,7 +9858,7 @@ private:
 
         // Tab on the canvas leaves Prepare where it is under the header.
         press_tab_on_prepare_canvas();
-        check(m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->is_view3D_shown(),
+        check(m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_plater->is_view3D_shown(),
               "prepare_canvas_tab_stays_on_prepare");
 
         // The name row opens the Project tab, showing the pane first.
@@ -9718,10 +9888,10 @@ private:
 
     void verify_project_details_open()
     {
-        wait_until([this] { return m_notebook->GetCurrentPage() == m_frame->m_project; },
+        wait_until([this] { return m_notebook->GetSelectedPageName() == TAB_ID_PROJECT; },
             "header_overflow_opens_project_details",[self=shared_from_this()] {
                 installed_shell()->status_row()->request_prepare();
-                self->wait_until([self] { return self->m_notebook->GetSelection() == MainFrame::tp3DEditor; },
+                self->wait_until([self] { return self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE; },
                     "header_navigation_keeps_project",[self] {
                         self->check(self->m_plater->model().objects.size() >= 2,"header_navigation_preserves_objects");
                         self->verify_unused_slot_fades();
@@ -10221,7 +10391,7 @@ private:
                   SetupCommands::select_named_printer(*m_plater, kCalibrationPrinter),
               "calibration_printer_saved_and_selected");
         m_plater->set_project_name(wxString::FromUTF8(kCalibrationProject));
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         installed_shell()->status_row()->refresh();
         wxYield();
 #ifndef __APPLE__
@@ -10312,7 +10482,7 @@ private:
 
     void calibration_from_home()
     {
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         installed_shell()->home_view()->refresh();
         const std::string kebab = std::string("document.querySelector('.printer-menu-button[aria-label=\"Actions for ") +
                                   kCalibrationPrinter + "\"]')";
@@ -10343,7 +10513,7 @@ private:
 
     void calibration_from_printer()
     {
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         wxYield();
         installed_shell()->status_row()->open_printer_menu();
         after_painting("calibration_printer_menu_painted", [self = shared_from_this()] { self->calibration_printer_row(); });
@@ -10546,7 +10716,7 @@ private:
     // name; its card reads "Saved" like every other.
     void calibration_on_home()
     {
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         wait_until([] { return installed_shell()->home_view()->IsShown(); }, "calibration_home_shows", [self = shared_from_this()] {
             const auto projects = installed_shell()->home_view()->backend().recent_projects().projects;
             const auto test     = std::find_if(projects.begin(), projects.end(),
@@ -11407,7 +11577,7 @@ private:
         }, "timeline_new_project_adopted", [self = shared_from_this()] {
             self->check(self->persistence().document().changes().empty(), "timeline_new_project_starts_an_empty_change_log");
             const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-            self->m_plater->load_files(std::vector<std::string>{cube},
+            self->m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                        LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
                                        false);
             const std::size_t after_load = self->persistence().document().changes().size();
@@ -11461,7 +11631,7 @@ private:
     void press_tool_strip(StripTool tool)
     {
         prepare_canvas().render();
-        const StripRect& button = tool_strip_layout().buttons[size_t(tool)];
+        const StripRect button = tool_strip_layout().buttons[size_t(tool)];
         const double scale = prepare_canvas().get_scale();
         const wxPoint at(int((button.x + button.w / 2) / scale), int((button.y + button.h / 2) / scale));
         send_canvas_mouse(wxEVT_MOTION, at, false);
@@ -12393,7 +12563,7 @@ private:
             // label, review panel, return button) hidden because that row only
             // shows on Prepare or Preview.
             self->wait_until([self] {
-                return self->m_notebook->GetSelection() == MainFrame::tp3DEditor && !self->m_plater->is_preview_shown();
+                return self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && !self->m_plater->is_preview_shown();
             }, "mcp_fixture_prepare", next);
         });
     }
@@ -12913,7 +13083,7 @@ private:
         auto*          autosave = installed_shell()->autosave();
         const fs::path source   = fs::path(data_dir()) / "bracket.3mf";
         const std::string cube  = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence);
         m_plater->new_project(true, true);
         m_plater->load_project(wxString::FromUTF8(source.string()), "<loadall>");
@@ -12965,7 +13135,7 @@ private:
         auto* autosave = installed_shell()->autosave();
         const fs::path source = fs::path(data_dir()) / "previously-imported.3mf";
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
               LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
               "external_3mf_fixture_loaded");
         check(m_plater->export_3mf(source, SaveStrategy::SplitModel | SaveStrategy::ShareMesh | SaveStrategy::Silence) >= 0,
@@ -12994,7 +13164,7 @@ private:
         decision = ShellController::ReimportDecision::OpenExisting;
         const bool deferred = m_plater->open_3mf_file(source);
         check(deferred && prompt_count == 2 && persistence().document().project_id() == original_id &&
-                  m_plater->model().objects.size() == 1 && m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                  m_plater->model().objects.size() == 1 && m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
               "external_3mf_reopen_opens_existing_project_directly");
         check(m_plater->new_project(true, true) != wxID_CANCEL, "external_3mf_new_draft_after_reopen");
         const std::string next_draft_id = persistence().document().project_id();
@@ -13184,7 +13354,7 @@ private:
             const fs::path source = fs::path(data_dir()) / "blank-saves-source.stl";
             fs::copy_file(fs::path(JUSPRIN_SOURCE_DIR) / "tests/data/test_stl/ASCII/20mmbox-LF.stl", source,
                           fs::copy_option::overwrite_if_exists);
-            self->check(!self->m_plater->load_files(std::vector<std::string>{source.string()}, LoadStrategy::LoadModel, false).empty(),
+            self->check(!self->m_plater->load_files(std::vector<boost::filesystem::path>{source.string()}, LoadStrategy::LoadModel, false).empty(),
                         "model_loaded_on_blank");
             const auto pinned = autosave->pin_current();
             self->check(pinned && !pinned->empty(), "model_is_saved");
@@ -13317,7 +13487,7 @@ private:
             std::ifstream file(path, std::ios::binary);
             return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         };
-        const auto on_prepare = [this] { return m_notebook->GetSelection() == MainFrame::tp3DEditor; };
+        const auto on_prepare = [this] { return m_notebook->GetSelectedPageName() == TAB_ID_PREPARE; };
         // OrcaSlicer's File > Recent files, as it persists the list.
         const auto recent = [] { return wxGetApp().app_config->get_recent_projects(); };
         const auto is_cube = [&cube](const std::string& path) {
@@ -13330,10 +13500,10 @@ private:
               "file_opening_no_project_or_geometry_question");
 
         // A project with an object in it, and Home in front of it.
-        m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(autosave->save_now() && objects() == 1, "file_opening_fixture_project");
         const std::string first = id();
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
 
         // Opened from the OS: MacOpenFiles, another instance and post_init
         // all hand OrcaSlicer's load_files the file's path.
@@ -13353,10 +13523,10 @@ private:
         check(recent() == after_os_open, "file_opening_canvas_drop_leaves_recent_files_alone");
 
         // Home's Open…: Cancel leaves Home as it is; a chosen file opens.
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         home.set_file_chooser([] { return wxArrayString(); });
         home.open_file();
-        check(id() == from_os && objects() == 2 && m_notebook->GetSelection() == MainFrame::tpHome,
+        check(id() == from_os && objects() == 2 && m_notebook->GetSelectedPageName() == TAB_ID_HOME,
               "file_opening_home_open_cancel_stays_on_home");
         home.set_file_chooser([&] { return cube_files; });
         home.open_file();
@@ -13364,7 +13534,7 @@ private:
         check(id() != from_os && objects() == 1 && on_prepare(), "file_opening_home_open_makes_new_project");
 
         // Dropped on Home: the page hands over the name and bytes.
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         const std::string before_drop = id();
         home.open_dropped_files({Home::DroppedFile{"dropped cube.stl", read(cube)}});
         check(id() != before_drop && objects() == 1 && on_prepare() && m_plater->get_project_name() == "dropped cube",
@@ -13386,7 +13556,7 @@ private:
         check(autosave->save_now(), "file_opening_3mf_opened_once");
         const std::string opened = id();
         m_plater->new_project(true, true);
-        m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(autosave->save_now() && objects() == 1, "file_opening_full_plate");
         const std::string full = id();
         int      prompts  = 0;
@@ -13407,7 +13577,7 @@ private:
 
         // A .3mf dropped on the canvas opens as a project, not as geometry.
         m_plater->new_project(true, true);
-        m_plater->load_files(std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+        m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
         check(autosave->save_now(), "file_opening_canvas_fixture_saved");
         const std::string canvas_draft = id();
         decision = Decision::CreateNew;
@@ -13416,13 +13586,40 @@ private:
                   id() != opened && into_path(m_plater->get_project_filename(".3mf")) == source,
               "file_opening_3mf_canvas_drop_opens_project");
 
+        // File > Save and Cmd+S save the project in its store and keep that
+        // version; OrcaSlicer's own Save would write the change over the
+        // 3MF it was opened from.
+        {
+            AppMenus*         menus    = shell->app_menus();
+            const std::string original = read(source.string());
+            check(autosave->save_now(), "file_save_fixture_opened");
+            const std::size_t versions = autosave->history().size();
+            m_plater->load_files(std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            // An edit as OrcaSlicer marks one: its own Save would now write.
+            m_plater->set_plater_dirty(true);
+            check(objects() == 2 && m_frame->can_save(), "file_save_fixture_changed");
+            menus->file_menu()->UpdateUI(m_frame->GetEventHandler());
+            wxMenuItem* save_item = labelled(menus->file_menu(), _L("Save"));
+            check(save_item != nullptr && save_item->IsEnabled(), "file_save_enabled_on_prepare");
+            wxKeyEvent save(wxEVT_CHAR_HOOK);
+            save.m_keyCode     = 'S';
+            save.m_controlDown = true;
+            m_frame->GetEventHandler()->ProcessEvent(save);
+            check(read(source.string()) == original, "file_save_shortcut_leaves_the_opened_3mf_alone");
+            check(autosave->state() == Workspace::ProjectAutosave::State::Saved && autosave->history().size() > versions,
+                  "file_save_shortcut_saves_a_version");
+            menus->file_menu()->SendEvent(save_item->GetId());
+            check(read(source.string()) == original && autosave->state() == Workspace::ProjectAutosave::State::Saved,
+                  "file_save_menu_leaves_the_opened_3mf_alone");
+        }
+
         // The same .3mf dropped on Home twice: the second time it is known.
         check(autosave->save_now(), "file_opening_home_3mf_fixture_saved");
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         home.open_dropped_files({Home::DroppedFile{"opened.3mf", read(source.string())}});
         const int after_first_drop = prompts;
         check(autosave->save_now() && on_prepare(), "file_opening_home_3mf_drop_opens");
-        m_frame->select_tab(size_t(MainFrame::tpHome));
+        m_frame->select_tab(TAB_ID_HOME);
         home.open_dropped_files({Home::DroppedFile{"opened.3mf", read(source.string())}});
         check(prompts == after_first_drop + 1, "file_opening_home_3mf_drop_again_asks_reopen");
 
@@ -14367,7 +14564,7 @@ private:
         const std::string identity_before = persistence().document().project_id();
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
         const std::vector<size_t> imported = m_plater->load_files(
-            std::vector<std::string>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
+            std::vector<boost::filesystem::path>{cube}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence,
             false);
         check(imported.size() == 1, "import_adds_content");
         check(persistence().document().project_id() == identity_before, "import_keeps_project_identity");
@@ -14456,7 +14653,7 @@ private:
         // the earlier steps leave an object over the plate's edge.
         check(m_plater->new_project(true, true) != wxID_CANCEL, "model_slice_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                    LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false)
                       .size() == 1,
               "model_slice_cube_loaded");
@@ -14478,7 +14675,7 @@ private:
                                std::any_of(host.tools().activities().begin(), host.tools().activities().end(),
                                            [](const Agent::ToolActivity& activity) { return activity.tool == "slice_start"; });
                     },
-                    "model_slice_card_started", [self, &host, work_before, next] {
+                    "model_slice_card_started", [self, &host, next] {
                         std::string call;
                         for (const auto& activity : host.tools().activities())
                             if (activity.tool == "slice_start")
@@ -14915,7 +15112,7 @@ private:
         check(profile_agent != JUSPRIN_FAKE_BAMBU_AGENT_ID &&
                   agent->get_printer_agent()->get_agent_info().id == JUSPRIN_FAKE_BAMBU_AGENT_ID,
               "detach_fixture_installs_an_agent_the_profile_does_not_pick");
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         // The default run replaced the project just before this. The shell
         // settles a replacement on its pacing timer; until then the document
         // is still the previous project's, and the draft would go there.
@@ -14931,7 +15128,7 @@ private:
                     self->check(agent->get_printer_agent()->get_agent_info().id == profile_agent,
                                 "detach_restores_the_profile_driven_agent");
                     self->check(self->m_notebook->IsShown() &&
-                                    self->m_notebook->GetSelection() == MainFrame::tp3DEditor,
+                                    self->m_notebook->GetSelectedPageName() == TAB_ID_PREPARE,
                                 "classic_prepare_window_shown");
                     self->check(self->m_notebook->GetBtnsListCtrl()->IsShown(), "tab_strip_restored");
                     self->check(self->m_plater->is_sidebar_available(), "sidebar_available_restored");
@@ -14940,9 +15137,9 @@ private:
                     // Classic view gets OrcaSlicer's Tab back: Prepare to Preview.
                     // The page changes at once; the Plater shows its Preview panel later.
                     self->press_tab_on_prepare_canvas();
-                    self->check(self->m_notebook->GetSelection() == MainFrame::tpPreview,
+                    self->check(self->m_notebook->GetSelectedPageName() == TAB_ID_PREVIEW,
                                 "classic_prepare_canvas_tab_switches_to_preview");
-                    self->m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+                    self->m_frame->select_tab(TAB_ID_PREPARE);
                     self->m_frame->Layout();
                     self->check(self->m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200,
                                 "stock_canvas_usable_after_restore");
@@ -14953,16 +15150,15 @@ private:
                     // own dispatch, which a choice in the open menu sends.
                     ClassicViewReturn* classic = installed_classic_view();
                     wxMenu* view_menu = classic->view_menu();
-                    const std::size_t view_menu_items = view_menu->GetMenuItemCount() - 2;
                     view_menu->SendEvent(classic->menu_row()->GetId());
                     self->wait_until([] { return installed_shell() != nullptr; }, "view_menu_row_returns_to_jusprin",
-                        [self, view_menu, view_menu_items, project_id, next] {
-                            self->verify_shell_back("first_return", view_menu, view_menu_items);
+                        [self, view_menu, project_id, next] {
+                            self->verify_shell_back("first_return", view_menu);
                             self->check(installed_shell()->persistence()->document().project_id() == project_id &&
                                             installed_shell()->persistence()->draft() == "unfinished classic view draft",
                                         "return_keeps_the_project_chat");
                             installed_shell()->persistence()->set_draft({});
-                            self->verify_second_classic_round_trip(view_menu, view_menu_items, project_id, next);
+                            self->verify_second_classic_round_trip(view_menu, project_id, next);
                         });
                 });
         });
@@ -14972,19 +15168,19 @@ private:
     // a new project there, then goes back through the banner: two round
     // trips, so a binding either install leaks shows up here, and the new
     // project gets a conversation of its own.
-    void verify_second_classic_round_trip(wxMenu* view_menu, std::size_t view_menu_items, const std::string& project_id,
+    void verify_second_classic_round_trip(wxMenu* view_menu, const std::string& project_id,
                                           std::function<void()> next)
     {
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         installed_shell()->status_row()->show_overflow_menu();
-        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), view_menu, view_menu_items, project_id, next] {
+        choose_header_item(_L("Switch to classic view…"), [self = shared_from_this(), view_menu, project_id, next] {
             self->wait_until([] { return installed_shell() == nullptr; }, "menu_switches_to_classic_view_again",
-                [self, view_menu, view_menu_items, project_id, next] {
+                [self, view_menu, project_id, next] {
                     if (!self->verify_classic_view_offered("second_classic"))
                         return;
                     self->check(installed_classic_view()->view_menu() == view_menu, "second_classic_uses_the_same_view_menu");
                     const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-                    self->check(self->m_plater->load_files(std::vector<std::string>{cube},
+                    self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                                     LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
                                 "stock_backup_fixture_loaded");
                     const fs::path backup = self->m_plater->model().get_backup_path();
@@ -14998,8 +15194,8 @@ private:
                     press_button(*back);
                     self->check(!back->IsEnabled(), "banner_button_disables_on_press");
                     self->wait_until([] { return installed_shell() != nullptr; }, "banner_returns_to_jusprin",
-                        [self, view_menu, view_menu_items, project_id, next] {
-                            self->verify_shell_back("second_return", view_menu, view_menu_items);
+                        [self, view_menu, project_id, next] {
+                            self->verify_shell_back("second_return", view_menu);
                             const std::string after = installed_shell()->persistence()->document().project_id();
                             self->check(!after.empty() && after != project_id,
                                         "project_replaced_in_classic_view_starts_its_own_chat");
@@ -15044,7 +15240,7 @@ private:
 
     // The installed-shell presentation the startup checks prove, now after a
     // return from classic view, with the banner and the row gone.
-    void verify_shell_back(const std::string& when, wxMenu* view_menu, std::size_t view_menu_items)
+    void verify_shell_back(const std::string& when, wxMenu* view_menu)
     {
         ShellController* shell = installed_shell();
         check(shell->is_installed(), when + "_shell_installed");
@@ -15054,13 +15250,16 @@ private:
         bool row_left = false;
         for (wxMenuItem* item : view_menu->GetMenuItems())
             row_left = row_left || item->GetItemLabelText() == _L("Switch to JusPrin view");
-        check(!row_left && view_menu->GetMenuItemCount() == view_menu_items, when + "_view_menu_row_removed");
+        // The shell's own View menu, which ends with its way to classic view.
+        check(!row_left && view_menu->GetMenuItemCount() > 0 &&
+                  view_menu->FindItemByPosition(view_menu->GetMenuItemCount() - 1)->GetItemLabelText() == _L("Switch to classic view…"),
+              when + "_view_menu_row_removed");
         check(!m_notebook->GetBtnsListCtrl()->IsShown(), when + "_tab_strip_hidden");
         check(!m_plater->is_sidebar_available(), when + "_sidebar_unavailable");
         check(m_plater->get_view3D_canvas3D()->legacy_overlays_hidden(), when + "_prepare_legacy_overlays_hidden");
-        m_frame->select_tab(size_t(MainFrame::tp3DEditor));
+        m_frame->select_tab(TAB_ID_PREPARE);
         press_tab_on_prepare_canvas();
-        check(m_notebook->GetSelection() == MainFrame::tp3DEditor && m_plater->is_view3D_shown(),
+        check(m_notebook->GetSelectedPageName() == TAB_ID_PREPARE && m_plater->is_view3D_shown(),
               when + "_prepare_canvas_tab_stays_on_prepare");
         m_frame->Layout();
         check(m_plater->canvas3D()->get_wxglcanvas()->GetSize().GetWidth() > 200, when + "_canvas_usable");

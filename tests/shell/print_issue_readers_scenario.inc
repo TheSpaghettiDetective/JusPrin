@@ -168,7 +168,7 @@
     {
         check(m_plater->new_project(true, true) != wxID_CANCEL, label + "_new_project");
         const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
-        check(m_plater->load_files(std::vector<std::string>{cube},
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1, label + "_cube_loaded");
         check(m_plater->duplicate_object(0) == 1, label + "_second_cube");
         PartPlateList& plates = m_plater->get_partplate_list();
@@ -325,7 +325,7 @@
                 write_box(out, {-6, -6, 0}, {6, 6, top + 2});
                 out << "endsolid tall\n";
             }
-            self->m_plater->load_files(std::vector<std::string>{path}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            self->m_plater->load_files(std::vector<boost::filesystem::path>{path}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
             self->m_plater->get_partplate_list().get_plate(0)->add_instance(1, 0, true);
             self->m_plater->canvas3D()->reload_scene(true, true);
             const BoundingBoxf3 box = self->m_plater->get_partplate_list().get_curr_plate()->get_bounding_box();
@@ -385,7 +385,7 @@
                 write_box(out, {-10, -10, 0.5}, {10, 10, 6});
                 out << "endsolid point\n";
             }
-            self->check(self->m_plater->load_files(std::vector<std::string>{path},
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{path},
                             LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1, "a3_point_loaded");
             self->m_plater->get_partplate_list().get_plate(0)->add_instance(1, 0, true);
             self->m_plater->canvas3D()->reload_scene(true, true);
@@ -778,7 +778,7 @@
                 write_box(out, {-6, -6, 0}, {6, 6, 322});
                 out << "endsolid column\n";
             }
-            self->check(self->m_plater->load_files(std::vector<std::string>{path},
+            self->check(self->m_plater->load_files(std::vector<boost::filesystem::path>{path},
                             LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1, "d5_column_loaded");
             self->m_plater->get_partplate_list().get_plate(0)->add_instance(1, 0, true);
             self->m_plater->canvas3D()->reload_scene(true, true);
@@ -969,7 +969,7 @@
                 write_box(out, {-10, -10, 0}, {10, 10, 0.02});
                 out << "endsolid flake\n";
             }
-            self->m_plater->load_files(std::vector<std::string>{path}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
+            self->m_plater->load_files(std::vector<boost::filesystem::path>{path}, LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false);
             self->m_plater->get_partplate_list().get_plate(0)->add_instance(0, 0, true);
             self->m_plater->canvas3D()->reload_scene(true, true);
             self->m_plater->changed_object(0);

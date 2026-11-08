@@ -45,5 +45,6 @@ TEST_CASE("print problems go to the issue list and outcomes do not", "[print-iss
     }
     CHECK(notice_route(NotificationType::SlicingProgress) == NoticeRoute::NotShown); // the header shows it
     CHECK(notice_comes_in_several(NotificationType::PlaterWarning));
+    CHECK(notice_comes_in_several(NotificationType::ValidateWarning)); // OrcaSlicer stacks them since 2.5.0
     CHECK_FALSE(notice_comes_in_several(NotificationType::ValidateError));
 }

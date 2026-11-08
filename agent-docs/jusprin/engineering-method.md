@@ -207,7 +207,7 @@ The rules for changing upstream-owned files are in [fork stewardship](fork-stewa
 
 A change that touches an upstream-owned file is not finished until the handback or pull request records three things:
 
-1. **The rebase simulation and its result**, run against current upstream with both endpoint commits named. For each conflicted file, state whether the natural resolution is correct or lossy. A lossy resolution is a defect to fix before the change lands, not a note for the person who rebases.
+1. **The rebase simulation and its result**, run against the newest upstream release with the release the fork last took as the base (the command is in [fork stewardship](fork-stewardship.md), "Before you finish"), with both endpoint commits named. For each conflicted file, state whether the natural resolution is correct or lossy. A lossy resolution is a defect to fix before the change lands, not a note for the person who rebases.
 2. **Every upstream line deleted or rewritten**, with where the logic went and why an additive form was not possible.
 3. **What the fork now owns** — product policy, a small neutral seam, or upstream behavior. The third needs an explicit justification.
 

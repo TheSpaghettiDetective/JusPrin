@@ -19,7 +19,8 @@ NoticeRoute notice_route(NotificationType kind);
 // The kind's enumerator, as OrcaSlicer spells it.
 const char* notice_kind_name(NotificationType kind);
 // Whether OrcaSlicer holds several notifications of this print-problem kind
-// at once: plate warnings by their words, slicing warnings by message id.
+// at once: plate and validation warnings by their words, slicing warnings by
+// message id.
 bool notice_comes_in_several(NotificationType kind);
 
 } // namespace Slic3r::GUI::JusPrin::PrintIssues

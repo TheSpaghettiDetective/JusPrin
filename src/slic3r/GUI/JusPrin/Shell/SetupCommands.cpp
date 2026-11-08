@@ -680,7 +680,7 @@ void open_filament_library()
     // The page behind the sidebar combo's "Add/Remove filaments" entry
     // (PlaterPresetComboBox::OnSelect). run_wizard reloads the presets when
     // the page applies, so the installed list is current on return.
-    wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_FILAMENTS);
+    wxGetApp().run_wizard(RunReason::RR_USER, StartPage::SP_FILAMENTS);
 }
 
 bool sync_from_printer(Plater& plater)

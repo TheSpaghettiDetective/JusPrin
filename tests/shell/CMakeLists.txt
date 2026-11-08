@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/tests/jusprin_support/PythonRuntime.cmake)
+
 if (SLIC3R_GUI)
     add_executable(shell_integration_harness
         shell_harness.cpp
@@ -22,6 +24,7 @@ if (SLIC3R_GUI)
         target_include_directories(shell_integration_harness PRIVATE ${CMAKE_SOURCE_DIR}/deps/WebView2/include)
     endif()
     target_link_libraries(shell_integration_harness PRIVATE libslic3r_gui)
+    jusprin_copy_python_runtime(shell_integration_harness)
 
     # The tree compiles with /Zi but only RelWithDebInfo links with /DEBUG, so
     # a Release harness had no PDB and its teardown crash on Windows could

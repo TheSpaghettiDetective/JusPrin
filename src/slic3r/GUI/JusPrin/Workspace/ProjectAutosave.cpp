@@ -385,7 +385,7 @@ std::string ProjectAutosave::observed_input() const
         }
     }
     for (const ModelObject* object : model.objects) {
-        out << object->id().id << ',' << object->printable << ','
+        out << object->id().id << ',' << object->printable << ',' << object->auto_drop << ','
             << static_cast<const ModelConfig&>(object->config).timestamp()
             << ',' << object->layer_height_profile.timestamp() << ';';
         append_text(out, object->name);
@@ -405,7 +405,7 @@ std::string ProjectAutosave::observed_input() const
         }
         out << object->instances.size() << ';';
         for (const ModelInstance* instance : object->instances) {
-            out << instance->id().id << ',' << instance->printable << ',' << instance->auto_drop
+            out << instance->id().id << ',' << instance->printable
                 << ',' << instance->arrange_order << ';';
             append_transform(out, instance->get_matrix());
         }

@@ -3,6 +3,9 @@
 
 #include "Job.hpp"
 #include "libslic3r/Orient.hpp"
+#include <vector>
+#include <exception>
+#include "libslic3r/Model.hpp"
 
 namespace Slic3r {
 
@@ -58,6 +61,9 @@ public:
 #endif
     static orientation::OrientMesh get_orient_mesh(ModelInstance* instance);
 };
+
+// The parameters OrientJob uses when the orient settings minimise support area.
+void setMinimalSupportAreaPrams(orientation::OrientParams &out);
 
 
 }} // namespace Slic3r::GUI

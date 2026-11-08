@@ -11,6 +11,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include <boost/filesystem/path.hpp>
+#include <wx/bookctrl.h>
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
@@ -38,11 +39,13 @@ struct SimpleEvent;
 namespace Slic3r::GUI::JusPrin {
 
 class AgentPane;
+class AppMenus;
 class ClassicViewReturn;
 class GcodeHistoryRecorder;
 class LeftPane;
 class ShellTheme;
 class StatusRow;
+enum class ProjectMenuRow;
 
 namespace Home {
 class HomeWebView;
@@ -93,6 +96,13 @@ public:
     PrintIssues::WorkFeed* work_feed() const { return m_work_feed.get(); }
     bool agent_pane_collapsed() const { return m_agent_pane_collapsed; }
     LeftPane* left_pane() const { return m_left_pane; }
+    AppMenus* app_menus() const { return m_app_menus.get(); }
+    // Whether a printer or filament chat is open over the screen it was
+    // opened from.
+    bool task_open() const { return m_task_open; }
+    // A project row of the header's overflow menu and the File menu: the
+    // Project tab or its version history in the pane, or the export.
+    void open_project_row(ProjectMenuRow row);
     // The Prepare canvas's presentation, for the integration harness to drive
     // the tool strip and the value card the way a pointer does.
     const CanvasPresentationController& prepare_canvas_presentation() const { return m_prepare_canvas_presentation; }
@@ -279,7 +289,7 @@ private:
     // project header owns the collapsed copy; only one is visible at a time.
     // The Plates / Project pane, left of the workspace; shown on Prepare only.
     LeftPane*  m_left_pane{nullptr};
-    // Shown in the Notebook's slot while the Notebook's selection is tpHome.
+    // Shown in the Notebook's slot while the Notebook's selection is TAB_ID_HOME.
     Home::HomeWebView* m_home{nullptr};
     // Fresh in-memory printer or filament task chat, shown over the workspace.
     PrinterSetup::PrinterPanel* m_printer_panel{nullptr};
@@ -300,13 +310,13 @@ private:
     bool m_preferences_open{false};
     bool m_preferences_requested{false};
     bool m_task_open{false};
-    int  m_task_origin_tab{-1};
+    wxString m_task_origin_tab;
     // Home tells its page which screen to show each time Home comes on
     // screen: the gallery, unless a Print history was asked for on the way.
     bool           m_home_shown{false};
     nlohmann::json m_home_screen = nlohmann::json::object({{"screen", "home"}});
     // The screen Back from a project-opened Print history returns to.
-    int            m_history_return_tab{-1};
+    wxString       m_history_return_tab;
 
     // The one workspace projection consumed by the Agent bridge. It must be
     // constructed before the AgentPane and outlive it.
@@ -317,6 +327,7 @@ private:
     std::unique_ptr<Workspace::ProjectAutosave> m_autosave;
     // Writes the G-code records; reads both of the above, so it goes first.
     std::unique_ptr<GcodeHistoryRecorder> m_gcode_history;
+    std::unique_ptr<AppMenus> m_app_menus;
     // The version pinned before a model turn's first edit; every later edit
     // of the turn links to it, and the turn's end clears it.
     std::string m_turn_before_version;

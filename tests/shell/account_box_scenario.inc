@@ -26,12 +26,13 @@
 
     void verify_account_box()
     {
+        using namespace std::chrono_literals;
         auto source   = std::make_shared<AccountBoxSource>();
         auto step     = std::make_shared<int>(0);
         auto deadline = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now() + 60s);
         auto shown    = std::make_shared<std::string>();
         auto opened   = std::make_shared<bool>(false);
-        m_modal_gate  = [this, source, step, deadline, shown, opened](wxDialog& dialog) {
+        m_modal_gate  = [source, step, deadline, shown, opened](wxDialog& dialog) {
             auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
             if (window == nullptr)
                 return true;

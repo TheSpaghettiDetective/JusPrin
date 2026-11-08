@@ -11,8 +11,8 @@ target_compile_definitions(brand_tokens_tests PRIVATE
 )
 target_include_directories(brand_tokens_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/deps_src
 )
+target_include_directories(brand_tokens_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 target_link_libraries(brand_tokens_tests PRIVATE Catch2WithMain nlohmann_json)
 
 orcaslicer_discover_tests(brand_tokens_tests)

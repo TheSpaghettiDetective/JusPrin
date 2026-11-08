@@ -126,8 +126,7 @@ void delete_unselected(const std::string& name)
     Preset*       preset  = saved_preset(name);
     if (preset == nullptr || is_selected(name))
         throw std::logic_error("delete_unselected called for a missing or selected printer");
-    if (!preset->setting_id.empty())
-        wxGetApp().delete_preset_from_cloud(preset->setting_id, preset->file);
+    wxGetApp().delete_preset_from_cloud(*preset);
     // PresetCollection::delete_preset erases from the list without moving the
     // selection index, so deleting a profile listed before the selected one
     // leaves the index on the selected one's neighbour. Select it again by
