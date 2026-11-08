@@ -34,10 +34,10 @@ jobs:
             os: windows-latest
             arch: x64
           - name: macOS arm64
-            os: macos-14
+            os: macos-15
             arch: arm64
           - name: macOS x86_64
-            os: macos-14
+            os: macos-15
             arch: x86_64
           - name: Linux x64
             os: ubuntu-24.04
@@ -52,7 +52,7 @@ jobs:
   macos:
     name: macOS universal
     needs: build
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       VERSION: ${{ inputs.version }}
       SIGN: ${{ inputs.sign_macos && '1' || '0' }}

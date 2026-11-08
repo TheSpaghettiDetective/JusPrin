@@ -138,8 +138,10 @@ jobs:
         run: |
           brew install libtool
           mkdir -p "${{ github.workspace }}/deps/build/${{ inputs.arch }}"
-          # As OrcaSlicer's build_orca.yml does, for disk space.
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
+          # As OrcaSlicer's build_orca.yml does, for disk space: keep only the
+          # selected Xcode.
+          xcode=$(basename "$(cd "$(xcode-select -p)/../.." && pwd -P)")
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "$xcode" -exec rm -rf {} +
           sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
 
       - name: Build
