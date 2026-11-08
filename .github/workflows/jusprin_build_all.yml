@@ -1,0 +1,120 @@
+name: JusPrin build all
+
+# Every platform of JusPrin from one commit, for jusprin_release.yml (a draft
+# release) and jusprin_nightly.yml (the nightly-builds pre-release).
+#
+# Each platform is built by jusprin_release_build.yml; the macos job joins the
+# two macOS architectures into the universal app and its disk image. The
+# files are left as this run's artifacts named jusprin-*, for the caller to
+# collect: the Windows x64 installer and portable zip, the macOS universal
+# disk image, the Linux x64 AppImage, and the per-architecture Mac bundles,
+# which only feed the universal app.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      # Sign and notarise the macOS app with the Apple secrets JusPrin 1.x
+      # used. Windows builds are unsigned.
+      sign_macos:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            arch: x64
+          - name: macOS arm64
+            os: macos-14
+            arch: arm64
+          - name: macOS x86_64
+            os: macos-14
+            arch: x86_64
+          - name: Linux x64
+            os: ubuntu-24.04
+            arch: ''
+    uses: ./.github/workflows/jusprin_release_build.yml
+    with:
+      os: ${{ matrix.os }}
+      arch: ${{ matrix.arch }}
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  macos:
+    name: macOS universal
+    needs: build
+    runs-on: macos-14
+    env:
+      VERSION: ${{ inputs.version }}
+      SIGN: ${{ inputs.sign_macos && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: 'false'
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      - name: Get both architectures
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jusprin-macOS-*
+          path: mac_bundles
+          merge-multiple: true
+
+      - name: Join them into the universal app
+        run: |
+          mkdir -p build/arm64 build/x86_64
+          tar -xzf mac_bundles/JusPrin_Mac_bundle_arm64.tar.gz -C build/arm64
+          tar -xzf mac_bundles/JusPrin_Mac_bundle_x86_64.tar.gz -C build/x86_64
+          ./build_release_macos.sh -u -x -1 -a universal -t 10.15
+
+      # As OrcaSlicer's build_orca.yml loads the certificate, with the secret
+      # names JusPrin 1.x used.
+      - name: Load the signing certificate
+        if: env.SIGN == '1'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          certificate="$RUNNER_TEMP/build_certificate.p12"
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output "$certificate"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security default-keychain -s "$keychain"
+          security import "$certificate" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security list-keychain -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$P12_PASSWORD" "$keychain"
+
+      - name: Make the disk image
+        env:
+          JUSPRIN_SIGN: ${{ env.SIGN }}
+          MACOS_CERTIFICATE_ID: ${{ secrets.MACOS_CERTIFICATE_ID }}
+          APPLE_DEV_ACCOUNT: ${{ secrets.APPLE_DEV_ACCOUNT }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_PWD: ${{ secrets.APP_PWD }}
+        run: |
+          ./src/slic3r/GUI/JusPrin/Packaging/macos_package.sh \
+            build/universal/OrcaSlicer/OrcaSlicer.app "$VERSION" dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jusprin-macOS-universal
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 7

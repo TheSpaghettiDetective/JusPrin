@@ -1,0 +1,139 @@
+name: JusPrin nightly
+
+# Builds main once a day and puts the files on the "nightly-builds"
+# pre-release, replacing the day before's, as JusPrin 1's "Build all" did.
+#
+# - The build is the release's (jusprin_build_all.yml), so a nightly is what a
+#   release from the same commit would be. Its version is the one in
+#   src/slic3r/GUI/JusPrin/Updates/Version.hpp.
+# - The files keep JusPrin 1's nightly names, so download links stay the
+#   same: JusPrin_Windows_Installer_nightly.exe,
+#   JusPrin_Windows_nightly_portable.zip, JusPrin_Mac_universal_nightly.dmg,
+#   JusPrin_Linux_AppImage_Ubuntu2404_nightly.AppImage, and SHA256SUMS.txt.
+# - The nightly-builds tag moves to the commit built, and the release notes
+#   name it. A scheduled run skips the build when main has not changed since.
+# - The macOS app is signed and notarised; Windows builds are unsigned.
+# - The app's update check never offers a nightly: it reads only tags named
+#   vX.Y.Z and jusprin/vX.Y.Z (ReleaseFeed.cpp).
+#
+# Run it by hand from Actions > JusPrin nightly > Run workflow.
+
+on:
+  schedule:
+    - cron: '35 7 * * *' # near midnight US Pacific time, as JusPrin 1's nightly
+  workflow_dispatch:
+    inputs:
+      sign_macos:
+        description: 'Sign and notarise the macOS app with the Apple secrets'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # move the tag and replace the pre-release's files
+  actions: read
+
+concurrency:
+  group: jusprin-nightly
+  cancel-in-progress: false
+
+env:
+  TAG: nightly-builds
+
+jobs:
+  prepare:
+    name: Check what to build
+    # Only the repository's main branch is published as the nightly.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.changed.outputs.build }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: src/slic3r/GUI/JusPrin
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Read the version
+        id: version
+        run: |
+          echo "version=$(node src/slic3r/GUI/JusPrin/Packaging/release.mjs version src/slic3r/GUI/JusPrin/Updates/Version.hpp)" \
+            | tee -a "$GITHUB_OUTPUT"
+
+      - name: Skip an unchanged main
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          built=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body | sed -n 's/^Commit: \([0-9a-f]*\).*/\1/p')
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$built" = "$GITHUB_SHA" ]; then
+            echo "The nightly is already built from $GITHUB_SHA."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    uses: ./.github/workflows/jusprin_build_all.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      sign_macos: ${{ github.event_name == 'schedule' || inputs.sign_macos }}
+    secrets: inherit
+
+  publish:
+    name: Update the nightly-builds pre-release
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      SIGNED_MACOS: ${{ github.event_name == 'schedule' || inputs.sign_macos }}
+    steps:
+      - name: Collect the files
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jusprin-*
+          path: collected
+          merge-multiple: true
+
+      - name: Give them the nightly names
+        run: |
+          mkdir dist
+          for file in collected/*; do
+            name=$(basename "$file")
+            # The per-architecture Mac bundles only feed the universal app.
+            case "$name" in JusPrin_Mac_bundle_*) continue ;; esac
+            name=${name/_V$VERSION/_nightly}
+            name=${name/_x64/}
+            cp "$file" "dist/$name"
+          done
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+
+      - name: Replace the files and move the tag
+        run: |
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+
+      # Last, so the notes name a commit only once its files are up.
+      - name: Write the notes
+        run: |
+          mac=$([ "$SIGNED_MACOS" = "true" ] && echo "signed and notarised" || echo "unsigned")
+          cat > notes.md <<EOF
+          The latest JusPrin $VERSION test build from the main branch, rebuilt every night. It may be broken; for a tested version, use the [latest release](https://github.com/$GITHUB_REPOSITORY/releases/latest).
+
+          - Windows: the installer or the portable zip. Unsigned, so Windows may warn before opening it.
+          - macOS (Apple silicon and Intel): the disk image, $mac.
+          - Linux (x64): the AppImage.
+
+          Built $(date -u '+%Y-%m-%d %H:%M UTC') by [this run](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+
+          Commit: $GITHUB_SHA
+          EOF
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --title "JusPrin Nightly Builds" --notes-file notes.md
