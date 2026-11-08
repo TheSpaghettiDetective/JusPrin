@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.0",
+  "checkpoint_id": "01M6X5JTWQGS1H2BHSH4R4ZGSJ",
+  "strategy": "manual-commit",
+  "branch": "claude/upstream-2.5.0",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Workspace/SkippedConfirmations.hpp",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 168,
+    "cache_creation_tokens": 91840,
+    "cache_read_tokens": 56173360,
+    "output_tokens": 40088,
+    "api_call_count": 81
+  }
+}
