@@ -1,0 +1,111 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6Y0KCTPSR68XJ6SAB4P44F4",
+  "session_id": "74db2b6d-f9d0-431b-9ec5-13b29aa9d286",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-08T16:41:55.280794Z",
+  "branch": "claude/printer-setup-ways-8564f7",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "resources/JusPrin.icns",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "b97dc0babd35",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 39233,
+    "cache_read_tokens": 240054,
+    "output_tokens": 1399,
+    "api_call_count": 3
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-08T16:41:55.230131Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 0,
+    "total_lines_changed": 1,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 5718,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/commands/commit-push-pr.md": 19,
+        ".claude/commands/dedupe.md": 38,
+        ".claude/commands/oncall-triage.md": 40,
+        ".claude/settings.json": 90,
+        ".claude/settings.local.json": 40,
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        ".claude/worktrees/competent-liskov-build.sh": 5,
+        ".claude/worktrees/competent-liskov-harness-2.out": 11,
+        ".claude/worktrees/competent-liskov-harness-3.out": 11,
+        ".claude/worktrees/competent-liskov-harness.out": 11,
+        ".claude/worktrees/competent-liskov-harness.sh": 13,
+        ".claude/worktrees/competent-liskov-live-refused.err": 25,
+        ".claude/worktrees/competent-liskov-live-refused.out": 213,
+        ".claude/worktrees/competent-liskov-live.err": 120,
+        ".claude/worktrees/competent-liskov-live.out": 1985,
+        ".claude/worktrees/competent-liskov-live2.err": 137,
+        ".claude/worktrees/competent-liskov-live2.out": 1850,
+        ".claude/worktrees/competent-liskov-liveA.err": 13,
+        ".claude/worktrees/competent-liskov-liveA.out": 110,
+        ".claude/worktrees/competent-liskov-liveB.err": 14,
+        ".claude/worktrees/competent-liskov-liveB.out": 215,
+        ".claude/worktrees/competent-liskov-main-build.sh": 4,
+        ".claude/worktrees/competent-liskov-squash-msg.txt": 30,
+        ".claude/worktrees/hungry-bartik-build.pid": 1,
+        ".claude/worktrees/hungry-bartik-build.sh": 6,
+        ".claude/worktrees/hungry-bartik-lldb.txt": 8,
+        ".claude/worktrees/hungry-bartik-prompt.pid": 1,
+        ".claude/worktrees/hungry-bartik-rebuild.sh": 4,
+        ".claude/worktrees/hungry-bartik-shell.pid": 1,
+        ".claude/worktrees/premerge-compare-runs.out": 17,
+        ".claude/worktrees/premerge-compare-runs.sh": 14,
+        ".claude/worktrees/premerge-regression-build-C.out": 2,
+        ".claude/worktrees/premerge-regression-build-C.sh": 4,
+        ".claude/worktrees/premerge-regression-build.out": 5,
+        ".claude/worktrees/premerge-regression-build.sh": 7,
+        ".claude/worktrees/premerge-shell-logs/workspace-base.fails": 15,
+        ".claude/worktrees/premerge-shell-logs/workspace-rebased.fails": 15,
+        ".claude/worktrees/premerge-shell-runs.out": 21,
+        ".claude/worktrees/premerge-shell-runs.sh": 15,
+        ".claude/worktrees/render.err": 25,
+        ".claude/worktrees/wording-sweep-shell-runs.sh": 11,
+        ".codex/config.toml": 4,
+        "first-run-printer-step-spec-2026-11-05.md": 97,
+        "log_iotc.txt": 3,
+        "money-pages-app-server-split-2026-11-06.md": 63
+      },
+      "user_removed_per_file": {
+        "resources/JusPrin.icns": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

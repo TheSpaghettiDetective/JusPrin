@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6Y0KCTPSR68XJ6SAB4P44F4",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-setup-ways-8564f7",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "resources/JusPrin.icns",
+    "tests/data/test_3mf/Geräte/Büchse.3mf",
+    "tests/data/test_stl/Geräte/20mmbox-čřšřěá.stl"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 39233,
+    "cache_read_tokens": 240054,
+    "output_tokens": 1399,
+    "api_call_count": 3
+  }
+}
