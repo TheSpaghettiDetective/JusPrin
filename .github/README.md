@@ -1,4 +1,9 @@
-<h1> <p "font-size:200px;"><img align="left" src="../resources/jusprin/branding/jusprin-mark.svg" width="50"> JusPrin</p> </h1>
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../resources/jusprin/overlay/images/OrcaSlicer_horizontal_dark.svg">
+    <img src="../resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg" alt="JusPrin" width="240">
+  </picture>
+</h1>
 
 **Welcome to JusPrin, the first GenAI app for 3D printing!**
 
