@@ -1,0 +1,9 @@
+is the fork's main branch dedicated to Jusprin v1? If so, how can we move v1 to its own branch and make main the default branch for v2? This is a genuine question. Do not make any changes just yet.
+
+---
+
+Keep the name main for v2 and park v1 on its own branch. disable the workflow, which I beleive were inherited from upstream anyway (check to make sure). go with your suggestion about merge 2.5.0 into ui-walkthrough first, then point main there
+
+---
+
+pull and build jusprin-dev in the main checkout so that I can test it.

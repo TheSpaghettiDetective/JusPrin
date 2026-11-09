@@ -1,0 +1,59 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6Z6VECZ3HK6WDB7Z35MACPR",
+  "session_id": "b5623e1a-a18f-419a-a231-dcd19830f813",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-09T03:50:26.754515Z",
+  "branch": "byoai-newui",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "2232d1c60b69",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 712,
+    "cache_creation_tokens": 765866,
+    "cache_read_tokens": 71486965,
+    "output_tokens": 225044,
+    "api_call_count": 357
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 644,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        "tests/data/test_stl/ASCII/20mmbox-CR.stl": 1,
+        "tests/data/test_stl/ASCII/20mmbox-CRLF.stl": 86,
+        "tests/data/test_stl/ASCII/20mmbox-LF.stl": 86,
+        "tests/data/test_stl/ASCII/20mmbox-nonstandard.stl": 86
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
