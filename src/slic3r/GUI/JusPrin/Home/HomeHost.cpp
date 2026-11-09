@@ -263,7 +263,10 @@ void HomeHost::on_page_message(const std::string& text)
                 return;
             const char* state = answer.state == PrintReportAnswer::State::Sent        ? "sent" :
                                 answer.state == PrintReportAnswer::State::AlreadySent ? "already_sent" : "failed";
-            send("print_report_result", json{{"hash", hash}, {"state", state}, {"credits", answer.credits}});
+            json result{{"hash", hash}, {"state", state}, {"credits", answer.credits}};
+            if (!answer.update_message.empty())
+                result["updateMessage"] = answer.update_message;
+            send("print_report_result", result);
             send("history", history_payload());
         });
     }

@@ -2185,7 +2185,7 @@ TEST_CASE("a JusPrin chat waits for the account's model list", "[agent][models][
     h.handshake();
     // The first list failed, so it can be asked for again.
     REQUIRE(source->asked.count("jusprin") == 1);
-    source->asked["jusprin"](false, {}, false);
+    source->asked["jusprin"](false, {}, false, {});
     source->asked.clear();
 
     h.send_user_message("hello", "c-1");
@@ -2327,12 +2327,14 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     CHECK((*catalog)["payload"]["providers"][0]["state"] == "loading");
     CHECK((*catalog)["payload"]["providers"][1]["label"] == profile_for("anthropic")->display_name);
 
-    source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}}, false);
-    source->asked["openai"](false, {}, false);
+    source->asked["anthropic"](true, {ModelOption{"claude-sonnet-5-5", "Claude Sonnet 5.5", {"low", "medium", "high"}, ""}}, false, {});
+    source->asked["openai"](false, {}, false, "Update JusPrin to keep using it.");
     catalog = h.last_of_type("model_catalog");
     CHECK((*catalog)["payload"]["providers"][0]["state"] == "failed");
+    CHECK((*catalog)["payload"]["providers"][0]["updateMessage"] == "Update JusPrin to keep using it.");
     const json& anthropic = (*catalog)["payload"]["providers"][1];
     CHECK(anthropic["state"] == "ready");
+    CHECK_FALSE(anthropic.contains("updateMessage"));
     CHECK(anthropic["models"][0] == json{{"id", "claude-sonnet-5-5"}, {"label", "Claude Sonnet 5.5"},
                                          {"efforts", json::array({"low", "medium", "high"})}});
 
@@ -2469,7 +2471,7 @@ TEST_CASE("a turn the app started runs on Expert and does not fix the chat's mod
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases(), false);
+    source->asked["jusprin"](true, account_aliases(), false, {});
     const std::string chat = h.persistence.document().active_conversation_id();
 
     SECTION("in a fresh chat the next message from the person sets it")
@@ -2517,7 +2519,7 @@ TEST_CASE("a new chat on the account is on Expert in the first month and on Stan
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases(), false);
+    source->asked["jusprin"](true, account_aliases(), false, {});
     REQUIRE(source->account_done);
     const auto account = [](const char* kind) {
         return json{{"credits", {{"total", 50}, {"lots", json::array({json{{"kind", kind}, {"credits", 50}}})}}}};
@@ -2553,7 +2555,7 @@ TEST_CASE("the catalog carries an account model's tier, price and whether it see
     auto source = account_source();
     h.host.set_chat_model_source(source);
     h.handshake();
-    source->asked["jusprin"](true, account_aliases(), false);
+    source->asked["jusprin"](true, account_aliases(), false, {});
     const json* catalog = h.last_of_type("model_catalog");
     REQUIRE(catalog != nullptr);
     const json& models = (*catalog)["payload"]["providers"][0]["models"];
@@ -3504,7 +3506,7 @@ struct StoredKeysModelSource final : IChatModelSource
     void list_models(const std::string&, ModelsDone done) override
     {
         ++lists_asked;
-        done(lists == Lists::Listed, {}, lists == Lists::Refused);
+        done(lists == Lists::Listed, {}, lists == Lists::Refused, {});
     }
     // Whether the server deletes the account when asked.
     bool server_deletes{false};

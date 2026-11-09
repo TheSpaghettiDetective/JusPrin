@@ -294,6 +294,8 @@ export interface PrintReportResult {
   hash: string;
   state: 'sent' | 'already_sent' | 'failed';
   credits: number;
+  // The server's words when it no longer serves this release of the app.
+  updateMessage?: string;
 }
 
 // A printer action the host understood but could not carry out, such as a

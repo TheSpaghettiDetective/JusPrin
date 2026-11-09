@@ -85,7 +85,11 @@ void write_message_fields(json& entry, const ConversationMessage& message)
 {
     entry["id"]      = message.id;
     entry["role"]    = role_name(message.role);
-    entry["state"]   = message_state_name(message.state);
+    // A state a newer build added reads as complete; it stays as written until
+    // this build changes the state.
+    if (!entry.contains("state") || !entry["state"].is_string() ||
+        message_state_from(entry["state"].get<std::string>()) != message.state)
+        entry["state"] = message_state_name(message.state);
     entry["text"]    = message.text;
     entry["attempt"] = message.attempt;
     if (message.returned)
@@ -265,12 +269,18 @@ json destination_json(const GcodeDestination& destination)
     return entry;
 }
 
-GcodeDestination read_destination(const json& entry)
+// Nothing for a kind a newer build added: this build would show it as an
+// export or a send it is not. Destinations are only ever added, so it stays in
+// the file.
+std::optional<GcodeDestination> read_destination(const json& entry)
 {
+    const std::string kind = entry.value("kind", "");
+    if (kind != "export" && kind != "send")
+        return std::nullopt;
     GcodeDestination destination;
     destination.id              = entry.value("id", "");
     destination.seq             = entry.value("seq", std::uint64_t(0));
-    destination.kind            = entry.value("kind", "") == "send" ? GcodeDestination::Kind::Send : GcodeDestination::Kind::Export;
+    destination.kind            = kind == "send" ? GcodeDestination::Kind::Send : GcodeDestination::Kind::Export;
     destination.at              = entry.value("at", "");
     destination.conversation_id = entry.value("conversationId", "");
     destination.after_id        = entry.value("afterId", "");
@@ -327,8 +337,9 @@ GcodeRecord read_gcode(const json& entry)
     if (entry.contains("statistics"))
         record.statistics = read_statistics(entry["statistics"]);
     if (const auto destinations = entry.find("destinations"); destinations != entry.end() && destinations->is_array())
-        for (const json& destination : *destinations)
-            record.destinations.push_back(read_destination(destination));
+        for (const json& stored : *destinations)
+            if (std::optional<GcodeDestination> destination = read_destination(stored))
+                record.destinations.push_back(std::move(*destination));
     if (const auto prints = entry.find("prints"); prints != entry.end() && prints->is_array())
         for (const json& print : *prints)
             record.prints.push_back(read_print(print));

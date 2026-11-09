@@ -114,7 +114,7 @@ export function PrintReportForm({
           ))}
         </div>
       </div>
-      {result?.state === 'failed' && !sending && <p role="alert">The report couldn’t be sent. Check your connection and try again.</p>}
+      {result?.state === 'failed' && !sending && <p role="alert">{result.updateMessage ?? 'The report couldn’t be sent. Check your connection and try again.'}</p>}
       <div className="printer-dialog-buttons">
         <button type="button" className="button-secondary" disabled={sending} onClick={onClose}>Not now</button>
         <button type="button" className="button-primary" disabled={!canSend}

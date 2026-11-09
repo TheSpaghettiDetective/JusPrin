@@ -344,7 +344,7 @@ public:
         const ProviderProfile* profile = profile_for(provider);
         const std::string      key     = load_provider_api_key(m_config, provider);
         if (profile == nullptr || key.empty()) {
-            done(false, {}, false);
+            done(false, {}, false, {});
             return;
         }
         fetch_model_list(*profile, key, endpoint_for(m_config, *profile), m_cancelled,
@@ -362,7 +362,8 @@ public:
                                      store_formats(config, provider, formats);
                                      config->save();
                                  }
-                                 done(result.ok, std::move(result.models), result.refused);
+                                 done(result.ok, std::move(result.models), result.refused,
+                                      std::move(result.update_message));
                              });
                          });
     }

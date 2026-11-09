@@ -12,7 +12,7 @@
         std::vector<std::string> configured_providers() const override { return {}; }
         std::string default_provider() const override { return "openai"; }
         Agent::AgentServicePtr make_agent(const Agent::ChatModelChoice&) override { return nullptr; }
-        void list_models(const std::string&, ModelsDone done) override { done(false, {}, false); }
+        void list_models(const std::string&, ModelsDone done) override { done(false, {}, false, {}); }
         void fetch_account_box(AccountBoxDone done) override
         {
             ++asked;

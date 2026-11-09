@@ -1,8 +1,11 @@
 #include "PrintHistory.hpp"
 
+#include "slic3r/GUI/JusPrin/Agent/CloudAccount.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <set>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
@@ -187,6 +190,8 @@ PrintReportAnswer print_report_answer(unsigned status, const std::string& body)
         // Sent from this account before, from another computer or another copy
         // of the project: the entry says sent, with nothing to add.
         answer.state = PrintReportAnswer::State::AlreadySent;
+    } else if (const std::optional<Agent::AgentError> outdated = Agent::update_required(status, body)) {
+        answer.update_message = outdated->message;
     }
     return answer;
 }

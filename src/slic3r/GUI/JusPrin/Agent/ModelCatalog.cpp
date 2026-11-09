@@ -11,6 +11,12 @@ using nlohmann::json;
 
 namespace {
 
+bool is_a(const json& object, const char* key, bool (json::*kind)() const noexcept)
+{
+    const auto found = object.find(key);
+    return found != object.end() && ((*found).*kind)();
+}
+
 // Every level the providers name, lowest first, which is the order the
 // picker lists them in.
 constexpr std::array<const char*, 7> kEffortOrder{"none", "minimal", "low", "medium", "high", "xhigh", "max"};
@@ -147,6 +153,22 @@ std::string account_url(const ProviderProfile& profile, const std::string& endpo
 {
     const std::string endpoint = endpoint_override.empty() ? profile.endpoint : endpoint_override;
     return endpoint.substr(0, endpoint.rfind('/')) + "/account";
+}
+
+bool account_reply_readable(const json& account)
+{
+    if (!is_a(account, "credits", &json::is_object) || !is_a(account, "usage_30d", &json::is_object))
+        return false;
+    const json& credits = account.at("credits");
+    if (!is_a(credits, "total", &json::is_number) || !is_a(credits, "lots", &json::is_array) ||
+        !is_a(account.at("usage_30d"), "activity", &json::is_array))
+        return false;
+    return std::all_of(credits.at("lots").begin(), credits.at("lots").end(), [](const json& lot) {
+        const auto expires = lot.find("expires_at");
+        return is_a(lot, "kind", &json::is_string) && is_a(lot, "credits", &json::is_number) &&
+               is_a(lot, "granted", &json::is_number) &&
+               (expires == lot.end() || expires->is_null() || expires->is_string());
+    });
 }
 
 ModelListPage parse_model_list(const ProviderProfile& profile, const json& response)

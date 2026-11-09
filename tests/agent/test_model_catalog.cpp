@@ -126,3 +126,45 @@ TEST_CASE("OpenAI's list keeps the conversation models, newest first, with level
         CHECK(page.models[i].efforts == std::vector<std::string>{"low", "medium", "high"});
     CHECK(page.models[4].efforts.empty());
 }
+
+TEST_CASE("an account answer is read only when it has what the app reads from it", "[agent][models][account]")
+{
+    // Shaped like the server's GET /account (jusprin.ledger.account).
+    const json served = json::parse(R"({
+        "credits": {"total": 480, "lots": [
+            {"kind": "signup", "credits": 480, "granted": 500, "expires_at": "2026-12-01T00:00:00+00:00"},
+            {"kind": "pack", "credits": 0, "granted": 100, "expires_at": null}]},
+        "plan": null, "v1_subscription": null, "suggestion": null, "delete_warning": "",
+        "prices": {"credit_cents": 1, "pack": {}, "plans": []},
+        "usage_30d": {"basic_turns": 2, "expert_turns": 0, "credits": 20,
+                      "days": [{"date": "2026-11-08", "credits": 20}],
+                      "activity": [{"date": "2026-11-08", "chat_id": null, "tier": "basic", "messages": 2, "credits": 20}]}
+    })");
+    CHECK(account_reply_readable(served));
+
+    json newer = served;
+    newer["credits"]["lots"][0]["source"] = "promotion";
+    newer["usage_30d"].erase("days");
+    newer["plan"]                         = json{{"id", "pro"}, {"name", "Pro"}};
+    CHECK(account_reply_readable(newer));
+
+    CHECK_FALSE(account_reply_readable(json::object()));
+    CHECK_FALSE(account_reply_readable(json::array()));
+    CHECK_FALSE(account_reply_readable(json::parse("not json", nullptr, false)));
+    const std::vector<json::json_pointer> required{
+        "/credits"_json_pointer, "/credits/total"_json_pointer, "/credits/lots"_json_pointer,
+        "/credits/lots/0/kind"_json_pointer, "/credits/lots/1/granted"_json_pointer,
+        "/usage_30d"_json_pointer, "/usage_30d/activity"_json_pointer};
+    for (const json::json_pointer& field : required) {
+        INFO(field.to_string());
+        json missing = served;
+        missing.at(field.parent_pointer()).erase(field.back());
+        CHECK_FALSE(account_reply_readable(missing));
+        json wrong = served;
+        wrong[field] = field.back() == "kind" ? json(7) : json("480");
+        CHECK_FALSE(account_reply_readable(wrong));
+    }
+    json expiry = served;
+    expiry["credits"]["lots"][0]["expires_at"] = 1764547200;
+    CHECK_FALSE(account_reply_readable(expiry));
+}

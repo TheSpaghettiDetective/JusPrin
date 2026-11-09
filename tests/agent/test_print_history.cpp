@@ -299,6 +299,10 @@ TEST_CASE("the server's answer to a report", "[print-history]")
     const auto refused = [](const std::string& code) { return R"({"type": "error", "error": {"code": ")" + code + R"(", "message": "x"}})"; };
     CHECK(print_report_answer(409, refused("already_reported")).state == State::AlreadySent);
     CHECK(print_report_answer(409, refused("something_else")).state == State::Failed);
+    CHECK(print_report_answer(500, "").update_message.empty());
+    const PrintReportAnswer outdated = print_report_answer(426, refused("update_required"));
+    CHECK(outdated.state == State::Failed);
+    CHECK(outdated.update_message == "x");
     CHECK(print_report_answer(400, refused("photo_unreadable")).state == State::Failed);
     CHECK(print_report_answer(413, refused("request_too_large")).state == State::Failed);
     CHECK(print_report_answer(0, "").state == State::Failed);

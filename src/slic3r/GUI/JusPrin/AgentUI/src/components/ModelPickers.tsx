@@ -75,7 +75,7 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
       entries.push({ key: `${provider.id}/loading`, label: 'Loading models…', disabled: true,
         matches: [provider.label], onSelect: () => {} });
     if (provider.state === 'failed')
-      entries.push({ key: `${provider.id}/failed`, label: 'Couldn’t load the model list', disabled: true,
+      entries.push({ key: `${provider.id}/failed`, label: provider.updateMessage ?? 'Couldn’t load the model list', disabled: true,
         matches: [provider.label], onSelect: () => {} });
   }
   return entries;

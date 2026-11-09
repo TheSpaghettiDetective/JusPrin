@@ -46,6 +46,7 @@ const StoredFormat kHeadFormat{"schema", 1, {}};
 const StoredFormat kManifestFormat{"schema", 1, {}};
 const StoredFormat kCurrentStateFormat{"schema", 2, {}};
 const StoredFormat kOperationFormat{"schema", 1, {}};
+const StoredFormat kPinsFormat{"schema", 1, {}};
 
 // Brings a file read from the store to this build's format.
 void read_format(const StoredFormat& format, json& value, const std::string& what)
@@ -111,6 +112,17 @@ std::string read_file(const fs::path& path)
     out << in.rdbuf();
     require(!in.bad(), "cannot read " + path.string());
     return out.str();
+}
+
+// pins.json at this build's format, empty when no version is pinned. Builds
+// before it had a number wrote only the list, which is format 1's "versions".
+json read_pins(const fs::path& file)
+{
+    json value = fs::exists(file) ? json::parse(read_file(file)) : json::array();
+    if (value.is_array())
+        value = json{{"schema", 1}, {"versions", std::move(value)}};
+    read_format(kPinsFormat, value, "pinned versions");
+    return value;
 }
 
 void sync_file(const fs::path& path)
@@ -902,12 +914,11 @@ void ProjectVersionStore::remove_materialization(const Materialization& material
 void ProjectVersionStore::pin(const std::string& version_id)
 {
     read_version(version_id);
-    std::set<std::string> pins;
-    if (fs::exists(m_root / "pins.json"))
-        for (const json& item : json::parse(read_file(m_root / "pins.json")))
-            pins.insert(item.get<std::string>());
-    pins.insert(version_id);
-    checked_write(m_root / "pins.pending", json(pins).dump());
+    json pins = read_pins(m_root / "pins.json");
+    auto versions = pins.at("versions").get<std::set<std::string>>();
+    versions.insert(version_id);
+    pins["versions"] = versions;
+    checked_write(m_root / "pins.pending", pins.dump());
     atomic_replace(m_root / "pins.pending", m_root / "pins.json");
 }
 
@@ -933,10 +944,8 @@ void ProjectVersionStore::prune(std::size_t max_versions, std::uintmax_t max_byt
                                 const std::set<std::string>& live_attachments)
 {
     require(max_versions >= 1 && max_bytes > 0, "invalid retention budget");
-    std::set<std::string> protected_ids{m_head_id};
-    if (fs::exists(m_root / "pins.json"))
-        for (const json& item : json::parse(read_file(m_root / "pins.json")))
-            protected_ids.insert(item.get<std::string>());
+    auto protected_ids = read_pins(m_root / "pins.json").at("versions").get<std::set<std::string>>();
+    protected_ids.insert(m_head_id);
     for (const auto& entry : fs::directory_iterator(m_root / "operations")) {
         if (!entry.is_regular_file() || entry.path().extension() != ".json")
             continue;

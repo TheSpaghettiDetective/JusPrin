@@ -1530,6 +1530,18 @@ describe('Print history', () => {
       expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
     });
 
+    it('says the server\'s words when it no longer serves this release', () => {
+      const entry = finished();
+      const host = openHistory([entry]);
+      fireEvent.click(screen.getByRole('button', { name: offer }));
+      fillIn(host);
+      fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
+      host.deliver('print_report_result', { hash: entry.hash, state: 'failed', credits: 0,
+        updateMessage: 'This version of JusPrin is no longer supported. Update JusPrin to keep using it.' });
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'This version of JusPrin is no longer supported. Update JusPrin to keep using it.');
+    });
+
     it('treats a report sent before as sent', () => {
       const entry = finished();
       const host = openHistory([entry]);

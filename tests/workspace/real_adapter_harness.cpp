@@ -16,6 +16,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/OrcaWorkspaceAdapter.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectOutline.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
@@ -1691,6 +1692,28 @@ private:
         store.pin(initial.first);
         store.prune(1, 1024 * 1024);
         check(store.history().size() == 2, "versions_pin_survives_prune");
+        const auto pins = std::filesystem::path(data_dir()) / "version-test" / "p-harness" / "pins.json";
+        const auto read_pins = [&pins] {
+            std::ifstream in(pins);
+            return nlohmann::json::parse(in);
+        };
+        check(read_pins() == nlohmann::json{{"schema", 1}, {"versions", {initial.first}}}, "versions_pins_numbered");
+        // Builds before pins.json had a number wrote only the list.
+        std::ofstream(pins, std::ios::trunc) << nlohmann::json::array({initial.first}).dump();
+        store.prune(1, 1024 * 1024);
+        check(store.history().size() == 2, "versions_unnumbered_pin_survives_prune");
+        // A newer build's pins are neither dropped by a prune nor overwritten.
+        std::ofstream(pins, std::ios::trunc) << nlohmann::json{{"schema", 2}, {"versions", {initial.first}}}.dump();
+        bool newer_refused = false;
+        try {
+            store.pin(initial.first);
+        } catch (const NewerFormatError&) {
+            newer_refused = true;
+        }
+        check(newer_refused && read_pins().at("schema") == 2, "versions_newer_pins_refused");
+        std::ofstream(pins, std::ios::trunc) << nlohmann::json{{"schema", 1}, {"versions", {initial.first}}, {"note", "kept"}}.dump();
+        store.pin(initial.first);
+        check(read_pins().value("note", "") == "kept", "versions_pin_keeps_unknown_fields");
         store.begin_chat_restore(renamed.first, initial.first, "c-1");
         check(std::filesystem::exists(std::filesystem::path(data_dir()) / "version-test" / "p-harness" /
                                       "chat-restore.pending.json"), "versions_chat_restore_marker_durable");

@@ -3615,10 +3615,12 @@ void AgentHost::request_model_lists()
         if (held != m_models.end() && held->second.state != ProviderModels::State::Failed)
             continue;
         m_models[provider] = ProviderModels{};
-        m_model_source->list_models(provider, [this, provider](bool ok, std::vector<ModelOption> models, bool refused) {
+        m_model_source->list_models(provider, [this, provider](bool ok, std::vector<ModelOption> models, bool refused,
+                                                               std::string update_message) {
             ProviderModels& entry = m_models[provider];
-            entry.state  = ok ? ProviderModels::State::Ready : ProviderModels::State::Failed;
-            entry.models = std::move(models);
+            entry.state          = ok ? ProviderModels::State::Ready : ProviderModels::State::Failed;
+            entry.models         = std::move(models);
+            entry.update_message = std::move(update_message);
             // A refused list is a key or sign-in that no longer works, as a
             // refused turn is. Any other failure leaves it standing: for the
             // JusPrin account, Preferences then says AI is unavailable.
@@ -3656,8 +3658,11 @@ void AgentHost::send_model_catalog()
                     model["images"] = false;
                 models.push_back(std::move(model));
             }
-        providers.push_back(json{{"id", provider}, {"label", profile->display_name}, {"defaultModel", profile->model},
-                                 {"state", state}, {"models", std::move(models)}});
+        json entry{{"id", provider}, {"label", profile->display_name}, {"defaultModel", profile->model},
+                   {"state", state}, {"models", std::move(models)}};
+        if (held != m_models.end() && !held->second.update_message.empty())
+            entry["updateMessage"] = held->second.update_message;
+        providers.push_back(std::move(entry));
     }
     send_envelope(Protocol::kModelCatalog,
                   json{{"defaultProvider", m_model_source->default_provider()}, {"providers", std::move(providers)}}.dump());

@@ -51,6 +51,18 @@ describe('the model menu', () => {
       .toEqual(['gpt-5.4-mini', 'Loading models… (disabled)']);
   });
 
+  it('says why the list failed in the server\'s words when the server no longer serves this release', () => {
+    const failed = (updateMessage?: string): ModelCatalogPayload => ({
+      defaultProvider: 'openai',
+      providers: [{ id: 'openai', label: 'OpenAI', defaultModel: 'gpt-5.4-mini', state: 'failed', models: [], updateMessage }],
+    });
+    const labels = (catalog: ModelCatalogPayload) =>
+      modelMenu(catalog, { provider: 'openai', model: 'gpt-5.4-mini', effort: '' }, vi.fn())
+        .map((entry) => ('section' in entry ? '' : entry.label));
+    expect(labels(failed())).toEqual(['gpt-5.4-mini', 'Couldn’t load the model list']);
+    expect(labels(failed('Update JusPrin to keep using it.'))).toEqual(['gpt-5.4-mini', 'Update JusPrin to keep using it.']);
+  });
+
   it('switches model and provider together, from the next turn', async () => {
     const { onChoose } = renderPickers(two, onOpus);
     await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' }));

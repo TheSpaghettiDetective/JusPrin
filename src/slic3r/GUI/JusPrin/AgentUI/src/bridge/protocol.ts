@@ -306,6 +306,8 @@ export interface ProviderModelsInfo {
   defaultModel: string;
   state: 'loading' | 'ready' | 'failed';
   models: ModelOptionInfo[];
+  // The server's words when it no longer serves this release of the app.
+  updateMessage?: string;
 }
 
 export interface ModelCatalogPayload {

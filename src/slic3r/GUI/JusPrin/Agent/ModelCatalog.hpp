@@ -58,6 +58,11 @@ std::string model_list_url(const ProviderProfile& profile, const std::string& en
 // Where an account's credits, plan and usage are, beside its model list.
 std::string account_url(const ProviderProfile& profile, const std::string& endpoint_override);
 
+// Whether an account answer has what the app and its pages read from it
+// without checking: the credit total, each lot's kind and amounts, and the
+// usage activity. Fields it does not know are left alone.
+bool account_reply_readable(const nlohmann::json& account);
+
 // One page of a provider's answer, in the provider's order (OpenAI's newest
 // first). `next_after` is set when Anthropic says there is another page.
 struct ModelListPage

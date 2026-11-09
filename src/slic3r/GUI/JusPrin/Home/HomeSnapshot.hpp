@@ -72,6 +72,8 @@ struct PrintReportAnswer
     enum class State { Sent, AlreadySent, Failed };
     State       state{State::Failed};
     int         credits{0};
+    // Failed: the server's words when it no longer serves this release.
+    std::string update_message;
 };
 
 struct ProjectEntry

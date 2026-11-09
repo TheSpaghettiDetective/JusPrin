@@ -994,6 +994,67 @@ TEST_CASE("an action whose state or source a newer build added is kept as writte
     CHECK(kept[2]["source"] == "scheduler");
 }
 
+TEST_CASE("a message state a newer build added reads as complete and stays as written until it changes",
+          "[project-state][schema]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p-1", "l-1", kT);
+    const std::string chat = written.active_conversation_id();
+    REQUIRE_FALSE(chat.empty());
+    ConversationMessage message;
+    message.id    = "m-1";
+    message.role  = MessageRole::Assistant;
+    message.state = MessageState::Complete;
+    message.text  = "Done.";
+    written.append_message(chat, message, kT);
+    json saved = json::parse(written.dump());
+    saved["conversations"][0]["messages"][0]["state"] = "queued";
+
+    ProjectStateDocument document;
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    REQUIRE(document.messages(chat).size() == 1);
+    CHECK(document.messages(chat)[0].state == MessageState::Complete);
+    message.text = "Done, and checked.";
+    REQUIRE(document.update_message(chat, message));
+    CHECK(json::parse(document.dump())["conversations"][0]["messages"][0]["state"] == "queued");
+    message.state = MessageState::Failed;
+    REQUIRE(document.update_message(chat, message));
+    CHECK(json::parse(document.dump())["conversations"][0]["messages"][0]["state"] == "failed");
+}
+
+TEST_CASE("a G-code destination of a kind a newer build added is kept as written and not shown",
+          "[project-state][gcode][schema]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p", "l", kT);
+    GcodeRecord facts;
+    facts.hash = "a71f";
+    GcodeDestination exported;
+    exported.kind = GcodeDestination::Kind::Export;
+    exported.path = "/tmp/a.gcode";
+    written.add_gcode_destination(facts, exported, kT);
+    json saved = json::parse(written.dump());
+    json queued = saved["gcodes"][0]["destinations"][0];
+    queued["id"]   = "d-9";
+    queued["kind"] = "print_queue";
+    queued.erase("path");
+    saved["gcodes"][0]["destinations"].push_back(queued);
+
+    ProjectStateDocument document;
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const auto shown = document.gcode_record("a71f")->destinations;
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0].kind == GcodeDestination::Kind::Export);
+    GcodeDestination sent;
+    sent.kind         = GcodeDestination::Kind::Send;
+    sent.printer_name = "Voron";
+    document.add_gcode_destination(facts, sent, kT);
+    CHECK(document.gcode_record("a71f")->destinations.size() == 2);
+    const json kept = json::parse(document.dump())["gcodes"][0]["destinations"];
+    REQUIRE(kept.size() == 3);
+    CHECK(kept[1]["kind"] == "print_queue");
+}
+
 TEST_CASE("adoption creates identity and the state file", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());

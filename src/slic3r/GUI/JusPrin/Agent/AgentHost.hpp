@@ -52,8 +52,10 @@ public:
     // Asks the provider for its models; `done` is called later, once, on the
     // thread the host runs on, and not at all after the source is replaced.
     // `refused` says the provider turned the stored key or sign-in down (401
-    // or 403); any other failure says nothing about it.
-    using ModelsDone = std::function<void(bool ok, std::vector<ModelOption> models, bool refused)>;
+    // or 403); any other failure says nothing about it. `update_message` is
+    // the server's words when it no longer serves this release.
+    using ModelsDone =
+        std::function<void(bool ok, std::vector<ModelOption> models, bool refused, std::string update_message)>;
     virtual void list_models(const std::string& provider, ModelsDone done) = 0;
     // For an account provider, the wire format the account's model list last
     // gave this model; empty when it gave none, and for other providers.
@@ -720,6 +722,7 @@ private:
     {
         enum class State { Loading, Ready, Failed } state{State::Loading};
         std::vector<ModelOption> models;
+        std::string              update_message;
     };
     std::shared_ptr<IChatModelSource>       m_model_source;
     std::optional<ChatModelChoice>          m_agent_choice;
