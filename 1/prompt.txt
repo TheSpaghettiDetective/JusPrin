@@ -63,3 +63,14 @@ after you are done, wait for the the animated splash screen to land, and check t
 <status>completed</status>
 <summary>Background command "Wait for the rerun and report jobs, notarisation and uploaded files" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Yes, squash and push
+
+---
+
+<!-- reply 1 -->
+> Decision needed: should the two main-checkout commits go into the same push?
+
+yes
