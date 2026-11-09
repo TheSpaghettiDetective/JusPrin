@@ -3,7 +3,7 @@
   "checkpoint_id": "01M70QKT9J15P61AANM9QB0JNM",
   "strategy": "manual-commit",
   "branch": "fix/linux-cli-flush-and-orca-account-time",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "src/OrcaSlicer.cpp",
     "src/slic3r/GUI/JusPrin/Home/OrcaImport.cpp"
@@ -15,13 +15,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 580,
-    "cache_creation_tokens": 202937,
-    "cache_read_tokens": 3475101,
-    "output_tokens": 68880,
-    "api_call_count": 20
+    "input_tokens": 676,
+    "cache_creation_tokens": 337633,
+    "cache_read_tokens": 10007814,
+    "output_tokens": 93565,
+    "api_call_count": 68
   }
 }

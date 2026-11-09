@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M70QKT9J15P61AANM9QB0JNM",
+  "session_id": "490706a7-226f-4c59-8cf5-3dc48a200733",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-09T18:02:40.034422Z",
+  "branch": "fix/linux-cli-flush-and-orca-account-time",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/OrcaSlicer.cpp",
+    "src/slic3r/GUI/JusPrin/Home/OrcaImport.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "cf76dd69bac9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 96,
+    "cache_creation_tokens": 134696,
+    "cache_read_tokens": 6532713,
+    "output_tokens": 24685,
+    "api_call_count": 48
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-09T18:02:39.959318Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 3,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 4,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
