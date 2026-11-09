@@ -90,3 +90,31 @@ Delete them
 ---
 
 branch out a jusprin-dev from the upstream merge commit, and use this branch as the dev branch. update relevant docs to reflect this branching strategy. also if your code is ready, commit them to the new branch. create a task chip to work on the 2.0.0. release note
+
+---
+
+main will be the stable branch that doesn't allow force push ( except in some extreme circumstances when no other options are feasible). This is so that the users who clone our repo won't have to force pull. We may or may not have a release branch later on, but for now, it also double a release branch. But this rule is more flexible than the first one.
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>bekd2j50l</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b5623e1a-a18f-419a-a231-dcd19830f813/tasks/bekd2j50l.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the restarted nightly run and report each job's result" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcwur5o18</task-id>
+<tool-use-id>toolu_01PUsVKt1qvjeAZUtyn1Bmzi</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/b5623e1a-a18f-419a-a231-dcd19830f813/tasks/bcwur5o18.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the nightly run to finish and list each job's result" completed (exit code 0)</summary>
+</task-notification>
