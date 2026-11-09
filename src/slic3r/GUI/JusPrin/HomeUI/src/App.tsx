@@ -192,6 +192,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
               client.send('print_report_send', { projectId: reportedEntry.projectId, hash: reportedEntry.hash, ...form });
             }}
             onClose={() => setReporting(undefined)}
+            onGetNewVersion={() => client.send('check_for_updates', {})}
           />
         )}
       </>

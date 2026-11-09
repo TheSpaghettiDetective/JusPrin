@@ -102,6 +102,8 @@ public:
     bool open_managed_project(const std::string& project_id);
     // What to tell the person when open_managed_project failed.
     wxString open_failure() const;
+    // open_managed_project failed because a newer JusPrin saved the project.
+    bool open_refused_newer() const { return m_open_refused_newer; }
     bool export_copy(const std::filesystem::path& destination);
 
 private:

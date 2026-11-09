@@ -36,6 +36,8 @@ void         save_success(AppConfig& config, std::time_t now, const std::optiona
 void         save_failure(AppConfig& config, std::time_t now);
 // "Skip this version": that version and older ones are no longer offered.
 void         skip_version(AppConfig& config, const std::string& version);
+// Offers a skipped version again.
+void         unskip(AppConfig& config);
 
 // Whether the daily check should run: a day after the last attempt and, at
 // startup, also when the last attempt failed.

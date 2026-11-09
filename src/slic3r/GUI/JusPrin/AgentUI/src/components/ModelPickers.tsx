@@ -41,6 +41,15 @@ export function findModel(catalog: ModelCatalogPayload, choice: ChatModelChoice)
     .find((model) => model.id === choice.model);
 }
 
+// What the chosen model is called when its list has none of it. JusPrin's
+// model ids are aliases ("slicer-1") that mean nothing to anyone, so until
+// its list names the model the chat's model reads as JusPrin. Every other
+// provider's id is the model's own name.
+function unlistedLabel(catalog: ModelCatalogPayload, choice: ChatModelChoice): string {
+  const provider = catalog.providers.find((option) => option.id === choice.provider);
+  return provider && provider.id === 'jusprin' ? provider.label : choice.model;
+}
+
 // Switching model keeps the thinking level when the new model has it, and
 // otherwise leaves the level to the new model's default.
 export function switchModel(choice: ChatModelChoice, provider: string, model: ModelOptionInfo): ChatModelChoice {
@@ -48,7 +57,8 @@ export function switchModel(choice: ChatModelChoice, provider: string, model: Mo
 }
 
 export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
-  onChoose: (choice: ChatModelChoice) => void, account?: CreditAccount | null): (MenuItem | MenuSection)[] {
+  onChoose: (choice: ChatModelChoice) => void, account?: CreditAccount | null,
+  onGetNewVersion?: () => void): (MenuItem | MenuSection)[] {
   const grouped = catalog.providers.length > 1;
   const entries: (MenuItem | MenuSection)[] = [];
   for (const provider of catalog.providers) {
@@ -57,9 +67,11 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
         detail: provider.models.length > SEARCH_FROM ? `${provider.models.length} models` : undefined });
     const models = [...provider.models];
     // The chat's model stays choosable even before its list arrives, or when
-    // the list leaves it out.
-    if (provider.id === choice.provider && !models.some((model) => model.id === choice.model))
-      models.unshift({ id: choice.model, label: choice.model, efforts: [] });
+    // the list leaves it out. A list the server refused for this release has
+    // nothing to choose: Get the new version… takes its place.
+    const outdated = provider.state === 'failed' && provider.updateMessage !== undefined && onGetNewVersion !== undefined;
+    if (provider.id === choice.provider && !outdated && !models.some((model) => model.id === choice.model))
+      models.unshift({ id: choice.model, label: unlistedLabel(catalog, choice), efforts: [] });
     for (const model of models) {
       const price = priceWords(model, account);
       entries.push({
@@ -74,14 +86,18 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
     if (provider.state === 'loading')
       entries.push({ key: `${provider.id}/loading`, label: 'Loading models…', disabled: true,
         matches: [provider.label], onSelect: () => {} });
-    if (provider.state === 'failed')
+    if (outdated)
+      entries.push({ key: `${provider.id}/update`, label: 'Get the new version…',
+        detail: 'This version of JusPrin can no longer connect to JusPrin accounts.',
+        matches: [provider.label], onSelect: onGetNewVersion });
+    else if (provider.state === 'failed')
       entries.push({ key: `${provider.id}/failed`, label: provider.updateMessage ?? 'Couldn’t load the model list', disabled: true,
         matches: [provider.label], onSelect: () => {} });
   }
   return entries;
 }
 
-export function ModelPickers({ catalog, choice, disabled, locked = false, account, onChoose }: {
+export function ModelPickers({ catalog, choice, disabled, locked = false, account, onChoose, onGetNewVersion }: {
   catalog: ModelCatalogPayload;
   choice: ChatModelChoice;
   disabled: boolean;
@@ -89,13 +105,14 @@ export function ModelPickers({ catalog, choice, disabled, locked = false, accoun
   locked?: boolean;
   account?: CreditAccount | null;
   onChoose: (choice: ChatModelChoice) => void;
+  onGetNewVersion?: () => void;
 }) {
   const model = findModel(catalog, choice);
   const efforts = model?.efforts ?? [];
   // An unset level shows the model's own default where the provider names
   // it; where it does not, it reads "Default".
   const shownEffort = choice.effort || model?.defaultEffort || '';
-  const models = modelMenu(catalog, choice, onChoose, account);
+  const models = modelMenu(catalog, choice, onChoose, account, onGetNewVersion);
   const cost = messageCostSentence(model, account);
   const priced = catalog.providers.some((provider) => provider.models.some((option) => option.credits !== undefined));
   const modelCount = models.filter((entry) => !('section' in entry) && !entry.disabled).length;
@@ -103,7 +120,7 @@ export function ModelPickers({ catalog, choice, disabled, locked = false, accoun
   // picker drops its "Thinking:" instead (Composer measures which).
   return <div className={locked ? 'composer-pickers composer-pickers--locked' : 'composer-pickers'}>
     <ActionMenu label="Model" className={priced ? 'composer-model-menu composer-model-menu--priced' : 'composer-model-menu'}
-      text={model?.label ?? choice.model} above
+      text={model?.label ?? unlistedLabel(catalog, choice)} above
       disabled={disabled || locked} items={models} search={modelCount > SEARCH_FROM ? MODEL_SEARCH : undefined} />
     {efforts.length > 0 && <ActionMenu label="Thinking" above disabled={disabled || locked} prefixed
       text={shownEffort ? effortLabel(shownEffort) : 'Default'}

@@ -54,6 +54,9 @@ public:
     // "Skip this version" on the release the page showed: it is no longer
     // offered, and neither is anything older.
     void skip(const std::string& version);
+    // JusPrin needs a newer version (the server no longer serves this one, or
+    // a project was saved by a newer one): a skipped version is offered again.
+    void unskip();
 
     // Calls `listener` on the UI thread whenever state() changes.
     int  subscribe(std::function<void()> listener);

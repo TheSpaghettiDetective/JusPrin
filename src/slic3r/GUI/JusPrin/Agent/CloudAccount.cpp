@@ -90,7 +90,7 @@ std::optional<AgentError> update_required(unsigned status, const std::string& bo
     const std::string message = answer.is_object() && answer.contains("error") && answer["error"].is_object() ?
                                     answer["error"].value("message", std::string()) : std::string();
     return AgentError{"update_required",
-                      message.empty() ? "This version of JusPrin is no longer supported. Update JusPrin to keep using it." : message,
+                      message.empty() ? "This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account." : message,
                       false};
 }
 

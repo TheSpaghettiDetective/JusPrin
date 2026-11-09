@@ -53,6 +53,9 @@ public:
     virtual void add_printer()                                  = 0;
     // JusPrin's Preferences window, over Home.
     virtual void open_preferences() {}
+    // Get the new version...: offers a skipped version again, checks for a
+    // new JusPrin version and shows Preferences > Updates.
+    virtual void check_for_updates() {}
 
     // The Print history screen. Its entries, every project's, with each
     // exported file checked against what was written (PrintHistory.hpp).

@@ -46,6 +46,9 @@ export interface SignInActions {
   // Google's page again, for a browser that did not open.
   reopen: () => void;
   openLink: (link: SignInLink) => void;
+  // A JusPrin the server still serves: checks for the new version at once
+  // and opens Preferences › Updates.
+  getNewVersion: () => void;
 }
 
 // The page's own button classes: the Home page and the Agent page each draw
@@ -60,6 +63,9 @@ export interface SignInDoorProps {
   email: SignInEmailStep | null | undefined;
   // Why the last sign-in did not finish, already worded.
   error?: string;
+  // The error is the server refusing this release of JusPrin: signing in
+  // again would fail the same way, so the door offers the new version.
+  outdated?: boolean;
   actions: SignInActions;
   buttons: SignInButtons;
   // What the screen says above the door while nothing has started, such as
@@ -204,7 +210,7 @@ function ChooseStep({ email, actions, buttons, onChangeEmail }: {
 // gets one from its first code, so "Sign up free" sends it at once, and only
 // "Sign in" asks how (board first-run-11). Who signed in is the caller's to
 // say: this draws signing in only.
-export function SignInDoor({ phase, email, error, actions, buttons, children }: SignInDoorProps) {
+export function SignInDoor({ phase, email, error, outdated, actions, buttons, children }: SignInDoorProps) {
   // The address typed at rest, kept for "Change email".
   const [address, setAddress] = useState('');
   const addressField = useRef<HTMLInputElement>(null);
@@ -308,6 +314,11 @@ export function SignInDoor({ phase, email, error, actions, buttons, children }: 
         .
       </p>
       {error && <p className="sign-in-error" role="alert">{error}</p>}
+      {error && outdated && (
+        <button type="button" className={`${buttons.primary} sign-in-new-version`} onClick={actions.getNewVersion}>
+          Get the new version…
+        </button>
+      )}
     </>
   );
 }

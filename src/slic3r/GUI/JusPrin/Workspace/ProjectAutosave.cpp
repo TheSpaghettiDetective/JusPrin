@@ -937,7 +937,7 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
 
 wxString ProjectAutosave::open_failure() const
 {
-    return m_open_refused_newer ? _L("This project was saved by a newer version of JusPrin. Update JusPrin to open it.")
+    return m_open_refused_newer ? _L("This project was saved by a newer version of JusPrin. Get the new version to open it.")
                                 : _L("The project couldn't be opened. Try again.");
 }
 

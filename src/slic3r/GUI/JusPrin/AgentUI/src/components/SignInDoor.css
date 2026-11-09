@@ -29,6 +29,11 @@
   color: var(--status-danger);
 }
 
+/* Get the new version…, under the error: the button keeps its own width. */
+.sign-in-new-version {
+  align-self: flex-start;
+}
+
 /* The design system's Button/Link: text only, Label Bold, action/primary. */
 .sign-in-link {
   align-self: flex-start;

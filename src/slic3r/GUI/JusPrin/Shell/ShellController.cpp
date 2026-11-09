@@ -496,6 +496,10 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 request_preferences(payload.value("section", std::string()));
                 return true;
             }
+            if (action == "check_for_updates") {
+                get_new_version();
+                return true;
+            }
             if (action == "open_server_page") {
                 // The composer's Get more credits: the server's page in the
                 // app's sheet, over the main window. Not from inside the web
@@ -656,8 +660,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 return false;
             if (decision == ReimportDecision::OpenExisting) {
                 if (!m_autosave->open_managed_project(matches.front().id))
-                    MessageDialog(m_frame, m_autosave->open_failure(), _L("Couldn't open project"),
-                                  wxOK | wxICON_ERROR).ShowModal();
+                    show_open_failure(m_frame, *m_autosave);
                 else
                     m_frame->select_tab(TAB_ID_PREPARE);
             }
@@ -1832,9 +1835,7 @@ void ShellController::open_in_chat(const std::string& project_id, const std::str
         const Agent::ProjectStateDocument& document = m_persistence->document();
         if (!document.has_identity() || document.project_id() != project_id) {
             if (!m_autosave->open_managed_project(project_id)) {
-                MessageDialog(m_frame, m_autosave->open_failure(), _L("Couldn't open project"),
-                              wxOK | wxICON_ERROR)
-                    .ShowModal();
+                show_open_failure(m_frame, *m_autosave);
                 return;
             }
         }
@@ -1956,11 +1957,8 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
     if (wxGetApp().is_editor()) {
         Updates::update_check().attach(frame);
         wxGetApp().app_update_check = [](int by_user) {
-            if (by_user == 0)
-                return;
-            Updates::update_check().check_now();
-            if (ShellController* shell = installed_shell())
-                shell->open_preferences("updates");
+            if (by_user != 0)
+                check_for_updates();
         };
         // Built-in printer and filament profiles change only with a JusPrin
         // release, so OrcaSlicer's profile server is never asked about them,
@@ -2023,6 +2021,32 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
     }
     if (install_shell())
         install_classic_view();
+}
+
+void check_for_updates()
+{
+    Updates::update_check().check_now();
+    if (ShellController* shell = installed_shell())
+        shell->request_preferences("updates");
+}
+
+void get_new_version()
+{
+    Updates::update_check().unskip();
+    check_for_updates();
+}
+
+void show_open_failure(wxWindow* parent, const Workspace::ProjectAutosave& autosave)
+{
+    const bool newer = autosave.open_refused_newer();
+    MessageDialog dialog(parent, autosave.open_failure(), _L("Couldn't open project"),
+                         wxICON_ERROR | (newer ? wxYES_NO : wxOK));
+    if (newer) {
+        dialog.SetButtonLabel(wxID_YES, _L("Get the new version…"), true);
+        dialog.SetButtonLabel(wxID_NO, _L("Close"));
+    }
+    if (dialog.ShowModal() == wxID_YES)
+        get_new_version();
 }
 
 ShellController* installed_shell()

@@ -194,6 +194,32 @@ describe('Preferences', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Signing in didn’t finish');
   });
 
+  it('offers the new version, and turns to Updates, when the server refuses this release', async () => {
+    const refusal = 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.';
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host);
+    // Signing in, refused: the sign-in shows the server's words and the button.
+    host.deliver('account_status', { phase: 'idle', error: { code: 'update_required', message: refusal, retryable: false } });
+    expect(screen.getByRole('alert')).toHaveTextContent(refusal);
+    await userEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'check_for_updates' });
+    expect(screen.getByRole('button', { name: 'Updates' })).toHaveAttribute('aria-current', 'page');
+
+    // Signed in, with the account's model list refused: the button takes Try again's place.
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+    host.deliver('account_status', { phase: 'idle' });
+    host.deliver('setup_keys', { keys: [{ provider: 'jusprin', hint: '…wxyz', rejected: false, account: 'alex@example.com' }] });
+    host.deliver('model_catalog', { defaultProvider: 'jusprin', providers: [{ id: 'jusprin', label: 'JusPrin',
+      defaultModel: 'slicer-1', state: 'failed', models: [], updateMessage: refusal }] });
+    expect(screen.getByTestId('agent-account-status')).toHaveTextContent('Signed in as alex@example.com · AI unavailable');
+    expect(screen.getByText(refusal)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    const asked = host.ofType('shell_action').length;
+    await userEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+    expect(host.ofType('shell_action')).toHaveLength(asked + 1);
+    expect(screen.getByRole('button', { name: 'Updates' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('says AI is unavailable when the account’s model list failed, and asks again on Try again', async () => {
     render(<PreferencesApp getTransport={() => host.transport} />);
     connect(host);
@@ -600,6 +626,16 @@ describe('Preferences', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Model: gpt-5.4-mini · OpenAI' }));
     await userEvent.click(screen.getByRole('menuitemradio', { name: 'claude-opus-5-5 · Anthropic' }));
     expect(actionsSent(host)).toEqual([{ action: 'set', name: 'newChatProvider', value: 'anthropic' }]);
+  });
+
+  it('names the JusPrin account as JusPrin, not by its model alias', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'agent', agent: { newChatProvider: 'jusprin', newChatChoices: [
+      { provider: 'jusprin', model: 'slicer-1', label: 'JusPrin' },
+      { provider: 'openai', model: 'gpt-5.4-mini', label: 'OpenAI' },
+    ] } }));
+    await userEvent.click(screen.getByRole('button', { name: 'Model: JusPrin' }));
+    expect(screen.getByRole('menuitemradio', { name: 'gpt-5.4-mini · OpenAI' })).toBeInTheDocument();
   });
 });
 

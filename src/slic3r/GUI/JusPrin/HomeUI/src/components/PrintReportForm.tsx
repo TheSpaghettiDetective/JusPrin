@@ -21,6 +21,7 @@ export function PrintReportForm({
   onRemovePhoto,
   onSend,
   onClose,
+  onGetNewVersion,
 }: {
   entry: HistoryEntry;
   photo?: PrintReportPhoto;
@@ -29,6 +30,9 @@ export function PrintReportForm({
   onRemovePhoto: () => void;
   onSend: (form: { photoId: string; text: string; outcome: PrintReportOutcome }) => void;
   onClose: () => void;
+  // When the server no longer serves this release, in Send report's place:
+  // sending again would be refused the same way.
+  onGetNewVersion: () => void;
 }) {
   const [text, setText] = useState('');
   const [outcome, setOutcome] = useState<PrintReportOutcome>();
@@ -117,13 +121,17 @@ export function PrintReportForm({
       {result?.state === 'failed' && !sending && <p role="alert">{result.updateMessage ?? 'The report couldn’t be sent. Check your connection and try again.'}</p>}
       <div className="printer-dialog-buttons">
         <button type="button" className="button-secondary" disabled={sending} onClick={onClose}>Not now</button>
-        <button type="button" className="button-primary" disabled={!canSend}
-          onClick={() => {
-            setSending(true);
-            onSend({ photoId: photo!.id, text: text.trim(), outcome: outcome! });
-          }}>
-          {sending ? 'Sending…' : 'Send report'}
-        </button>
+        {result?.updateMessage && !sending ? (
+          <button type="button" className="button-primary" onClick={onGetNewVersion}>Get the new version…</button>
+        ) : (
+          <button type="button" className="button-primary" disabled={!canSend}
+            onClick={() => {
+              setSending(true);
+              onSend({ photoId: photo!.id, text: text.trim(), outcome: outcome! });
+            }}>
+            {sending ? 'Sending…' : 'Send report'}
+          </button>
+        )}
       </div>
     </>,
   );

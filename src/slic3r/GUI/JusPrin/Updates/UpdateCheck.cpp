@@ -144,6 +144,12 @@ void UpdateCheck::skip(const std::string& version)
     notify();
 }
 
+void UpdateCheck::unskip()
+{
+    Updates::unskip(config());
+    notify();
+}
+
 int UpdateCheck::subscribe(std::function<void()> listener)
 {
     m_listeners.emplace(++m_next_token, std::move(listener));

@@ -60,6 +60,8 @@ interface Props {
   // The actions on a message the gateway refused for want of credits and,
   // when the chat runs on the JusPrin account, for an ended sign-in.
   creditActions?: { onGetMore: () => void; onSignIn?: () => void };
+  // On a message the server refused because it no longer serves this release.
+  onGetNewVersion?: () => void;
   // Sends a reply chip's text as the person's message.
   onSend: (text: string) => void;
   replyDisabled?: boolean;
@@ -180,6 +182,7 @@ export function MessageList({
   onRevert,
   onRetry,
   creditActions,
+  onGetNewVersion,
   onToolCancel,
   onSaveProposal,
   onUndoReceipt,
@@ -404,6 +407,8 @@ export function MessageList({
                 <button className="primary" onClick={creditActions.onGetMore}>Get more credits</button>}
               {message.error.code === 'invalid_credentials' && creditActions?.onSignIn && !readOnly &&
                 <button className="primary" onClick={creditActions.onSignIn}>Sign in</button>}
+              {message.error.code === 'update_required' && onGetNewVersion &&
+                <button className="primary" onClick={onGetNewVersion}>Get the new version…</button>}
               {message.error.retryable && !readOnly && (
                 <button className="primary" onClick={() => onRetry(message.id)}>Retry</button>
               )}

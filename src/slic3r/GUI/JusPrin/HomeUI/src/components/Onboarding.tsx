@@ -78,10 +78,11 @@ export function SignInDoor({ onboarding, onAction, offer }: { onboarding: Onboar
     cancel: () => onAction('onboarding_sign_in_cancel'),
     reopen: () => onAction('onboarding_sign_in_reopen'),
     openLink: (link) => onAction('onboarding_open_link', { link }),
+    getNewVersion: () => onAction('check_for_updates'),
   };
   return (
-    <SharedSignInDoor phase={onboarding.signIn} email={onboarding.email} error={onboarding.signInError} actions={actions}
-      buttons={HOME_BUTTONS}>
+    <SharedSignInDoor phase={onboarding.signIn} email={onboarding.email} error={onboarding.signInError}
+      outdated={onboarding.signInOutdated} actions={actions} buttons={HOME_BUTTONS}>
       {offer && <p className="onboarding-door-title">{SIGNUP_OFFER}</p>}
       {offer && <p className="onboarding-door-detail">{SIGNUP_SCALE}</p>}
       {offer && (

@@ -101,7 +101,8 @@ export interface PreferencesProps {
 // The JusPrin account row. Its AI is unavailable when the account's model
 // list failed without the server refusing the sign-in (a refusal shows as a
 // sign-in that has ended); Try again asks for the list again, and the row
-// waits for the next catalog the host sends.
+// waits for the next catalog the host sends. A list the server refused for
+// this release of JusPrin offers the new version instead.
 function JusPrinAccount({ savedKeys, account, modelCatalog, actions }: {
   savedKeys: SavedKeyInfo[]; account: AccountStatusPayload; modelCatalog?: ModelCatalogPayload; actions: PreferencesActions;
 }) {
@@ -109,7 +110,8 @@ function JusPrinAccount({ savedKeys, account, modelCatalog, actions }: {
   const models = modelCatalog?.providers.find((provider) => provider.id === 'jusprin');
   return (
     <AccountRow account={savedKeys.find((key) => key.provider === 'jusprin')} status={account} actions={actions.signIn}
-      aiUnavailable={models?.state === 'failed'} retrying={retriedAt !== undefined && retriedAt === modelCatalog}
+      aiUnavailable={models?.state === 'failed'}
+      outdatedMessage={models?.state === 'failed' ? models.updateMessage : undefined} retrying={retriedAt !== undefined && retriedAt === modelCatalog}
       onRetry={() => { setRetriedAt(modelCatalog); actions.refreshAccount(); }}
       onSignOut={() => actions.removeKey('jusprin')} />
   );
@@ -360,7 +362,9 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
         {agent.newChatChoices.length > 0 ? (
           <Row title="Model" detail="A chat keeps the model it started with.">
             <Select label="Model" value={agent.newChatProvider} onChange={(provider) => actions.set('newChatProvider', provider)}
-              options={agent.newChatChoices.map((choice) => ({ value: choice.provider, label: `${choice.model} · ${choice.label}` }))} />
+              options={agent.newChatChoices.map((choice) => ({ value: choice.provider,
+                // JusPrin's model id is an alias that means nothing to anyone.
+                label: choice.provider === 'jusprin' ? choice.label : `${choice.model} · ${choice.label}` }))} />
           </Row>
         ) : (
           <Row title="Model" detail="Add a key above, or sign in under Account, to choose the model new chats start with." />
@@ -645,6 +649,12 @@ export function Preferences({
     }
   };
 
+  // Get the new version… is answered here, in Updates.
+  const accountActions: PreferencesActions = { ...actions, signIn: { ...actions.signIn, getNewVersion: () => {
+    actions.signIn.getNewVersion();
+    go('updates');
+  } } };
+
   return (
     <div className="prefs" data-testid="preferences">
       <nav className="prefs-nav" aria-label="Preference sections">
@@ -674,7 +684,7 @@ export function Preferences({
       </nav>
       <main className="prefs-content">
         {section === 'account' && <AccountSection savedKeys={savedKeys} account={account} creditAccount={creditAccount}
-          accountBox={accountBox} accountDeleted={accountDeleted} modelCatalog={modelCatalog} actions={actions}
+          accountBox={accountBox} accountDeleted={accountDeleted} modelCatalog={modelCatalog} actions={accountActions}
           onAgent={() => go('agent')} />}
         {section === 'agent' && (tool ? (
           <SetupLocalTool

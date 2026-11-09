@@ -212,6 +212,7 @@ json state_payload(const Snapshot& snapshot)
              {"signIn", onboarding.sign_in},
              {"email", email_step_json(onboarding.email_step)},
              {"signInError", onboarding.sign_in_error},
+             {"signInOutdated", onboarding.sign_in_outdated},
              {"accountEmail", onboarding.account_email},
              {"agentConfigured", onboarding.agent_configured},
              {"agentKeyProvider", onboarding.agent_key_provider},

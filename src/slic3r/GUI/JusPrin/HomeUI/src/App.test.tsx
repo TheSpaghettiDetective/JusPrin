@@ -544,6 +544,16 @@ describe('first launch', () => {
 
     host.deliver('state', welcome({ signInError: 'That sign-in expired. Try again.' }));
     expect(screen.getByRole('alert')).toHaveTextContent('That sign-in expired. Try again.');
+    expect(screen.queryByRole('button', { name: 'Get the new version…' })).toBeNull();
+  });
+
+  it('offers the new version when the server refuses this release at sign-in', async () => {
+    const host = start();
+    const refusal = 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.';
+    host.deliver('state', welcome({ signInError: refusal, signInOutdated: true }));
+    expect(screen.getByRole('alert')).toHaveTextContent(refusal);
+    await userEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+    expect(host.lastOfType('check_for_updates')).toBeDefined();
   });
 
   it('closes the other doors only while the account is read', () => {
@@ -1537,9 +1547,12 @@ describe('Print history', () => {
       fillIn(host);
       fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
       host.deliver('print_report_result', { hash: entry.hash, state: 'failed', credits: 0,
-        updateMessage: 'This version of JusPrin is no longer supported. Update JusPrin to keep using it.' });
+        updateMessage: 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.' });
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'This version of JusPrin is no longer supported. Update JusPrin to keep using it.');
+        'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.');
+      expect(screen.queryByRole('button', { name: 'Send report' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+      expect(host.lastOfType('check_for_updates')).toBeTruthy();
     });
 
     it('treats a report sent before as sent', () => {

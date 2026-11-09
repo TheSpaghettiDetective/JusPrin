@@ -63,6 +63,38 @@ describe('the model menu', () => {
     expect(labels(failed('Update JusPrin to keep using it.'))).toEqual(['gpt-5.4-mini', 'Update JusPrin to keep using it.']);
   });
 
+  it('offers the new version in the provider\'s place when the server no longer serves this release', () => {
+    const catalog: ModelCatalogPayload = {
+      defaultProvider: 'openai',
+      providers: [{ id: 'jusprin', label: 'JusPrin', defaultModel: 'standard', state: 'failed', models: [],
+        updateMessage: 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.' }],
+    };
+    const onGetNewVersion = vi.fn();
+    const [row] = modelMenu(catalog, { provider: 'openai', model: 'gpt-5.4-mini', effort: '' }, vi.fn(), null, onGetNewVersion)
+      .filter((entry) => !('section' in entry));
+    expect(row).toMatchObject({ label: 'Get the new version…',
+      detail: 'This version of JusPrin can no longer connect to JusPrin accounts.' });
+    expect('disabled' in row && row.disabled).toBeFalsy();
+    if (!('section' in row)) row.onSelect();
+    expect(onGetNewVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('names JusPrin, not its alias, while the chat\'s model is not listed', () => {
+    const jusprin = (state: 'loading' | 'failed' | 'ready', updateMessage?: string): ModelCatalogPayload => ({
+      defaultProvider: 'jusprin',
+      providers: [{ id: 'jusprin', label: 'JusPrin', defaultModel: 'slicer-1', state, models: [], updateMessage }],
+    });
+    const onSlicer: ChatModelChoice = { provider: 'jusprin', model: 'slicer-1', effort: '' };
+    const { rerender } = render(<ModelPickers catalog={jusprin('loading')} choice={onSlicer} disabled={false} onChoose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Model: JusPrin' })).toBeInTheDocument();
+    rerender(<ModelPickers catalog={jusprin('failed')} choice={onSlicer} disabled={false} onChoose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Model: JusPrin' })).toBeInTheDocument();
+    // Refused for this release: nothing in the section to switch to, so no row is ticked.
+    const rows = modelMenu(jusprin('failed', 'Too old.'), onSlicer, vi.fn(), null, vi.fn())
+      .filter((entry) => !('section' in entry));
+    expect(rows.map((row) => !('section' in row) && row.label)).toEqual(['Get the new version…']);
+  });
+
   it('switches model and provider together, from the next turn', async () => {
     const { onChoose } = renderPickers(two, onOpus);
     await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' }));

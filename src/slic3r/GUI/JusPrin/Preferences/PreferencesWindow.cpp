@@ -249,6 +249,13 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
         });
         return true;
     }
+    if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "check_for_updates") {
+        // Account's Get the new version…: the page turns to Updates itself.
+        // This window is the Preferences that would be opened, so only the
+        // check happens, and its answer reaches Updates as any check's does.
+        get_new_version();
+        return true;
+    }
     if (type != Agent::Protocol::kPreferencesAction)
         return false;
     const Outcome outcome = apply_action(*wxGetApp().app_config, payload);

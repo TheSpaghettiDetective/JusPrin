@@ -364,6 +364,18 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer);
 // splash rather than JusPrin's.
 bool classic_view_chosen();
 
+// Checks for a new JusPrin version at once and, with the shell installed,
+// shows Preferences > Updates, where the result appears: Help > Check for
+// Updates.
+void check_for_updates();
+// Every Get the new version... button: JusPrin needs a newer version, so a
+// version the person skipped is offered again, then check_for_updates().
+void get_new_version();
+
+// The "Couldn't open project" dialog after open_managed_project failed. For a
+// project a newer JusPrin saved, it also offers the new version.
+void show_open_failure(wxWindow* parent, const Workspace::ProjectAutosave& autosave);
+
 // The controller installed by attach_shell, if any (used by tests and later
 // phases; returns nullptr in stock mode).
 ShellController* installed_shell();

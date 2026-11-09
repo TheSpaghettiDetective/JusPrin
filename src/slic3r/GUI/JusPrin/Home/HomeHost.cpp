@@ -229,6 +229,8 @@ void HomeHost::on_page_message(const std::string& text)
         m_backend.launch_monitor(payload.value("id", std::string()));
     else if (type == "open_preferences")
         m_backend.open_preferences();
+    else if (type == "check_for_updates")
+        m_backend.check_for_updates();
     else if (type == "history_request")
         send("history", history_payload(), correlation);
     else if (type == "history_back")

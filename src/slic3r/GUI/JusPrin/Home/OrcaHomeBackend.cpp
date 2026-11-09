@@ -608,6 +608,7 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
                                                             email->busy, email->refusal, email->code_resent};
     }
     state.sign_in_error    = m_sign_in_error;
+    state.sign_in_outdated = m_sign_in_outdated;
     state.agent_configured = agent_configured();
     // The agent on the person's own key, by the provider's name.
     if (config != nullptr && config->get("jusprin_agent", "enabled") == "true")
@@ -633,6 +634,8 @@ bool OrcaHomeBackend::poll_onboarding()
         m_onboarding_changed = m_onboarding_changed || m_sign_in->phase() != before || m_sign_in->email_step() != email_before;
         if (outcome) {
             m_onboarding_changed = true;
+            m_sign_in_outdated   = outcome->kind == Agent::CloudSignInOutcome::Kind::Failed &&
+                                 outcome->error.code == "update_required";
             switch (outcome->kind) {
             case Agent::CloudSignInOutcome::Kind::SignedIn:
                 m_sign_in_error = outcome->saved ? std::string() :
@@ -661,6 +664,7 @@ bool OrcaHomeBackend::poll_onboarding()
 void OrcaHomeBackend::start_sign_in()
 {
     m_sign_in_error.clear();
+    m_sign_in_outdated = false;
     Agent::ICloudSignIn& cloud = sign_in();
     if (cloud.phase() != Agent::CloudSignInPhase::Idle)
         return; // A second click while the browser has the first.
@@ -671,6 +675,7 @@ void OrcaHomeBackend::start_sign_in()
 void OrcaHomeBackend::sign_in_with_email(const std::string& email)
 {
     m_sign_in_error.clear();
+    m_sign_in_outdated = false;
     Agent::ICloudSignIn& cloud = sign_in();
     if (cloud.phase() != Agent::CloudSignInPhase::Idle)
         return; // A second click while the first is with the server.
@@ -1355,7 +1360,7 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
     if (m_project_opening)
         m_project_opening();
     if (!m_autosave->open_managed_project(project_id)) {
-        wxMessageBox(m_autosave->open_failure(), _L("Couldn't open project"), wxOK | wxICON_ERROR, &m_frame);
+        show_open_failure(&m_frame, *m_autosave);
         return;
     }
     complete_onboarding();
@@ -1501,6 +1506,11 @@ void OrcaHomeBackend::add_printer()
     // The shell shows the temporary task chat over Home and owns its session.
     if (m_open_conversation)
         m_open_conversation({}, false);
+}
+
+void OrcaHomeBackend::check_for_updates()
+{
+    get_new_version();
 }
 
 void OrcaHomeBackend::open_preferences()

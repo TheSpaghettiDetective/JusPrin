@@ -226,6 +226,8 @@ struct Snapshot
         std::optional<EmailStep> email_step;
         // Why the last sign-in did not finish, already in the person's words.
         std::string sign_in_error;
+        // That error is the server refusing this release of JusPrin.
+        bool sign_in_outdated{false};
         // The JusPrin account this computer is signed in to; empty when none.
         std::string account_email;
         bool agent_configured{false};

@@ -648,7 +648,7 @@ TEST_CASE("a release the server no longer serves is told to update, in the serve
     // Without the server's words, the app's own.
     const AgentError bare = failure("");
     CHECK(bare.code == "update_required");
-    CHECK_THAT(bare.message, ContainsSubstring("no longer supported"));
+    CHECK_THAT(bare.message, ContainsSubstring("can no longer connect to JusPrin accounts"));
     CHECK_FALSE(bare.retryable);
 }
 

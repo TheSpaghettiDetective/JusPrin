@@ -81,6 +81,7 @@ public:
     void launch_monitor(const std::string& printer_id) override;
     void add_printer() override;
     void open_preferences() override;
+    void check_for_updates() override;
 
     bool poll_onboarding() override;
     void start_sign_in() override;
@@ -190,6 +191,8 @@ private:
     // shows it. Set when any of them changed what the page shows.
     Agent::CloudSignInPtr                              m_sign_in;
     std::string                                        m_sign_in_error;
+    // That error is the server refusing this release of JusPrin.
+    bool                                               m_sign_in_outdated{false};
     std::shared_ptr<Agent::IChatModelSource>           m_models;
     bool                                               m_account_requested{false};
     nlohmann::json                                     m_account;

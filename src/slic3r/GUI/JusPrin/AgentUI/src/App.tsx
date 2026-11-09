@@ -497,6 +497,9 @@ export function App({
     onGetMore: getMoreCredits,
     onSignIn: state.chatModel?.provider === 'jusprin' ? openAgentPreferences : undefined,
   };
+  // The server no longer serves this release: check for a new version and
+  // show Preferences > Updates. The printer panel has no shell to answer.
+  const getNewVersion = printerPanel ? undefined : () => client.send('shell_action', { action: 'check_for_updates' });
   const composerCredits: ComposerCredits = {
     account: state.creditAccount,
     lowNoticeDone,
@@ -546,6 +549,7 @@ export function App({
           key={`messages-${state.context?.sessionId}-${viewedId}`}
           messages={threadMessages}
           creditActions={creditActions}
+          onGetNewVersion={getNewVersion}
           attachments={state.attachments}
           streamingMessageId={state.streamingMessageId}
           toolActivities={state.toolActivities}
@@ -635,6 +639,7 @@ export function App({
             <MessageList
               messages={threadMessages}
           creditActions={creditActions}
+          onGetNewVersion={getNewVersion}
               attachments={state.attachments}
               streamingMessageId={state.streamingMessageId}
               onSend={(text) => (doneOffered && text === DONE_CHOICE ? back() : sendMessage(text))}
@@ -682,6 +687,7 @@ export function App({
               chatModel={state.chatModel}
               onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
               credits={composerCredits}
+              onGetNewVersion={getNewVersion}
               returnedDraft={state.returnedDraft}
             />
           )}
@@ -764,6 +770,7 @@ export function App({
         chatModel={state.chatModel}
         onChooseModel={(choice) => client.send('set_chat_model', { ...choice })}
               credits={composerCredits}
+              onGetNewVersion={getNewVersion}
               returnedDraft={state.returnedDraft}
         onDraftChange={(text) => client.send('draft_update', { text })}
         draftDebounceMs={draftDebounceMs}

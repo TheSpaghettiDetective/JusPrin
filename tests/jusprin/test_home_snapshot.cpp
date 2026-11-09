@@ -83,6 +83,7 @@ TEST_CASE("onboarding state uses the page contract", "[home][onboarding]")
     CHECK(state.at("printersScreen") == "v1_import");
     CHECK(state.at("signIn") == "browser");
     CHECK(state.at("signInError") == "That sign-in expired. Try again.");
+    CHECK(state.at("signInOutdated") == false);
     CHECK(state.at("accountEmail") == "kim@example.com");
     CHECK(state.at("agentConfigured") == true);
     CHECK(state.at("printerImport").at("app") == "jusprin1");

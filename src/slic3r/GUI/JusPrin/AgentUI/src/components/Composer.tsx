@@ -100,6 +100,8 @@ interface Props {
   chatModel?: ChatModelChoice;
   onChooseModel?: (choice: ChatModelChoice) => void;
   credits?: ComposerCredits;
+  // Offered in the model picker when the server no longer serves this release.
+  onGetNewVersion?: () => void;
   // Words the gateway refused, back in the field once per count.
   returnedDraft?: { text: string; count: number };
 }
@@ -129,6 +131,7 @@ export function Composer({
   chatModel,
   onChooseModel,
   credits,
+  onGetNewVersion,
   returnedDraft,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
@@ -348,7 +351,8 @@ export function Composer({
             )}
             {models && chatModel && onChooseModel && (
               <ModelPickers catalog={models} choice={chatModel} disabled={disabled || streaming}
-                locked={started} account={account} onChoose={onChooseModel} />
+                locked={started} account={account} onChoose={onChooseModel}
+                onGetNewVersion={onGetNewVersion} />
             )}
             {ring && <BalancePanel account={account!} low={!!low}
               onGetMore={credits!.onGetMore} onSeeUsage={credits!.onSeeUsage} />}

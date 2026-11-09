@@ -32,6 +32,7 @@ export type PageMessageType =
   | 'remove_printer'
   | 'confirm_answer'
   | 'open_preferences'
+  | 'check_for_updates'
   | 'history_request'
   | 'history_back'
   | 'open_in_chat'
@@ -380,6 +381,8 @@ export interface OnboardingState {
   email: EmailSignIn | null;
   // Why the last sign-in did not finish, already worded.
   signInError: string;
+  // That error is the server refusing this release of JusPrin.
+  signInOutdated?: boolean;
   // Set once the sign-in is saved: the welcome's card says who signed in.
   accountEmail: string;
   agentConfigured: boolean;

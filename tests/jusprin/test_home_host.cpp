@@ -54,6 +54,7 @@ public:
     void launch_monitor(const std::string& id) override { monitored.push_back(id); }
     void add_printer() override { ++wizards; }
     void open_preferences() override { ++preferences_opened; }
+    void check_for_updates() override { ++update_checks; }
 
     bool reports_offered() const override { return offers_reports; }
     std::optional<PrintReportPhoto> choose_report_photo() override { return report_photo; }
@@ -67,6 +68,7 @@ public:
     std::vector<PrintReportForm> report_forms;
     std::function<void(const PrintReportAnswer&)> report_done;
     int  preferences_opened{0};
+    int  update_checks{0};
     bool poll_onboarding() override { return std::exchange(onboarding_changed, false); }
     void start_sign_in() override { onboarding_calls.push_back("sign_in"); }
     void cancel_sign_in() override { onboarding_calls.push_back("sign_in_cancel"); }
@@ -286,6 +288,7 @@ TEST_CASE("each page message reaches its own action", "[home]")
     host.on_page_message(page_message("launch_monitor", json{{"id", "FAKE001"}}));
     host.on_page_message(page_message("add_printer"));
     host.on_page_message(page_message("open_preferences"));
+    host.on_page_message(page_message("check_for_updates"));
 
     CHECK(backend.opened == std::vector<std::string>{"2"});
     CHECK(backend.new_projects == 1);
@@ -293,6 +296,7 @@ TEST_CASE("each page message reaches its own action", "[home]")
     CHECK(backend.monitored == std::vector<std::string>{"FAKE001"});
     CHECK(backend.wizards == 1);
     CHECK(backend.preferences_opened == 1);
+    CHECK(backend.update_checks == 1);
 }
 
 // The page hands over a dropped file's name and bytes; a file whose bytes do

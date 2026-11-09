@@ -62,6 +62,7 @@ void save_failure(AppConfig& config, std::time_t now)
 }
 
 void skip_version(AppConfig& config, const std::string& version) { config.set(kSkippedKey, version); }
+void unskip(AppConfig& config) { config.set(kSkippedKey, std::string()); }
 
 bool check_due(const UpdateRecord& record, std::time_t now, bool at_startup)
 {

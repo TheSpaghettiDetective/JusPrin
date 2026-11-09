@@ -588,6 +588,19 @@ describe('App', () => {
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_server_page', page: 'prices', from: 'composer' });
   });
 
+  it('offers the new version, not Retry, on a reply the server refused because it no longer serves this release', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ chatModel: { provider: 'jusprin', model: 'standard', effort: '' } }));
+    host.deliver('message_added', { message: { id: 'm-1', role: 'user', state: 'complete', text: 'hi', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-2', inReplyTo: 'm-1', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-2', error: { code: 'update_required',
+      message: 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.', retryable: false } });
+    expect(screen.getByText(/can no longer connect to JusPrin accounts/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+    expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'check_for_updates' });
+  });
+
   // Board money-05: the sheet's close asks for the account again; a total that
   // rose says what was added once, above a box that kept what was typed.
   it('says once what a purchase added after the sheet closes, and keeps the draft', async () => {

@@ -172,6 +172,19 @@ TEST_CASE("What a check found is remembered until JusPrin catches up", "[Updates
     }
 }
 
+TEST_CASE("A skipped version is offered again when JusPrin needs a newer one", "[Updates]")
+{
+    Slic3r::AppConfig config;
+    save_success(config, 1000, Release{"2.1.0", "https://example.test/v2.1.0", "", ""});
+    skip_version(config, "2.1.0");
+    REQUIRE_FALSE(load_record(config, "2.0.0").available);
+
+    unskip(config);
+    const UpdateRecord record = load_record(config, "2.0.0");
+    REQUIRE(record.available);
+    CHECK(record.available->version == "2.1.0");
+}
+
 TEST_CASE("A skipped version is offered again only when a newer one comes out", "[Updates]")
 {
     Slic3r::AppConfig config;

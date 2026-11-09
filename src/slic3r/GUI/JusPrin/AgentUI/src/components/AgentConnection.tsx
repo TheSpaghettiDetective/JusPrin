@@ -45,6 +45,7 @@ export function accountSignInActions(send: (type: PageMessageType, payload: obje
     cancel: () => send('account_cancel', {}),
     reopen: () => send('account_reopen', {}),
     openLink: (link) => send('account_open_link', { link }),
+    getNewVersion: () => send('shell_action', { action: 'check_for_updates' }),
   };
 }
 
@@ -58,8 +59,8 @@ export interface AccountSignInProps {
 export function AccountSignIn({ status, actions, children }: AccountSignInProps & { children?: React.ReactNode }) {
   return (
     <div className="account-sign-in">
-      <SignInDoor phase={status.phase} email={status.email} error={status.error?.message} actions={actions}
-        buttons={AGENT_BUTTONS}>
+      <SignInDoor phase={status.phase} email={status.email} error={status.error?.message}
+        outdated={status.error?.code === 'update_required'} actions={actions} buttons={AGENT_BUTTONS}>
         {children}
       </SignInDoor>
     </div>
@@ -94,6 +95,10 @@ export interface AccountRowProps extends AccountSignInProps {
   // failed without the server refusing the sign-in. `retrying` while Try
   // again waits for the answer.
   aiUnavailable?: boolean;
+  // Signed in, but the server no longer serves this release of JusPrin: its
+  // words, from the account's model list. Trying again would fail the same
+  // way, so the row offers the new version instead.
+  outdatedMessage?: string;
   retrying?: boolean;
   onRetry?: () => void;
   onSignOut: () => void;
@@ -102,7 +107,7 @@ export interface AccountRowProps extends AccountSignInProps {
 // The JusPrin account (canvas "JusPrin v2": Agent/Account Row): signed out,
 // signed in, signed in with AI unavailable, or signed in with a sign-in that
 // has ended. Signing in, or in again, is the sign-in every screen shares.
-export function AccountRow({ account, status, actions, aiUnavailable, retrying, onRetry, onSignOut }: AccountRowProps) {
+export function AccountRow({ account, status, actions, aiUnavailable, outdatedMessage, retrying, onRetry, onSignOut }: AccountRowProps) {
   if (!account) {
     return (
       <div className="agent-account-offer" data-testid="agent-account">
@@ -132,6 +137,25 @@ export function AccountRow({ account, status, actions, aiUnavailable, retrying, 
   // The stored account being checked again: its sign-in may have ended.
   const checking = status.phase === 'checking';
   const email = account.account ? `Signed in as ${account.account}` : 'Signed in';
+  if (!checking && outdatedMessage) {
+    return (
+      <div className="agent-account" data-testid="agent-account">
+        <div className="agent-row-copy">
+          <h2 className="agent-account-title">JusPrin account</h2>
+          <span className="agent-row-status agent-row-status--unavailable" data-testid="agent-account-status">
+            <span className="agent-row-status-label">
+              <span className="agent-row-status-dot" aria-hidden="true" />
+              <span>{email} · AI unavailable</span>
+            </span>
+          </span>
+        </div>
+        <button type="button" className="primary" onClick={actions.getNewVersion}>Get the new version…</button>
+        <div className="agent-account-detail">
+          <p className="agent-row-note">{outdatedMessage}</p>
+        </div>
+      </div>
+    );
+  }
   if (!checking && aiUnavailable) {
     return (
       <div className="agent-account" data-testid="agent-account">
@@ -172,6 +196,9 @@ export function AccountRow({ account, status, actions, aiUnavailable, retrying, 
       <div className="agent-account-detail">
       {!checking && status.error && (
         <p className="agent-key-error" role="alert" data-testid="account-error">{status.error.message}</p>
+      )}
+      {!checking && status.error?.code === 'update_required' && (
+        <button type="button" className="primary" onClick={actions.getNewVersion}>Get the new version…</button>
       )}
       {!checking && status.warning && <p className="agent-row-note">{status.warning}</p>}
       </div>
