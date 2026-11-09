@@ -789,15 +789,20 @@ TEST_CASE("the Import from OrcaSlicer window keeps the canvas's sizes", "[brand]
 // splash-about-01 to 03, agreed 2026-11-08): a square window the size of the
 // stacked lockup artwork, whose drawing ends at y 331; the version line and
 // the bar under it. The bar's segment slides across its track and back, each
-// way in barSweepMs; the bar is drawn only on macOS.
+// way in barSweepMs; the bar is drawn only on macOS. The name box is where
+// macOS plays the name animation (Brand/splash_animation.py draws the files
+// for this box): under the cone, above the version line.
 TEST_CASE("the startup splash keeps the canvas's sizes", "[brand]")
 {
     const json tokens = load_tokens();
     const json& splash = tokens.at("component").at("splash");
     require_exact_table<int>(splash,
                              {{"size", 480}, {"versionTop", 355}, {"barTop", 397}, {"barWidth", 160},
-                              {"barSegmentWidth", 48}, {"barSweepMs", 1200}},
+                              {"barSegmentWidth", 48}, {"barSweepMs", 1200}, {"nameLeft", 88}, {"nameTop", 248},
+                              {"nameWidth", 304}, {"nameHeight", 88}},
                              "component.splash");
+    REQUIRE(splash.at("nameTop").get<int>() + splash.at("nameHeight").get<int>() < splash.at("versionTop").get<int>());
+    REQUIRE(splash.at("nameLeft").get<int>() + splash.at("nameWidth").get<int>() <= splash.at("size").get<int>());
     REQUIRE(splash.at("barSegmentWidth").get<int>() < splash.at("barWidth").get<int>());
     REQUIRE(splash.at("barTop").get<int>() + tokens.at("component").at("progress").at("height").get<int>() <
             splash.at("size").get<int>());

@@ -573,7 +573,11 @@
       "barTop": 397,
       "barWidth": 160,
       "barSegmentWidth": 48,
-      "barSweepMs": 1200
+      "barSweepMs": 1200,
+      "nameLeft": 88,
+      "nameTop": 248,
+      "nameWidth": 304,
+      "nameHeight": 88
     },
     "about": {
       "width": 400,
