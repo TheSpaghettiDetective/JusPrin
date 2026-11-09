@@ -2,15 +2,10 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M6YMWCJRZS5DHJSDEY10Q6F7",
   "strategy": "manual-commit",
-  "branch": "jusprin-dev",
-  "checkpoints_count": 14,
+  "branch": "claude/notarize-nested",
+  "checkpoints_count": 13,
   "files_touched": [
-    ".github/CONTRIBUTING.md",
-    "AGENTS.md",
-    "agent-docs/jusprin/README.md",
-    "agent-docs/jusprin/design-guidelines.md",
-    "agent-docs/jusprin/design-system.md",
-    "agent-docs/jusprin/engineering-method.md"
+    "agent-docs/jusprin/design-guidelines.md"
   ],
   "sessions": [
     {
@@ -29,11 +24,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 514,
-    "cache_creation_tokens": 619168,
-    "cache_read_tokens": 52461544,
-    "output_tokens": 150555,
-    "api_call_count": 258
+    "input_tokens": 1406,
+    "cache_creation_tokens": 1937221,
+    "cache_read_tokens": 134846678,
+    "output_tokens": 424302,
+    "api_call_count": 705
   },
   "combined_attribution": {
     "calculated_at": "2026-11-08T22:36:23.681916Z",
