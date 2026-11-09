@@ -22,6 +22,7 @@
 #include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
+#include "slic3r/GUI/JusPrin/Startup/Startup.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/GLToolbar.hpp"
@@ -1936,8 +1937,16 @@ void ShellController::on_page_changed()
     set_agent_pane_collapsed(home ? true : m_agent_pane_user_collapsed);
 }
 
+bool classic_view_chosen()
+{
+    return wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_shell") == "0";
+}
+
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
 {
+    // JusPrin's splash, if startup showed one, closes when this frame is
+    // first shown, where OrcaSlicer closes its own.
+    close_splash_when_shown(frame);
     // Before the shell checks below, so the classic presentation gets this
     // too: JusPrin checks for its own new versions, and OrcaSlicer's check,
     // which asks OrcaSlicer's server about OrcaSlicer releases, never runs.
@@ -2008,7 +2017,7 @@ void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer)
     classic_view_slot().reset();
     left_project().reset();
     attach_point() = {&frame, tabpanel, main_sizer};
-    if (wxGetApp().app_config != nullptr && wxGetApp().app_config->get("jusprin_shell") == "0") {
+    if (classic_view_chosen()) {
         install_classic_view();
         return;
     }

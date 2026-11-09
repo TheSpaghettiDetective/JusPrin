@@ -86,6 +86,10 @@ struct ButtonMetrics
     ButtonRecipe icon_compact;
     ButtonRecipe expanded;
     ButtonRecipe secondary;
+    // The design system's Button/SecondarySmall, 28 DIP.
+    ButtonRecipe secondary_small;
+    // Button/Link: text in the primary action colour, no fill or border.
+    ButtonRecipe link;
     ButtonRecipe primary;
 };
 
@@ -165,6 +169,21 @@ struct PreferencesMetrics { int width{0}; int height{0}; };
 // File › Import › Import from OrcaSlicer…'s window.
 struct OrcaImportMetrics { int width{0}; int height{0}; };
 
+// The startup splash: a square window, the version line's and the bar's top,
+// the bar's track and moving segment, and how long one sweep across takes.
+struct SplashMetrics
+{
+    int size{0};
+    int version_top{0};
+    int bar_top{0};
+    int bar_width{0};
+    int bar_segment_width{0};
+    int bar_sweep_ms{0};
+};
+
+// Help › About JusPrin's window.
+struct AboutMetrics { int width{0}; int lockup_height{0}; int help_label_width{0}; int copied_ms{0}; };
+
 // A drop shadow's geometry; its colour differs by mode and lives in ShellPalette.
 struct ElevationMetrics { int offset_x{0}; int offset_y{0}; int blur{0}; int spread{0}; };
 
@@ -241,6 +260,10 @@ struct ShellMetrics
     PrinterCardMetrics  printer_card;
     PreferencesMetrics  preferences;
     OrcaImportMetrics   orca_import;
+    SplashMetrics       splash;
+    AboutMetrics        about;
+    // component.progress.height: the track every progress bar shares.
+    int                 progress_height{0};
 };
 
 class ShellTheme
@@ -263,12 +286,18 @@ public:
     // and Linux). Requires wx to be initialised.
     const wxFont& font(TextRole role) const;
 
+    // typography.code: the system monospace face, only for code and IDs such
+    // as a build's commit hash. Requires wx to be initialised.
+    const wxFont& code_font() const;
+
 private:
     ShellPalette m_light;
     ShellPalette m_dark;
     ShellMetrics m_metrics;
     std::array<TypeStyle, kTextRoleCount> m_type_styles{};
     mutable std::array<wxFont, kTextRoleCount> m_fonts{};
+    TypeStyle m_code_style;
+    mutable wxFont m_code_font;
 };
 
 } // namespace Slic3r::GUI::JusPrin

@@ -359,6 +359,11 @@ private:
 // Throws only on a broken invariant.
 void attach_shell(MainFrame& frame, Notebook* tabpanel, wxSizer* main_sizer);
 
+// Whether the person chose classic view (the jusprin_shell preference is
+// "0"): attach_shell then installs no shell, and startup shows OrcaSlicer's
+// splash rather than JusPrin's.
+bool classic_view_chosen();
+
 // The controller installed by attach_shell, if any (used by tests and later
 // phases; returns nullptr in stock mode).
 ShellController* installed_shell();

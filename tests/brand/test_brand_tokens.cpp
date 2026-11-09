@@ -785,6 +785,36 @@ TEST_CASE("the Import from OrcaSlicer window keeps the canvas's sizes", "[brand]
                              "component.orcaImport");
 }
 
+// The startup splash (canvas "JusPrin v2", page "Splash & About", boards
+// splash-about-01 to 03, agreed 2026-11-08): a square window the size of the
+// stacked lockup artwork, whose drawing ends at y 331; the version line and
+// the bar under it. The bar's segment slides across its track and back, each
+// way in barSweepMs; the bar is drawn only on macOS.
+TEST_CASE("the startup splash keeps the canvas's sizes", "[brand]")
+{
+    const json tokens = load_tokens();
+    const json& splash = tokens.at("component").at("splash");
+    require_exact_table<int>(splash,
+                             {{"size", 480}, {"versionTop", 355}, {"barTop", 397}, {"barWidth", 160},
+                              {"barSegmentWidth", 48}, {"barSweepMs", 1200}},
+                             "component.splash");
+    REQUIRE(splash.at("barSegmentWidth").get<int>() < splash.at("barWidth").get<int>());
+    REQUIRE(splash.at("barTop").get<int>() + tokens.at("component").at("progress").at("height").get<int>() <
+            splash.at("size").get<int>());
+}
+
+// Help › About JusPrin's window (canvas "JusPrin v2", page "Splash & About",
+// boards splash-about-04 and 05): its width, the lockup's height, the column
+// of the help rows' names, and how long Copy version reads "Copied".
+TEST_CASE("the About window keeps the canvas's sizes", "[brand]")
+{
+    const json tokens = load_tokens();
+    require_exact_table<int>(tokens.at("component").at("about"),
+                             {{"width", 400}, {"lockupHeight", 43}, {"helpLabelWidth", 56}, {"copiedMs", 2000}},
+                             "component.about");
+    CHECK(tokens.at("component").at("about").at("lockupHeight") == tokens.at("component").at("onboarding").at("lockupHeight"));
+}
+
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
 // sit inside a row of Label or Metadata text, 14 to 16 DIP tall. A glyph from
 // the icon scale would make the row taller than its text, so the card has

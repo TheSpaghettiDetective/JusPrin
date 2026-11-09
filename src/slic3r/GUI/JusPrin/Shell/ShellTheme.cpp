@@ -9,6 +9,7 @@
 #include <cmath>
 #include <fstream>
 #include <stdexcept>
+#include <wx/font.h>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -174,6 +175,20 @@ ButtonMetrics parse_buttons(const nlohmann::json& buttons)
     b.secondary.radius = parse_int(secondary, "component.button.secondary", "radius");
     b.secondary.text_role = parse_text_role(secondary, "component.button.secondary");
 
+    const nlohmann::json& secondary_small = buttons.at("secondarySmall");
+    b.secondary_small.height    = parse_int(secondary_small, "component.button.secondarySmall", "height");
+    b.secondary_small.padding_x = parse_int(secondary_small, "component.button.secondarySmall", "paddingX");
+    b.secondary_small.padding_y = parse_int(secondary_small, "component.button.secondarySmall", "paddingY");
+    b.secondary_small.radius    = parse_int(secondary_small, "component.button.secondarySmall", "radius");
+    b.secondary_small.text_role = parse_text_role(secondary_small, "component.button.secondarySmall");
+
+    const nlohmann::json& link = buttons.at("link");
+    b.link.height    = parse_int(link, "component.button.link", "height");
+    b.link.padding_x = parse_int(link, "component.button.link", "paddingX");
+    b.link.padding_y = parse_int(link, "component.button.link", "paddingY");
+    b.link.radius    = parse_int(link, "component.button.link", "radius");
+    b.link.text_role = parse_text_role(link, "component.button.link");
+
     const nlohmann::json& primary = buttons.at("primary");
     b.primary.padding_x  = parse_int(primary, "component.button.primary", "paddingX");
     b.primary.padding_y  = parse_int(primary, "component.button.primary", "paddingY");
@@ -335,6 +350,22 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& orca_import = component.at("orcaImport");
     m.orca_import.width  = parse_int(orca_import, "component.orcaImport", "width");
     m.orca_import.height = parse_int(orca_import, "component.orcaImport", "height");
+
+    const nlohmann::json& splash = component.at("splash");
+    m.splash.size              = parse_int(splash, "component.splash", "size");
+    m.splash.version_top       = parse_int(splash, "component.splash", "versionTop");
+    m.splash.bar_top           = parse_int(splash, "component.splash", "barTop");
+    m.splash.bar_width         = parse_int(splash, "component.splash", "barWidth");
+    m.splash.bar_segment_width = parse_int(splash, "component.splash", "barSegmentWidth");
+    m.splash.bar_sweep_ms      = parse_int(splash, "component.splash", "barSweepMs");
+
+    const nlohmann::json& about = component.at("about");
+    m.about.width            = parse_int(about, "component.about", "width");
+    m.about.lockup_height    = parse_int(about, "component.about", "lockupHeight");
+    m.about.help_label_width = parse_int(about, "component.about", "helpLabelWidth");
+    m.about.copied_ms        = parse_int(about, "component.about", "copiedMs");
+
+    m.progress_height = parse_int(component.at("progress"), "component.progress", "height");
     return m;
 }
 
@@ -369,6 +400,8 @@ ShellTheme ShellTheme::load_from_resources()
         theme.m_type_styles[size_t(TextRole::LabelBold)]     = parse_type_style(roles, "labelBold");
         theme.m_type_styles[size_t(TextRole::Metadata)]      = parse_type_style(roles, "metadata");
         theme.m_type_styles[size_t(TextRole::MetadataBold)]  = parse_type_style(roles, "metadataBold");
+        // typography.code sits beside the roles, with the same three numbers.
+        theme.m_code_style = parse_type_style(tokens.at("typography"), "code");
         return theme;
     } catch (const nlohmann::json::exception& error) {
         throw std::runtime_error(std::string("design token file could not be parsed: ") + error.what());
@@ -391,6 +424,21 @@ const wxFont& ShellTheme::font(TextRole role) const
     font.SetFractionalPointSize(style.size * 72.0 / 96.0);
 #endif
     return font;
+}
+
+const wxFont& ShellTheme::code_font() const
+{
+    if (m_code_font.IsOk())
+        return m_code_font;
+    m_code_font = wxFont(wxFontInfo().Family(wxFONTFAMILY_TELETYPE));
+    // As font(): the role's size is DIP, which is a point only on macOS.
+#ifdef __APPLE__
+    m_code_font.SetPointSize(m_code_style.size);
+#else
+    m_code_font.SetFractionalPointSize(m_code_style.size * 72.0 / 96.0);
+#endif
+    m_code_font.SetWeight(m_code_style.weight == 700 ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL);
+    return m_code_font;
 }
 
 } // namespace Slic3r::GUI::JusPrin

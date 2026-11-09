@@ -1,8 +1,10 @@
 #include "AppMenus.hpp"
 
+#include "AboutWindow.hpp"
 #include "SetupCommands.hpp"
 #include "ShellController.hpp"
 #include "StatusRow.hpp"
+#include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterConversation.hpp"
@@ -10,6 +12,7 @@
 #include "slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/libslic3r.h"
 #include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
@@ -134,6 +137,11 @@ void AppMenus::install()
     build_file(m_file);
     build_view(m_view);
     build_help(m_help);
+#ifdef __APPLE__
+    open_about_from(bar->OSXGetAppleMenu());
+#else
+    open_about_from(m_help);
+#endif
 
 #ifndef __APPLE__
     wxMenu* top = m_frame.topbar()->GetTopMenu();
@@ -432,6 +440,24 @@ void AppMenus::build_help(wxMenu* menu)
     items.push_back(separator(menu));
     items.insert(items.end(), stock.begin(), stock.end());
     arrange(menu, items);
+}
+
+// OrcaSlicer's "About JusPrin" item (in Help on Windows and Linux, in the app
+// menu on the Mac) opens JusPrin's About window. OrcaSlicer binds the item on
+// this menu; a handler bound later on the same menu runs first, and
+// on_command does not pass the event on, so OrcaSlicer's About never opens.
+// uninstall unbinds this one, and classic view has OrcaSlicer's back.
+void AppMenus::open_about_from(wxMenu* menu)
+{
+    const int id = stock_item(menu, wxString::Format(_L("&About %s"), SLIC3R_APP_FULL_NAME))->GetId();
+    menu->Bind(wxEVT_MENU, &AppMenus::on_command, this, id);
+    m_bound.emplace_back(menu, id);
+    m_commands.emplace(id, Command{[this] {
+        if (const ShellTheme* theme = brand_theme()) {
+            AboutWindow window(&m_frame, *theme);
+            window.ShowModal();
+        }
+    }});
 }
 
 wxMenu* AppMenus::build_print()

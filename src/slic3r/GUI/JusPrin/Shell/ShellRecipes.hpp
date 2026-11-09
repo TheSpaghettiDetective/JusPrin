@@ -1,6 +1,6 @@
 #pragma once
 
-// The three ways the shell dresses a stock control from the theme: a label, a
+// The ways the shell dresses a stock control from the theme: a label, a
 // text field, and an OrcaSlicer Button. Widgets the shell paints itself
 // (HeaderButton, the swatch cells) read ShellTheme directly; these recipes
 // exist so a wxStaticText or a Button never carries a hand-typed font, radius
@@ -31,5 +31,10 @@ void style_button(Button& button, const ShellTheme& theme, const ShellPalette& p
 // The same geometry recipe with the semantic primary action state table.
 void style_primary_button(Button& button, const ShellTheme& theme, const ShellPalette& palette,
                           const ButtonRecipe& recipe);
+
+// The same geometry recipe as a link (component.button.link): the primary
+// action colour on no fill or border, underlined under the pointer, with the
+// focus ring as its only edge.
+void style_link_button(Button& button, const ShellTheme& theme, const ShellPalette& palette, const ButtonRecipe& recipe);
 
 } // namespace Slic3r::GUI::JusPrin
