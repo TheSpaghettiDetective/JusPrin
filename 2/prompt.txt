@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b7clv4jy5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/990f43ed-8c7b-4152-883b-3f62a28c800c/tasks/b7clv4jy5.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/drop-preset-dirty; export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH; exec perl -e 'setpgrp(0,0); exec @ARGV' cmake --build build/arm64 --config Release --target tool_call_check agent_bridge_tests -- -j2 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/990f43ed-8c7b-4152-883b-3f62a28c800c/scratchpad/build.log 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
