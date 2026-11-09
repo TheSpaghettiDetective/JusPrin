@@ -79,7 +79,7 @@ jobs:
           mkdir -p build/arm64 build/x86_64
           tar -xzf mac_bundles/JusPrin_Mac_bundle_arm64.tar.gz -C build/arm64
           tar -xzf mac_bundles/JusPrin_Mac_bundle_x86_64.tar.gz -C build/x86_64
-          ./build_release_macos.sh -u -x -1 -a universal -t 10.15
+          ./build_release_macos.sh -u -x -j 1 -a universal -t 10.15
 
       # As OrcaSlicer's build_orca.yml loads the certificate, with the secret
       # names JusPrin 1.x used.
