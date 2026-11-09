@@ -354,10 +354,6 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& splash = component.at("splash");
     m.splash.size              = parse_int(splash, "component.splash", "size");
     m.splash.version_top       = parse_int(splash, "component.splash", "versionTop");
-    m.splash.bar_top           = parse_int(splash, "component.splash", "barTop");
-    m.splash.bar_width         = parse_int(splash, "component.splash", "barWidth");
-    m.splash.bar_segment_width = parse_int(splash, "component.splash", "barSegmentWidth");
-    m.splash.bar_sweep_ms      = parse_int(splash, "component.splash", "barSweepMs");
     m.splash.name_left         = parse_int(splash, "component.splash", "nameLeft");
     m.splash.name_top          = parse_int(splash, "component.splash", "nameTop");
     m.splash.name_width        = parse_int(splash, "component.splash", "nameWidth");
@@ -368,8 +364,6 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     m.about.lockup_height    = parse_int(about, "component.about", "lockupHeight");
     m.about.help_label_width = parse_int(about, "component.about", "helpLabelWidth");
     m.about.copied_ms        = parse_int(about, "component.about", "copiedMs");
-
-    m.progress_height = parse_int(component.at("progress"), "component.progress", "height");
     return m;
 }
 

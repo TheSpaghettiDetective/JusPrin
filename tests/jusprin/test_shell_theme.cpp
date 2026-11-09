@@ -217,13 +217,8 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.button.link.height == 26);
     CHECK(m.button.link.padding_x == 4);
     CHECK(m.button.link.text_role == TextRole::LabelBold);
-    CHECK(m.progress_height == 4);
     CHECK(m.splash.size == 480);
     CHECK(m.splash.version_top == 355);
-    CHECK(m.splash.bar_top == 397);
-    CHECK(m.splash.bar_width == 160);
-    CHECK(m.splash.bar_segment_width == 48);
-    CHECK(m.splash.bar_sweep_ms == 1200);
     CHECK(m.splash.name_left == 88);
     CHECK(m.splash.name_top == 248);
     CHECK(m.splash.name_width == 304);

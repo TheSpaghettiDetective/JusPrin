@@ -250,14 +250,14 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
     GUI/JusPrin/Testing/FakeBambuAgent.hpp
-    GUI/JusPrin/Startup/SplashBar.hpp
+    GUI/JusPrin/Startup/SplashAnimation.hpp
     GUI/JusPrin/Startup/SplashWindow.cpp
     GUI/JusPrin/Startup/SplashWindow.hpp
     GUI/JusPrin/Startup/Startup.cpp
     GUI/JusPrin/Startup/Startup.hpp
 )
 if (APPLE)
-    list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashBarMac.mm)
+    list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashAnimationMac.mm)
 endif ()
 
 # Translation catalogs carrying the product name, built from upstream .po files.

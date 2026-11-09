@@ -11,7 +11,7 @@
 #include "libslic3r/Utils.hpp"
 
 #ifdef __APPLE__
-#include "SplashBar.hpp"
+#include "SplashAnimation.hpp"
 #endif
 
 #ifdef __WXGTK__
@@ -95,19 +95,12 @@ void SplashWindow::present()
     m_window->Refresh();
     m_window->Update();
 #ifdef __APPLE__
-    // Added after the paint, so the one commit that sends the moving bar to
-    // the window server carries the painted splash with it.
-    const SplashMetrics& s       = m_theme.metrics().splash;
-    const ShellPalette&  palette = m_theme.palette(GUI_App::dark_mode());
-    const wxRect track((m_window->GetClientSize().GetWidth() - FromDIP(s.bar_width)) / 2, FromDIP(s.bar_top),
-                       FromDIP(s.bar_width), FromDIP(m_theme.metrics().progress_height));
-    // The name first: the paint above leaves it out, and this commit puts it
-    // back on screen together with the paint.
+    // Added after the paint, which leaves the name out, so the one commit that
+    // sends the animation to the window server carries the painted splash
+    // with it.
     const auto animation = boost::filesystem::path(resources_dir()) / "jusprin" / "startup" /
                            (GUI_App::dark_mode() ? "splash-name-dark.webp" : "splash-name-light.webp");
-    add_splash_animation(*m_window, name_box(*this, s), animation.string());
-    add_splash_bar(*m_window, track, FromDIP(s.bar_segment_width), s.bar_sweep_ms, palette.border_subtle,
-                   palette.action_primary);
+    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), animation.string());
 #endif
     wxYield();
 }
