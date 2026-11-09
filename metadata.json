@@ -3,7 +3,7 @@
   "checkpoint_id": "01M6Z9SP8GEZZSG9BKXEFX81EW",
   "strategy": "manual-commit",
   "branch": "claude/drop-preset-dirty",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": null,
   "sessions": [
     {
@@ -12,14 +12,21 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 60,
-    "cache_creation_tokens": 155315,
-    "cache_read_tokens": 4990700,
-    "output_tokens": 18950,
-    "api_call_count": 30,
+    "input_tokens": 602,
+    "cache_creation_tokens": 1157568,
+    "cache_read_tokens": 70535983,
+    "output_tokens": 193533,
+    "api_call_count": 301,
     "subagent_tokens": {
       "input_tokens": 20,
       "cache_creation_tokens": 113157,

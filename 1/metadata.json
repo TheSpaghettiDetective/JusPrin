@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6Z9SP8GEZZSG9BKXEFX81EW",
+  "session_id": "86cda25a-89fc-41e5-bde8-219f5767a3d1",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-09T04:42:02.084324Z",
+  "branch": "claude/drop-preset-dirty",
+  "checkpoints_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "cf7e0f5f54cb",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 542,
+    "cache_creation_tokens": 1002253,
+    "cache_read_tokens": 65545283,
+    "output_tokens": 174583,
+    "api_call_count": 271
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
