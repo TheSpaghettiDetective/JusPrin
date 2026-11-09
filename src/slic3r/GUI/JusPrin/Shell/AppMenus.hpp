@@ -86,6 +86,7 @@ private:
     void build_file(wxMenu* menu);
     void build_view(wxMenu* menu);
     void build_help(wxMenu* menu);
+    void open_about_from(wxMenu* menu);
     wxMenu* build_print();
     wxMenu* build_printer();
     void    fill_open_recent();

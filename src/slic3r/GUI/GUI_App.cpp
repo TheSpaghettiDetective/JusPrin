@@ -230,7 +230,7 @@
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
-#include "JusPrin/Brand/BrandPalette.hpp"
+#include "JusPrin/OrcaHooks.hpp"
 #include "JusPrin/Printers/ConnectionEvents.hpp"
 #include "JusPrin/Testing/FakeBambuAgent.hpp"
 #include "Widgets/Label.hpp"
@@ -3448,7 +3448,7 @@ bool GUI_App::on_init_inner()
 
     // Orca: use wxWeakRef to provent wild pointer.
     wxWeakRef<SplashScreen> scrn = nullptr;
-    if (app_config->get("show_splash_screen") == "true") {
+    if (!JusPrin::startup_begin(*this) && app_config->get("show_splash_screen") == "true") { // JusPrin: its own splash instead
         // Detect position (display) to show the splash screen
         // Now this position is equal to the mainframe position
         wxPoint splashscreen_pos = wxDefaultPosition;

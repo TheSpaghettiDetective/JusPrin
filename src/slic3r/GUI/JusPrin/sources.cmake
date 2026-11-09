@@ -154,6 +154,9 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Canvas/ViewportToolStrip.hpp
     GUI/JusPrin/Canvas/ViewportToolStripLayout.cpp
     GUI/JusPrin/Canvas/ViewportToolStripLayout.hpp
+    GUI/JusPrin/OrcaHooks.hpp
+    GUI/JusPrin/Shell/AboutWindow.cpp
+    GUI/JusPrin/Shell/AboutWindow.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/AppMenus.cpp
@@ -184,6 +187,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Updates/Version.hpp
     GUI/JusPrin/Shell/StatusRow.cpp
     GUI/JusPrin/Shell/StatusRow.hpp
+    GUI/JusPrin/Shell/LucideIcon.cpp
+    GUI/JusPrin/Shell/LucideIcon.hpp
     GUI/JusPrin/Shell/HeaderControls.cpp
     GUI/JusPrin/Shell/HeaderControls.hpp
     GUI/JusPrin/Shell/PrinterFilamentChip.cpp
@@ -245,7 +250,15 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
     GUI/JusPrin/Testing/FakeBambuAgent.hpp
+    GUI/JusPrin/Startup/SplashAnimation.hpp
+    GUI/JusPrin/Startup/SplashWindow.cpp
+    GUI/JusPrin/Startup/SplashWindow.hpp
+    GUI/JusPrin/Startup/Startup.cpp
+    GUI/JusPrin/Startup/Startup.hpp
 )
+if (APPLE)
+    list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashAnimationMac.mm)
+endif ()
 
 # Translation catalogs carrying the product name, built from upstream .po files.
 include(${CMAKE_CURRENT_LIST_DIR}/Brand/catalogs.cmake)

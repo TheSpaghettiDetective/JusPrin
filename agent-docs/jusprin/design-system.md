@@ -84,7 +84,8 @@ Product UI uses fonts already shipped by OrcaSlicer:
 
 HarmonyOS Sans SC draws every digit at the same width, so times, percentages,
 and other values that change in place do not shift in the UI face; they do
-not need the monospace one. The native shell has no monospace text.
+not need the monospace one. In the native shell only the About window's
+build commit uses it, through `ShellTheme::code_font()`.
 
 Never require Menlo or another platform-specific face. The broader marketing brand kit used Avenir Next for display and marketing; that is not the cross-platform product UI requirement.
 
@@ -294,9 +295,10 @@ three small, additive seams plus one attachment point.
      measured 1.29:1 in light mode against white's 9:1, and with the outline
      carrying the selection the override was dropped on 2026-09-21, which
      left `Selection` untouched by the fork again.
-   - The ImGui panels, the canvas selection rectangle, and the About dialog
-     are left alone in source: those surfaces are slated to be hidden or
-     replaced, so editing them would be divergence with no lasting value.
+   - The ImGui panels, the canvas selection rectangle, and OrcaSlicer's
+     About dialog and splash are left alone in source. With the JusPrin view
+     on, `Startup/` shows JusPrin's own splash and `Shell/AboutWindow` takes
+     both "About JusPrin" menu items; classic view keeps OrcaSlicer's two.
    - The mapping table in `BrandPalette.cpp` is the reviewed teal-to-purple
      decision. Extend it there; never add a purple literal to an OrcaSlicer file.
    - Widgets that paint the teal without going through `StateColor` (hyperlinks,
@@ -328,8 +330,8 @@ button recipe must name a type role rather than a raw size.
 
 Known gaps, all deliberate: ImGui panels and canvas notifications keep the
 teal accent; the first-run setup wizard (an OrcaSlicer HTML page) is
-Orca-branded until JusPrin's own onboarding replaces it; the About dialog
-links to the OrcaSlicer website; vendor printer profiles other than the
+Orca-branded until JusPrin's own onboarding replaces it; in classic view the
+About dialog links to the OrcaSlicer website; vendor printer profiles other than the
 generic ones keep their own plate textures; dark mode and the Preview canvas
 were not visually verified.
 

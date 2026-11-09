@@ -98,6 +98,10 @@ def lockup_row(W, H, k, ox, oy, name_fill):
     c = 96 / 118 * k; n = 74.86 / 98 * k
     return (mark_el(c, ox - 32 * c, oy - 2 * c, 'gradient') + '\n'
             + '<path fill="%s" d="%s"/>' % (name_fill, d(NAME, n, ox + 65.56 * k, oy + 10.57 * k + 26 * n)))
+# The splash lockup in its 480x480 box: cone height, name width, the gap
+# between them and the cone's top. splash_animation.py prints the name at
+# the same place.
+SPLASH_STACK = (147.5, 270, 16, 88)
 def lockup_stack(W, H, cone_h, name_w, gap, top, name_fill):
     c = cone_h / 118; n = name_w / 330
     cx = (W - 56 * c) / 2
@@ -136,7 +140,7 @@ if __name__ == '__main__':
     # About lockup 108x125 and splash 480x480, stacked.
     for suf, fill in (('', ORBIT), ('_dark', MIST)):
         write(OVERLAY, 'OrcaSlicer_about%s.svg' % suf, svg(108, 125, lockup_stack(108, 125, 54.6, 100, 6, 17.6, fill)))
-        write(OVERLAY, 'splash_logo%s.svg' % suf, svg(480, 480, lockup_stack(480, 480, 147.5, 270, 16, 88, fill)))
+        write(OVERLAY, 'splash_logo%s.svg' % suf, svg(480, 480, lockup_stack(480, 480, *SPLASH_STACK, fill)))
     # 64x64 marks: grey for message dialogs, 10% grey wizard watermark, colour for OrcaSlicer.svg.
     c = 64 / 120
     write(OVERLAY, 'OrcaSlicer_192px_grayscale.svg', svg(64, 64, mark_el(c, 0, 0, GREY)))

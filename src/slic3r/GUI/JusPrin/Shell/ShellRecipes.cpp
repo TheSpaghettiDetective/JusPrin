@@ -2,6 +2,8 @@
 
 #include "slic3r/GUI/Widgets/Button.hpp"
 
+#include <wx/event.h>
+#include <wx/font.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 
@@ -80,6 +82,37 @@ void style_primary_button(Button& button, const ShellTheme& theme, const ShellPa
     button.SetTextColor(StateColor(
         std::pair(palette.action_disabled_text, int(StateColor::Disabled)),
         std::pair(palette.action_primary_text,  int(StateColor::Normal))));
+}
+
+void style_link_button(Button& button, const ShellTheme& theme, const ShellPalette& palette, const ButtonRecipe& recipe)
+{
+    style_button(button, theme, palette, recipe);
+    // No fill and no border of its own: both take the colour of what the
+    // link sits on, and the border shows only as the focus ring.
+    const wxColour surface = button.GetParent()->GetBackgroundColour();
+    button.SetBackgroundColor(StateColor(std::pair(surface, int(StateColor::Normal))));
+    StateColor border(
+        std::pair(palette.border_focus, int(StateColor::Focused)),
+        std::pair(surface,              int(StateColor::Normal)));
+    border.setTakeFocusedAsHovered(false);
+    button.SetBorderColor(border);
+    button.SetTextColor(StateColor(
+        std::pair(palette.action_disabled_text, int(StateColor::Disabled)),
+        std::pair(palette.action_primary,       int(StateColor::Normal))));
+    // Underlined while the pointer is over it, as Button/Link draws hover.
+    if (!recipe.text_role)
+        return;
+    const wxFont& font = theme.font(*recipe.text_role);
+    button.Bind(wxEVT_ENTER_WINDOW, [&button, font](wxMouseEvent& event) {
+        button.SetFont(font.Underlined());
+        button.Refresh();
+        event.Skip();
+    });
+    button.Bind(wxEVT_LEAVE_WINDOW, [&button, font](wxMouseEvent& event) {
+        button.SetFont(font);
+        button.Refresh();
+        event.Skip();
+    });
 }
 
 } // namespace Slic3r::GUI::JusPrin

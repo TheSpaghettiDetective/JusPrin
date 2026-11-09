@@ -567,6 +567,20 @@
       "width": 560,
       "height": 520
     },
+    "splash": {
+      "size": 480,
+      "versionTop": 355,
+      "nameLeft": 88,
+      "nameTop": 248,
+      "nameWidth": 304,
+      "nameHeight": 88
+    },
+    "about": {
+      "width": 400,
+      "lockupHeight": 43,
+      "helpLabelWidth": 56,
+      "copiedMs": 2000
+    },
     "field": {
       "height": 26,
       "radius": 4,

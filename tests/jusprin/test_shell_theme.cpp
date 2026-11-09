@@ -210,6 +210,23 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.button.primary.text_role == TextRole::BodySmallBold);
     CHECK(m.printer_card.column_width == 320);
     CHECK(m.printer_card.radius == 12);
+
+    CHECK(m.button.secondary_small.height == 28);
+    CHECK(m.button.secondary_small.padding_x == 12);
+    CHECK(m.button.secondary_small.text_role == TextRole::BodySmall);
+    CHECK(m.button.link.height == 26);
+    CHECK(m.button.link.padding_x == 4);
+    CHECK(m.button.link.text_role == TextRole::LabelBold);
+    CHECK(m.splash.size == 480);
+    CHECK(m.splash.version_top == 355);
+    CHECK(m.splash.name_left == 88);
+    CHECK(m.splash.name_top == 248);
+    CHECK(m.splash.name_width == 304);
+    CHECK(m.splash.name_height == 88);
+    CHECK(m.about.width == 400);
+    CHECK(m.about.lockup_height == 43);
+    CHECK(m.about.help_label_width == 56);
+    CHECK(m.about.copied_ms == 2000);
 }
 
 TEST_CASE("the packaged token file yields the documented text roles", "[shell][theme]")
@@ -277,6 +294,13 @@ TEST_CASE("fonts carry the role weight and are built once", "[shell][theme][wx]"
     CHECK(body.GetWeight() == wxFONTWEIGHT_NORMAL);
 
     CHECK(&theme.font(TextRole::Body) == &body);
+
+    // The build's commit hash in the About window reads in a fixed-pitch face.
+    const wxFont& code = theme.code_font();
+    REQUIRE(code.IsOk());
+    CHECK(code.IsFixedWidth());
+    CHECK(code.GetWeight() == wxFONTWEIGHT_NORMAL);
+    CHECK(&theme.code_font() == &code);
 }
 
 // The recipes are how a stock wxStaticText, wxTextCtrl and OrcaSlicer Button
