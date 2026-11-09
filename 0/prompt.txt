@@ -1,0 +1,83 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer (C++/wxWidgets). The `ui-walkthrough` branch (also `main` on GitHub) now includes OrcaSlicer 2.5.0. JusPrin's own version is `Updates::kVersion` = "2.0.0" in `src/slic3r/GUI/JusPrin/Updates/Version.hpp`; OrcaSlicer's is `SoftFever_VERSION` = "2.5.0" and must stay the number written into project files and profile checks. Two things a person sees still show OrcaSlicer's 2.5.0: the startup splash (version text from `GUI_App::format_display_version`) and the About window (`AboutDialog.cpp` ~line 266, plus OrcaSlicer's history paragraphs and its "Copyright(C) 2026 OrcaSlicer Pte Ltd" line). The splash and About logos are already JusPrin's through the image override folder `resources/jusprin/overlay/images/`. The splash is up about 10 to 11 s on Kenneth's Mac (measured from two JusPrin 2 logs: "begin to show the splash screen" to "main frame firstly shown"). Kenneth agreed to the design below in another session ("sounds good", "ok"). Read `AGENTS.md`, `agent-docs/jusprin/fork-stewardship.md` (every line in an OrcaSlicer file needs its rebase evidence) and "Writing UI code" in `agent-docs/jusprin/design-system.md` before starting. Build on the shared Mac with -j4, one build per build directory; use an isolated `--datadir`.
+
+Task:
+Build a JusPrin startup hook, a JusPrin splash and a JusPrin About window, as Kenneth agreed:
+
+1. **One shared fork header for OrcaSlicer's calls into JusPrin**, e.g. `src/slic3r/GUI/JusPrin/OrcaHooks.hpp`. `GUI_App.cpp` gets one JusPrin `#include` and one-line calls marked `// JusPrin:`. Move the existing `JusPrin::apply_brand_palette()` call (end of `GUI_App::init_label_colours`, around line 4597, today via `JusPrin/Brand/BrandPalette.hpp`) under that header. Keep it a separate call: the palette must re-run after every `init_label_colours` (three times at startup, plus each light/dark switch from `MainFrame.cpp` ~2837).
+2. **Startup hook** `JusPrin::startup_begin(*this)`, folded into OrcaSlicer's splash check in `GUI_App::on_init_inner` (around line 3451: after the config and language load near line 3374, before `new SplashScreen`). It returns whether JusPrin showed its own splash, so OrcaSlicer skips its splash without writing `show_splash_screen` to the config file. Classic view is unchanged. The logic lives in fork-owned `src/slic3r/GUI/JusPrin/Startup/`, built so a later startup stage costs one more upstream line.
+3. **JusPrin splash** with a moving indicator, not OrcaSlicer's 8-step percentage, so no further upstream seams. JusPrin's existing shell attach code closes it; no second upstream line. It shows `Updates::kVersion`.
+4. **JusPrin About window, no upstream change.** `AppMenus` (`src/slic3r/GUI/JusPrin/Shell/AppMenus.cpp`, fork-owned) finds both "&About JusPrin" items: Help on Windows/Linux (`MainFrame.cpp` ~2966) and the macOS app menu (`MainFrame.cpp` ~3615, `OSXGetAppleMenu`). It points them at the JusPrin window. The window shows: the lockup, "Version 2.0.0", "Built on OrcaSlicer 2.5.0" (`SoftFever_VERSION`), the build commit, Copy version, jusprin-support@obico.io, Discord https://discord.gg/hsMwGpD and GitHub https://github.com/TheSpaghettiDetective/JusPrin. Its License button opens OrcaSlicer's existing `CopyrightsDialog` (AGPL attribution). Classic view keeps OrcaSlicer's About.
+5. **Design first.** Draw the splash and the About window on the Claude design canvas and get Kenneth's review before writing UI code; every color, font and size comes from the design tokens.
+
+Done means: the boards were reviewed; it is built on Kenneth's Mac, with -j4; and it is checked in the real app with an isolated datadir: first launch, normal launch, classic view, the splash closing on time, and both About items opening the JusPrin window. Windows and Linux compile through the GitHub nightly ("JusPrin nightly" workflow, run by hand). The rebase evidence for each upstream line is written up. Commit to this session's branch; do not push or merge without Kenneth's yes. Rough size: about a day plus the design review.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f472ffe1-987c-41db-a0a9-0bb20cb54657
+
+---
+
+<cross-session-message from="local_f472ffe1-987c-41db-a0a9-0bb20cb54657" from-name="Upstream 2.5.0 rebase testing">
+The development branch is now `jusprin-dev`, so plan to land your splash and About work there instead of `ui-walkthrough`. Kenneth asked for the change today. `origin/jusprin-dev` is at `a61f2a6df1`: `4da9d7beb4`, the `ui-walkthrough` tip your worktree started from, plus one commit that only changes docs (AGENTS.md gains a "Branches" section, and the agent-docs status lines now say `jusprin-dev`). Your branch therefore merges into it with no conflicts from that commit. Nothing else changes for you: still commit to your own branch, and push or merge only when Kenneth says yes.
+</cross-session-message>
+
+---
+
+Yes, no bar there
+
+---
+
+boards are good. use Tx67dHNYH3 for discord invitation code.
+
+---
+
+After it's done and tested, commit and push to jusprin-dev
+
+---
+
+<task-notification>
+<task-id>bpm2ir14q</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-adoring-chatterjee-3ad22d/86cda25a-89fc-41e5-bde8-219f5767a3d1/tasks/bpm2ir14q.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the build to end or fail" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9a56ttl0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-adoring-chatterjee-3ad22d/86cda25a-89fc-41e5-bde8-219f5767a3d1/tasks/b9a56ttl0.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the app stopped at main window creation" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bredquf5d</task-id>
+<tool-use-id>toolu_01SAS19qN4444rZ68DPdKJ8L</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-adoring-chatterjee-3ad22d/86cda25a-89fc-41e5-bde8-219f5767a3d1/tasks/bredquf5d.output</output-file>
+<status>completed</status>
+<summary>Background command "Launch with open and attach lldb as it starts" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9qephoa1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-adoring-chatterjee-3ad22d/86cda25a-89fc-41e5-bde8-219f5767a3d1/tasks/b9qephoa1.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the app and the two token test programs" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0ga0w6gt</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-adoring-chatterjee-3ad22d/86cda25a-89fc-41e5-bde8-219f5767a3d1/tasks/b0ga0w6gt.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the include-what-you-use check on my changed lines" completed (exit code 0)</summary>
+</task-notification>
