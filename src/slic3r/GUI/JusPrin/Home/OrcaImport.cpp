@@ -404,7 +404,8 @@ std::optional<fs::path> orca_account_folder(const ImportApp& app, const fs::path
     if (!configured.empty())
         return user / configured;
     fs::path        newest = user / kDefaultFolder;
-    fs::file_time_type written{};
+    // Not file_time_type{}: libstdc++'s file clock counts from 2174, so every real file time is before it.
+    fs::file_time_type written = fs::file_time_type::min();
     for (const fs::directory_entry& account : fs::directory_iterator(user, error)) {
         for (const fs::directory_entry& item : fs::directory_iterator(account.path() / kPrinterFolder, error)) {
             if (item.path().extension() != ".json")

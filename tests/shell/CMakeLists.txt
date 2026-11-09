@@ -37,7 +37,7 @@ if (SLIC3R_GUI)
     # runtime DLLs that land next to the application. Every other test
     # directory linking a GUI target calls this for the same reason; it is a
     # no-op off Windows.
-    orcaslicer_copy_test_dlls()
+    orcaslicer_copy_test_dlls(shell_integration_harness)
 
     if (APPLE)
         target_sources(shell_integration_harness PRIVATE harness_appearance.mm)

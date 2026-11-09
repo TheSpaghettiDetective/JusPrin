@@ -21,7 +21,7 @@ target_include_directories(setting_display_tests PRIVATE
 )
 target_include_directories(setting_display_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/deps_src)
 target_link_libraries(setting_display_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
-orcaslicer_copy_test_dlls()
+orcaslicer_copy_test_dlls(setting_display_tests)
 orcaslicer_discover_tests(setting_display_tests)
 
 if (SLIC3R_GUI)

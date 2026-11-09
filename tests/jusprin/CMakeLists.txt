@@ -77,7 +77,7 @@ target_include_directories(jusprin_profile_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 target_link_libraries(jusprin_profile_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
-orcaslicer_copy_test_dlls()
+orcaslicer_copy_test_dlls(jusprin_profile_tests)
 orcaslicer_discover_tests(jusprin_profile_tests)
 
 # JusPrin's update check: reading GitHub's release list and the record kept in
@@ -91,7 +91,7 @@ target_include_directories(jusprin_update_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 target_link_libraries(jusprin_update_tests PRIVATE test_common libslic3r Catch2WithMain nlohmann_json)
-orcaslicer_copy_test_dlls()
+orcaslicer_copy_test_dlls(jusprin_update_tests)
 orcaslicer_discover_tests(jusprin_update_tests)
 
 # ShellTheme reads the same token file but hands out wxColour and wxFont, and
@@ -129,6 +129,6 @@ if (SLIC3R_GUI)
     target_link_libraries(jusprin_fake_bambu_tests PRIVATE test_common libslic3r_gui libslic3r Catch2::Catch2WithMain)
     jusprin_copy_python_runtime(jusprin_fake_bambu_tests)
     set_property(TARGET jusprin_fake_bambu_tests PROPERTY FOLDER "tests")
-    orcaslicer_copy_test_dlls()
+    orcaslicer_copy_test_dlls(jusprin_fake_bambu_tests)
     orcaslicer_discover_tests(jusprin_fake_bambu_tests)
 endif()

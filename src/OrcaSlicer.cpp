@@ -3923,6 +3923,8 @@ int CLI::run(int argc, char **argv)
 
             //computing
             ConfigOptionBools* filament_is_support = m_print_config.option<ConfigOptionBools>("filament_is_support", true);
+            // A filament preset loaded as-is may not set filament_diameter, which get_min_flush_volumes() counts the filaments by.
+            m_print_config.option<ConfigOptionFloats>("filament_diameter", true);
 
             const std::vector<int> &min_flush_volumes = Slic3r::GUI::get_min_flush_volumes(m_print_config, 0);
 
