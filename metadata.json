@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6ZBRAR1AC7PSS8GYXVAPF3F",
+  "strategy": "manual-commit",
+  "branch": "claude/splash-name-anim",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "resources/jusprin/ui/design-tokens.json",
+    "tests/brand/test_brand_tokens.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 128,
+    "cache_creation_tokens": 92700,
+    "cache_read_tokens": 15594383,
+    "output_tokens": 57506,
+    "api_call_count": 64
+  }
+}
