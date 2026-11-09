@@ -3,17 +3,27 @@
   "checkpoint_id": "01M6ZEV6YQ4N8CBJ7RC8KGGSMB",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 3,
+  "checkpoints_count": 19,
   "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp",
     "src/slic3r/GUI/JusPrin/Agent/CloudAccount.hpp",
     "src/slic3r/GUI/JusPrin/Agent/CloudSignInMachine.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectPersistence.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderAgent.cpp",
     "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp",
     "src/slic3r/GUI/JusPrin/Home/OrcaHomeBackend.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ServerSheet.cpp",
     "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
     "src/slic3r/GUI/JusPrin/Updates/UpdateCheck.cpp",
     "src/slic3r/GUI/JusPrin/Updates/Version.hpp",
-    "tests/agent/test_cloud_account.cpp"
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.cpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectAutosave.hpp",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.cpp",
+    "tests/agent/test_cloud_account.cpp",
+    "tests/agent/test_project_state.cpp",
+    "tests/workspace/real_adapter_harness.cpp"
   ],
   "sessions": [
     {
@@ -29,20 +39,27 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 558,
-    "cache_creation_tokens": 740325,
-    "cache_read_tokens": 58677597,
-    "output_tokens": 182075,
-    "api_call_count": 279,
+    "input_tokens": 1198,
+    "cache_creation_tokens": 1487059,
+    "cache_read_tokens": 122257639,
+    "output_tokens": 386192,
+    "api_call_count": 600,
     "subagent_tokens": {
-      "input_tokens": 0,
-      "cache_creation_tokens": 0,
-      "cache_read_tokens": 0,
-      "output_tokens": 0,
-      "api_call_count": 0
+      "input_tokens": 8,
+      "cache_creation_tokens": 107034,
+      "cache_read_tokens": 145489,
+      "output_tokens": 25645,
+      "api_call_count": 4
     }
   }
 }
