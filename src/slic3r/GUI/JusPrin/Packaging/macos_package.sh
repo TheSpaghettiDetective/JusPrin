@@ -48,8 +48,29 @@ set_key CFBundleIconFile images/JusPrin.icns
 plutil -lint "${plist}"
 
 if [ "${JUSPRIN_SIGN:-0}" = "1" ]; then
-    codesign --deep --force --verbose --options runtime --timestamp \
-        --entitlements "${entitlements}" --sign "${MACOS_CERTIFICATE_ID}" "${app}"
+    # As OrcaSlicer's build_orca.yml signs: --deep misses the bundled Python
+    # runtime, and notarisation rejects any Mach-O file without the hardened
+    # runtime signature, so each one is signed, then the bundle last.
+    # The main executable is left to the bundle's signature: signed on its
+    # own, codesign checks the jusprin-mcp beside it, which the universal
+    # join left unsigned, and fails with "code object is not signed at all".
+    sign() {
+        codesign --force --options runtime --timestamp --entitlements "${entitlements}" \
+            --sign "${MACOS_CERTIFICATE_ID}" "$@"
+    }
+    main_executable="${app}/Contents/MacOS/$("${buddy}" -c "Print :CFBundleExecutable" "${plist}")"
+    machos=()
+    while IFS= read -r f; do machos+=("$f"); done < <(
+        find "${app}" -type f -print0 |
+            xargs -0 file --no-pad --mime-type -- |
+            grep -v ' (for architecture ' |
+            grep ': application/x-mach-binary$' |
+            sed 's|: application/x-mach-binary$||' |
+            grep -vxF "${main_executable}"
+    )
+    echo "signing ${#machos[@]} Mach-O files in ${app}"
+    sign "${machos[@]}"
+    sign --verbose "${app}"
 else
     codesign --deep --force --sign - "${app}"
 fi
@@ -60,9 +81,16 @@ retry hdiutil create -volname "JusPrin" -srcfolder "${stage}" -ov -format UDZO "
 
 if [ "${JUSPRIN_SIGN:-0}" = "1" ]; then
     codesign --force --verbose --timestamp --sign "${MACOS_CERTIFICATE_ID}" "${dmg}"
-    xcrun notarytool submit "${dmg}" --apple-id "${APPLE_DEV_ACCOUNT}" --team-id "${TEAM_ID}" \
-        --password "${APP_PWD}" --wait
-    xcrun stapler staple "${dmg}"
+    notary=(--apple-id "${APPLE_DEV_ACCOUNT}" --team-id "${TEAM_ID}" --password "${APP_PWD}")
+    # notarytool exits 0 when Apple rejects the image, so read the status and
+    # print Apple's report, which names each file it rejected.
+    result="$(xcrun notarytool submit "${dmg}" "${notary[@]}" --wait --output-format json)"
+    echo "${result}"
+    if [ "$(plutil -extract status raw - <<<"${result}")" != "Accepted" ]; then
+        xcrun notarytool log "$(plutil -extract id raw - <<<"${result}")" "${notary[@]}"
+        exit 1
+    fi
+    retry xcrun stapler staple "${dmg}"
 fi
 
 rm -rf "${work}"
