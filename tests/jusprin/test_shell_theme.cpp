@@ -224,6 +224,10 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.splash.bar_width == 160);
     CHECK(m.splash.bar_segment_width == 48);
     CHECK(m.splash.bar_sweep_ms == 1200);
+    CHECK(m.splash.name_left == 88);
+    CHECK(m.splash.name_top == 248);
+    CHECK(m.splash.name_width == 304);
+    CHECK(m.splash.name_height == 88);
     CHECK(m.about.width == 400);
     CHECK(m.about.lockup_height == 43);
     CHECK(m.about.help_label_width == 56);

@@ -13,7 +13,9 @@ class ShellTheme;
 
 // JusPrin's startup splash while the JusPrin view is on: the stacked lockup,
 // the version, and on the Mac a bar whose segment sweeps back and forth while
-// the app loads. It has no steps or percentage: the main thread is blocked
+// the app loads, and the nozzle printing the name in a loop
+// (resources/jusprin/startup, drawn by Brand/splash_animation.py). It has no
+// steps or percentage: the main thread is blocked
 // through most of startup, so only motion that runs off it (Core Animation)
 // can show; Windows and Linux draw no bar. Drawn on the "JusPrin v2" canvas,
 // page "Splash & About", boards splash-about-01 to 03. Stays open until it is
@@ -46,6 +48,8 @@ private:
     const ShellTheme& m_theme;
     wxBitmap          m_lockup;
     wxWindow*         m_close_with{nullptr};
+    // The Mac animation draws the name, so the paint leaves it out.
+    bool              m_plays_name{false};
 };
 
 } // namespace Slic3r::GUI::JusPrin

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 class wxColour;
 class wxRect;
 class wxWindow;
@@ -14,5 +16,11 @@ namespace Slic3r::GUI::JusPrin {
 // coordinates, from its top-left. macOS only.
 void add_splash_bar(wxWindow& window, const wxRect& track, int segment_width, int sweep_ms,
                     const wxColour& track_colour, const wxColour& segment_colour);
+
+// Plays the animated WebP at webp_path in box, looping, as a Core Animation
+// layer, so like the bar it keeps playing while the main thread is blocked.
+// box is in the window's logical coordinates; the file's frames are scaled to
+// fill it. Throws if the file cannot be read. macOS only.
+void add_splash_animation(wxWindow& window, const wxRect& box, const std::string& webp_path);
 
 } // namespace Slic3r::GUI::JusPrin

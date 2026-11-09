@@ -8,6 +8,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
+#include "libslic3r/Utils.hpp"
 
 #ifdef __APPLE__
 #include "SplashBar.hpp"
@@ -18,6 +19,7 @@
 #include <gtk/gtk.h>
 #endif
 
+#include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <wx/app.h>
@@ -39,6 +41,12 @@ long splash_style()
 #else
     return wxBORDER_NONE | wxFRAME_NO_TASKBAR;
 #endif
+}
+
+// Where the name animation plays, over the lockup's name, in window pixels.
+wxRect name_box(const wxWindow& window, const SplashMetrics& s)
+{
+    return wxRect(window.FromDIP(wxPoint(s.name_left, s.name_top)), window.FromDIP(wxSize(s.name_width, s.name_height)));
 }
 
 } // namespace
@@ -77,6 +85,10 @@ SplashWindow::SplashWindow(const ShellTheme& theme, const wxPoint& pos)
 
 void SplashWindow::present()
 {
+#ifdef __APPLE__
+    // The animation draws the name, so the paint below leaves it out.
+    m_plays_name = true;
+#endif
     Show();
     // Painted now: once this returns, startup blocks the main thread until
     // the main window shows, and nothing paints in between.
@@ -89,6 +101,11 @@ void SplashWindow::present()
     const ShellPalette&  palette = m_theme.palette(GUI_App::dark_mode());
     const wxRect track((m_window->GetClientSize().GetWidth() - FromDIP(s.bar_width)) / 2, FromDIP(s.bar_top),
                        FromDIP(s.bar_width), FromDIP(m_theme.metrics().progress_height));
+    // The name first: the paint above leaves it out, and this commit puts it
+    // back on screen together with the paint.
+    const auto animation = boost::filesystem::path(resources_dir()) / "jusprin" / "startup" /
+                           (GUI_App::dark_mode() ? "splash-name-dark.webp" : "splash-name-light.webp");
+    add_splash_animation(*m_window, name_box(*this, s), animation.string());
     add_splash_bar(*m_window, track, FromDIP(s.bar_segment_width), s.bar_sweep_ms, palette.border_subtle,
                    palette.action_primary);
 #endif
@@ -121,6 +138,11 @@ void SplashWindow::on_paint(wxPaintEvent&)
     dc.Clear();
     if (m_lockup.IsOk())
         dc.DrawBitmap(m_lockup, 0, 0, true);
+    if (m_plays_name) {
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(palette.surface_canvas));
+        dc.DrawRectangle(name_box(*this, m_theme.metrics().splash));
+    }
 
     // The version line's box starts at version_top, the text centred in it.
     dc.SetFont(m_theme.font(TextRole::BodySmall));

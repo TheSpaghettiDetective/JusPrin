@@ -170,7 +170,8 @@ struct PreferencesMetrics { int width{0}; int height{0}; };
 struct OrcaImportMetrics { int width{0}; int height{0}; };
 
 // The startup splash: a square window, the version line's and the bar's top,
-// the bar's track and moving segment, and how long one sweep across takes.
+// the bar's track and moving segment, and how long one sweep across takes;
+// the box the name animation plays in, over the lockup's name.
 struct SplashMetrics
 {
     int size{0};
@@ -179,6 +180,10 @@ struct SplashMetrics
     int bar_width{0};
     int bar_segment_width{0};
     int bar_sweep_ms{0};
+    int name_left{0};
+    int name_top{0};
+    int name_width{0};
+    int name_height{0};
 };
 
 // Help › About JusPrin's window.
