@@ -337,8 +337,10 @@ private:
     wxString m_saved_frame_title;
     // OrcaSlicer's own Calibration menu, off the macOS menu bar while the
     // shell is installed, and where it stood.
+#ifdef __APPLE__
     wxMenu* m_orca_calibration_menu{nullptr};
     int     m_orca_calibration_menu_at{wxNOT_FOUND};
+#endif
     void show_orca_calibration_menu(bool show);
 
     bool m_installed{false};
