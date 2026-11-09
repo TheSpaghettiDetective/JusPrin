@@ -1,0 +1,63 @@
+How many tools do we have in this project? Are all of them exposed as MCP tool?
+
+---
+
+how important is it for us to make sure the tools/mcp tools are as future-proof as possible? any backard compatibility issues you can think of?
+
+---
+
+Yes, test it
+
+---
+
+how about the backward compatibility risk for the app in general? what are the riskiest areas?
+
+---
+
+Not now
+
+---
+
+<!-- reply 2 -->
+> 1. The local project store (high). When someone presses Cmd+S, JusPrin saves a version into jusprin/projects/<id>/ in the app’s data folder, not into the 3MF they opened. That folder holds a HEAD file (format 1), one record per version (format 1), and current-state.json (format 2). Inside that file is the project document (format 1), which holds the chats, tool calls, print records and region labels. Each loader accepts its exact number and nothing else (ProjectStateDocument.cpp:544, ProjectVersionStore.cpp:600).
+> 
+> What the person sees after a format bump: they update, click a recent project, and opening fails with “managed project state is invalid” (ProjectPersistence.cpp:405). The same happens if they go back to an older version. The failure is loud, which is good, but every project is affected.
+> 
+> Two smaller points in the same area:
+> 
+> The store builds its files with OrcaSlicer’s 3MF writer and lays each object out under a name built from Orca’s internal backup number. My guess is that a future upstream release could change that layout, but I haven’t checked whether Orca treats it as stable.
+> A 3MF from someone else that carries an older project document is handled more quietly. The app renames that part to .corrupt and starts the chat history fresh.
+
+Let's look into if the current format is flexible enough so that it can accommodate some foreseeable changes without having to break compatibility.
+
+<!-- reply -->
+> 2. Old apps calling a newer JusPrin server (medium to high).
+
+is a common way to solve this problem to make to version the server API?
+
+---
+
+Yes, do it
+
+---
+
+Are we also going with versioned API or you don't think it's necessary once you have reqeust carry jusprin's own version?
+
+---
+
+<!-- reply 2 -->
+> Proposal (not agreed):
+> 
+> An additive change never bumps the number.
+> A build refuses only a number higher than it knows, and says the project was made by a newer JusPrin.
+> Older numbers get migrated.
+> An unknown state or kind is read as “unknown” and shown plainly, instead of throwing or turning into a wrong value.
+
+There's no reason not to do these, right?
+
+<!-- reply -->
+> Give each store file a loader that upgrades older formats step by step.
+> Have the app refuse a newer format with a message saying the project was made by a newer JusPrin.
+> Commit a project store saved by each release as a test file, with a test that the next build opens it.
+
+Do these overlap with what we planned to do above?
