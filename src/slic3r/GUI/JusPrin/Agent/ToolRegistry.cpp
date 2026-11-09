@@ -955,8 +955,10 @@ std::vector<ToolDefinition> make_definitions()
         {"description", "Not for object. Save the changed preset under this name, as the app's Save does: its own name "
                         "overwrites it; another name saves a copy, which is used in its place from then on. A preset that "
                         "comes with the app cannot be overwritten (read_only_preset): save a copy, under the name the "
-                        "issue suggests unless the user gave one. Without persistAs a change stays unsaved, which only the "
-                        "preset being edited can be."}};
+                        "issue suggests unless the user gave one. Without persistAs the change is part of this project: it "
+                        "is kept with the project and used when it slices, and the person has nothing to save. Save a "
+                        "preset only when the person wants these settings for other projects, or your instructions say "
+                        "to. A preset other than the one being edited changes only by being saved."}};
     const json patch_output = settings_output({{"valid", boolean_schema()}, {"changes", array_schema(change)},
         {"dependencies", array_schema(change)}, {"issues", array_schema(issue)}, {"warnings", array_schema(issue)}},
         {"valid", "changes", "dependencies", "issues", "warnings"});
@@ -1051,13 +1053,13 @@ std::vector<ToolDefinition> make_definitions()
          patch_output,
          ActionClass::ReadOnly, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsPreviewPatch},
         {"settings_apply_patch", "Change settings",
-         "Apply an atomic settings patch immediately. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as.",
+         "Apply an atomic settings patch immediately. Requires the sessionId and revision from a preview of the same scope, target, changes and persistAs; edits to the model since that preview do not matter, a settings change does. A process, filament or printer change is not undone by project Undo; an object override is. With persistAs the preset is saved as well, and savedAs names what it was saved as; without it the change is kept with the project.",
          object_schema({{"scope", settings_scope}, {"target", settings_target}, {"changes", changes_input}, {"persistAs", persist_as},
                         {"expectedSessionId", id}, {"expectedRevision", revision}},
                        {"scope", "changes", "expectedSessionId", "expectedRevision"}),
          settings_output({{"applied", boolean_schema()}, {"changes", array_schema(change)}, {"normalized", array_schema(id)},
-             {"savedAs", string_schema()}, {"presetDirty", boolean_schema()}, {"projectUndo", boolean_schema()}},
-             {"applied", "changes", "normalized", "savedAs", "presetDirty", "projectUndo"}),
+             {"savedAs", string_schema()}, {"projectUndo", boolean_schema()}},
+             {"applied", "changes", "normalized", "savedAs", "projectUndo"}),
          ActionClass::Mutation, ToolExposure::InApp | ToolExposure::Mcp, ToolAvailability::Always, ToolHandler::SettingsApplyPatch},
         {"setup_record", "Record what this print is for and how to print it",
          // In-app only: the records are the chat's own, the title and plan of

@@ -155,7 +155,6 @@ json settings_apply_result(const Workspace::SettingsPreview& applied, Workspace:
             result["normalized"].push_back(issue.key);
         }
     result["savedAs"] = label(applied.saved_as, truncated);
-    result["presetDirty"] = applied.preset_dirty;
     result["projectUndo"] = scope == Workspace::SettingsScope::Object;
     result["truncated"] = truncated;
     return result;

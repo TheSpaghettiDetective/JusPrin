@@ -1080,7 +1080,7 @@ class SavedPrinterCase:
         if issues:
             return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
         return {**context, "applied": True, "changes": changes, "normalized": [],
-                "savedAs": persist or "", "presetDirty": persist is None,
+                "savedAs": persist or "",
                 "projectUndo": arguments.get("scope") == "object", "truncated": False}, False
 
     def applied(self):
@@ -1731,7 +1731,7 @@ class FilamentCase:
         if issues:
             return {"error": {"code": issues[0]["code"], "message": issues[0]["message"]}}, False
         return {**context, "applied": True, "changes": changes, "normalized": [],
-                "savedAs": persist or "", "presetDirty": persist is None,
+                "savedAs": persist or "",
                 "projectUndo": False, "truncated": False}, False
 
     def called(self, *names):

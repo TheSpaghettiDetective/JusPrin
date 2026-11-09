@@ -231,7 +231,7 @@ TEST_CASE("Settings tools share terminal activities across adapters and return a
     REQUIRE(result["applied"] == true);
     REQUIRE(result["changes"].size() == 2);
     REQUIRE(result["projectUndo"] == false);
-    REQUIRE(result["presetDirty"] == true);
+    REQUIRE_FALSE(result.contains("presetDirty"));
     REQUIRE(result["scope"] == "process");
     REQUIRE(result["presetName"] == "Fixture process");
     REQUIRE(result["savedAs"] == "");
@@ -1855,7 +1855,6 @@ TEST_CASE("a printer preset OrcaSlicer ships is saved as a copy, which is used i
     const auto applied = json::parse(h.coordinator.find(pending.action_id)->result_json);
     CHECK(registry.validate_output(*registry.find("settings_apply_patch"), applied));
     CHECK(applied["savedAs"] == "Fixture printer - Copy");
-    CHECK(applied["presetDirty"] == false);
     CHECK(applied["projectUndo"] == false);
 
     auto& fixture = h.workspace.settings_for_testing();

@@ -788,7 +788,13 @@ tool may change), and before you add any tool that changes a preset.
 9. Every result repeats the validated `scope`, and gives the `presetName` of
    the preset the settings belong to (for an object, the process preset),
    the `sessionId`, and the `revision`. An apply also returns `savedAs`,
-   which is the name it saved under or empty, and `presetDirty`.
+   which is the name it saved under or empty. It does not say whether the
+   preset is left with unsaved edits, because JusPrin does not show people
+   that state. Until 2026-11-08 it returned `presetDirty`; replaying the
+   `direct-change-applied` prompt test on DeepSeek V4 Flash, the reply
+   called the change unsaved in 3 of 10 runs with it and 1 of 9 without.
+   With `persistAs` also describing a change without it as kept with the
+   project, 0 of 9 did.
 10. When a preview finds invalid settings, the call still succeeds, with
    `valid: false`. Malformed input is a tool error.
 11. In JSON, every value is a string in OrcaSlicer's canonical serialization.
