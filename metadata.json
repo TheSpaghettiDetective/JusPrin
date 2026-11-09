@@ -3,7 +3,7 @@
   "checkpoint_id": "01M70Y5HJEJ6S1JTP18MX70QEG",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Shell/ShellController.hpp"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 894,
-    "cache_creation_tokens": 1749123,
-    "cache_read_tokens": 100203156,
-    "output_tokens": 387602,
-    "api_call_count": 447
+    "input_tokens": 918,
+    "cache_creation_tokens": 1806656,
+    "cache_read_tokens": 102508788,
+    "output_tokens": 392781,
+    "api_call_count": 459
   }
 }
