@@ -6,6 +6,7 @@
 #include "slic3r/GUI/Jobs/OAuthJob.hpp"
 #include "slic3r/GUI/Jobs/ProgressIndicator.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/Utils/Http.hpp"
 
 #include <boost/log/trivial.hpp>
@@ -136,6 +137,7 @@ CloudAccountDeps make_cloud_account_deps()
     deps.get = [](const std::string& url, const std::string& token, std::function<void(CloudHttpResult)> done) {
         auto http = Slic3r::Http::get(url);
         http.header("Authorization", "Bearer " + token)
+            .header("User-Agent", Updates::user_agent())
             .header("Accept", "application/json")
             .tls_verify(true)
             .timeout_connect(10)
@@ -152,7 +154,8 @@ CloudAccountDeps make_cloud_account_deps()
         auto http = Slic3r::Http::post(url);
         if (!session.empty())
             http.header("X-Session-Token", session);
-        http.header("Content-Type", "application/json")
+        http.header("User-Agent", Updates::user_agent())
+            .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .set_post_body(body)
             .tls_verify(true)
@@ -169,7 +172,8 @@ CloudAccountDeps make_cloud_account_deps()
     };
     deps.revoke = [](const std::string& url, const std::string& client_id, const std::string& token) {
         auto http = Slic3r::Http::post(url);
-        http.form_add("token", token)
+        http.header("User-Agent", Updates::user_agent())
+            .form_add("token", token)
             .form_add("client_id", client_id)
             .timeout_connect(10)
             .timeout_max(30)

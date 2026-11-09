@@ -1334,6 +1334,7 @@ void OrcaHomeBackend::send_print_report(const PrintReportForm& form, std::functi
     };
     Http::post(Agent::cloud_print_reports_url(config))
         .header("Authorization", "Bearer " + Agent::cloud_account_token(config))
+        .header("User-Agent", Updates::user_agent())
         .form_add("gcode_hash", form.hash)
         .form_add("outcome", form.outcome)
         .form_add("text", form.text)
@@ -1354,7 +1355,7 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
     if (m_project_opening)
         m_project_opening();
     if (!m_autosave->open_managed_project(project_id)) {
-        wxMessageBox(_L("The project couldn't be opened. Try again."), _L("Couldn't open project"), wxOK | wxICON_ERROR, &m_frame);
+        wxMessageBox(m_autosave->open_failure(), _L("Couldn't open project"), wxOK | wxICON_ERROR, &m_frame);
         return;
     }
     complete_onboarding();

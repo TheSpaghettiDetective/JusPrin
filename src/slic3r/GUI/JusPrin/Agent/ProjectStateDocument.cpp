@@ -45,7 +45,9 @@ MessageState message_state_from(const std::string& name)
     return MessageState::Complete;
 }
 
-ToolState tool_state_from(const std::string& name)
+// Nothing for a state a newer build added (StoredFormat.hpp: a new value
+// keeps the format number).
+std::optional<ToolState> tool_state_from(const std::string& name)
 {
     if (name == "succeeded")
         return ToolState::Succeeded;
@@ -55,7 +57,7 @@ ToolState tool_state_from(const std::string& name)
         return ToolState::Cancelled;
     if (name == "running")
         return ToolState::Running;
-    throw std::invalid_argument("Unknown tool activity state");
+    return std::nullopt;
 }
 
 const char* action_class_name(ActionClass action_class)
@@ -364,13 +366,17 @@ void write_activity_fields(json& entry, const ToolActivity& activity)
         entry["approves"] = activity.approves;
 }
 
-ToolActivity read_activity(const json& entry)
+// Nothing for an action whose state or source a newer build added: this build
+// cannot say how it ended, so it neither shows it nor changes it.
+std::optional<ToolActivity> read_activity(const json& entry)
 {
+    const std::optional<ToolState> state = tool_state_from(entry.value("state", "running"));
+    const std::string source = entry.at("source").get<std::string>();
+    if (!state || (source != "mcp" && source != "agent"))
+        return std::nullopt;
     ToolActivity activity;
     activity.action_id         = entry.value("actionId", "");
     activity.correlation_id    = entry.value("correlationId", "");
-    const auto source = entry.at("source").get<std::string>();
-    if (source != "mcp" && source != "agent") throw std::invalid_argument("Unknown tool activity source");
     activity.source = source == "mcp" ? ToolSource::Mcp : ToolSource::Agent;
     activity.call_id           = entry.value("callId", "");
     activity.server            = entry.value("server", "");
@@ -384,7 +390,7 @@ ToolActivity read_activity(const json& entry)
         activity.session = 0;
     }
     activity.expected_revision = entry.value("expectedRevision", std::uint64_t(0));
-    activity.state             = tool_state_from(entry.value("state", "running"));
+    activity.state             = *state;
     if (entry.contains("progress") && entry["progress"].is_object()) {
         activity.progress_current = entry["progress"].value("current", 0);
         activity.progress_total   = entry["progress"].value("total", 1);
@@ -400,7 +406,7 @@ ToolActivity read_activity(const json& entry)
 
 json fresh_document()
 {
-    return json{{"schemaVersion", ProjectStateDocument::kSchemaVersion},
+    return json{{"schemaVersion", ProjectStateDocument::format().current()},
                 {"docRevision", std::uint64_t(0)},
                 {"project", json{{"projectId", ""}, {"lineageId", ""}, {"createdAt", ""}}},
                 {"counters", json{{"nextSeq", std::uint64_t(1)}, {"nextMessage", std::uint64_t(1)},
@@ -533,20 +539,21 @@ void from_json(const json& entry, RecordItem& item)
 
 ProjectStateDocument::ProjectStateDocument() : m_doc(fresh_document()) {}
 
+const Workspace::StoredFormat& ProjectStateDocument::format()
+{
+    static const Workspace::StoredFormat document{"schemaVersion", 1, {}};
+    return document;
+}
+
 ProjectStateDocument::LoadResult ProjectStateDocument::load(const std::string& json_text)
 {
     json parsed = json::parse(json_text, nullptr, false);
-    if (parsed.is_discarded() || !parsed.is_object() || !parsed.contains("schemaVersion") ||
-        !parsed["schemaVersion"].is_number_integer()) {
+    const Workspace::StoredFormat::Check check = format().upgrade(parsed);
+    if (check != Workspace::StoredFormat::Check::Readable) {
+        // A newer document is not read, so nothing a newer build wrote can
+        // be edited here with its meaning dropped.
         m_doc = fresh_document();
-        return LoadResult::Corrupt;
-    }
-    if (parsed["schemaVersion"].get<int>() != kSchemaVersion) {
-        // There is one schema and no migration: the project is not live yet.
-        // Another version's document is not read, so nothing written by a
-        // different build can be edited with its meaning silently dropped.
-        m_doc = fresh_document();
-        return LoadResult::Corrupt;
+        return check == Workspace::StoredFormat::Check::Newer ? LoadResult::Newer : LoadResult::Corrupt;
     }
     m_doc = std::move(parsed);
     // Sent events and physical prints were replaced by the G-code record
@@ -1006,7 +1013,8 @@ std::vector<ToolActivity> ProjectStateDocument::activities() const
 {
     std::vector<ToolActivity> result;
     for (const json& entry : m_doc["toolActivities"])
-        result.push_back(read_activity(entry));
+        if (std::optional<ToolActivity> activity = read_activity(entry))
+            result.push_back(std::move(*activity));
     return result;
 }
 
@@ -1465,8 +1473,9 @@ bool ProjectStateDocument::normalize_interrupted_state()
                 changed        = true;
             }
     for (json& entry : m_doc["toolActivities"]) {
-        const ToolState state = tool_state_from(entry.value("state", "running"));
-        if (!tool_state_terminal(state)) {
+        // A state a newer build added is its to judge.
+        const std::optional<ToolState> state = tool_state_from(entry.value("state", "running"));
+        if (state && !tool_state_terminal(*state)) {
             entry["state"] = "cancelled";
             changed        = true;
         }

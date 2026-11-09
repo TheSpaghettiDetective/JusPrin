@@ -2342,6 +2342,7 @@ private:
         check(restore_dialogs.titles.empty(), "managed_mesh_checkpoint_restore_shows_no_dialog");
         restore_dialogs.print("CHECKPOINT_RESTORE_DIALOGS");
         verify_unknown_preset_checkpoint(*autosave);
+        verify_released_project_store(*autosave);
         verify_slice_failure();
     }
 
@@ -2466,6 +2467,57 @@ private:
         check(selected_filament() == opened_name, "unknown_preset_reopen_keeps_name");
         const Preset& reopened = m_app.preset_bundle->filaments.get_selected_preset();
         check(reopened.is_project_embedded && reopened.inherits().empty(), "unknown_preset_reopened_still_has_no_parent");
+    }
+
+    // tests/data/jusprin_project_store holds one project each released build
+    // saved. This build opens every one: a change to the store's files that
+    // an older project would fail needs a step that upgrades it
+    // (StoredFormat.hpp). A project a newer build saved is refused with the
+    // update message, and the open project stays open.
+    void verify_released_project_store(ProjectAutosave& autosave)
+    {
+        namespace stdfs = std::filesystem;
+        const auto projects = autosave.projects().value_or(std::vector<ProjectAutosave::ManagedProject>{});
+        check(!projects.empty(), "released_store_root_found");
+        if (projects.empty())
+            return;
+        const stdfs::path root  = stdfs::u8path(projects.front().store_path).parent_path();
+        const std::string start = Slic3r::GUI::JusPrin::installed_shell()->persistence()->document().project_id();
+        const stdfs::path releases = stdfs::path(JUSPRIN_SOURCE_DIR) / "tests" / "data" / "jusprin_project_store";
+        for (const auto& release : stdfs::directory_iterator(releases)) {
+            if (!release.is_directory())
+                continue;
+            const std::string name = release.path().filename().string();
+            for (const auto& saved : stdfs::directory_iterator(release.path())) {
+                const std::string id = saved.path().filename().string();
+                stdfs::remove_all(root / id);
+                stdfs::copy(saved.path(), root / id, stdfs::copy_options::recursive);
+                ShownDialogs dialogs;
+                dialogs.Register();
+                const bool opened = autosave.open_managed_project(id);
+                dialogs.Unregister();
+                dialogs.print("RELEASED_STORE_DIALOGS");
+                check(opened, "released_store_" + name + "_opens");
+                check(dialogs.titles.empty(), "released_store_" + name + "_opens_without_dialog");
+                check(m_plater->model().objects.size() == 1, "released_store_" + name + "_model_loaded");
+                const auto& document = Slic3r::GUI::JusPrin::installed_shell()->persistence()->document();
+                check(document.project_id() == id, "released_store_" + name + "_document_loaded");
+                check(!document.messages(document.active_conversation_id()).empty(),
+                      "released_store_" + name + "_chat_loaded");
+                check(autosave.open_managed_project(start), "released_store_" + name + "_left");
+
+                const stdfs::path head = root / id / "HEAD";
+                nlohmann::json index = nlohmann::json::parse(std::ifstream(head));
+                index["schema"] = index["schema"].get<int>() + 1;
+                std::ofstream(head, std::ios::trunc) << index.dump();
+                check(!autosave.open_managed_project(id), "released_store_" + name + "_newer_refused");
+                check(autosave.open_failure().ToStdString().find("newer version of JusPrin") != std::string::npos,
+                      "released_store_" + name + "_newer_says_update");
+                check(Slic3r::GUI::JusPrin::installed_shell()->persistence()->document().project_id() == start,
+                      "released_store_" + name + "_newer_keeps_open_project");
+                stdfs::remove_all(root / id);
+            }
+        }
     }
 
     // The saved project holding `version`, or nothing.

@@ -82,6 +82,18 @@ std::string cloud_server_from_gateway(const std::string& gateway)
     return path == std::string::npos ? gateway : gateway.substr(0, path);
 }
 
+std::optional<AgentError> update_required(unsigned status, const std::string& body)
+{
+    if (status != 426)
+        return std::nullopt;
+    const json        answer  = json::parse(body, nullptr, false);
+    const std::string message = answer.is_object() && answer.contains("error") && answer["error"].is_object() ?
+                                    answer["error"].value("message", std::string()) : std::string();
+    return AgentError{"update_required",
+                      message.empty() ? "This version of JusPrin is no longer supported. Update JusPrin to keep using it." : message,
+                      false};
+}
+
 CloudSignIn::CloudSignIn(std::string server, std::string gateway, std::string default_model, CloudAccountDeps deps,
                          CloudAccountStore store, AgentFactory agents)
     : m_server(std::move(server)), m_gateway(std::move(gateway)), m_default_model(std::move(default_model)),
@@ -270,6 +282,8 @@ std::optional<CloudSignInOutcome> CloudSignIn::answered(CloudHttpResult http)
         begin_check(token);
         return std::nullopt;
     }
+    if (const std::optional<AgentError> outdated = update_required(http.status, http.body))
+        return failed(outdated->code, outdated->message, outdated->retryable);
     if (http.status == 400 && m_asked == "code/request" && errors("too_many_login_attempts"))
         m_email.refusal = "too_many_codes";
     else if (http.status == 400 && m_asked == "code/confirm" && errors("incorrect_code"))
@@ -338,6 +352,8 @@ std::optional<CloudSignInOutcome> CloudSignIn::finish_check()
         outcome.kind = CloudSignInOutcome::Kind::Expired;
         return outcome;
     }
+    if (const std::optional<AgentError> outdated = update_required(models.status, models.body))
+        return failed(outdated->code, outdated->message, outdated->retryable);
     const json who_json    = json::parse(who.body, nullptr, false);
     const json models_json = json::parse(models.body, nullptr, false);
     if (who.status != 200 || models.status != 200 || !who_json.is_object() || !models_json.is_object() ||

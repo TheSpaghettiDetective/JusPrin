@@ -304,10 +304,11 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
 
     ProjectStateDocument loaded;
     const ProjectStateDocument::LoadResult result = loaded.load(state_text);
-    if (result == ProjectStateDocument::LoadResult::Corrupt) {
-        // Keep the unreadable file for inspection, then start over.
+    if (result != ProjectStateDocument::LoadResult::Loaded) {
+        // Keep the file it cannot read, broken or from a newer JusPrin, for
+        // inspection, then start over: the model opens with a new chat history.
         std::error_code ec;
-        fs::rename(legacy_state, legacy_state.string() + ".corrupt", ec);
+        fs::rename(legacy_state, legacy_state.string() + (result == ProjectStateDocument::LoadResult::Newer ? ".newer" : ".corrupt"), ec);
         start_fresh_identity();
         return;
     }
@@ -402,7 +403,10 @@ void ProjectPersistence::adopt_managed_state(const std::string& state)
     if (m_config.managed_root.empty())
         throw std::logic_error("managed state requires a local project store");
     ProjectStateDocument loaded;
-    if (loaded.load(state) == ProjectStateDocument::LoadResult::Corrupt || !loaded.has_identity())
+    const ProjectStateDocument::LoadResult result = loaded.load(state);
+    if (result == ProjectStateDocument::LoadResult::Newer)
+        throw Workspace::NewerFormatError("the project was saved by a newer version of the app");
+    if (result != ProjectStateDocument::LoadResult::Loaded || !loaded.has_identity())
         throw std::runtime_error("managed project state is invalid");
     loaded.normalize_interrupted_state();
     m_document = std::move(loaded);
@@ -426,7 +430,7 @@ void ProjectPersistence::record_managed_restore(const std::string& current_state
     if (m_config.managed_root.empty())
         throw std::logic_error("model restore requires a managed project document");
     ProjectStateDocument current;
-    if (current.load(current_state) == ProjectStateDocument::LoadResult::Corrupt || !current.has_identity())
+    if (current.load(current_state) != ProjectStateDocument::LoadResult::Loaded || !current.has_identity())
         throw std::runtime_error("current project document is invalid during model restore");
     current.normalize_interrupted_state();
     ChangeEntry change;
@@ -456,7 +460,7 @@ void ProjectPersistence::record_chat_restore(const std::string& current_state,
     if (m_config.managed_root.empty())
         throw std::logic_error("chat restore requires a managed project document");
     ProjectStateDocument current;
-    if (current.load(current_state) == ProjectStateDocument::LoadResult::Corrupt || !current.has_identity())
+    if (current.load(current_state) != ProjectStateDocument::LoadResult::Loaded || !current.has_identity())
         throw std::runtime_error("chat checkpoint is unavailable during restore");
     const auto checkpoint = current.chat_checkpoint(conversation_id);
     if (!checkpoint || checkpoint->value("versionId", "") != selected_version)

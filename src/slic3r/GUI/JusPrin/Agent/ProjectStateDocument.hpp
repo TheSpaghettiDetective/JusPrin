@@ -15,6 +15,7 @@
 #include "AgentProtocol.hpp"
 #include "ManufacturingHistory.hpp"
 #include "ToolExecution.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/StoredFormat.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 
 #include <nlohmann/json.hpp>
@@ -222,15 +223,18 @@ struct PlanRecord
 class ProjectStateDocument
 {
 public:
-    // One schema, no migration (the project is not live yet).
-    static constexpr int kSchemaVersion = 1;
+    // The document's format number, and the steps that upgrade an older
+    // document; Workspace/StoredFormat.hpp says when the number changes.
+    static const Workspace::StoredFormat& format();
 
-    enum class LoadResult { Loaded, Corrupt };
+    enum class LoadResult { Loaded, Corrupt, Newer };
 
     ProjectStateDocument();
 
-    // Corrupt input, or a document of another schema version, keeps a fresh
-    // empty document; the caller decides whether to adopt a new identity.
+    // An older document is upgraded as it loads. Corrupt input, a document
+    // older than this build reads, and Newer, a document a newer JusPrin
+    // wrote, keep a fresh empty document; the caller decides whether to
+    // adopt a new identity.
     LoadResult load(const std::string& json_text);
     std::string dump() const;
 

@@ -7,6 +7,7 @@
 // place a provider's name decides anything.
 
 #include "AgentTransport.hpp"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 
 #include <optional>
 #include <stdexcept>
@@ -68,8 +69,9 @@ inline const std::vector<ProviderProfile>& provider_profiles()
         // The server the account signs in to is derived from this endpoint.
         // It is JusPrin's host, not Obico's: the server decides by host which
         // brand's accounts a sign-in uses, and JusPrin's are its own.
+        // User-Agent names this JusPrin release to the server.
         {"jusprin", ProviderFamily::Responses, "https://jusprinv2.obico.io/ent/jusprin/v2/responses", AuthStyle::Bearer,
-         "slicer-1", "JusPrin", {}, 64000, {}, true},
+         "slicer-1", "JusPrin", {{"User-Agent", Updates::user_agent()}}, 64000, {}, true},
         {"openai", ProviderFamily::Responses, "https://api.openai.com/v1/responses", AuthStyle::Bearer, "gpt-5.4-mini", "OpenAI", {}, 0},
         // OpenRouter serves the Responses API. The default is the model the
         // OpenAI row uses, so the behaviour is the one already evaluated.

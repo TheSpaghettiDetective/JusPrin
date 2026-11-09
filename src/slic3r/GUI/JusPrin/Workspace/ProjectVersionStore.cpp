@@ -1,4 +1,5 @@
 #include "ProjectVersionStore.hpp"
+#include "StoredFormat.hpp"
 
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/miniz_extension.hpp"
@@ -37,6 +38,22 @@ void require(bool condition, const std::string& what)
 {
     if (!condition)
         throw std::runtime_error(what);
+}
+
+// The store's files and their format numbers; StoredFormat.hpp says when one
+// changes. No released build wrote a current-state.json of format 1.
+const StoredFormat kHeadFormat{"schema", 1, {}};
+const StoredFormat kManifestFormat{"schema", 1, {}};
+const StoredFormat kCurrentStateFormat{"schema", 2, {}};
+const StoredFormat kOperationFormat{"schema", 1, {}};
+
+// Brings a file read from the store to this build's format.
+void read_format(const StoredFormat& format, json& value, const std::string& what)
+{
+    const StoredFormat::Check check = format.upgrade(value);
+    if (check == StoredFormat::Check::Newer)
+        throw NewerFormatError("the project was saved by a newer version of the app (its " + what + ")");
+    require(check == StoredFormat::Check::Readable, "unsupported " + what);
 }
 
 bool safe_component(const std::string& value)
@@ -335,7 +352,7 @@ json version_json(const ProjectVersionStore::Version& version)
     for (const auto& object : version.objects)
         objects.push_back({{"objectId", object.object_id}, {"backupId", object.backup_id}, {"facets", object.facets}, {"entry", object.entry},
                            {"resource", object.resource.id}, {"resourceEntry", object.resource.entry}});
-    return {{"schema", 1}, {"id", version.id}, {"revision", version.revision},
+    return {{"schema", kManifestFormat.current()}, {"id", version.id}, {"revision", version.revision},
             {"changeSeq", version.change_seq},
             {"createdAt", version.created_at}, {"sourcePath", version.source_path},
             {"projectName", version.project_name}, {"openedFrom", version.opened_from},
@@ -344,9 +361,9 @@ json version_json(const ProjectVersionStore::Version& version)
 
 ProjectVersionStore::Version parse_version(const std::string& text)
 {
-    const json value = json::parse(text);
-    require(value.is_object() && value.value("schema", 0) == 1 && value.contains("objects") && value["objects"].is_array(),
-            "unsupported project version manifest");
+    json value = json::parse(text);
+    read_format(kManifestFormat, value, "project version manifest");
+    require(value.contains("objects") && value["objects"].is_array(), "unsupported project version manifest");
     ProjectVersionStore::Version version;
     version.id = value.at("id").get<std::string>();
     version.revision = value.at("revision").get<std::uint64_t>();
@@ -596,9 +613,9 @@ fs::path ProjectVersionStore::pending_metadata_path(const std::string& id)
 void ProjectVersionStore::load_head()
 {
     if (fs::exists(m_root / "HEAD")) {
-        const json value = json::parse(read_file(m_root / "HEAD"));
-        require(value.is_object() && value.value("schema", 0) == 1 && value.contains("versions") &&
-                value["versions"].is_array(), "unsupported current-version index");
+        json value = json::parse(read_file(m_root / "HEAD"));
+        read_format(kHeadFormat, value, "current-version index");
+        require(value.contains("versions") && value["versions"].is_array(), "unsupported current-version index");
         m_head_id = value.at("current").get<std::string>();
         std::set<std::string> seen;
         for (const json& item : value["versions"]) {
@@ -619,8 +636,9 @@ void ProjectVersionStore::load_head()
             m_last_resources[object.object_id] = object;
     }
     if (fs::exists(m_root / "current-state.json")) {
-        const json current = json::parse(read_file(m_root / "current-state.json"));
-        require(current.is_object() && current.value("schema", 0) == 2 && current.contains("state") &&
+        json current = json::parse(read_file(m_root / "current-state.json"));
+        read_format(kCurrentStateFormat, current, "current project document index");
+        require(current.contains("state") &&
                 current["state"].is_object() && current["state"].contains("project") &&
                 current["state"]["project"].is_object(), "current project document index is invalid");
         require(current["state"]["project"].value("projectId", std::string()) == m_project_id,
@@ -796,7 +814,7 @@ void ProjectVersionStore::publish(Capture capture)
     std::string next_digest = archive_digest(version_dir(capture.version.id) / "metadata.3mf");
     Version committed_version = parse_version(manifest);
     checked_write(m_root / "HEAD.pending",
-                  json{{"schema", 1}, {"current", capture.version.id}, {"versions", committed}}.dump());
+                  json{{"schema", kHeadFormat.current()}, {"current", capture.version.id}, {"versions", committed}}.dump());
     replace_file(m_root / "HEAD.pending", m_root / "HEAD");
     m_committed_ids.swap(committed);
     m_history.push_back(std::move(committed_version));
@@ -824,7 +842,7 @@ void ProjectVersionStore::publish_document(std::string semantic_state)
     create_on_first_write();
     validate_attachments(m_root, semantic_state);
     checked_write(m_root / "current-state.pending",
-                  json{{"schema", 2}, {"state", state}}.dump());
+                  json{{"schema", kCurrentStateFormat.current()}, {"state", state}}.dump());
     atomic_replace(m_root / "current-state.pending", m_root / "current-state.json");
     m_last_semantic_state = std::move(semantic_state);
     m_document_durable = true;
@@ -906,7 +924,7 @@ void ProjectVersionStore::record_operation(const std::string& action_id, const s
     const fs::path file = directory / (action_id + ".json");
     require(!fs::exists(file), "operation version record already exists");
     const fs::path staged = directory / (action_id + ".pending");
-    checked_write(staged, json{{"schema", 1}, {"actionId", action_id}, {"tool", tool},
+    checked_write(staged, json{{"schema", kOperationFormat.current()}, {"actionId", action_id}, {"tool", tool},
                                {"outcome", outcome}, {"before", before}, {"after", after}}.dump(2));
     atomic_replace(staged, file);
 }
@@ -972,7 +990,7 @@ void ProjectVersionStore::prune(std::size_t max_versions, std::uintmax_t max_byt
         // Publish reachability before deleting files. A crash after this point
         // leaves only orphaned data, which recover_uncommitted() can remove.
         checked_write(m_root / "HEAD.pending",
-                      json{{"schema", 1}, {"current", m_head_id}, {"versions", committed}}.dump());
+                      json{{"schema", kHeadFormat.current()}, {"current", m_head_id}, {"versions", committed}}.dump());
         atomic_replace(m_root / "HEAD.pending", m_root / "HEAD");
         m_committed_ids.swap(committed);
         m_history = versions;

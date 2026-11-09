@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <wx/string.h>
+
 namespace Slic3r::GUI {
 class Plater;
 }
@@ -98,6 +100,8 @@ public:
     // the project's file.
     void record_opened_from(const std::filesystem::path& source);
     bool open_managed_project(const std::string& project_id);
+    // What to tell the person when open_managed_project failed.
+    wxString open_failure() const;
     bool export_copy(const std::filesystem::path& destination);
 
 private:
@@ -144,6 +148,8 @@ private:
     std::string m_opened_digest;
     State m_state{State::Saving};
     std::string m_error;
+    // The last failed open refused a project a newer JusPrin saved.
+    bool m_open_refused_newer{false};
     std::string m_warning;
     std::function<bool()> m_capture_hold;
 };

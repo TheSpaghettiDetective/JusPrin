@@ -276,4 +276,9 @@ private:
 // endpoint: everything before "/ent/".
 std::string cloud_server_from_gateway(const std::string& gateway);
 
+// The server's answer to a release it no longer serves: 426 with
+// update_required, in its own words. Every request names the release in its
+// User-Agent (Updates::user_agent). Null for any other answer.
+std::optional<AgentError> update_required(unsigned status, const std::string& body);
+
 } // namespace Slic3r::GUI::JusPrin::Agent

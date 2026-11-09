@@ -667,6 +667,9 @@ std::optional<AgentEvent> ProviderAgent::poll()
 AgentError ProviderAgent::http_error(unsigned status, const std::string& detail, const std::string& body) const
 {
     const std::string& name = m_config.profile.display_name;
+    if (m_config.profile.account_sign_in)
+        if (const std::optional<AgentError> outdated = update_required(status, body))
+            return *outdated;
     if (m_config.profile.account_sign_in && (status == 401 || status == 403))
         return {"invalid_credentials", "Your JusPrin sign-in has ended. Sign in again in Preferences, then try again.", false};
     if (m_config.profile.account_sign_in && status == 402) {

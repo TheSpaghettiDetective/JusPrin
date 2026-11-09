@@ -11,6 +11,7 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
+#include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 #include "slic3r/Utils/Http.hpp"
@@ -60,7 +61,8 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
     Http http = Http::post(Agent::cloud_web_link_url(config));
     if (!token.empty())
         http.header("Authorization", "Bearer " + token);
-    http.header("Content-Type", "application/json")
+    http.header("User-Agent", Updates::user_agent())
+        .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .set_post_body(nlohmann::json{{"page", page}, {"from", from}}.dump())
         .tls_verify(true)

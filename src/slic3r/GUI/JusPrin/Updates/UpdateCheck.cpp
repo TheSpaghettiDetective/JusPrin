@@ -94,7 +94,7 @@ void UpdateCheck::check_now()
     // system details, only what any web request carries.
     Http::get(feed.empty() ? kReleasesUrl : feed)
         .header("Accept", "application/vnd.github+json")
-        .header("User-Agent", std::string("JusPrin/") + kVersion)
+        .header("User-Agent", user_agent())
         .timeout_connect(5)
         .timeout_max(10)
         .on_complete([this](std::string body, unsigned status) {

@@ -4,6 +4,7 @@
 
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
+#include "StoredFormat.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/GCode/Thumbnails.hpp"
 #include "libslic3r/miniz_extension.hpp"
@@ -845,6 +846,7 @@ void ProjectAutosave::record_opened_from(const std::filesystem::path& source)
 
 bool ProjectAutosave::open_managed_project(const std::string& project_id)
 {
+    m_open_refused_newer = false;
     if (!save_now())
         return false;
     ensure_current_preview();
@@ -906,6 +908,7 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
         return true;
     } catch (const std::exception& error) {
         const std::string reason = error.what();
+        m_open_refused_newer = dynamic_cast<const NewerFormatError*>(&error) != nullptr;
         if (replacement_started) {
             try {
                 const auto previous = m_store->materialize(previous_id);
@@ -930,6 +933,12 @@ bool ProjectAutosave::open_managed_project(const std::string& project_id)
         fail(reason);
         return false;
     }
+}
+
+wxString ProjectAutosave::open_failure() const
+{
+    return m_open_refused_newer ? _L("This project was saved by a newer version of JusPrin. Update JusPrin to open it.")
+                                : _L("The project couldn't be opened. Try again.");
 }
 
 void ProjectAutosave::ensure_current_preview()

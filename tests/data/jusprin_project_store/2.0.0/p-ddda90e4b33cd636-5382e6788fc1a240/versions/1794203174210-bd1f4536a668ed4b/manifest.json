@@ -1,0 +1,22 @@
+{
+  "changeSeq": 0,
+  "createdAt": "2026-11-09T05:46:14Z",
+  "id": "1794203174210-bd1f4536a668ed4b",
+  "objects": [
+    {
+      "backupId": 1,
+      "entry": "3D/Objects/20mmbox-LF.stl_1.model",
+      "facets": 12,
+      "objectId": 81,
+      "resource": "1794203174262-dbcece36db852c95",
+      "resourceEntry": "3D/Objects/20mmbox-LF.stl_1.model"
+    }
+  ],
+  "openedDigest": "",
+  "openedFrom": "",
+  "projectName": "20mmbox-LF",
+  "regions": [],
+  "revision": 1,
+  "schema": 1,
+  "sourcePath": ""
+}

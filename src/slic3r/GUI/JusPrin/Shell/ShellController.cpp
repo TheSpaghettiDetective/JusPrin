@@ -656,7 +656,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 return false;
             if (decision == ReimportDecision::OpenExisting) {
                 if (!m_autosave->open_managed_project(matches.front().id))
-                    MessageDialog(m_frame, _L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                    MessageDialog(m_frame, m_autosave->open_failure(), _L("Couldn't open project"),
                                   wxOK | wxICON_ERROR).ShowModal();
                 else
                     m_frame->select_tab(TAB_ID_PREPARE);
@@ -1832,7 +1832,7 @@ void ShellController::open_in_chat(const std::string& project_id, const std::str
         const Agent::ProjectStateDocument& document = m_persistence->document();
         if (!document.has_identity() || document.project_id() != project_id) {
             if (!m_autosave->open_managed_project(project_id)) {
-                MessageDialog(m_frame, _L("The project couldn't be opened. Try again."), _L("Couldn't open project"),
+                MessageDialog(m_frame, m_autosave->open_failure(), _L("Couldn't open project"),
                               wxOK | wxICON_ERROR)
                     .ShowModal();
                 return;

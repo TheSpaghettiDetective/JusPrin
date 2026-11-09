@@ -534,25 +534,58 @@ TEST_CASE("corrupt, foreign, and future documents are refused safely", "[project
     CHECK(document.load("this is not json") == ProjectStateDocument::LoadResult::Corrupt);
     CHECK(document.load("[1,2,3]") == ProjectStateDocument::LoadResult::Corrupt);
     CHECK(document.load(json{{"noSchema", true}}.dump()) == ProjectStateDocument::LoadResult::Corrupt);
-    CHECK(document.load(json{{"schemaVersion", ProjectStateDocument::kSchemaVersion + 1}}.dump()) ==
-          ProjectStateDocument::LoadResult::Corrupt);
+    CHECK(document.load(json{{"schemaVersion", ProjectStateDocument::format().current() + 1}}.dump()) ==
+          ProjectStateDocument::LoadResult::Newer);
     // After every refusal the document is a usable fresh one.
     CHECK_FALSE(document.has_identity());
     document.initialize_identity("p-1", "l-1", kT);
     CHECK(document.has_identity());
 }
 
-TEST_CASE("a document of any other schema version is not read", "[project-state][schema]")
+TEST_CASE("a document a newer build saved is refused as newer, one below the first as corrupt", "[project-state][schema]")
 {
     ProjectStateDocument written;
     written.initialize_identity("p-old", "l-old", kT);
-    CHECK(json::parse(written.dump())["schemaVersion"] == 1);
-    for (const int version : {0, 2, 3, 4}) {
+    const int current = ProjectStateDocument::format().current();
+    CHECK(json::parse(written.dump())["schemaVersion"] == current);
+    for (const int version : {current + 1, current + 2}) {
         json other = json::parse(written.dump());
         other["schemaVersion"] = version;
         ProjectStateDocument document;
-        CHECK(document.load(other.dump()) == ProjectStateDocument::LoadResult::Corrupt);
+        CHECK(document.load(other.dump()) == ProjectStateDocument::LoadResult::Newer);
         CHECK_FALSE(document.has_identity());
+    }
+    json below = json::parse(written.dump());
+    below["schemaVersion"] = ProjectStateDocument::format().first - 1;
+    ProjectStateDocument document;
+    CHECK(document.load(below.dump()) == ProjectStateDocument::LoadResult::Corrupt);
+    CHECK_FALSE(document.has_identity());
+}
+
+TEST_CASE("a stored format upgrades an older file step by step and refuses a newer one", "[project-state][schema]")
+{
+    using Slic3r::GUI::JusPrin::Workspace::StoredFormat;
+    const StoredFormat format{"schema", 2, {
+        [](json& value) { value["steps"].push_back("2 to 3"); },
+        [](json& value) { value["steps"].push_back("3 to 4"); },
+    }};
+    REQUIRE(format.current() == 4);
+
+    json older{{"schema", 2}, {"steps", json::array()}};
+    CHECK(format.upgrade(older) == StoredFormat::Check::Readable);
+    CHECK(older["schema"] == 4);
+    CHECK(older["steps"] == json::array({"2 to 3", "3 to 4"}));
+
+    json current{{"schema", 4}, {"steps", json::array()}};
+    CHECK(format.upgrade(current) == StoredFormat::Check::Readable);
+    CHECK(current["steps"].empty());
+
+    json newer{{"schema", 5}};
+    CHECK(format.upgrade(newer) == StoredFormat::Check::Newer);
+    for (json unreadable : {json{{"schema", 1}}, json{{"schema", "4"}}, json{{"other", 4}}, json::array()}) {
+        const json before = unreadable;
+        CHECK(format.upgrade(unreadable) == StoredFormat::Check::Unreadable);
+        CHECK(unreadable == before);
     }
 }
 
@@ -931,6 +964,36 @@ TEST_CASE("interrupted streams and runs are normalized on recovery", "[project-s
     CHECK_FALSE(document.normalize_interrupted_state());
 }
 
+TEST_CASE("an action whose state or source a newer build added is kept as written and not shown",
+          "[project-state][schema]")
+{
+    ProjectStateDocument written;
+    written.initialize_identity("p-1", "l-1", kT);
+    ToolActivity known;
+    known.action_id = written.allocate_action_id();
+    known.state     = ToolState::Succeeded;
+    written.upsert_activity(known, kT);
+    ToolActivity other = known;
+    other.action_id = written.allocate_action_id();
+    written.upsert_activity(other, kT);
+    ToolActivity third = known;
+    third.action_id = written.allocate_action_id();
+    written.upsert_activity(third, kT);
+    json saved = json::parse(written.dump());
+    saved["toolActivities"][1]["state"]  = "awaiting_review";
+    saved["toolActivities"][2]["source"] = "scheduler";
+
+    ProjectStateDocument document;
+    REQUIRE(document.load(saved.dump()) == ProjectStateDocument::LoadResult::Loaded);
+    const std::vector<ToolActivity> shown = document.activities();
+    REQUIRE(shown.size() == 1);
+    CHECK(shown[0].action_id == known.action_id);
+    CHECK_FALSE(document.normalize_interrupted_state());
+    const json kept = json::parse(document.dump())["toolActivities"];
+    CHECK(kept[1]["state"] == "awaiting_review");
+    CHECK(kept[2]["source"] == "scheduler");
+}
+
 TEST_CASE("adoption creates identity and the state file", "[persistence][adoption]")
 {
     Workspace::FakeWorkspace workspace(small_snapshot());
@@ -1035,6 +1098,37 @@ TEST_CASE("a corrupt state file is preserved for inspection and replaced", "[per
     CHECK(persistence.document().has_identity());
     CHECK(fs::is_regular_file(persistence.state_file_path()));
     CHECK(fs::is_regular_file(persistence.state_file_path() + ".corrupt"));
+}
+
+TEST_CASE("a state file a newer build saved is kept aside and the project opens with a fresh history",
+          "[persistence][recovery][schema]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    const std::string newer =
+        json{{"schemaVersion", ProjectStateDocument::format().current() + 1}, {"projectId", "p-newer"}}.dump();
+    write_text(fs::path(workspace.auxiliary_data_dir()) / "JusPrin" / "state.json", newer);
+    ProjectPersistence persistence(workspace, test_config());
+    persistence.attach();
+
+    CHECK(persistence.document().has_identity());
+    CHECK(persistence.document().project_id() != "p-newer");
+    CHECK(read_text(persistence.state_file_path() + ".newer") == newer);
+    CHECK_FALSE(fs::exists(persistence.state_file_path() + ".corrupt"));
+}
+
+TEST_CASE("a local project a newer build saved is refused as newer", "[persistence][managed][schema]")
+{
+    Workspace::FakeWorkspace workspace(small_snapshot());
+    ProjectPersistence::Config config = test_config();
+    config.managed_root = unique_temp_dir("managed");
+    ProjectPersistence persistence(workspace, config);
+    persistence.attach();
+    json newer = json::parse(persistence.document().dump());
+    newer["schemaVersion"] = ProjectStateDocument::format().current() + 1;
+    CHECK_THROWS_AS(persistence.adopt_managed_state(newer.dump()), Workspace::NewerFormatError);
+    json broken = json::parse(persistence.document().dump());
+    broken["schemaVersion"] = ProjectStateDocument::format().first - 1;
+    CHECK_THROWS_WITH(persistence.adopt_managed_state(broken.dump()), "managed project state is invalid");
 }
 
 TEST_CASE("an in-place reset starts a new project boundary", "[persistence][lifecycle]")

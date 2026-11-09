@@ -19,4 +19,10 @@ inline constexpr char kVersion[] = "2.0.0";
 // compatibility number (02.08.01.55), not a release anyone can look up.
 inline std::string version_label() { return std::string("JusPrin ") + kVersion + " (OrcaSlicer " + SoftFever_VERSION + ")"; }
 
+// The User-Agent of every request JusPrin sends to its own server, so the
+// server can tell JusPrin releases apart. Orca's Http sends
+// "JusPrin/<SoftFever_VERSION>" by default, which names the OrcaSlicer
+// release and is the same for every JusPrin release built on it.
+inline std::string user_agent() { return std::string("JusPrin/") + kVersion + " OrcaSlicer/" + SoftFever_VERSION; }
+
 } // namespace Slic3r::GUI::JusPrin::Updates

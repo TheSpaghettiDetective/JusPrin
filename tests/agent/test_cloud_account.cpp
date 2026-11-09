@@ -245,6 +245,22 @@ TEST_CASE("a token the browser brings back is checked, stored and handed over as
     CHECK(f.machine.pumps > 0);
 }
 
+TEST_CASE("a sign-in from a release the server no longer serves fails with the server's update words", "[agent][account]")
+{
+    Fixture f;
+    REQUIRE(f.sign_in->start(CloudBrowserStart::Google));
+    f.browser_returns("tok-1");
+    f.machine.answer(kWho, 200, me_body("alex@example.com"));
+    f.machine.answer(kModels, 426, R"({"type":"error","error":{"code":"update_required","message":"Update to 2.1.0."}})");
+    const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
+    REQUIRE(outcome.has_value());
+    CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "update_required");
+    CHECK(outcome->error.message == "Update to 2.1.0.");
+    CHECK_FALSE(outcome->error.retryable);
+    CHECK_FALSE(f.stored.has_value());
+}
+
 TEST_CASE("an account without the default model gets the first one listed", "[agent][account]")
 {
     Fixture f;
@@ -545,7 +561,7 @@ std::optional<AgentEvent> drain(IAgentService& agent)
 
 } // namespace
 
-TEST_CASE("every gateway request names its turn and its kind, with the token as bearer", "[agent][account]")
+TEST_CASE("every gateway request names its turn, its kind and the JusPrin release, with the token as bearer", "[agent][account]")
 {
     for (const char* format : {kFormatAnthropic, kFormatResponses}) {
         DYNAMIC_SECTION("format " << format)
@@ -562,6 +578,9 @@ TEST_CASE("every gateway request names its turn and its kind, with the token as 
             CHECK(requests[0].header("Authorization") == "Bearer tok-1");
             CHECK(requests[0].header("X-JusPrin-Turn") == "project-chat-reply-attempt-1");
             CHECK(requests[0].header("X-JusPrin-Request") == "reply");
+            // JusPrin's own release, which the OrcaSlicer version it is built on does not tell apart.
+            CHECK(requests[0].header("User-Agent") ==
+                  std::string("JusPrin/") + Slic3r::GUI::JusPrin::Updates::kVersion + " OrcaSlicer/" + SoftFever_VERSION);
             CHECK(requests[0].header("x-api-key").empty());
             CHECK(json::parse(requests[0].body)["model"] == "slicer-1");
         }
@@ -602,6 +621,35 @@ TEST_CASE("the gateway's 402 reaches the page in its own words and numbers", "[a
     CHECK(event->error->code == "credits_exhausted");
     CHECK(event->error->message == "This message needs 5 credits; you have 3.");
     CHECK_FALSE(event->error->retryable);
+}
+
+TEST_CASE("a release the server no longer serves is told to update, in the server's words, with no retry", "[agent][account]")
+{
+    const auto failure = [](const std::string& body) {
+        std::vector<AgentHttpRequest>             requests;
+        std::vector<IAgentHttpTransport::EventFn> callbacks;
+        AgentServicePtr                           agent = account_agent(kFormatResponses, requests, callbacks);
+        AgentRequest                              request;
+        JusPrinTest::kept_nowhere(request);
+        request.request_id = "turn";
+        request.user_text  = "hello";
+        REQUIRE(agent->start(request));
+        callbacks.back()(AgentHttpEvent{AgentHttpEvent::Kind::Error, body, "HTTP error", 426});
+        std::optional<AgentEvent> event = drain(*agent);
+        REQUIRE(event.has_value());
+        REQUIRE(event->error.has_value());
+        return *event->error;
+    };
+    const AgentError told = failure(R"({"type":"error","error":{"code":"update_required","message":"Update to 2.1.0."},
+                                        "minimumVersion":"2.1.0"})");
+    CHECK(told.code == "update_required");
+    CHECK(told.message == "Update to 2.1.0.");
+    CHECK_FALSE(told.retryable);
+    // Without the server's words, the app's own.
+    const AgentError bare = failure("");
+    CHECK(bare.code == "update_required");
+    CHECK_THAT(bare.message, ContainsSubstring("no longer supported"));
+    CHECK_FALSE(bare.retryable);
 }
 
 TEST_CASE("a model without eyes is offered no picture tools", "[agent][account]")
@@ -991,6 +1039,21 @@ TEST_CASE("a refusal the person cannot act on ends the email sign-in with one ge
     REQUIRE(outcome.has_value());
     CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
     CHECK(outcome->error.code == "sign_in_failed");
+    CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
+    CHECK_FALSE(f.stored.has_value());
+}
+
+TEST_CASE("an email sign-in from a release the server no longer serves ends with the server's update words", "[agent][account][email]")
+{
+    Fixture f;
+    code_sent(f);
+    REQUIRE(f.sign_in->submit_code("418203"));
+    f.machine.answer_post(kAuth + "code/confirm", 426, R"({"type":"error","error":{"code":"update_required","message":"Update to 2.1.0."}})");
+    const std::optional<CloudSignInOutcome> outcome = f.sign_in->poll();
+    REQUIRE(outcome.has_value());
+    CHECK(outcome->kind == CloudSignInOutcome::Kind::Failed);
+    CHECK(outcome->error.code == "update_required");
+    CHECK(outcome->error.message == "Update to 2.1.0.");
     CHECK(f.sign_in->phase() == CloudSignInPhase::Idle);
     CHECK_FALSE(f.stored.has_value());
 }
