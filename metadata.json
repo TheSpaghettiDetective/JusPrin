@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M6ZEV6YQ4N8CBJ7RC8KGGSMB",
+  "strategy": "manual-commit",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/CloudAccount.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/agent/test_cloud_account.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 47551,
+    "cache_read_tokens": 7191474,
+    "output_tokens": 13217,
+    "api_call_count": 23,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}
