@@ -3,8 +3,34 @@
   "checkpoint_id": "01M70P242A57R4QFV7Y82DXWYT",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/Agent/AgentConfiguration.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ModelCatalog.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ModelCatalog.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/ModelCatalogFetch.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/ProjectStateDocument.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/ModelPickers.tsx",
+    "src/slic3r/GUI/JusPrin/Home/HomeHost.cpp",
+    "src/slic3r/GUI/JusPrin/Home/HomeSnapshot.hpp",
+    "src/slic3r/GUI/JusPrin/Home/PrintHistory.cpp",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/PrintReportForm.tsx",
+    "src/slic3r/GUI/JusPrin/Workspace/ProjectVersionStore.cpp",
+    "tests/agent/test_agent_bridge.cpp",
+    "tests/agent/test_model_catalog.cpp",
+    "tests/agent/test_print_history.cpp",
+    "tests/agent/test_project_state.cpp",
+    "tests/data/jusprin_project_store/README.md",
+    "tests/shell/account_box_scenario.inc",
+    "tests/workspace/real_adapter_harness.cpp"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -12,13 +38,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 46,
-    "cache_creation_tokens": 60854,
-    "cache_read_tokens": 5815222,
-    "output_tokens": 17852,
-    "api_call_count": 23
+    "input_tokens": 842,
+    "cache_creation_tokens": 1018993,
+    "cache_read_tokens": 87372776,
+    "output_tokens": 269269,
+    "api_call_count": 421
   }
 }
