@@ -1,6 +1,6 @@
 # JusPrin engineering and verification method
 
-**Status:** Required planning, implementation, and release-verification method for `jusprin-newui`.
+**Status:** Required planning, implementation, and release-verification method for `jusprin-dev`.
 
 JusPrin is changing the presentation of a mature manufacturing application. The main engineering risk is not whether common UI technology can work; it is whether new presentation code bypasses, duplicates, or destabilizes authoritative Orca behavior.
 

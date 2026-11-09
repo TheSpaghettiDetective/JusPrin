@@ -1,6 +1,6 @@
 # OrcaSlicer integration guide
 
-**Status:** Canonical engineering guidance for the `jusprin-newui` production branch.
+**Status:** Canonical engineering guidance for the `jusprin-dev` production branch.
 
 This document records lessons from building and testing the JusPrin project-state
 adapter and full-window UI against the real OrcaSlicer application. It is written
