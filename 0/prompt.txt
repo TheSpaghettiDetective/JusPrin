@@ -1,0 +1,128 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+We're starting a small-batch rollout of JusPrin 2, the AI slicer desktop app built on OrcaSlicer. The team goes first, then hand-picked testers, then JusPrin 1 users and Obico users, contacted by hand in email waves. The app's default sign-in and model gateway host is `jusprinv2.obico.io`, set in `ProviderProfile.hpp` in `~/Projects/JusPrin`, the "jusprin" row. The 2.0.0 release waits until that host works.
+
+JusPrin 2 is a brand ("syndicate") of its own, `jusprinv2`, with its own accounts, and the server takes the brand from the request's host. The JusPrin2 OAuth client and the model gateway's secret and ConfigMap (`jusprin-v2-gateway-prod`) have been in production since 2026-10-25.
+
+Another session, "Verify JusPrin 2 Chargebee setup and payment flow on staging" (`local_1ae65d86-2760-4594-94a2-157beb64e86e`), runs in parallel. It is checking Chargebee's live items, emails and the payment flow, and it makes no production changes. This push doesn't depend on it: checkout can stay unfinished while only the team uses the host. Don't change Chargebee or its production settings yourself.
+
+Rules:
+- Use the service account `ai-agent@tsdtechnology.iam.gserviceaccount.com` for gcloud and kubectl (`gcloud config set account ...` first). The production cluster context is `gke_tsdtechnology_us-central1-c_tsd`.
+- Server code goes to tsd-enterprise `master`.
+- Never commit submodule pointer changes.
+- Kenneth's yes is needed before every production change and every push.
+
+Task:
+Put JusPrin 2's server host `jusprinv2.obico.io` live in production, and release the current tsd-enterprise `master` to production. Follow the "JusPrin's host" rollout steps in `~/Projects/ops/tsd/RUNBOOK.md`, which staging already went through for `jusprinv2-stg.obico.io`. Ask Kenneth before each step that changes production, and say exactly what it will change.
+
+Steps:
+1. **Check the release on staging first.** Production web and task pods run server build obi.4088, and staging runs obi.4096. The changes production would gain:
+   - `df569a93fe`: the oldest-allowed-app-version check, `JUSPRIN_V2_MIN_APP_VERSION`.
+   - `b734dd5c6c`: a sign-in fix.
+   - `afc8827009`: update-message wording.
+   - `3806e91932`: "host decides the brand", which hides website login and sign-up on JusPrin 2's host. This is the one change that touches the Obico website for every brand.
+   - `0a75568378`: Terms and Privacy links. This one is on master but not built into any release yet.
+
+   Before releasing, check on staging that login and sign-up still work on `app-stg.obico.io` and one other brand's staging host, and that `jusprinv2-stg.obico.io` hides them as intended. Then build a release from master (the release recipe and its traps are in the ops RUNBOOK and the tsd-enterprise release script) and move production's manifests in `~/Projects/ops/tsd/prod/` to it.
+2. **DNS.** `jusprinv2.obico.io` doesn't resolve today. Kenneth has to add the A record at Namecheap, pointing to the ingress's static IP (`neg-ingress-ip`, the same one `app.obico.io` resolves to). Give him the exact record, then wait until it resolves.
+3. **Certificate and ingress.** Add `gke-managed-cert-jusprinv2-app` for `jusprinv2.obico.io` to `tsd/gcp/jusprin-managed-cert.yaml`, and add its name to the ingress's managed-certificates annotation in `tsd/gcp/neg-ingress.yaml`. Add a `jusprinv2.obico.io` host rule copied from `app.obico.io`'s, including the `/ent/jusprin/v2/messages` and `/responses` stream paths, which go to `tsdws-prod-svc`. This ingress also serves `app.obico.io` and every other production host. So before applying, diff the file against the live object (`kubectl diff`), show Kenneth the diff, and apply the certificate before the ingress. Then wait for the certificate to become Active.
+4. **Brand setup** on a production web pod. First reset the Syndicate id sequence as the RUNBOOK shows, then run `run_django_mgmt_cmd.sh set_up_jusprinv2_syndicate jusprinv2.obico.io --google-from app.obico.io`.
+5. **Google sign-in.** Kenneth adds `https://jusprinv2.obico.io/accounts/google/login/callback/` as a redirect URI on that Google OAuth client. Give him the exact steps.
+6. **Smoke test against production** from a JusPrin 2 build that points at `jusprinv2.obico.io`:
+   - sign up with an emailed code and with Google;
+   - check that the account gets its 500 starting credits;
+   - run one chat through both gateway formats if you can;
+   - open the prices page and the billing page.
+
+   Don't buy anything on the live site. Afterwards, delete or note any test account you made.
+
+Done means: the host serves JusPrin 2 sign-in and chat in production, and `app.obico.io` and the other brands are unaffected. The ops repo changes are committed in `~/Projects/ops`. Ask Kenneth before pushing. Finish with a short report for Kenneth under about 500 words: what changed, what you tested and the results, and what's still open.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+The JusPrin 2 Chargebee check found two production gaps that affect your release and smoke test. This is information for you; don't act on it before Kenneth decides.
+
+1. Production's model gateway config (`jusprin-v2-gateway-prod`) is still in the old format. Build obi.4088 already rejects it with "missing credits, tier", and it has no Standard model. Production's websocket pods (tsdws-prod) also have no OpenRouter key, which the Standard model needs. Staging's config and key are the reference. Without these, a chat smoke test on `jusprinv2.obico.io` will fail even after the host is live. Fold "replace prod gateway config with staging's and add the OpenRouter key" into your release plan, and ask Kenneth for that change like the others.
+
+2. Chargebee's live site (`thespaghettidetective`) has none of JusPrin 2's plans, the credit-pack addon or the coupon. Checkout and the prices page will fail in production until that's set up, so leave those out of your smoke test or report them as expected failures. Setting up Chargebee isn't your task.
+
+Details are in `chargebee-readiness-2026-11-09.md` in the shared notes folder, written by session local_1ae65d86-2760-4594-94a2-157beb64e86e.
+</cross-session-message>
+
+---
+
+<!-- reply 5 -->
+> Things only you can do now (both are safe before the host goes live):
+> 
+> DNS. In Namecheap, open obico.io, then Advanced DNS, then Add New Record. Type: A Record. Host: jusprinv2. Value: 34.95.90.112 (the ingress’s static IP, the same address app.obico.io resolves to). TTL: Automatic.
+> Google sign-in. Open https://console.cloud.google.com/auth/clients/268097575721-ubm4silcbif4sgsc6qpfuc91403s04o2.apps.googleusercontent.com?project=gettsdapp-843e9. That is Obico’s web client in the obico-firebase project, which the server’s “Obico Google+” sign-in app uses. Under Authorized redirect URIs, add https://jusprinv2.obico.io/accounts/google/login/callback/ and click Save.
+
+Open the pages in my Chrome and do this yourself if necessary. I can log in.
+
+<!-- reply -->
+> My pick is to accept the window. Do you want me to go ahead with the release that way?
+
+I think this window is acceptable but we have to verify on staging that this is what will happen instead of just speculating it. And also we will have to verify on staging that we can always roll back in case anything goes wrong during this window.
+
+<!-- reply -->
+> Decision needed: certificate and ingress. Once DNS resolves, I’d apply the new certificate gke-managed-cert-jusprinv2-app first, then the ingress. Against the live object, kubectl diff shows only two changes:
+> 
+> gke-managed-cert-jusprinv2-app is added to the end of the managed-certificates annotation.
+> A new jusprinv2.obico.io rule is added after app.obico.io’s, with the same four paths: /ent/jusprin/v2/messages, /ent/jusprin/v2/responses and /ws/ go to tsdws-prod-svc, and / goes to tsdweb-prod-svc.
+> No other host’s rules change. The diff prints as if app.obico.io’s block were added because the new rule copies it; the full diff is in prod-ingress-kubectl-diff.txt in the shared notes folder. Can I apply both once the name resolves?
+
+I don't understand this decision. You didn't even seem to give me a trade-off or an alternative. What am I supposed to decide here? If I say no, can we still deploy? I don't understand.
+
+<!-- reply -->
+> Can I run both once the release is out?
+
+Okay, I don't understand why you're asking this to me. What are the trade-offs? If I say no, are we rolling out?
+
+<!-- reply -->
+> The key has to go in first. If the websocket deployment is applied before the key exists, its new pods fail to start.
+
+find the key at /tmp/openrouter-prod.key
+
+---
+
+<task-notification>
+<task-id>b3pex57k8</task-id>
+<summary>Monitor event: "prod rollout: pod counts per build, crash/pending signals, probe failures"</summary>
+<event>03:56:57 tsdrttasks-prod: new-ready=2 new-notready=0 old=0 old-stopping=0 bad=0 | tsdtasks-prod: new-ready=9 new-notready=0 old=0 old-stopping=0 bad=0 | tsdweb-prod: new-ready=8 new-notready=0 old=0 old-stopping=0 bad=0 | tsdws-prod: new-ready=12 new-notready=0 old=0 old-stopping=2 bad=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b3pex57k8</task-id>
+<summary>Monitor event: "prod rollout: pod counts per build, crash/pending signals, probe failures"</summary>
+<event>03:57:12 tsdrttasks-prod: new-ready=2 new-notready=0 old=0 old-stopping=0 bad=0 | tsdtasks-prod: new-ready=9 new-notready=0 old=0 old-stopping=0 bad=0 | tsdweb-prod: new-ready=8 new-notready=0 old=0 old-stopping=0 bad=0 | tsdws-prod: new-ready=12 new-notready=0 old=0 old-stopping=1 bad=0</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b3pex57k8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/9fbe1980-2ae7-4610-aacc-49fbe2af019e/tasks/b3pex57k8.output</output-file>
+<status>completed</status>
+<summary>Monitor "prod rollout: pod counts per build, crash/pending signals, probe failures" stream ended</summary>
+<event>03:58:00 tsdrttasks-prod: new-ready=2 new-notready=0 old=0 old-stopping=0 bad=0 | tsdtasks-prod: new-ready=9 new-notready=0 old=0 old-stopping=0 bad=0 | tsdweb-prod: new-ready=8 new-notready=1 old=0 old-stopping=0 bad=0 | tsdws-prod: new-ready=12 new-notready=0 old=0 old-stopping=0 bad=0
+all four deployments on obi.4098</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bdwz4d9wz</task-id>
+<tool-use-id>toolu_01N5nDoFoHuu7AtEyVTLzH2F</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/9fbe1980-2ae7-4610-aacc-49fbe2af019e/tasks/bdwz4d9wz.output</output-file>
+<status>completed</status>
+<summary>Background command "Probe production pages every 2 seconds for 25 minutes" completed (exit code 0)</summary>
+</task-notification>

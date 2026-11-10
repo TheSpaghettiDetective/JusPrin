@@ -1,0 +1,113 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M73080ATRJ7YCMYQ84A6Q9R8",
+  "session_id": "9fbe1980-2ae7-4610-aacc-49fbe2af019e",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-10T15:11:56.06228Z",
+  "branch": "claude/home-account-refresh",
+  "checkpoints_count": 9,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "4e6966cc2ded",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 702,
+    "cache_creation_tokens": 1181618,
+    "cache_read_tokens": 80516095,
+    "output_tokens": 185548,
+    "api_call_count": 351
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01H5VTw7Yuw4dhNQ9ntJ6SJw",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:chrome-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "4e6966cc2ded",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 504,
+        "end": 505,
+        "entry_ids": [
+          "e0ada86c-ef69-4ed9-a2fb-d449e43fbb26"
+        ],
+        "tool_use_id": "toolu_01H5VTw7Yuw4dhNQ9ntJ6SJw"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01H5VTw7Yuw4dhNQ9ntJ6SJw"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:chrome-browser",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_0167xyDKpoYSMad5VTsn9MUd",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "4e6966cc2ded",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 3034,
+        "end": 3035,
+        "entry_ids": [
+          "734fb95d-15ea-4db4-9cc5-9d5f1375df73"
+        ],
+        "tool_use_id": "toolu_0167xyDKpoYSMad5VTsn9MUd"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_0167xyDKpoYSMad5VTsn9MUd"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 9
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
