@@ -362,6 +362,10 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& about = component.at("about");
     m.about.width            = parse_int(about, "component.about", "width");
     m.about.lockup_height    = parse_int(about, "component.about", "lockupHeight");
+    m.about.name_left        = parse_int(about, "component.about", "nameLeft");
+    m.about.name_top         = parse_int(about, "component.about", "nameTop");
+    m.about.name_width       = parse_int(about, "component.about", "nameWidth");
+    m.about.name_height      = parse_int(about, "component.about", "nameHeight");
     m.about.help_label_width = parse_int(about, "component.about", "helpLabelWidth");
     m.about.copied_ms        = parse_int(about, "component.about", "copiedMs");
     return m;

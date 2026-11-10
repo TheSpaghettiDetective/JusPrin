@@ -13,6 +13,11 @@ nameWidth and nameHeight in resources/jusprin/ui/design-tokens.json, inside the
 splash's 480x480 lockup from brand_logo.py. On macOS the splash plays it there
 over the still lockup. Rendered at twice the box's size for Retina screens.
 
+The About window plays the same files, scaled down, over the name of the
+horizontal lockup brand_logo.py draws. Its box is component.about.nameLeft,
+nameTop, nameWidth and nameHeight, from the lockup's top-left at the About's
+lockupHeight; about_box() works it out, and the run stops if the tokens differ.
+
 Writes resources/jusprin/startup/splash-name-light.webp and -dark.webp.
 Needs what brand_logo.py needs, plus rsvg-convert and img2webp (libwebp):
 
@@ -44,6 +49,17 @@ layers[6] = B.op(layers[6], DOT_BOX, DIFF)
 carriage = B.union(B.rrect(250.9, -25, 21, 10, 2.5), B.nozzle)
 PARK_X, PARK_Y = 261.4, -4.75         # the nozzle tip where the logo has it
 DOT_TOP = dot.bounds[1]
+
+def about_box():
+    """The splash's box carried over to the About window's horizontal lockup,
+    in whole DIPs: the same place relative to the name, at that name's size."""
+    about = json.load(open(TOKENS))['component']['about']
+    W, H, k = B.ROW
+    rn, rx, ry = B.row_name(k, *B.row_offsets(W, H, k))
+    s = about['lockupHeight'] / H * rn / n
+    return tuple(round(v) for v in ((rx + (BOX[0] - NAME_TX) / n * rn) * about['lockupHeight'] / H,
+                                    (ry + (BOX[1] - NAME_TY) / n * rn) * about['lockupHeight'] / H,
+                                    BOX[2] * s, BOX[3] * s))
 
 def ease(t): return t * t * (3 - 2 * t)
 def lerp(a, b, t): return a + (b - a) * t
@@ -113,6 +129,10 @@ def build(fill, out):
                        + pngs + ['-o', out], check=True, capture_output=True)
 
 if __name__ == '__main__':
+    about = json.load(open(TOKENS))['component']['about']
+    tokens = (about['nameLeft'], about['nameTop'], about['nameWidth'], about['nameHeight'])
+    if about_box() != tokens:
+        sys.exit('component.about name box is %s; the lockup puts it at %s' % (tokens, about_box()))
     os.makedirs(OUT, exist_ok=True)
     for theme, fill in (('light', B.ORBIT), ('dark', B.MIST)):
         build(fill, os.path.join(OUT, 'splash-name-%s.webp' % theme))

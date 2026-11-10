@@ -578,6 +578,10 @@
     "about": {
       "width": 400,
       "lockupHeight": 43,
+      "nameLeft": 21,
+      "nameTop": 7,
+      "nameWidth": 103,
+      "nameHeight": 30,
       "helpLabelWidth": 56,
       "copiedMs": 2000
     },

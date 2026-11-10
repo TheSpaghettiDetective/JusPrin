@@ -13,9 +13,10 @@ class ShellTheme;
 
 // Help › About JusPrin (the "&About JusPrin" item in Help on Windows and
 // Linux, and in the app menu on macOS) while the JusPrin view is on: the
-// lockup, JusPrin's version, the OrcaSlicer release it is built on, the build
-// commit, where to get help, and OrcaSlicer's own licences and credits window
-// behind License…. Classic view keeps OrcaSlicer's About. Drawn on the
+// lockup with the nozzle printing the name, JusPrin's version, the OrcaSlicer
+// release it is built on, the build commit, where to get help, and
+// OrcaSlicer's own licences and credits window behind License…. Classic view
+// keeps OrcaSlicer's About. Drawn on the
 // "JusPrin v2" canvas, page "Splash & About", boards splash-about-04 and 05.
 class AboutWindow : public wxDialog
 {
