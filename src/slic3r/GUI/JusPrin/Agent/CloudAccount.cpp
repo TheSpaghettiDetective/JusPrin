@@ -401,12 +401,12 @@ CloudSignInOutcome CloudSignIn::failed(const std::string& code, const std::strin
 
 std::string CloudSignIn::link_url(const std::string& link) const
 {
-    // Obico's Terms and Privacy Policy until JusPrin's own are published.
-    // JusPrin accounts are separate from Obico's.
+    // JusPrin's own Terms and Privacy Policy: JusPrin accounts are separate
+    // from Obico's. The pages have no site menu leading on to Obico's.
     if (link == "terms")
-        return "https://www.obico.io/terms.html";
+        return "https://www.obico.io/jusprin-terms.html";
     if (link == "privacy")
-        return "https://www.obico.io/privacy.html";
+        return "https://www.obico.io/jusprin-privacy.html";
     if (link == "reset_password")
         return m_server + "/accounts/password/reset/";
     return {};
