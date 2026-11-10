@@ -2,7 +2,7 @@
   "cli_version": "0.10.5",
   "checkpoint_id": "01M71H7WDP7E9WMZWD0HGW6MAG",
   "strategy": "manual-commit",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Agent/CloudAccount.cpp"
   ],
@@ -20,14 +20,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 110,
-    "cache_creation_tokens": 218799,
-    "cache_read_tokens": 12872092,
-    "output_tokens": 29531,
-    "api_call_count": 55,
+    "input_tokens": 254,
+    "cache_creation_tokens": 470153,
+    "cache_read_tokens": 24443506,
+    "output_tokens": 55722,
+    "api_call_count": 127,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,
