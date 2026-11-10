@@ -406,13 +406,43 @@ body {
   max-width: var(--printer-setup-width);
   margin-inline: auto;
 }
-.app--printer-setup .printer-header, .app--focused-chat .printer-header {
-  height: auto;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  border-bottom: none;
-  padding: 8px 16px;
+/* The task chat's header spans the window above the reading column: the X,
+   the task, and whatever the chat offers besides at the far end. */
+.task-header {
+  display: flex;
+  flex: 0 0 var(--home-header-height);
+  align-items: center;
+  gap: 12px;
+  margin: -16px -16px 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
 }
+.task-header h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+.task-close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+.task-close:hover { background: var(--surface-subtle); }
 /* The chat header is one 44 DIP row; the chat list's own header is the
    taller 56 DIP panel header with its Section title. */
 .chat-header, .chat-list-header {
@@ -493,6 +523,13 @@ button.chat-icon {
   background: var(--surface-canvas);
 }
 button.chat-icon:disabled { color: var(--action-disabled-text); }
+/* Going back inside the panel is quiet: the chevron alone, no outline, so it
+   is not taken for the window's way out. */
+button.chat-icon.chat-back {
+  border-color: transparent;
+  background: transparent;
+}
+button.chat-icon.chat-back:hover { background: var(--surface-subtle); }
 /* The filled pane half communicates open/closed state, so this glyph is
    product-specific rather than a stock Lucide action icon. */
 .agent-pane-toggle svg { width: var(--button-icon-icon-size); height: var(--button-icon-icon-size); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -2503,22 +2540,10 @@ button.wide {
   font: var(--font-section);
 }
 
-.setup-back {
+.setup-title-row {
+  display: flex;
+  align-items: center;
   gap: 4px;
-  padding: 0;
-  border: 0;
-  font: inherit;
-  color: var(--text-primary);
-  text-align: left;
-}
-
-.setup-back:hover:enabled {
-  border-color: transparent;
-}
-
-.setup-back .jp-icon {
-  width: var(--setup-card-icon-size);
-  height: var(--setup-card-icon-size);
 }
 
 .setup-actions {
@@ -3019,15 +3044,6 @@ p.agent-row-note {
   height: 100%;
 }
 
-.printer-header h1 {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font: var(--font-body-bold);
-  color: var(--text-primary);
-}
-
 /* A photo is the fastest way in, said once under the opening. */
 .printer-tip {
   font: var(--font-label);
@@ -3240,7 +3256,6 @@ p.agent-row-note {
   color: var(--text-secondary);
 }
 
-.panel-back-link { display: inline-flex; align-items: center; gap: 4px; }
 
 /* -- The All settings panel ------------------------------------------------
    Every setting in force, in the pane's place: the setup card's "All

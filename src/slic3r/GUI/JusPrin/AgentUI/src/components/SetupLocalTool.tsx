@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { McpCatalogPayload, McpPreviewPayload, McpStatusPayload, McpToolInfo } from '../bridge/protocol';
 import { ToolGroup } from './AgentConnection';
 
-// The screen's title is its way back: one target, the chevron and the name.
+// Going back inside the panel: the quiet chevron, then the screen's own name,
+// which is the title and not part of the button.
 function SetupScreenTitle({ label, onBack }: { label: string; onBack: () => void }) {
   return (
-    <h1 className="setup-title">
-      <button type="button" className="setup-back" onClick={onBack} aria-label="Back to setup options">
+    <div className="setup-title-row">
+      <button type="button" className="chat-icon chat-back" onClick={onBack} aria-label="Back to setup options"
+        title="Back to setup options">
         <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
-        {label}
       </button>
-    </h1>
+      <h1 className="setup-title">{label}</h1>
+    </div>
   );
 }
 

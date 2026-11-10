@@ -219,7 +219,7 @@ int LeftPane::draw_back_row(wxGraphicsContext& gc, int y, int width, const wxStr
     const int pad_x = FromDIP(pane.row_padding_x);
     const wxRect rect(0, y, width, line);
     draw_header_icon(gc, HeaderIcon::Back, pad_x, y + (line - glyph) / 2, glyph, p.text_secondary);
-    gc.SetFont(m_theme.font(TextRole::LabelBold), p.text_primary);
+    gc.SetFont(m_theme.font(TextRole::BodySmallBold), p.text_primary);
     double tw = 0, th = 0;
     gc.GetTextExtent(title, &tw, &th);
     gc.DrawText(title, pad_x + glyph + FromDIP(pane.plate_gap), y + (line - th) / 2);
@@ -416,13 +416,6 @@ int LeftPane::draw_cover(wxGraphicsContext& gc, int y, int width, std::size_t co
     return y + height + FromDIP(pane.list_padding_y);
 }
 
-int LeftPane::draw_view_title(wxGraphicsContext& gc, int y, int width, const wxString& title)
-{
-    const ShellPalette& p = m_theme.palette(m_dark);
-    y = draw_back_row(gc, y, width, _L("Project"));
-    return draw_paragraph(gc, y, width, title, TextRole::BodySmallBold, p.text_primary);
-}
-
 int LeftPane::draw_project_root(wxGraphicsContext& gc, int y, int width)
 {
     const ShellPalette&    p    = m_theme.palette(m_dark);
@@ -510,7 +503,7 @@ int LeftPane::draw_project_details(wxGraphicsContext& gc, int y, int width)
 {
     const ShellPalette&    p    = m_theme.palette(m_dark);
     const LeftPaneMetrics& pane = m_theme.metrics().left_pane;
-    y = draw_view_title(gc, y, width, _L("Details"));
+    y = draw_back_row(gc, y, width, _L("Details"));
     y += FromDIP(pane.row_gap);
     const ProjectDetailsView view = build_details_view(*m_details);
 
@@ -587,7 +580,7 @@ int LeftPane::draw_project_details(wxGraphicsContext& gc, int y, int width)
 int LeftPane::draw_versions(wxGraphicsContext& gc, int y, int width)
 {
     const ShellPalette& p = m_theme.palette(m_dark);
-    y = draw_view_title(gc, y, width, _L("Version history"));
+    y = draw_back_row(gc, y, width, _L("Version history"));
     if (m_sources.autosave == nullptr)
         return y;
     const std::string current = m_sources.autosave->current_version();

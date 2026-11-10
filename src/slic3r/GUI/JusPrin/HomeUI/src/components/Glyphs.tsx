@@ -37,8 +37,8 @@ export function PlusGlyph() {
   return <span className="glyph glyph-plus" aria-hidden="true" />;
 }
 
-export function ChevronLeftGlyph() {
-  return <span className="glyph glyph-chevron-left" aria-hidden="true" />;
+export function ArrowLeftGlyph() {
+  return <span className="glyph glyph-arrow-left" aria-hidden="true" />;
 }
 
 // The way into the Print history, on cards and in the header.

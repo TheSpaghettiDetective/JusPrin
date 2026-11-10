@@ -5,7 +5,7 @@ import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard, formatMoment } from './components/SetupCard';
 import { AllSettings, AllSettingsHeader, catalogFromContext } from './components/AllSettings';
-import { AgentPaneToggle, ChatHeader, ChatList, Dialog } from './components/ChatNavigation';
+import { AgentPaneToggle, ChatHeader, ChatList, Dialog, TaskHeader, printerTaskTitle } from './components/ChatNavigation';
 import { MessageList } from './components/MessageList';
 import { Composer, ComposerCredits } from './components/Composer';
 import { PrinterCredentialForm } from './components/PrinterPanel';
@@ -598,15 +598,12 @@ export function App({
         }}
       >
         {errorNotice}
+        <TaskHeader title={printerTaskTitle(session)} onClose={back}>
+          <button type="button" className="panel-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
+            {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
+          </button>
+        </TaskHeader>
         <div className="chat-content">
-          <header className="chat-header printer-header">
-            <button type="button" className="panel-link-button panel-back-link" onClick={back}>
-              <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back
-            </button>
-            <button type="button" className="panel-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>
-              {session?.printerName ? 'Open printer settings' : 'Browse the full printer list'}
-            </button>
-          </header>
           {session?.form && (
             <AddPrinterForm
               form={session.form}
@@ -693,6 +690,13 @@ export function App({
     <div className={state.navigation.focused ? 'app app--focused-chat' : 'app'}>
       {errorNotice}
       {view === 'list' && !state.navigation.focused && chatList}
+      {/* A chat that fills the window heads the window, above its reading column. */}
+      {state.navigation.focused && <TaskHeader title={`${state.filamentSession?.shown || state.filamentSession?.preset || 'Filament'} settings`}
+        closeTip={state.navigation.returnLabel} onClose={returnToWorkspace}>
+        <button type="button" className="panel-link-button"
+          onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>
+        <AgentPaneToggle onCollapse={collapseAgentPane} />
+      </TaskHeader>}
       <div className="chat-content" hidden={view === 'list'}>
       {notConfigured && state.conversations.length === 1 && view !== 'allSettings' && !state.navigation.focused ? (
         <>
@@ -701,15 +705,7 @@ export function App({
         </>
       ) : view === 'allSettings' ? (
         <AllSettingsHeader onBack={() => setView('chat')} onCollapse={collapseAgentPane} />
-      ) : state.navigation.focused ? (
-        <header className="chat-header printer-header">
-          <button type="button" className="panel-link-button panel-back-link" aria-label={state.navigation.returnLabel ?? 'Back to Prepare'}
-            onClick={returnToWorkspace}><span className="jp-icon jp-icon-chevron-left" aria-hidden="true" /> Back</button>
-          <button type="button" className="panel-link-button"
-            onClick={() => client.send('shell_action', { action: 'open_filament_settings' })}>Open filament settings</button>
-          <AgentPaneToggle onCollapse={collapseAgentPane} />
-        </header>
-      ) : (
+      ) : state.navigation.focused ? null : (
         <>
           <ChatHeader key={`header-${state.context?.sessionId}-${viewedId}`} title={viewedChat?.title || 'New chat'} busy={busy || pendingAction}
             onBack={() => { client.send('state_request', {}); setView('list'); }}

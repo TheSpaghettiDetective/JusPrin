@@ -27,6 +27,7 @@
 #include <wx/msgdlg.h>
 #include <wx/filedlg.h>
 #include <wx/weakref.h>
+#include <wx/control.h>
 #include <wx/dcbuffer.h>
 #include <wx/dialog.h>
 #include <wx/timer.h>
@@ -87,8 +88,11 @@ StatusRow::StatusRow(wxWindow*                  parent,
         if (m_left_pane_toggle_callback)
             m_left_pane_toggle_callback();
     });
-    m_home_button = new HeaderButton(this, theme, HeaderStyle::Quiet, _L("Home"), HeaderIcon::Back);
+    // Leaving the project is the window's way back: an outlined arrow, with
+    // the project's own name beside it as the title, not the destination.
+    m_home_button = new HeaderButton(this, theme, HeaderStyle::Outline, wxEmptyString, HeaderIcon::ArrowLeft);
     m_home_button->SetName("Home navigation");
+    m_home_button->SetToolTip(_L("Back to Home"));
     m_chip = new PrinterFilamentChip(this, theme);
     m_slice_button = new HeaderButton(this, theme, HeaderStyle::PrimaryLeft, _L("Slice"), HeaderIcon::Slice);
     m_slice_button->SetName("Next print action");
@@ -113,6 +117,7 @@ StatusRow::StatusRow(wxWindow*                  parent,
         dc.SetBackground(wxBrush(p.surface_canvas)); dc.Clear();
         dc.SetPen(wxPen(p.border_subtle));
         dc.DrawLine(0, GetClientSize().y-1, GetClientSize().x, GetClientSize().y-1);
+        paint_title(dc);
     });
 
     m_slice_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
@@ -350,11 +355,56 @@ void StatusRow::layout_header()
         home_x += m_left_pane_toggle->GetBestSize().x + gap;
     }
     place(m_home_button,home_x);
-    const int left = home_x+m_home_button->GetBestSize().x+gap;
-    const int available = std::max(0,right-gap-left);
-    const int width = std::min(m_chip->GetBestSize().x,available);
+    m_title_left = home_x+m_home_button->GetBestSize().x+FromDIP(m_theme.metrics().space_3);
+    const int available = std::max(0,right-gap-m_title_left);
+    // The title reserves its name and its widest save state, so the chip
+    // stays put as autosave moves between states.
+    int states = 0;
+    for (const wxString& state : {_L("Saving…"), _L("Saved"), _L("Couldn't save"), _L("Unsaved changes")}) {
+        int width = 0;
+        GetTextExtent(state, &width, nullptr, nullptr, nullptr, &m_theme.font(TextRole::Body));
+        states = std::max(states, width);
+    }
+    int name = 0;
+    GetTextExtent(project_name(), &name, nullptr, nullptr, nullptr, &m_theme.font(TextRole::BodyBold));
+    const int wanted = name+FromDIP(m_theme.metrics().space_2)+states;
+    // Under pressure the chip gives up width first, down to four fifths of the
+    // room, and ellipsizes; the name keeps at least the last fifth.
     const wxSize chip = m_chip->GetBestSize();
-    m_chip->SetSize(left+(available-width)/2,(height-chip.y)/2,width,chip.y);
+    const int title = std::max(0,std::min(wanted,std::max(available-gap-chip.x,available/5)));
+    const int width = std::max(0,std::min(chip.x,available-title-gap));
+    m_title_right = m_title_left+title;
+    // The chip sits midway between the title and the print actions.
+    const int chip_x = m_title_right+gap+(available-title-gap-width)/2;
+    m_chip->SetSize(chip_x,(height-chip.y)/2,width,chip.y);
+    Refresh();
+}
+
+void StatusRow::paint_title(wxDC& dc) const
+{
+    const auto& p = m_theme.palette(m_dark);
+    const int space = m_title_right-m_title_left;
+    if (space <= 0)
+        return;
+    const wxString state = save_state();
+    const int state_gap = FromDIP(m_theme.metrics().space_2);
+    dc.SetFont(m_theme.font(TextRole::Body));
+    const int state_width = state.empty() ? 0 : dc.GetTextExtent(state).x+state_gap;
+    dc.SetFont(m_theme.font(TextRole::BodyBold));
+    // The name keeps the room it needs first; the save state follows it only
+    // when both fit.
+    const bool with_state = !state.empty() && dc.GetTextExtent(project_name()).x+state_width <= space;
+    const wxString name = wxControl::Ellipsize(project_name(), dc, wxELLIPSIZE_END, space-(with_state ? state_width : 0));
+    const wxSize name_size = dc.GetTextExtent(name);
+    const int height = GetClientSize().y;
+    dc.SetTextForeground(p.text_primary);
+    dc.DrawText(name, m_title_left, (height-name_size.y)/2);
+    if (!with_state)
+        return;
+    dc.SetFont(m_theme.font(TextRole::Body));
+    const bool failed = m_autosave != nullptr && m_autosave->state() == Workspace::ProjectAutosave::State::Failed;
+    dc.SetTextForeground(failed ? p.status_danger : p.text_secondary);
+    dc.DrawText(state, m_title_left+name_size.x+state_gap, (height-dc.GetTextExtent(state).y)/2);
 }
 
 wxString StatusRow::project_name() const

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ConversationInfo } from '../bridge/protocol';
+import type { ReactNode } from 'react';
+import { ConversationInfo, PrinterSessionPayload } from '../bridge/protocol';
 
 function ChatIcon() {
   return <span className="jp-icon jp-icon-message-circle" aria-hidden="true" />;
@@ -267,6 +268,32 @@ export function Dialog({ title, onClose, children, eyebrow, className }: {
       {children}
     </div>
   </div>;
+}
+
+// A temporary chat that fills the window closes with an outlined X beside its
+// task as the title; leaving a screen uses an arrow and going back inside a
+// panel a quiet chevron. The tooltip names where Close returns to when the
+// host says so. Whatever the chat offers besides sits at the far end.
+export function TaskHeader({ title, closeTip, onClose, children }: {
+  title: string;
+  closeTip?: string;
+  onClose: () => void;
+  children?: ReactNode;
+}) {
+  return <header className="task-header">
+    <button type="button" className="task-close" aria-label="Close" title={closeTip ?? 'Close'} onClick={onClose}>
+      <span className="jp-icon jp-icon-close" aria-hidden="true" />
+    </button>
+    <h1 title={title}>{title}</h1>
+    {children}
+  </header>;
+}
+
+// The printer chat's task, as the menu command that opens it words it.
+export function printerTaskTitle(session: PrinterSessionPayload | null): string {
+  if (session?.mode === 'connect' && session.printerName) return `Connect ${session.printerName}`;
+  if (session?.mode === 'change' && session.printerName) return `${session.printerName} settings`;
+  return 'Add a printer';
 }
 
 interface HeaderProps {

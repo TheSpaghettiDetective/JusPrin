@@ -3,6 +3,7 @@
   "version": "1.47.0",
   "icons": {
     "arrow-down": "arrow-down",
+    "arrow-left": "arrow-left",
     "arrow-up": "arrow-up",
     "arrow-up-right": "arrow-up-right",
     "bot": "bot",

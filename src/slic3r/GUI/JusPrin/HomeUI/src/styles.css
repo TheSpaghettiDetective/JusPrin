@@ -53,8 +53,8 @@ body {
   min-width: 0;
 }
 
-/* The JusPrin lockup › Home, and Preferences, the height of the project
-   header it stands in for. */
+/* The JusPrin lockup and Preferences, the height of the project header it
+   stands in for. Home is where every way back ends, so it has none. */
 .home-header {
   flex: 0 0 var(--home-header-height);
   display: flex;
@@ -64,20 +64,9 @@ body {
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.home-header-path {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-secondary);
-}
-
 .home-header-lockup {
   display: block;
   height: var(--home-header-lockup-height);
-}
-
-.home-header-page {
-  font: var(--font-body);
 }
 
 /* The gallery and the printer rail, side by side under the header. */
@@ -1337,7 +1326,7 @@ body {
 .glyph-search { -webkit-mask-image: url('@resources/jusprin/ui/icons/search.svg'); mask-image: url('@resources/jusprin/ui/icons/search.svg'); }
 .glyph-chevron-down { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-down.svg'); }
 .glyph-chevron-right { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-right.svg'); }
-.glyph-chevron-left { -webkit-mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); mask-image: url('@resources/jusprin/ui/icons/chevron-left.svg'); }
+.glyph-arrow-left { -webkit-mask-image: url('@resources/jusprin/ui/icons/arrow-left.svg'); mask-image: url('@resources/jusprin/ui/icons/arrow-left.svg'); }
 .glyph-history { -webkit-mask-image: url('@resources/jusprin/ui/icons/clock.svg'); mask-image: url('@resources/jusprin/ui/icons/clock.svg'); }
 .glyph-check { -webkit-mask-image: url('@resources/jusprin/ui/icons/check.svg'); mask-image: url('@resources/jusprin/ui/icons/check.svg'); }
 .glyph-alert { -webkit-mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); mask-image: url('@resources/jusprin/ui/icons/circle-alert.svg'); }
@@ -1693,6 +1682,30 @@ body {
 
 .history-header-link:hover {
   text-decoration: underline;
+}
+
+/* Leaving a screen: the window's way back, an outlined arrow beside the
+   screen's own title, as the project header draws it. */
+.window-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-icon-width);
+  height: var(--button-icon-height);
+  padding: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  border: 0;
+  border-radius: var(--button-icon-radius);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
+}
+
+.window-back-button:hover { background: var(--surface-subtle); }
+
+.window-back-button .glyph {
+  width: var(--button-icon-icon-size);
+  height: var(--button-icon-icon-size);
 }
 
 .history-header-start {

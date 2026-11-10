@@ -271,7 +271,7 @@ function printerValue(perSlot: Map<string, CatalogSettingInfo>[], key: string): 
 
 export function AllSettingsHeader({ onBack, onCollapse }: { onBack: () => void; onCollapse: () => void }) {
   return <header className="chat-header all-settings-header">
-    <button type="button" className="chat-icon" aria-label="Back to chat" title="Back to chat" autoFocus onClick={onBack}>
+    <button type="button" className="chat-icon chat-back" aria-label="Back to chat" title="Back to chat" autoFocus onClick={onBack}>
       <span className="jp-icon jp-icon-chevron-left" aria-hidden="true" />
     </button>
     <h1>All settings</h1>

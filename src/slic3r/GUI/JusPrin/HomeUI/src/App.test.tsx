@@ -1081,12 +1081,14 @@ describe('Home gallery and rail', () => {
     Array.from({ length: count }, (_, index) => project({ id: `p${index}`, name: `Part ${String.fromCharCode(74 - index)}` }));
 
   // The shell hides its project header on Home, so the page draws its own.
-  it('heads the page with the JusPrin lockup › Home and Preferences', () => {
+  // Home is where every way back ends: the lockup alone, with no back control
+  // and no page name.
+  it('heads the page with the JusPrin lockup and Preferences', () => {
     const host = start();
     host.deliver('state', state());
     const header = document.querySelector('.home-header') as HTMLElement;
     expect(within(header).getByRole('img', { name: 'JusPrin' })).toHaveClass('home-header-lockup');
-    expect(header.textContent).toBe('Home');
+    expect(header.textContent).toBe('');
     expect(within(header).getByRole('button', { name: 'Preferences' })).toBeInTheDocument();
     expect(document.querySelector('.printer-column')!.querySelector('.preferences-button')).toBeNull();
   });
@@ -1346,6 +1348,7 @@ describe('Print history', () => {
 
   it('goes back to the gallery it was opened from', () => {
     const host = openFromHome();
+    expect(screen.getByRole('button', { name: 'Back' })).toHaveAttribute('title', 'Back to Home');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('Projects')).toBeInTheDocument();
     expect(host.lastOfType('history_back')).toBeUndefined();
@@ -1358,6 +1361,7 @@ describe('Print history', () => {
     host.deliver('history', { entries: [bracket(), vent()] });
     expect(screen.getByText('Project: Garage bracket')).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'bracket-v3.gcode' })).toHaveClass('focused');
+    expect(screen.getByRole('button', { name: 'Back' })).toHaveAttribute('title', 'Back to the project');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(host.lastOfType('history_back')).toBeDefined();
     // Home coming on screen again shows the gallery.

@@ -57,6 +57,6 @@ export const printerCases: VisualCase[] = [
   { node: '1572:2336', matrix: 'Printer chat', id: 'printer-close', name: 'Close conversation confirmation', frame: 'pane',
     expects: ['Close this chat?', 'Printers already added stay added.', 'Close chat', 'role="dialog"'],
     build: () => mountedApp(session(), { props: { printerPanel: true }, after: async () => {
-      await userEvent.click(screen.getByRole('button', { name: /Back/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     } }) },
 ];

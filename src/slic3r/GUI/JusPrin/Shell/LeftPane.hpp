@@ -149,6 +149,8 @@ private:
     // The Print history row: the count and how it stands, into the screen.
     int  draw_print_history_row(wxGraphicsContext& gc, int y, int width);
     int  draw_versions(wxGraphicsContext& gc, int y, int width);
+    // A view's title with the way back to the Project tab's first page: one
+    // row, the chevron and then the view's own name.
     int  draw_back_row(wxGraphicsContext& gc, int y, int width, const wxString& title);
     int  draw_action_row(wxGraphicsContext& gc, int y, int width, const wxString& label, const wxString& detail,
                          bool chevron, std::function<void()> invoke, bool enabled = true,
@@ -156,7 +158,6 @@ private:
     // The model's own pictures (the "Model Pictures" attachments), up to `count`
     // across the pane. Draws nothing when there are none.
     int  draw_cover(wxGraphicsContext& gc, int y, int width, std::size_t count);
-    int  draw_view_title(wxGraphicsContext& gc, int y, int width, const wxString& title);
     int  draw_disclosure_row(wxGraphicsContext& gc, int y, int width, const std::string& key, const wxString& label,
                              const wxString& detail);
     int  draw_paragraph(wxGraphicsContext& gc, int y, int width, const wxString& text, TextRole role, const wxColour& colour,

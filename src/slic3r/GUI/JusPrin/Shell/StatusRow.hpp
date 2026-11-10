@@ -17,6 +17,7 @@
 #include <tuple>
 #include <vector>
 
+class wxDC;
 class wxWindowDestroyEvent;
 class Notebook;
 
@@ -39,10 +40,11 @@ class PrinterFilamentChip;
 // The overflow menu's rows for this project, each a place in the Project tab.
 enum class ProjectMenuRow { Project, VersionHistory, Export };
 
-// Home navigation, a centered setup selector, and right-aligned print actions.
-// Project identity and save state lead the overflow menu. It
-// renders authoritative Orca state and drives the same event paths as the
-// stock controls; it owns no project state of its own.
+// The way back to Home with the project's name and save state, the setup
+// selector midway between them and the right-aligned print actions. Project identity and save
+// state also lead the overflow menu. It renders authoritative Orca state and
+// drives the same event paths as the stock controls; it owns no project state
+// of its own.
 class StatusRow : public wxPanel
 {
 public:
@@ -109,6 +111,8 @@ private:
     wxString save_state() const;
     void refresh_chip();
     void layout_header();
+    // The project name and save state beside the back arrow.
+    void paint_title(wxDC& dc) const;
     std::tuple<std::uint64_t, std::uint64_t, std::uint64_t> print_target_identity() const;
     wxString action_label(PrintAction action, bool primary = false) const;
     void on_slice_status_changed(wxCommandEvent& event);
@@ -140,6 +144,8 @@ private:
     bool                     m_left_pane_available{false};
     bool                     m_left_pane_collapsed{false};
     bool                     m_tabpanel_alive{true};
+    int                      m_title_left{0};
+    int                      m_title_right{0};
 };
 
 } // namespace Slic3r::GUI::JusPrin

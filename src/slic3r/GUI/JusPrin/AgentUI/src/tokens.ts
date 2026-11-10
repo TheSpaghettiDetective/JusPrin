@@ -19,7 +19,7 @@ const shared = (tokens as unknown as { component: Record<string, Section> }).com
 const SECTIONS: [string, string][] = [
   ['menu-row', 'menuRow'], ['popover', 'popover'], ['segmented', 'segmented'], ['tooltip', 'tooltip'],
   ['focus', 'focus'], ['field-search', 'fieldSearch'], ['select', 'select'], ['checkbox', 'checkbox'], ['form-row', 'formRow'],
-  ['credits', 'credits'], ['model-menu', 'modelMenu'],
+  ['credits', 'credits'], ['model-menu', 'modelMenu'], ['home-header', 'homeHeader'],
 ];
 
 function lengths(section: Section): Record<string, number> {
@@ -80,6 +80,8 @@ export function composerInputMaxHeight(): number {
 //   --reply-chip-padding-x message: its height and its text's inset.
 //   --menu-row-*, --popover-*  the header's menu geometry, so the chat's
 //                          menus are the same control
+//   --home-header-height   a window-wide header, Home's height, which a chat
+//                          that fills the window heads itself with
 //   --segmented-*, --tooltip-*  Segmented Control and Tooltip
 //   --focus-width, --focus-offset  the keyboard focus ring every control draws
 //   --composer-padding,    the message box: its inset, the gap between its

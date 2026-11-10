@@ -18,8 +18,8 @@ import {
 } from '../history';
 import {
   AlertGlyph,
+  ArrowLeftGlyph,
   CheckGlyph,
-  ChevronLeftGlyph,
   CloseGlyph,
   DownloadGlyph,
   MessageGlyph,
@@ -263,14 +263,16 @@ export function PrintHistory({
     </span>
   );
 
-  // A leaf's bar: Back and the title. Preferences is reached from the title
-  // bar's menu and Ctrl+,, not from here.
+  // A leaf's bar: the window's back arrow and the title. The arrow's tooltip
+  // names where it goes. Preferences is reached from the title bar's menu and
+  // Ctrl+,, not from here.
   return (
     <div className="app">
       <header className="home-header">
         <span className="history-header-start">
-          <button type="button" className="preferences-button" aria-label="Back" title="Back" onClick={actions.onBack}>
-            <ChevronLeftGlyph />
+          <button type="button" className="window-back-button" aria-label="Back"
+            title={screen.back === 'project' ? 'Back to the project' : 'Back to Home'} onClick={actions.onBack}>
+            <ArrowLeftGlyph />
           </button>
           <span className="history-title">Print history</span>
         </span>

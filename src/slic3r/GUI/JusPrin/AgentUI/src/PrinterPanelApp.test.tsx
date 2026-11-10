@@ -107,10 +107,11 @@ describe('the printer panel page', () => {
     expect((sent()[1].payload as { text: string }).text).toContain('Nozzle: 0.6 mm');
   });
 
-  it('draws nothing but Back, its menu, the thread and the composer', () => {
+  it('draws nothing but Close, its task, the link, the thread and the composer', () => {
     open();
     expect(document.querySelector('.app--printer-setup')).not.toBeNull();
-    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByRole('heading')).toHaveTextContent('Add a printer');
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute('title', 'Close');
     expect(screen.queryByRole('button', { name: 'Add this printer' })).toBeNull();
     expect(screen.getByText('What printer do you have?')).toBeInTheDocument();
     expect(screen.getByLabelText('Message AI')).toBeEnabled();
@@ -118,9 +119,19 @@ describe('the printer panel page', () => {
     expect(screen.queryByTestId('current-setup')).toBeNull();
   });
 
+  // The title is the task, as the menu command that opened the chat words it.
+  it('titles connecting a printer and asking about its settings by the printer', () => {
+    open(state({ session: session({ mode: 'connect', printerName: 'Lab Printer' }) }));
+    expect(screen.getByRole('heading')).toHaveTextContent('Connect Lab Printer');
+    document.body.innerHTML = '';
+    open(state({ session: session({ mode: 'change', printerName: 'Lab Printer' }) }));
+    expect(screen.getByRole('heading')).toHaveTextContent('Lab Printer settings');
+    expect(screen.getByRole('button', { name: 'Open printer settings' })).toBeInTheDocument();
+  });
+
   it('goes back without asking before the person has said anything', async () => {
     const host = open();
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -132,7 +143,7 @@ describe('the printer panel page', () => {
 
   it('asks before going back once the person has said something, and Cancel stays', async () => {
     const host = open(said);
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     const dialog = screen.getByRole('dialog', { name: 'Close this chat?' });
     expect(dialog).toHaveTextContent("Printers already added stay added. The chat can't be opened again.");
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -141,7 +152,7 @@ describe('the printer panel page', () => {
     expect(host.lastOfType('printer_action')).toBeUndefined();
 
     // Escape is Cancel.
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(host.lastOfType('printer_action')).toBeUndefined();
@@ -149,7 +160,7 @@ describe('the printer panel page', () => {
 
   it('closes the conversation when the person confirms', async () => {
     const host = open(said);
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close chat' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -158,7 +169,7 @@ describe('the printer panel page', () => {
   it('asks before going back over words not yet sent', async () => {
     const host = open();
     await userEvent.type(screen.getByLabelText('Message AI'), 'half a thought');
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(host.lastOfType('printer_action')).toBeUndefined();
   });
@@ -178,7 +189,7 @@ describe('the printer panel page', () => {
 
   it('goes back without asking while Done is offered', async () => {
     const host = open(finished);
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(host.lastOfType('printer_action')!.payload).toEqual({ action: 'close' });
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -194,7 +205,7 @@ describe('the printer panel page', () => {
   it('asks again once the person answers past Done', async () => {
     const host = open(finished);
     host.deliver('message_added', { message: { id: 'm-3', role: 'user', state: 'complete', text: 'wait, change the nozzle', attempt: 1 } });
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getByRole('dialog', { name: 'Close this chat?' })).toBeInTheDocument();
     expect(host.lastOfType('printer_action')).toBeUndefined();
   });
@@ -246,7 +257,7 @@ describe('the printer panel page', () => {
     expect(screen.queryByTestId('setup-chooser')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Your own API key' })).not.toBeInTheDocument();
     expect(host.received.filter((envelope) => envelope.type === 'printer_action')).toEqual([]);
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Browse the full printer list' })).toBeInTheDocument();
 
     // The window closes with an agent: the greeting is there and nothing was sent.

@@ -9,7 +9,7 @@ import { PrintHistory } from './components/PrintHistory';
 import { PrintReportForm } from './components/PrintReportForm';
 import type { PrintHistoryActions } from './components/PrintHistory';
 import type { PrinterActions } from './components/PrinterMenu';
-import { ChevronDownGlyph, ChevronRightGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { ChevronDownGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
 import { Lockup } from './components/Lockup';
 import { Onboarding, STAND_IN_PRINTER } from './components/Onboarding';
 import { AgentGroup } from './components/AgentGroup';
@@ -241,11 +241,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   return (
     <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
       <header className="home-header">
-        <span className="home-header-path">
-          <Lockup appearance={state.appearance} className="home-header-lockup" />
-          <ChevronRightGlyph />
-          <span className="home-header-page">Home</span>
-        </span>
+        <Lockup appearance={state.appearance} className="home-header-lockup" />
         <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences (Ctrl+,)"
           onClick={() => client.send('open_preferences', {})}>
           <SettingsGlyph />

@@ -19,6 +19,7 @@ const char* icon_asset(HeaderIcon icon)
 {
     switch (icon) {
     case HeaderIcon::Back:    return "chevron-left";
+    case HeaderIcon::ArrowLeft: return "arrow-left";
     case HeaderIcon::Right:   return "chevron-right";
     case HeaderIcon::Down:    return "chevron-down";
     case HeaderIcon::Up:      return "chevron-up";

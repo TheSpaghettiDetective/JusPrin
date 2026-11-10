@@ -193,15 +193,16 @@ describe('App', () => {
     expect(host.lastOfType('set_chat_model')?.payload).toEqual({ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'xhigh' });
   });
 
-  it('offers only Back and manual settings from a temporary filament chat', async () => {
+  it('offers only Close and manual settings from a temporary filament chat', async () => {
     render(<App getTransport={() => host.transport} />);
-    connect(host, emptyState({ navigation: { focused: true } }));
-    expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
+    connect(host, emptyState({ navigation: { focused: true, returnLabel: 'Back to Prepare' } }));
+    // The X's tooltip names where it returns to.
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute('title', 'Back to Prepare');
     expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Chat actions' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Open filament settings' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'open_filament_settings' });
-    await userEvent.click(screen.getByRole('button', { name: 'Back to Prepare' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(host.lastOfType('shell_action')?.payload).toEqual({ action: 'return_to_workspace' });
   });
 
@@ -214,6 +215,8 @@ describe('App', () => {
     expect(sent()).toHaveLength(1);
     expect((sent()[0].payload as { text: string }).text).toContain('Name: Bambu PLA Basic @BBL X1C\n');
     expect((sent()[0].payload as { text: string }).text).toContain('Copy to save as: Bambu PLA Basic @BBL X1C - Copy\n');
+    // Its title is the filament the header calls it.
+    expect(screen.getByRole('heading', { name: 'Bambu PLA Basic settings' })).toBeInTheDocument();
     // Saved as a copy: the chat is about the copy.
     connect(host, emptyState({ navigation: { focused: true },
                                session: { ...filament, preset: 'Bambu PLA Basic @BBL X1C - Copy', stock: false, copyName: undefined } }));
@@ -259,7 +262,7 @@ describe('App', () => {
     connect(host, emptyState({ agent: { status: 'unavailable' }, navigation: { focused: true }, conversation: [
       { id: 'n-1', role: 'note', state: 'complete', text: 'Filament settings for slot 1.', attempt: 1 },
     ] }));
-    expect(screen.getByRole('button', { name: 'Back to Prepare' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open filament settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up AI' })).toBeInTheDocument();
   });
