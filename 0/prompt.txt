@@ -75,3 +75,11 @@
 <status>failed</status>
 <summary>Background command "Wait for the native build to finish or fail" failed with exit code 144</summary>
 </task-notification>
+
+---
+
+If you have made multiple commits, squash them into one in on in the main checkout on the jusprin-dev branch
+
+---
+
+the build the main chekcout
