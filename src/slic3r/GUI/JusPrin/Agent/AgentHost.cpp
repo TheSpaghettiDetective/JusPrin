@@ -1,4 +1,5 @@
 #include "AgentHost.hpp"
+#include "AgentProtocol.hpp"
 #include "ToolRegistry.hpp"
 #include "ProviderAgent.hpp"
 #include "ProviderCodec.hpp"
@@ -1036,13 +1037,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_reveal_path(envelope_id, payload);
     else if (type == Protocol::kPickAttachment)
         handle_pick_attachment(envelope_id, payload);
-    else if (type == Protocol::kRefreshAccount) {
-        request_account();
-        // A model list that failed is asked again with it: Try again on an
-        // account whose AI was unavailable, or coming back to the window.
-        if (m_model_source)
-            request_model_lists();
-    }
+    else if (type == Protocol::kRefreshAccount)
+        refresh_account();
     else if (type == Protocol::kRefreshAccountBox)
         request_account_box();
     else if (type == Protocol::kDeleteAccount)
@@ -3729,6 +3725,15 @@ bool AgentHost::model_reads_pictures(const ChatModelChoice& choice) const
         if (option.id == choice.model)
             return option.images;
     return true;
+}
+
+void AgentHost::refresh_account()
+{
+    request_account();
+    // A model list that failed is asked again with it: Try again on an
+    // account whose AI was unavailable, or coming back to the window.
+    if (m_model_source)
+        request_model_lists();
 }
 
 void AgentHost::request_account()

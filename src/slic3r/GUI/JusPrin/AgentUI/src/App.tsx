@@ -145,13 +145,6 @@ export function App({
     applyAppearance(state.appearance);
   }, [state.appearance]);
 
-  // Coming back from the browser, where credits may have been bought.
-  useEffect(() => {
-    const refresh = () => client.send('refresh_account', {});
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
-  }, [client]);
-
   // The shell's own Ctrl+, cannot see keys while this page has the focus.
   // The printer conversation has no shell behind it that would answer.
   useEffect(() => {

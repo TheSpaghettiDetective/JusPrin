@@ -67,6 +67,7 @@ public:
     }
     // The signed-in account's credits, plan and usage, later, on the host's
     // thread; nothing when no account is signed in or it could not be read.
+    // An answer for an account signed out since is never given.
     using AccountDone = std::function<void(std::optional<nlohmann::json> account)>;
     virtual void fetch_account(AccountDone done) { done(std::nullopt); }
     // The HTML the JusPrin server puts in the box on Preferences › Account,
@@ -164,10 +165,11 @@ public:
     // Sends one envelope of a type this protocol declares. The subject uses
     // it to push its own state between snapshots.
     void send_page_envelope(const std::string& type, const nlohmann::json& payload);
-    // Reads the signed-in account's credits and plan again, as the page's
-    // refresh_account does: after a server page in the app's sheet closes, a
-    // purchase may have changed them.
-    void refresh_account() { request_account(); }
+    // Reads the signed-in account's credits and plan again, and a model list
+    // that failed, as the page's refresh_account does: each time the window
+    // showing this page comes on screen, since they change where the app
+    // cannot see.
+    void refresh_account();
     // Runs the session's own tools inside the coordinator's state machine.
     // Anything it leaves unhandled stays with the host.
     void set_session_tool_executor(ToolExecutionCoordinator::ExtensionExecutor executor)

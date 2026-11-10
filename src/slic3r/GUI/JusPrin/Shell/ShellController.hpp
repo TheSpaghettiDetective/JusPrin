@@ -249,6 +249,13 @@ private:
     void on_page_changed();
     void on_notebook_page_changed(wxBookCtrlEvent& event);
     void on_frame_size(wxSizeEvent& event);
+    void on_frame_activate(wxActivateEvent& event);
+    // Whatever in the main window shows credits reads them from the server
+    // each time it comes on screen. The server is the only place they are
+    // true, and they change where the app cannot see (a purchase in the
+    // browser, a chat on another computer, a lot expiring), so a screen is
+    // never told by another that they changed.
+    void read_account_on_screen();
     void on_frame_char_hook(wxKeyEvent& event);
     // Takes Tab on the Prepare canvas, which OrcaSlicer would answer by
     // switching to Preview, and does nothing with it.

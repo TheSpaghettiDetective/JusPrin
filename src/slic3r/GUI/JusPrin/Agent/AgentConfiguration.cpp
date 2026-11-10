@@ -11,6 +11,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -309,9 +310,16 @@ public:
             const ProviderProfile* profile = profile_for(provider);
             if (profile == nullptr || !profile->account_sign_in)
                 continue;
-            Agent::fetch_account(*profile, load_provider_api_key(m_config, provider), endpoint_for(m_config, *profile), m_cancelled,
-                                 [post = m_post, done = std::move(done)](std::optional<nlohmann::json> account) {
-                                     post([done, account = std::move(account)]() mutable { done(std::move(account)); });
+            const std::string token = load_provider_api_key(m_config, provider);
+            Agent::fetch_account(*profile, token, endpoint_for(m_config, *profile), m_cancelled,
+                                 [post = m_post, done = std::move(done), config = m_config, provider,
+                                  token](std::optional<nlohmann::json> account) {
+                                     post([done, account = std::move(account), config, provider, token]() mutable {
+                                         // The account signed out, or another signed in, while this
+                                         // was read: the answer is not the one signed in now.
+                                         if (load_provider_api_key(config, provider) == token)
+                                             done(std::move(account));
+                                     });
                                  });
             return;
         }

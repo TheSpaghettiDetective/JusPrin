@@ -460,6 +460,7 @@
 #include <wx/glcanvas.h>
 #include <wx/dialog.h>
 #include <wx/dnd.h>
+#include <wx/event.h>
 #include <wx/hyperlink.h>
 #include <wx/image.h>
 #include <wx/mstream.h>
@@ -910,6 +911,9 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_requests;
     }
+    // What the account's credits answer says is left, as a chat spending
+    // some on the server would change it.
+    void set_credits(int credits) { m_credits = credits; }
 
 private:
     void serve()
@@ -953,6 +957,14 @@ private:
                 reply  = R"({"status":400,"errors":[{"message":"Incorrect code.","code":"incorrect_code","param":"code"}]})";
             } else if (path == "/jusprin/api/me/") {
                 reply = R"({"user":{"email":"alex@example.com"},"ai_credits":{"total":500}})";
+            } else if (path == "/ent/jusprin/v2/account" &&
+                       text.find("Authorization: Bearer harness-email-token\r\n") == std::string::npos) {
+                status = 401;
+                reply  = R"({"detail":"Authentication credentials were not provided."})";
+            } else if (path == "/ent/jusprin/v2/account") {
+                const std::string left = std::to_string(m_credits.load());
+                reply = R"({"credits":{"total":)" + left + R"(,"lots":[{"kind":"signup","credits":)" + left +
+                        R"(,"granted":500,"expires_at":null}]},"plan":null,"usage_30d":{"activity":[]}})";
             } else if (path == "/ent/jusprin/v2/models") {
                 reply = R"({"data":[{"id":"jusprin-standard","label":"Standard","format":"responses"}]})";
             } else {
@@ -974,6 +986,7 @@ private:
     boost::asio::io_context        m_io;
     boost::asio::ip::tcp::acceptor m_acceptor;
     std::atomic<bool>              m_stopping{false};
+    std::atomic<int>               m_credits{500};
     mutable std::mutex             m_mutex;
     std::vector<std::string>       m_requests;
     std::thread                    m_thread;
@@ -1535,7 +1548,9 @@ public:
             verify_shell_installed();
             if (m_state->mode == HarnessState::Mode::FreshExample) {
                 verify_fresh_install_example();
-                verify_email_sign_in_from_home([self = shared_from_this()] { self->finish(); });
+                verify_email_sign_in_from_home([self = shared_from_this()] {
+                    self->verify_home_account_follows_the_server([self] { self->finish(); });
+                });
                 return;
             }
             verify_onboarding_saves_its_values();
@@ -1682,6 +1697,157 @@ public:
                             });
                     });
             });
+    }
+
+    // Each screen showing credits reads them from the server when it comes on
+    // screen, and only then: Home's AI card after a project's tab, after the
+    // printer chat that covered it, and when the main window comes back to
+    // the front; no read while moving between a project's tabs; and no
+    // account once Preferences signs it out.
+    void verify_home_account_follows_the_server(std::function<void()> then)
+    {
+        const auto shows = [](std::vector<std::string> parts, std::string absent = {}) {
+            return [parts, absent](const std::string& card) {
+                return std::all_of(parts.begin(), parts.end(), [&card](const std::string& part) { return card.find(part) != std::string::npos; }) &&
+                       (absent.empty() || card.find(absent) == std::string::npos);
+            };
+        };
+        // The email sign-in polled Home by hand; it is on screen, so it polls itself.
+        installed_shell()->home_view()->set_live(true);
+        expect_home_card(shows({"Signed in as alex@example.com", "500 credits left"}), "home_card_shows_the_account_credits",
+            [this, shows, then] {
+                m_state->gateway->set_credits(493);
+                const size_t before = account_reads();
+                // The project's pane comes on screen with Prepare; Preview is the same screen.
+                m_frame->select_tab(TAB_ID_PREPARE);
+                m_frame->select_tab(TAB_ID_PREVIEW);
+                expect_account_reads(before + 1, "account_read_once_by_the_pane_across_a_projects_tabs", [this, shows, then] {
+                    const size_t before = account_reads();
+                    m_frame->select_tab(TAB_ID_HOME);
+                    expect_home_card(shows({"493 credits left"}), "home_card_reads_the_credits_again_on_return", [this, shows, then, before] {
+                        expect_account_reads(before + 1, "account_read_once_on_return_to_home", [this, shows, then] {
+                            verify_home_account_after_printer_chat(shows, then);
+                        });
+                    });
+                });
+            });
+    }
+
+    template <typename Shows>
+    void verify_home_account_after_printer_chat(Shows shows, std::function<void()> then)
+    {
+        m_state->gateway->set_credits(480);
+        installed_shell()->open_printer_conversation(std::string(), false);
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        wait_until([panel] { return panel->IsShown() && panel->host() != nullptr && panel->host()->handshake_complete(); },
+                   "account_printer_chat_open", [this, shows, then, panel] {
+            const size_t before = account_reads();
+            panel->close();
+            expect_home_card(shows({"480 credits left"}), "home_card_reads_the_credits_after_the_printer_chat", [this, shows, then, before] {
+                expect_account_reads(before + 1, "account_read_once_after_the_printer_chat", [this, shows, then] {
+                    m_state->gateway->set_credits(470);
+                    const size_t before = account_reads();
+                    // As the window system says when the person comes back from the browser.
+                    wxActivateEvent active(wxEVT_ACTIVATE, true);
+                    m_frame->GetEventHandler()->ProcessEvent(active);
+                    expect_home_card(shows({"470 credits left"}), "home_card_reads_the_credits_when_the_window_is_back", [this, shows, then, before] {
+                        expect_account_reads(before + 1, "account_read_once_when_the_window_is_back", [this, shows, then] {
+                            verify_home_account_after_sign_out(shows, then);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    template <typename Shows>
+    void verify_home_account_after_sign_out(Shows shows, std::function<void()> then)
+    {
+        // Sign out, on the Preferences page, as a person clicks it.
+        m_modal_gate = [](wxDialog& dialog) {
+            auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog);
+            if (window == nullptr)
+                return true;
+            if (!window->page_connected())
+                return false;
+            if (Agent::cloud_account_token(wxGetApp().app_config).empty())
+                return true;
+            WebView::RunScript(window->web_view().webview(),
+                               "var out = Array.from(document.querySelectorAll('button')).find(function (x) {"
+                               " return x.textContent === 'Sign out'; }); if (out) out.click();");
+            return false;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        installed_shell()->request_preferences("account");
+        wait_until([this] { return m_modals_answered > m_modals_before; }, "home_account_preferences_closed", [this, shows, then] {
+            stop_answering_modals();
+            // The main window is in front again once the window over it closes.
+            wxActivateEvent active(wxEVT_ACTIVATE, true);
+            m_frame->GetEventHandler()->ProcessEvent(active);
+            // Signed out, Home has no account to show; it shows the AI group only with one.
+            expect_home_card(shows({}, "alex@example.com"), "home_card_forgets_the_account_preferences_signed_out", then);
+        });
+    }
+
+    size_t account_reads() const
+    {
+        const std::vector<std::string> requests = m_state->gateway->requests();
+        return std::count_if(requests.begin(), requests.end(),
+                             [](const std::string& request) { return request == "GET /ent/jusprin/v2/account"; });
+    }
+
+    // Waits for the stand-in server to have answered `count` account reads in
+    // all, then a moment more for any extra, and checks there are exactly that many.
+    void expect_account_reads(size_t count, const std::string& name, std::function<void()> then)
+    {
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        wait_until([this, count, until] { return account_reads() >= count || std::chrono::steady_clock::now() > until; },
+                   name + "_arrived", [this, count, name, then] {
+            const auto settle = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+            wait_until([settle] { return std::chrono::steady_clock::now() > settle; }, name + "_settled", [this, count, name, then] {
+                check(account_reads() == count, name + ": " + std::to_string(account_reads()) + " reads, " + std::to_string(count) + " expected");
+                then();
+            });
+        });
+    }
+
+    std::optional<std::string> m_home_card; // nothing until the page has answered
+    bool                       m_home_card_bound{false};
+
+    // Gives Home's AI card ten seconds to read as `drawn` says, then checks
+    // that it does and goes on either way, so a card left as it was is
+    // reported with what it showed.
+    void expect_home_card(std::function<bool(const std::string&)> drawn, const std::string& name, std::function<void()> then)
+    {
+        wxWebView* view = installed_shell()->home_view()->webview();
+        if (!m_home_card_bound) {
+            view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [weak = std::weak_ptr<Scenario>(shared_from_this())](wxWebViewEvent& event) {
+                event.Skip();
+                const auto self = weak.lock();
+                const nlohmann::json message = nlohmann::json::parse(event.GetString().ToUTF8().data(), nullptr, false);
+                if (self && message.is_object() && message.value("harness", "") == "home-card")
+                    self->m_home_card = message.value("text", std::string());
+            });
+            m_home_card_bound = true;
+        }
+        m_home_card.reset();
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        auto ticks = std::make_shared<unsigned>(0);
+        wait_until([this, drawn, until] { return (m_home_card && drawn(*m_home_card)) || std::chrono::steady_clock::now() > until; },
+                   name + "_settled",
+                   [this, drawn, name, then] {
+                       check(m_home_card && drawn(*m_home_card), name + ": " + m_home_card.value_or("(no answer from the page)"));
+                       then();
+                   },
+                   [view, ticks] {
+                       if ((*ticks)++ % 25 == 0)
+                           WebView::RunScript(view,
+                               "(function () {"
+                               "  var group = document.querySelector('.agent-group');"
+                               "  window.wx.postMessage(JSON.stringify({ harness: 'home-card', text: group ? group.innerText : '' }));"
+                               "})()");
+                   });
     }
 
     // Each field of the first-run progress keeps its own value once saved.

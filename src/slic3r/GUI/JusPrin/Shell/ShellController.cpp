@@ -45,6 +45,7 @@
 
 #include <wx/dcbuffer.h>
 #include <wx/dnd.h>
+#include <wx/event.h>
 #include <wx/glcanvas.h>
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
@@ -506,12 +507,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 // view's message handler, which the sheet's own would nest in.
                 const std::string page = payload.value("page", std::string());
                 const std::string from = payload.value("from", std::string());
-                m_frame->CallAfter([this, page, from] {
-                    ServerSheet::open(m_frame, page, from, [this] {
-                        if (m_installed && m_agent_pane != nullptr)
-                            m_agent_pane->web_view().host().refresh_account();
-                    });
-                });
+                // Closing it brings the main window back to the front, where the
+                // pane reads the account again.
+                m_frame->CallAfter([this, page, from] { ServerSheet::open(m_frame, page, from, {}); });
                 return true;
             }
             if (action == "collapse_agent_pane") {
@@ -930,6 +928,7 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         frame.Bind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
         frame.Bind(wxEVT_SIZE, &ShellController::on_frame_size, this);
         frame.Bind(wxEVT_CHAR_HOOK, &ShellController::on_frame_char_hook, this);
+        frame.Bind(wxEVT_ACTIVATE, &ShellController::on_frame_activate, this);
         // Every way into Preferences OrcaSlicer has -- its menu items, Ctrl+P,
         // the macOS app menu's Cmd+, -- opens JusPrin's window. A request for
         // one of OrcaSlicer's own tabs or options still opens its dialog.
@@ -1118,6 +1117,28 @@ void ShellController::on_plater_idle(wxIdleEvent& event)
         install_drop_target();
 }
 
+void ShellController::on_frame_activate(wxActivateEvent& event)
+{
+    event.Skip();
+    // Back from another app, Preferences or the purchase page.
+    if (m_installed && event.GetActive())
+        read_account_on_screen();
+}
+
+void ShellController::read_account_on_screen()
+{
+    if (m_task_open) {
+        if (Agent::AgentHost* host = m_printer_panel->host())
+            host->refresh_account();
+    } else if (m_home_shown) {
+        m_home->backend().refresh_account();
+        // Its email too: Preferences may have signed out or in.
+        m_home->refresh();
+    } else if (!m_agent_pane_collapsed) {
+        m_agent_pane->web_view().host().refresh_account();
+    }
+}
+
 void ShellController::on_frame_size(wxSizeEvent& event)
 {
     event.Skip();
@@ -1239,6 +1260,8 @@ void ShellController::set_agent_pane_collapsed(bool collapsed)
     m_agent_resize_handle->Show(!collapsed);
     if (m_status_row != nullptr)
         m_status_row->set_agent_pane_collapsed(collapsed);
+    if (!collapsed && !m_task_open)
+        read_account_on_screen();
     // Expanding re-applies the width policy, which lays out on its way; a
     // collapsed pane has no width to apply, so it lays out here.
     apply_left_pane_width();
@@ -1544,6 +1567,7 @@ void ShellController::uninstall()
     m_frame->Unbind(wxEVT_DESTROY, &ShellController::on_frame_destroy, this);
     m_frame->Unbind(wxEVT_SIZE, &ShellController::on_frame_size, this);
     m_frame->Unbind(wxEVT_CHAR_HOOK, &ShellController::on_frame_char_hook, this);
+    m_frame->Unbind(wxEVT_ACTIVATE, &ShellController::on_frame_activate, this);
     m_tabpanel->Unbind(wxEVT_NOTEBOOK_PAGE_CHANGED, &ShellController::on_notebook_page_changed, this);
 
     m_prepare_canvas_presentation.detach();
@@ -1895,6 +1919,9 @@ void ShellController::restore_task_panel()
     m_agent_resize_handle->Show(!m_agent_pane_collapsed);
     on_page_changed();
     apply_agent_pane_width();
+    // Home, or the project's pane, is back on screen; the panel's chats may
+    // have spent credits.
+    read_account_on_screen();
 }
 
 void ShellController::on_page_changed()
@@ -1907,6 +1934,8 @@ void ShellController::on_page_changed()
         return;
     }
     const bool home = m_tabpanel->GetSelectedPageName() == TAB_ID_HOME;
+    if (home && !m_home_shown)
+        m_home->backend().refresh_account();
     if (home)
         m_home->refresh();
     // Coming onto the screen, Home shows its gallery, or the Print history

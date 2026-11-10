@@ -236,15 +236,14 @@ bool PreferencesWindow::on_page_message(const std::string& type, const json& pay
     }
     if (type == Agent::Protocol::kShellAction && payload.is_object() && payload.value("action", std::string()) == "open_server_page") {
         // Account's Get more credits, in the sheet the composer's opens,
-        // here over this window. Both chats' balances are read again after.
+        // here over this window. This page reads the balance again after; the
+        // main window's screens read it when they come back on screen.
         const std::string page = payload.value("page", std::string());
         const std::string from = payload.value("from", std::string());
         CallAfter([this, page, from] {
             ServerSheet::open(this, page, from, [this] {
                 if (m_view != nullptr)
                     m_view->host().refresh_account();
-                if (ShellController* shell = installed_shell(); shell != nullptr && shell->agent_pane() != nullptr)
-                    shell->agent_pane()->web_view().host().refresh_account();
             });
         });
         return true;

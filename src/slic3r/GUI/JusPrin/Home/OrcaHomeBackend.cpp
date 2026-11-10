@@ -59,6 +59,8 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <string>
+#include <utility>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -541,11 +543,29 @@ void OrcaHomeBackend::request_account()
             });
         });
     }
-    m_account_requested = true;
     m_models->fetch_account([this](std::optional<nlohmann::json> account) {
-        m_account            = account ? std::move(*account) : nlohmann::json();
+        // One that could not be read keeps the last answer.
+        if (!account)
+            return;
+        m_account            = std::move(*account);
         m_onboarding_changed = true;
     });
+}
+
+void OrcaHomeBackend::follow_account(const std::string& email)
+{
+    if (email == m_account_email)
+        return;
+    m_account_email = email;
+    m_account       = nlohmann::json();
+    if (!email.empty())
+        request_account();
+}
+
+void OrcaHomeBackend::refresh_account()
+{
+    if (!m_account_email.empty())
+        request_account();
 }
 
 Snapshot::Onboarding OrcaHomeBackend::onboarding()
@@ -618,8 +638,7 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
     state.agent_card       = home_agent_card(state.agent_configured, !state.account_email.empty(),
                                              config_true(config, kAccountCardDismissed));
     // The credits the welcome's card and Home's account group show.
-    if (!state.account_email.empty() && !m_account_requested)
-        request_account();
+    follow_account(state.account_email);
     state.account = m_account;
     return state;
 }
@@ -644,7 +663,8 @@ bool OrcaHomeBackend::poll_onboarding()
                 // The docked agent runs on the account from now on.
                 if (ShellController* shell = installed_shell())
                     shell->reload_agent_settings();
-                request_account();
+                // Read afresh even for the account that was signed in before.
+                follow_account({});
                 break;
             case Agent::CloudSignInOutcome::Kind::Expired:
                 m_sign_in_error = utf8(_L("That sign-in expired. Try again."));
