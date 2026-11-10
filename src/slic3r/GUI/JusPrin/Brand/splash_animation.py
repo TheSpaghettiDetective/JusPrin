@@ -1,34 +1,43 @@
 #!/usr/bin/env python3
-"""Draw the splash's name animation as animated WebP files.
+"""Draw the name animation as animated WebP files, in two versions.
 
 The nozzle prints the name of the splash lockup one layer at a time, sweeping
 across each layer and alternating direction, then drops the dot on the i and
-parks where the logo has it. The finished logo holds briefly, the name fades,
-and printing starts again. The file starts with the second-to-last layer: the
-splash is often up for under a second, so the first thing anyone sees is the
-name finishing and the dot going on.
+parks where the logo has it.
+
+- The splash's version loops: the finished logo holds briefly, the name fades,
+  and printing starts again. It starts with the second-to-last layer: the
+  splash is up for anything from under a second to twenty, so the first thing
+  anyone sees is the name finishing and the dot going on.
+- The About window's version plays once, at the same speed, from an empty
+  name to the finished logo, and stays there: people stay on the About window
+  long enough to watch the whole name print. The repository's README shows
+  the same once-through print on the whole horizontal lockup, cone included.
 
 The file covers only the name: the box component.splash.nameLeft, nameTop,
 nameWidth and nameHeight in resources/jusprin/ui/design-tokens.json, inside the
 splash's 480x480 lockup from brand_logo.py. On macOS the splash plays it there
 over the still lockup. Rendered at twice the box's size for Retina screens.
 
-The About window plays the same files, scaled down, over the name of the
+The About window plays its version, scaled down, over the name of the
 horizontal lockup brand_logo.py draws. Its box is component.about.nameLeft,
 nameTop, nameWidth and nameHeight, from the lockup's top-left at the About's
 lockupHeight; about_box() works it out, and the run stops if the tokens differ.
 
-Writes resources/jusprin/startup/splash-name-light.webp and -dark.webp.
+Writes resources/jusprin/startup/splash-name-light.webp and -dark.webp, and
+about-name-light.webp and -dark.webp, and .github/lockup-printing-light.webp
+and -dark.webp for the README.
 Needs what brand_logo.py needs, plus rsvg-convert and img2webp (libwebp):
 
   /tmp/logo-venv/bin/python src/slic3r/GUI/JusPrin/Brand/splash_animation.py
 """
-import json, os, subprocess, sys, tempfile
+import json, math, os, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import brand_logo as B
 import pathops
 
 OUT = os.path.join(B.ROOT, 'resources/jusprin/startup')
+README_OUT = os.path.join(B.ROOT, '.github')
 TOKENS = os.path.join(B.ROOT, 'resources/jusprin/ui/design-tokens.json')
 FPS = 30
 SCALE = 2
@@ -91,18 +100,28 @@ def states():
     for i in range(1, 7):
         t = ease(i / 6)
         yield (layers, None, 1, PARK_X, lerp(DOT_TOP - 3, PARK_Y, t), 1)
-    for i in range(24):
+    for i in range(HOLD):
         yield (layers, None, 1, PARK_X, PARK_Y, 1)
-    for i in range(1, 10):
-        yield (layers, None, 1, PARK_X, PARK_Y, 1 - i / 9)
+    for i in range(1, FADE + 1):
+        yield (layers, None, 1, PARK_X, PARK_Y, 1 - i / FADE)
 
-# The first frame: the second-to-last layer starting.
+HOLD, FADE = 24, 9
+# The splash's first frame: the second-to-last layer starting.
 START = 6 + 8 + 5 * 8
 
-def frame_svg(state, fill):
+def splash_frames():
+    frames = list(states())
+    return frames[START:] + frames[:START]
+
+def about_frames():
+    """From the empty name to the nozzle parked, the last frame the still logo."""
+    return list(states())[:-(HOLD + FADE)]
+
+def name_body(state, fill, n, tx, ty):
+    """The name and carriage of one frame, the name's origin at tx, ty and its
+    units scaled by n."""
     done, part, dot_scale, nx, ny, alpha = state
     pieces = done + ([part] if part is not None else [])
-    tx, ty = NAME_TX - BOX[0], NAME_TY - BOX[1]
     name = []
     if pieces:
         name.append('<path fill="%s" d="%s"/>' % (fill, B.d(B.union(*pieces), n, tx, ty)))
@@ -112,20 +131,37 @@ def frame_svg(state, fill):
         s = n * dot_scale
         name.append('<path fill="%s" d="%s"/>' % (fill, B.d(dot, s, tx + cx * (n - s), ty + cy * (n - s))))
     body = ''.join(name) if alpha >= 1 else '<g opacity="%.3f">%s</g>' % (alpha, ''.join(name))
-    body += '<path fill="%s" d="%s"/>' % (fill, B.d(carriage, n, tx + (nx - PARK_X) * n, ty + (ny - PARK_Y) * n))
-    return B.svg(BOX[2], BOX[3], body)
+    return body + '<path fill="%s" d="%s"/>' % (fill, B.d(carriage, n, tx + (nx - PARK_X) * n, ty + (ny - PARK_Y) * n))
 
-def build(fill, out):
-    frames = list(states())
-    frames = frames[START:] + frames[:START]
+def frame_svg(state, fill):
+    return B.svg(BOX[2], BOX[3], name_body(state, fill, n, NAME_TX - BOX[0], NAME_TY - BOX[1]))
+
+# The README's logo: the whole horizontal lockup, 180x64 as brand_logo.py
+# draws it, widened for the carriage's swing past the name's right edge.
+README_W = 240                        # how wide the README shows the 180-wide lockup
+def readme_geometry():
+    W, H, k = B.ROW
+    ox, oy = B.row_offsets(W, H, k)
+    rn, rx, ry = B.row_name(k, ox, oy)
+    right = max(nx for _, _, _, nx, _, _ in states()) + carriage.bounds[2] - PARK_X
+    return W, H, k, ox, oy, rn, rx, ry, max(W, math.ceil(rx + right * rn))
+
+def readme_svg(state, fill):
+    W, H, k, ox, oy, rn, rx, ry, width = readme_geometry()
+    c = 96 / 118 * k
+    return B.svg(width, H, B.mark_el(c, ox - 32 * c, oy - 2 * c, 'gradient') + '\n' + name_body(state, fill, rn, rx, ry))
+
+def build(frames, draw, size, fill, loops, out):
+    """draw makes one frame's SVG, size is its pixels; loops is how many times
+    the file plays, 0 for ever."""
     with tempfile.TemporaryDirectory() as tmp:
         pngs = []
         for i, state in enumerate(frames):
             svg = os.path.join(tmp, '%03d.svg' % i)
-            open(svg, 'w').write(frame_svg(state, fill))
+            open(svg, 'w').write(draw(state, fill))
             pngs.append(svg[:-4] + '.png')
-            subprocess.run(['rsvg-convert', '-w', str(BOX[2] * SCALE), '-h', str(BOX[3] * SCALE), svg, '-o', pngs[-1]], check=True)
-        subprocess.run(['img2webp', '-loop', '0', '-d', str(round(1000 / FPS)), '-lossy', '-q', '90', '-min_size']
+            subprocess.run(['rsvg-convert', '-w', str(size[0]), '-h', str(size[1]), svg, '-o', pngs[-1]], check=True)
+        subprocess.run(['img2webp', '-loop', str(loops), '-d', str(round(1000 / FPS)), '-lossy', '-q', '90', '-min_size']
                        + pngs + ['-o', out], check=True, capture_output=True)
 
 if __name__ == '__main__':
@@ -134,5 +170,11 @@ if __name__ == '__main__':
     if about_box() != tokens:
         sys.exit('component.about name box is %s; the lockup puts it at %s' % (tokens, about_box()))
     os.makedirs(OUT, exist_ok=True)
+    width, height = readme_geometry()[-1], B.ROW[1]
+    readme_size = tuple(round(v * README_W / B.ROW[0] * SCALE) for v in (width, height))
     for theme, fill in (('light', B.ORBIT), ('dark', B.MIST)):
-        build(fill, os.path.join(OUT, 'splash-name-%s.webp' % theme))
+        box = (BOX[2] * SCALE, BOX[3] * SCALE)
+        build(splash_frames(), frame_svg, box, fill, 0, os.path.join(OUT, 'splash-name-%s.webp' % theme))
+        build(about_frames(), frame_svg, box, fill, 1, os.path.join(OUT, 'about-name-%s.webp' % theme))
+        build(about_frames(), readme_svg, readme_size, fill, 1, os.path.join(README_OUT, 'lockup-printing-%s.webp' % theme))
+    print('README width: %d' % round(width * README_W / B.ROW[0]))

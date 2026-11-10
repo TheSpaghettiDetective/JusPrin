@@ -10,14 +10,16 @@
 #include <wx/wfstream.h>
 
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin {
 
-std::vector<wxWebPAnimationFrame> read_name_animation()
+std::vector<wxWebPAnimationFrame> read_name_animation(NameAnimation version)
 {
-    const auto path = boost::filesystem::path(resources_dir()) / "jusprin" / "startup" /
-                      (GUI_App::dark_mode() ? "splash-name-dark.webp" : "splash-name-light.webp");
+    const std::string file = std::string(version == NameAnimation::Splash ? "splash-name" : "about-name") +
+                             (GUI_App::dark_mode() ? "-dark.webp" : "-light.webp");
+    const auto        path = boost::filesystem::path(resources_dir()) / "jusprin" / "startup" / file;
     std::vector<wxWebPAnimationFrame> frames;
     wxFFileInputStream                stream(wxString::FromUTF8(path.string()));
     if (!stream.IsOk() || !wxWEBPHandler().LoadAnimation(frames, stream, false) || frames.empty())

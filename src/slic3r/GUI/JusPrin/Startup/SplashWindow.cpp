@@ -97,7 +97,7 @@ void SplashWindow::present()
     // Added after the paint, which leaves the name out, so the one commit that
     // sends the animation to the window server carries the painted splash
     // with it.
-    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), read_name_animation());
+    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), read_name_animation(NameAnimation::Splash));
 #endif
     wxYield();
 }

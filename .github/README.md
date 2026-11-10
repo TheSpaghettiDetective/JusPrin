@@ -1,7 +1,7 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../resources/jusprin/overlay/images/OrcaSlicer_horizontal_dark.svg">
-    <img src="../resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg" alt="JusPrin" width="240">
+    <source media="(prefers-color-scheme: dark)" srcset="lockup-printing-dark.webp">
+    <img src="lockup-printing-light.webp" alt="JusPrin" width="240">
   </picture>
 </h1>
 

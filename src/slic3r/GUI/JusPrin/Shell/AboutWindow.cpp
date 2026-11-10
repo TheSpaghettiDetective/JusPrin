@@ -66,9 +66,10 @@ public:
 };
 
 // The overlay's horizontal lockup, in the ink of this mode, with the nozzle
-// printing the name in a loop: the splash's name animation, scaled to this
-// lockup's name in the box component.about.name*. Unlike at startup the main
-// thread is free here, so a timer plays it on every platform.
+// printing the name once and stopping on the finished logo: the About version
+// of the name animation, scaled to this lockup's name in the box
+// component.about.name*. Unlike at startup the main thread is free here, so a
+// timer plays it on every platform.
 class AnimatedLockup : public wxWindow
 {
 public:
@@ -85,7 +86,7 @@ public:
         // Scaled once, to the box at the screen's pixels.
         const double scale = GetContentScaleFactor();
         const wxSize pixels(std::lround(m_box.width * scale), std::lround(m_box.height * scale));
-        for (wxWebPAnimationFrame& frame : read_name_animation()) {
+        for (wxWebPAnimationFrame& frame : read_name_animation(NameAnimation::About)) {
             wxBitmap bitmap(frame.image.Scale(pixels.x, pixels.y, wxIMAGE_QUALITY_HIGH));
             bitmap.SetScaleFactor(scale);
             m_frames.emplace_back(std::move(bitmap), frame.duration);
@@ -96,11 +97,13 @@ public:
         SetMinSize(wxSize(std::max(lockup.x, m_box.GetRight() + 1), std::max(lockup.y, m_box.GetBottom() + 1)));
         Bind(wxEVT_PAINT, &AnimatedLockup::on_paint, this);
         Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
-            m_current = (m_current + 1) % m_frames.size();
+            ++m_current;
             Refresh(false);
-            m_timer.StartOnce(m_frames[m_current].second);
+            if (m_current + 1 < m_frames.size())
+                m_timer.StartOnce(m_frames[m_current].second);
         });
-        m_timer.StartOnce(m_frames[m_current].second);
+        if (m_current + 1 < m_frames.size())
+            m_timer.StartOnce(m_frames[m_current].second);
     }
 
 private:
