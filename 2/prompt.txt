@@ -1,0 +1,15 @@
+I tried to calibrate my bamboo printer and I selected temperature tower and I was dropped into an empty chat. Check if this is how they're supposed to work. You can find in GitLog or Clock Code session history to see what was decided, and the rationale behind the decisions.
+
+---
+
+Yes, reproduce it
+
+---
+
+<!-- reply 1 -->
+> Where the cause might be (not verified yet). When the generator throws away the open project, ProjectPersistence::continuing_project is supposed to keep the in-memory chat. In this run the chat was rebuilt from scratch. My lead suspect is still commit 74a0e9b61c (Nov 2, “Keep an empty project in memory until it holds a model”). Since that commit, the calibration project isn’t saved until the tower is added, so some other code path may be resetting the chat. I haven’t traced that yet.
+
+If this is a problem, it's probably quite tricky to fix, without making it too complicated to maintain in the future. If you have confirmed that this is a root cause, let's discuss before you come up with a fix.
+
+
+Do RCA first, do not rush into the fix.
