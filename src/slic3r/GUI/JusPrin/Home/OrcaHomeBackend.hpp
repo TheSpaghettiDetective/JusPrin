@@ -69,8 +69,8 @@ public:
     // Stands in for Open…'s file dialog, for the integration harness: what it
     // returns is what the person chose, nothing for Cancel. Unset, the dialog.
     void set_file_chooser(std::function<wxArrayString()> choose) { m_choose_files = std::move(choose); }
-    // Reads the signed-in account's credits again: a chat, a purchase or
-    // Preferences may have changed them while Home was not on screen.
+    // Reads the signed-in account's credits from the server, each time Home
+    // comes on screen: they change where Home cannot see.
     void refresh_account();
 
     bool                      dark() const override;
@@ -173,10 +173,6 @@ private:
     static std::vector<Snapshot::Onboarding::ImportItem> import_result_lines(const ImportApp& app,
                                                                              const std::vector<OrcaImportItem>& items);
     Agent::ICloudSignIn& sign_in();
-    // Keeps the credits to the account signed in as `email`: another
-    // account's are dropped and this one's read.
-    void follow_account(const std::string& email);
-    void request_account();
 
     MainFrame&                                         m_frame;
     Workspace::ProjectAutosave*                       m_autosave{nullptr};
@@ -201,9 +197,10 @@ private:
     // That error is the server refusing this release of JusPrin.
     bool                                               m_sign_in_outdated{false};
     std::shared_ptr<Agent::IChatModelSource>           m_models;
-    // The account m_account belongs to; empty when signed out.
-    std::string                                        m_account_email;
+    // The server's answer for the account, and the sign-in it was read
+    // with: it is shown only while that sign-in is the one saved.
     nlohmann::json                                     m_account;
+    std::string                                        m_account_token;
     std::unique_ptr<PrinterFormSession>                m_printer_form;
     // The import's result while it is on screen, and the app it came from.
     std::optional<std::vector<OrcaImportItem>>         m_import_result;

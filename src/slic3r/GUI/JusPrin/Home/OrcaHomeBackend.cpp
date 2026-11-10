@@ -532,7 +532,7 @@ Agent::ICloudSignIn& OrcaHomeBackend::sign_in()
     return *m_sign_in;
 }
 
-void OrcaHomeBackend::request_account()
+void OrcaHomeBackend::refresh_account()
 {
     if (!m_models) {
         std::weak_ptr<void> alive = m_alive;
@@ -543,29 +543,11 @@ void OrcaHomeBackend::request_account()
             });
         });
     }
-    m_models->fetch_account([this](std::optional<nlohmann::json> account) {
-        // One that could not be read keeps the last answer.
-        if (!account)
-            return;
-        m_account            = std::move(*account);
+    m_models->fetch_account([this, token = Agent::cloud_account_token(wxGetApp().app_config)](std::optional<nlohmann::json> account) {
+        m_account            = account ? std::move(*account) : nlohmann::json();
+        m_account_token      = token;
         m_onboarding_changed = true;
     });
-}
-
-void OrcaHomeBackend::follow_account(const std::string& email)
-{
-    if (email == m_account_email)
-        return;
-    m_account_email = email;
-    m_account       = nlohmann::json();
-    if (!email.empty())
-        request_account();
-}
-
-void OrcaHomeBackend::refresh_account()
-{
-    if (!m_account_email.empty())
-        request_account();
 }
 
 Snapshot::Onboarding OrcaHomeBackend::onboarding()
@@ -638,8 +620,8 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
     state.agent_card       = home_agent_card(state.agent_configured, !state.account_email.empty(),
                                              config_true(config, kAccountCardDismissed));
     // The credits the welcome's card and Home's account group show.
-    follow_account(state.account_email);
-    state.account = m_account;
+    if (m_account_token == Agent::cloud_account_token(config))
+        state.account = m_account;
     return state;
 }
 
@@ -663,8 +645,7 @@ bool OrcaHomeBackend::poll_onboarding()
                 // The docked agent runs on the account from now on.
                 if (ShellController* shell = installed_shell())
                     shell->reload_agent_settings();
-                // Read afresh even for the account that was signed in before.
-                follow_account({});
+                refresh_account();
                 break;
             case Agent::CloudSignInOutcome::Kind::Expired:
                 m_sign_in_error = utf8(_L("That sign-in expired. Try again."));
