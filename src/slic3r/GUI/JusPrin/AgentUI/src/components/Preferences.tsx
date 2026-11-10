@@ -220,7 +220,9 @@ function AccountCredits({ account, onOpenPage }: {
           <span className="prefs-credits-plan-name">{account.plan?.name ?? 'No plan'}</span>
           <span className="prefs-intro">
             {account.plan
-              ? [account.plan.price_line, account.plan.renews_at && `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.`]
+              ? [account.plan.price_line,
+                account.plan.renews_at && `Renews ${dayLabel(account.plan.renews_at.slice(0, 10))}.`,
+                account.plan.ends_at && `Ends ${dayLabel(account.plan.ends_at.slice(0, 10))}.`]
                 .filter(Boolean).join(' ')
               : MESSAGE_PRICES}
           </span>

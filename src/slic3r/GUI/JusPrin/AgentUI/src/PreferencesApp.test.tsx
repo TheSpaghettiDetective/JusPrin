@@ -389,6 +389,22 @@ describe('Preferences', () => {
       expect(screen.queryByText(/Each message you send costs/)).toBeNull();
     });
 
+    it('says when a cancelled plan ends instead of when it renews', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', {
+        account: {
+          ...usageAccount,
+          plan: { id: 'jusprin-hobby-monthly', name: 'Hobby', renews_at: null, ends_at: '2026-12-10T17:50:10+00:00',
+            unlimited_basic: false, price_line: '$10 a month.' },
+        },
+        chatTitles: {},
+      });
+      expect(screen.getByText('$10 a month. Ends 10 Dec.')).toBeInTheDocument();
+      expect(screen.queryByText(/Renews/)).toBeNull();
+    });
+
     it('shows the price line the server wrote before the renewal date', () => {
       render(<PreferencesApp getTransport={() => host.transport} />);
       connect(host);

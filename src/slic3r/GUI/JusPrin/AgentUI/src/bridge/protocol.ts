@@ -281,6 +281,9 @@ export interface CreditAccount {
     id: string;
     name: string;
     renews_at: string | null;
+    // When a cancelled plan ends; renews_at is null then. Missing from
+    // servers before it.
+    ends_at?: string | null;
     unlimited_basic: boolean;
     // The plan's price as a finished sentence, "$20 a month.": the app shows
     // the server's words and has no price of its own. Missing from servers
