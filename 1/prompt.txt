@@ -202,3 +202,7 @@ Yes, push it
 <status>completed</status>
 <summary>Background command "Build, then run the harness in both modes and unit tests" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Yes, commit and push
