@@ -1,0 +1,20 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer: a 3D-printing slicer with an AI that picks and fixes slicing settings. JusPrin 1 (latest release v1.4.0) now lives on branch `jusprin-v1`. JusPrin 2 is a new UI on top of OrcaSlicer 2.5.0, developed on `jusprin-dev`, which is also what `main` on GitHub (TheSpaghettiDetective/JusPrin) holds today. JusPrin's own version is `Updates::kVersion` = "2.0.0" in `src/slic3r/GUI/JusPrin/Updates/Version.hpp`. A draft release "JusPrin 2.0.0 (UNSIGNED TEST BUILD: do not publish)", tagged jusprin/v2.0.0, already exists from a dry run of the release workflow. Its notes come from the placeholder file, so the notes must be written before a signed release run and before Kenneth publishes the draft. The README's Download link opens the latest published release, so it hands people v1.4.0 until 2.0.0 is published. The README pitch Kenneth chose is JusPrin 1's line: "the first GenAI app for 3D printing … Just print." The app's first-launch headline is "The AI slicer that fixes failed prints." The support address is jusprin-support@obico.io. Kenneth reads plain sentences, wants decisions asked as full questions, and wants proposals kept apart from what is decided.
+
+Task:
+Write the JusPrin 2.0.0 release notes in `src/slic3r/GUI/JusPrin/Packaging/release-notes/2.0.0.md`, replacing the placeholder that is there now. The notes have two jobs. The "JusPrin release" workflow (`.github/workflows/jusprin_release.yml`) starts the GitHub draft release with them, and the app shows them under "What's new" when its update check offers 2.0.0. Before writing, find out how the app renders that text (start at `src/slic3r/GUI/JusPrin/Updates/` and the Preferences page that shows updates), so the notes use only formatting it displays.
+
+Build the content from what JusPrin 2.0.0 actually does on `jusprin-dev`. Read `agent-docs/jusprin/product-definition.md` and the commit history on `jusprin-dev` since JusPrin 1 (`git log jusprin-v1..jusprin-dev`, fork commits only; upstream OrcaSlicer commits come through the 2.5.0 merge). Cover what someone upgrading from JusPrin 1.4 needs to know. Check every claim against the code or a commit; write nothing from expectation. Use the wording rules in `AGENTS.md` and `agent-docs/jusprin/design-guidelines.md`: call the feature "AI", say files are "opened", "imported", "loaded" or "added", and keep the sentences short and plain.
+
+Done means: a draft for Kenneth to review, shown to him as the rendered text with a list of the facts it claims and where each one was checked. Each open question (for example, prices and credits, or the Windows build being unsigned) is asked as its own question. Commit only after Kenneth approves the text, on a branch from `jusprin-dev`; push or merge only when he says so.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_f472ffe1-987c-41db-a0a9-0bb20cb54657
+
+---
+
+Keep it, I'll wait
+
+---
+
+Yes, commit
