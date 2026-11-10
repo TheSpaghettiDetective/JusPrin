@@ -119,3 +119,15 @@ If no commit has been pushed on top of your previous one, and your previous comm
 ---
 
 hav eyou pusehd?
+
+---
+
+Actually I realized we actually won two versions of the animated logo lockout. The first one is a is the version that you just built. that version is for a transient display with undeterministic duration. And the second version was the version you built before that. And it's for the screen when we know that it only shows that we know that it's not transient such as the file page and we know that the user will at least stay on that page for at least a few seconds. Let me know if you know what I'm talking about.
+
+---
+
+Don't forget the logo on the Project REAME page.
+
+---
+
+afterward, commit
