@@ -8,9 +8,9 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
-#include "libslic3r/Utils.hpp"
 
 #ifdef __APPLE__
+#include "NameAnimation.hpp"
 #include "SplashAnimation.hpp"
 #endif
 
@@ -19,7 +19,6 @@
 #include <gtk/gtk.h>
 #endif
 
-#include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <wx/app.h>
@@ -98,9 +97,7 @@ void SplashWindow::present()
     // Added after the paint, which leaves the name out, so the one commit that
     // sends the animation to the window server carries the painted splash
     // with it.
-    const auto animation = boost::filesystem::path(resources_dir()) / "jusprin" / "startup" /
-                           (GUI_App::dark_mode() ? "splash-name-dark.webp" : "splash-name-light.webp");
-    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), animation.string());
+    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), read_name_animation());
 #endif
     wxYield();
 }

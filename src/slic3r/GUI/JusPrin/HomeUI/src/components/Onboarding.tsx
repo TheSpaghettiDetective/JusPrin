@@ -13,11 +13,10 @@ import type { Appearance, OnboardingState } from '../bridge/protocol';
 import { afterPaint } from '@shared/afterPaint';
 import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
 import { OrcaImportResultLines, OrcaPrinterList } from '../../../AgentUI/src/components/OrcaImportLists';
-import lockupLight from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_light.svg';
-import lockupDark from '@resources/jusprin/overlay/images/OrcaSlicer_horizontal_dark.svg';
 import clip from '@resources/jusprin/welcome/welcome-clip.mp4';
 import { SignInDoor as SharedSignInDoor, SignInActions } from '../../../AgentUI/src/components/SignInDoor';
 import { CheckGlyph, FolderGlyph } from './Glyphs';
+import { Lockup } from './Lockup';
 import { PrinterPickerHost } from './PrinterPickerHost';
 import type { PrinterPick } from '../../../AgentUI/src/components/PrinterPicker';
 
@@ -42,12 +41,6 @@ interface Props {
   appearance: Appearance;
   error?: string;
   onAction: Action;
-}
-
-// The JusPrin lockup in the window's top-left corner, as the welcome boards
-// anchor it; the welcome has no header of its own.
-function Lockup({ appearance }: { appearance: Appearance }) {
-  return <img className="onboarding-lockup" src={appearance === 'dark' ? lockupDark : lockupLight} alt="JusPrin" />;
 }
 
 // Who signed in, under what signing in got them: the free credits a new
@@ -130,7 +123,7 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
 
   return (
     <div className="onboarding">
-      <Lockup appearance={appearance} />
+      <Lockup appearance={appearance} className="onboarding-lockup" />
       <div className="onboarding-welcome">
         <figure className="onboarding-clip">
           <video src={clip} autoPlay loop muted playsInline aria-label="AI fixing a print that came out stringy" />
@@ -377,7 +370,7 @@ export function Onboarding(props: Props) {
   if (props.onboarding.step === 'welcome') return <Welcome {...props} />;
   return (
     <div className="onboarding">
-      <Lockup appearance={props.appearance} />
+      <Lockup appearance={props.appearance} className="onboarding-lockup" />
       {props.onboarding.printersScreen === 'v1_import' || props.onboarding.printersScreen === 'orca_import'
         ? <PrinterImport {...props} />
         : props.onboarding.printersScreen === 'import_result' ? <ImportResult {...props} />

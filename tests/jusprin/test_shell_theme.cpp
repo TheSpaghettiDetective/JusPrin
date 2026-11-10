@@ -225,6 +225,10 @@ TEST_CASE("the packaged token file yields the documented metrics", "[shell][them
     CHECK(m.splash.name_height == 88);
     CHECK(m.about.width == 400);
     CHECK(m.about.lockup_height == 43);
+    CHECK(m.about.name_left == 21);
+    CHECK(m.about.name_top == 7);
+    CHECK(m.about.name_width == 103);
+    CHECK(m.about.name_height == 30);
     CHECK(m.about.help_label_width == 56);
     CHECK(m.about.copied_ms == 2000);
 }

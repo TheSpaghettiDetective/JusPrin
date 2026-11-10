@@ -93,11 +93,19 @@ def svg(w, h, body):
 def write(folder, name, text):
     open(os.path.join(folder, name), 'w').write(text)
 
+# The horizontal lockup's name: its scale and where its origin goes.
+def row_name(k, ox, oy):
+    n = 74.86 / 98 * k
+    return n, ox + 65.56 * k, oy + 10.57 * k + 26 * n
 # Cone crop used by lockups: x 32..88, y 2..120 (as on the canvas boards).
 def lockup_row(W, H, k, ox, oy, name_fill):
-    c = 96 / 118 * k; n = 74.86 / 98 * k
+    c = 96 / 118 * k; n, nx, ny = row_name(k, ox, oy)
     return (mark_el(c, ox - 32 * c, oy - 2 * c, 'gradient') + '\n'
-            + '<path fill="%s" d="%s"/>' % (name_fill, d(NAME, n, ox + 65.56 * k, oy + 10.57 * k + 26 * n)))
+            + '<path fill="%s" d="%s"/>' % (name_fill, d(NAME, n, nx, ny)))
+# The horizontal lockup, 180x64 like the file it replaces: its scale and the
+# offsets lockup_row takes.
+ROW = (180, 64, 172 / 317.6)
+def row_offsets(W, H, k): return 4, (H - 96 * k) / 2
 # The splash lockup in its 480x480 box: cone height, name width, the gap
 # between them and the cone's top. splash_animation.py prints the name at
 # the same place.
@@ -133,10 +141,10 @@ if __name__ == '__main__':
     write(BRANDING, 'jusprin-mark.svg', svg(120, 120, mark_el(1, 0, 0, 'gradient')))
     write(BRANDING, 'jusprin-mark-ink.svg', svg(120, 120, mark_el(1, 0, 0, INK)))
     write(BRANDING, 'jusprin-mark-white.svg', svg(120, 120, mark_el(1, 0, 0, '#FFFFFF')))
-    # Horizontal lockup, 180x64 like the file it replaces.
-    k = 172 / 317.6
+    # Horizontal lockup.
+    W, H, k = ROW
     for suf, fill in (('light', ORBIT), ('dark', MIST)):
-        write(OVERLAY, 'OrcaSlicer_horizontal_%s.svg' % suf, svg(180, 64, lockup_row(180, 64, k, 4, (64 - 96 * k) / 2, fill)))
+        write(OVERLAY, 'OrcaSlicer_horizontal_%s.svg' % suf, svg(W, H, lockup_row(W, H, k, *row_offsets(W, H, k), fill)))
     # About lockup 108x125 and splash 480x480, stacked.
     for suf, fill in (('', ORBIT), ('_dark', MIST)):
         write(OVERLAY, 'OrcaSlicer_about%s.svg' % suf, svg(108, 125, lockup_stack(108, 125, 54.6, 100, 6, 17.6, fill)))

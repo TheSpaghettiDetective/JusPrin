@@ -11,6 +11,7 @@
 #include "slic3r/GUI/AboutDialog.hpp"
 #include "slic3r/GUI/BuildCommit.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/JusPrin/Startup/NameAnimation.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
@@ -18,14 +19,20 @@
 
 #include "libslic3r_version.h"
 
+#include <wx/bitmap.h>
+#include <wx/brush.h>
 #include <wx/clipbrd.h>
+#include <wx/colour.h>
 #include <wx/dataobj.h>
+#include <wx/dcbuffer.h>
 #include <wx/dialog.h>
 #include <wx/event.h>
 #include <wx/gdicmn.h>
+#include <wx/image.h>
+#include <wx/imagwebp.h>
 #include <wx/panel.h>
+#include <wx/pen.h>
 #include <wx/sizer.h>
-#include <wx/statbmp.h>
 #include <wx/stattext.h>
 #include <wx/string.h>
 #include <wx/timer.h>
@@ -34,6 +41,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -54,6 +63,67 @@ class Rule : public wxWindow
 public:
     using wxWindow::wxWindow;
     bool AcceptsFocus() const override { return false; }
+};
+
+// The overlay's horizontal lockup, in the ink of this mode, with the nozzle
+// printing the name in a loop: the splash's name animation, scaled to this
+// lockup's name in the box component.about.name*. Unlike at startup the main
+// thread is free here, so a timer plays it on every platform.
+class AnimatedLockup : public wxWindow
+{
+public:
+    AnimatedLockup(wxWindow* parent, const ShellTheme& theme, const wxColour& background)
+        : wxWindow(parent, wxID_ANY), m_background(background), m_timer(this)
+    {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        const AboutMetrics& about = theme.metrics().about;
+        m_lockup = ScalableBitmap(this, GUI_App::dark_mode() ? "OrcaSlicer_horizontal_dark" : "OrcaSlicer_horizontal_light",
+                                  about.lockup_height)
+                       .bmp();
+        m_box = wxRect(FromDIP(wxPoint(about.name_left, about.name_top)), FromDIP(wxSize(about.name_width, about.name_height)));
+
+        // Scaled once, to the box at the screen's pixels.
+        const double scale = GetContentScaleFactor();
+        const wxSize pixels(std::lround(m_box.width * scale), std::lround(m_box.height * scale));
+        for (wxWebPAnimationFrame& frame : read_name_animation()) {
+            wxBitmap bitmap(frame.image.Scale(pixels.x, pixels.y, wxIMAGE_QUALITY_HIGH));
+            bitmap.SetScaleFactor(scale);
+            m_frames.emplace_back(std::move(bitmap), frame.duration);
+        }
+
+        // The carriage swings a little past the lockup's right edge.
+        const wxSize lockup = m_lockup.GetLogicalSize();
+        SetMinSize(wxSize(std::max(lockup.x, m_box.GetRight() + 1), std::max(lockup.y, m_box.GetBottom() + 1)));
+        Bind(wxEVT_PAINT, &AnimatedLockup::on_paint, this);
+        Bind(wxEVT_TIMER, [this](wxTimerEvent&) {
+            m_current = (m_current + 1) % m_frames.size();
+            Refresh(false);
+            m_timer.StartOnce(m_frames[m_current].second);
+        });
+        m_timer.StartOnce(m_frames[m_current].second);
+    }
+
+private:
+    void on_paint(wxPaintEvent&)
+    {
+        wxAutoBufferedPaintDC dc(this);
+        dc.SetBackground(wxBrush(m_background));
+        dc.Clear();
+        dc.DrawBitmap(m_lockup, 0, 0, true);
+        // The animation draws the name, so the lockup's own is covered.
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(m_background));
+        dc.DrawRectangle(m_box);
+        dc.DrawBitmap(m_frames[m_current].first, m_box.GetTopLeft(), true);
+    }
+
+    wxColour                              m_background;
+    wxBitmap                              m_lockup;
+    wxRect                                m_box;
+    // Each frame and how long it shows, in milliseconds.
+    std::vector<std::pair<wxBitmap, int>> m_frames;
+    size_t                                m_current{0};
+    wxTimer                               m_timer;
 };
 
 void open_link(wxWindow* parent, const wxString& url)
@@ -112,10 +182,7 @@ wxSizer* AboutWindow::build_version(wxWindow* parent)
     const ShellPalette& palette = m_theme.palette(GUI_App::dark_mode());
     const ShellMetrics& m       = m_theme.metrics();
 
-    // The overlay's horizontal lockup, in the ink of this mode.
-    ScalableBitmap lockup(parent, GUI_App::dark_mode() ? "OrcaSlicer_horizontal_dark" : "OrcaSlicer_horizontal_light",
-                          m.about.lockup_height);
-    auto* logo = new wxStaticBitmap(parent, wxID_ANY, lockup.bmp());
+    auto* logo = new AnimatedLockup(parent, m_theme, palette.surface_raised);
     logo->SetName("JusPrin");
 
     auto* version = new wxStaticText(parent, wxID_ANY, wxString::Format(_L("Version %s"), Updates::kVersion));

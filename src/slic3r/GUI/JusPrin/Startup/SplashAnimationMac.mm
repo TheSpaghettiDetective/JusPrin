@@ -2,14 +2,12 @@
 
 #include <wx/gdicmn.h>
 #include <wx/imagwebp.h>
-#include <wx/wfstream.h>
 #include <wx/window.h>
 
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 
 namespace Slic3r::GUI::JusPrin {
@@ -44,14 +42,8 @@ CGImageRef cg_image(const wxImage& image)
 
 } // namespace
 
-void add_splash_animation(wxWindow& window, const wxRect& box, const std::string& webp_path)
+void add_splash_animation(wxWindow& window, const wxRect& box, std::vector<wxWebPAnimationFrame> frames)
 {
-    // wx's WebP decoder hands back every frame composited to the full canvas.
-    std::vector<wxWebPAnimationFrame> frames;
-    wxFFileInputStream                stream(wxString::FromUTF8(webp_path));
-    if (!stream.IsOk() || !wxWEBPHandler().LoadAnimation(frames, stream, false) || frames.empty())
-        throw std::runtime_error("the splash animation could not be read: " + webp_path);
-
     NSView* view = static_cast<NSView*>(window.GetHandle());
     if (view == nil)
         return;

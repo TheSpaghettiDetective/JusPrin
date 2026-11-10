@@ -53,8 +53,8 @@ body {
   min-width: 0;
 }
 
-/* "JusPrin › Home" and Preferences, the height of the project header it
-   stands in for. */
+/* The JusPrin lockup › Home, and Preferences, the height of the project
+   header it stands in for. */
 .home-header {
   flex: 0 0 var(--home-header-height);
   display: flex;
@@ -71,9 +71,9 @@ body {
   color: var(--text-secondary);
 }
 
-.home-header-brand {
-  font: var(--font-section);
-  color: var(--action-primary);
+.home-header-lockup {
+  display: block;
+  height: var(--home-header-lockup-height);
 }
 
 .home-header-page {
@@ -134,6 +134,8 @@ body {
   font: var(--font-page-title);
 }
 
+/* The lockup in the window's top-left corner, as the welcome boards anchor
+   it; the welcome has no header of its own. */
 .onboarding-lockup {
   position: absolute;
   top: 16px;

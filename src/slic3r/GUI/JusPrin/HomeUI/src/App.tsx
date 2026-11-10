@@ -10,6 +10,7 @@ import { PrintReportForm } from './components/PrintReportForm';
 import type { PrintHistoryActions } from './components/PrintHistory';
 import type { PrinterActions } from './components/PrinterMenu';
 import { ChevronDownGlyph, ChevronRightGlyph, HistoryGlyph, PlusGlyph, SearchGlyph, SettingsGlyph, UploadGlyph } from './components/Glyphs';
+import { Lockup } from './components/Lockup';
 import { Onboarding, STAND_IN_PRINTER } from './components/Onboarding';
 import { AgentGroup } from './components/AgentGroup';
 import { initialState, reduce } from './state/store';
@@ -38,8 +39,9 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// Home is the screen before a project: a "JusPrin › Home" bar, then the
-// gallery in the width that is left and the printer column as a fixed rail.
+// Home is the screen before a project: a bar with the JusPrin lockup › Home,
+// then the gallery in the width that is left and the printer column as a
+// fixed rail.
 // The page draws that bar itself because the shell hides its project header
 // while Home is on screen: those controls act on an open project.
 export function App({ getTransport }: { getTransport: () => Transport | null }) {
@@ -240,7 +242,7 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
     <div className="app" onDragOver={(event) => event.preventDefault()} onDrop={openDropped}>
       <header className="home-header">
         <span className="home-header-path">
-          <span className="home-header-brand">JusPrin</span>
+          <Lockup appearance={state.appearance} className="home-header-lockup" />
           <ChevronRightGlyph />
           <span className="home-header-page">Home</span>
         </span>

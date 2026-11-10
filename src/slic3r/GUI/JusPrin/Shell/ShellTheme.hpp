@@ -181,8 +181,19 @@ struct SplashMetrics
     int name_height{0};
 };
 
-// Help › About JusPrin's window.
-struct AboutMetrics { int width{0}; int lockup_height{0}; int help_label_width{0}; int copied_ms{0}; };
+// Help › About JusPrin's window, and the box the name animation plays in, over
+// the lockup's name, from the lockup's top-left.
+struct AboutMetrics
+{
+    int width{0};
+    int lockup_height{0};
+    int name_left{0};
+    int name_top{0};
+    int name_width{0};
+    int name_height{0};
+    int help_label_width{0};
+    int copied_ms{0};
+};
 
 // A drop shadow's geometry; its colour differs by mode and lives in ShellPalette.
 struct ElevationMetrics { int offset_x{0}; int offset_y{0}; int blur{0}; int spread{0}; };

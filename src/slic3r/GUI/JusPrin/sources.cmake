@@ -250,6 +250,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Workspace/UtcTime.hpp
     GUI/JusPrin/Testing/FakeBambuAgent.cpp
     GUI/JusPrin/Testing/FakeBambuAgent.hpp
+    GUI/JusPrin/Startup/NameAnimation.cpp
+    GUI/JusPrin/Startup/NameAnimation.hpp
     GUI/JusPrin/Startup/SplashAnimation.hpp
     GUI/JusPrin/Startup/SplashWindow.cpp
     GUI/JusPrin/Startup/SplashWindow.hpp

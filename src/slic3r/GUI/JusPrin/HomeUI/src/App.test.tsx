@@ -1081,11 +1081,12 @@ describe('Home gallery and rail', () => {
     Array.from({ length: count }, (_, index) => project({ id: `p${index}`, name: `Part ${String.fromCharCode(74 - index)}` }));
 
   // The shell hides its project header on Home, so the page draws its own.
-  it('heads the page with JusPrin › Home and Preferences', () => {
+  it('heads the page with the JusPrin lockup › Home and Preferences', () => {
     const host = start();
     host.deliver('state', state());
     const header = document.querySelector('.home-header') as HTMLElement;
-    expect(header.textContent).toBe('JusPrinHome');
+    expect(within(header).getByRole('img', { name: 'JusPrin' })).toHaveClass('home-header-lockup');
+    expect(header.textContent).toBe('Home');
     expect(within(header).getByRole('button', { name: 'Preferences' })).toBeInTheDocument();
     expect(document.querySelector('.printer-column')!.querySelector('.preferences-button')).toBeNull();
   });

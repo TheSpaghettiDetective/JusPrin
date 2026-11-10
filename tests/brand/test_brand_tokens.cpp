@@ -363,12 +363,14 @@ TEST_CASE("the project gallery search width and header height are explicit", "[b
         {{"searchWidth", 220}, {"headerHeight", 34}}, "component.projectGallery");
 }
 
-// Home's "JusPrin › Home" bar, the height of the project header it stands in
-// for while no project is in front.
+// Home's bar, the JusPrin lockup › Home: the height of the project header it
+// stands in for while no project is in front, and the lockup's height in it.
 TEST_CASE("the Home header height is explicit", "[brand]")
 {
-    require_exact_table<int>(load_tokens().at("component").at("homeHeader"),
-        {{"height", 56}}, "component.homeHeader");
+    const json  tokens = load_tokens();
+    const json& header = tokens.at("component").at("homeHeader");
+    require_exact_table<int>(header, {{"height", 56}, {"lockupHeight", 32}}, "component.homeHeader");
+    REQUIRE(header.at("lockupHeight").get<int>() < header.at("height").get<int>());
 }
 
 // The Print history screen's list: a column the width of the history boards'
@@ -805,14 +807,20 @@ TEST_CASE("the startup splash keeps the canvas's sizes", "[brand]")
 
 // Help › About JusPrin's window (canvas "JusPrin v2", page "Splash & About",
 // boards splash-about-04 and 05): its width, the lockup's height, the column
-// of the help rows' names, and how long Copy version reads "Copied".
+// of the help rows' names, and how long Copy version reads "Copied". The name
+// box is where the splash's name animation plays, scaled to the horizontal
+// lockup's name (Brand/splash_animation.py works it out): inside the lockup's
+// height, right of the cone.
 TEST_CASE("the About window keeps the canvas's sizes", "[brand]")
 {
-    const json tokens = load_tokens();
-    require_exact_table<int>(tokens.at("component").at("about"),
-                             {{"width", 400}, {"lockupHeight", 43}, {"helpLabelWidth", 56}, {"copiedMs", 2000}},
+    const json  tokens = load_tokens();
+    const json& about  = tokens.at("component").at("about");
+    require_exact_table<int>(about,
+                             {{"width", 400}, {"lockupHeight", 43}, {"nameLeft", 21}, {"nameTop", 7}, {"nameWidth", 103},
+                              {"nameHeight", 30}, {"helpLabelWidth", 56}, {"copiedMs", 2000}},
                              "component.about");
-    CHECK(tokens.at("component").at("about").at("lockupHeight") == tokens.at("component").at("onboarding").at("lockupHeight"));
+    CHECK(about.at("lockupHeight") == tokens.at("component").at("onboarding").at("lockupHeight"));
+    REQUIRE(about.at("nameTop").get<int>() + about.at("nameHeight").get<int>() <= about.at("lockupHeight").get<int>());
 }
 
 // The setup card's fact glyphs -- clock, material, plate, warning, info --
