@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M73ATAZEV5K3JVB1G6SPQ0EH",
+  "strategy": "manual-commit",
+  "branch": "claude/plan-ends-line",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PreferencesApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Preferences.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1194,
+    "cache_creation_tokens": 1720126,
+    "cache_read_tokens": 131533833,
+    "output_tokens": 319405,
+    "api_call_count": 597
+  }
+}
