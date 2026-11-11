@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75TE0DTYZJ18C6YS13NBN6F",
+  "strategy": "manual-commit",
+  "branch": "claude/win-splash-anim",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 22903,
+    "cache_read_tokens": 6380862,
+    "output_tokens": 11599,
+    "api_call_count": 13
+  }
+}
