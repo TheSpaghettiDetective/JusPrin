@@ -3,7 +3,7 @@
   "checkpoint_id": "01M75TNVTK4SXKC86T6B8JJT86",
   "strategy": "manual-commit",
   "branch": "claude/nightly-macos-runners",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,13 +12,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 6,
-    "cache_creation_tokens": 8510,
-    "cache_read_tokens": 1511437,
-    "output_tokens": 3513,
-    "api_call_count": 3
+    "input_tokens": 46,
+    "cache_creation_tokens": 90541,
+    "cache_read_tokens": 10640108,
+    "output_tokens": 31283,
+    "api_call_count": 23,
+    "subagent_tokens": {
+      "input_tokens": 8,
+      "cache_creation_tokens": 240460,
+      "cache_read_tokens": 390487,
+      "output_tokens": 11274,
+      "api_call_count": 4
+    }
   }
 }
