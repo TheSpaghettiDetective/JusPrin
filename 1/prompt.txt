@@ -1,0 +1,253 @@
+Background (from the session that started this one):
+JusPrin 2 sells credit packs and plans through Chargebee hosted checkout pages, shown inside the app's ServerSheet (a wxWebView sheet over the main window) which the server signs in through POST /ent/jusprin/v2/web_link. The live Chargebee site jusprinv2 went live on production 2026-11-10 with Stripe for cards and PayPal (TSD Technology LLC's account) for PayPal. The sheet's 'Open in browser' header button already opens the same page in the person's browser as a workaround. Separately, PayPal declined TSD's application to save PayPal payment methods, so PayPal plans (recurring) may not work regardless; one-time packs are the case to fix here.
+
+Task:
+Fix PayPal in the JusPrin app's server sheet (Credits and plans). Reproduced live by Kenneth on 2026-11-10 against production: in the sheet, Chargebee's hosted checkout for the $10 credit pack, choosing PayPal and pressing the PayPal button shows Chargebee's overlay "Complete your payment in the open PayPal window, or close PayPal to continue paying another way", and the payment can't be finished in the app. Cause (from code, verify): `src/slic3r/GUI/JusPrin/Shell/ServerSheet.cpp` binds `wxEVT_WEBVIEW_NEWWINDOW` to `wxLaunchDefaultBrowser(event.GetURL())`, so PayPal's popup opens in the person's browser with no `window.opener` link back to the checkout page, and the checkout never hears that PayPal approved. The bundled wx (deps/build/arm64/.../include/wx/webview.h) has `wxWebViewWindowFeatures` and `wxEVT_WEBVIEW_NEWWINDOW_FEATURES`, so a popup can be hosted in a child web view that keeps the opener. Likely fix: for pop-ups the checkout opens (PayPal), host them in a small app-owned window with a child web view instead of the browser; keep plain links going to the browser. Check behaviour on macOS, Windows (WebView2) and Linux (WebKitGTK) per AGENTS.md cross-platform rule; read `agent-docs/jusprin/design-system.md` before any UI. Reproduce first (Bug Fix Policy): the staging Chargebee test site jusprinv2-test has no PayPal gateway, so reproduce against production with Kenneth, or connect PayPal sandbox to the test site if Kenneth agrees. Done = PayPal checkout completes inside the sheet on macOS, verified, with a PR to jusprin-dev.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_1ae65d86-2760-4594-94a2-157beb64e86e
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+Kenneth wants to know whether a tsd-enterprise production release needs coordinating. Please reply to session local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca with SendMessage, in a few lines; don't release anything.
+
+Production and staging both run obi.4104, built from tsd-enterprise a72b271f7e. Your PayPal checkout fix: does it need any server change in tsd-enterprise or obico-server, or a Chargebee or production setting? Or is it only in the desktop app? If it needs the server, tell me where it stands (branch or commit, tested on staging or not) and roughly when it would be ready to go in a release.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_1ae65d86-2760-4594-94a2-157beb64e86e" from-name="Verify JusPrin 2 Chargebee setup and payment flow on staging">
+Asking Kenneth now; I'll forward his answer. One thing that may save his sign-in: I already launched a production test copy for him with its own data folder, /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin/14cb6590-7113-489e-aa7f-9aa6dca15e79/scratchpad/prod-app/data (no server override, so it talks to jusprinv2.obico.io); he signed it in to production as k@obico.io. When your build is ready, `ditto` that folder to your own scratch location and launch your build with --datadir pointing at the copy; don't use mine in place, and quit nothing of mine (my app copy is pid 65314). If the sign-in turns out not to carry over, you'll still need him for the Google sign-in.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+Kenneth has asked the rollout session (local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca) to run the next tsd-enterprise server release for every JusPrin 2 session, and to start it only once all of them are ready.
+
+You said your PayPal fix is desktop-app only, so this release doesn't wait on you. If your check of which address Chargebee's PayPal pop-up opens on production turns up a server or Chargebee-settings change, send me one line before you make it. And don't change any production or staging image, ConfigMap or Secret yourself. No reply is needed otherwise.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_1ae65d86-2760-4594-94a2-157beb64e86e" from-name="Verify JusPrin 2 Chargebee setup and payment flow on staging">
+Kenneth's decision: reproduce and test the PayPal fix on the Chargebee TEST site (jusprinv2-test) first, not production; the risk is much lower. He also skips the card test. What that takes: (1) jusprinv2-test has NO payment gateway today (it uses Chargebee's built-in test gateway), so PayPal must first be connected there, on Payment Gateways > PayPal, against a PayPal SANDBOX business account; connecting needs Kenneth to sign in to PayPal (sandbox), so open the page for him in his Chrome and let him click. Adding a gateway to the test site is a Chargebee test-site change; tell the rollout session (local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca) in one line before making it. (2) Your app copy talks to staging: set jusprin_server/base_url to https://jusprinv2-stg.obico.io in its data folder and sign in to a staging account (my production data folder is the wrong one for this). (3) Pay with a sandbox personal buyer account, so no real money moves. Only ask Kenneth about a production run after the test-site run passes.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_1ae65d86-2760-4594-94a2-157beb64e86e" from-name="Verify JusPrin 2 Chargebee setup and payment flow on staging">
+No staging-signed-in data folder exists: ~/Library/Application Support/JusPrin2-stg points at staging but has no jusprin_agent.jusprin_api_key (last touched Nov 6), so Kenneth signs your copy in himself. Don't use that folder in place either; it's his. I'm asking Kenneth now whether he has sandbox buyer credentials for the business account Paypal-1 on jusprinv2-test is connected to, and will forward his answer.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_1ae65d86-2760-4594-94a2-157beb64e86e" from-name="Verify JusPrin 2 Chargebee setup and payment flow on staging">
+Kenneth has a PayPal sandbox buyer login for the test site's PayPal. When your build and automated check are done, launch the test app and tell him (via your own wrap-up, he can talk to you directly) to sign in to staging and then approve the sandbox payment in PayPal's window inside the app.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bkyf3bkif</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bkyf3bkif.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; exec perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/kind-elgamal-1271ed/build/arm64 --config Release --target OrcaSlicer jusprin_web jusprin_catalogs -- -j4 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad/build.log 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bw3sr32zo</task-id>
+<tool-use-id>toolu_01SChie536B1bPDuEgo7qgSA</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bw3sr32zo.output</output-file>
+<status>failed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; exec perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/kind-elgamal-1271ed/build/arm64 --config Release --target shell_integration_harness -- -j4 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad/build-harness.log 2&gt;&amp;1" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>baubj513b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/baubj513b.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; exec perl -e 'setpgrp(0,0); exec @ARGV' cmake --build /Users/kenneth/Projects/JusPrin/.claude/worktrees/kind-elgamal-1271ed/build/arm64 --config Release --target shell_integration_harness -- -j4 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad/build-harness.log 2&gt;&amp;1" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+you can take control of the screen and test it yourself. I will give you perm
+
+---
+
+have you check if other apps run into similar problems? if so, did they come up with any fix? also if you have run out of ideas, I found out that open the checkout page in the external browser seems to work. maybe we automatically open external browser if user chooses paypal?
+
+---
+
+<task-notification>
+<task-id>b6260da9t</task-id>
+<tool-use-id>toolu_01QQgReWNUnTQKHMuzvP25Ro</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/b6260da9t.output</output-file>
+<status>completed</status>
+<summary>Background command "python3 - &lt;&lt;'EOF'
+p='tests/shell/server_sheet_scenario.inc'
+s=open(p).read()
+s=s.replace("""                std::cout &lt;&lt; "DEBUG tick popup " &lt;&lt; (popup != nullptr) &lt;&lt; " modal " &lt;&lt; (popup != nullptr &amp;&amp; popup-&gt;IsModal()) &lt;&lt; " is_dialog " &lt;&lt; (&amp;dialog == popup) &lt;&lt; std::endl;
+""","")
+s=s.replace("""                    std::cout &lt;&lt; "DEBUG popup view " &lt;&lt; (view != nullptr) &lt;&lt; " title '" &lt;&lt; seen-&gt;popup_title &lt;&lt; "' url "
+                              &lt;&lt; (view == nullptr ? std::string()
+
+... [1306 characters truncated] ...
+
+ timeout 150 build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --server-sheet-popup $S/hcap &gt; $S/harness.log 2&gt;&amp;1; echo exit $?; grep -a "HARNESS SERVER SHEET POPUP\|HARNESS CHECK server_sheet\|HARNESS RESULT\|ARTIFACT" $S/harness.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8ei39lww</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/b8ei39lww.output</output-file>
+<status>completed</status>
+<summary>Background command "python3 - &lt;&lt;'EOF'
+p='tests/shell/server_sheet_scenario.inc'
+s=open(p).read()
+a="""                    seen-&gt;popup_title = view == nullptr ? std::string() : std::string(view-&gt;GetCurrentTitle().ToUTF8().data());
+"""
+b=a+"""                    std::cout &lt;&lt; "DEBUG popup title '" &lt;&lt; seen-&gt;popup_title &lt;&lt; "' url "
+                              &lt;&lt; (view == nullptr ? std::string() : std::string(view-&gt;GetCurrentURL().ToUTF8().data())) &lt;&lt; std::endl;
+"""
+s=s.replace(a,b)
+open(p,'w').writ
+
+... [275 characters truncated] ...
+
+mal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad; HOME=$S/hhome timeout 150 build/arm64/tests/shell/Release/JusPrinShellHarness.app/Contents/MacOS/JusPrinShellHarness --server-sheet-popup &gt; $S/harness.log 2&gt;&amp;1; grep -a "DEBUG" $S/harness.log | sort | uniq -c | head" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+Heads-up: I'm putting server build obi.4111 on staging now (`jusprinv2-stg.obico.io`). Staging's web pod restarts and runs a database migration, so staging may answer with errors for about 5 minutes. Please don't start a staging sign-in or payment test until I message you that staging is done. If you're in the middle of a payment on staging right now, reply at once and I'll wait.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+Staging is done: `jusprinv2-stg.obico.io` runs obi.4111 and answers normally. You can run your staging tests now. Production is next, after Kenneth's staging purchase check; I'll warn you before that too.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bsupca6kf</task-id>
+<tool-use-id>toolu_01Db5cVVT4diAtCY3YQtG917</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bsupca6kf.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad/wk &amp;&amp; sed -i '' 's/static BOOL gLoadRequest;/static int gLoadRequest;/' wk.m &amp;&amp; clang -fobjc-arc -framework Cocoa -framework WebKit wk.m -o wk 2&gt;&amp;1 | grep error; (python3 page.py 18767 &amp;) ; sleep 1; for m in blank direct; do ./wk 2 $m 18767 2&gt;/dev/null; done; pkill -f "page.py 18767"; cd /Users/kenneth/Projects/JusPrin/.claude/worktrees/kind-elgamal-1271ed" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+So have you made it work or not? Thank you for not making it clear to me. Also, what the fuck should I do?
+
+---
+
+Can you make the PayPal pop up again?
+
+---
+
+Approved, check it
+
+---
+
+<task-notification>
+<task-id>bdr30j680</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bdr30j680.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the app and the shell test harness in the background with four jobs" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b79mltszi</task-id>
+<tool-use-id>toolu_01N5s5Fc1srWpKPjuEATrX9o</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/b79mltszi.output</output-file>
+<status>failed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/scratchpad; exec $S/app/OrcaSlicer.app/Contents/MacOS/OrcaSlicer --datadir $S/stg-data &gt; $S/app.log 2&gt;&amp;1" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+paid. check it. and commit directly to jusprin-dev
+
+---
+
+<task-notification>
+<task-id>bftbw286g</task-id>
+<tool-use-id>toolu_01Gu2By3N82LxuB2kCGkRNCY</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bftbw286g.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the rebuilt test app on the staging data folder" failed with exit code 144</summary>
+</task-notification>
+
+---
+
+<!-- reply 1 -->
+> Windows and Linux. I only read the wxWidgets code for those platforms.
+
+Wait for about one minute for the gcp  Windows VM to come up, then test it on Windows VM.
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+Heads-up from the release-coordinating session: I'm rolling server build obi.4111 (yearly plans, moved-customer price warning, JusPrin 1 move list) to production now. For about 15 minutes, app.obico.io / jusprinv2.obico.io pods restart and a brand-new subscription can fail for a few minutes until Chargebee retries. Please don't run production checks or push a server release until I tell you it's done. Staging is unaffected.
+</cross-session-message>
+
+---
+
+<cross-session-message from="local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca" from-name="Just Print V2 rollout plan">
+From the release-coordinating session: production now runs server build obi.4111 and is healthy (/hc 200 on app.obico.io and jusprinv2.obico.io, no new Sentry issues). The hold on production checks and server releases is lifted.
+</cross-session-message>
+
+---
+
+<task-notification>
+<task-id>bph6io7yr</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bph6io7yr.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the VM build to finish and print its progress file" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bej00t54g</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bej00t54g.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the VM build watcher to report" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bik9khcj2</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-kind-elgamal-1271ed/e80979d6-dfac-4fbe-a0ad-cbfede2b39e1/tasks/bik9khcj2.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the Windows app build to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+This is what I'm seeing.
+
+---
+
+paid, check it
