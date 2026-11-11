@@ -3,7 +3,7 @@
   "checkpoint_id": "01M75HTZVNSR9X6CAFNWPS14SZ",
   "strategy": "manual-commit",
   "branch": "home-ai-card-dismiss",
-  "checkpoints_count": 15,
+  "checkpoints_count": 14,
   "files_touched": [
     "resources/jusprin/home/protocol.json",
     "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
@@ -43,11 +43,11 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 648,
-    "cache_creation_tokens": 840441,
-    "cache_read_tokens": 69749291,
-    "output_tokens": 200435,
-    "api_call_count": 325,
+    "input_tokens": 188,
+    "cache_creation_tokens": 285357,
+    "cache_read_tokens": 20462831,
+    "output_tokens": 99852,
+    "api_call_count": 95,
     "subagent_tokens": {
       "input_tokens": 160,
       "cache_creation_tokens": 473406,
