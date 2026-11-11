@@ -194,10 +194,15 @@ function Group({ title, tag, children }: { title: string; tag?: string; children
   );
 }
 
-// A gateway day, YYYY-MM-DD, as "5 Nov". The day is the gateway's, so it is
-// read as UTC: a local reading would move it a day west of Greenwich.
+// A gateway day, YYYY-MM-DD, as "5 Nov", or "5 Nov 2027" outside this year (a
+// yearly plan's renewal). The day is the gateway's, so it is read as UTC: a
+// local reading would move it a day west of Greenwich.
 function dayLabel(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const day = new Date(`${date}T00:00:00Z`);
+  return day.toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', timeZone: 'UTC',
+    ...(day.getUTCFullYear() !== new Date().getUTCFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
 // The account's plan and credits (board money-06 on the canvas's "Plan and

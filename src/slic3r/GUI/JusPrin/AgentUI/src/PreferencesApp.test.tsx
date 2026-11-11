@@ -396,6 +396,21 @@ describe('Preferences', () => {
       expect(screen.getByText('$16 a month with Obico Premium’s 20% off. Renews 1 Dec.')).toBeInTheDocument();
     });
 
+    it('names the year of a renewal that isn’t this year', () => {
+      render(<PreferencesApp getTransport={() => host.transport} />);
+      connect(host);
+      host.deliver('setup_keys', signedIn);
+      host.deliver('account', {
+        account: {
+          ...usageAccount,
+          plan: { id: 'jusprin-hobby-yearly', name: 'Hobby', renews_at: '2027-11-04T12:00:00+00:00', unlimited_basic: false,
+            price_line: '$100 a year.' },
+        },
+        chatTitles: {},
+      });
+      expect(screen.getByText('$100 a year. Renews 4 Nov 2027.')).toBeInTheDocument();
+    });
+
     it('deletes the account after the server’s warning, and says so when it fails', () => {
       const warning = 'Your Workshop plan ends today, and the 1,640 credits left on alex@example.com are removed with everything JusPrin keeps for this account. This can’t be undone.';
       render(<PreferencesApp getTransport={() => host.transport} />);
