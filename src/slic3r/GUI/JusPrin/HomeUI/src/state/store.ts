@@ -59,6 +59,9 @@ export interface HomeState {
   stateCount: number;
   onboarding?: OnboardingState;
   onboardingError?: string;
+  // Set up AI's "Don't show again" was just pressed: until Home next comes
+  // on screen, a line in the card's place says where AI setup is now.
+  agentSetupHidden?: boolean;
 }
 
 export const initialState: HomeState = {
@@ -79,7 +82,8 @@ export type HomeAction =
   | { kind: 'show'; screen: Screen }
   | { kind: 'report_form_reset' }
   | { kind: 'report_sending' }
-  | { kind: 'onboarding_action' };
+  | { kind: 'onboarding_action' }
+  | { kind: 'agent_setup_hidden' };
 
 export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'connection') {
@@ -103,6 +107,9 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
   if (action.kind === 'onboarding_action') {
     return { ...state, onboardingError: undefined };
   }
+  if (action.kind === 'agent_setup_hidden') {
+    return { ...state, agentSetupHidden: true };
+  }
   const { type, payload } = action.envelope;
   switch (type) {
     case 'state': {
@@ -124,6 +131,8 @@ export function reduce(state: HomeState, action: HomeAction): HomeState {
       const asked = payload as ScreenPayload;
       return {
         ...state,
+        // The host asks for a screen each time Home comes back on screen.
+        agentSetupHidden: undefined,
         screen:
           asked.screen === 'history'
             ? { kind: 'history', back: asked.back, projectId: asked.projectId, focus: asked.focus }

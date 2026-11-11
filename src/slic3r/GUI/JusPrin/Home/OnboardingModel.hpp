@@ -60,10 +60,19 @@ OnboardingStep next_onboarding_step(const OnboardingProgress& progress, const On
 PrintersScreen printers_screen(const OnboardingProgress& progress, const OnboardingFacts& facts);
 
 // What Home's Agent group shows once the sequence is over: the three doors
-// while no agent is set up, the account and its credits once after signing
-// in, and nothing otherwise.
+// while no agent is set up, until the person asks never to see them again;
+// the account and its credits once after signing in; and nothing otherwise.
 enum class HomeAgentCard { None, Doors, Account };
-HomeAgentCard home_agent_card(bool agent_configured, bool signed_in, bool account_card_dismissed);
+struct HomeAgentFacts
+{
+    // A key, the JusPrin account, or an AI tool connected to the app.
+    bool agent_configured{false};
+    bool signed_in{false};
+    bool account_card_dismissed{false};
+    // Set up AI's "Don't show again".
+    bool setup_card_dismissed{false};
+};
+HomeAgentCard home_agent_card(const HomeAgentFacts& facts);
 
 const char* to_string(OnboardingStatus status);
 const char* to_string(OnboardingStep step);

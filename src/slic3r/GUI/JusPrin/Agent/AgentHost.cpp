@@ -655,6 +655,9 @@ AgentHost::AgentHost(Workspace::IWorkspace& workspace,
         return a && b && a->in_reply_to == b->in_reply_to;
     });
     m_tool_activity_subscription = m_tools.subscribe([this](const ToolActivity& activity) {
+        // A client that calls the app's tools is connected, however it was set up.
+        if (activity.source == ToolSource::Mcp && m_mcp_connect.connected)
+            m_mcp_connect.connected();
         // A failed call, the in-app Agent's or an MCP client's, leaves a line
         // in the app log; the chat shows it only to the person who opens it.
         if (activity.state == ToolState::Failed && activity.error)
@@ -4148,6 +4151,8 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
             const auto backup = Mcp::apply_config_edit(*m_mcp_edit);
             m_mcp_edit.reset();
             m_mcp_edit_tool.clear();
+            if (m_mcp_connect.connected)
+                m_mcp_connect.connected();
             send_mcp_status("saved", tool_id, envelope_id, backup.empty() ? "" : backup.u8string());
         } catch (const std::exception& error) {
             const std::string text = error.what();
@@ -4173,6 +4178,8 @@ void AgentHost::handle_mcp_connect(const std::string& envelope_id, const std::st
     send_mcp_status("writing", tool_id, envelope_id);
     m_mcp_cli(arguments, [this, tool_id, envelope_id](bool success, std::string diagnostic) {
         m_mcp_busy = false;
+        if (success && m_mcp_connect.connected)
+            m_mcp_connect.connected();
         if (success)
             send_mcp_status("saved", tool_id, envelope_id, {}, std::nullopt, diagnostic);
         else {

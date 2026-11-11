@@ -46,6 +46,10 @@ namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 // gives the file's bytes and not its path.
 std::filesystem::path dropped_files_folder();
 
+// An AI tool was connected to the app, or used its tools: Home stops asking
+// the person to set up AI.
+void note_ai_tool_connected();
+
 class OrcaHomeBackend final : public IHomeBackend
 {
 public:
@@ -107,6 +111,7 @@ public:
     void finish_import() override;
     void printer_form_message(const nlohmann::json& payload) override;
     void dismiss_account_card() override;
+    void dismiss_setup_card() override;
 
     std::string open_printer_settings(const std::string& printer_id) override;
     std::string ask_about_printer_settings(const std::string& printer_id) override;
@@ -212,6 +217,9 @@ private:
     std::string                                        m_way_problem;
     OrcaImporter                                       m_importer;
     bool                                               m_onboarding_changed{false};
+    // The last "AI tool connected" the poll saw; an AI tool can connect while
+    // Home is on screen.
+    bool                                               m_tool_connected{false};
     // An upload's answer can arrive after the backend is gone.
     std::shared_ptr<void>                              m_alive{std::make_shared<int>(0)};
 };

@@ -332,7 +332,14 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
           )}
         </main>
         <aside className="printer-column">
-          {state.onboarding && <AgentGroup onboarding={state.onboarding} onAction={onboardingAction} />}
+          {state.onboarding && (
+            <AgentGroup onboarding={state.onboarding} onAction={onboardingAction} setupHidden={Boolean(state.agentSetupHidden)}
+              onHideSetup={() => {
+                dispatch({ kind: 'agent_setup_hidden' });
+                client.send('agent_setup_dismiss', {});
+              }}
+              onOpenPreferences={() => client.send('open_preferences', {})} />
+          )}
           <span className="section-label">Printers</span>
           {state.printerError && (
             <p className="printer-error" role="alert">

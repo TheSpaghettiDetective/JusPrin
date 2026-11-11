@@ -2,6 +2,7 @@
 
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Home/OrcaHomeBackend.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpCatalog.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpRuntime.hpp"
 
@@ -68,6 +69,7 @@ AgentPane::AgentPane(wxWindow*                  parent,
     settings.home = paths.home;
     settings.config_home = paths.config_home;
     settings.windows = paths.windows;
+    settings.connected = &Home::note_ai_tool_connected;
     m_web_view->host().configure_mcp_connect(std::move(settings));
     SetSizer(sizer);
 

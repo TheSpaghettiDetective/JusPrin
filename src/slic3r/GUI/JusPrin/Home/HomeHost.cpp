@@ -278,7 +278,7 @@ void HomeHost::on_page_message(const std::string& text)
     }
     else if (type == "onboarding_sign_in" || type == "onboarding_sign_in_cancel" || type == "onboarding_leave_welcome" ||
              type == "onboarding_back" || type == "onboarding_way" || type == "onboarding_ask_agent" ||
-             type == "agent_card_dismiss" || type == "onboarding_see_prices") {
+             type == "agent_card_dismiss" || type == "agent_setup_dismiss" || type == "onboarding_see_prices") {
         if (type == "onboarding_sign_in")
             m_backend.start_sign_in();
         else if (type == "onboarding_sign_in_cancel")
@@ -293,6 +293,8 @@ void HomeHost::on_page_message(const std::string& text)
             m_backend.ask_agent_for_printer();
         else if (type == "onboarding_see_prices")
             m_backend.open_prices();
+        else if (type == "agent_setup_dismiss")
+            m_backend.dismiss_setup_card();
         else
             m_backend.dismiss_account_card();
         push_state();

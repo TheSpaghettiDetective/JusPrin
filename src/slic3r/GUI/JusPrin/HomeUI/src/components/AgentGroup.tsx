@@ -1,7 +1,8 @@
-// The Agent group at the top of Home's right column (boards first-run-09 and
-// 10). While no agent is set up it holds the welcome's three doors under "Set
-// up the agent"; right after signing in it shows the account and its
-// credits, once, until the person dismisses it. The host says which.
+// The Agent group at the top of Home's right column (boards first-run-09, 10
+// and 10b). While no agent is set up it holds the welcome's three doors under
+// "Set up AI", until the person asks never to see them again; right after
+// signing in it shows the account and its credits, once, until the person
+// dismisses it. The host says which.
 
 import type { OnboardingState } from '../bridge/protocol';
 import { balanceRows } from '../../../AgentUI/src/components/BalancePanel';
@@ -45,16 +46,38 @@ function Account({ onboarding, onAction }: { onboarding: OnboardingState; onActi
   );
 }
 
-export function AgentGroup({ onboarding, onAction }: { onboarding: OnboardingState; onAction: Action }) {
-  if (onboarding.agentCard === 'none') return null;
+export function AgentGroup({ onboarding, onAction, setupHidden, onHideSetup, onOpenPreferences }: {
+  onboarding: OnboardingState;
+  onAction: Action;
+  setupHidden: boolean;
+  onHideSetup: () => void;
+  onOpenPreferences: () => void;
+}) {
+  if (onboarding.agentCard === 'none') {
+    if (!setupHidden) return null;
+    return (
+      <section className="agent-group" aria-label="AI">
+        <p className="agent-setup-hidden">
+          AI setup won’t show here again. You can set it up later in{' '}
+          <button type="button" className="onboarding-link agent-setup-hidden-link" onClick={onOpenPreferences}>
+            Preferences
+          </button>, under the gear at the top right.
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="agent-group" aria-label="AI">
-      <span className="section-label">AI</span>
       {onboarding.agentCard === 'account' ? (
         <Account onboarding={onboarding} onAction={onAction} />
       ) : (
         <div className="agent-card">
-          <strong className="agent-card-heading">Set up AI</strong>
+          <div className="agent-card-head">
+            <strong className="agent-card-heading">Set up AI</strong>
+            <button type="button" className="onboarding-link agent-card-hide" onClick={onHideSetup}>
+              Don’t show again
+            </button>
+          </div>
           {onboarding.signIn === 'idle' && !onboarding.accountEmail && (
             <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits and ask AI to improve your prints.</p>
           )}

@@ -1074,6 +1074,34 @@ describe('first launch', () => {
     await userEvent.click(within(group).getByRole('button', { name: 'Hide' }));
     expect(host.lastOfType('agent_card_dismiss')).toBeDefined();
   });
+
+  it('stops offering AI setup on Home once the person asks never to see it again', async () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ agentConfigured: false, agentCard: 'doors' }) }));
+    const group = screen.getByRole('region', { name: 'AI' });
+    // The card is the group's only content: no "AI" heading over it.
+    expect(within(group).queryByText('AI')).toBeNull();
+    await userEvent.click(within(group).getByRole('button', { name: 'Don’t show again' }));
+    expect(host.lastOfType('agent_setup_dismiss')).toBeDefined();
+    // The host stops sending the card; until Home next comes on screen, a
+    // line in its place says where AI setup is now.
+    host.deliver('state', state({ onboarding: onboarding({ agentConfigured: false, agentCard: 'none' }) }));
+    const hidden = screen.getByRole('region', { name: 'AI' });
+    expect(hidden).toHaveTextContent(
+      'AI setup won’t show here again. You can set it up later in Preferences, under the gear at the top right.');
+    expect(within(hidden).queryByText('Set up AI')).toBeNull();
+    await userEvent.click(within(hidden).getByRole('button', { name: 'Preferences' }));
+    expect(host.lastOfType('open_preferences')).toBeDefined();
+    host.deliver('screen', { screen: 'home' });
+    expect(screen.queryByRole('region', { name: 'AI' })).toBeNull();
+  });
+
+  it('shows nothing about AI setup once AI is set up another way', () => {
+    const host = start();
+    host.deliver('state', state({ onboarding: onboarding({ agentConfigured: true, agentCard: 'none' }) }));
+    expect(screen.queryByRole('region', { name: 'AI' })).toBeNull();
+    expect(screen.queryByText(/AI setup won’t show/)).toBeNull();
+  });
 });
 
   it('offers Reconnect only on a printer that was connected before', async () => {

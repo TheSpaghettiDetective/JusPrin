@@ -16,6 +16,8 @@
 #include "slic3r/GUI/JusPrin/Agent/ProviderFactory.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecution.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ToolExecutionCoordinator.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ToolResults.hpp"
 #include "slic3r/GUI/JusPrin/Mcp/McpConnections.hpp"
 #include "../jusprin_support/FakeWorkspace.hpp"
@@ -3966,10 +3968,13 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     settings.launcher_path = helper.u8string();
     settings.home = home;
     settings.config_home = directory.root / "config";
+    int connected = 0;
+    settings.connected = [&connected] { ++connected; };
     harness.host.configure_mcp_connect(settings);
     harness.host.start_mcp((directory.root / "discovery.json").u8string());
     harness.handshake();
     harness.deliver("mcp_preview", json{{"toolId", "cursor"}});
+    CHECK(connected == 0);
     const json* preview = harness.last_of_type("mcp_preview");
     REQUIRE(preview != nullptr);
     CHECK((*preview)["payload"]["next"].get<std::string>().find("\"url\"") == std::string::npos);
@@ -3982,6 +3987,8 @@ TEST_CASE("mcp_connect writes a reviewed JusPrin JSON entry", "[agent][mcp_setup
     const json* status = harness.last_of_type("mcp_status");
     REQUIRE(status != nullptr);
     CHECK((*status)["payload"]["phase"] == "saved");
+    // Home stops offering AI setup to someone who connected an AI tool.
+    CHECK(connected == 1);
     std::ifstream in(cursor_config);
     const json written = json::parse(in);
     CHECK(written["mcpServers"]["jusprin"]["command"] == helper.u8string());
@@ -4085,6 +4092,8 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     settings.launcher_path = helper.u8string();
     settings.home = directory.root / "home";
     settings.config_home = directory.root / "config";
+    int connected = 0;
+    settings.connected = [&connected] { ++connected; };
     harness.host.configure_mcp_connect(settings);
     std::vector<std::string> seen;
     harness.host.set_mcp_cli_runner([&](const std::vector<std::string>& arguments, AgentHost::McpCliDone done) {
@@ -4100,6 +4109,25 @@ TEST_CASE("mcp_connect runs an injected CLI runner", "[agent][mcp_setup]")
     const json* status = harness.last_of_type("mcp_status");
     REQUIRE(status != nullptr);
     CHECK((*status)["payload"]["phase"] == "saved");
+    CHECK(connected == 1);
+}
+
+TEST_CASE("an MCP client calling a tool counts as an AI tool connected", "[agent][mcp_setup]")
+{
+    Harness harness;
+    AgentHost::McpConnectSettings settings;
+    int connected = 0;
+    settings.connected = [&connected] { ++connected; };
+    harness.host.configure_mcp_connect(settings);
+    harness.handshake();
+    // The app's own agent calling a tool is not a client of the app.
+    harness.host.tools().submit({"workspace_inspect", "{}"}, "agent-read", ToolExecutionPacing{}, ToolSource::Agent);
+    pump_tools_to_completion(harness);
+    CHECK(connected == 0);
+    // A client set up by hand, never through Preferences, still counts.
+    harness.host.tools().submit({"workspace_inspect", "{}"}, "mcp-read", ToolExecutionPacing{}, ToolSource::Mcp);
+    pump_tools_to_completion(harness);
+    CHECK(connected > 0);
 }
 
 // -- Messages sent from a print-issue bubble --------------------------------

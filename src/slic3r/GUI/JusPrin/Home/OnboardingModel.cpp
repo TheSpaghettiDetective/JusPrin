@@ -39,11 +39,11 @@ PrintersScreen printers_screen(const OnboardingProgress& progress, const Onboard
     return facts.orca_printers ? PrintersScreen::OrcaImport : PrintersScreen::AddPrinter;
 }
 
-HomeAgentCard home_agent_card(bool agent_configured, bool signed_in, bool account_card_dismissed)
+HomeAgentCard home_agent_card(const HomeAgentFacts& facts)
 {
-    if (!agent_configured)
-        return HomeAgentCard::Doors;
-    return signed_in && !account_card_dismissed ? HomeAgentCard::Account : HomeAgentCard::None;
+    if (!facts.agent_configured)
+        return facts.setup_card_dismissed ? HomeAgentCard::None : HomeAgentCard::Doors;
+    return facts.signed_in && !facts.account_card_dismissed ? HomeAgentCard::Account : HomeAgentCard::None;
 }
 
 const char* to_string(OnboardingStatus status)

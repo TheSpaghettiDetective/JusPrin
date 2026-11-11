@@ -115,10 +115,17 @@ TEST_CASE("an import's result holds the printers step until continue", "[home][o
 
 TEST_CASE("home's agent group follows the agent's setup", "[home][onboarding]")
 {
-    CHECK(home_agent_card(false, false, false) == HomeAgentCard::Doors);
+    CHECK(home_agent_card({false, false, false, false}) == HomeAgentCard::Doors);
     // Signed in: the account and its credits, once.
-    CHECK(home_agent_card(true, true, false) == HomeAgentCard::Account);
-    CHECK(home_agent_card(true, true, true) == HomeAgentCard::None);
+    CHECK(home_agent_card({true, true, false, false}) == HomeAgentCard::Account);
+    CHECK(home_agent_card({true, true, true, false}) == HomeAgentCard::None);
     // Your own key or an AI tool: nothing to show.
-    CHECK(home_agent_card(true, false, false) == HomeAgentCard::None);
+    CHECK(home_agent_card({true, false, false, false}) == HomeAgentCard::None);
+}
+
+TEST_CASE("set up AI stays off home once the person asks never to see it again", "[home][onboarding]")
+{
+    CHECK(home_agent_card({false, false, false, true}) == HomeAgentCard::None);
+    // Setting AI up later from Preferences still shows the account once.
+    CHECK(home_agent_card({true, true, false, true}) == HomeAgentCard::Account);
 }

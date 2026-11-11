@@ -131,6 +131,8 @@ public:
     virtual void printer_form_message(const nlohmann::json& payload) = 0;
     // Home's Agent group: the account's credits are shown once.
     virtual void dismiss_account_card()           = 0;
+    // Set up AI's "Don't show again": Home never shows the card again.
+    virtual void dismiss_setup_card()             = 0;
 
     // The printer card's menu. Each returns an empty string when the action
     // ran or the person cancelled it, and otherwise a message for the person,

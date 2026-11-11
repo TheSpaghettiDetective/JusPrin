@@ -11,6 +11,7 @@
 #include "slic3r/GUI/DeviceCore/DevManager.h"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/HMS.hpp"
+#include "slic3r/GUI/JusPrin/Home/OnboardingModel.hpp"
 #include "slic3r/GUI/JusPrin/Home/ProjectStatus.hpp"
 #include "slic3r/GUI/JusPrin/Shell/GcodeHistoryRecorder.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
@@ -61,6 +62,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -105,11 +107,27 @@ bool config_true(const AppConfig* config, const char* key)
     return value == "true" || value == "1";
 }
 
+// AI is on only while a key or an account sign-in is saved: signing out or
+// removing the last key leaves "enabled" set, and Home offers setup again.
+bool ai_key_saved(const AppConfig* config)
+{
+    if (config == nullptr || config->get("jusprin_agent", "enabled") != "true")
+        return false;
+    const std::vector<Agent::ProviderProfile>& profiles = Agent::provider_profiles();
+    return std::any_of(profiles.begin(), profiles.end(), [config](const Agent::ProviderProfile& profile) {
+        return !Agent::load_provider_api_key(config, profile.id).empty();
+    });
+}
+
 // The printer first run installed for a person who skipped choosing one, by
 // the name it was saved under; Home marks its card "assumed".
 const char* const kAssumedPrinter = "assumed_printer";
 // Home's Agent group showed the account's credits and the person closed it.
 const char* const kAccountCardDismissed = "account_card_dismissed";
+// Set up AI's "Don't show again".
+const char* const kSetupCardDismissed = "setup_card_dismissed";
+// An AI tool was connected to the app or used it.
+const char* const kToolConnected = "tool_connected";
 
 // The rest of `id` after `prefix`, or nothing when it has another prefix.
 std::optional<std::string> strip(const std::string& id, const std::string& prefix)
@@ -444,7 +462,7 @@ OnboardingFacts OrcaHomeBackend::onboarding_facts() const
 bool OrcaHomeBackend::agent_configured() const
 {
     const AppConfig* config = wxGetApp().app_config;
-    return config != nullptr && (config->get("jusprin_agent", "enabled") == "true" || config_true(config, "tool_connected"));
+    return ai_key_saved(config) || config_true(config, kToolConnected);
 }
 
 void OrcaHomeBackend::save_onboarding(const OnboardingProgress& progress)
@@ -613,12 +631,12 @@ Snapshot::Onboarding OrcaHomeBackend::onboarding()
     state.sign_in_outdated = m_sign_in_outdated;
     state.agent_configured = agent_configured();
     // The agent on the person's own key, by the provider's name.
-    if (config != nullptr && config->get("jusprin_agent", "enabled") == "true")
+    if (ai_key_saved(config))
         if (const Agent::ProviderProfile* profile = Agent::profile_for(config->get("jusprin_agent", "provider"));
-            profile != nullptr && !profile->account_sign_in)
+            profile != nullptr && !profile->account_sign_in && !Agent::load_provider_api_key(config, profile->id).empty())
             state.agent_key_provider = profile->display_name;
-    state.agent_card       = home_agent_card(state.agent_configured, !state.account_email.empty(),
-                                             config_true(config, kAccountCardDismissed));
+    state.agent_card       = home_agent_card({state.agent_configured, !state.account_email.empty(),
+                                              config_true(config, kAccountCardDismissed), config_true(config, kSetupCardDismissed)});
     // The credits the welcome's card and Home's account group show.
     if (m_account_token == Agent::cloud_account_token(config))
         state.account = m_account;
@@ -659,6 +677,10 @@ bool OrcaHomeBackend::poll_onboarding()
     }
     if (m_printer_form)
         m_printer_form->conversation().tick(std::chrono::steady_clock::now());
+    if (const bool tool = config_true(wxGetApp().app_config, kToolConnected); tool != m_tool_connected) {
+        m_tool_connected     = tool;
+        m_onboarding_changed = true;
+    }
     return std::exchange(m_onboarding_changed, false);
 }
 
@@ -751,11 +773,10 @@ void OrcaHomeBackend::open_agent_door(const std::string& /*door*/)
         m_onboarding_changed = true;
         if (done.empty())
             return;
-        AppConfig* config = wxGetApp().app_config;
-        if (done == "tool" && config != nullptr) {
-            config->set(kOnboardingSection, "tool_connected", true);
-            config->save();
-        }
+        // Done on an AI tool counts even when its command was only copied,
+        // to be run later.
+        if (done == "tool")
+            note_ai_tool_connected();
         OnboardingProgress progress = onboarding_progress();
         if (next_onboarding_step(progress, onboarding_facts()) == OnboardingStep::Welcome) {
             progress.welcome_left = true;
@@ -856,6 +877,24 @@ void OrcaHomeBackend::dismiss_account_card()
         config->set(kOnboardingSection, kAccountCardDismissed, true);
         config->save();
     }
+}
+
+void OrcaHomeBackend::dismiss_setup_card()
+{
+    if (AppConfig* config = wxGetApp().app_config) {
+        config->set(kOnboardingSection, kSetupCardDismissed, true);
+        config->save();
+    }
+}
+
+void note_ai_tool_connected()
+{
+    AppConfig* config = wxGetApp().app_config;
+    // Every MCP tool call lands here; the file is written once.
+    if (config == nullptr || config_true(config, kToolConnected))
+        return;
+    config->set(kOnboardingSection, kToolConnected, true);
+    config->save();
 }
 
 std::string OrcaHomeBackend::import_printers(const std::string& id, const std::vector<std::string>& printers)

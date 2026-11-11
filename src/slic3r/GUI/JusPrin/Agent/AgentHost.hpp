@@ -279,6 +279,8 @@ public:
         std::filesystem::path home;
         std::filesystem::path config_home;
         bool windows{false};
+        // An AI tool was connected here, or an MCP client called a tool.
+        std::function<void()> connected;
     };
     using McpCliDone = std::function<void(bool success, std::string diagnostic)>;
     using McpCliRunner = std::function<void(const std::vector<std::string>& arguments, McpCliDone done)>;

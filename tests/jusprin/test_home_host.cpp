@@ -98,6 +98,7 @@ public:
     void finish_import() override { onboarding_calls.push_back("import_continue"); }
     void printer_form_message(const json& payload) override { form_messages.push_back(payload); }
     void dismiss_account_card() override { onboarding_calls.push_back("dismiss_account_card"); }
+    void dismiss_setup_card() override { onboarding_calls.push_back("dismiss_setup_card"); }
 
     std::vector<std::string>                         settings_opened;
     std::vector<std::string>                         settings_asked;
@@ -338,14 +339,16 @@ TEST_CASE("first-launch messages reach the backend and refresh the screen", "[ho
     host.on_page_message(page_message("onboarding_import", json{{"app", "orcaslicer"}, {"printers", {"My X1C", "Bambu Lab P1S 0.4 nozzle"}}}));
     host.on_page_message(page_message("onboarding_assume_default"));
     host.on_page_message(page_message("agent_card_dismiss"));
+    host.on_page_message(page_message("agent_setup_dismiss"));
     host.on_page_message(page_message("onboarding_printer_form", json{{"action", "form_options"}, {"catalogId", "c1"}, {"nozzle", 0.4}}));
 
     CHECK(backend.onboarding_calls == std::vector<std::string>{"sign_in", "sign_in_cancel", "leave_welcome", "back", "way:jusprin1",
-                                                               "ask_agent", "import:orcaslicer", "assume_default", "dismiss_account_card"});
+                                                               "ask_agent", "import:orcaslicer", "assume_default", "dismiss_account_card",
+                                                               "dismiss_setup_card"});
     CHECK(backend.chosen_printers == std::vector<std::string>{"My X1C", "Bambu Lab P1S 0.4 nozzle"});
     REQUIRE(backend.form_messages.size() == 1);
     CHECK(backend.form_messages.front().at("catalogId") == "c1");
-    CHECK(wire.of_type("state").size() == states + 10);
+    CHECK(wire.of_type("state").size() == states + 11);
 }
 
 // Preferences opens on the frame's next turn and is modal, so the page hears

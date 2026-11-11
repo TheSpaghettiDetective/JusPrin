@@ -496,6 +496,25 @@ body {
   font: var(--font-body-bold);
 }
 
+/* Set up AI's title, with "Don't show again" at the end of its line. */
+.agent-card-head .agent-card-heading {
+  flex: 1 1 auto;
+}
+
+/* In the card's place right after "Don't show again", until Home next comes
+   on screen (board first-run-10b). */
+.agent-setup-hidden {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.agent-setup-hidden-link {
+  display: inline;
+  padding: 0;
+  font: var(--font-body-small-bold);
+}
+
 .agent-card-why {
   font: var(--font-body-small);
   color: var(--text-secondary);
