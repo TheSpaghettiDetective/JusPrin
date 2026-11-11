@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75JR0NDSA497ZGQVQEKQF70",
+  "strategy": "manual-commit",
+  "branch": "claude/launch-bonus-bars",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/BalancePanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/BalancePanel.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 456,
+    "cache_creation_tokens": 1738661,
+    "cache_read_tokens": 45320376,
+    "output_tokens": 105804,
+    "api_call_count": 228
+  }
+}
