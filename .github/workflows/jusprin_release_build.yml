@@ -28,7 +28,10 @@ on:
 jobs:
   cache:
     name: Find the deps cache
-    runs-on: ${{ inputs.os }}
+    # GitHub often has no hosted macOS runner free, and cancels a job that gets
+    # none within 15 minutes, so the macOS lookup runs on Linux, as in
+    # OrcaSlicer's build_check_cache.yml.
+    runs-on: ${{ startsWith(inputs.os, 'macos-') && 'ubuntu-24.04' || inputs.os }}
     outputs:
       key: ${{ steps.key.outputs.key }}
       path: ${{ steps.key.outputs.path }}
@@ -44,17 +47,24 @@ jobs:
           # As in OrcaSlicer's build_check_cache.yml. The macOS and Linux trees are
           # OrcaSlicer's and share its cache; OrcaSlicer builds Windows with clang-cl,
           # so JusPrin's cl tree is cached on its own.
-          cache_os: ${{ runner.os == 'macOS' && format('{0}-{1}', inputs.os, inputs.arch) || (runner.os == 'Windows' && format('windows-{0}-msvc', inputs.arch) || format('linux-clang{0}', inputs.arch && format('-{0}', inputs.arch) || '')) }}
-          dep_folder: ${{ runner.os == 'macOS' && format('/{0}', inputs.arch) || (runner.os == 'Windows' && inputs.arch == 'arm64') && '-arm64/OrcaSlicer_dep' || '/OrcaSlicer_dep' }}
+          cache_os: ${{ startsWith(inputs.os, 'macos-') && format('{0}-{1}', inputs.os, inputs.arch) || (runner.os == 'Windows' && format('windows-{0}-msvc', inputs.arch) || format('linux-clang{0}', inputs.arch && format('-{0}', inputs.arch) || '')) }}
+          OS: ${{ inputs.os }}
+          dep_folder: ${{ startsWith(inputs.os, 'macos-') && format('/{0}', inputs.arch) || (runner.os == 'Windows' && inputs.arch == 'arm64') && '-arm64/OrcaSlicer_dep' || '/OrcaSlicer_dep' }}
         run: |
           echo "key=${cache_os}-cache-orcaslicer_deps-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
           # Relative to the workspace, as build_deps.yml takes it.
           echo "path=deps/build${dep_folder}" >> "$GITHUB_OUTPUT"
+          # The workspace of a hosted macOS job, where build_deps.yml saved the tree.
+          if [[ "$OS" == macos-* ]]; then
+            echo "macos_workspace=/Users/runner/work/${GITHUB_REPOSITORY#*/}/${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+          fi
+      # actions/cache matches the path too, so a Linux lookup for macOS names the
+      # macOS workspace.
       - name: Look the cache up
         id: lookup
         uses: actions/cache@v5
         with:
-          path: ${{ github.workspace }}/${{ steps.key.outputs.path }}
+          path: ${{ steps.key.outputs.macos_workspace || github.workspace }}/${{ steps.key.outputs.path }}
           key: ${{ steps.key.outputs.key }}
           lookup-only: true
 
