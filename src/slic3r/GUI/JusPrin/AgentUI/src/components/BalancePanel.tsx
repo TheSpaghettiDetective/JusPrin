@@ -35,7 +35,7 @@ export interface Row { key: string; name: string; left: number; of: number; date
 export function balanceRows(account: CreditAccount): Row[] {
   const expiring = account.credits.lots.filter((lot) => lot.expires_at).map((lot) => ({
     key: `${lot.kind}-${lot.expires_at}`, name: lotName(lot, account), left: lot.credits, of: lot.granted, at: lot.expires_at!,
-    date: `Expires ${shortDate(lot.expires_at!)}${lot.kind === 'subscription' ? '. Unused credits don’t carry over.' : ''}`,
+    date: `Expires ${shortDate(lot.expires_at!)}`,
   }));
   expiring.sort((a, b) => a.at.localeCompare(b.at));
   const never = new Map<string, Row>();
