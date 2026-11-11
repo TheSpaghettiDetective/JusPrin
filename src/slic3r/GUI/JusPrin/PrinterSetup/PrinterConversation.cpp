@@ -1086,6 +1086,11 @@ Result PrinterConversation::open_issue(const json& arguments)
     return ok(json{{"state", "opened"}, {"shortened", link.shortened}, {"message", message}});
 }
 
+void PrinterConversation::close()
+{
+    abandon_connection("The printer chat closed before connecting was finished.");
+}
+
 void PrinterConversation::abandon_connection(const std::string& why)
 {
     if (!m_connecting.empty()) {

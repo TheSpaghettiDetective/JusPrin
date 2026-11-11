@@ -176,6 +176,7 @@ private:
     bool                               m_announced{false};
     bool                               m_control_file_present{false};
     std::int64_t                       m_control_mtime{0};
+    std::string                        m_control_text; // the control file as last applied
 
     std::thread               m_scenario_thread;
     std::atomic<bool>         m_scenario_running{false};

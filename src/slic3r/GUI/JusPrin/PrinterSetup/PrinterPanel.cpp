@@ -248,6 +248,8 @@ void PrinterPanel::close()
     // own host is still on the stack for -- the trap the add-printer dialog
     // documented.
     CallAfter([this] {
+        if (m_task == Task::Printer)
+            m_conversation->close();
         tear_down_runtime();
         if (m_callbacks.closed)
             m_callbacks.closed();

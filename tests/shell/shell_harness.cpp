@@ -432,6 +432,7 @@
 #include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 
 #include <deque>
+#include "slic3r/GUI/JusPrin/PrinterSetup/PrinterBackend.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterCatalog.hpp"
 #include "slic3r/GUI/JusPrin/PrinterSetup/PrinterPanel.hpp"
 #include "slic3r/GUI/JusPrin/Printers/ConnectionEvents.hpp"
@@ -600,7 +601,18 @@ bool snapshot_web_view(void* native_web_view, const char* path)
 #endif
 
 namespace Slic3r::GUI::JusPrin {
+
 namespace {
+
+// Whether a Bambu connection lists the in-process fake printer. The list is
+// every printer the app knows of, and Orca keeps the LAN printers of other
+// printer agents in it too, such as the stand-in Moonraker printers that
+// earlier checks connected, so the fake is found by its id, not its place.
+bool lists_fake_bambu(const PrinterSetup::PrinterConnectionInfo& info)
+{
+    return std::any_of(info.candidates.begin(), info.candidates.end(),
+                       [](const PrinterSetup::ConnectionCandidate& c) { return c.id == JUSPRIN_FAKE_BAMBU_DEV_ID; });
+}
 
 bool preview_has_subject(const std::string& url)
 {
@@ -3690,8 +3702,10 @@ private:
         stop_answering_modals();
         check(panel.IsShown() && panel.host() == host, "printer_panel_stays_open_through_setup");
         check(host->availability() == Agent::AgentAvailability::Ready, "printer_panel_picks_up_the_new_agent");
-        const std::string shown = page_shows();
-        check(shown == "composer", "printer_panel_greeting_continues_with_the_composer");
+        // The page hears of the new agent in a message and renders on its own
+        // schedule, so it is asked until it shows the composer.
+        std::string shown;
+        check(wait_for([&] { return (shown = page_shows()) == "composer"; }, 30s), "printer_panel_greeting_continues_with_the_composer");
         if (shown != "composer")
             std::cerr << "HARNESS DETAIL printer panel after setup showed " << shown << '\n';
         check(thread_size() == thread_before, "printer_panel_sends_nothing_after_setup");
@@ -4115,7 +4129,17 @@ private:
               "nozzle_change_drops_unsaved_edits_and_lists_them");
 
         // Through the panel's tool, a version is saved first, as for any
-        // agent change, so restoring it brings the dropped edit back.
+        // agent change, so restoring it brings the dropped edit back. An
+        // empty project that was never saved stays in memory and has no
+        // versions, so the project gets a model first.
+        const std::string cube = std::string(JUSPRIN_SOURCE_DIR) + "/tests/data/test_stl/ASCII/20mmbox-LF.stl";
+        check(m_plater->load_files(std::vector<boost::filesystem::path>{cube},
+                                   LoadStrategy::LoadModel | LoadStrategy::AddDefaultInstances | LoadStrategy::Silence, false).size() == 1,
+              "nozzle_panel_fixture_has_a_model");
+        // Opening a file shows the project; the conversation is on Home, and
+        // opens there once the switch has settled.
+        m_frame->select_tab(TAB_ID_HOME);
+        wxYield();
         auto* autosave = installed_shell()->autosave();
         std::set<std::string> known;
         for (const auto& version : autosave->history()) known.insert(version.id);
@@ -4150,6 +4174,7 @@ private:
         SetupCommands::select_printer_preset(*m_plater, named);
         check(change(0.4).empty() && parent() == kSetupFixturePrinter, "nozzle_cleanup_moves_it_back");
         SetupCommands::select_printer_preset(*m_plater, kSetupFixturePrinter);
+        check(m_plater->new_project(true, true) != wxID_CANCEL, "nozzle_cleanup_starts_an_empty_project");
     }
 
     // Every opening of the panel is a new session, but its versioned changes
@@ -6018,10 +6043,11 @@ private:
             check(outcome.ticks >= 10, "host_test_leaves_the_app_responsive");
             check(saved_address() == address_before, "host_failure_leaves_the_profile_as_it_was");
             // Finding 04 of the setup walkthrough: Home said "Sends files over
-            // Wi-Fi" right after this. The card now says only what is verified.
+            // Wi-Fi" right after this. The card now says only what is verified:
+            // never connected, which the page words itself.
             const auto card = home_card(kAddedPrinter);
             check(address_before.empty() && card && card->status == Home::PrinterStatus::NotConnected &&
-                      card->message == "No network connection is set up." && card->address.empty() &&
+                      card->no_connection && card->message.empty() && card->address.empty() &&
                       card->action == Home::PrinterAction::Connect,
                   "home_says_not_connected_after_a_failed_host_test");
             check(card && card->model_text == "Ender-3 V2 Neo \xC2\xB7 0.4 mm", "home_model_row_names_model_and_nozzle");
@@ -7052,10 +7078,10 @@ private:
             "connection_test_uses_a_non_bambu_slicing_profile");
         const bool dirty = m_plater->is_project_dirty();
         backend->prepare_connection(saved.name);
-        wait_until([backend, name = saved.name] { return !backend->connection(name).candidates.empty(); },
+        wait_until([backend, name = saved.name] { return lists_fake_bambu(backend->connection(name)); },
             "connect_fake_discovered_by_real_adapter", [self = shared_from_this(), backend, name = saved.name, dirty] {
                 const auto info = backend->connection(name);
-                const std::string device = info.candidates.front().id;
+                const std::string device = JUSPRIN_FAKE_BAMBU_DEV_ID;
                 self->check(info.state == "not_configured", "unlinked_online_device_is_not_a_connected_saved_printer");
                 wxGetApp().getDeviceManager()->get_my_machine(device)->reset(); // Ignore the fake's unsolicited heartbeat.
                 self->check(Printers::link_named_printer(name, device).empty(), "discovered_device_linked_before_authentication");
@@ -7064,6 +7090,13 @@ private:
                 self->check(linked && linked->status == Home::PrinterStatus::NotConnected &&
                     linked->action == Home::PrinterAction::Connect,
                     "home_says_not_connected_for_a_linked_but_unverified_device");
+                // The person connects in a later event turn than the one that
+                // saved and selected the printer. Each preset load above queued
+                // a Device tab selection (GUI_App::select_machine), and the
+                // fake printer is already listed from earlier checks, so
+                // without this wait those selections would run after the
+                // connect and re-select the printer in mid-connect.
+                self->wait_until_settled("connect_fixture_settled_before_connecting", [self, backend, name, device, dirty] {
                 self->check(backend->connect_printer(name, device, "").empty(), "connect_existing_saved_bambu");
                 self->check(backend->connection(name).state == "connecting", "connect_waits_for_fresh_device_data");
                 self->check(backend->connect_printer(name, device, "").empty(), "duplicate_connect_is_idempotent");
@@ -7150,6 +7183,7 @@ private:
                         });
                         });
                     });
+                });
                 });
             });
     }
@@ -7346,9 +7380,9 @@ private:
                   "fake_fixture_printer_saved");
         }
         m_home_live_backend->prepare_connection(kFakeFixturePrinter);
-        wait_until([self = shared_from_this()] { return !self->m_home_live_backend->connection(kFakeFixturePrinter).candidates.empty(); },
+        wait_until([self = shared_from_this()] { return lists_fake_bambu(self->m_home_live_backend->connection(kFakeFixturePrinter)); },
                    "fake_fixture_printer_discovered", [self = shared_from_this(), then] {
-                       const std::string device = self->m_home_live_backend->connection(kFakeFixturePrinter).candidates.front().id;
+                       const std::string device = JUSPRIN_FAKE_BAMBU_DEV_ID;
                        self->check(Printers::link_named_printer(kFakeFixturePrinter, device).empty() &&
                                        self->m_home_live_backend->connect_printer(kFakeFixturePrinter, device, "").empty(),
                                    "fake_fixture_connect_starts");
@@ -8224,9 +8258,9 @@ private:
         PrinterSetup::SavedPrinter saved;
         check(m_home_live_backend->add_printer(request, saved).empty() && saved.name == kHomeLivePrinter, "home_live_printer_saved");
         m_home_live_backend->prepare_connection(kHomeLivePrinter);
-        wait_until([self = shared_from_this()] { return !self->m_home_live_backend->connection(kHomeLivePrinter).candidates.empty(); },
+        wait_until([self = shared_from_this()] { return lists_fake_bambu(self->m_home_live_backend->connection(kHomeLivePrinter)); },
                    "home_live_fake_discovered", [self = shared_from_this()] {
-                       const std::string device = self->m_home_live_backend->connection(kHomeLivePrinter).candidates.front().id;
+                       const std::string device = JUSPRIN_FAKE_BAMBU_DEV_ID;
                        const auto fake = std::dynamic_pointer_cast<FakeBambuAgent>(wxGetApp().getAgent()->get_printer_agent());
                        self->check(fake != nullptr, "home_live_fake_agent_installed");
                        if (fake == nullptr) {

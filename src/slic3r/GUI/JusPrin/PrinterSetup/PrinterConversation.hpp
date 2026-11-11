@@ -108,6 +108,9 @@ public:
     // change also the stock profile the project has selected. The caller has
     // checked that it is there.
     void start(ConversationMode mode, const std::string& printer_name = {});
+    // Ends the session with its panel: a printer still being tested answers
+    // into a chat that is gone, so what it says is never read or saved.
+    void close();
 
     ConversationMode   mode() const { return m_mode; }
     const std::string& printer_name() const { return m_printer_name; }

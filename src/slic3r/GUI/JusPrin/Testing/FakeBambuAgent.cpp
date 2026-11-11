@@ -433,17 +433,19 @@ bool FakeBambuAgent::reload_control_file()
         return false;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(state_mutex);
-        if (m_control_file_present && mtime == m_control_mtime)
-            return true;
-    }
-
     boost::nowide::ifstream in(path.string());
     if (!in)
         return false;
     std::ostringstream ss;
     ss << in.rdbuf();
+
+    // The time alone is read in whole seconds, and a test can write its next
+    // state within the same second, so the contents are compared too.
+    {
+        std::lock_guard<std::mutex> lock(state_mutex);
+        if (m_control_file_present && mtime == m_control_mtime && ss.str() == m_control_text)
+            return true;
+    }
 
     FakeBambuStatusStep step;
     bool                offline = false;
@@ -464,6 +466,7 @@ bool FakeBambuAgent::reload_control_file()
         m_control_connect_failure = control_connect_failure(ss.str());
         m_control_file_present = true;
         m_control_mtime        = mtime;
+        m_control_text         = ss.str();
     }
     return true;
 }
