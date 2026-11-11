@@ -21,6 +21,11 @@ name: JusPrin nightly
 # - The macOS app is signed and notarised; Windows builds are unsigned.
 # - The app's update check never offers a nightly: it reads only tags named
 #   vX.Y.Z and jusprin/vX.Y.Z (ReleaseFeed.cpp).
+# - GitHub's hosted Apple-silicon macOS runners are often all taken in US
+#   daytime, and GitHub cancels a job that gets none within 15 minutes. The
+#   scheduled run lands in those hours, because this repo's schedules start
+#   hours late. A run whose only failures are such jobs starts the nightly
+#   again, up to 8 runs a day for one commit.
 #
 # Run it by hand from Actions > JusPrin nightly > Run workflow, with the
 # branch set to jusprin-dev.
@@ -159,3 +164,40 @@ jobs:
           Commit: $GITHUB_SHA
           EOF
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --title "JusPrin Nightly Builds" --notes-file notes.md
+
+  retry:
+    name: Start again when macOS got no runner
+    needs: [prepare, build, publish]
+    # Not after someone cancels the run. A job GitHub cancels for want of a
+    # runner leaves the run failed, not cancelled.
+    if: ${{ !cancelled() && needs.prepare.outputs.build == 'true' && needs.publish.result != 'success' }}
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SIGN_MACOS: ${{ inputs.sign_macos }}
+      MAX_RUNS: 8
+    steps:
+      - name: Start the nightly again
+        run: |
+          jobs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" --jq '.jobs[]')
+          # A job GitHub cancelled before any runner took it has no runner name.
+          unstarted=$(jq -rs '[.[] | select(.conclusion == "cancelled" and (.runner_name // "") == "") | .name] | join(", ")' <<< "$jobs")
+          failed=$(jq -rs '[.[] | select((.conclusion == "failure" or .conclusion == "cancelled") and (.runner_name // "") != "") | .name] | join(", ")' <<< "$jobs")
+          if [ -n "$failed" ]; then
+            echo "Not starting again: these jobs failed on a runner: $failed"
+            exit 0
+          fi
+          if [ -z "$unstarted" ]; then
+            echo "Not starting again: no job went without a runner."
+            exit 0
+          fi
+          since=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/jusprin_nightly.yml/runs?branch=jusprin-dev&event=workflow_dispatch&head_sha=$GITHUB_SHA&created=>=$since" --jq .total_count)
+          if [ "$runs" -ge "$MAX_RUNS" ]; then
+            echo "::error::Not starting again: $runs nightly runs of $GITHUB_SHA in 24 hours. These jobs got no runner: $unstarted"
+            exit 1
+          fi
+          echo "These jobs got no runner: $unstarted. Starting run $((runs + 1)) of $MAX_RUNS."
+          # It waits in the jusprin-nightly concurrency group until this run ends.
+          gh workflow run jusprin_nightly.yml --repo "$GITHUB_REPOSITORY" --ref jusprin-dev \
+            -f sign_macos="$SIGN_MACOS" -f only_if_changed=true
