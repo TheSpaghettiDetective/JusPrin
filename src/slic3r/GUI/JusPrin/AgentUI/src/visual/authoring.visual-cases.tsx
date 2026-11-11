@@ -202,7 +202,7 @@ export const authoringCases: VisualCase[] = [
   redesign('long', '3. Long message: 8 lines, then it scrolls', ['keep the outside face smooth'], { initialText: longMessage }),
   redesign('menu', '4. + opens the attachment menu', ['Photo or image', '3D model (STL, 3MF, STEP)', 'G-code', 'Document (PDF)'], {},
     async () => { await userEvent.click(screen.getByRole('button', { name: 'Attach a file' })); }),
-  redesign('several-providers', '5. Model menu: several providers', ['chat-menu-section', 'Anthropic', 'GPT-5.4 mini'], {},
+  redesign('several-providers', '5. Model menu: several providers', ['section-caption', 'Anthropic', 'GPT-5.4 mini'], {},
     async () => { await userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' })); }),
   redesign('one-provider', '6. Model menu: one provider', ['GPT-5.4', 'aria-checked="true"'],
     { models: oneProvider, chatModel: { provider: 'openai', model: 'gpt-5.4', effort: 'high' } },

@@ -162,7 +162,7 @@ export function AddPrinterForm({ form, onAsk, onFinish, onClose }: {
       <span className="printer-form-option-kind">{entry.material}</span>
     </button>;
   const section = (title: string, count?: number) =>
-    <div className="printer-form-section">{title}{count !== undefined && <span className="printer-form-count"> · {count}</span>}</div>;
+    <div className="section-caption section-caption--row">{title}{count !== undefined && <span className="printer-form-count"> · {count}</span>}</div>;
   const createRow = <button type="button" className="printer-form-option printer-form-create" disabled={finishing}
     onClick={() => setCreating(true)}>
     <span className="jp-icon jp-icon-plus" aria-hidden="true" />

@@ -495,6 +495,8 @@ describe('first launch', () => {
     host.deliver('state', welcome());
 
     expect(screen.getByRole('heading', { name: 'The AI slicer that helps you get better prints.' })).toBeInTheDocument();
+    expect(screen.getByText('JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes '
+      + 'what goes wrong.')).toBeInTheDocument();
     expect(screen.getByText('Sign up to use AI, or skip it and just slice.')).toBeInTheDocument();
     expect(screen.getByText('Sign up and get 500 free credits')).toBeInTheDocument();
     expect(screen.getByText('Good for your first month: about 500 Standard or 100 Expert messages.')).toBeInTheDocument();
@@ -1037,7 +1039,7 @@ describe('first launch', () => {
     onboarding: onboarding({ agentConfigured: false, agentCard: 'doors' }) }));
     const group = screen.getByRole('region', { name: 'AI' });
     expect(within(group).getByText('Set up AI')).toBeInTheDocument();
-    expect(within(group).getByText('Get 500 free credits and ask AI to improve your prints.')).toBeInTheDocument();
+    expect(within(group).getByText('Get 500 free credits for JusPrin’s AI, which specializes in 3D printing.')).toBeInTheDocument();
     // The card keeps its own why-line: the welcome's offer is not repeated here.
     expect(within(group).queryByText(/After that, 50 free credits a month/)).toBeNull();
     expect(within(group).getByRole('button', { name: 'Sign up free' })).toBeInTheDocument();

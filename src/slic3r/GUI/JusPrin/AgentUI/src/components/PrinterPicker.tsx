@@ -80,7 +80,7 @@ export function PrinterPicker({ form, pick, onPick, underMenus, nozzleUnit = fal
     {form.nearby.length > 0 && <>
       <hr className="printer-form-rule" />
       <div className="printer-form-found">
-        <span className="printer-form-heading">Found on your network</span>
+        <span className="section-caption">Found on your network</span>
         {form.nearby.map((found) => {
           const entry = form.catalog.find((item) => item.id === found.catalogId);
           return <button type="button" key={found.deviceId} className="printer-form-row" aria-pressed={found.deviceId === deviceId}

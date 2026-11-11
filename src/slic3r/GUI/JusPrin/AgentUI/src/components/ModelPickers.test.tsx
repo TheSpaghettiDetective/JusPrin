@@ -41,6 +41,21 @@ describe('the model menu', () => {
     expect(entries.some((entry) => 'section' in entry)).toBe(false);
   });
 
+  it('says beside JusPrin\'s name what its AI specializes in, and nothing beside another provider\'s', async () => {
+    const withAccount: ModelCatalogPayload = {
+      defaultProvider: 'jusprin',
+      providers: [
+        { id: 'jusprin', label: 'JusPrin', defaultModel: 'slicer-1', state: 'ready',
+          models: [{ id: 'slicer-1', label: 'Expert', efforts: [], tier: 'expert', credits: 5 }] },
+        two.providers[1],
+      ],
+    };
+    renderPickers(withAccount, { provider: 'jusprin', model: 'slicer-1', effort: '' });
+    await userEvent.click(screen.getByRole('button', { name: 'Model: Expert' }));
+    expect(Array.from(document.querySelectorAll('.section-caption')).map((heading) => heading.textContent))
+      .toEqual(['JusPrin · Specializes in 3D printing', 'OpenAI']);
+  });
+
   it('keeps the chat\'s model choosable before its list arrives, and says the list is loading', () => {
     const loading: ModelCatalogPayload = {
       defaultProvider: 'openai',
@@ -146,7 +161,7 @@ describe('the model menu search', () => {
   });
   const openMenu = () => userEvent.click(screen.getByRole('button', { name: 'Model: Claude Opus 5.5' }));
   const rows = () => screen.queryAllByRole('menuitemradio').map((row) => row.textContent);
-  const headings = () => Array.from(document.querySelectorAll('.chat-menu-section')).map((h) => h.textContent);
+  const headings = () => Array.from(document.querySelectorAll('.section-caption')).map((h) => h.textContent);
 
   it('appears only when the menu lists more than 12 models', async () => {
     // Anthropic 2 + OpenAI 1 + OpenRouter 9 = 12.

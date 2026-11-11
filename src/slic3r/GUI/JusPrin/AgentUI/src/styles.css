@@ -2140,13 +2140,19 @@ input[type='radio']:checked {
   white-space: nowrap;
 }
 
-/* Menu/Section Title: the provider a group of models belongs to. */
-.chat-menu-section {
-  flex: 0 0 auto;
-  padding: 12px 12px 4px;
+/* Menu/Section Title: the small caption that names a group, such as the
+   provider a group of models belongs to or a group of filaments. Its text is
+   written in normal case; this rule draws the capitals. */
+.section-caption {
   font: var(--font-metadata-bold);
   color: var(--text-secondary);
   text-transform: uppercase;
+}
+
+/* Above its group's rows in a menu or a list. */
+.section-caption--row {
+  flex: 0 0 auto;
+  padding: 12px 12px 4px;
 }
 
 /* The model and thinking pickers: the choice and a chevron, quiet at rest,
@@ -3795,12 +3801,6 @@ p.agent-row-note {
   gap: 8px;
 }
 
-.printer-form-heading {
-  font: var(--font-metadata-bold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-}
-
 /* A found printer, a filament: a stroked row to tap. */
 .printer-form-row {
   display: flex;
@@ -3920,13 +3920,6 @@ p.agent-row-note {
 /* The list scrolls; its rows keep their own height rather than shrink. */
 .printer-form-filaments > * {
   flex: 0 0 auto;
-}
-
-.printer-form-section {
-  padding: 12px 12px 4px;
-  font: var(--font-metadata-bold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
 }
 
 .printer-form-count {

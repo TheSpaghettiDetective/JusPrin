@@ -144,8 +144,8 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
           <div className="onboarding-heading">
             <h1>The AI slicer that helps you get better prints.</h1>
             <p className="onboarding-lead">
-              Show it a photo of what went wrong. AI reads your file, your settings and your slice, changes the settings
-              and slices again.
+              JusPrin’s AI specializes in 3D printing. It sets up your prints, explains your settings and fixes what goes
+              wrong.
             </p>
           </div>
           {/* Once signed in there is nothing left to choose: only the credits

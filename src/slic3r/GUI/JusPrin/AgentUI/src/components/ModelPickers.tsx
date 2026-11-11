@@ -50,6 +50,13 @@ function unlistedLabel(catalog: ModelCatalogPayload, choice: ChatModelChoice): s
   return provider && provider.id === 'jusprin' ? provider.label : choice.model;
 }
 
+// What follows a provider's name above its models: what JusPrin's own AI is
+// for, or how many models a long list holds.
+function providerDetail(provider: ModelCatalogPayload['providers'][number]): string | undefined {
+  if (provider.id === 'jusprin') return 'Specializes in 3D printing';
+  return provider.models.length > SEARCH_FROM ? `${provider.models.length} models` : undefined;
+}
+
 // Switching model keeps the thinking level when the new model has it, and
 // otherwise leaves the level to the new model's default.
 export function switchModel(choice: ChatModelChoice, provider: string, model: ModelOptionInfo): ChatModelChoice {
@@ -63,8 +70,7 @@ export function modelMenu(catalog: ModelCatalogPayload, choice: ChatModelChoice,
   const entries: (MenuItem | MenuSection)[] = [];
   for (const provider of catalog.providers) {
     if (grouped)
-      entries.push({ section: provider.label,
-        detail: provider.models.length > SEARCH_FROM ? `${provider.models.length} models` : undefined });
+      entries.push({ section: provider.label, detail: providerDetail(provider) });
     const models = [...provider.models];
     // The chat's model stays choosable even before its list arrives, or when
     // the list leaves it out. A list the server refused for this release has

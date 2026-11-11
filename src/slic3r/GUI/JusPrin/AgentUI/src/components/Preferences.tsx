@@ -384,7 +384,7 @@ function AgentSection({ agent, setup, savedKeys, mcpCatalog, actions, onConnectT
       </div>
       {!savedKeys.some((key) => key.provider === 'jusprin') && (
         <p className="prefs-note">
-          Rather use JusPrin’s own AI? Sign up in{' '}
+          Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in{' '}
           <button type="button" className="link prefs-inline-link" onClick={onAccount}>Account</button>.
         </p>
       )}

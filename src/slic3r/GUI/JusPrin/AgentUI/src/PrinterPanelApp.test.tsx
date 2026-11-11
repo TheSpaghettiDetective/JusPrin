@@ -734,7 +734,7 @@ describe('the printer form', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Next' }));
     return host;
   }
-  const headings = () => Array.from(document.querySelectorAll('.printer-form-section')).map((node) => node.textContent);
+  const headings = () => Array.from(document.querySelectorAll('.printer-form-filaments .section-caption')).map((node) => node.textContent);
 
   it('lists the person’s own presets first, then the suggestions, then every filament that fits', async () => {
     const host = await openOnMk4();

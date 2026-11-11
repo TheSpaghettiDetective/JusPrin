@@ -79,7 +79,7 @@ export function AgentGroup({ onboarding, onAction, setupHidden, onHideSetup, onO
             </button>
           </div>
           {onboarding.signIn === 'idle' && !onboarding.accountEmail && (
-            <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits and ask AI to improve your prints.</p>
+            <p className="agent-card-why">Get {creditNumber(SIGNUP_CREDITS)} free credits for JusPrin’s AI, which specializes in 3D printing.</p>
           )}
           <SignInDoor onboarding={onboarding} onAction={onAction} />
           <OwnAccountDoor onAction={onAction} disabled={onboarding.signIn === 'checking'} />

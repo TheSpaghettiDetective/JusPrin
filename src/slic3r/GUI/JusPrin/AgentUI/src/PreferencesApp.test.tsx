@@ -260,6 +260,14 @@ describe('Preferences', () => {
     expect(screen.queryByText(/Rather use JusPrin’s own AI/)).toBeNull();
   });
 
+  it('points someone with no JusPrin account from BYOAI to Account, and says what JusPrin’s AI specializes in', async () => {
+    render(<PreferencesApp getTransport={() => host.transport} />);
+    connect(host, preferences({ section: 'agent' }));
+    host.deliver('setup_keys', { keys: [{ provider: 'openai', hint: '…a1b2', rejected: false }] });
+    const note = screen.getByText(/Rather use JusPrin’s own AI/);
+    expect(note).toHaveTextContent('Rather use JusPrin’s own AI, which specializes in 3D printing? Sign up in Account.');
+  });
+
   describe('Account’s credits and usage', () => {
     const chat = (letter: string) => letter.repeat(32);
     const usageAccount = {

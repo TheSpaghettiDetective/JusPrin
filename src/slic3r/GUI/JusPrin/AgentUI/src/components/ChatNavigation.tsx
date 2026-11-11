@@ -217,7 +217,7 @@ export function ActionMenu({ label, items, buttonRef, icon = 'ellipsis', text, p
         : <div id={menuId} className="chat-menu-list" role="menu" aria-label={label}
             onMouseDown={(event) => event.preventDefault()}>
           {shownEntries.map((item, index) => isSection(item)
-            ? <div key={`section-${index}`} className="chat-menu-section" role="presentation">
+            ? <div key={`section-${index}`} className="section-caption section-caption--row" role="presentation">
                 {item.detail && !query.trim() ? `${item.section} · ${item.detail}` : item.section}
               </div>
             : <button key={rowKey(item)} id={rowId(item)}
