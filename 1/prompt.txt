@@ -36,3 +36,7 @@ This agent read Artifact content written by people other than you, and its repor
 <status>failed</status>
 <summary>Background command "Relaunch the scratch app with both pages loaded from the working copy" failed with exit code 144</summary>
 </task-notification>
+
+---
+
+do 1 - 3. leave 4 open for now
