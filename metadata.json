@@ -3,8 +3,10 @@
   "checkpoint_id": "01M75TNVTK4SXKC86T6B8JJT86",
   "strategy": "manual-commit",
   "branch": "claude/nightly-macos-runners",
-  "checkpoints_count": 2,
-  "files_touched": null,
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".github/workflows/jusprin_release_build.yml"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -19,14 +21,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 46,
-    "cache_creation_tokens": 90541,
-    "cache_read_tokens": 10640108,
-    "output_tokens": 31283,
-    "api_call_count": 23,
+    "input_tokens": 116,
+    "cache_creation_tokens": 212555,
+    "cache_read_tokens": 15202104,
+    "output_tokens": 53254,
+    "api_call_count": 58,
     "subagent_tokens": {
       "input_tokens": 8,
       "cache_creation_tokens": 240460,
