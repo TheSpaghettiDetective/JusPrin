@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76FCWJJXNAZMAJKPGDS6DAH",
+  "strategy": "manual-commit",
+  "branch": "claude/release-guide-check",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/jusprin_release.yml",
+    "AGENTS.md",
+    "docs/guide/README.md",
+    "scripts/check_guide.py",
+    "src/slic3r/GUI/JusPrin/Packaging/release.mjs",
+    "src/slic3r/GUI/JusPrin/Packaging/release.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2592,
+    "cache_creation_tokens": 4028501,
+    "cache_read_tokens": 290965165,
+    "output_tokens": 618101,
+    "api_call_count": 1297
+  }
+}
