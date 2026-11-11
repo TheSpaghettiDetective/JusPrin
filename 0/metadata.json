@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75HTZVNSR9X6CAFNWPS14SZ",
+  "session_id": "95390e7d-2a7d-4904-89ef-3b773eebf825",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-11T14:57:52.09883Z",
+  "branch": "home-ai-card-dismiss",
+  "checkpoints_count": 12,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "275c32b6c0a2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 150,
+    "cache_creation_tokens": 263229,
+    "cache_read_tokens": 15831060,
+    "output_tokens": 93232,
+    "api_call_count": 76,
+    "subagent_tokens": {
+      "input_tokens": 160,
+      "cache_creation_tokens": 473406,
+      "cache_read_tokens": 9783219,
+      "output_tokens": 40391,
+      "api_call_count": 80
+    }
+  },
+  "session_metrics": {
+    "turn_count": 12
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 264,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    }
+  ]
+}
