@@ -20,6 +20,7 @@
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Notebook.hpp"
 
+#include <wx/event.h>
 #include <wx/menu.h>
 #include <wx/utils.h>
 
@@ -47,6 +48,17 @@ wxMenuItem* stock_item(wxMenu* menu, const wxString& label)
     const wxString text = wxStripMenuCodes(label);
     for (wxMenuItem* item : menu->GetMenuItems())
         if (!item->IsSeparator() && item->GetItemLabelText() == text)
+            return item;
+    throw std::runtime_error("OrcaSlicer's menu item \"" + std::string(text.ToUTF8()) + "\" is not where JusPrin looks for it");
+}
+
+// One of OrcaSlicer's items whose label may end with the key it shows, which
+// the person can rebind or clear.
+wxMenuItem* stock_keyed_item(wxMenu* menu, const wxString& label)
+{
+    const wxString text = wxStripMenuCodes(label);
+    for (wxMenuItem* item : menu->GetMenuItems())
+        if (!item->IsSeparator() && (item->GetItemLabelText() == text || item->GetItemLabelText().StartsWith(text + kShownKey)))
             return item;
     throw std::runtime_error("OrcaSlicer's menu item \"" + std::string(text.ToUTF8()) + "\" is not where JusPrin looks for it");
 }
@@ -137,6 +149,21 @@ void AppMenus::install()
     build_file(m_file);
     build_view(m_view);
     build_help(m_help);
+    {
+#ifdef __APPLE__
+        wxMenu* edit = bar_menu(m_frame, _L_CONTEXT("Edit", "Menu"));
+#else
+        wxMenu* edit = top_submenu(m_frame, _L_CONTEXT("Edit", "Menu"));
+#endif
+        // OrcaSlicer leaves Duplicate Current Plate on everywhere. On Home it
+        // would add a plate to the project behind Home, out of sight. This
+        // runs before OrcaSlicer's update handler, which the frame bound
+        // first, and answers for it.
+        const int id = stock_item(edit, _L("Duplicate Current Plate"))->GetId();
+        m_frame.Bind(wxEVT_UPDATE_UI, &AppMenus::on_update_ui, this, id);
+        m_bound.emplace_back(edit, id);
+        m_commands.emplace(id, Command{{}, [this] { return !home(); }});
+    }
 #ifdef __APPLE__
     open_about_from(bar->OSXGetAppleMenu());
 #else
@@ -146,12 +173,14 @@ void AppMenus::install()
 #ifndef __APPLE__
     wxMenu* top = m_frame.topbar()->GetTopMenu();
     // Sync Presets pulls presets from OrcaSlicer's cloud, which JusPrin
-    // accounts are not. Speed Dial is OrcaSlicer's palette of its own
-    // commands. Plugins opens OrcaSlicer's Python plugin manager; a plugin's
-    // page is a tab, and the shell hides the tab strip. On the Mac both are
-    // File items, which build_file leaves out.
-    const std::vector<wxMenuItem*> top_items = without(
-        top, {stock_item(top, _L("Sync Presets")), stock_item(top, _L("Open Speed Dial")), stock_item(top, _L("Plugins"))});
+    // accounts are not, and Preset Bundle manages bundles subscribed there.
+    // Speed Dial is OrcaSlicer's palette of its own commands. Plugins opens
+    // OrcaSlicer's Python plugin manager; a plugin's page is a tab, and the
+    // shell hides the tab strip. On the Mac these are File items, which
+    // build_file leaves out.
+    const std::vector<wxMenuItem*> top_items =
+        without(top, {stock_item(top, _L("Sync Presets")), stock_item(top, _L("Preset Bundle")),
+                      stock_item(top, _L("Open Speed Dial")), stock_item(top, _L("Plugins"))});
 #endif
     // Print and Printer follow View, as an app's own menus do.
     wxMenu* print   = build_print();
@@ -315,9 +344,6 @@ void AppMenus::build_file(wxMenu* menu)
 #endif
     if (exports == nullptr || quit == nullptr)
         throw std::runtime_error("OrcaSlicer's File menu has no Export submenu or no Quit item");
-#ifdef __APPLE__
-    wxMenuItem* preset_bundle = stock_item(menu, _L("Preset Bundle"));
-#endif
 
     // JusPrin keeps every project in its own store and saves as it goes, so
     // File opens and saves that store's projects. OrcaSlicer's Open Project,
@@ -353,18 +379,19 @@ void AppMenus::build_file(wxMenu* menu)
         m_shell.open_project_row(ProjectMenuRow::Export);
     }, [this] { return !home() && m_shell.autosave() != nullptr; }});
     m_export_project = project->GetId();
-    std::vector<wxMenuItem*> export_items{project, separator(exports)};
-    for (wxMenuItem* item : exports->GetMenuItems())
-        export_items.push_back(item);
-    arrange(exports, export_items);
+    // One export for the project and one for the sliced plate. OrcaSlicer's
+    // other exports (meshes, a 3MF without its extensions, the Bambu sliced
+    // 3MF, toolpaths, preset bundles) stay in classic view.
+    arrange(exports, {project, separator(exports), stock_item(exports, _L("Export G-code") + dots)});
 
-    std::vector<wxMenuItem*> items{new_project, open, m_recent_item, separator(menu), save, versions, separator(menu),
-                                   import_item, export_item, separator(menu), quit};
-#ifdef __APPLE__
-    // The Mac keeps Quit in the app menu and hides it here; Preset Bundle
-    // follows it because the app menu takes no other items.
-    items.push_back(preset_bundle);
+    std::vector<wxMenuItem*> items{new_project, open,        m_recent_item, separator(menu), save,
+                                   versions,    separator(menu), import_item, export_item};
+#ifndef __APPLE__
+    // The Mac keeps Quit in the app menu and hides it here, where a
+    // separator before it would end the menu.
+    items.push_back(separator(menu));
 #endif
+    items.push_back(quit);
     arrange(menu, items);
 #ifdef _WIN32
     // Windows names it Exit.
@@ -377,9 +404,12 @@ void AppMenus::build_file(wxMenu* menu)
 void AppMenus::build_view(wxMenu* menu)
 {
     // The G-code window and the sidebar's layout belong to OrcaSlicer's
-    // sidebar, which JusPrin does not show.
-    const std::vector<wxMenuItem*> stock = without(menu, {stock_item(menu, _L("Show &G-code Window") + kShownKey + "C"),
-                                                          stock_item(menu, _L("Reset Window Layout"))});
+    // sidebar, which JusPrin does not show. The IDEX toolhead and collision
+    // volume views are for a few printers, under names few people know.
+    const std::vector<wxMenuItem*> stock = without(menu, {stock_keyed_item(menu, _L("Show &G-code Window")),
+                                                          stock_item(menu, _L("Reset Window Layout")),
+                                                          stock_item(menu, _L("Show IDEX/IQEX Toolhead")),
+                                                          stock_keyed_item(menu, _L("Show all collision volumes"))});
     std::vector<wxMenuItem*> items;
     items.push_back(command(menu, _L("Home"), {[this] { m_shell.status_row()->request_home(); }, [this] { return !home(); }}));
 
@@ -420,8 +450,18 @@ void AppMenus::build_view(wxMenu* menu)
 void AppMenus::build_help(wxMenu* menu)
 {
     // Setup Wizard is OrcaSlicer's first run, which Home replaces; its tips
-    // are about OrcaSlicer's screens.
-    const std::vector<wxMenuItem*> stock = without(menu, {stock_item(menu, _L("Setup Wizard")),
+    // are about OrcaSlicer's screens. The shortcuts list names keys JusPrin
+    // binds otherwise (Save, Export) and commands it removed. Troubleshoot
+    // Center reports to OrcaSlicer's issue tracker, which Report a problem
+    // replaces, and the network test checks OrcaSlicer's servers, not
+    // JusPrin's. The scene benchmark is a developer's measurement, and the
+    // filament migration repairs an OrcaSlicer profile update.
+    const std::vector<wxMenuItem*> stock = without(menu, {stock_keyed_item(menu, _L("Keyboard Shortcuts")),
+                                                          stock_item(menu, _L("Setup Wizard")),
+                                                          stock_item(menu, _L("Migrate Filament Presets")),
+                                                          stock_item(menu, _L("Troubleshoot Center")),
+                                                          stock_item(menu, _L("Open Network Test")),
+                                                          stock_item(menu, _L("Benchmark 3D Scene")),
                                                           stock_item(menu, _L("Show Tip of the Day"))});
     std::vector<wxMenuItem*> items;
     items.push_back(command(menu, _L("Ask AI…"), {[this] {
@@ -474,7 +514,7 @@ wxMenu* AppMenus::build_print()
     action(_L("Check print…"), PrintAction::CheckPrint);
     action(_L("Print…"), PrintAction::Print);
     action(_L("Print all plates…"), PrintAction::PrintAll);
-    action(_L("Export sliced file…"), PrintAction::Export);
+    // The header's Export G-code… is in File › Export.
     return menu;
 }
 

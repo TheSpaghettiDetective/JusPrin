@@ -8522,6 +8522,16 @@ private:
         return nullptr;
     }
 
+    // Whether any item's label starts with `label`: OrcaSlicer ends some
+    // labels with the key the item shows.
+    static bool has_label_starting(wxMenu* menu, const wxString& label)
+    {
+        for (wxMenuItem* item : menu->GetMenuItems())
+            if (!item->IsSeparator() && item->GetItemLabelText().StartsWith(label))
+                return true;
+        return false;
+    }
+
     // Every menu of the window, item by item with its full label, kind and
     // submenu, in order: what a person can see in them.
     std::vector<std::string> menu_signature() const
@@ -8565,16 +8575,19 @@ private:
         const wxString quit = _L("Quit");
 #endif
         std::vector<wxString> file{_L("New project"), _L("Open…"), _L("Open recent"), "---", _L("Save"),
-                                   _L("Version history…"), "---", _L("Import"), _L("Export"), "---", quit};
-#ifdef __APPLE__
-        file.push_back(_L("Preset Bundle"));
+                                   _L("Version history…"), "---", _L("Import"), _L("Export")};
+#ifndef __APPLE__
+        // The Mac hides Quit here, so no separator comes before it.
+        file.push_back("---");
 #endif
+        file.push_back(quit);
         check(menu_labels(menus->file_menu()) == file, "app_menus_file_menu");
-        const std::vector<wxString> exports = menu_labels(labelled(menus->file_menu(), _L("Export"))->GetSubMenu());
-        check(exports.size() > 2 && exports[0] == _L("Project 3MF…") && exports[1] == "---", "app_menus_export_starts_with_project_3mf");
+        check(menu_labels(labelled(menus->file_menu(), _L("Export"))->GetSubMenu()) ==
+                  std::vector<wxString>{_L("Project 3MF…"), "---", _L("Export G-code") + dots},
+              "app_menus_export_is_project_3mf_and_gcode");
         check(menu_labels(menus->print_menu()) ==
                   std::vector<wxString>{_L("Slice plate"), _L("Slice all plates"), "---", _L("Check print…"), _L("Print…"),
-                                        _L("Print all plates…"), _L("Export sliced file…")},
+                                        _L("Print all plates…")},
               "app_menus_print_menu");
         check(menu_labels(menus->printer_menu()) ==
                   std::vector<wxString>{_L("Add a printer…"), "---", _L("Printer settings…"), _L("Ask AI about printer settings…"),
@@ -8584,11 +8597,19 @@ private:
         check(help.size() > 3 && help[0] == _L("Ask AI…") && help[1] == _L("Report a problem…") && help[2] == "---" &&
                   labelled(menus->help_menu(), _L("Setup Wizard")) == nullptr &&
                   labelled(menus->help_menu(), _L("Show Tip of the Day")) == nullptr &&
+                  !has_label_starting(menus->help_menu(), _L("Keyboard Shortcuts")) &&
+                  labelled(menus->help_menu(), _L("Troubleshoot Center")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Open Network Test")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Benchmark 3D Scene")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Migrate Filament Presets")) == nullptr &&
+                  labelled(menus->help_menu(), _L("Show Configuration Folder")) != nullptr &&
                   labelled(menus->help_menu(), _L("Check for Updates")) != nullptr,
               "app_menus_help_menu");
         const std::vector<wxString> view = menu_labels(menus->view_menu());
         check(view.size() > 5 && view[0] == _L("Home") && view[3] == "---" && view.back() == _L("Switch to classic view…") &&
                   labelled(menus->view_menu(), _L("Reset Window Layout")) == nullptr &&
+                  labelled(menus->view_menu(), _L("Show IDEX/IQEX Toolhead")) == nullptr &&
+                  !has_label_starting(menus->view_menu(), _L("Show all collision volumes")) &&
                   labelled(menus->view_menu(), _L("Show Gridlines")) != nullptr,
               "app_menus_view_menu");
 #ifdef __APPLE__
@@ -8600,7 +8621,7 @@ private:
 #else
         check(menu_labels(m_frame->topbar()->GetTopMenu()) ==
                   std::vector<wxString>{_L("Edit"), _L("View"), _L("Print"), _L("Printer"), _L("Preferences"), "---",
-                                        _L("Preset Bundle"), "---", _L("Help")},
+                                        _L("Help")},
               "app_menus_title_bar_menu");
 #endif
 
@@ -8614,6 +8635,14 @@ private:
         check(enabled(menus->file_menu(), _L("New project")) && enabled(menus->file_menu(), _L("Open…")) &&
                   !enabled(menus->file_menu(), _L("Save")) && !enabled(menus->file_menu(), _L("Version history…")),
               "app_menus_file_greys_out_project_commands_on_home");
+#ifdef __APPLE__
+        wxMenu* edit = m_frame->GetMenuBar()->GetMenu(m_frame->GetMenuBar()->FindMenu(_L_CONTEXT("Edit", "Menu")));
+#else
+        wxMenu* edit = labelled(m_frame->topbar()->GetTopMenu(), _L_CONTEXT("Edit", "Menu"))->GetSubMenu();
+#endif
+        edit->UpdateUI(m_frame->GetEventHandler());
+        check(labelled(edit, _L("Duplicate Current Plate")) != nullptr && !enabled(edit, _L("Duplicate Current Plate")),
+              "app_menus_edit_greys_out_duplicate_plate_on_home");
         check(!menus->view_menu()->FindItemByPosition(0)->IsEnabled() && !menus->view_menu()->FindItemByPosition(1)->IsEnabled() &&
                   !menus->view_menu()->FindItemByPosition(2)->IsEnabled(),
               "app_menus_view_greys_out_home_and_panels_on_home");
@@ -8885,7 +8914,7 @@ private:
         check(menu && menu->IsShown(),"header_action_menu_visible");
         check(menu && wxWindow::FindWindowByName(ui_name("Check Print"),menu) &&
               wxWindow::FindWindowByName(ui_name("Print all plates…"),menu) &&
-              wxWindow::FindWindowByName(ui_name("Export sliced file…"),menu),"header_menu_has_contextual_actions");
+              wxWindow::FindWindowByName(ui_name("Export G-code…"),menu),"header_menu_has_contextual_actions");
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
         // The trigger must read as held down (and show an up chevron) for as

@@ -212,7 +212,7 @@ PrintActionState StatusRow::action_state() const
         state.sliced = plate->is_slice_result_valid();
         state.can_slice = editable && plate->can_slice();
         state.can_print = plate->is_slice_result_ready_for_print();
-        state.can_export = plate->is_slice_result_ready_for_export();
+        state.can_export = plate->is_slice_result_ready_for_export() && !m_plater.is_export_gcode_scheduled();
     }
     auto* presets = wxGetApp().preset_bundle;
     // Match the native print-all backend support. Other legacy hosts accept
@@ -237,7 +237,7 @@ wxString StatusRow::action_label(PrintAction action, bool primary) const
     case PrintAction::CheckPrint: return _L("Check Print");
     case PrintAction::Print: return primary ? (state.plate_count > 1 ? wxString::Format(_L("Print plate %d"), state.plate_number) : _L("Print")) : _L("Print…");
     case PrintAction::PrintAll: return _L("Print all plates…");
-    case PrintAction::Export: return _L("Export sliced file…");
+    case PrintAction::Export: return _L("Export G-code…");
     }
     throw std::logic_error("Unknown print action");
 }
@@ -616,11 +616,11 @@ void StatusRow::request_action(PrintAction action)
         m_plater.GetEventHandler()->ProcessEvent(event); // native confirmation; never an upload shortcut
         return;
     }
-    case PrintAction::Export: {
-        SimpleEvent event(EVT_GLTOOLBAR_EXPORT_SLICED_FILE);
-        m_plater.GetEventHandler()->ProcessEvent(event);
+    case PrintAction::Export:
+        // File › Export › Export G-code…: the plate as a .gcode file, for any
+        // printer.
+        m_plater.export_gcode(false);
         return;
-    }
     }
 }
 
