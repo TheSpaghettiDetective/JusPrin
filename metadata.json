@@ -3,7 +3,7 @@
   "checkpoint_id": "01M76FCWJJXNAZMAJKPGDS6DAH",
   "strategy": "manual-commit",
   "branch": "claude/release-guide-check",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".github/workflows/jusprin_release.yml",
     "AGENTS.md",
@@ -26,13 +26,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 2636,
-    "cache_creation_tokens": 4109063,
-    "cache_read_tokens": 293569475,
-    "output_tokens": 635776,
-    "api_call_count": 1319
+    "input_tokens": 5206,
+    "cache_creation_tokens": 8113954,
+    "cache_read_tokens": 582440319,
+    "output_tokens": 1246983,
+    "api_call_count": 2605
   }
 }
