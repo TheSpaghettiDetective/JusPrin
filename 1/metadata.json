@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75WJG0TRMG6P1S570AGQE03",
+  "session_id": "23514ce3-3141-439a-b721-f6120a9b6756",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-11T18:05:32.229771Z",
+  "branch": "claude/ai-specializes-claim",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "73bba3ccc06b",
+  "checkpoint_transcript_start": 769,
+  "transcript_lines_at_start": 769,
+  "compact_transcript_start": 94,
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 349105,
+    "cache_read_tokens": 24384026,
+    "output_tokens": 62823,
+    "api_call_count": 114
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
