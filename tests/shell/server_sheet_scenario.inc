@@ -253,3 +253,178 @@
         check(seen->section == std::optional<std::string>("updates"), "printer_chat_get_new_version_opens_updates");
         finish();
     }
+
+// --server-sheet-popup [capture-dir]: a pop-up the sheet's page opens, as
+// the checkout opens PayPal's window. A stand-in server on a loopback port
+// answers the page link with a checkout page whose Pay opens a blank pop-up
+// and later sends it to an approval page, as PayPal's button does. The page's
+// user agent names a browser (PayPal opens no window otherwise), the pop-up
+// opens in the app's own window, its page has window.opener, its Approve
+// tells the checkout and closes the pop-up, and the checkout sees both.
+
+    // The checkout and approval pages, and the page link that leads to them.
+    class StandInCheckout
+    {
+    public:
+        StandInCheckout() : m_acceptor(m_io, boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(), 0))
+        {
+            m_thread = std::thread([this] { serve(); });
+        }
+        ~StandInCheckout()
+        {
+            m_stopping = true;
+            boost::system::error_code    ignored;
+            boost::asio::ip::tcp::socket wake(m_io);
+            wake.connect(m_acceptor.local_endpoint(), ignored);
+            m_thread.join();
+        }
+        std::string address() const { return "http://127.0.0.1:" + std::to_string(m_acceptor.local_endpoint().port()); }
+
+    private:
+        void serve()
+        {
+            for (;;) {
+                boost::system::error_code    error;
+                boost::asio::ip::tcp::socket socket(m_io);
+                m_acceptor.accept(socket, error);
+                if (m_stopping || error)
+                    return;
+                boost::asio::streambuf request;
+                const size_t           head = boost::asio::read_until(socket, request, "\r\n\r\n", error);
+                const std::string      text(boost::asio::buffers_begin(request.data()), boost::asio::buffers_begin(request.data()) + head);
+                const size_t           start = text.find(' ') + 1;
+                const std::string      path  = text.substr(start, text.find(' ', start) - start);
+                std::string            type  = "text/html";
+                std::string            body;
+                if (path == "/ent/jusprin/v2/web_link") {
+                    type = "application/json";
+                    body = R"({"url":")" + address() + R"(/checkout"})";
+                } else if (path == "/checkout") {
+                    body = R"page(<!doctype html><title>checkout</title><button id="pay" onclick="pay()">Pay</button><script>
+document.title = /Safari\//.test(navigator.userAgent) ? 'names-browser' : 'names-no-browser';
+// The pop-up is sent on after a moment, as PayPal's is once its script has
+// loaded: wx's macOS web view loads a pop-up's first request again once the
+// window exists, which replaces an address given at once.
+function pay() {
+  var popup = window.open('', 'payment', 'width=420,height=520');
+  if (!popup) { document.title = 'blocked'; return; }
+  popup.document.write('<p>Loading</p>');
+  setTimeout(function () { popup.location = location.origin + '/approve'; }, 1000);
+  document.title = 'waiting';
+  var seen = setInterval(function () { if (popup.closed) { clearInterval(seen); document.title += ':closed'; } }, 100);
+}
+window.addEventListener('message', function (e) { if (e.data === 'approved') document.title = 'approved'; });
+</script>)page";
+                } else if (path == "/approve") {
+                    body = R"page(<!doctype html><title>approve</title><button id="ok">Approve</button><script>
+document.title = window.opener ? 'has-opener' : 'no-opener';
+document.getElementById('ok').onclick = function () { window.opener.postMessage('approved', '*'); window.close(); };
+</script>)page";
+                }
+                const std::string reply = std::string("HTTP/1.1 ") + (body.empty() ? "404 Not Found" : "200 OK") +
+                                          "\r\nContent-Type: " + type + "\r\nCache-Control: no-store\r\nContent-Length: " +
+                                          std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+                boost::asio::write(socket, boost::asio::buffer(reply), error);
+                socket.close(error);
+            }
+        }
+
+        boost::asio::io_context        m_io;
+        boost::asio::ip::tcp::acceptor m_acceptor;
+        std::atomic<bool>              m_stopping{false};
+        std::thread                    m_thread;
+    };
+
+    void verify_server_sheet_popup()
+    {
+        using namespace std::chrono_literals;
+        auto checkout = std::make_shared<StandInCheckout>();
+        wxSetEnv("JUSPRIN_SERVER_URL", wxString::FromUTF8(checkout->address()));
+        struct Seen
+        {
+            int         step{0};
+            bool        in_app_window{false};
+            std::string popup_title;
+            std::string checkout_title;
+            bool        names_browser{false};
+            // The harness closes the sheet itself at the deadline.
+            bool        closed_by_page{false};
+            bool        sheet_closed{false};
+        };
+        auto seen     = std::make_shared<Seen>();
+        auto deadline = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now() + 60s);
+        const auto web_view_in = [](wxWindow* window) -> wxWebView* {
+            for (wxWindow* child : window->GetChildren())
+                if (auto* view = dynamic_cast<wxWebView*>(child))
+                    return view;
+            return nullptr;
+        };
+        // The sheet and its pop-up are both modal, and the harness asks the
+        // sheet first and stops at the first that is not done: the sheet's
+        // turn drives every step, and the sheet is closed at the end.
+        m_modal_gate = [this, seen, deadline, web_view_in, done = checkout->address() + "/ent/jusprin/v2/web/done"](wxDialog&) {
+            ServerSheet* sheet = ServerSheet::current();
+            if (std::chrono::steady_clock::now() > *deadline)
+                return true;
+            if (sheet == nullptr || sheet->state() != ServerSheet::State::Page)
+                return false;
+            wxDialog* popup = nullptr;
+            for (wxWindow* top : wxTopLevelWindows)
+                if (top->GetName() == "Server sheet pop-up" && top->GetParent() == sheet)
+                    popup = dynamic_cast<wxDialog*>(top);
+            const std::string title = sheet->web_view()->GetCurrentTitle().ToUTF8().data();
+            if (title != seen->checkout_title)
+                std::cout << "HARNESS SERVER SHEET POPUP step " << seen->step << " checkout " << title << std::endl;
+            seen->checkout_title = title;
+            switch (seen->step) {
+            case 0:
+                seen->names_browser = title == "names-browser";
+                WebView::RunScript(sheet->web_view(), "document.getElementById('pay').click()");
+                seen->step = 1;
+                break;
+            case 1:
+                if (popup != nullptr && popup->IsModal()) {
+                    wxWebView* view = web_view_in(popup);
+                    seen->in_app_window = view != nullptr;
+                    seen->popup_title = view == nullptr ? std::string() : std::string(view->GetCurrentTitle().ToUTF8().data());
+                    if (seen->popup_title == "has-opener" || seen->popup_title == "no-opener") {
+                        std::cout << "HARNESS SERVER SHEET POPUP popup " << seen->popup_title << std::endl;
+                        if (!m_state->capture_dir.empty())
+                            capture_web_view(view, "server-sheet-popup");
+                        WebView::RunScript(view, "document.getElementById('ok').click()");
+                        seen->step = 2;
+                    }
+                }
+                break;
+            case 2:
+                if (popup == nullptr && title.rfind("approved", 0) == 0 && title.find(":closed") != std::string::npos) {
+                    WebView::RunScript(sheet->web_view(), wxString::FromUTF8("location.href = '" + done + "'"));
+                    seen->step = 3;
+                }
+                break;
+            default:
+                break;
+            }
+            return false;
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        wxGetApp().mainframe->CallAfter([seen, deadline] {
+            ServerSheet::open(wxGetApp().mainframe, "prices", "harness", [seen, deadline] {
+                seen->closed_by_page = seen->step >= 3 && std::chrono::steady_clock::now() <= *deadline;
+                seen->sheet_closed   = true;
+            });
+        });
+        wait_until([seen, deadline] { return seen->sheet_closed || std::chrono::steady_clock::now() > *deadline + 5s; },
+                   "server_sheet_popup_sheet_closed", [self = shared_from_this(), seen, checkout] {
+                       self->stop_answering_modals();
+                       std::cout << "HARNESS SERVER SHEET POPUP popup=" << seen->popup_title << " checkout=" << seen->checkout_title
+                                 << " step=" << seen->step << std::endl;
+                       self->check(seen->names_browser, "server_sheet_popup_user_agent_names_a_browser");
+                       self->check(seen->in_app_window, "server_sheet_popup_opens_in_the_apps_window");
+                       self->check(seen->popup_title == "has-opener", "server_sheet_popup_keeps_window_opener");
+                       self->check(seen->step >= 3, "server_sheet_popup_reports_back_and_closes");
+                       self->check(seen->closed_by_page, "server_sheet_popup_sheet_closes_at_the_done_address");
+                       self->finish();
+                   });
+    }

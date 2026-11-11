@@ -19,11 +19,15 @@
 #include <boost/log/trivial.hpp>
 #include <nlohmann/json.hpp>
 
+#include <wx/colour.h>
 #include <wx/dcbuffer.h>
 #include <wx/display.h>
+#include <wx/gdicmn.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
+#include <wx/uri.h>
+#include <wx/utils.h>
 #include <wx/webview.h>
 
 #include <algorithm>
@@ -39,6 +43,12 @@ constexpr int kLoadDeadlineMs   = 20000;
 // view was installing its script handler (see release()).
 constexpr int kReleaseRetryMs   = 50;
 constexpr int kHeaderHeightDip  = 48;
+// A pop-up's size when the page asks for none.
+constexpr int kPopupWidthDip    = 480;
+constexpr int kPopupHeightDip   = 640;
+#ifdef __WXOSX__
+constexpr const char* kMacUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
+#endif
 
 ServerSheet* g_sheet = nullptr;
 
@@ -81,6 +91,60 @@ void request_web_link(const std::string& page, const std::string& from, std::fun
         })
         .perform();
 }
+
+// Whether a new window the page asks for is a pop-up that reports back to the
+// page through window.opener. PayPal's checkout window is one: it opens blank,
+// for the page to fill, or on PayPal. Any other new window is a link.
+bool reports_to_opener(const wxString& url)
+{
+    if (url.empty() || url == "about:blank")
+        return true;
+    const wxString host = wxURI(url).GetServer().Lower();
+    return host == "paypal.com" || host.EndsWith(".paypal.com");
+}
+
+// A pop-up the sheet's page opened, in a window of the app's own. Its web
+// view is the one WebKit or WebView2 made for the page's window.open, so the
+// pop-up keeps its window.opener. It closes when its page calls
+// window.close(), or when the person closes it.
+class PagePopup final : public wxDialog
+{
+public:
+    PagePopup(wxWindow* parent, const wxWebViewWindowFeatures& features, const wxColour& background)
+        : wxDialog(parent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
+    {
+        SetName("Server sheet pop-up");
+        SetBackgroundColour(background);
+        wxWebView* view = features.GetChildWebView();
+        view->Create(this, wxID_ANY);
+        view->Bind(wxEVT_WEBVIEW_TITLE_CHANGED, [this](wxWebViewEvent& event) { SetTitle(event.GetString()); });
+        view->Bind(wxEVT_WEBVIEW_WINDOW_CLOSE_REQUESTED, [this](wxWebViewEvent&) {
+            if (IsModal())
+                EndModal(wxID_CANCEL);
+        });
+        // The pop-up's own new windows are links.
+        view->Bind(wxEVT_WEBVIEW_NEWWINDOW, [](wxWebViewEvent& event) {
+            event.Veto();
+            wxLaunchDefaultBrowser(event.GetURL());
+        });
+        auto* sizer = new wxBoxSizer(wxVERTICAL);
+        sizer->Add(view, 1, wxEXPAND);
+        SetSizer(sizer);
+
+        // The size the page asked for, never larger than the screen.
+        wxSize size = features.GetSize();
+        if (!size.IsFullySpecified())
+            size = wxSize(kPopupWidthDip, kPopupHeightDip);
+        size = FromDIP(size);
+        if (const int display = wxDisplay::GetFromWindow(parent); display != wxNOT_FOUND) {
+            const wxRect area = wxDisplay(display).GetClientArea();
+            size.DecTo(wxSize(area.GetWidth() * 9 / 10, area.GetHeight() * 9 / 10));
+        }
+        SetClientSize(size);
+        CentreOnParent();
+        wxGetApp().UpdateDlgDarkUI(this);
+    }
+};
 
 } // namespace
 
@@ -131,6 +195,14 @@ ServerSheet::ServerSheet(wxWindow* parent, const ShellTheme& theme)
     m_body->SetBackgroundColour(palette.surface_raised);
     wxWindow* header = build_header();
     m_view           = WebView::CreateWebView(m_body, wxEmptyString);
+#ifdef __WXOSX__
+    // The user agent WebView::CreateWebView gives macOS pages names no
+    // browser, and PayPal's button in the checkout then opens no window: the
+    // checkout waits for ever for a PayPal window that never opens. The agents
+    // it gives Windows and Linux pages name a browser already.
+    if (m_view != nullptr)
+        m_view->SetUserAgent(kMacUserAgent);
+#endif
 
     m_status        = new wxPanel(m_body);
     m_status_title  = new wxStaticText(m_status, wxID_ANY, wxEmptyString);
@@ -164,9 +236,8 @@ ServerSheet::ServerSheet(wxWindow* parent, const ShellTheme& theme)
         m_view->Bind(wxEVT_WEBVIEW_NAVIGATING, &ServerSheet::on_navigating, this);
         m_view->Bind(wxEVT_WEBVIEW_LOADED, &ServerSheet::on_loaded, this);
         m_view->Bind(wxEVT_WEBVIEW_ERROR, &ServerSheet::on_error, this);
-        // A link the page opens in a new window goes to the person's browser:
-        // the sheet holds one page.
-        m_view->Bind(wxEVT_WEBVIEW_NEWWINDOW, [](wxWebViewEvent& event) { wxLaunchDefaultBrowser(event.GetURL()); });
+        m_view->Bind(wxEVT_WEBVIEW_NEWWINDOW, &ServerSheet::on_new_window, this);
+        m_view->Bind(wxEVT_WEBVIEW_NEWWINDOW_FEATURES, &ServerSheet::on_new_window_features, this);
         // WebView::CreateWebView gives every page the app's message bridge; a
         // server page's messages end here and reach nothing.
         m_view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [](wxWebViewEvent&) {});
@@ -328,12 +399,53 @@ void ServerSheet::on_error(wxWebViewEvent& event)
     set_state(State::Failed);
 }
 
+// A link goes to the person's browser: the sheet holds one page. A pop-up
+// that reports back to the page is allowed, and the web view then asks for
+// a window to put it in (on_new_window_features).
+void ServerSheet::on_new_window(wxWebViewEvent& event)
+{
+    BOOST_LOG_TRIVIAL(info) << "JusPrin page new window for " << wxURI(event.GetURL()).GetServer().ToUTF8().data();
+    if (reports_to_opener(event.GetURL()) && m_popup == nullptr && !m_closing)
+        return;
+    event.Veto();
+    if (!reports_to_opener(event.GetURL()))
+        wxLaunchDefaultBrowser(event.GetURL());
+}
+
+// The web view's window for the pop-up must exist before this returns. It is
+// shown from a CallAfter: its modal loop must not run inside the web view's
+// callback. A window over the modal sheet needs its own modal loop on macOS
+// to get clicks.
+void ServerSheet::on_new_window_features(wxWebViewEvent& event)
+{
+    const wxWebViewWindowFeatures* features = event.GetTargetWindowFeatures();
+    if (features == nullptr || m_popup != nullptr || m_closing)
+        return;
+    auto* popup = new PagePopup(this, *features, m_theme.palette(wxGetApp().dark_mode()).surface_raised);
+    m_popup     = popup;
+    CallAfter([this, popup] {
+        if (!m_closing)
+            popup->ShowModal();
+        m_popup = nullptr;
+        popup->Destroy();
+        // The sheet was asked to close while the pop-up was open.
+        if (m_closing && IsModal())
+            EndModal(wxID_CANCEL);
+    });
+}
+
 void ServerSheet::close()
 {
     if (m_closing)
         return;
     m_closing = true;
     m_load_deadline.Stop();
+    // The pop-up's modal loop ends first; the sheet's ends after it.
+    if (m_popup != nullptr) {
+        if (m_popup->IsModal())
+            m_popup->EndModal(wxID_CANCEL);
+        return;
+    }
     if (IsModal())
         EndModal(wxID_CANCEL);
 }

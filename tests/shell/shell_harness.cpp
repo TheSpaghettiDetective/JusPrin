@@ -330,6 +330,10 @@
 //              credits and Billing and usage open the server's pages in the
 //              app's sheet, the done address closes it, Delete account signs
 //              out, and signed out the sheet opens Credits and plans as a guest
+//   --server-sheet-popup [capture-dir]
+//              a pop-up the sheet's page opens, as the checkout opens PayPal's
+//              window, opens in the app's own window with window.opener: it
+//              reports back to the page and closes, against a stand-in server
 //   --printer-chat-sheet [capture-dir]
 //              the printer chat's Get more credits and Billing and usage open
 //              the server's pages in the app's sheet, and its Get the new
@@ -1420,6 +1424,7 @@ struct HarnessState
         PrintHistory,
         AccountBox,
         ServerSheet,
+        ServerSheetPopup,
         PrinterChatSheet
     };
 
@@ -1905,6 +1910,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::ServerSheet) {
                 verify_server_sheet();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::ServerSheetPopup) {
+                verify_server_sheet_popup();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::PrinterChatSheet) {
@@ -15916,6 +15925,12 @@ int main(int argc, char** argv)
         else if (argument == "--server-sheet") {
             state->mode = HarnessState::Mode::ServerSheet;
             // Optionally a folder for pictures of the sheet and the confirmation.
+            if (index + 1 < argc && argv[index + 1][0] != '-')
+                state->capture_dir = fs::absolute(argv[++index]);
+        }
+        else if (argument == "--server-sheet-popup") {
+            state->mode = HarnessState::Mode::ServerSheetPopup;
+            // Optionally a folder for a picture of the pop-up.
             if (index + 1 < argc && argv[index + 1][0] != '-')
                 state->capture_dir = fs::absolute(argv[++index]);
         }

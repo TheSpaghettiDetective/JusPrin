@@ -16,6 +16,14 @@
 //
 // The sheet is modal: Preferences is itself a modal window, and on macOS a
 // window opened over a modal one without its own modal loop gets no clicks.
+//
+// A link the page opens in a new window goes to the person's browser. A
+// pop-up that reports back to the page, such as PayPal's window in the
+// checkout, opens in a window of the app's own over the sheet instead: it
+// reaches the checkout through window.opener, which a page in the browser
+// does not have, and the checkout would wait for it for ever. On macOS the
+// page's user agent names Safari: PayPal opens no window for a page whose
+// user agent names no browser.
 
 #include <wx/dialog.h>
 #include <wx/timer.h>
@@ -65,6 +73,8 @@ private:
     void     on_navigating(wxWebViewEvent& event);
     void     on_loaded(wxWebViewEvent& event);
     void     on_error(wxWebViewEvent& event);
+    void     on_new_window(wxWebViewEvent& event);
+    void     on_new_window_features(wxWebViewEvent& event);
     void     close();
     void     release();
 
@@ -74,6 +84,8 @@ private:
     HeaderButton*         m_browser{nullptr};
     HeaderButton*         m_close{nullptr};
     wxWebView*            m_view{nullptr};
+    // The pop-up the page opened, while it is open.
+    wxDialog*             m_popup{nullptr};
     wxPanel*              m_status{nullptr};
     wxStaticText*         m_status_title{nullptr};
     wxStaticText*         m_status_detail{nullptr};
