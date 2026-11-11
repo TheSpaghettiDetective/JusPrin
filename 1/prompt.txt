@@ -1,0 +1,24 @@
+Background (from the session that started this one):
+JusPrin 2 (an OrcaSlicer fork at /Users/kenneth/Projects/JusPrin, development branch `jusprin-dev`, stable/release branch `main`) is about to roll out: first to the team, then hand-picked testers, then publicly. The server side is live in production. The next step needs an installable signed build of `jusprin-dev`, and the nightly that produces it has been failing for two days. A Linux failure was a runner DNS problem; the macOS jobs never got a runner. Nobody has investigated yet.
+
+Task:
+The JusPrin nightly build of `jusprin-dev` has failed on 2026-11-10 (run 42847372736) and 2026-11-11 (run 43049244324), so there is no signed build of the current `jusprin-dev` for the team to install as the first step of the JusPrin 2 rollout.
+
+What I saw (not yet explained):
+- Both days the two macOS jobs "Build / Build macOS arm64 / Find the deps cache" and the x86_64 one never got a runner: `runner_name` empty, no steps, labels `macos-15`, then cancelled about 95 minutes later.
+- On 2026-11-11, "Build / Build Linux x64 / Build JusPrin" failed after apt on the runner could not resolve `azure.archive.ubuntu.com` for over an hour.
+- The `jusprin-dev` run is dispatched at the same minute as the scheduled nightly on `main` (workflow `.github/workflows/jusprin_nightly.yml`, job "Start the build on jusprin-dev"), and `main`'s run succeeded both days. A guess, not checked: the two runs compete for macOS runners and the `jusprin-dev` one waits until something cancels it.
+
+Do: find the real reason the macOS jobs never start and why the run is cancelled (job timeouts, concurrency groups, GitHub's macOS concurrency limit, billing), fix it in the workflow if it is ours, and get one green signed nightly of `jusprin-dev` (macOS signed with `-f sign_macos=true`, Windows, Linux). Read `CONTRIBUTING.md` and AGENTS.md's Branches section first; `main` changes only with Kenneth's yes, and GitHub runs scheduled workflows from `main`'s copy of the file. Report what the cause was, what you changed, and the run link.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_3e38de32-e8df-4f8c-b26d-1a20db4c0aca
+
+---
+
+<task-notification>
+<task-id>bnqs30bb1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-pensive-ptolemy-7da7fc/fd448cc8-aba5-4d7e-96ba-82e1b2ec3916/tasks/bnqs30bb1.output</output-file>
+<status>completed</status>
+<summary>Background command "until s=$(gh api repos/TheSpaghettiDetective/JusPrin/actions/runs/43068867314/jobs --jq '[.jobs[] | select(.name|test("macOS .* / Find")) | .status] | join(",")' 2&gt;/dev/null); [ -n "$s" ] &amp;&amp; ! echo "$s" | grep -q queued; do sleep 30; done; date -u; gh api repos/TheSpaghettiDetective/JusPrin/actions/runs/43068867314/jobs --jq '.jobs[] | select(.name|test("macOS")) | [.name,.status,.conclusion,.started_at,.completed_at,.runner_name] | @tsv'" completed (exit code 0)</summary>
+</task-notification>
