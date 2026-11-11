@@ -16,8 +16,9 @@ parks where the logo has it.
 
 The file covers only the name: the box component.splash.nameLeft, nameTop,
 nameWidth and nameHeight in resources/jusprin/ui/design-tokens.json, inside the
-splash's 480x480 lockup from brand_logo.py. On macOS the splash plays it there
-over the still lockup. Rendered at twice the box's size for Retina screens.
+splash's 480x480 lockup from brand_logo.py. On macOS and Windows the splash
+plays it there over the still lockup. Rendered at twice the box's size for
+Retina screens.
 
 The About window plays its version, scaled down, over the name of the
 horizontal lockup brand_logo.py draws. Its box is component.about.nameLeft,

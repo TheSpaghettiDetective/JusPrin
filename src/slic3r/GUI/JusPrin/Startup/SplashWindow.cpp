@@ -9,7 +9,7 @@
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/JusPrin/Updates/Version.hpp"
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
 #include "NameAnimation.hpp"
 #include "SplashAnimation.hpp"
 #endif
@@ -22,12 +22,24 @@
 #include <boost/log/trivial.hpp>
 
 #include <wx/app.h>
+#include <wx/brush.h>
 #include <wx/dcclient.h>
+#include <wx/dcmemory.h>
 #include <wx/event.h>
 #include <wx/frame.h>
 #include <wx/gdicmn.h>
 #include <wx/string.h>
 #include <wx/toplevel.h>
+#include <wx/window.h>
+
+#include <utility>
+
+#if defined(__APPLE__) || defined(_WIN32)
+#include <wx/image.h>
+#include <wx/imagwebp.h>
+
+#include <vector>
+#endif
 
 namespace Slic3r::GUI::JusPrin {
 
@@ -42,6 +54,23 @@ long splash_style()
 #endif
 }
 
+wxSize splash_size(const ShellTheme& theme)
+{
+    return wxWindow::FromDIP(wxSize(theme.metrics().splash.size, theme.metrics().splash.size), nullptr);
+}
+
+// What the window shows from wxSplashScreen's constructor until present()
+// paints it: the splash's background, where a bitmap left as it is shows black.
+wxBitmap plain(const ShellTheme& theme)
+{
+    wxBitmap   bitmap(splash_size(theme));
+    wxMemoryDC dc(bitmap);
+    dc.SetBackground(wxBrush(theme.palette(GUI_App::dark_mode()).surface_canvas));
+    dc.Clear();
+    dc.SelectObject(wxNullBitmap);
+    return bitmap;
+}
+
 // Where the name animation plays, over the lockup's name, in window pixels.
 wxRect name_box(const wxWindow& window, const SplashMetrics& s)
 {
@@ -50,13 +79,29 @@ wxRect name_box(const wxWindow& window, const SplashMetrics& s)
 
 } // namespace
 
-SplashWindow::SplashWindow(const ShellTheme& theme, const wxPoint& pos)
-    // wxSplashScreen sizes itself to the bitmap; it is blank because the
-    // window paints itself. No wxSPLASH_TIMEOUT: the splash stays until the
-    // main window is shown.
-    : wxSplashScreen(wxBitmap(FromDIP(wxSize(theme.metrics().splash.size, theme.metrics().splash.size), nullptr)),
-                     wxSPLASH_CENTRE_ON_SCREEN, 0, nullptr, wxID_ANY, wxDefaultPosition, wxDefaultSize, splash_style())
+SplashWindow::Art SplashWindow::make_art(const ShellTheme& theme)
+{
+    Art          art;
+    const wxSize size = splash_size(theme);
+    BitmapCache  cache;
+    if (const wxBitmap* lockup = cache.load_svg(GUI_App::dark_mode() ? "splash_logo_dark" : "splash_logo", size.GetWidth(),
+                                                size.GetHeight()))
+        art.lockup = *lockup;
+#if defined(__APPLE__) || defined(_WIN32)
+    art.name = read_name_animation(NameAnimation::Splash);
+#endif
+    return art;
+}
+
+SplashWindow::SplashWindow(const ShellTheme& theme, const wxPoint& pos) : SplashWindow(theme, pos, make_art(theme)) {}
+
+SplashWindow::SplashWindow(const ShellTheme& theme, const wxPoint& pos, Art art)
+    // wxSplashScreen sizes itself to the bitmap and shows it at once; the
+    // window paints itself from present() on. No wxSPLASH_TIMEOUT: the splash
+    // stays until the main window is shown.
+    : wxSplashScreen(plain(theme), wxSPLASH_CENTRE_ON_SCREEN, 0, nullptr, wxID_ANY, wxDefaultPosition, wxDefaultSize, splash_style())
     , m_theme(theme)
+    , m_art(std::move(art))
 {
     SetName("JusPrin splash");
 #if defined(__WXGTK__)
@@ -73,31 +118,35 @@ SplashWindow::SplashWindow(const ShellTheme& theme, const wxPoint& pos)
     SetPosition(pos);
     CenterOnScreen();
 
-    const wxSize size = m_window->GetClientSize();
-    BitmapCache  cache;
-    if (const wxBitmap* lockup = cache.load_svg(GUI_App::dark_mode() ? "splash_logo_dark" : "splash_logo", size.GetWidth(),
-                                                size.GetHeight()))
-        m_lockup = *lockup;
-
+    // The Windows animation draws its frames over this colour.
+    m_window->SetBackgroundColour(theme.palette(GUI_App::dark_mode()).surface_canvas);
     m_window->Bind(wxEVT_PAINT, &SplashWindow::on_paint, this);
 }
 
 void SplashWindow::present()
 {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
     // The animation draws the name, so the paint below leaves it out.
     m_plays_name = true;
+    std::vector<wxWebPAnimationFrame> frames = std::move(m_art.name);
+    const wxRect                      box    = name_box(*this, m_theme.metrics().splash);
+#ifdef _WIN32
+    // The animation's window takes some milliseconds to open over the splash,
+    // so the paint puts its first frame there, scaled as the window scales it.
+    m_name_first = wxBitmap(frames.front().image.Scale(box.width, box.height, wxIMAGE_QUALITY_HIGH));
+#endif
 #endif
     Show();
     // Painted now: once this returns, startup blocks the main thread until
     // the main window shows, and nothing paints in between.
     m_window->Refresh();
     m_window->Update();
-#ifdef __APPLE__
-    // Added after the paint, which leaves the name out, so the one commit that
-    // sends the animation to the window server carries the painted splash
-    // with it.
-    add_splash_animation(*m_window, name_box(*this, m_theme.metrics().splash), read_name_animation(NameAnimation::Splash));
+#if defined(__APPLE__) || defined(_WIN32)
+    // Added after the paint, which leaves the name out: on the Mac the one
+    // commit that sends the animation to the window server carries the
+    // painted splash with it, and on Windows the animation's window opens
+    // over the painted splash.
+    add_splash_animation(*m_window, box, std::move(frames));
 #endif
     wxYield();
 }
@@ -126,12 +175,15 @@ void SplashWindow::on_paint(wxPaintEvent&)
 
     dc.SetBackground(wxBrush(palette.surface_canvas));
     dc.Clear();
-    if (m_lockup.IsOk())
-        dc.DrawBitmap(m_lockup, 0, 0, true);
+    if (m_art.lockup.IsOk())
+        dc.DrawBitmap(m_art.lockup, 0, 0, true);
     if (m_plays_name) {
+        const wxRect box = name_box(*this, m_theme.metrics().splash);
         dc.SetPen(*wxTRANSPARENT_PEN);
         dc.SetBrush(wxBrush(palette.surface_canvas));
-        dc.DrawRectangle(name_box(*this, m_theme.metrics().splash));
+        dc.DrawRectangle(box);
+        if (m_name_first.IsOk())
+            dc.DrawBitmap(m_name_first, box.GetTopLeft(), true);
     }
 
     // The version line's box starts at version_top, the text centred in it.

@@ -260,6 +260,8 @@ list(APPEND SLIC3R_GUI_SOURCES
 )
 if (APPLE)
     list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashAnimationMac.mm)
+elseif (WIN32)
+    list(APPEND SLIC3R_GUI_SOURCES GUI/JusPrin/Startup/SplashAnimationWin.cpp)
 endif ()
 
 # Translation catalogs carrying the product name, built from upstream .po files.
