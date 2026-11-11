@@ -1,0 +1,5 @@
+run with claude subscription. using sonnet 5.5
+
+---
+
+do 1 run in deepseek v4 flash fore ach of the tests. also tell me where I can check the generated doc myself
