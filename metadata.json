@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76CQGBYZK0WS76J6EVE1HXT",
+  "strategy": "manual-commit",
+  "branch": "claude/printer-setup-harness-fixes",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 192,
+    "cache_creation_tokens": 173010,
+    "cache_read_tokens": 16765195,
+    "output_tokens": 42199,
+    "api_call_count": 96
+  }
+}
