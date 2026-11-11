@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75SRN3CXXS4M82HA3MSENAN",
+  "strategy": "manual-commit",
+  "branch": "claude/win-splash-anim",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "resources/jusprin/README.md",
+    "src/slic3r/GUI/JusPrin/Brand/splash_animation.py",
+    "src/slic3r/GUI/JusPrin/Startup/SplashAnimation.hpp",
+    "src/slic3r/GUI/JusPrin/Startup/SplashWindow.cpp",
+    "src/slic3r/GUI/JusPrin/Startup/SplashWindow.hpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 23737,
+    "cache_read_tokens": 5552056,
+    "output_tokens": 15380,
+    "api_call_count": 16
+  }
+}
