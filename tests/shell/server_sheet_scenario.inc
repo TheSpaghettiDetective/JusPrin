@@ -180,3 +180,76 @@
             self->finish();
         });
     }
+
+// --printer-chat-sheet [capture-dir]: what the printer chat's page asks of
+// the window, as the project chat's does. Its Get more credits and Billing
+// and usage open the server's pages in the app's sheet, and Get the new
+// version… opens Preferences on Updates. Signed out, so the prices page opens
+// as a guest; with JUSPRIN_SERVER_URL set the sheet loads that server's page.
+
+    void verify_printer_chat_sheet()
+    {
+        using namespace std::chrono_literals;
+        struct Seen
+        {
+            int                        sheets{0};
+            std::vector<std::string>   urls;
+            std::optional<std::string> section;
+        };
+        auto seen = std::make_shared<Seen>();
+        m_modal_gate = [this, seen](wxDialog& dialog) {
+            if (auto* sheet = dynamic_cast<ServerSheet*>(&dialog)) {
+                if (sheet->state() == ServerSheet::State::Loading)
+                    return false;
+                ++seen->sheets;
+                seen->urls.push_back(sheet->web_view()->GetCurrentURL().ToUTF8().data());
+                if (!m_state->capture_dir.empty() && sheet->state() == ServerSheet::State::Page)
+                    capture_web_view(sheet->web_view(), "printer-chat-sheet-" + std::to_string(seen->sheets));
+                return true;
+            }
+            if (auto* window = dynamic_cast<Preferences::PreferencesWindow*>(&dialog)) {
+                if (!window->page_connected())
+                    return false;
+                seen->section = window->request().section;
+            }
+            return true;
+        };
+        PrinterSetup::PrinterPanel* panel = installed_shell()->printer_panel();
+        panel->open(PrinterSetup::ConversationMode::Add);
+        const bool loaded = wait_for([panel] {
+            return panel->host() != nullptr && panel->host()->handshake_complete() && panel->instructions_ready();
+        }, 60s);
+        check(loaded, "printer_chat_sheet_page_loaded");
+        if (!loaded)
+            return finish();
+        // The envelope the page sends for each button (AgentUI App.tsx).
+        const auto press = [panel](const nlohmann::json& action) {
+            panel->host()->on_page_message(nlohmann::json{{"protocol", Agent::Protocol::kName},
+                                                          {"version", Agent::Protocol::kVersion},
+                                                          {"id", "printer-chat-sheet"},
+                                                          {"type", Agent::Protocol::kShellAction},
+                                                          {"payload", action}}
+                                               .dump());
+        };
+        m_modals_before = m_modals_answered;
+        answer_modals(wxID_CANCEL);
+        press({{"action", "open_server_page"}, {"page", "prices"}, {"from", "composer"}});
+        check(wait_for([seen] { return seen->sheets >= 1; }, 45s), "printer_chat_get_more_credits_opens_the_sheet");
+        press({{"action", "open_server_page"}, {"page", "billing"}, {"from", "composer"}});
+        check(wait_for([seen] { return seen->sheets >= 2; }, 45s), "printer_chat_billing_and_usage_opens_the_sheet");
+        press({{"action", "check_for_updates"}});
+        check(wait_for([seen] { return seen->section.has_value(); }, 45s), "printer_chat_get_new_version_opens_preferences");
+        stop_answering_modals();
+        std::cout << "HARNESS PRINTER CHAT SHEET sheets=" << seen->sheets;
+        for (const std::string& url : seen->urls)
+            std::cout << " | " << url.substr(0, url.find('?')) << (url.find("from=composer") != std::string::npos ? " from=composer" : "");
+        std::cout << " | preferences " << seen->section.value_or("(none)") << std::endl;
+        if (std::getenv("JUSPRIN_SERVER_URL") != nullptr && seen->urls.size() >= 2) {
+            check(seen->urls[0].find("/ent/jusprin/v2/web/prices") != std::string::npos &&
+                      seen->urls[0].find("from=composer") != std::string::npos,
+                  "printer_chat_sheet_shows_the_prices_page");
+            check(seen->urls[1].find("from=composer") != std::string::npos, "printer_chat_sheet_shows_the_billing_request");
+        }
+        check(seen->section == std::optional<std::string>("updates"), "printer_chat_get_new_version_opens_updates");
+        finish();
+    }

@@ -782,7 +782,10 @@ describe('first launch', () => {
     expect(host.lastOfType('onboarding_leave_welcome')).toBeDefined();
   });
 
-  it('offers to bring the ticked OrcaSlicer printers, with Import, the other two ways and Back', async () => {
+  const skipNote = 'If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you '
+    + 'print anything. You can do that later on the home screen.';
+
+  it('offers to bring the ticked OrcaSlicer printers, with Import, Skip for now, the other two ways and Back', async () => {
     const host = start();
     const screenState = () => state({ onboarding: onboarding({ visible: true, step: 'printers', printersScreen: 'orca_import',
       printerImport: { app: 'orcaslicer', source: '~/Library/Application Support/OrcaSlicer',
@@ -810,6 +813,7 @@ describe('first launch', () => {
     // that has been painted; the host's next state ends it.
     await userEvent.click(screen.getByRole('button', { name: 'Import' }));
     expect(screen.getByRole('button', { name: 'Importing…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Choose my printer' })).toBeDisabled();
     expect(host.lastOfType('onboarding_import')).toBeUndefined();
     await waitFor(() => expect(host.lastOfType('onboarding_import')).toBeDefined());
@@ -818,6 +822,12 @@ describe('first launch', () => {
     expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled();
     // The same list pushed again keeps the ticks.
     expect(screen.getByRole('checkbox', { name: 'Bambu Lab P1S 0.4 nozzle' })).not.toBeChecked();
+    // Skip for now does what it does on the printer form, with the same note,
+    // printers ticked or not.
+    expect(screen.getByText(skipNote)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+    expect(host.lastOfType('onboarding_assume_default')).toBeDefined();
+    expect(host.lastOfType('onboarding_import')!.payload).toEqual({ app: 'orcaslicer', printers: ['Prusa MK4'] });
     // The other two ways: JusPrin 1's screen, and the printer form.
     expect(screen.getByText('Other ways:')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Import from OrcaSlicer…' })).toBeNull();
@@ -832,7 +842,7 @@ describe('first launch', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('OrcaSlicer was not changed');
   });
 
-  it('offers to bring JusPrin 1’s printers in the same words, with OrcaSlicer and the printer form as the other ways', async () => {
+  it('offers to bring JusPrin 1’s printers in the same words, with Skip for now, and OrcaSlicer and the printer form as the other ways', async () => {
     const host = start();
     const screenState = (wayProblem = '') => state({ onboarding: onboarding({ visible: true, step: 'printers',
       printersScreen: 'v1_import', wayProblem, printerImport: { app: 'jusprin1', source: '~/Library/Application Support/JusPrin',
@@ -847,6 +857,9 @@ describe('first launch', () => {
     expect(screen.getByText('Also brings 3 filaments.')).toBeInTheDocument();
     expect(screen.getByText('JusPrin 1 keeps these in ~/Library/Application Support/JusPrin')).toBeInTheDocument();
     expect(screen.queryByText(/OrcaSlicer/, { selector: 'h1, p' })).toBeNull();
+    expect(screen.getByText(skipNote)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+    expect(host.lastOfType('onboarding_assume_default')).toBeDefined();
 
     await userEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() => expect(host.lastOfType('onboarding_import')).toBeDefined());
@@ -961,8 +974,6 @@ describe('first launch', () => {
     const continueButton = screen.getByRole('button', { name: 'Continue' });
     expect(continueButton).toBeDisabled();
     // Until a printer is chosen, what skipping does.
-    const skipNote = 'If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you '
-      + 'print anything. You can do that later on the home screen.';
     expect(screen.getByText(skipNote)).toBeInTheDocument();
 
     // The printer found on the network picks its model and the usual nozzle.

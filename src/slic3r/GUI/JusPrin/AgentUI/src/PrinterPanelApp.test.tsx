@@ -249,6 +249,24 @@ describe('the printer panel page', () => {
     expect(screen.getByRole('button', { name: 'Open printer settings' })).toBeInTheDocument();
   });
 
+  // The app answers these as it does for the project chat: the server's page
+  // in the app's sheet, and Preferences › Updates.
+  it('asks the app for more credits and for the new version, as the project chat does', async () => {
+    const host = open(state({ chatModel: { provider: 'jusprin', model: 'standard', effort: '' } }));
+    host.deliver('message_added', { message: { id: 'm-2', role: 'user', state: 'complete', text: 'A P1S', attempt: 1 } });
+    host.deliver('assistant_started', { messageId: 'm-3', inReplyTo: 'm-2', attempt: 1 });
+    host.deliver('assistant_failed', { messageId: 'm-3',
+      error: { code: 'credits_exhausted', message: "You're out of credits.", retryable: false } });
+    await userEvent.click(screen.getByRole('button', { name: 'Get more credits' }));
+    expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'open_server_page', page: 'prices', from: 'composer' });
+
+    host.deliver('assistant_started', { messageId: 'm-4', inReplyTo: 'm-2', attempt: 2 });
+    host.deliver('assistant_failed', { messageId: 'm-4', error: { code: 'update_required',
+      message: 'This version of JusPrin can no longer connect to JusPrin accounts. Get the new version to keep using your account.', retryable: false } });
+    await userEvent.click(screen.getByRole('button', { name: 'Get the new version…' }));
+    expect(host.lastOfType('shell_action')!.payload).toEqual({ action: 'check_for_updates' });
+  });
+
   it('sends its offer to Preferences › Account, keeps the panel, and continues the greeting once an agent is there', async () => {
     const host = open(state({ agent: { status: 'unavailable' } }));
     await userEvent.click(screen.getByRole('button', { name: 'Set up AI' }));

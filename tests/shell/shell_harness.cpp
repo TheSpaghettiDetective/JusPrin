@@ -330,6 +330,11 @@
 //              credits and Billing and usage open the server's pages in the
 //              app's sheet, the done address closes it, Delete account signs
 //              out, and signed out the sheet opens Credits and plans as a guest
+//   --printer-chat-sheet [capture-dir]
+//              the printer chat's Get more credits and Billing and usage open
+//              the server's pages in the app's sheet, and its Get the new
+//              version… opens Preferences on Updates; with JUSPRIN_SERVER_URL
+//              the sheet loads that server's pages, signed out
 //   --print-history [capture-dir]
 //              the G-code record end to end with the in-process fake Bambu
 //              printer: an export through the export_file path, two sends
@@ -1414,7 +1419,8 @@ struct HarnessState
         StartupRequests,
         PrintHistory,
         AccountBox,
-        ServerSheet
+        ServerSheet,
+        PrinterChatSheet
     };
 
     std::atomic<int>  result{-1};
@@ -1899,6 +1905,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::ServerSheet) {
                 verify_server_sheet();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PrinterChatSheet) {
+                verify_printer_chat_sheet();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ExternalProjectHistory) {
@@ -5882,11 +5892,16 @@ private:
         bool        result = false;
         timer.Bind(wxEVT_TIMER, [&](wxTimerEvent&) {
             // Looked at between ticks, never during one: `done` may wait too.
-            result = done();
-            if (result || std::chrono::steady_clock::now() > until)
-                loop.Exit();
-            else
-                timer.StartOnce(10);
+            // A modal window's loop may be running inside this one, and Exit
+            // from there never ends this loop, so wait until it has closed.
+            if (wxEventLoopBase::GetActive() == &loop) {
+                result = done();
+                if (result || std::chrono::steady_clock::now() > until) {
+                    loop.Exit();
+                    return;
+                }
+            }
+            timer.StartOnce(10);
         });
         timer.StartOnce(10);
         loop.Run();
@@ -15901,6 +15916,12 @@ int main(int argc, char** argv)
         else if (argument == "--server-sheet") {
             state->mode = HarnessState::Mode::ServerSheet;
             // Optionally a folder for pictures of the sheet and the confirmation.
+            if (index + 1 < argc && argv[index + 1][0] != '-')
+                state->capture_dir = fs::absolute(argv[++index]);
+        }
+        else if (argument == "--printer-chat-sheet") {
+            state->mode = HarnessState::Mode::PrinterChatSheet;
+            // Optionally a folder for pictures of the sheet.
             if (index + 1 < argc && argv[index + 1][0] != '-')
                 state->capture_dir = fs::absolute(argv[++index]);
         }

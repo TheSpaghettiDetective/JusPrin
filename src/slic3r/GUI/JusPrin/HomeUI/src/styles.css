@@ -377,7 +377,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Continue and Skip for now, the note on skipping under them. */
+/* The step's button and Skip for now, the note on skipping under them. */
 .onboarding-step-group {
   display: flex;
   flex-direction: column;

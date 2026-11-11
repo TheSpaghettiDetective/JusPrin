@@ -265,20 +265,20 @@ void PrinterPanel::reload_agent_config()
     m_web_view->host().set_agent(std::move(runtime.service), runtime.availability);
 }
 
-bool PrinterPanel::handle_preferences_request(const std::string& type, const nlohmann::json& payload)
+bool PrinterPanel::handle_window_request(const std::string& type, const nlohmann::json& payload)
 {
-    if (type != Agent::Protocol::kShellAction || !payload.is_object() || payload.value("action", "") != "open_preferences")
+    if (type != Agent::Protocol::kShellAction || !payload.is_object())
         return false;
-    // The panel stays open under the window; the shell tells it when the
-    // agent's settings changed there.
-    if (ShellController* shell = installed_shell())
-        shell->request_preferences(payload.value("section", std::string()));
-    return true;
+    // The panel stays open under Preferences or the sheet; the shell tells it
+    // when the agent's settings changed, and it reads the account again once
+    // the window is in front.
+    ShellController* shell = installed_shell();
+    return shell != nullptr && shell->handle_window_request(payload);
 }
 
 bool PrinterPanel::handle_printer_page_message(const std::string& type, const nlohmann::json& payload)
 {
-    if (handle_preferences_request(type, payload))
+    if (handle_window_request(type, payload))
         return true;
     if (type == Agent::Protocol::kPrinterAction && payload.is_object() &&
         payload.value("action", "") == "open_printer_settings" && !m_conversation->printer_name().empty()) {
@@ -353,7 +353,7 @@ bool PrinterPanel::handle_filament_page_message(const std::string& type, const n
         }
         return true;
     }
-    if (handle_preferences_request(type, payload))
+    if (handle_window_request(type, payload))
         return true;
     if (type != Agent::Protocol::kShellAction || !payload.is_object())
         return false;

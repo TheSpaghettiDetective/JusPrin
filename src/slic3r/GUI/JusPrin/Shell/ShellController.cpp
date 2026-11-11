@@ -492,26 +492,9 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
         project_host.set_page_message_handler([this](const std::string& type, const nlohmann::json& payload) {
             if (type != Agent::Protocol::kShellAction || !payload.is_object())
                 return false;
+            if (handle_window_request(payload))
+                return true;
             const std::string action = payload.value("action", std::string());
-            if (action == "open_preferences") {
-                request_preferences(payload.value("section", std::string()));
-                return true;
-            }
-            if (action == "check_for_updates") {
-                get_new_version();
-                return true;
-            }
-            if (action == "open_server_page") {
-                // The composer's Get more credits: the server's page in the
-                // app's sheet, over the main window. Not from inside the web
-                // view's message handler, which the sheet's own would nest in.
-                const std::string page = payload.value("page", std::string());
-                const std::string from = payload.value("from", std::string());
-                // Closing it brings the main window back to the front, where the
-                // pane reads the account again.
-                m_frame->CallAfter([this, page, from] { ServerSheet::open(m_frame, page, from, {}); });
-                return true;
-            }
             if (action == "collapse_agent_pane") {
                 // Hiding a wxWebView from inside its own script-message
                 // callback can stall its platform message pump. Collapse on
@@ -1115,6 +1098,30 @@ void ShellController::on_plater_idle(wxIdleEvent& event)
     event.Skip();
     if (m_installed && dynamic_cast<PrepareDropTarget*>(m_plater->GetDropTarget()) == nullptr)
         install_drop_target();
+}
+
+bool ShellController::handle_window_request(const nlohmann::json& payload)
+{
+    const std::string action = payload.value("action", std::string());
+    if (action == "open_preferences") {
+        request_preferences(payload.value("section", std::string()));
+        return true;
+    }
+    if (action == "check_for_updates") {
+        get_new_version();
+        return true;
+    }
+    if (action != "open_server_page")
+        return false;
+    // The composer's Get more credits: the server's page in the app's sheet,
+    // over the main window. Not from inside the web view's message handler,
+    // which the sheet's own would nest in.
+    const std::string page = payload.value("page", std::string());
+    const std::string from = payload.value("from", std::string());
+    // Closing it brings the main window back to the front, where the chat on
+    // screen reads the account again (read_account_on_screen).
+    m_frame->CallAfter([this, page, from] { ServerSheet::open(m_frame, page, from, {}); });
+    return true;
 }
 
 void ShellController::on_frame_activate(wxActivateEvent& event)

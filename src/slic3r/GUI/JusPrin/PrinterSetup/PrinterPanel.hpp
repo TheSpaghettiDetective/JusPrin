@@ -104,8 +104,9 @@ private:
     void on_release_retired(wxTimerEvent& event);
     bool handle_printer_page_message(const std::string& type, const nlohmann::json& payload);
     bool handle_filament_page_message(const std::string& type, const nlohmann::json& payload);
-    // The page's way to Preferences (its offer when there is no agent).
-    bool handle_preferences_request(const std::string& type, const nlohmann::json& payload);
+    // What the page asks of the window: Preferences (its offer when there is
+    // no agent), Get more credits and the new version, as in the project chat.
+    bool handle_window_request(const std::string& type, const nlohmann::json& payload);
     std::optional<Agent::ToolError> filament_preflight(Agent::ToolHandler handler, const Agent::ToolActivity& activity) const;
     Agent::AgentSessionProfile      filament_profile() const;
     nlohmann::json                  filament_session_json() const;

@@ -491,8 +491,8 @@ export function App({
     onSignIn: state.chatModel?.provider === 'jusprin' ? openAgentPreferences : undefined,
   };
   // The server no longer serves this release: check for a new version and
-  // show Preferences > Updates. The printer panel has no shell to answer.
-  const getNewVersion = printerPanel ? undefined : () => client.send('shell_action', { action: 'check_for_updates' });
+  // show Preferences > Updates.
+  const getNewVersion = () => client.send('shell_action', { action: 'check_for_updates' });
   const composerCredits: ComposerCredits = {
     account: state.creditAccount,
     lowNoticeDone,

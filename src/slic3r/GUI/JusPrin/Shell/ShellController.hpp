@@ -182,6 +182,11 @@ public:
     // modal window itself (a web view's message handler, a key handler).
     // Requests that arrive before it opens open it once.
     void request_preferences(const std::string& section = {}, PreferencesClosed closed = {});
+    // What any chat page asks of the window, the printer chat's as well as
+    // the project's: a shell_action payload naming Preferences, the new
+    // version, or one of the server's pages in the app's sheet. Returns
+    // false for any other action, which belongs to the page's own host.
+    bool handle_window_request(const nlohmann::json& payload);
     // The agent settings changed outside Preferences (Home's sign-in): the
     // docked agent, and an open printer chat, pick them up.
     void reload_agent_settings();

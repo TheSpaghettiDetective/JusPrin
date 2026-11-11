@@ -9,6 +9,7 @@
 // for now" moves on at once.
 
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { Appearance, OnboardingState } from '../bridge/protocol';
 import { afterPaint } from '@shared/afterPaint';
 import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
@@ -24,7 +25,7 @@ import type { PrinterPick } from '../../../AgentUI/src/components/PrinterPicker'
 // bed and Klipper G-code (OrcaHomeBackend::assume_default_printer). Home's
 // "No printer yet" card and its drop zone say the same.
 export const STAND_IN_PRINTER = 'Until you add yours, files are sliced for a 250 mm Klipper printer and may not print on other printers.';
-// The same before Skip, under Continue and Skip for now.
+// The same before Skip, under the step's button and Skip for now.
 const SKIP_PRINTER = 'If you skip, files are sliced for a stand-in printer with a 250 mm bed, not for yours. Add your printer before you '
   + 'print anything. You can do that later on the home screen.';
 
@@ -239,6 +240,20 @@ function WayProblem({ onboarding }: { onboarding: OnboardingState }) {
 
 const countOf = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
+// The step's own button with Skip for now beside it, and what skipping does
+// under them: the same on all three printer screens.
+function SkipStep({ children, note, disabled, onAction }: { children: ReactNode; note: boolean; disabled?: boolean; onAction: Action }) {
+  return (
+    <div className="onboarding-step-group">
+      <div className="onboarding-actions">
+        {children}
+        <button type="button" className="onboarding-link" disabled={disabled} onClick={() => onAction('onboarding_assume_default')}>Skip for now</button>
+      </div>
+      {note && <p className="onboarding-note">{SKIP_PRINTER}</p>}
+    </div>
+  );
+}
+
 // Bring the printers of JusPrin 1 (first-run-19) or OrcaSlicer (first-run-07).
 function PrinterImport({ onboarding, error, onAction }: Props) {
   const found = onboarding.printerImport;
@@ -272,12 +287,14 @@ function PrinterImport({ onboarding, error, onAction }: Props) {
         </p>
       </div>
       {error && <p className="onboarding-error" role="alert">{error}</p>}
-      <div className="onboarding-actions">
+      {/* Every printer starts ticked, so the note stays: nothing here says
+          the person meant to import. */}
+      <SkipStep note disabled={busy} onAction={onAction}>
         <button type="button" className="button-primary" disabled={busy || chosen.length === 0}
           onClick={() => run('onboarding_import', { app: id, printers: chosen })}>
           {busy ? 'Importing…' : 'Import'}
         </button>
-      </div>
+      </SkipStep>
       <WayProblem onboarding={onboarding} />
       <OtherWays ways={[id === 'jusprin1' ? 'orcaslicer' : 'jusprin1', 'printer']} disabled={busy} onAction={onAction} />
       <button type="button" className="onboarding-link flush" disabled={busy} onClick={() => onAction('onboarding_back')}>Back</button>
@@ -352,13 +369,9 @@ function ChoosePrinter({ onboarding, error, onAction }: Props) {
       {options?.error && <p className="onboarding-error" role="alert">{options.error}</p>}
       {form?.error && <p className="onboarding-error" role="alert">{form.error}</p>}
       {error && <p className="onboarding-error" role="alert">{error}</p>}
-      <div className="onboarding-step-group">
-        <div className="onboarding-actions">
-          <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}>Continue</button>
-          <button type="button" className="onboarding-link" onClick={() => onAction('onboarding_assume_default')}>Skip for now</button>
-        </div>
-        {!catalogId && <p className="onboarding-note">{SKIP_PRINTER}</p>}
-      </div>
+      <SkipStep note={!catalogId} onAction={onAction}>
+        <button type="button" className="button-primary" disabled={!ready || finishing} onClick={finish}>Continue</button>
+      </SkipStep>
       <WayProblem onboarding={onboarding} />
       <OtherWays ways={['jusprin1', 'orcaslicer']} onAction={onAction} />
       <button type="button" className="onboarding-link flush" onClick={() => onAction('onboarding_back')}>Back</button>
