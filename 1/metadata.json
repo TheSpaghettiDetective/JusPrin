@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M75JR0NDSA497ZGQVQEKQF70",
+  "session_id": "e80979d6-dfac-4fbe-a0ad-cbfede2b39e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-11T15:13:46.238074Z",
+  "branch": "claude/launch-bonus-bars",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/BalancePanel.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/BalancePanel.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "24e46d875224",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 486,
+    "cache_creation_tokens": 922048,
+    "cache_read_tokens": 52957609,
+    "output_tokens": 137239,
+    "api_call_count": 244
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-11T15:13:45.831603Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 46,
+    "human_modified": 11,
+    "human_removed": 0,
+    "total_committed": 46,
+    "total_lines_changed": 57,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
