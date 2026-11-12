@@ -1,0 +1,86 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M78ZASH3MV6G6YEY5C75M645",
+  "session_id": "55dc7141-3433-4582-98f7-edad73466b91",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-12T22:51:26.043862Z",
+  "branch": "claude/chat-drop-attaches",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "resources/jusprin/agent/protocol.json",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp",
+    "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/dropGuard.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx",
+    "tests/agent/test_agent_bridge.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "6a7dbfb5b325",
+  "checkpoint_transcript_start": 3142,
+  "transcript_lines_at_start": 3142,
+  "compact_transcript_start": 410,
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 16282,
+    "cache_read_tokens": 4539097,
+    "output_tokens": 8356,
+    "api_call_count": 17
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-12T22:51:25.204424Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 142,
+    "human_modified": 253,
+    "human_removed": 0,
+    "total_committed": 142,
+    "total_lines_changed": 395,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 611,
+      "user_lines_removed": 46,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124,
+        "log_iotc.txt": 3,
+        "resources/jusprin/agent/protocol.json": 2,
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 61,
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.hpp": 12,
+        "src/slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp": 9,
+        "src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp": 30,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx": 38,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx": 8,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/dropGuard.ts": 9,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.test.ts": 1,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/protocol.ts": 11,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx": 3,
+        "tests/agent/test_agent_bridge.cpp": 39
+      },
+      "user_removed_per_file": {
+        "src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp": 36,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx": 1,
+        "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/dropGuard.ts": 7,
+        "tests/agent/test_agent_bridge.cpp": 2
+      }
+    }
+  ]
+}
