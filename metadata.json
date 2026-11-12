@@ -3,7 +3,7 @@
   "checkpoint_id": "01M76ZW73VPJG11DYW43JJWPJY",
   "strategy": "manual-commit",
   "branch": "jusprin-dev",
-  "checkpoints_count": 10,
+  "checkpoints_count": 11,
   "files_touched": [
     "docs/guide/checked-version.txt",
     "docs/guide/pictures/ai-chats-and-account/earlier-chat.png",
@@ -26,6 +26,13 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {

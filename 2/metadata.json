@@ -1,0 +1,147 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76ZW73VPJG11DYW43JJWPJY",
+  "session_id": "dea87ba1-caf4-402f-a9c3-fede474c39bc",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-12T04:22:34.714439Z",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/guide/checked-version.txt",
+    "docs/guide/pictures/ai-chats-and-account/earlier-chat.png",
+    "docs/guide/pictures/print-settings/all-settings.png",
+    "docs/guide/pictures/print-settings/revert-to-here.png",
+    "docs/guide/pictures/projects-and-files/project-tab.png",
+    "docs/guide/pictures/slicing-and-printing/print-history.png"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "4cb2921870ab",
+  "checkpoint_transcript_start": 11837,
+  "transcript_lines_at_start": 11837,
+  "compact_transcript_start": 1503,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01A4bwX92VvcBDW6vobuNRPw",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "4cb2921870ab",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 288,
+        "end": 289,
+        "entry_ids": [
+          "30b7d2a6-baa1-42f0-82ac-3b4015a0537a"
+        ],
+        "tool_use_id": "toolu_01A4bwX92VvcBDW6vobuNRPw"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01A4bwX92VvcBDW6vobuNRPw"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01V3kzrH9gBSEw22KdGr3FU1",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "obico-gmail"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "4cb2921870ab",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 437,
+        "end": 438,
+        "entry_ids": [
+          "483ed624-8403-4231-bae7-40e465908ba4"
+        ],
+        "tool_use_id": "toolu_01V3kzrH9gBSEw22KdGr3FU1"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01V3kzrH9gBSEw22KdGr3FU1"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: obico-gmail",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01XGmzRfCmqFykjSyMg7iLDZ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:chrome-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "4cb2921870ab",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 724,
+        "end": 725,
+        "entry_ids": [
+          "1a96e55d-d025-4703-bf0b-16150a46360f"
+        ],
+        "tool_use_id": "toolu_01XGmzRfCmqFykjSyMg7iLDZ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01XGmzRfCmqFykjSyMg7iLDZ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:chrome-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-11-12T04:22:32.319435Z",
+    "agent_lines": 1,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "total_lines_changed": 1,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
