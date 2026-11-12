@@ -1,0 +1,27 @@
+debug this
+
+---
+
+also when I drag and drop pic on the chat panel, it is not attached. instead, the chat disappear, and the picture is shown by itself
+
+---
+
+Create a task script to debug this one as well.
+
+---
+
+If I understood the problem correctly, I think the correct design should be every chat should have a field to indicate what format it is in. And then if the Chat is now being sent to an API that accepts different format. A converter will be invoked automatically to do the conversion.  this will I don't think this will add a lot of code as a matter of fact it may be even simpler but it also will help us future-proof that in the future when we allow the user to the switch vendor mid chat. critique my thoughts.
+
+---
+
+<!-- reply 2 -->
+> What I propose
+> 
+> Delete that check, and drop the two helpers I added this morning, so the code is smaller than it was. The tests change with it. The test that expects a chat to refuse a model in the other format would instead expect the reply to go out, with the earlier history converted. I’d also extend the new test with a switch back to the first format to show the conversion works both ways. This also covers a future mid-chat vendor switch with no further work. Your rule that a chat can’t change model mid-chat for now would still hold, because the composer greys out the picker after your first message. The UI would be the only thing enforcing that rule, not the host.
+
+go with your proposal
+
+<!-- reply -->
+> Do you want chats on a removed key to carry on with the default provider, or keep failing?
+
+it wil never fail on jusprin cloud, because no keys involved, right? if so, keep failing
