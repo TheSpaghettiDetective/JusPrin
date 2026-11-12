@@ -1,0 +1,936 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer with its own UI under `src/slic3r/GUI/JusPrin/`. Users often ask the in-app AI how to use a feature, and the AI had nothing describing JusPrin's own screens, so it described OrcaSlicer's screens, which JusPrin hides. On 2026-11-11 a guide was started that both people and the AI read, with a process to keep it in line with the app.
+
+What exists, all on branch `claude/guide-window` (pushed to origin; it contains `claude/app-guide`; neither is merged into `jusprin-dev`, and no pull request is open). Start from `claude/guide-window`.
+- `docs/guide/print-settings.md`: the one page written so far, with five pictures in `docs/guide/pictures/print-settings/`. `docs/guide/README.md` is the index, the rules for a page, and the "Before a release" steps.
+- `src/slic3r/GUI/JusPrin/AgentUI/src/guide.ts` builds the skill the AI reads (`skills/guide-<page>/SKILL.md`, generated and committed) from each page. `guide.test.ts` beside it fails when a bold label is not in the app's source, when a section has no harness run, when a picture is missing or unused, and when a page has fewer than three questions.
+- `tests/shell/guide_checks.json` and `tests/shell/run_guide_checks.py`: for each page, the shell harness runs that walk its screens in the built app, the named checks the page depends on, and the pictures cropped from those runs.
+- `tests/project_prompt/guide_questions.json` and `run_guide_tests.py`: how-to questions per page, asked of the model, with a judge reading the answers.
+- `scripts/check_guide.py [--ask-ai]` runs all of that in one command.
+- Help › "JusPrin guide…" opens a window in the app that lists the pages in the order of `docs/guide/README.md`, searches them and shows them with pictures (commit f63b11d4ee). Its design is a proposal Kenneth has not approved yet.
+
+Kenneth's decisions and words: the guide serves both people and the AI; SEO is set aside; "I don't want it to be too complicated and fancy. What I need is that the document can be brought in sync with the code before we make another release." He was unhappy that the first page was first delivered with steps not checked in the running app and without pictures, and that the work looked one-off. For measuring the AI he chose the Claude subscription with Sonnet 5.5 as model and judge; any paid model run needs his approval for that specific batch first.
+
+Measured for the first page: with the guide listed the AI read it and named the right place in 24 of 24 runs on Sonnet 5.5 and 8 of 8 on DeepSeek V4 Flash; without it, 3 of 24. Not yet measured: whether the AI picks the right guide when several are listed.
+
+Kenneth's communication rules are in `~/.claude/CLAUDE.md` and the project's in `AGENTS.md`: full sentences, no invented labels, proposals marked as proposals, decisions asked in full starting with "Decision needed", outcomes reported with what was tested, under about 500 words.
+
+Task:
+Write the six guide pages that are still missing in `docs/guide`, each complete by the existing process, so that `scripts/check_guide.py --ask-ai` passes for all seven pages.
+
+The six areas below are a proposed split that Kenneth has seen but not explicitly approved; if the code shows a better boundary, say so and ask. Divide by what a person is trying to do, not by screen.
+1. Projects and files: New, Open…, Open recent, dropping a file, Save, autosave, Version history and Restore, Export project 3MF, the Project tab, the project list on Home.
+2. Plates and objects: the Plates tab and its row menus (Arrange, Auto-orient, Split, Fix model, number of instances), + Add model, + Add plate, the Move, Rotate and Scale strip, and More for cut, text and painting.
+3. Printers and filament: the printer and filament chip in the header and its menus, plate type, filament colour, adding another filament, adding, connecting, renaming and removing a printer on Home, importing printers, Calibrate….
+4. Slicing, checking and printing: the Slice and Print button in each state, Check print, the print issues pill with Ask AI and Ignore this warning, Export sliced file…, Print history, the print report.
+5. AI chats, account and credits: New chat, the chats list, reopening an earlier chat, the model and thinking pickers, attachments, credits, signing in, your own API key, connecting an outside AI tool.
+6. The app itself: language, theme, units, mouse controls, showing and hiding panels, classic view, updates, Report a problem….
+
+For each page, follow `docs/guide/README.md` ("Writing a page" and "What the command does") and use `docs/guide/print-settings.md` with its entries in `tests/shell/guide_checks.json` and `tests/project_prompt/guide_questions.json` as the worked example:
+- Write the steps from the code, never from `agent-docs/jusprin/product-definition.md`, which disagrees with the app in several places. Quote on-screen labels exactly, in bold; the test checks each against the source. Say where menus are on a Mac and on Windows and Linux, since they differ.
+- Check every section against the running app before calling it written: give it a harness run in `guide_checks.json`, with the named checks the section depends on. The harness's capture modes are documented at the top of `tests/shell/shell_harness.cpp` (lines 6 to 354); its `HARNESS SETUP …` lines print the text the app actually shows. If no existing mode walks a screen, add the smallest mode or step that does, in the harness.
+- Take the pictures from those runs with `tests/shell/run_guide_checks.py`, look at every picture yourself, and correct the page where a picture shows the text is wrong. That happened on the first page.
+- Add at least three questions to `guide_questions.json`, written as a person would ask them, each with what a right answer says.
+- Add the page to the list in `docs/guide/README.md`, which also sets its order in the Help window.
+- The AI's copy of a page may be at most 16 KiB, and its `ai-description` line at most 300 bytes. Make the seven description lines clearly different from each other, because the AI chooses a page by them.
+- Text the AI reads must not name OrcaSlicer and calls the product "the app" (`AgentUI/src/wording.test.ts`).
+
+Things already learned that will save time:
+- You need your own Release build of `shell_integration_harness`, `jusprin_web` and `agent_bridge_tests` in your own worktree (about 30 minutes at `-j4`; see `AGENTS.md` for the shared-machine build rules and reuse the dependencies under `/Users/kenneth/Projects/JusPrin/deps/build/arm64`). Do not use another session's worktree or build folder.
+- Pictures the app draws itself (the AI panel's web view, the plates panel) work unattended. Whole-window pictures taken from the screen came out black when the harness was started from the Claude desktop app, for want of the Screen Recording permission; only Kenneth can grant that. Do not put a black picture in a page; the script refuses them.
+- A harness run takes real clicks and fails when another window comes to the front; the script retries once. Run one harness at a time.
+- Some harness modes have stale checks unrelated to the guide. Depend on named checks, as the first page's `--setup-differences-capture` entry does, and report stale checks you find instead of chasing all of them.
+- After adding a page, regenerate `tests/project_prompt/project_tools.json` with `JUSPRIN_UPDATE_PROJECT_TOOLS=1 agent_bridge_tests '[project]'`, because each guide adds a line to the tool list every request carries.
+- The printer chat on Home does not receive the list of guides; only the project chat does (`AgentHost.cpp`, where `skill_index` is filled).
+
+Measuring the AI: once several pages exist, run `scripts/check_guide.py --ask-ai -- --backend claude-cli --judge claude-cli --claude-model claude-sonnet-5-5 --claude-judge-model claude-sonnet-5-5` and report, per page, how many questions were answered right and whether the AI read the right guide. This is the first time it has to choose among several. Ask Kenneth before any paid run on another model.
+
+Not part of this task: changing the Help window's design, the system prompt, or CI; merging or opening a pull request. The project's rule is that the live prompt suite runs before anything that changes what the AI reads is merged; name that as remaining, do not run a paid batch without Kenneth's approval.
+
+Done looks like: seven pages in `docs/guide` listed in its README; each new page has pictures taken from the built app, a harness run for every section, and at least three questions; `scripts/check_guide.py --ask-ai` passes for all pages; the full AgentUI test suite, the type check, `agent_bridge_tests '[project]'` and the prompt suite's unit tests pass; the Help window shows all seven pages in the built app. Commit page by page or in one commit on your own branch. Report to Kenneth what was written, what was tested with the results, which pictures are missing and why, and what is still open.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_d51b4cef-a8f4-413a-9b3c-fe36d61dae7f
+
+---
+
+<task-notification>
+<task-id>ab2ef00ff4c75bfab</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/ab2ef00ff4c75bfab.output</output-file>
+<status>completed</status>
+<summary>Agent "Map plates and objects area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I could not find two things the brief expected. The collapsed pane shows no "Objects · 1" strip; it shows only an icon button. And More does not hold Cut or the painting tools.
+
+## 1. Steps and on-screen labels
+
+**Opening the pane**
+- The pane starts collapsed (`m_left_pane_collapsed{true}`, ShellController.hpp:323) and appears only on Prepare (ShellController.cpp:1246-1248).
+- When collapsed, the status row shows an icon-only button with the tooltip "Show the Plates and Project panel" (StatusRow.cpp:83-85, 312-319). There is no text strip anywhere in the code.
+- Inside the open pane, the toggle's tooltip is "Hide the Plates and Project panel" (LeftPane.cpp:66).
+- View menu item (AppMenus.cpp:386-399):
+  - Mac: the label changes to "Show plates and project panel" / "Hide plates and project panel".
+  - Windows/Linux: the label stays "Plates and project panel" and shows a check mark.
+  - Mac puts File/View/Print/Printer/Help in the menu bar (AppMenus.cpp:125-129, 159-164); Windows/Linux put them in the title-bar menu (AppMenus.cpp:131-135, 165-174).
+  - AppMenus has no Edit or Object menu.
+- The tabs are "Plates" and "Project" (LeftPane.cpp:876). Ctrl+Tab switches between them (LeftPane.cpp:719-728).
+
+**Plate row**
+- Status words: "Sliced" / "Not sliced yet" / "Slicing…" / "Slicing %d%%" (LeftPane.cpp:178-179).
+- Summary on a folded plate: "Empty", the object name (with "×N" for copies), "%d objects", or "· %d won't print" (LeftPane.cpp:182-197).
+- Clicking a plate makes it the active plate (LeftPane.cpp:214). Only the active plate is open (LeftPaneModel.cpp:123-124).
+- The "⋯" button shows on the active plate or under the pointer (LeftPane.cpp:1012). A right-click (LeftPane.cpp:679-683) or Shift+F10 (LeftPane.cpp:714-717) also opens the menu.
+- Plate menu (LeftPane.cpp:340-351), in this order:
+  - "Rename"
+  - "Arrange"
+  - "Auto-orient"
+  - "Lock" or "Unlock"
+  - "Plate settings…"
+  - "Move to front" — only on plates after the first (OrcaOutline.cpp:264)
+  - "Filament grouping" — only on a BBL printer with two extruders (OrcaOutline.cpp:267)
+  - "Delete plate" — in red, only when the plate can be deleted (OrcaOutline.cpp:269)
+- Clicking the plate's diamond mark opens Plate settings (LeftPane.cpp:659-660).
+
+**Object row**
+- Clicking a row selects the object (LeftPane.cpp:215).
+- Right-hand labels: "Mesh needs repair" / "Mesh repaired", "won't print" / "%d won't print", the filament number with its colour dot, and "×N" (LeftPane.cpp:1101-1124).
+- Object menu (LeftPane.cpp:360-417), in this order:
+  - "Rename" — opens a dialog titled "Rename object" with a "Name" field
+  - "Set number of instances…"
+  - "Printable" (with a check mark)
+  - "Change filament ›" — only when there is more than one filament (OrcaOutline.cpp:304)
+  - "Fix model" — only when the mesh has errors (OrcaOutline.cpp:308)
+  - "Split ›" — opens "To objects" / "To parts" (LeftPane.cpp:533-535)
+  - "Delete" — in red
+- Copy rows are named "Copy %d". Their menu: "Set number of instances…", "Printable", "Change object filament ›", "Delete copy" (LeftPane.cpp:419-470).
+- Part rows have one menu item: "Delete part" (LeftPane.cpp:476).
+- The customization mark lists "Support painting", "Seam painting", "Color painting", "Fuzzy skin painting", "Variable layer height", and a greyed-out "Per-object settings · %d" (LeftPane.cpp:280-287).
+- If an action fails, a box titled "Couldn't do that" appears (LeftPane.cpp:208).
+
+**Keyboard in the pane:** Up/Down moves and selects, Enter or Space activates, Left/Right folds and unfolds, Esc goes back (LeftPane.cpp:575-593, 729).
+
+**Buttons under the list:** "+ Add model" then "+ Add plate" (LeftPane.cpp:956, 959). "+ Add plate" is greyed out when no plate can be added. "+ Add model" opens OrcaSlicer's import file dialog (ShellController.cpp:767-769).
+
+**Canvas tool strip**
+- Shows only while something is selected (ViewportToolStrip.cpp:81).
+- Five buttons: Move, Rotate, Scale, Duplicate, then a divider, then More (ViewportToolStrip.cpp:26; Layout.cpp:16).
+- Tooltips: "Move", "Rotate", "Scale", each with its shortcut added; "Add instance [+]"; "More" (ViewportToolStrip.cpp:157-158).
+- Keys: M, R, S (Shortcuts.cpp:107-109). Clicking a lit button again closes its tool (CanvasPresentationController.cpp:69).
+- More opens the canvas's own right-click object menu below the button (ViewportToolStrip.cpp:200-208). That menu is OrcaSlicer's stock menu, on every platform: Clone, Instances, Mirror, "Modify" (Split, Mesh boolean, Simplify, Fix), Delete, add part/modifier including "Text", Printable, per-object settings, and a "More" submenu (GUI_Factories.cpp:1745-1792, 1377-1437).
+- It has no Cut or painting items (inferred: that file only opens the Text tool, GUI_Factories.cpp:769).
+- OrcaSlicer's own tool toolbar is hidden (GLCanvas3D.cpp:2797). So Cut (C), support painting (L), seam painting (P), color painting (N), Text (T) and Place on face (F) are reachable by key only (Shortcuts.cpp:110-117; inferred).
+- The note about Windows in the harness concerns only the test, not the app (shell_harness.cpp:12107-12145).
+
+**Empty plate hint:** "Drop a model here or add one", centred on the canvas and not clickable (EmptyPlateHint.cpp:21, 33). It shows only when the whole project has no objects, not when one plate is empty (ShellController.cpp:875-876).
+
+## 2. Behaviour facts
+- **Arrange** acts on that plate only: it selects the plate, then arranges in menu mode, which means "only arrange items on current plate" (Plater.cpp:23689-23694; ArrangeJob.cpp:654-656).
+- **Auto-orient** orients that plate (Plater.cpp:23673-23677; OrientJob.cpp:168-170).
+- **Fix model** runs OrcaSlicer's repair (`fix_through_cgal`) and is refused when the app can't repair (OrcaOutline.cpp:358-361).
+- **Set number of instances…** opens OrcaSlicer's quantity dialog (OrcaOutline.cpp:342).
+- **Split › To objects / To parts** runs OrcaSlicer's split commands (OrcaOutline.cpp:363-372).
+- **Tool value panel** (Move/Rotate/Scale): numbers with two decimals (ToolValuePanel.cpp:501).
+  - Move: a "World coordinates" / "Object coordinates" choice, a "Position" row (or "Translate(Relative)"), clamped to ±9999.99 (ToolValuePanel.cpp:193-238).
+  - Rotate: "Rotate (relative)" and "Rotate (absolute)" rows in degrees, each with a reset button (ToolValuePanel.cpp:288-345).
+  - Scale: "Scale" in %, "Size" in mm, where zero or negative values are ignored; a "Uniform scale" checkbox; a third choice, "Part coordinates" (ToolValuePanel.cpp:384-469).
+  - "Done" closes the tool (ToolValuePanel.cpp:562-564). The harness shows that Enter commits a typed value.
+- **Duplicate** adds exactly one copy (ViewportToolStrip.cpp:198).
+
+## 3. Test harness coverage
+The check function is at shell_harness.cpp:8432.
+
+**`--left-pane` and `--left-pane-capture &lt;dir&gt;`** (`verify_left_pane`, 2246-2592, and `capture_figma_plate_states`, 2594-2771)
+- How it drives the pane:
+  - Real clicks through the pane's mouse handler: plate row, Project/Plates tabs, "+ Add plate", the customization mark.
+  - Menus are opened with `open_row_menu()`, not by clicking "⋯". Their items are never clicked.
+  - Lock and Printable go straight through the workspace API.
+  - The pane is opened with `toggle_left_pane()`, not the button.
+- Checks for this area:
+  - `left_pane_exists`, `left_pane_fixture_starts_at_the_closed_default`, `left_pane_shown_on_prepare`, `left_pane_is_200_dip_wide`, `left_pane_open_toggle_has_its_own_header_row`, `left_pane_tabs_sit_below_the_toggle_row`
+  - `left_pane_lists_two_plates_with_the_active_one_open`, `left_pane_folded_plate_summarises_its_object`, `left_pane_folded_summary_is_in_hit_region`
+  - `left_pane_click_activates_the_plate`, `left_pane_click_reached_orca`, `left_pane_follows_the_plate_change`, `left_pane_canvas_selection_command`, `left_pane_reflects_canvas_selection`
+  - `left_pane_menu_fixture_active_plate`, `left_pane_plate_menu_lists_the_plate_actions`, `left_pane_first_plate_has_no_move_to_front`
+  - `left_pane_lock_reaches_orca`, `left_pane_lock_is_orcas_plate_lock`, `left_pane_unlock_reaches_orca`
+  - `left_pane_menu_fixture_object`, `left_pane_object_menu_lists_the_object_actions`
+  - `left_pane_printable_switch_reaches_orca`, `left_pane_shows_a_disabled_object_as_not_printing`, `left_pane_printable_switch_toggles_back`
+  - `left_pane_setting_override_marks_the_object_customized`, `left_pane_settings_only_mark_opens_summary`, `left_pane_settings_override_count_is_listed`, `left_pane_mark_goes_when_the_customization_does`, `left_pane_filament_action_is_absent_in_a_single_material_job`
+  - `left_pane_project_tab_opens`, `left_pane_tab_switch_keeps_plate_and_selection`, `left_pane_plates_tab_returns`
+  - `left_pane_add_plate_adds_a_plate`, `left_pane_add_plate_reached_orca`, `left_pane_add_plate_undoes`, `left_pane_add_plate_redoes`, `left_pane_add_plate_undone_again`
+  - `left_pane_is_absent_on_check_print`, `left_resize_handle_is_absent_on_check_print`, `left_pane_and_resize_handle_return_with_prepare`
+  - `figma_26c1_single_object`, `figma_26a_two_plate_summary`, `figma_26c2_folded_summaries`, `figma_26c2_plate_settings_mark`, `figma_26b_off_plate_group`, `figma_26b_negative_part_visible`, `figma_26b_three_mesh_errors`, `figma_26h_painting_layer_height_and_filament_facts`, `figma_26h_customization_mark`
+  - The Project-tab checks also run here; they belong to the projects page.
+  - Every pane picture also emits a `captured_&lt;name&gt;` check, even without a capture directory (2792-2794).
+- Pictures drawn by the app itself (`LeftPane::snapshot()` paints into a bitmap in memory, LeftPane.cpp:806-817), written only with `--left-pane-capture`:
+  - `left-pane-two-plates`, `left-pane-second-plate-active`, `left-pane-object-selected`, `left-pane-plate-menu`, `left-pane-object-menu`, `left-pane-customized-object`, `left-pane-project`
+  - `figma-26c1-one-plate`, `figma-26a-two-plates`, `figma-26c2-folded-summaries`, `figma-26b-complex-plate`, `figma-26h-customization-mark`
+  - Inferred: the two `-menu` files cannot show the popup, because the popup is a separate window.
+- Pictures grabbed from the screen (whole window):
+  - Via `window_shot`: `window-two-plates`, `window-second-plate-active`, `window-object-selected`, `window-customized-object`, `window-check-print`, `window-back-on-prepare`, and `window-figma-*` for each figma picture.
+  - Via `menu_shot`, popup open: `window-plate-menu`, `window-figma-26d1-plate-menu` (first plate), `window-object-menu`, `window-figma-26d2-object-split-menu`, `window-figma-26d2-object-repair-menu` (shows "Fix model"), `window-figma-26h-customization-mark-menu`.
+
+**`--left-pane-sliced-capture &lt;dir&gt;`** (2209-2240)
+- Checks: `sliced_pane_exists`, `sliced_pane_reads_real_plate_states`.
+- Pictures: `figma-sliced-and-unsliced-plates.png` (drawn by the app) and `window-figma-sliced-and-unsliced-plates.png` (screen). They show "Sliced" next to "Not sliced yet".
+
+**`--left-pane-editor`** (2162-2207): Project tab "Edit Project Info" only, which is the projects area. Checks `editor_pane_visible`, `editor_action_visible`, `editor_project_page_visible`, `editor_form_visible`. No pictures.
+
+**`--tool-strip-capture &lt;dir&gt;`** (2143, 11838-12174): real pointer events on the strip.
+- Checks:
+  - `canvas_renders_fixture`, `canvas_has_working_area`, `canvas_selection_command`, `canvas_selection_visible`, `starts_in_prepare`
+  - `tool_strip_starts_with_no_tool_open`, `tool_strip_opens_move`, `tool_strip_click_keeps_the_selection`, `tool_strip_second_click_closes_move`
+  - `move_`/`rotate_`/`scale_` + `panel_is_open`, `panel_left_edge_under_the_button`, `panel_hangs_below_the_strip`, `panel_has_content`
+  - `r_key_opens_rotate`, `tool_strip_is_installed`, `field_##rotation_z_was_drawn` (and the same for the other fields)
+  - `typed_relative_rotation_turns_by_what_was_typed`, `typing_keeps_the_rotate_tool_open`, `typed_absolute_rotation_sets_the_angle`, `rotation_reset_button_is_shown_once_rotated`, `reset_returns_the_rotation_to_where_the_tool_opened`, `ninety_leaves_the_object_in_the_right_orientation`
+  - `tool_strip_switches_rotate_to_scale`, `tool_strip_second_click_closes_scale`
+  - `duplicate_adds_exactly_one_instance`, `one_undo_removes_the_duplicate`, `tool_strip_reselects_after_undo`
+  - `more_opens_the_object_menu` (Windows only)
+  - `narrow_canvas_ends_before_the_agent_pane`, `strip_row_fits_the_narrow_canvas`
+- Pictures, all screen grabs of the whole window, ending `-light` or `-dark`:
+  - `tool-strip-` + `selected`, `move`, `rotate-shortcut`, `typing` (cursor in the Z rotation field), `rotated`, `scale`, `duplicated`, `orbited`, `narrow`
+  - `tool-strip-more` (Windows only, menu open)
+
+**`--manual-tool-strip`** (2136-2141): fixture plus the `canvas_*` checks, then the app stays open for hand testing. No pictures.
+
+**Also:** `--file-opening` checks only where "+ Add model" sits (`file_opening_add_model_button_above_add_plate`, 13844-13854). tests/jusprin/test_left_pane_model.cpp unit-tests how the rows are built.
+
+**Steps no mode walks:**
+- Clicking "+ Add model".
+- Arrange, Auto-orient, Rename, Plate settings…, Move to front, Filament grouping, Delete plate.
+- Set number of instances…, Change filament, Fix model, Split, Delete.
+- Copy and part menus.
+- Right-click and Shift+F10.
+- Pane keyboard navigation.
+- Opening the pane by its button or the View menu.
+- Move or Scale typed values, Uniform scale, Done.
+- The M and S keys.
+- More on Mac and Linux.
+- Strip tooltips.
+- The empty plate hint.
+
+## 4. Boundary
+Put the Project tab (Details, Version history, Export, Edit Project Info) and "+ Add model" with projects/files, even though they live in this pane: "+ Add model" is OrcaSlicer's import. Cross-link "Change filament" to filament, and the plate status words ("Sliced" and the rest) to slicing.</result>
+<usage><subagent_tokens>179295</subagent_tokens><tool_uses>52</tool_uses><duration_ms>366262</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abc1365c81296eaca</task-id>
+<tool-use-id>toolu_01VudRdeNtjax2L45hmdrucG</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/abc1365c81296eaca.output</output-file>
+<status>completed</status>
+<summary>Agent "Map projects and files area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I couldn't stay under ~900 words without dropping facts you asked for. Paths below are relative to `src/slic3r/GUI/JusPrin/` (C++ and React) and `tests/shell/shell_harness.cpp` (written `SH:`). Anything I didn't read directly is marked (inferred).
+
+## 1. Steps and labels
+
+**Where the menus are.** On Mac, File is in the menu bar (`Shell/AppMenus.cpp:127`). On Windows/Linux, File is a separate "File" button in the title bar (`AppMenus.cpp:131`, `BBLTopbar.cpp:292`). The File menu, in order, is `AppMenus.cpp:361-368`:
+- "New project" (Ctrl+N), "Open…" (Ctrl+O), "Open recent"
+- "Save" (Ctrl+S), "Version history…"
+- "Import", "Export"
+- then Quit. Windows calls it "Exit" (`:369-374`). The Mac also has "Preset Bundle" after Quit (`:366`).
+
+OrcaSlicer's own Open Project, Recent files and Save Project are left out (`:322-325`). "Ctrl" means Cmd on Mac (`wxMOD_CMD`, `:238`). The window's key hook catches the shortcuts too (`:234-254`).
+
+**The header's "…" button** (tooltip "Project details and preferences", `Shell/StatusRow.cpp:103`) opens, in order (`StatusRow.cpp:553-573`):
+- the project name in bold, followed by its save state; it opens the Project tab
+- "Version history"
+- "Export project 3MF…"
+- "Preferences…"
+- "Switch to classic view…"
+
+Two warning rows can appear under the name: "Changes couldn't be saved. JusPrin will retry." and "Some older project data couldn't be removed." (`:575-578`).
+
+**Labels that differ by place:**
+
+| Thing | File menu | Header menu / Project tab | Dialog |
+|---|---|---|---|
+| Versions | "Version history…" (`AppMenus.cpp:348`) | "Version history" (no ellipsis) | — |
+| Export | File › Export › "Project 3MF…" (Ctrl+Shift+S, `:352`) | "Export project 3MF…" | title "Export project 3MF" |
+
+**Steps:**
+
+- **New project.** File › New project, or the Home button labelled just "New" (`HomeUI/src/App.tsx:219-224`). It saves the open project first and stays put if that save fails (`Home/OrcaHomeBackend.cpp:1371-1380`, `Shell/ShellController.cpp:565-574`).
+- **Open….** File › Open… or Home's "Open…" (`App.tsx:225-230`). A file chosen in the dialog opens as a new project; Cancel leaves Home as it is (`OrcaHomeBackend.cpp:1382-1393`).
+- **Open recent.** A submenu of up to 10 saved projects, newest first. Unnamed ones show as "Untitled project". The item is greyed when there are none (`AppMenus.cpp:33, 516-540`).
+- **Save.** Saves now and pins that version so it is kept and listed (`AppMenus.cpp:341-346`). It is disabled on Home.
+- **Version history.** Switches to Prepare, opens the left pane and shows the Versions view (`ShellController.cpp:1568-1583`). Each row shows a local time and a "Restore" button. Only the button restores; clicking the time does nothing (`Shell/LeftPaneProject.cpp:580-624`). The current version is not listed. With nothing earlier, it says "No earlier saved versions yet." (`:588`).
+- **Restore.** Opens a dialog titled "Restore project version" with buttons "Restore" / "Cancel". Its message: "Restore this version of the model and project settings? The current model will be saved as a version first. Conversations and print records will stay current." (`LeftPaneProject.cpp:169-176`). On failure: "Restore failed".
+- **Export project 3MF.** A save dialog with default name "JusPrin project.3mf" and filter "3MF files (*.3mf)". On failure: "Export failed" / "The project couldn't be exported. Try again." (`LeftPaneProject.cpp:149-163`).
+- **Project tab of the left pane.** The pane's tabs are "Plates" and "Project" (`Shell/LeftPane.cpp:876`). The root view (`LeftPaneProject.cpp:419-474`) shows:
+  - the project name ("Untitled" if none) and a save line: "Saving…", "Saved" or "Couldn't save"
+  - a "MODEL" section: either "No title, designer or description yet." with a "+ Edit Project Info" button, or a cover picture, title, "by &lt;designer&gt;" and licence
+  - rows "Print history", "Details", "Version history", "Export project 3MF…"
+  
+  Details has a back row, "Description", "Attachments" ("Bill of materials", "Assembly guide", "Others"), "Profile" and "Edit Project Info" (`:502-578`). Edit Project Info opens OrcaSlicer's own Project page editor (`ShellController.cpp:775-785`).
+- **Project list on Home.**
+  - Header: "Projects" with a count.
+  - From 8 projects up: a "Search projects" box and a sort menu with "Recent" / "Name" (`App.tsx:24, 254-281`).
+  - A "Drop a model or project here" tile (`:316-320`).
+  - Each card shows a thumbnail, the name, a saved date ("Today", "Yesterday", "Oct 24"; `HomeUI/src/savedDate.ts`) and a status line ("Draft", "Printed …", "Sent …", "G-code exported …", "Printing on …"; `OrcaHomeBackend.cpp:380-388, 973`). Clicking the card opens the project.
+  - With no projects yet: "Drop a model or project to start" and "Your projects will appear here, most recent first." (`App.tsx:296-310`).
+  - **There is no rename or delete for projects** anywhere: not in `ProjectCard.tsx`, the Home backend interface or the Home bridge protocol.
+
+## 2. How it behaves
+
+- **Where projects are stored:** `&lt;data_dir&gt;/jusprin/projects/&lt;project-id&gt;/` (`ShellController.cpp:438-442`).
+- **When autosave saves.** A timer runs every 33 ms (`:715`). Autosave checks for changes every 2 s. It saves the model 1.5 s after the last edit, but not while a tool edit is in progress or an AI turn is running. Chat-only changes are written within 15 s at most (`Workspace/ProjectAutosave.cpp:39-41, 632-684`).
+- **Blank projects are never saved.** A project is saved once it holds a model, and stays saved after that (`ProjectAutosave.hpp:112-114`). An unnamed project takes its first object's file name (`ProjectAutosave.cpp:547-552`).
+- **How many versions are kept:** up to 200 versions or 4 GB. Pinned versions are kept regardless: Save, Restore and AI before/after versions (`ProjectAutosave.cpp:42-43`, `Workspace/ProjectVersionStore.cpp:943-992`).
+- **What Restore does.** It saves the current state first, pins both versions, reloads the chosen model and settings, keeps the chats, and brings marked regions back with the model. It adds an undo boundary named "Restore project version" (`ProjectAutosave.cpp:1087-1152`).
+- **Export** saves first, then writes through a temporary file (`:1215-1235`). It leaves out the chat state (inferred from harness check `exported_archive_excludes_managed_state`, which tested OrcaSlicer's export path).
+- **Files opened from Finder/Explorer, Open… or a drop on Home** open as a new project (`ShellController.cpp:1019-1072`).
+  - A Home drop is first copied to `&lt;temp&gt;/JusPrin-dropped/&lt;md5&gt;/` and is left out of recent files (`OrcaHomeBackend.cpp:1395-1437`).
+  - If that copy fails: "%s couldn't be opened. Try opening it with Open… instead."
+- **A model dropped on the canvas** is added to the open project (`ShellController.cpp:262-290, 1074-1080`).
+- **A .3mf opened anywhere** (including a drop on the canvas) opens as a project. If it was opened before, a "Previously opened file" dialog asks. Its buttons are "Continue current project", "Open existing project" or "Open most recent project", and "Create new project". If the file has changed since, "Create new project" becomes the default (`ShellController.cpp:575-650`).
+- **After a restart** JusPrin starts on a blank project; nothing reopens on its own (`SH:3119-3130`).
+
+## 3. Test harness coverage
+
+The menu-layout checks in `verify_app_menus_on_home` run in every shell mode (`SH:8505`). They include `app_menus_file_menu`, `app_menus_export_starts_with_project_3mf`, `app_menus_file_greys_out_project_commands_on_home` and `app_menus_answer_their_own_shortcuts_only`.
+
+- **`--file-opening`** (no pictures). Walks: OS open, canvas drop, Home Open… (dialog stood in), Home drop, .3mf on a full plate, .3mf dropped on the canvas, File › Save and Ctrl+S, a .3mf dropped on Home twice, a model from OrcaSlicer's recent files, and a drop after slicing. Checks: `file_opening_os_open_makes_new_project`, `_os_open_lists_the_model_in_recent_files`, `_canvas_drop_adds`, `_home_open_cancel_stays_on_home`, `_home_open_makes_new_project`, `_home_drop_makes_new_project`, `_home_drop_stays_out_of_recent_files`, `_3mf_on_full_plate_asks_reopen`, `_3mf_opens_existing_project`, `_3mf_canvas_drop_opens_project`, `file_save_enabled_on_prepare`, `file_save_shortcut_leaves_the_opened_3mf_alone`, `file_save_shortcut_saves_a_version`, `file_save_menu_leaves_the_opened_3mf_alone`, `file_opening_home_3mf_drop_again_asks_reopen`, `file_opening_recent_model_opens_like_the_os`, `file_opening_canvas_drop_adds_after_slice` (`SH:13678-13877`).
+- **`--external-project-history`**, with `-capture &lt;dir&gt;` to write `version-history-row.png` (the Project tab's Versions view). Covers the .3mf reopen choices with the question stood in, and Restore with the confirmation stood in. Checks: `external_3mf_reopen_cancel_keeps_draft`, `external_3mf_reopen_opens_existing_project_directly`, `external_3mf_new_project_requires_confirmation`, `external_3mf_multiple_matches_open_most_recent_project`, `reopen_open_project_menu_asks_too`, `reopen_unchanged_file_is_known`, `reopen_changed_file_is_noticed`, `reopen_agent_*`, `history_older_timestamp_visible`, `history_timestamp_click_does_not_restore`, `history_restore_cancel_keeps_model`, `history_restore_confirm_reloads_older_model` (`SH:13224-13456`).
+- **`--reopen-prompt &lt;dir&gt;`** draws the real dialog and answers Cancel. It writes `reopen-open-project-unchanged.png`, `reopen-open-project-changed.png`, `reopen-earlier-project-unchanged.png` and `reopen-earlier-project-changed.png`. Checks per variant: `reopen_prompt_&lt;variant&gt;_drawn` (Mac) or `captured_reopen-&lt;variant&gt;` (other platforms), `_reaches_the_person`, `_cancelled` (`SH:13288-13338`).
+- **`--autosave-seed` then `--autosave-reopen`** (no pictures). Checks: `home_lists_saved_local_project`, `home_describes_managed_project`, `home_saved_project_has_visible_preview`, `stream_reply_does_not_export_model_per_word`, `home_opens_saved_local_project`, `restart_starts_on_a_blank_project`, `restart_head_preserved`, `restart_title_uses_local_project_name_and_save_state`, `restart_quiet_plate_rename_restored` (`SH:2994-3169`).
+- **`--blank-project-saves`** (no pictures). Checks: `blank_saves_nothing_&lt;step&gt;`, `blank_has_no_card_&lt;step&gt;`, `model_is_saved`, `model_project_has_a_card`, `emptied_project_keeps_its_card`, `leaving_removes_blank_folder` (`SH:13466-13650`).
+- **`--unavailable-storage`**. Checks: `unavailable_storage_menu_says_it_will_retry_under_the_name`, `unavailable_storage_has_plain_status_text`, `unavailable_storage_saving_resumes_by_itself`, `unavailable_projects_folder_home_says_so` (`SH:3175-3310`).
+- **`--left-pane` / `--left-pane-capture &lt;dir&gt;`** cover the Project tab. Checks include `left_pane_project_tab_opens`, `left_pane_root_offers_version_history_export_and_edit` and `left_pane_reading_version_history_does_not_save`. The capture form writes `left-pane-project`, `left-pane-root-with-metadata`, `left-pane-details`, `left-pane-versions`, `figma-26e1-project-metadata`, `figma-26e2-project-details`, `figma-26e3-print-history-row` and `figma-26f-no-metadata` .png (`SH:2400-2580`).
+- **Header "…" menu.** Checks `header_overflow_name_row_opens_project_tab` and `header_overflow_version_history_opens_versions` (`SH:10030-10110`). These run in default mode and `--task-chat` (inferred from the call chain).
+
+**No mode walks these:**
+- Open recent actually opening a project (only its label is checked)
+- File › New project and Home's "New" button (tests call OrcaSlicer's new-project function directly)
+- The Export project 3MF… dialog and its export path, and Ctrl+Shift+S
+- The real Restore confirmation dialog, which is always stood in
+- Version history… from the File menu
+- Home search and sort, and clicking a Home card in the page itself
+
+## 4. Area boundary
+
+Chat-side "Revert to here" and "Restore and resume" (`AgentUI/src/App.tsx:454, 555`; `components/ChangeRows.tsx:242-291`) use the same version store. They fit better here, or need a cross-link from here. Print history (Project tab row, Home card line) belongs with slicing/printing. "Edit Project Info" opens an OrcaSlicer screen, so treat it as a hand-off rather than JusPrin UI.</result>
+<usage><subagent_tokens>199059</subagent_tokens><tool_uses>60</tool_uses><duration_ms>430453</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a894670ed6d9afab8</task-id>
+<tool-use-id>toolu_01QjBWUsiHxiRVSQ6RErRVQF</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/a894670ed6d9afab8.output</output-file>
+<status>completed</status>
+<summary>Agent "Map app settings area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Every on-screen label below is copied from source. The Preferences page's labels are plain English strings in `Preferences.tsx`, not wrapped for translation. Paths below are relative to `/Users/kenneth/Projects/JusPrin/.claude/worktrees/hungry-murdock-3137cd/`, and `GUI/` means `src/slic3r/GUI/JusPrin/`.
+
+## 1. Steps and labels
+
+**Opening Preferences**
+- **Mac:** app menu › "Preferences", **Cmd+,** (`src/slic3r/GUI/MainFrame.cpp:3620-3625`). The shortcut comes from `src/slic3r/GUI/Shortcuts.cpp:37`.
+- **Windows/Linux:** title-bar menu › "Preferences" (`MainFrame.cpp:3639-3645`). OrcaSlicer's shortcut there is **Ctrl+P** (`Shortcuts.cpp:43`), and the shell adds **Ctrl+,** (`GUI/Shell/ShellController.cpp:1535-1541`).
+- **Header "…" button** (tooltip "Project details and preferences", `GUI/Shell/StatusRow.cpp:103`) › "Preferences…", which shows ⌘, or Ctrl+, beside it (`StatusRow.cpp:52-58, 566`).
+- **Home gear button**, tooltip "Preferences (Ctrl+,)". It says Ctrl+, on the Mac too, and the page also catches Ctrl/Cmd+, (`GUI/HomeUI/src/App.tsx:117-122, 245-246`).
+- Every one of these opens JusPrin's window (`ShellController.cpp:917-928`). It is a modal titled "Preferences" (`GUI/Preferences/PreferencesWindow.cpp:151`) and opens on Account unless something asks for another section (`PreferencesWindow.cpp:195`).
+
+**Sections** (`GUI/AgentUI/src/components/Preferences.tsx:36-43`): "Account", "BYOAI" (hint "Bring Your Own AI"), "Appearance", "3D view", "Projects &amp; files", "Updates". Under the list is "More preferences…", which closes this window and opens OrcaSlicer's dialog (`:684-687`; `PreferencesWindow.cpp:336, 452-457`).
+
+- **Appearance** (`:404-423`):
+  - "Language": a searchable list.
+  - "Theme": "Light" / "Dark".
+  - "Units": "Millimetres" / "Inches".
+- **3D view** (`:434-456`):
+  - Group "Moving the view": "Controls" ("Mouse" / "Touchpad"), "Zoom toward the pointer", "Reverse scroll-wheel zoom", "Turn freely".
+  - Group "Mouse buttons": "Left-drag", "Middle-drag", "Right-drag", each with "Turn the view" / "Pan" / "Nothing".
+- **Projects &amp; files** (`:465-485`):
+  - "Version history" › "Show folder".
+  - "Downloads" › "Save downloaded models to" with "Change…", which opens a dialog titled "Choose Download Directory" (`PreferencesWindow.cpp:314`).
+  - "Open with JusPrin", tagged "Windows" and shown only there: "3MF projects", "STL and STEP models", "“Open in slicer” buttons on model sites".
+- **Updates** (`:507-622`), the card states:
+  - "Check now"
+  - "Looking for a newer version on GitHub…" / "Checking…"
+  - "Up to date · checked {ago}"
+  - "Couldn’t reach GitHub" with "Try again"
+  - "JusPrin {v} is available", with "Download" ("Opens the release page on GitHub"), "Skip this version", "Release notes" and "Full release notes on GitHub"
+  - Microsoft Store builds: "Updates come from the Microsoft Store."
+  - Group "What to check for": "New JusPrin versions" (a tick), and "Built-in printer and filament profiles".
+  - When an update exists, the Updates entry in the list shows a dot labelled "Update available" (`:678-679`).
+
+**View menu** (`GUI/Shell/AppMenus.cpp:377-418`), in order:
+- "Home".
+- **Mac:** "Show/Hide plates and project panel" and "Show/Hide AI panel"; the label changes. **Windows/Linux:** tick items "Plates and project panel" and "AI panel".
+- OrcaSlicer's remaining View items, without "Show G-code Window" and "Reset Window Layout".
+- "Switch to classic view…".
+- When they are greyed out: the plates panel item works only on Prepare with no task open (`:395`). The AI panel item works only when a project is in front (`:402`).
+- Header buttons do the same job:
+  - "Show the Plates and Project panel" (`StatusRow.cpp:85`) and "Hide the Plates and Project panel" (`GUI/Shell/LeftPane.cpp:66`).
+  - "Show the AI panel" / "Hide the AI panel" (`StatusRow.cpp:289`; `GUI/AgentUI/src/components/ChatNavigation.tsx:19-20`).
+  - The capitalisation differs from the menu: "Project" in the tooltips, "project" in the menu.
+
+**Classic view:** "Switch to classic view…" is in both the View menu and the header "…" menu (`StatusRow.cpp:567`). Going back is View › "Switch to JusPrin view" or the banner's "Back to JusPrin" (`tests/shell/shell_harness.cpp:15439-15444`).
+
+**Help menu** (`AppMenus.cpp:420-444`; `MainFrame.cpp:2909-2970`):
+- JusPrin's items first: "JusPrin guide…", "Ask AI…", "Report a problem…".
+- Then OrcaSlicer's: "Keyboard Shortcuts", "Show Configuration Folder", "Migrate Filament Presets", "Troubleshoot Center", "Open Network Test", "Benchmark 3D Scene", "Check for Updates", and "About JusPrin" (Windows/Linux only).
+- "Setup Wizard" and "Show Tip of the Day" are removed.
+- On the Mac, About is in the app menu (`AppMenus.cpp:140-144`).
+- Keyboard Shortcuts is OrcaSlicer's own window; its key on the canvas is "?" (`Shortcuts.cpp:180`).
+
+**Quit:**
+- Mac: app menu, since the File menu's Quit is hidden (`AppMenus.cpp:363-367`).
+- Windows: File › "Exit" (`:369-374`).
+- Linux: File › "Quit", Ctrl+Q (`Shortcuts.cpp:181`).
+
+**About window** (`GUI/Shell/AboutWindow.cpp`):
+- Title "About JusPrin" (`:146`).
+- "Version %s" and "Built on OrcaSlicer %s" (`:191-193`).
+- "Build", plus "Copy version", which changes to "Copied" (`:197-206, 324`).
+- "Get help": Email jusprin-support@obico.io, Discord, GitHub (`:235-243`).
+- "License…" and "Free software under the GNU Affero General Public License v3." (`:271-282`).
+
+## 2. Behaviour facts
+
+- **Language** is only stored; it takes effect when JusPrin restarts (`GUI/Preferences/PreferencesSettings.cpp:139-147`).
+  - The page shows "JusPrin will use {X} after it restarts." with "Restart now" / "Later" (`Preferences.tsx:409-415`).
+  - Restart saves the project, closes normally and relaunches (`PreferencesWindow.cpp:408-436`).
+  - If the close is cancelled, nothing restarts and a message says so (`:432-434`).
+- **Themes:** only Light and Dark, no "follow system" choice (`PreferencesSettings.cpp:108-115`). The change applies at once, 3D view included, with no restart (`PreferencesWindow.cpp:265-278`).
+- **3D view settings** are saved immediately and shown by a redraw when the window closes (`ShellController.cpp:1500-1503`).
+- **Update checks:**
+  - JusPrin asks the GitHub releases API (`GUI/Updates/UpdateCheck.cpp:20`).
+  - The first check is about 10 s after start, then the timer runs hourly. A check happens only if 24 h have passed since the last attempt, or at startup if the last one failed (`UpdateCheck.cpp:21-23`; `GUI/Updates/UpdateRecord.cpp:67-73`).
+  - It is skipped when "New JusPrin versions" is off or stealth mode is on (`UpdateCheck.cpp:79`). Automatic checks are on until turned off (`UpdateRecord.cpp:29`).
+  - Pre-releases are offered only to test builds (`GUI/Updates/ReleaseFeed.cpp:16-23`).
+  - **There is no in-app install.** "Download" opens the GitHub release page in the browser (`PreferencesWindow.cpp:330-333`).
+  - Help › "Check for Updates" checks now and opens Preferences on Updates (`ShellController.cpp:2012-2020, 2084-2089`).
+  - "Get the new version…" also brings back a version the person skipped (`:2091-2095`).
+  - Built-in profiles are never fetched separately; they change only with a JusPrin release (`:2021-2026`).
+- **Report a problem…** sends nothing by itself.
+  - It opens the browser on `github.com/TheSpaghettiDetective/JusPrin/issues/new`, pre-filled with "What happened: / What you expected: / Steps to make it happen again:" and a footer: "App version: JusPrin 2.0.0 (OrcaSlicer …)" and "System: &lt;OS&gt;" (`AppMenus.cpp:434-440`; `GUI/PrinterSetup/PrinterConversation.cpp:1030-1055`).
+  - A body too long for the link is cut and ends "(Cut short to fit the link.)".
+  - If the browser can't open: "The app couldn't open your browser." Inferred: submitting needs a GitHub account.
+
+## 3. Test harness coverage
+
+All checks print as `HARNESS CHECK &lt;name&gt; PASS|FAIL` (`shell_harness.cpp:8432-8437`).
+
+**Default run, and inferred every non-stock shell mode** (through `verify_shell_installed`, `:1559, 8505`):
+- Menu checks: `app_menus_help_menu` (only that "Report a problem…" is third and "Check for Updates" is present), `app_menus_view_menu`, `app_menus_title_bar_menu` (Windows/Linux, includes "Preferences"), `app_menus_view_greys_out_home_and_panels_on_home`, `app_menus_mac_panel_label_says_what_it_does` / `app_menus_panel_is_a_check_item`.
+- They read labels only; none chooses a menu item.
+- Panel toggling (`agent_pane_user_collapses_on_prepare`, `agent_pane_user_expands_on_prepare`) calls `toggle_agent_pane()` directly, not through the menu (`:8684-8693`).
+- The header "…" menu check `header_overflow_preferences_shows_shortcut` (`:10064`) opens the menu but doesn't click "Preferences…".
+
+**Classic view** (default run's end and `--classic-switch`):
+- `menu_switches_to_classic_view` goes through the header "…" item, not View.
+- Back again: `view_menu_row_returns_to_jusprin` and `banner_returns_to_jusprin`.
+- `--classic-switch-capture` writes `window-classic-view.png`, a screen grab (`:2775-2778, 12184`), so it comes out black here.
+
+**Modes that open Preferences.** In each, the window is closed as soon as its page connects, nothing inside it is clicked, and no picture of it is taken.
+- `--print-history`: `print_history_title_bar_menu_opens_jusprins_preferences` (Windows/Linux only) and `print_history_ctrl_comma_opens_jusprins_preferences` (`:7722-7766`). It also writes `window-print-history.png`, a screen grab.
+- `--printer-chat-sheet`: `printer_chat_get_new_version_opens_preferences` and `printer_chat_get_new_version_opens_updates` (`tests/shell/server_sheet_scenario.inc:240-253`).
+  - Inferred: this starts a real GitHub check.
+  - Its `printer-chat-sheet-N.png` files are web-view snapshots of the server sheet, not of Preferences.
+- `--live-agent-unavailable`: the check is `offer_action_opens_preferences_on_account`. It checks for **Account**, although the mode's own doc (`:90`) says Agent.
+- `--print-issues`: `setup_opens_preferences_on_its_account_section`.
+- `--printer-setup`: `printer_offer_opens_preferences_on_account` and `preferences_opens_over_the_printer_panel` (on "agent").
+- `--account-box`, `--server-sheet` and `--fresh-example` open Account.
+
+**Other modes asked about:**
+- `--open-issue` is a sub-flag of `--printer-connect-skill`. It runs the printer chat's issue tool (`connect_skill_issue_page_opened`), not Help › "Report a problem…".
+- `--dark-ui` / `--light-ui` only set the process appearance; they never use the Theme control.
+
+**No mode walks:**
+- Any Preferences control: Language or Restart now, Theme, Units, any 3D view or Projects &amp; files item, Check now, Download, Skip this version, More preferences….
+- The Mac Cmd+, route, the header's "Preferences…", or the Home gear.
+- Any View menu item chosen as a person chooses it.
+- Help › Report a problem…, Help › Check for Updates, Keyboard Shortcuts, the About window, Quit/Exit.
+
+Separately, there are unit tests outside the harness: `tests/jusprin/test_preferences_settings.cpp`, `tests/jusprin/test_update_check.cpp`, `tests/agent/test_printer_conversation.cpp` (`issue_link`) and `GUI/AgentUI/src/PreferencesApp.test.tsx`.
+
+## 4. Boundary
+
+Account and BYOAI in Preferences are sign-in and AI setup. They belong on the AI/account page, with this page linking to them. "Get the new version…" on Home and in the chats lands in Preferences › Updates, so the updates material should own it.</result>
+<usage><subagent_tokens>185128</subagent_tokens><tool_uses>58</tool_uses><duration_ms>423720</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a36653a9da2ab6dc1</task-id>
+<tool-use-id>toolu_0185D4MUx5bkwFt12G2Z2JBR</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/a36653a9da2ab6dc1.output</output-file>
+<status>completed</status>
+<summary>Agent "Map slicing and printing area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Roots used below: **J/** = `/Users/kenneth/Projects/JusPrin/.claude/worktrees/hungry-murdock-3137cd/src/slic3r/GUI/JusPrin/` and **T/** = `/Users/kenneth/Projects/JusPrin/.claude/worktrees/hungry-murdock-3137cd/tests/shell/`.
+
+## 1. What a person does
+
+**Slice / Print (split button, right side of the project header)**
+- What the button does in each state comes from one function, `primary_print_action` (J/Shell/PrimaryPrintAction.hpp:24-40). The labels come from J/Shell/StatusRow.cpp:234-240.
+  - **Not sliced:** the button says "Slice". With more than one plate, the chevron menu has "Slice all plates".
+  - **While slicing:** the button says "Slicing…" and is disabled. The chevron becomes an X with the tooltip "Cancel slicing", and pressing it cancels (StatusRow.cpp:126-129, 188-190).
+  - **Sliced:** the button says "Print", or "Print plate %d" when there is more than one plate. The chevron menu has "Check Print", "Print all plates…" (detail "%d sliced", line 268) and "Export sliced file…".
+- When the chevron's menu would be empty, the chevron is hidden (line 192).
+- **Menus:**
+  - On the Mac, a "Print" menu sits in the macOS menu bar after View (J/Shell/AppMenus.cpp:159-164).
+  - On Windows and Linux, the same "Print" menu is a submenu of the title-bar menu, after View (lines 166-173).
+  - Items: "Slice plate" (Ctrl+R, which is Cmd+R on the Mac), "Slice all plates", a separator, "Check print…", "Print…", "Print all plates…", "Export sliced file…" (lines 471-478).
+  - The shortcut handling is at lines 245-246. Each item is enabled only when the header would allow the same action (line 469).
+- Slicing switches to the Prepare tab and stays there (StatusRow.cpp:627-641).
+
+**Check print** (opened from the chevron menu or the menu bar)
+- A resizable modal window titled "Check print" (J/Shell/CheckPrintDialog.cpp:66, 224). Its header shows context text: project · plate · "sliced for %s" (line 260).
+- Header controls: a "Legend" switch, off every time the window opens (lines 105, 230), and a close X with the tooltip "Close and return to Prepare" (line 234). Escape also closes it (line 137). Tab and Shift+Tab cycle through preview → report → Legend → Close (line 148).
+- **Report panel** (J/Shell/CheckPrintReportPanel.cpp):
+  - Summary rows: "Time", "Filament", "Cost", "Changes" (lines 491-502).
+  - Sections: "Supports", "Seams", "Slicer warnings", "First layer", "Unsupported islands", "Crossing paths", "Paths outside the plate" (lines 214-220).
+  - A closing line such as "Nothing to flag." (line 237).
+  - With no slice it shows "This plate has no current slice." (line 449).
+  - Up and Down arrows move between findings (line 709). Space acts on a row (line 748); collapsing a section is in `toggle_section` (line 194). That Space is what toggles the section is inferred.
+- **Selecting a finding** moves the camera to its object, moves the layer slider to the finding's height, and shows a caption "Layer %d · %.1f mm" (CheckPrintDialog.cpp:289-344).
+- The window closes itself when its slice goes stale (lines 411-415).
+
+**Print issues pill and bubble** (Prepare canvas, lower right)
+- **Pill text:** "Checking...", "%1% print issue(s)" plus ". %1% blocks printing.", or "%1% warning(s) ignored" (J/PrintIssues/IssueOverlay.cpp:205-225).
+- With one issue, pressing the pill opens and closes the bubble directly. With more, it opens a list (lines 280-291).
+- **Bubble:**
+  - Heading: "Warning", "Blocks printing" or "Ignored", plus the object name or "Whole plate", and "out of view" when the object is off-screen.
+  - Pager: "%1% of %2%" with previous/next arrows.
+  - Note while the chat is busy: "AI is replying...".
+  - Button "Ask AI" (lines 656-663, 758). It sends "Explain this issue and my options." to the chat and closes the bubble once the chat has it (line 761). With no AI set up, the button is "Set up AI..." and opens Preferences on Account (line 771; J/Shell/ShellController.cpp:872).
+  - Link "Ignore this warning", which becomes "Stop ignoring" (line 663).
+- **The bubble closes when:** you press its X, press the pill again, press Escape, click empty canvas, select another object (it follows the selection), or Ask AI succeeds (lines 337-350; IssueOverlay.hpp:15-24).
+- **The list closes when:** you pick a row, press the pill, press Escape, or click outside it.
+
+**Export sliced file…**
+- Sends Orca's `EVT_GLTOOLBAR_EXPORT_SLICED_FILE` (StatusRow.cpp:619-622). That this opens Orca's own save dialog is inferred.
+
+**Send to printer**
+- "Print" or "Print all plates…" sends Orca's `EVT_GLTOOLBAR_PRINT_PLATE` or `_PRINT_ALL` (StatusRow.cpp:615-616). This opens Orca's own dialog: Select Machine for Bambu, or "Send print job" for print hosts (T/shell_harness.cpp:7494).
+
+**Print history** (web page, J/HomeUI/src/components/PrintHistory.tsx)
+- **Ways in:**
+  - Home header link "Print history" (J/HomeUI/src/App.tsx:259-261).
+  - The history line on a project card (ProjectCard.tsx:53).
+  - The history line on a printer card (PrinterCard.tsx:251).
+  - The Project tab row "Print history" (J/Shell/LeftPaneProject.cpp:333), with the detail "Nothing printed or exported yet" or "%d G-codes · …".
+- **Screen:**
+  - Back arrow with the tooltip "Back to the project" or "Back to Home" (line 274).
+  - Filter chips "Project: …" / "Printer: …" and "Filter" (lines 282-290).
+  - Search box "Search prints" (line 313).
+  - Empty states: "Loading print history…", "Nothing printed or exported yet.", "No G-codes match." (lines 319-323).
+- **Each entry:**
+  - "Made with …" and "Open in chat", shown only when the entry has a chat marker (line 162).
+  - Rows: "Sent to X at time", "Exported file" with "matches, checked just now" or "changed outside JusPrin" plus an "Export again" link, "Finished" / "Printing", and "Report sent".
+  - Buttons: "Print again" (lines 181-185), "Export…" (lines 187-191), and "Share how it printed and get 25 credits" (lines 192-196; text from J/HomeUI/src/history.ts:68).
+  - Notes for when Print again is not offered are at lines 118-128.
+- "Print again" opens Orca's send dialog with the kept file (J/Shell/GcodeHistoryRecorder.cpp:331-366).
+- "Export…" opens a save dialog titled "Export G-code" (J/Home/OrcaHomeBackend.cpp:1248).
+
+**Print report form** (J/HomeUI/src/components/PrintReportForm.tsx)
+- Title "Tell us how it printed" (line 78).
+- "Choose a photo…" (line 100), a "What happened" box needing at least 200 characters (lines 105-107), and "How did it come out?" with "It worked" / "Partly" / "It didn’t work" (lines 6-10).
+- Buttons "Not now" and "Send report" (lines 123-132). Escape closes it.
+
+## 2. Behaviour facts
+- **Slice vs Print:** the button says Slice until the *current plate* has a valid slice, then Print (PrimaryPrintAction.hpp:30-37). Switching to an unsliced plate brings Slice back.
+- **No printer connected:** when there is no Bambu network and `print_host` is empty, a box titled "Printer connection required" says "Configure a printer connection in Printer settings before printing. You can also export the sliced file." (StatusRow.cpp:610-613).
+- **Print all plates…** is enabled only for Bambu or SimplyPrint hosts (lines 220-226).
+- **Ignore this warning:**
+  - Works only on warnings, never on blockers. The warning stays in the list, marked "Ignored", sorted last, left out of the count and off the pager (IssueOverlay.cpp:593-643).
+  - It lasts until Orca stops reporting that warning, so a warning that comes back shows again. It is also cleared when another project opens (J/PrintIssues/PrintIssue.hpp:121-126; PrintIssueMonitor.cpp:264).
+  - It does not survive closing the app; this is inferred from the in-memory map at PrintIssueMonitor.hpp:151.
+  - To undo it, open the warning from the list and press "Stop ignoring".
+- **Print report:** offered only when signed in to a cloud account (OrcaHomeBackend.cpp:1269-1271). It is limited to one per G-code, and none while that G-code is printing (PrintHistory.tsx:136). The project card shows the same offer, but it opens the history page, not the form (ProjectCard.tsx:57-60).
+- **Where history lives:** the records are written per project by GcodeHistoryRecorder (GcodeHistoryRecorder.hpp:1-22).
+
+## 3. Test harness
+The check function is at T/shell_harness.cpp:8432.
+
+- **Default run:**
+  - `header_enters_slicing`, `cancel_returns_to_slice`, `slice_offers_print`, `slice_completion_updates_rendered_button`, `check_print_opens_modal_window`, `other_unsliced_plate_offers_slice`, `header_menu_has_contextual_actions`, `header_menu_escape_dismisses`, `app_menus_print_menu` (lines 8773-8905, 8575).
+  - `slice_all_completes_all_plates`, and `print_opens_cancellable_native_preflight` / `print_all_opens_cancellable_native_preflight` (lines 10176-10202).
+  - All of these call `request_action` and `request_slice` directly rather than clicking the button.
+- **--check-print / --check-print-capture &lt;dir&gt;:**
+  - Checks have the prefixes `cp_a_*`, `cp_b_*`, `cp_c_*` and `cp_stale_*`. Examples: `cp_a_switch_starts_off`, `cp_a_switch_shows_the_legend`, `cp_a_finding_moves_the_layer_slider`, `cp_b_section_collapses`, `cp_c_escape_from_the_report_closes_the_window`, `cp_stale_window_closes_itself_when_the_slice_goes_stale`.
+  - Pictures drawn by the app itself (panel bitmaps): `check-print-switch-off/on`, `-nothing-to-flag`, `-finding-selected`, `-nothing-to-flag-other-appearance`, `-supports`, `-island`, `-panel-min-size-scrolled`.
+  - Pictures from canvas GL pixels: `check-print-canvas-default`, `-canvas-legend-on`, `-canvas-island-selected`, `-canvas-min-size` (T/check_print_scenario.inc:328-533).
+- **--print-issues / --print-issues-capture &lt;dir&gt;:**
+  - Uses real pointer clicks on the close X, pill, Ask AI, Ignore, Set up, pager and list rows (T/print_issues_scenario.inc:672-1376).
+  - Example checks: `the_close_button_closes_the_bubble`, `escape_closes_the_bubble`, `ask_closes_the_bubble_once_the_chat_has_it`, `ignoring_closes_the_bubble`, `stop_ignoring_counts_the_warning_again`, `warning_returns_unignored`.
+  - Pictures from canvas GL pixels: `issues-01-clean.png` through `issues-23-resliced.png` (line 307 onward).
+  - `08-asked-chat.png` is a web view snapshot.
+  - `issues-dialog-N.png` are screen grabs, so they come out black here.
+- **--print-history [dir]:**
+  - Checks `print_history_*`: Back, Export…, Export again, Open in chat, Print again, and the Project-tab row (shell_harness.cpp:7380-8090).
+  - Pictures are web view snapshots: `print-history-from-project`, `-all`, `-changed`, `-home-card`, `-printer-card`, `print-again-recorded`, `-kept-file-changed`, `-not-kept`.
+  - `print-again-select-machine.png` is a screen grab (black).
+  - The `print_report_*` checks run only with `JUSPRIN_HARNESS_GATEWAY` set. They look for the button "Tell us how it printed · 25 credits" (line 7793), but the source says "Share how it printed and get 25 credits", so this part looks stale.
+- guide_checks.json has no entries for this area.
+
+**Steps no mode walks:**
+- The "Printer connection required" box.
+- Export sliced file… from the header or menu.
+- Clicking the header button or chevron with the mouse.
+- Ctrl+R.
+- Check print's close X button (it is only drawn).
+- Search and filter chips in Print history.
+- The report form unless a gateway is set.
+
+## 4. Boundary
+Print history and the print report sit inside Home and its cards, so they fit better in a Home/projects page. The result notices drawn above the pill (IssueOverlay.cpp:467-520) belong with print issues. One more mismatch: the comment in IssueOverlay.hpp:25 says "Set up the agent…", but the code draws "Set up AI..." (IssueOverlay.cpp:771).</result>
+<usage><subagent_tokens>181002</subagent_tokens><tool_uses>56</tool_uses><duration_ms>447364</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a158bddecd741390d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/a158bddecd741390d.output</output-file>
+<status>completed</status>
+<summary>Agent "Map AI chats and account area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've mapped the area from the code; the main findings are below. Paths are relative to `src/slic3r/GUI/JusPrin/` (`AgentUI/src/` shortened to `UI/`). Tests are in `tests/shell/`.
+
+**Before writing, note these:**
+- **The "Agent" section is labelled "BYOAI".** The Preferences sidebar shows **"BYOAI"** with the hint "Bring Your Own AI" (`UI/components/Preferences.tsx:38`).
+- **Sign-in never happens in the AI panel.** The sign-in form is on the welcome screen, Home and Preferences › Account (`SignInDoor.tsx:1-6`). Every way to set up AI from the panel opens Preferences › Account, which is a modal window (`App.tsx:338`, `Shell/ShellController.cpp:1478-1491`).
+- **The harness doc for `--live-agent-unavailable` is out of date.** It says the setup bar opens Preferences "on its Agent section". The check actually asserts it opens on `account`.
+
+## 1. Steps and labels
+
+**Chats list and New chat**
+- In a chat, the header has **"Back to chats"** (chevron), **"New chat"** (+), **"Chat actions"** (⋯) and **"Hide the AI panel"** (`ChatNavigation.tsx:10, 324-333`). New chat is disabled while a reply is running.
+- "Chat actions" offers **"Rename"**, which opens **"Rename chat"** with a **"Chat title"** field (1–120 characters), **"Cancel"** and **"Save"** (`:335-347`).
+- It also offers **"Delete"**, which opens **"Delete chat?"**. The dialog says the project and its print history stay as they are. It can't delete a chat that is still working (`:349-352`).
+- The list is titled **"Chats"**. When empty it says "No chats yet. Start a new chat about this project." Each row shows the title, a time ("Yesterday", "3 days ago", "Last week"…) and a preview line (`:384-395, 358-368`).
+- The list footer button reads **"AI settings"**, or **"Set up AI"** when no AI is available. Either opens Preferences › Account (`:400-404`, `App.tsx:528`).
+
+**Reopening an earlier chat**
+- If the project still matches the chat's saved version, the chat simply becomes the current one. The project is not touched (`Agent/AgentHost.cpp:2238-2262`).
+- Otherwise the chat opens read-only, with a notice in place of the message box (`App.tsx:423-457`):
+  - Project changed: "The project has changed since this chat…" with **"Restore and resume"**. This asks **"Put the project back to &lt;time&gt;?"**, says "Your current version stays in Version history.", and offers **"Cancel"** / **"Restore and resume"** (`:767-777`).
+  - Project unchanged: **"Resume saved setup"**.
+  - Saved version missing: "JusPrin can't find the project version…". No resume button.
+  - Always offered: **"Return to active chat"** and **"Ask current chat about this"**. The second puts a "From earlier chat …" quote into the current chat's message box.
+- After a restore, the chat gets a note: "Restored this chat's saved project setup. Check the current printer and material before printing." (`AgentHost.cpp:2310`).
+
+**Message box (composer)**
+- **Model** picker: the menu groups models by provider. Above 12 models it gets a **"Search models"** field (`ModelPickers.tsx:25, 32, 122-124`).
+- **Thinking** picker ("Thinking: &lt;level&gt;"), shown only if the model supports levels. Levels: Off, Minimal, Low, Medium, High, Extra high, Max, Fast, Thorough, or "Default" (`:19-23, 125-132`).
+- Both pickers lock once you've sent a message. Hovering says: "A chat keeps the model and thinking level it started with. Start a new chat to change them." (`:134`).
+- Account models show a price, e.g. "· 1 credit a message", plus what they're for (`ModelPickers.tsx:27-30`, `credits.ts:19-22`).
+- Keys: Enter sends, Shift+Enter adds a new line (`Composer.tsx:231-237`). While a reply runs, Send becomes **"Stop"** (`:361-362`).
+- Field placeholders: "Ask about this print or request a change…", "Reply…", "Or type your own answer…", "AI is responding…" (`:315-328`).
+
+**Attachments**
+- The + button (**"Attach a file"**) offers **"Photo or image"**, **"3D model (STL, 3MF, STEP)"**, **"G-code"** and **"Document (PDF)"**, using the system file dialog (`Composer.tsx:37-43, 348`).
+- You can also drag files in or paste an image (`:261-274`).
+- Each file shows as a row with **"Remove"**. If the model can't see pictures, the row says "Standard can't see pictures, so this one will not be sent." (`AttachmentChip.tsx:54, 65`).
+
+**Reply choice chips**
+- When the AI ends a reply with a "Choices: a | b" line, the options appear as buttons. Tapping one sends it as your message (`replyChoices.ts:1-40`, `MessageList.tsx:385-392`).
+- Typing your own answer also works; the field then says "Or type your own answer…".
+
+**Credits**
+- A small ring next to the pickers (**"Credits left"**) opens a panel. It shows "N credits left", a bar per kind of credit (Sign-up / Free / &lt;Plan&gt; / Bought / Report credits) with expiry, and **"Get more credits"** / **"See usage"** (`BalancePanel.tsx:20-29, 91-114`).
+- Preferences › Account shows the plan, **"Billing and usage"**, **"Get more credits"** and the credit bars (`Preferences.tsx:229-230`).
+- These buttons open an in-app sheet titled "Credits and plans" or "Billing and usage", with **"Open in browser"** and **"Close"** (`Shell/ServerSheet.cpp:54, 289-295`).
+
+**Signing in (Preferences › Account)**
+- The account section is headed "JusPrin account" and shows the offer "Sign up and get 500 free credits" (`AgentConnection.tsx:114`, `credits.ts:41-53`).
+- Google: **"Continue with Google"** → "Finish in your browser.", with **"Open the browser again"** and **"Use an email code instead"** (`SignInDoor.tsx:252-263, 292-294`).
+- Email: type the address (placeholder "you@example.com"), then:
+  - **"Sign up free"** sends a code straight away.
+  - **"Sign in"** first asks how: **"Email me a 6-digit code"** or **"Use a password instead"** (`:301-307, 177-203`).
+- Code screen: "Check your email.", 6 digit boxes, **"Send a new code"**, **"Change email"**, **"Sign in with Google instead"**, **"Cancel"** (`:132-159`).
+- Signed in: "Signed in as …" with **"Sign out"**, and **"Delete account…"** (`AgentConnection.tsx:139, 194`; `Preferences.tsx:272`).
+
+**Your own API key (Preferences › BYOAI)**
+- Group "Your own API key": "Billed by your provider, not JusPrin. Stored on this computer only."
+- Each provider row: **"Add key"** → paste the key → **"Check key"**. The row then shows "Key saved on this computer", with **"Replace"** / **"Remove"** (`AgentConnection.tsx:220, 283-326, 436`).
+- **"New chats start with"** › Model sets the model for new chats (`Preferences.tsx:366-376`).
+
+**Connecting an outside AI tool (MCP)**
+- Group "Connect an AI tool you already use". Each tool says "Found on this computer" or "Not found on this computer" and has **"Connect…"**; there's also **"Look again"** (`AgentConnection.tsx:502-537`).
+- Claude Code and Codex use a command: the screen shows it with **"Copy"**, **"Connect…"**, **"Close"** and an "Advanced / developer details" section (`SetupLocalTool.tsx:262-296`).
+- The other tools show a review screen: "Allow this AI tool to read and change the open project?", what will change in the settings file, **"Connect"** / **"Cancel"** (`:301-331`).
+- Then a progress screen ("Writing settings…"), then "Connected", "&lt;tool&gt; can see this project", and **"Done"** (`:217-258`).
+- The tool list and commands, e.g. `claude mcp add --scope user --transport stdio jusprin -- …`, are in `Mcp/McpConnections.hpp:41-49`.
+
+**Where Preferences is**
+- **Mac:** app menu › "Preferences", ⌘, (`MainFrame.cpp:3620-3625`, `Shortcuts.cpp:37`).
+- **Windows/Linux:** "Preferences" in the menu inside the title bar, Ctrl+P (`MainFrame.cpp:3639-3646`, `Shortcuts.cpp:43`). JusPrin adds Ctrl+, (`ShellController.cpp:1535-1541`).
+- **All platforms:** the project header's overflow menu has **"Preferences…"**, labelled ⌘, or Ctrl+, (`StatusRow.cpp:52-58, 566`).
+
+**When AI isn't set up**
+- Header: "AI" with a "NOT SET UP" badge.
+- Empty chat: "No AI connected", a **"Set up AI"** button, and "Registered JusPrin account, your own key, or an AI tool you already use." (`Panels.tsx:67-90`).
+- Once the chat has content: a bar with **"Set up AI"** and "Chatting here needs AI." (`:120-123`).
+
+## 2. Facts people will ask about
+- **Providers for your own key:** Anthropic, OpenAI, OpenRouter (`AgentConnection.tsx:23-27`).
+- **Chats are per project.** They're stored in the project's own document (`AgentHost.cpp:32-45`); the list is labelled "Project chats".
+- **What credits are spent on:** each message. Standard costs 1, Expert costs 5. Standard is free on plans that include it. Sign-up gives 500 credits for a month, then 50 free a month (`credits.ts:14-17, 38-53`). Expiring credits are used first (`BalancePanel.tsx:52`).
+- **Low credits:** at 25 or fewer, the box shows "About N credits left" (`credits.ts:78-86`).
+- **Too few credits for the next message:** Send is disabled, with "You have N credits; this … chat needs …" and **"Get more credits"** (`Composer.tsx:287-292`).
+- **If the server refuses for credits:** "You're out of credits." with **"Get more credits"**, and your message goes back into the box (`ProviderAgent.cpp:675-685`, `MessageList.tsx:406-407`, `AgentHost.cpp:3193-3196`).
+- **A credit purchase** shows "+N credits" above the box (`Composer.tsx:293-295`).
+
+## 3. Test harness coverage
+Every check prints as `HARNESS CHECK &lt;name&gt; PASS|FAIL` (`shell_harness.cpp:8432-8436`). Web-view pictures are the app's own snapshot of its web view (`capture_web_view`, `:4924-4942`, Mac and Windows only), so they come out properly.
+
+**Runs unattended:**
+
+| Mode | What it walks | Check names / pictures |
+|---|---|---|
+| `--chat-restoration(-capture)` | Switching chats and restoring an earlier chat. The test calls the panel's test functions to create and switch chats, not the New chat button or list rows; it does click "Restore and resume" and the confirm dialog | `chat-unchanged-{first,second}_immediately_active/_preserves_project`, `chat_restore_history_viewed`, `chat_restore_browsing_preserves_live_settings`, `chat_restore_forged_send_cannot_activate_history`, `chat_restore_confirmed_transition`, `chat_restore_quick_settings_restored`. Pictures (web view): `chat-unchanged-first/second`, `chat-history-quick-with-strong-project`, `chat-restore-confirmation`, `chat-restored-quick-setup` |
+| `--reply-choices-capture` | Reply chips, with a stand-in AI; clicks a chip | `reply_choices_tap_sends_the_chip_as_the_persons_message`, `reply_choices_gone_once_answered`, `reply_choices_line_never_shown_as_text`, `reply_choices_answer_drawn_as_the_persons_bubble`. Pictures: `reply-choices-offered`, `reply-choices-answered` (web view); `reply-choices-window` is a screen grab, so it comes out black |
+| `--live-agent-unavailable` | Not-set-up empty chat, then the setup bar; clicks the bar's "Set up AI" | `not_set_up_dock_is_one_live_offer`, `not_set_up_thread_has_one_live_setup_bar`, `offer_action_opens_preferences_on_account`, `setup_key_check_reports_failure`, `unconfigured_agent_does_not_fall_back_to_mock`. No pictures |
+| `--fresh-example` | Email sign-in on Home against a stand-in server, wrong code then right code. It calls Home's code directly, not clicks. Then Sign out in Preferences (a real click) | `email_sign_in_*` (e.g. `email_sign_in_wrong_code_stays_on_the_step`, `email_sign_in_shows_the_account`), `home_card_shows_the_account_credits`, `home_card_forgets_the_account_preferences_signed_out` |
+| `--account-box` | The server's box on Preferences › Account | `account_box_measured_and_shown`, `account_box_runs_no_script`, `account_box_leaves_the_bridge_working` |
+| `--server-sheet-popup` | Checkout pop-up inside the sheet | `server_sheet_popup_*`; picture `server-sheet-popup` |
+| `--printer-chat-sheet` | The printer chat (not the AI panel). It sends the button messages directly | `printer_chat_get_more_credits_opens_the_sheet`, `printer_chat_billing_and_usage_opens_the_sheet`, `printer_chat_get_new_version_opens_updates`; pictures `printer-chat-sheet-1/2` |
+| `--mcp-setup` | Only the command runner; no screens | `mcp_setup_literal_arguments`, `mcp_setup_cli_failure_visible`, … |
+| `--task-chat-configured` | Printer/filament chats only | `printer_chat_shows_the_model_picker`, `filament_chat_shows_the_model_picker` |
+
+**Can't be used here:** `--server-sheet` needs `JUSPRIN_SERVER_URL` plus a throwaway account token. It clicks Account's "Get more credits" and "Billing and usage" and deletes the account; pictures `server-prices`, `server-billing`, `delete-account`, `server-prices-guest`. `--live-agent` needs an OpenAI key.
+
+**No mode walks:**
+- New chat button, list rows, Rename, Delete
+- Model or thinking picker in the AI panel
+- Attach menu, drag-drop, paste
+- Credits ring and panel; composer's "Get more credits" / "See usage"; low-credit and out-of-credit states
+- Google sign-in; sign-in clicks in the panel or Preferences
+- Add key / Check key in the BYOAI UI (only a scripted call that fails)
+- The tool Connect screens
+- "Return to active chat" and "Ask current chat about this"
+
+## 4. Boundary
+Account, credits pages, BYOAI keys and MCP tools all live in Preferences, not the AI panel. They'd fit better in a "Preferences: Account &amp; BYOAI" page, with the AI-panel page covering chats, the message box, chips and the credits ring. The printer and filament chats use the same message box and pickers, so that page can point to this one.</result>
+<usage><subagent_tokens>203111</subagent_tokens><tool_uses>63</tool_uses><duration_ms>467147</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a704cd7c5a8ac33f0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/a704cd7c5a8ac33f0.output</output-file>
+<status>completed</status>
+<summary>Agent "Map printers and filament area" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Several things in the code differ from what the brief assumed. Nothing here was run, so every pass/fail statement comes from reading the code. Paths below are relative to `/Users/kenneth/Projects/JusPrin/.claude/worktrees/hungry-murdock-3137cd/src/slic3r/GUI/JusPrin/`, and the harness is `tests/shell/shell_harness.cpp`.
+
+- **"Set it up myself" is not an on-screen label.** It only appears in harness comments. The Add a printer chat's header link reads **"Browse the full printer list"**, or **"Open printer settings"** when the chat is about one printer (`AgentUI/src/App.tsx:602-603`). That link opens JusPrin's own add-printer form. OrcaSlicer's printer wizard runs only from the fallback shown when the chat page fails to load (`PrinterSetup/PrinterPanel.cpp:108-112`, `PrinterConversation.cpp:1251-1262`).
+- **The project header has no Connect….** The code comment says Connect… was deferred (`Shell/PrinterMenu.cpp:142-146`). Connect… exists only on Home.
+
+## 1. Steps and labels
+
+**Printer and filament chip (Prepare header).** The chip is hidden on Home (check `header_hidden_on_home`).
+- The printer half shows "Select printer" when no printer is set. Otherwise it shows "name · nozzle", plus a warning icon and "from the file" when the printer came inside a project file (`PrinterFilamentChip.cpp:55-65`). The filament half shows "Select filament" when empty (`:78`). Left and right arrow keys move between the two halves (`:37-48`).
+- **Printer menu**, top to bottom (`Shell/PrinterMenu.cpp`):
+  - The printer's name, or "No printer selected", with a status word: Ready, Printing, Paused, Connected, Offline, "Checking connection…" or "Not connected". "Not connected" adds "Export the G-code to print from a card." A printer from a file shows "From the file · not one of your printers" (`:95-147`). Clicking the row opens the printer window (`:149-161`).
+  - "Nozzle": read-only (`:169-171`).
+  - "Plate" › a sub-list of plate types with a tick on the current one (`:175-183`, `:267-278`).
+  - "OTHER PRINTERS": click one to switch the project's printer (`:197-208`).
+  - "Printer settings…" (`:222`), "Ask AI about printer settings…" (`:234`), "Calibrate…" (`:244`), "Add a printer…" (`:257`).
+- **Filament menu** (`Shell/FilamentMenu.cpp`):
+  - "Use what's loaded on the printer…" appears only when the printer reports trays. When it is offline the row is greyed with "%s is offline. Turn it on to read what's loaded." (`:340-346`).
+  - Title "FILAMENT FOR %s", or "FILAMENTS FOR %s" with numbered slot rows when there is more than one slot (`:369`, `:426`).
+  - "COLOUR" swatch row; the last swatch's tooltip is "Other colour…" and opens the system colour picker (`:162-176`, `:546-564`).
+  - "FILAMENTS FOR THIS PRINTER" list (`:435`), "Other filament…" (`:458`), "Filament settings…" (`:472`), "Ask AI about filament settings…" (`:477`), "Calibrate this filament…" (`:487`).
+  - "Add another filament to this print" (`:392`, `:499`). It is not offered inside a slot's own view (`:497`).
+
+**Printer menu in the menu bar** (`Shell/AppMenus.cpp:488-512`): "Add a printer…", "Printer settings…", "Ask AI about printer settings…", "Filament settings…", "Ask AI about filament settings…", "Calibrate…".
+- On Mac it is a menu-bar menu placed right after Print, which follows View (`:159-164`).
+- On Windows/Linux it is a submenu of the menu inside the title bar, also after View and Print (`:165-174`).
+- It works over any screen, Home included (`:484-485`).
+
+**Home printer card** (`HomeUI/src/components/PrinterMenu.tsx`):
+- The kebab button has the tooltip "Printer actions" (`:136`). Its items: "Connect…" (saved printers only), "Printer settings…", "Ask AI about printer settings…", "Calibrate…" (saved printers only), "Rename", "Remove printer…" (`:145-188`).
+- Rename opens a "Rename printer" dialog with a "Printer name" field and Cancel / Save (`:221-248`).
+- Remove asks "Remove printer?" with the text "Remove “X”? Its printer settings will be deleted. Your projects stay." and Cancel / Remove (`:253-268`).
+- Bambu cloud devices use OrcaSlicer's own rename and unbind dialogs instead (`Home/OrcaHomeBackend.cpp:1606-1634`).
+- The card also has an "Open printer window" button, "Connect…" or "Reconnect", and the note "Connect it to send prints straight from JusPrin" (`PrinterCard.tsx:256-267`).
+
+**Adding a printer on Home.** "+ Add printer" (`HomeUI/src/App.tsx:356-357`), or "Add your printer" on the "No printer yet" card (`PrinterCard.tsx:76-79`), opens the chat titled "Add a printer". For Connect it is titled "Connect X", and for settings "X settings" (`ChatNavigation.tsx:293-297`).
+- The form steps are "Which printer?" (Brand / Model; Cancel / Next), "Which plate is on it?" and a filament step ending in "Skip — start with X" (`AddPrinterForm.tsx:101-124`, `:262`).
+- Closing asks "Close this chat?" with "Close chat" (`App.tsx:616-621`).
+- Connecting shows a form with "Access code" (Bambu) or "API key", the note "Stays on this computer.", and Connect / "Help me find the code" (or "…key") / Cancel (`PrinterPanel.tsx:196-212`).
+
+**Importing printers.**
+- File › Import › "Import from OrcaSlicer..." and "Import from JusPrin 1...". These use three ASCII dots, not "…" (`src/slic3r/GUI/MainFrame.cpp:3137-3143`; `dots` is defined at `GUI_App.hpp:183`).
+- The import window is titled "Import from %s", then "Imported from %s" (`Home/OrcaImportWindow.cpp:44`, `:165`).
+- In first launch: "Import from JusPrin 1…" / "Import from OrcaSlicer…", leading to "Bring your printers from X?" with Import and Skip for now (`Onboarding.tsx:229`, `:275-295`).
+
+**Calibrate…** (`Shell/ShellController.cpp:1352-1366`). It shows a "Calibrate %s?" dialog with Start, or "Set up AI…" when no AI is set up, plus Cancel. The dialog says the open project will be saved and closed, and that the test's settings are temporary.
+
+## 2. Behaviour facts
+
+- **No printer chosen:** "Printer settings…" opens the Add a printer chat, and "Calibrate…" is disabled (`PrinterMenu.cpp:219-245`; `AppMenus.cpp:492-512`).
+- **Skipping first launch** sets up a stand-in "Generic printer" (Generic Klipper, 0.4 mm nozzle) (`OrcaHomeBackend.cpp:920-922`). Home then explains: "Until you add yours, files are sliced for a 250 mm Klipper printer…" (`Onboarding.tsx:27`).
+- **Connection types:** Bambu Lab over LAN or Cloud (`OrcaHomeBackend.cpp:244`), Moonraker and OctoPrint (`OrcaPrinterBackend.cpp:825-850`). Any other type gets "…which this chat does not connect…" (`:587-588`). Bambu printers need Bambu's network plug-in ("Bambu plug-in needed", `PrinterPanel.tsx:109`).
+- **Removing a printer:** projects stay. It is refused if other printer profiles are based on this one (`Printers/NamedPrinters.cpp:251-253`). Removing a custom printer also deletes its filament and process profiles, through OrcaSlicer's confirm (`:256-268`). Removing the selected printer selects its parent profile (`:270-278`).
+- **Rename rules:** the name cannot be empty, cannot contain `&lt; &gt; [ ] : / \ | ? * "`, cannot differ from the old one only in capitalisation, and cannot match another printer's name (`PrinterMenu.tsx:21-29`).
+- **Import:** copies printers with their filaments and print settings; the other app keeps its own copy (`Onboarding.tsx:277`). Sources are the OrcaSlicer data folder or JusPrin 1's "JusPrin" folder (`Home/OrcaImporter.cpp:129-134`). JusPrin 1 also brings Bambu's network file; its own app settings and sign-in never come along (`V1Import/V1Import.hpp:5-23`).
+
+## 3. Harness coverage
+
+Each check prints `HARNESS CHECK &lt;name&gt; PASS|FAIL` (`check()` at `shell_harness.cpp:8432`).
+
+- **Default mode (no flag)** (`:8929-8939`):
+  - Chip arrow keys: `right_arrow_moves_to_the_filament_half`.
+  - Plate sub-list: `plate_substep_keeps_the_menu_open_after_a_click`, `nozzle_row_is_read_only`. No plate type is actually picked.
+  - Filament and colour: `the_project_is_on_the_picked_filament`, `a_colour_click_sets_the_slot_colour`.
+  - Adding a filament: `adding_a_slot_adds_one`.
+  - Menu bar: `app_menus_printer_menu`, `app_menus_print_and_printer_follow_view` (Mac), `app_menus_title_bar_menu` (Windows/Linux) (`:8579-8605`).
+  - Chip pictures `light.png`, `dark.png`, `long-name.png`, drawn by the app itself, written to `JUSPRIN_ARTIFACT_DIR` (otherwise a temporary folder that is deleted) (`:9130-9160`).
+- **--printer-menu:** switching printer: `printer_menu_switches_the_projects_printer`, `printer_menu_switch_refreshes_the_chip`; from-file printer: `file_printer_is_marked_from_the_file`.
+- **--printer-menu-capture:** the same checks plus `printer-menu-other-printers.png`, which is a screen grab (`blit_screen`), so it will come out black.
+- **--task-chat:** Printer settings… and Ask AI: `header_printer_settings_opens_the_window`, `header_printer_settings_is_about_the_selected_printer`, `header_printer_manual_settings_open`. Home routes: `home_add_opens_task_chat`, `home_settings_covers_home_with_correct_context`, `home_connect_opens_task_chat`. These go through backend calls, not clicks on the cards.
+- **--printer-setup:** add chat `panel_opens_from_add_printer`; form via messages `form_saves_the_printer_under_its_own_name`, `form_starts_the_printer_on_the_chosen_plate`; no-AI path `printer_offer_opens_preferences`.
+  - Rename and remove are tested through the printer-store functions, not the Home dialogs: `named_rename_of_the_selected_printer`, `named_rename_refuses_illegal_characters`, `named_remove_of_the_selected_printer_selects_its_parent`.
+  - The known failure, `selection_interruption_does_not_blame_credentials`, is in `verify_saved_bambu_connection` (`:7079`), so treat that function's checks with care.
+- **--calibration-capture:** `calibration_filament_menu_has_the_row`, `calibration_home_dialog_names_the_printer_and_no_filament`, `calibration_row_follows_printer_settings`, `calibration_popup_names_the_filament_and_printer`, `calibration_project_asks_which_test`.
+  - Web view snapshots (real pictures): `0-symptom-chat`, `2-dialog-from-filament-cancelled`, `3-home-card-menu`, `4-dialog-from-home-cancelled`, `6-dialog-from-printer-started`, `7-chat-asks-which-test`, `8-test-project-chat`, `9-reading-the-tower`, `10-saved`, `11-reopened`, `12-undone`, `13-home`.
+  - Screen grabs (black): `1-filament-menu`, `5-printer-menu`, `7-window` through `11-window`.
+- **--home-live:** checks `home_live_connect_starts`, `the_tray_row_leads_and_is_live`, `an_offline_printer_keeps_the_tray_row_greyed`.
+  - It is probably broken (inferred). Its card reader looks for `.printer-fact dd` and a "Launch monitor" button (`:8141-8144`, `:8255`). The card actually renders `.printer-facts` and "Open printer window", and never shows "Online". So `home_live_page_shows_online` likely times out.
+- **--fresh-example:** `choose_my_printer_shows_the_add_printer_form`, `default_printer_marked_assumed`. These use backend calls, not page clicks.
+- **No mode walks:**
+  - choosing a plate type;
+  - "Add a printer…" from the menus;
+  - the card kebab's Rename, Remove, Connect… and Printer settings… clicked on the page;
+  - the Rename and Remove dialogs (only HomeUI unit tests, `PrinterCard.test.tsx`);
+  - File › Import from OrcaSlicer / JusPrin 1 and the first-launch import screens;
+  - "Other filament…" and "Use what's loaded on the printer…" from a project;
+  - OrcaSlicer's wizard itself (`:6886-6889` says it cannot be driven).
+
+## 4. Boundary
+
+The calibration flow after Start (the test project, reading the tower, saving) and the AI connect chat behave like their own areas. This page could end at the Calibrate… dialog and at "Connect…", and link out from there. First-launch import belongs with onboarding; File › Import is the part that belongs on this page.</result>
+<usage><subagent_tokens>187293</subagent_tokens><tool_uses>86</tool_uses><duration_ms>560925</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brbog7pmp</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/brbog7pmp.output</output-file>
+<status>completed</status>
+<summary>Background command "while pgrep -f "build-Release.ninja -j4 shell_integration_harness jusprin_web jusprin_catalogs agent_bridge_tests" &gt;/dev/null; do sleep 20; done; tail -5 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/build.log; grep -n "error" /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/build.log | head -20" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bguy8tii4</task-id>
+<tool-use-id>toolu_01FmfkMoxjp19giSk956kjbA</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/bguy8tii4.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad &amp;&amp; mkdir -p $S/runs/the-app &amp;&amp; nohup python3 tests/shell/run_guide_checks.py --area the-app --keep $S/runs/the-app &gt; $S/runs/the-app.log 2&gt;&amp;1; tail -40 $S/runs/the-app.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5vvp3btw</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/b5vvp3btw.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad &amp;&amp; rm -rf $S/runs/the-app &amp;&amp; mkdir -p $S/runs/the-app &amp;&amp; python3 tests/shell/run_guide_checks.py --area the-app --keep $S/runs/the-app &gt; $S/runs/the-app.log 2&gt;&amp;1; tail -20 $S/runs/the-app.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf8p899ll</task-id>
+<tool-use-id>toolu_01Rb5oVaDa6ukGZXhCgkGH67</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/bf8p899ll.output</output-file>
+<status>completed</status>
+<summary>Background command "perl -i -pe 's/cuts a tool description at 2,048 characters/cuts a tool description longer than about 2,000 characters/' docs/guide/README.md &amp;&amp; S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad &amp;&amp; for a in projects-and-files plates-and-objects printers-and-filament slicing-and-printing ai-chats-and-account; do rm -rf $S/runs/$a; mkdir -p $S/runs/$a; python3 tests/shell/run_guide_checks.py --area $a --keep $S/runs/$a &gt; $S/runs/$a.log 2&gt;&amp;1; grep -v "^harness\|^logs" $S/runs/$a.log; done" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bueelt0w6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/bueelt0w6.output</output-file>
+<status>completed</status>
+<summary>Background command "S=/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad &amp;&amp; for a in projects-and-files plates-and-objects printers-and-filament slicing-and-printing; do rm -rf $S/runs/$a; mkdir -p $S/runs/$a; python3 tests/shell/run_guide_checks.py --area $a --keep $S/runs/$a &gt; $S/runs/$a.log 2&gt;&amp;1; grep -v "^harness\|^logs" $S/runs/$a.log; done" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bn5e2nkwm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/bn5e2nkwm.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:$PATH; timeout 1500 scripts/run_clang_tidy.sh 2&gt;&amp;1 | tail -30" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b64ix6dda</task-id>
+<tool-use-id>toolu_01G52MWSffNz4LnGbuUabqu4</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/b64ix6dda.output</output-file>
+<status>completed</status>
+<summary>Background command "git check-ignore -q build-tidy &amp;&amp; echo ignored; python3 -m venv build-tidy/clang-tidy-venv &amp;&amp; build-tidy/clang-tidy-venv/bin/pip install -q -r scripts/clang_tidy_requirements.txt 2&gt;&amp;1 | tail -2; export PATH=/Applications/CMake.app/Contents/bin:$PATH; timeout 1500 scripts/run_clang_tidy.sh &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log 2&gt;&amp;1; echo exit $?; tail -30 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b6inplxai</task-id>
+<tool-use-id>toolu_014qhXLRaMVHAZSBVBASBSss</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/b6inplxai.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:$PATH; timeout 1500 scripts/run_clang_tidy.sh --deps-dir /Users/kenneth/Projects/JusPrin/deps/build/arm64 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log 2&gt;&amp;1; echo exit $?; tail -30 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>brleknel9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/brleknel9.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:$PATH; timeout 1500 scripts/run_clang_tidy.sh --deps-dir /Users/kenneth/Projects/JusPrin/deps/build/arm64 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log 2&gt;&amp;1; echo exit $?; tail -30 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/tidy.log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bebq5nuo3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/bebq5nuo3.output</output-file>
+<status>completed</status>
+<summary>Background command "export PATH=/Applications/CMake.app/Contents/bin:/Users/kenneth/.nvm/versions/node/v24.13.0/bin:$PATH &amp;&amp; python3 scripts/check_guide.py --ask-ai -- --backend claude-cli --judge claude-cli --claude-model claude-sonnet-5-5 --claude-judge-model claude-sonnet-5-5 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/check_guide.log 2&gt;&amp;1; echo exit $?" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>btnivdad1</task-id>
+<tool-use-id>toolu_01FSBcYh7oR2FHeE6EuQPZ2H</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/tasks/btnivdad1.output</output-file>
+<status>completed</status>
+<summary>Background command "python3 - &lt;&lt;'EOF'
+import json
+p='tests/project_prompt/guide_questions.json'; s=open(p).read()
+reps=[('"question": "How do I print six copies of this part?"','"question": "How do I set this part to print six copies myself?"'),
+('"answer": "to select the object and press C in the 3D view, since cutting has no button"','"answer": "to select the object and press C in the 3D view"'),
+('"question": "There\'s a warning on the plate I don\'t care about. Can I make it go away?"','"que
+
+... [422 characters truncated] ...
+
+dge claude-cli --claude-model claude-sonnet-5-5 --claude-judge-model claude-sonnet-5-5 &gt; /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/2884b24e-c24d-459f-a101-4ecffca668a6/scratchpad/check_guide2.log 2&gt;&amp;1; echo exit $?" completed (exit code 0)</summary>
+</task-notification>
