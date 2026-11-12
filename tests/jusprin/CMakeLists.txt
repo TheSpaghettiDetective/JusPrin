@@ -101,6 +101,7 @@ if (SLIC3R_GUI)
     add_executable(shell_theme_tests
         test_shell_theme.cpp
         test_notice_kinds.cpp
+        test_dropped_file_url.cpp
     )
     target_compile_definitions(shell_theme_tests PRIVATE
         JUSPRIN_SOURCE_DIR=R"\(${CMAKE_SOURCE_DIR}\)"

@@ -173,7 +173,7 @@ describe('the + menu', () => {
   it('still takes a dropped file and a pasted image', () => {
     const { container, field, props } = renderComposer();
     const photo = new File(['x'], 'bracket.png', { type: 'image/png' });
-    fireEvent.drop(container.querySelector('.composer')!, { dataTransfer: { files: [photo] } });
+    fireEvent.drop(container.querySelector('.composer')!, { dataTransfer: { files: [photo], types: ['Files'] } });
     expect(props.onAttachFiles).toHaveBeenLastCalledWith([photo], 'drop');
     fireEvent.paste(field, { clipboardData: { files: [photo] } });
     expect(props.onAttachFiles).toHaveBeenLastCalledWith([photo], 'clipboard');
@@ -186,6 +186,68 @@ describe('the + menu', () => {
       'composer-attachments', 'TEXTAREA', 'composer-toolbar',
     ]);
     expect(screen.getByRole('button', { name: 'Remove bracket-v3.3mf' })).toBeInTheDocument();
+  });
+});
+
+// Only the message box takes a dropped file; while a file is anywhere over the
+// page, the box shows its outline so the person sees where to let go.
+describe('a file dragged over the page', () => {
+  const photo = new File(['x'], 'bracket.png', { type: 'image/png' });
+  const files = () => ({ dataTransfer: { files: [photo], types: ['Files'] } });
+
+  it('outlines the box while the file is over the page, and not after it leaves', () => {
+    const { container } = renderComposer();
+    const composer = container.querySelector('.composer')!;
+    expect(composer).not.toHaveClass('dragging');
+    fireEvent.dragEnter(document.body, files());
+    expect(composer).toHaveClass('dragging');
+    // Crossing into a child: enter on the child, then leave on the parent.
+    fireEvent.dragEnter(composer, files());
+    fireEvent.dragLeave(document.body, files());
+    expect(composer).toHaveClass('dragging');
+    fireEvent.dragLeave(composer, files());
+    expect(composer).not.toHaveClass('dragging');
+  });
+
+  it('drops the outline once the file is let go, wherever it lands', () => {
+    const { container } = renderComposer();
+    const composer = container.querySelector('.composer')!;
+    fireEvent.dragEnter(document.body, files());
+    fireEvent.drop(document.body, files());
+    expect(composer).not.toHaveClass('dragging');
+  });
+
+  it('shows the plus sign over the box and takes the drop', () => {
+    const { container, props } = renderComposer();
+    const composer = container.querySelector('.composer')!;
+    const over = files();
+    expect(fireEvent.dragOver(composer, over)).toBe(false);
+    expect((over.dataTransfer as { dropEffect?: string }).dropEffect).toBe('copy');
+    expect(fireEvent.drop(composer, files())).toBe(false);
+    expect(props.onAttachFiles).toHaveBeenCalledWith([photo], 'drop');
+  });
+
+  it('leaves text dragged into the field to the browser', () => {
+    const { field, props } = renderComposer();
+    const text = { dataTransfer: { files: [], types: ['text/plain'] } };
+    fireEvent.dragEnter(field, text);
+    expect(field.closest('.composer')).not.toHaveClass('dragging');
+    expect(fireEvent.dragOver(field, text)).toBe(true);
+    expect(fireEvent.drop(field, text)).toBe(true);
+    expect(props.onAttachFiles).not.toHaveBeenCalled();
+  });
+
+  it('neither outlines nor takes a file while the box cannot take one', () => {
+    for (const overrides of [{ disabled: true }, { attachable: false }]) {
+      const { container, props, unmount } = renderComposer(overrides);
+      const composer = container.querySelector('.composer')!;
+      fireEvent.dragEnter(document.body, files());
+      expect(composer).not.toHaveClass('dragging');
+      expect(fireEvent.dragOver(composer, files())).toBe(true);
+      expect(fireEvent.drop(composer, files())).toBe(true);
+      expect(props.onAttachFiles).not.toHaveBeenCalled();
+      unmount();
+    }
   });
 });
 

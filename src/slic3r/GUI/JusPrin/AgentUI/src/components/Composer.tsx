@@ -135,7 +135,7 @@ export function Composer({
   returnedDraft,
 }: Props) {
   const [text, setText] = useState(initialText ?? '');
-  const [dragging, setDragging] = useState(false);
+  const [fileOver, setFileOver] = useState(false);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDraft = useRef(false);
   const latestText = useRef(initialText ?? '');
@@ -266,21 +266,66 @@ export function Composer({
     }
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  // Only this box takes a dropped file. While a file is anywhere over the
+  // page, the box shows its outline so the person sees where to let go; a
+  // drop anywhere else does nothing (bridge/dropGuard.ts). enter and leave
+  // fire for every element the file crosses, so they are counted; a drop
+  // ends the drag, and a file dragged off the window leaves the count at 0.
+  const takesFiles = !disabled && attachable;
+  useEffect(() => {
+    if (!takesFiles) return;
+    let depth = 0;
+    const carriesFiles = (event: globalThis.DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
+    const enter = (event: globalThis.DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth += 1;
+      setFileOver(true);
+    };
+    const leave = (event: globalThis.DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setFileOver(false);
+    };
+    const end = () => {
+      depth = 0;
+      setFileOver(false);
+    };
+    window.addEventListener('dragenter', enter);
+    window.addEventListener('dragleave', leave);
+    window.addEventListener('drop', end);
+    window.addEventListener('dragend', end);
+    return () => {
+      window.removeEventListener('dragenter', enter);
+      window.removeEventListener('dragleave', leave);
+      window.removeEventListener('drop', end);
+      window.removeEventListener('dragend', end);
+      setFileOver(false);
+    };
+  }, [takesFiles]);
+
+  const carriesFiles = (event: DragEvent<HTMLDivElement>) => event.dataTransfer.types.includes('Files');
+
+  // dropEffect "copy" gives the pointer its plus sign over the box. Any other
+  // drag (text or a link into the field) is left to the browser.
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!takesFiles || !carriesFiles(event)) return;
     event.preventDefault();
-    setDragging(false);
-    if (disabled) return;
+    event.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!takesFiles || !carriesFiles(event)) return;
+    event.preventDefault();
     handleFiles(event.dataTransfer.files, 'drop');
   };
 
   return (
     <div
-      className={`composer${dragging ? ' dragging' : ''}`}
-      onDragOver={(event) => {
-        event.preventDefault();
-        if (!disabled) setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
+      className={`composer${fileOver ? ' dragging' : ''}`}
+      // Where the app asks whether a file it was handed landed (App.tsx,
+      // file_dropped): on macOS the page never sees a drag at all.
+      data-takes-files={takesFiles ? '' : undefined}
+      onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       {notice}

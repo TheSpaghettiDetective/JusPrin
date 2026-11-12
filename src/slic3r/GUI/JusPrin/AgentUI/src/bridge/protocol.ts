@@ -33,6 +33,7 @@ export type PageMessageType =
   | 'mcp_connect'
   | 'reveal_path'
   | 'pick_attachment'
+  | 'attach_dropped_file'
   | 'set_chat_model'
   | 'refresh_account'
   | 'refresh_account_box'
@@ -77,6 +78,7 @@ export type HostMessageType =
   | 'tool_activity'
   | 'bridge_error'
   | 'attachment_updated'
+  | 'file_dropped'
   | 'setup_status'
   | 'mcp_catalog'
   | 'mcp_preview'
@@ -95,6 +97,15 @@ export type HostMessageType =
   | 'account_box'
   | 'account_deleted'
   | 'preferences';
+
+// A file let go on the page that the app kept the web view from opening, at
+// a point in page pixels. The page answers attach_dropped_file with the
+// dropId when the point is on the message box.
+export interface FileDroppedPayload {
+  dropId: string;
+  x: number;
+  y: number;
+}
 
 // A question the host asks before an action it cannot take back, drawn as
 // the design system's Confirmation dialog: a calibration that saves and

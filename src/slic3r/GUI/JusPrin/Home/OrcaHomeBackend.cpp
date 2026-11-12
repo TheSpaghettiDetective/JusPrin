@@ -1475,6 +1475,11 @@ void OrcaHomeBackend::open_dropped_files(const std::vector<DroppedFile>& files)
         open_as_new_project(paths);
 }
 
+void OrcaHomeBackend::open_dropped_path(const wxString& path)
+{
+    open_as_new_project(wxArrayString(1, &path));
+}
+
 void OrcaHomeBackend::open_as_new_project(const wxArrayString& files)
 {
     if (ShellController* shell = installed_shell())

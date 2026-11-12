@@ -342,7 +342,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kDraftUpdate, Protocol::kAttachFile, Protocol::kRemoveAttachment,
                                               Protocol::kSetupCheckKey, Protocol::kSetupCancel, Protocol::kMcpCatalog,
                                               Protocol::kMcpPreview, Protocol::kMcpConnect, Protocol::kRevealPath,
-                                              Protocol::kPickAttachment, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kRefreshAccountBox, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
+                                              Protocol::kPickAttachment, Protocol::kAttachDroppedFile, Protocol::kSetChatModel, Protocol::kRefreshAccount, Protocol::kRefreshAccountBox, Protocol::kPrinterAction, Protocol::kPrinterInstructions,
                                               Protocol::kPrinterOpening, Protocol::kFilamentInstructions,
                                               Protocol::kShellAction, Protocol::kProjectInstructions,
                                               Protocol::kSkills, Protocol::kSettingsCatalogRequest,
@@ -363,7 +363,7 @@ TEST_CASE("protocol constants agree with the shared protocol.json", "[agent][pro
                                               Protocol::kSetupStatus, Protocol::kMcpCatalog, Protocol::kMcpPreview,
                                               Protocol::kMcpStatus, Protocol::kChangeAdded, Protocol::kWorkUpdated, Protocol::kRevealItem,
                                               Protocol::kModelCatalog, Protocol::kChatModel,
-                                              Protocol::kBridgeError, Protocol::kAttachmentUpdated,
+                                              Protocol::kBridgeError, Protocol::kAttachmentUpdated, Protocol::kFileDropped,
                                               Protocol::kPrinterSession, Protocol::kSettingsCatalog, Protocol::kConfirm,
                                               Protocol::kSetupKeys, Protocol::kPreferences, Protocol::kAccountStatus, Protocol::kAccount, Protocol::kAccountBox});
 }
@@ -2724,6 +2724,43 @@ TEST_CASE("a turn whose provider cannot be built fails with the reason", "[agent
     REQUIRE(failed != nullptr);
     CHECK((*failed)["payload"]["error"]["code"] == "provider_not_set_up");
     CHECK_FALSE(h.host.stream_active());
+}
+
+TEST_CASE("a dropped file is attached only when the page answers for the latest drop", "[agent][attachments]")
+{
+    Harness h;
+    JusPrinTest::McpDirectory directory;
+    const auto photo = directory.root / "stringy.png";
+    const auto older = directory.root / "older.png";
+    { std::ofstream(photo, std::ios::binary) << std::string("\x89PNG\r\n", 6); }
+    { std::ofstream(older, std::ios::binary) << std::string("\x89PNG\r\n", 6); }
+    h.handshake();
+
+    // The page is told where the file was let go, never its path.
+    h.host.offer_dropped_file(older.u8string(), 120, 640);
+    const json first = *h.last_of_type("file_dropped");
+    CHECK(first["payload"]["x"] == 120);
+    CHECK(first["payload"]["y"] == 640);
+    CHECK_FALSE(first["payload"].contains("path"));
+    // A second drop before the page answered replaces the first.
+    h.host.offer_dropped_file(photo.u8string(), 130, 650);
+    const json second = *h.last_of_type("file_dropped");
+    REQUIRE(second["payload"]["dropId"] != first["payload"]["dropId"]);
+
+    h.deliver("attach_dropped_file", json{{"dropId", first["payload"]["dropId"]}});
+    CHECK(h.last_of_type("attachment_updated") == nullptr);
+
+    h.deliver("attach_dropped_file", json{{"dropId", second["payload"]["dropId"]}});
+    const json* updated = h.last_of_type("attachment_updated");
+    REQUIRE(updated != nullptr);
+    CHECK((*updated)["payload"]["attachment"]["name"] == "stringy.png");
+    CHECK((*updated)["payload"]["attachment"]["source"] == "drop");
+    CHECK((*updated)["payload"]["attachment"]["state"] == "staged");
+
+    // Once attached, the same answer again attaches nothing more.
+    const auto before = h.sent.size();
+    h.deliver("attach_dropped_file", json{{"dropId", second["payload"]["dropId"]}});
+    CHECK(h.sent.size() == before);
 }
 
 TEST_CASE("pick_attachment without a dialog says so", "[agent][attachments]")

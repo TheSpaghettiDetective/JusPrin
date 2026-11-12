@@ -5,11 +5,13 @@ import { PreferencesApp } from './PreferencesApp';
 import { OrcaImportApp } from './OrcaImportApp';
 import { GuideApp } from './GuideApp';
 import { nativeTransport } from './bridge/client';
+import { installDropGuard } from './bridge/dropGuard';
 import { applyAppearance, applyStaticTokens } from './tokens';
 import './styles.css';
 
 applyStaticTokens();
 applyAppearance('light');
+installDropGuard(window);
 
 const query = new URLSearchParams(window.location.search);
 // The temporary printer task chat loads the same page with ?panel=printer: the same

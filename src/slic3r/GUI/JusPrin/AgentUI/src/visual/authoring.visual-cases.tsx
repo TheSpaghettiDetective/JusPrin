@@ -191,8 +191,9 @@ export const authoringCases: VisualCase[] = [
   composer('photo-ready', '7. Printer chat · attachment ready', ['add a note, or just send', 'bracket-photo.png'],
     { attachKinds: ['image', 'pdf'], stagedPlaceholder: 'add a note, or just send', attachments: [photo] }),
   composer('streaming', '8. Streaming', ['AI is responding…', 'Stop'], { streaming: true }),
+  // A file held anywhere over the chat outlines the box, not only over the box.
   composer('drag-over', '10. Drag over', ['class="composer dragging"'], {},
-    (root) => { fireEvent.dragOver(root.querySelector('.composer')!); }),
+    (root) => { fireEvent.dragEnter(root, { dataTransfer: { files: [], types: ['Files'] } }); }),
   composer('unavailable', 'Agent unavailable', ['Sign in or add a key to chat with AI', 'disabled'],
     { disabled: true, disabledReason: 'Sign in or add a key to chat with AI' }),
 

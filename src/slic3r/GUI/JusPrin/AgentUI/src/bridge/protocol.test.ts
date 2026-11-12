@@ -46,6 +46,7 @@ describe('protocol constants', () => {
       'mcp_connect',
       'reveal_path',
       'pick_attachment',
+      'attach_dropped_file',
       'set_chat_model',
       'refresh_account',
       'refresh_account_box',

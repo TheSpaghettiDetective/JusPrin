@@ -162,6 +162,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Shell/GuideWindow.cpp
     GUI/JusPrin/Shell/GuideWindow.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
+    GUI/JusPrin/Shell/DroppedFileUrl.cpp
+    GUI/JusPrin/Shell/DroppedFileUrl.hpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/AppMenus.cpp
     GUI/JusPrin/Shell/AppMenus.hpp

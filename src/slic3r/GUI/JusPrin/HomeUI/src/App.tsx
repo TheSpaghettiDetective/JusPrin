@@ -202,7 +202,9 @@ export function App({ getTransport }: { getTransport: () => Transport | null }) 
   }
 
   // The whole page takes a dropped file, which opens as a new project. The
-  // page sees a file's name and bytes, not where it came from.
+  // page sees a file's name and bytes, not where it came from. On macOS the
+  // page never sees the drag; the app opens the file from its own folder
+  // (HomeWebView.cpp).
   const openDropped = (event: DragEvent) => {
     const files = Array.from(event.dataTransfer.files ?? []);
     event.preventDefault();

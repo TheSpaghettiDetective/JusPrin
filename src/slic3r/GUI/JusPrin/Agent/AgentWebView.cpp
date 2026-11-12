@@ -8,6 +8,7 @@
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
@@ -19,10 +20,13 @@
 
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include <wx/filedlg.h>
 #include <wx/filesys.h>
+#include <wx/gdicmn.h>
+#include <wx/utils.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/webview.h>
@@ -216,6 +220,16 @@ AgentWebView::AgentWebView(wxWindow*                                  parent,
                 // about: URL.
                 if (event.GetURL().StartsWith("about:")) {
                     event.Skip();
+                    return;
+                }
+                // A file let go on the page (DroppedFileUrl.hpp). The view
+                // stays on its page, and the page is asked whether the point
+                // is on the message box, which attaches the file.
+                if (const std::optional<wxString> file =
+                        dropped_file(event.GetURL(), wxString::FromUTF8(agent_page_path().string()))) {
+                    event.Veto();
+                    const wxPoint point = m_webview->ToDIP(m_webview->ScreenToClient(wxGetMousePosition()));
+                    m_host->offer_dropped_file(file->ToUTF8().data(), point.x, point.y);
                     return;
                 }
                 // Every (re)load needs a fresh handshake before other traffic.

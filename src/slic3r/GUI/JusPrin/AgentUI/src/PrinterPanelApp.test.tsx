@@ -3,9 +3,9 @@
 // a message, except the menu's two ways into OrcaSlicer's own screens and
 // the credential card's decision.
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { PROTOCOL_NAME, PROTOCOL_VERSION } from './bridge/protocol';
 import type { Envelope, PrinterFormInfo, PrinterFormOptions, PrinterSessionPayload, StatePayload, ToolActivityInfo, WorkspaceContext } from './bridge/protocol';
@@ -311,6 +311,17 @@ describe('the printer panel page', () => {
     expect(screen.getAllByRole('menuitem').map((row) => row.textContent)).toEqual(['Photo or image', 'Document (PDF)']);
     await userEvent.click(screen.getByRole('menuitem', { name: 'Photo or image' }));
     expect(host.lastOfType('pick_attachment')?.payload).toEqual({ kind: 'image' });
+  });
+
+  // Only the message box takes a photo; one dropped elsewhere on the panel does nothing.
+  it('attaches a photo dropped on the message box once, and nothing dropped elsewhere', async () => {
+    const host = open();
+    const photo = new File(['jpg'], 'printer.jpg', { type: 'image/jpeg' });
+    fireEvent.drop(document.querySelector('.chat-content')!, { dataTransfer: { files: [photo], types: ['Files'] } });
+    fireEvent.drop(document.querySelector('.composer')!, { dataTransfer: { files: [photo], types: ['Files'] } });
+    await vi.waitFor(() => expect(host.lastOfType('attach_file')).toBeTruthy());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(host.received.filter((envelope) => envelope.type === 'attach_file')).toHaveLength(1);
   });
 
   it('offers the model and thinking pickers, and sends a choice to the host', async () => {

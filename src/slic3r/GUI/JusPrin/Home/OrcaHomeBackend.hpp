@@ -86,6 +86,9 @@ public:
     void new_project() override;
     void open_file() override;
     void open_dropped_files(const std::vector<DroppedFile>& files) override;
+    // A file dropped on Home that the page never saw, so its own path is
+    // known (HomeWebView): opened as one chosen with Open… is.
+    void open_dropped_path(const wxString& path);
     void launch_monitor(const std::string& printer_id) override;
     void add_printer() override;
     void open_preferences() override;

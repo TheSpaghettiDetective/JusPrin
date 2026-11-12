@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { BridgeClient, ConnectionState, Transport } from './bridge/client';
-import { AttachmentPickKind, AttachmentSource, Envelope } from './bridge/protocol';
+import { AttachmentPickKind, AttachmentSource, Envelope, FileDroppedPayload } from './bridge/protocol';
 import { AgentUiState, initialState, reducer } from './state/store';
 import { applyAppearance } from './tokens';
 import { SetupCard, formatMoment } from './components/SetupCard';
@@ -128,6 +128,13 @@ export function App({
           // The host restarts after a reload on its side; if it forgot us,
           // simply shake hands again.
           if (payload.code === 'handshake_required') created.retry();
+        }
+        // A file the app took from a drop the page never saw. Only the
+        // message box takes it; anywhere else it is dropped silently.
+        if (envelope.type === 'file_dropped') {
+          const { dropId, x, y } = envelope.payload as FileDroppedPayload;
+          if (document.elementFromPoint(x, y)?.closest('[data-takes-files]'))
+            created.send('attach_dropped_file', { dropId });
         }
         dispatch({ kind: 'host', envelope });
       },
@@ -585,18 +592,7 @@ export function App({
       else printerAction('close');
     };
     return (
-      // The whole panel takes a photo, not only the composer: a picture of
-      // the printer is dropped where the person is looking.
-      <div
-        className="app app--printer app--printer-setup"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          const files = Array.from(event.dataTransfer.files ?? []);
-          if (files.length === 0) return;
-          event.preventDefault();
-          attachFiles(files, 'drop');
-        }}
-      >
+      <div className="app app--printer app--printer-setup">
         {errorNotice}
         <TaskHeader title={printerTaskTitle(session)} onClose={back}>
           <button type="button" className="panel-link-button" onClick={() => printerAction(session?.printerName ? 'open_printer_settings' : 'manual_setup')}>

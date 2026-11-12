@@ -6,6 +6,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { App } from './App';
+import { installDropGuard } from './bridge/dropGuard';
 import { formatMoment } from './components/SetupCard';
 import { projectInstructions } from './projectInstructions';
 import { skills } from './skills';
@@ -1492,6 +1493,90 @@ describe('App attachments', () => {
       expect(payload.source).toBe('picker');
       expect(payload.dataBase64).toContain('base64,');
     });
+  });
+
+  // Only the message box takes a dropped file. One dropped on the
+  // conversation does nothing, and the drop guard main.tsx installs keeps the
+  // web view from opening it in place of the chat.
+  it('attaches a file dropped on the message box, and nothing dropped on the conversation', async () => {
+    const removeGuard = installDropGuard(window);
+    try {
+      render(<App getTransport={() => host.transport} />);
+      connect(host);
+      const photo = new File(['png'], 'stringy.png', { type: 'image/png' });
+      const files = () => ({ dataTransfer: { files: [photo], types: ['Files'] } });
+      const thread = document.querySelector('.chat-content')!;
+      const composer = document.querySelector('.composer')!;
+
+      fireEvent.dragEnter(thread, files());
+      expect(composer).toHaveClass('dragging');
+      const overThread = files();
+      expect(fireEvent.dragOver(thread, overThread)).toBe(false);
+      expect((overThread.dataTransfer as { dropEffect?: string }).dropEffect).toBe('none');
+      expect(fireEvent.drop(thread, files())).toBe(false);
+      expect(composer).not.toHaveClass('dragging');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(host.lastOfType('attach_file')).toBeUndefined();
+
+      fireEvent.drop(composer, files());
+      await vi.waitFor(() => {
+        const attached = host.received.filter((envelope) => envelope.type === 'attach_file');
+        expect(attached.map((envelope) => (envelope.payload as { source: string }).source)).toEqual(['drop']);
+      });
+    } finally {
+      removeGuard();
+    }
+  });
+
+  // macOS: the app keeps the web view from opening a dropped file and asks
+  // the page where it was let go, since the page never saw the drag.
+  it('asks the app to attach a file it took from a drop only when the point is on the message box', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host);
+    const thread = document.querySelector('.chat-content')!;
+    const field = document.querySelector('.composer textarea')!;
+    const hit = vi.fn<(x: number, y: number) => Element | null>();
+    const original = document.elementFromPoint;
+    document.elementFromPoint = hit;
+    try {
+      hit.mockReturnValue(thread);
+      act(() => host.deliver('file_dropped', { dropId: 'drop-1', x: 200, y: 300 }));
+      expect(hit).toHaveBeenCalledWith(200, 300);
+      expect(host.lastOfType('attach_dropped_file')).toBeUndefined();
+
+      hit.mockReturnValue(field);
+      act(() => host.deliver('file_dropped', { dropId: 'drop-2', x: 200, y: 900 }));
+      expect(host.received.filter((envelope) => envelope.type === 'attach_dropped_file').map((envelope) => envelope.payload))
+        .toEqual([{ dropId: 'drop-2' }]);
+    } finally {
+      document.elementFromPoint = original;
+    }
+  });
+
+  it('asks for nothing when a file the app took lands on a chat that cannot take files', () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ projectChatBlocked: true }));
+    const original = document.elementFromPoint;
+    document.elementFromPoint = () => document.querySelector('.composer');
+    try {
+      act(() => host.deliver('file_dropped', { dropId: 'drop-1', x: 200, y: 900 }));
+      expect(host.lastOfType('attach_dropped_file')).toBeUndefined();
+    } finally {
+      document.elementFromPoint = original;
+    }
+  });
+
+  it('attaches nothing dropped on a chat that cannot take files', async () => {
+    render(<App getTransport={() => host.transport} />);
+    connect(host, emptyState({ projectChatBlocked: true }));
+    const photo = new File(['png'], 'stringy.png', { type: 'image/png' });
+    const composer = document.querySelector('.composer')!;
+
+    fireEvent.dragEnter(composer, { dataTransfer: { files: [photo], types: ['Files'] } });
+    expect(composer).not.toHaveClass('dragging');
+    fireEvent.drop(composer, { dataTransfer: { files: [photo], types: ['Files'] } });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(host.lastOfType('attach_file')).toBeUndefined();
   });
 });
 

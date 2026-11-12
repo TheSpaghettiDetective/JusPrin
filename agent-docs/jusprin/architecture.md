@@ -137,7 +137,7 @@ Decided 2026-10-24. A file reaches JusPrin in a handful of ways, and they mean o
 | Home's **Open…** button, File › Open Project (Cmd+O) | Same | Same |
 | Dropped on the Prepare canvas | Added to the open project | New project, as above. OrcaSlicer's "open as project or import geometry?" question is not asked |
 | **+ Add model** in the Plates and Project pane, File › Import (Cmd+I) | Added to the open project | Its geometry is added to the open project, without its settings (OrcaSlicer's Import) |
-| The Agent composer's + › 3D model, a drop on the Agent pane, or a request in the chat | Attached; the agent adds it to the open project (`object_import`) | Same |
+| The Agent composer's + › 3D model, a drop on the composer, or a request in the chat | Attached; the agent adds it to the open project (`object_import`) | Same |
 
 Rules that follow from the table:
 

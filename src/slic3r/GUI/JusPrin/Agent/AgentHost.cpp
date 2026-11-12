@@ -1040,6 +1040,8 @@ void AgentHost::dispatch_page_message(const std::string& envelope_json, std::str
         handle_reveal_path(envelope_id, payload);
     else if (type == Protocol::kPickAttachment)
         handle_pick_attachment(envelope_id, payload);
+    else if (type == Protocol::kAttachDroppedFile)
+        handle_attach_dropped_file(envelope_id, payload);
     else if (type == Protocol::kRefreshAccount)
         refresh_account();
     else if (type == Protocol::kRefreshAccountBox)
@@ -1520,44 +1522,67 @@ void AgentHost::handle_pick_attachment(const std::string& envelope_id, const std
         return;
     }
     m_file_picker(request, [this, envelope_id](std::vector<std::string> paths) {
-        for (const std::string& path : paths) {
-            const std::filesystem::path file = std::filesystem::u8path(path);
-            AttachmentRecord record;
-            record.id            = m_persistence.document().allocate_attachment_id();
-            record.original_name = file.filename().u8string();
-            record.source        = "picker";
-            record.state         = "staged";
-            const AttachmentClassification classification = classify_attachment(record.original_name, "");
-            record.kind        = classification.kind;
-            record.mime        = classification.mime;
-            record.stored_name = sanitize_filename(record.original_name);
-
-            std::error_code size_error;
-            const std::uintmax_t size = std::filesystem::file_size(file, size_error);
-            std::string bytes;
-            if (!size_error && size > kMaxAttachmentBytes) {
-                // Refused by its size alone, without reading it.
-                record.state = "error";
-                record.error = AgentError{"too_large", "This file is too large to attach."};
-            } else {
-                std::ifstream in(file, std::ios::binary);
-                if (in)
-                    bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-                if (size_error || !in || in.bad()) {
-                    record.state = "error";
-                    record.error = AgentError{"unreadable", "The file could not be read."};
-                }
-            }
-            if (record.state == "error") {
-                m_persistence.document().add_attachment(record, m_persistence.timestamp());
-                m_persistence.commit();
-                m_persistence.flush();
-                send_attachment_updated(record, envelope_id);
-                continue;
-            }
-            store_file_attachment(std::move(record), bytes, envelope_id);
-        }
+        for (const std::string& path : paths)
+            attach_file_from_disk(path, "picker", envelope_id);
     });
+}
+
+void AgentHost::attach_file_from_disk(const std::string& path, const std::string& source, const std::string& correlation_id)
+{
+    const std::filesystem::path file = std::filesystem::u8path(path);
+    AttachmentRecord record;
+    record.id            = m_persistence.document().allocate_attachment_id();
+    record.original_name = file.filename().u8string();
+    record.source        = source;
+    record.state         = "staged";
+    const AttachmentClassification classification = classify_attachment(record.original_name, "");
+    record.kind        = classification.kind;
+    record.mime        = classification.mime;
+    record.stored_name = sanitize_filename(record.original_name);
+
+    std::error_code size_error;
+    const std::uintmax_t size = std::filesystem::file_size(file, size_error);
+    std::string bytes;
+    if (!size_error && size > kMaxAttachmentBytes) {
+        // Refused by its size alone, without reading it.
+        record.state = "error";
+        record.error = AgentError{"too_large", "This file is too large to attach."};
+    } else {
+        std::ifstream in(file, std::ios::binary);
+        if (in)
+            bytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        if (size_error || !in || in.bad()) {
+            record.state = "error";
+            record.error = AgentError{"unreadable", "The file could not be read."};
+        }
+    }
+    if (record.state == "error") {
+        m_persistence.document().add_attachment(record, m_persistence.timestamp());
+        m_persistence.commit();
+        m_persistence.flush();
+        send_attachment_updated(record, correlation_id);
+        return;
+    }
+    store_file_attachment(std::move(record), bytes, correlation_id);
+}
+
+void AgentHost::offer_dropped_file(const std::string& path, double x, double y)
+{
+    m_dropped_file_id   = "drop-" + std::to_string(++m_dropped_file_count);
+    m_dropped_file_path = path;
+    send_envelope(Protocol::kFileDropped, json{{"dropId", m_dropped_file_id}, {"x", x}, {"y", y}}.dump());
+}
+
+void AgentHost::handle_attach_dropped_file(const std::string& envelope_id, const std::string& payload_json)
+{
+    const json payload = json::parse(payload_json);
+    // A later drop replaces an earlier one the page has not answered yet, so
+    // an answer to that earlier drop has nothing left to attach.
+    if (payload.at("dropId").get<std::string>() != m_dropped_file_id)
+        return;
+    const std::string path = std::exchange(m_dropped_file_path, {});
+    m_dropped_file_id.clear();
+    attach_file_from_disk(path, "drop", envelope_id);
 }
 
 void AgentHost::handle_remove_attachment(const std::string& envelope_id, const std::string& payload_json)

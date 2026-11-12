@@ -8,6 +8,7 @@
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Printers/HostLaneReader.hpp"
+#include "slic3r/GUI/JusPrin/Shell/DroppedFileUrl.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
@@ -16,7 +17,9 @@
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <optional>
 
+#include <wx/filename.h>
 #include <wx/filesys.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -82,6 +85,16 @@ HomeWebView::HomeWebView(wxWindow* parent, const ShellTheme& theme, MainFrame& f
     m_webview->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, &HomeWebView::on_script_message, this);
     m_webview->Bind(wxEVT_WEBVIEW_ERROR, &HomeWebView::on_load_error, this);
     m_webview->Bind(wxEVT_WEBVIEW_NAVIGATING, [this](wxWebViewEvent& event) {
+        // A file let go on Home that the page never saw (DroppedFileUrl.hpp):
+        // Home stays, and the file opens as the page's own drop would open it.
+        if (const std::optional<wxString> file =
+                dropped_file(event.GetURL(), wxString::FromUTF8(home_page_path().string()))) {
+            event.Veto();
+            // After the drop has finished: opening shows dialogs and switches
+            // screens, which must not run inside the web view's callback.
+            CallAfter([this, path = *file]() { m_backend->open_dropped_path(path); });
+            return;
+        }
         // Every (re)load needs a fresh handshake before other traffic.
         m_host->reset_page();
         event.Skip();

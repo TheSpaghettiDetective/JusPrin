@@ -314,6 +314,10 @@ public:
     using FilePickerFn = std::function<void(const FilePickerRequest& request,
                                             std::function<void(std::vector<std::string> paths)> done)>;
     void set_file_picker(FilePickerFn picker);
+    // A file let go on the page at (x, y) in page pixels, which the web view
+    // did not open. The page decides whether it landed on the message box
+    // (file_dropped); only the latest drop can still be attached.
+    void offer_dropped_file(const std::string& path, double x, double y);
 
     // The active conversation's messages, straight from the document.
     std::vector<ConversationMessage> conversation() const;
@@ -439,6 +443,10 @@ private:
     void handle_draft_update(const std::string& payload_json);
     void handle_attach_file(const std::string& envelope_id, const std::string& payload_json);
     void handle_pick_attachment(const std::string& envelope_id, const std::string& payload_json);
+    void handle_attach_dropped_file(const std::string& envelope_id, const std::string& payload_json);
+    // Reads one file the person chose or dropped and stages it, or records
+    // why it could not be.
+    void attach_file_from_disk(const std::string& path, const std::string& source, const std::string& correlation_id);
     void handle_set_chat_model(const std::string& envelope_id, const std::string& payload_json);
     // The active chat's choice, or the default provider's default model.
     ChatModelChoice chat_model_choice(const std::string& conversation_id) const;
@@ -738,6 +746,10 @@ private:
     // What this host last wrote there, so an unchanged list costs no write.
     std::map<std::string, std::string>      m_chat_titles_kept;
     FilePickerFn                    m_file_picker;
+    // The last file offered by offer_dropped_file, until the page answers.
+    std::string                     m_dropped_file_id;
+    std::string                     m_dropped_file_path;
+    unsigned                        m_dropped_file_count{0};
     std::string                     m_mcp_discovery_path;
     std::string                     m_mcp_edit_tool;
     std::optional<Mcp::ConfigEdit>  m_mcp_edit;

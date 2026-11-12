@@ -92,6 +92,10 @@ inline constexpr const char* kRevealPath         = "reveal_path";
 // attachment_updated, the same as a file the page read itself. Added
 // additively; the native_file_picker capability advertises it.
 inline constexpr const char* kPickAttachment     = "pick_attachment";
+// The answer to file_dropped when the file was let go on the message box:
+// {dropId}. The host attaches the file it holds for that drop, the same way
+// as one chosen in its file dialog; the page never names a path.
+inline constexpr const char* kAttachDroppedFile  = "attach_dropped_file";
 // The active chat's provider, model and thinking level, from the composer's
 // pickers: {provider, model, effort}. It applies from the next turn. Added
 // additively; the model_choice capability advertises it.
@@ -140,6 +144,11 @@ inline constexpr const char* kAssistantStopped   = "assistant_stopped";
 inline constexpr const char* kToolActivity       = "tool_activity";
 inline constexpr const char* kBridgeError        = "bridge_error";
 inline constexpr const char* kAttachmentUpdated  = "attachment_updated";
+// A file let go on the page that the web view would have opened in place of
+// the page (AgentWebView cancels that): {dropId, x, y}, the point in page
+// pixels. The page answers attach_dropped_file when the point is on the
+// message box, and nothing otherwise.
+inline constexpr const char* kFileDropped        = "file_dropped";
 inline constexpr const char* kSetupStatus        = "setup_status";
 // Which providers have a stored key, never the key: {keys: [{provider, hint,
 // rejected, account?}]}, hint as api_key_hint() writes it, rejected when the
