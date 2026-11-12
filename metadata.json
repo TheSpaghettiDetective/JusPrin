@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76ZW73VPJG11DYW43JJWPJY",
+  "strategy": "manual-commit",
+  "branch": "jusprin-dev",
+  "checkpoints_count": 9,
+  "files_touched": [
+    "docs/guide/checked-version.txt",
+    "docs/guide/pictures/ai-chats-and-account/earlier-chat.png",
+    "docs/guide/pictures/print-settings/all-settings.png",
+    "docs/guide/pictures/print-settings/revert-to-here.png",
+    "docs/guide/pictures/projects-and-files/project-tab.png",
+    "docs/guide/pictures/slicing-and-printing/print-history.png"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 108,
+    "cache_creation_tokens": 278476,
+    "cache_read_tokens": 9932051,
+    "output_tokens": 22168,
+    "api_call_count": 54
+  }
+}
