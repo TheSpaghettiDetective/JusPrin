@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M78N4EP7E8PQ7QR2C82WM3JX",
+  "strategy": "manual-commit",
+  "branch": "claude/no-preset-prompt-on-chip-switch",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "agent-docs/jusprin/orca-integration-guide.md",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.cpp",
+    "src/slic3r/GUI/JusPrin/Shell/SetupCommands.hpp",
+    "src/slic3r/GUI/JusPrin/Shell/ShellController.cpp",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 262,
+    "cache_creation_tokens": 665498,
+    "cache_read_tokens": 32125071,
+    "output_tokens": 74029,
+    "api_call_count": 131
+  }
+}
