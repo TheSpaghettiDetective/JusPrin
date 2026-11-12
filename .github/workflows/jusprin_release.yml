@@ -174,8 +174,6 @@ jobs:
           title="JusPrin $VERSION"
           if [ "$SIGNED_MACOS" != "true" ]; then
             title="$title (UNSIGNED TEST BUILD: do not publish)"
-          else
-            title="$title (Windows unsigned)"
           fi
           if [ "$GUIDE_CHECKED" != "true" ]; then
             title="$title (guide not checked)"
