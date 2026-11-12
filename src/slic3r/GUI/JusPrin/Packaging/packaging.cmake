@@ -34,6 +34,25 @@ set(CPACK_NSIS_MUI_ICON "${CPACK_PACKAGE_ICON}")
 set(CPACK_NSIS_MUI_UNIICON "${CPACK_PACKAGE_ICON}")
 # The executable keeps OrcaSlicer's file name; the shortcuts are called JusPrin.
 set(CPACK_PACKAGE_EXECUTABLES "orca-slicer;JusPrin")
+# JusPrin's pictures on the installer's pages, drawn by Brand/brand_logo.py.
+# The side picture is on the welcome and finish pages; the header picture is
+# at the top left of the others, where NSIS cannot draw the .ico CPack uses
+# when no header picture is set. Like the icon, each needs a backslash before
+# the file name.
+set(_jusprin_packaging "${CMAKE_SOURCE_DIR}/src/slic3r/GUI/JusPrin/Packaging")
+set(CPACK_NSIS_MUI_WELCOMEFINISHPAGE_BITMAP "${_jusprin_packaging}\\\\installer-side.bmp")
+set(CPACK_NSIS_MUI_HEADERIMAGE "${_jusprin_packaging}\\\\installer-header.bmp")
+# The line above the buttons says JusPrin and its version, not "Nullsoft Install System".
+set(CPACK_NSIS_BRANDING_TEXT "JusPrin ${JUSPRIN_VERSION}")
+# A "Run JusPrin" box on the finish page; installer.nsh starts the app.
+set(CPACK_NSIS_MUI_FINISHPAGE_RUN "orca-slicer.exe")
+# CPack copies CPACK_NSIS_* values into CPackConfig.cmake unescaped, so the
+# path's backslashes are doubled, as for OrcaSlicer's signing include.
+file(TO_NATIVE_PATH "${_jusprin_packaging}/installer.nsh" _jusprin_nsh)
+string(REPLACE "\\" "\\\\" _jusprin_nsh "${_jusprin_nsh}")
+set(CPACK_NSIS_DEFINES "!include \\\"${_jusprin_nsh}\\\"")
+# Runs after OrcaSlicer's install rules: it removes files only developers need.
+add_subdirectory("${_jusprin_packaging}/InstallCleanup" "${CMAKE_BINARY_DIR}/jusprin/InstallCleanup")
 # Not used (the generator is NSIS), but never OrcaSlicer's upgrade code.
 set(CPACK_WIX_UPGRADE_GUID "4f6d1c0e-6a3b-4b0e-9a57-3d2c8e1f7b42")
 

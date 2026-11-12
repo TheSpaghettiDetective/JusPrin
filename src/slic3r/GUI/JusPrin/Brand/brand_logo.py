@@ -12,7 +12,8 @@ Output is flat paths filled with a colour or one linear gradient, so nanosvg,
 the application's SVG renderer, draws it without masks or text elements.
 
 Writes resources/jusprin/branding/*.svg, resources/jusprin/overlay/images/*,
-resources/jusprin/images/JusPrin.icns and .ico, and the AppImage icon.
+resources/jusprin/images/JusPrin.icns and .ico, the AppImage icon and the
+Windows installer's pictures.
 Needs skia-pathops and fonttools, plus rsvg-convert, iconutil (macOS) and
 ImageMagick for the raster icons:
 
@@ -29,7 +30,8 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 BRANDING = os.path.join(ROOT, 'resources/jusprin/branding')
 OVERLAY = os.path.join(ROOT, 'resources/jusprin/overlay/images')
 ICONS = os.path.join(ROOT, 'resources/jusprin/images')
-APPIMAGE_ICON = os.path.join(ROOT, 'src/slic3r/GUI/JusPrin/Packaging/JusPrin.png')
+PACKAGING = os.path.join(ROOT, 'src/slic3r/GUI/JusPrin/Packaging')
+APPIMAGE_ICON = os.path.join(PACKAGING, 'JusPrin.png')
 FONT = os.path.join(ROOT, 'resources/fonts/HarmonyOS_Sans_SC_Bold.ttf')
 ORBIT, BLOOM, INK, MIST, GREY = '#3A2D64', '#CE84B7', '#17131F', '#F6F2F7', '#262E30'
 K = 0.5522847498
@@ -136,6 +138,21 @@ def raster_icons(icon_svg):
         shutil.copy(png(192), os.path.join(OVERLAY, 'OrcaSlicer_192px.png'))
         shutil.copy(png(256), APPIMAGE_ICON)
 
+# The Windows installer's pictures, as the 24-bit BMPs NSIS needs: the side of
+# its welcome and finish pages (164x314, the stacked lockup on Mist) and the
+# top-left of every other page (150x57, the horizontal lockup on White).
+def installer_bitmaps():
+    side = '<rect width="164" height="314" fill="%s"/>' % MIST + lockup_stack(164, 314, 84, 112, 10, 92, ORBIT)
+    k = 134 / 317.6
+    header = '<rect width="150" height="57" fill="#FFFFFF"/>' + lockup_row(150, 57, k, 8, (57 - 96 * k) / 2, ORBIT)
+    with tempfile.TemporaryDirectory() as tmp:
+        for name, w, h, body in (('installer-side', 164, 314, side), ('installer-header', 150, 57, header)):
+            master = os.path.join(tmp, name + '.svg'); png = os.path.join(tmp, name + '.png')
+            open(master, 'w').write(svg(w, h, body))
+            subprocess.run(['rsvg-convert', '-w', str(w), '-h', str(h), master, '-o', png], check=True)
+            subprocess.run(['magick', png, '-background', '#FFFFFF', '-flatten', '-type', 'TrueColor',
+                            'BMP3:' + os.path.join(PACKAGING, name + '.bmp')], check=True)
+
 if __name__ == '__main__':
     # Source marks, 120x120.
     write(BRANDING, 'jusprin-mark.svg', svg(120, 120, mark_el(1, 0, 0, 'gradient')))
@@ -167,3 +184,4 @@ if __name__ == '__main__':
             '<rect x="104" y="104" width="816" height="812" rx="148" fill="url(#t)"/>'
             '<path fill="url(#g)" d="%s"/>' % d(MARK, c, tx, ty))
     raster_icons(svg(1024, 1024, icon))
+    installer_bitmaps()
