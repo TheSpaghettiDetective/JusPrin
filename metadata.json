@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M785JCHQCQKPTFB0TY5XJ01Y",
+  "strategy": "manual-commit",
+  "branch": "claude/linux-launch-fixes",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "resources/jusprin/welcome/README.md",
+    "resources/jusprin/welcome/welcome-clip.webm",
+    "src/slic3r/GUI/JusPrin/HomeUI/src/components/Onboarding.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
