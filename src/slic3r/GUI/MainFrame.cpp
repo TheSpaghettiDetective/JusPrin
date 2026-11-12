@@ -3134,13 +3134,6 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(import_menu, wxID_ANY, _L("Import Configs") + dots /*+ "\t" + ctrl + "I"*/, _L("Load configs"),
             [this](wxCommandEvent&) { load_config_file(); }, "menu_import", nullptr,
             [](){return true; }, this);
-        // JusPrin: an OrcaSlicer or JusPrin 1 folder's printers (JusPrin/Home/OrcaImportWindow.hpp)
-        append_menu_item(import_menu, wxID_ANY, _L("Import from OrcaSlicer") + dots, _L("Import printers from OrcaSlicer"),
-            [](wxCommandEvent&) { JusPrin::installed_shell()->open_orca_import(); }, "menu_import", nullptr,
-            []() { return JusPrin::installed_shell() != nullptr; }, this);
-        append_menu_item(import_menu, wxID_ANY, _L("Import from JusPrin 1") + dots, _L("Import printers from JusPrin 1"),
-            [](wxCommandEvent&) { JusPrin::installed_shell()->open_jusprin1_import(); }, "menu_import", nullptr,
-            []() { return JusPrin::installed_shell() != nullptr; }, this);
 
         append_submenu(fileMenu, import_menu, wxID_ANY, _L("Import"), "");
 

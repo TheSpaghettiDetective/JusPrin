@@ -4549,7 +4549,7 @@ button.prefs-button:hover:enabled {
   font: var(--font-body-small);
 }
 
-/* File › Import › Import from OrcaSlicer…'s and Import from JusPrin 1…'s window (canvas boards
+/* Printer › Import printers from OrcaSlicer…'s and Import printers from JusPrin 1…'s window (canvas boards
    orca-import-02 to 05): what it found above, the buttons in a bar under a
    hairline. The window's title bar carries the title. */
 .app--orca-import {

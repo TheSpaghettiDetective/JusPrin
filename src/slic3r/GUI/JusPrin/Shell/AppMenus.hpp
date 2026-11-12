@@ -51,7 +51,8 @@ public:
 
     // The menu shortcuts JusPrin answers itself: Cmd/Ctrl+N, O, S, Shift+S
     // and R. Whether the command ran or not, true means the key is spent: on
-    // Home, Cmd+S must not fall through to OrcaSlicer's Save.
+    // Home, Cmd+S must not fall through to OrcaSlicer's Save, nor OrcaSlicer's
+    // import key (Cmd/Ctrl+I unless rebound) to its Import.
     bool run_shortcut(const wxKeyEvent& event);
 
     // For the integration harness.
@@ -81,6 +82,7 @@ private:
     wxMenuItem* separator(wxMenu* menu);
     wxMenuItem* submenu(wxMenu* parent, wxMenu* menu, const wxString& label);
     void        arrange(wxMenu* menu, const std::vector<wxMenuItem*>& items);
+    void        grey_on_home(int id);
     bool        run(int id);
 
     void build_file(wxMenu* menu);
@@ -94,6 +96,7 @@ private:
     void on_char_hook(wxKeyEvent& event);
     void on_command(wxCommandEvent& event);
     void on_update_ui(wxUpdateUIEvent& event);
+    void on_update_off_home(wxUpdateUIEvent& event);
     void on_file_menu_open(wxMenuEvent& event);
     void on_recent(wxCommandEvent& event);
 
@@ -107,6 +110,7 @@ private:
 
     std::map<int, Command>               m_commands;
     std::vector<std::pair<wxMenu*, int>> m_bound;
+    std::vector<int>                     m_greyed_on_home;
     std::vector<Arranged>                m_arranged;
     // JusPrin's items placed in OrcaSlicer's menus; deleted once those menus
     // are put back. Items in JusPrin's own menus go with their menu.

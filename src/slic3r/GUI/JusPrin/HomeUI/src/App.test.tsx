@@ -893,7 +893,7 @@ describe('first launch', () => {
       { kind: 'filament', name: 'My PLA', renamedTo: '', imported: true, reason: '' },
       missingBase,
       { kind: 'filament', name: 'Broken PLA', renamedTo: '', imported: false,
-        reason: 'JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…' },
+        reason: 'JusPrin couldn’t read this file. To try again, choose Printer › Import printers from OrcaSlicer…' },
       { kind: 'process', name: '0.20mm Tuned', renamedTo: '', imported: true, reason: '' },
     ]));
     // The title stays, whatever failed; the box holds only the printers imported.
@@ -908,8 +908,8 @@ describe('first launch', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show details' }));
     const line = (name: string) => screen.getByText(name).closest('li')!;
     expect(line('Silk Red')).toHaveTextContent(missingBase.reason);
-    expect(line('Broken PLA')).toHaveTextContent('JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…');
-    // Trying again is File › Import, as the details say: Continue is the only other button.
+    expect(line('Broken PLA')).toHaveTextContent('JusPrin couldn’t read this file. To try again, choose Printer › Import printers from OrcaSlicer…');
+    // Trying again is Printer › Import printers from…, as the details say: Continue is the only other button.
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Hide details', 'Continue']);
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(host.lastOfType('onboarding_import_continue')).toBeDefined();

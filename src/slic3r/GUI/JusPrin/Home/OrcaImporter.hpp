@@ -1,8 +1,8 @@
 #pragma once
 
 // Bringing the printers of an OrcaSlicer folder, or of a JusPrin 1 folder,
-// into JusPrin, for the first launch's Printers step and for File › Import ›
-// Import from OrcaSlicer… and Import from JusPrin 1…: finding them,
+// into JusPrin, for the first launch's Printers step and for Printer ›
+// Import printers from OrcaSlicer… and Import printers from JusPrin 1…: finding them,
 // installing the ones ticked in the other app from JusPrin's own profiles,
 // and importing its saved presets through OrcaSlicer's
 // PresetBundle::import_presets. OrcaImport.hpp reads the files.
@@ -60,7 +60,7 @@ std::filesystem::path import_app_folder(const ImportApp& app);
 const char* orca_import_kind(OrcaImportItem::Kind kind);
 // Why an item was not imported, for the person, as a sentence that says
 // what to do where there is something: "JusPrin couldn't read this file. To
-// try again, choose File › Import › Import from OrcaSlicer…" (the menu item
+// try again, choose Printer › Import printers from OrcaSlicer…" (the menu item
 // of the app it came from), or for a
 // missing base "Not imported, because it's based on Kingroon PLA Silk, which
 // JusPrin doesn't have. It stays in OrcaSlicer. When you prepare a print,

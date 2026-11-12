@@ -166,7 +166,7 @@ struct PrinterCardMetrics { int column_width{0}; int radius{0}; };
 // JusPrin's Preferences window; its page reads the rest of the group.
 struct PreferencesMetrics { int width{0}; int height{0}; };
 
-// File › Import › Import from OrcaSlicer…'s window.
+// Printer › Import printers from OrcaSlicer…'s window.
 struct OrcaImportMetrics { int width{0}; int height{0}; };
 
 // Help › JusPrin guide…'s window; its page reads the rest of the group.

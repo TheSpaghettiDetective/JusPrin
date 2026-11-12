@@ -136,7 +136,7 @@ struct OrcaImportChoice
 OrcaImportChoice orca_import_chosen(const OrcaPresetFiles& presets, const std::vector<OrcaImportItem>& profile_printers,
                                     const std::vector<std::string>& printers);
 
-// What File › Import › Import from OrcaSlicer… (or JusPrin 1…) offers
+// What Printer › Import printers from OrcaSlicer… (or JusPrin 1…) offers
 // before anything is imported, so that its sentence and its list agree.
 struct OrcaImportOffer
 {

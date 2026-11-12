@@ -21,7 +21,7 @@ const panel = query.get('panel') === 'printer';
 // JusPrin's Preferences window loads it with ?panel=preferences: its own
 // surface, drawn with the same Agent connection rows. See PreferencesApp.tsx.
 const preferences = query.get('panel') === 'preferences';
-// File › Import › Import from OrcaSlicer…'s and Import from JusPrin 1…'s window loads it with
+// Printer › Import printers from OrcaSlicer…'s and Import printers from JusPrin 1…'s window loads it with
 // ?panel=orca-import. See OrcaImportApp.tsx.
 const orcaImport = query.get('panel') === 'orca-import';
 // Help › JusPrin guide…'s window loads it with ?panel=guide. See GuideApp.tsx.

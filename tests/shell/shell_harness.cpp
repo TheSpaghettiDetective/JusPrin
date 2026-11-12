@@ -8663,12 +8663,26 @@ private:
         check(menu_labels(labelled(menus->file_menu(), _L("Export"))->GetSubMenu()) ==
                   std::vector<wxString>{_L("Project 3MF…"), "---", _L("Export G-code") + dots},
               "app_menus_export_is_project_3mf_and_gcode");
+        // Import adds models; the printers of other apps are in Printer, and
+        // OrcaSlicer's Import Configs is out. No item carries OrcaSlicer's
+        // blank picture, which drew an empty square and, on the Mac, indented
+        // every item but the first.
+        wxMenu* imports = labelled(menus->file_menu(), _L("Import"))->GetSubMenu();
+        check(menu_labels(imports) ==
+                  std::vector<wxString>{_L("Import 3MF/STL/STEP/SVG/OBJ/AMF") + dots, _L("Import ZIP Archive") + dots},
+              "app_menus_import_is_models_only");
+        bool imports_unpictured = true;
+        for (wxMenuItem* item : imports->GetMenuItems())
+            imports_unpictured = imports_unpictured && !item->GetBitmapBundle().IsOk();
+        check(imports_unpictured, "app_menus_import_items_have_no_picture");
         check(menu_labels(menus->print_menu()) ==
                   std::vector<wxString>{_L("Slice plate"), _L("Slice all plates"), "---", _L("Check print…"), _L("Print…"),
                                         _L("Print all plates…")},
               "app_menus_print_menu");
         check(menu_labels(menus->printer_menu()) ==
-                  std::vector<wxString>{_L("Add a printer…"), "---", _L("Printer settings…"), _L("Ask AI about printer settings…"),
+                  std::vector<wxString>{_L("Add a printer…"), _L("Import printers from OrcaSlicer…"),
+                                        _L("Import printers from JusPrin 1…"), "---", _L("Printer settings…"),
+                                        _L("Ask AI about printer settings…"),
                                         _L("Filament settings…"), _L("Ask AI about filament settings…"), "---", _L("Calibrate…")},
               "app_menus_printer_menu");
         const std::vector<wxString> help = menu_labels(menus->help_menu());
@@ -8722,6 +8736,15 @@ private:
         edit->UpdateUI(m_frame->GetEventHandler());
         check(labelled(edit, _L("Duplicate Current Plate")) != nullptr && !enabled(edit, _L("Duplicate Current Plate")),
               "app_menus_edit_greys_out_duplicate_plate_on_home");
+        // Import would add the model to the project hidden behind Home, and
+        // OrcaSlicer leaves both items on there.
+        imports->UpdateUI(m_frame->GetEventHandler());
+        check(!enabled(imports, _L("Import 3MF/STL/STEP/SVG/OBJ/AMF") + dots) &&
+                  !enabled(imports, _L("Import ZIP Archive") + dots),
+              "app_menus_import_greyed_out_on_home");
+        check(enabled(menus->printer_menu(), _L("Import printers from OrcaSlicer…")) &&
+                  enabled(menus->printer_menu(), _L("Import printers from JusPrin 1…")),
+              "app_menus_printer_imports_work_from_home");
         check(!menus->view_menu()->FindItemByPosition(0)->IsEnabled() && !menus->view_menu()->FindItemByPosition(1)->IsEnabled() &&
                   !menus->view_menu()->FindItemByPosition(2)->IsEnabled(),
               "app_menus_view_greys_out_home_and_panels_on_home");
@@ -8763,6 +8786,11 @@ private:
         wxKeyEvent quit_key(save);
         quit_key.m_keyCode = 'Q';
         check(menus->run_shortcut(save) && !menus->run_shortcut(quit_key), "app_menus_answer_their_own_shortcuts_only");
+        // So is OrcaSlicer's import key, whose handler would open Import's
+        // file dialog for the project behind Home.
+        wxKeyEvent import_key(save);
+        import_key.m_keyCode = 'I';
+        check(menus->run_shortcut(import_key), "app_menus_spend_the_import_key_on_home");
     }
 
     struct PaneStep
@@ -14022,12 +14050,16 @@ private:
             check(read(source.string()) == original && autosave->state() == Workspace::ProjectAutosave::State::Saved,
                   "file_save_menu_leaves_the_opened_3mf_alone");
 
-            // File > Import offers the printers of the other two apps.
-            wxMenuItem* import_item = labelled(menus->file_menu(), _L("Import"));
-            wxMenu*     imports     = import_item != nullptr ? import_item->GetSubMenu() : nullptr;
-            check(imports != nullptr && labelled(imports, _L("Import from OrcaSlicer") + dots) != nullptr &&
-                      labelled(imports, _L("Import from JusPrin 1") + dots) != nullptr,
+            // Printer offers the printers of the other two apps, and File ›
+            // Import adds models to the project in front.
+            check(labelled(menus->printer_menu(), _L("Import printers from OrcaSlicer…")) != nullptr &&
+                      labelled(menus->printer_menu(), _L("Import printers from JusPrin 1…")) != nullptr,
                   "app_menus_import_from_other_apps");
+            wxMenu* imports = labelled(menus->file_menu(), _L("Import"))->GetSubMenu();
+            imports->UpdateUI(m_frame->GetEventHandler());
+            check(labelled(imports, _L("Import 3MF/STL/STEP/SVG/OBJ/AMF") + dots)->IsEnabled() &&
+                      labelled(imports, _L("Import ZIP Archive") + dots)->IsEnabled(),
+                  "app_menus_import_works_on_prepare");
 
             // File > New project: an empty project, the one left behind saved.
             const std::string before_new = id();

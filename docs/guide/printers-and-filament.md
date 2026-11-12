@@ -75,7 +75,7 @@ Open the printer card's menu on Home (**Printer actions**):
 
 ## Bring printers from another slicer
 
-In the **File** menu choose **Import**, then **Import from JusPrin 1**, or the item above it, which imports from the slicer JusPrin is built on. The printers come with their filaments and print settings, and the other program keeps its own copy. JusPrin offers the same the first time it starts, when it finds them on the computer.
+In the **Printer** menu choose **Import printers from JusPrin 1…**, or the item above it, which imports from the slicer JusPrin is built on. The printers come with their filaments and print settings, and the other program keeps its own copy. JusPrin offers the same the first time it starts, when it finds them on the computer.
 
 ## Calibrate a printer or a filament
 

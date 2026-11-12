@@ -16,9 +16,11 @@
 #include "slic3r/GUI/BBLTopbar.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/KeyChord.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/Notebook.hpp"
+#include "slic3r/GUI/Shortcuts.hpp"
 
 #include <wx/event.h>
 #include <wx/menu.h>
@@ -155,14 +157,8 @@ void AppMenus::install()
 #else
         wxMenu* edit = top_submenu(m_frame, _L_CONTEXT("Edit", "Menu"));
 #endif
-        // OrcaSlicer leaves Duplicate Current Plate on everywhere. On Home it
-        // would add a plate to the project behind Home, out of sight. This
-        // runs before OrcaSlicer's update handler, which the frame bound
-        // first, and answers for it.
-        const int id = stock_item(edit, _L("Duplicate Current Plate"))->GetId();
-        m_frame.Bind(wxEVT_UPDATE_UI, &AppMenus::on_update_ui, this, id);
-        m_bound.emplace_back(edit, id);
-        m_commands.emplace(id, Command{{}, [this] { return !home(); }});
+        // It would add a plate to the project behind Home, out of sight.
+        grey_on_home(stock_item(edit, _L("Duplicate Current Plate"))->GetId());
     }
 #ifdef __APPLE__
     open_about_from(bar->OSXGetAppleMenu());
@@ -235,6 +231,9 @@ void AppMenus::uninstall()
     }
     m_bound.clear();
     m_commands.clear();
+    for (const int id : m_greyed_on_home)
+        m_frame.Unbind(wxEVT_UPDATE_UI, &AppMenus::on_update_off_home, this, id);
+    m_greyed_on_home.clear();
 
     // Last change first, so each menu goes back to the items it had.
     for (auto it = m_arranged.rbegin(); it != m_arranged.rend(); ++it)
@@ -262,6 +261,8 @@ void AppMenus::uninstall()
 
 bool AppMenus::run_shortcut(const wxKeyEvent& event)
 {
+    if (home() && wxGetApp().shortcuts().lookup(ShortcutContext::Global, KeyChord::from_event(event)) == Shortcut::ImportModel)
+        return true;
     int id = 0;
     const int key = event.GetKeyCode();
     if (event.GetModifiers() == wxMOD_CMD) {
@@ -331,11 +332,24 @@ void AppMenus::arrange(wxMenu* menu, const std::vector<wxMenuItem*>& items)
     }
 }
 
+// One of OrcaSlicer's items that would act on the project hidden behind Home,
+// greyed out there. Elsewhere OrcaSlicer's own update handler, which the frame
+// bound first and so runs after this one, answers; the item must have one,
+// or it stays greyed out after Home.
+void AppMenus::grey_on_home(int id)
+{
+    m_frame.Bind(wxEVT_UPDATE_UI, &AppMenus::on_update_off_home, this, id);
+    m_greyed_on_home.push_back(id);
+}
+
 void AppMenus::build_file(wxMenu* menu)
 {
     wxMenuItem* import_item = stock_item(menu, _L("Import"));
+    wxMenu*     imports     = import_item->GetSubMenu();
     wxMenuItem* export_item = stock_item(menu, _L("Export"));
     wxMenu*     exports     = export_item->GetSubMenu();
+    if (imports == nullptr)
+        throw std::runtime_error("OrcaSlicer's File menu has no Import submenu");
 #ifdef __APPLE__
     wxMenuItem* quit        = menu->FindChildItem(wxID_EXIT);
 #else
@@ -383,6 +397,24 @@ void AppMenus::build_file(wxMenu* menu)
     // other exports (meshes, a 3MF without its extensions, the Bambu sliced
     // 3MF, toolpaths, preset bundles) stay in classic view.
     arrange(exports, {project, separator(exports), stock_item(exports, _L("Export G-code") + dots)});
+
+    // Import adds models to the open project. OrcaSlicer's Import Configs
+    // loads its own profile files; Printer › Import printers from… brings in
+    // printers instead. OrcaSlicer gives these items a blank picture, which
+    // draws an empty square, except the first on the Mac, which it leaves
+    // unindented. Each goes back as an item of the same id without one, so
+    // OrcaSlicer's handlers, bound by id, still answer it.
+    const auto unpictured = [imports](wxMenuItem* stock) {
+        return new wxMenuItem(imports, stock->GetId(), stock->GetItemLabel(), stock->GetHelp());
+    };
+    wxMenuItem* import_model = stock_keyed_item(imports, _L("Import 3MF/STL/STEP/SVG/OBJ/AMF") + dots);
+    wxMenuItem* import_zip   = stock_item(imports, _L("Import ZIP Archive") + dots);
+    grey_on_home(import_model->GetId());
+    // OrcaSlicer binds no update handler to the ZIP item, so it was always on.
+    m_frame.Bind(wxEVT_UPDATE_UI, &AppMenus::on_update_ui, this, import_zip->GetId());
+    m_bound.emplace_back(imports, import_zip->GetId());
+    m_commands.emplace(import_zip->GetId(), Command{{}, [this] { return !home(); }});
+    arrange(imports, {unpictured(import_model), unpictured(import_zip)});
 
     std::vector<wxMenuItem*> items{new_project, open,        m_recent_item, separator(menu), save,
                                    versions,    separator(menu), import_item, export_item};
@@ -526,6 +558,10 @@ wxMenu* AppMenus::build_printer()
     auto* menu = new wxMenu();
     const auto placeholder = [] { return wxGetApp().preset_bundle->printers.get_selected_preset().is_default; };
     menu->Append(command(menu, _L("Add a printer…"), {[this] { m_shell.open_printer_conversation(); }}));
+    // The printers OrcaSlicer or JusPrin 1 has saved, with their filaments
+    // and print settings, as the first launch offers them.
+    menu->Append(command(menu, _L("Import printers from OrcaSlicer…"), {[this] { m_shell.open_orca_import(); }}));
+    menu->Append(command(menu, _L("Import printers from JusPrin 1…"), {[this] { m_shell.open_jusprin1_import(); }}));
     menu->AppendSeparator();
     // OrcaSlicer's placeholder is no printer at all, so its settings are
     // adding one.
@@ -613,6 +649,14 @@ void AppMenus::on_update_ui(wxUpdateUIEvent& event)
         event.Check(command.checked());
     if (command.label)
         event.SetText(command.label());
+}
+
+void AppMenus::on_update_off_home(wxUpdateUIEvent& event)
+{
+    if (home())
+        event.Enable(false);
+    else
+        event.Skip();
 }
 
 void AppMenus::on_file_menu_open(wxMenuEvent& event)

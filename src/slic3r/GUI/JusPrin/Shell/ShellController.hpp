@@ -192,7 +192,7 @@ public:
     // The agent settings changed outside Preferences (Home's sign-in): the
     // docked agent, and an open printer chat, pick them up.
     void reload_agent_settings();
-    // File › Import › Import from OrcaSlicer… and Import from JusPrin 1…
+    // Printer › Import printers from OrcaSlicer… and Import printers from JusPrin 1…
     // (Home/OrcaImportWindow.hpp); each returns once its window is closed.
     void open_orca_import();
     void open_jusprin1_import();

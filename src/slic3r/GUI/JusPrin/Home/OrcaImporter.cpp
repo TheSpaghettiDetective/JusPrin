@@ -77,7 +77,7 @@ std::string orca_import_reason(const ImportApp& app, const OrcaImportItem& item)
     switch (item.reason) {
     // These two can go another way next time, so they say how to try again.
     case Reason::Unreadable:
-        return into_u8(wxString::Format(_L("JusPrin couldn't read this file. To try again, choose File › Import › Import from %s…"), name));
+        return into_u8(wxString::Format(_L("JusPrin couldn't read this file. To try again, choose Printer › Import printers from %s…"), name));
     case Reason::NoVersion: return into_u8(_L("Not imported. The file has no version."));
     case Reason::NotAPreset: return into_u8(_L("Not imported. It isn't a printer, filament or process preset."));
     // The file keeps only what the person changed from its base, so without
@@ -98,7 +98,7 @@ std::string orca_import_reason(const ImportApp& app, const OrcaImportItem& item)
                                            "When you add a printer, choose a similar one instead."),
                                         base, name));
     case Reason::NotLoaded:
-        return into_u8(wxString::Format(_L("JusPrin couldn't load this preset. To try again, choose File › Import › Import from %s…"), name));
+        return into_u8(wxString::Format(_L("JusPrin couldn't load this preset. To try again, choose Printer › Import printers from %s…"), name));
     case Reason::None: break;
     }
     return {};

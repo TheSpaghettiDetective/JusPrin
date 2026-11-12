@@ -33,7 +33,7 @@ namespace Slic3r::GUI::JusPrin {
 //                  header, pinned card and chips around the same thread;
 //   Preferences    JusPrin's Preferences window, whose Agent section is
 //                  where the agent is set up and changed.
-//   OrcaImport     File › Import › Import from OrcaSlicer… or from JusPrin 1…:
+//   OrcaImport     Printer › Import printers from OrcaSlicer… or from JusPrin 1…:
 //                  the printers that app's folder has that JusPrin doesn't,
 //                  and the result.
 //   Guide          Help › JusPrin guide…: the app guide, which the page

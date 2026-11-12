@@ -1,6 +1,6 @@
 #pragma once
 
-// File › Import › Import from OrcaSlicer… and Import from JusPrin 1…: the
+// Printer › Import printers from OrcaSlicer… and Import printers from JusPrin 1…: the
 // Agent page in its import mode, in a window over whatever screen is open
 // (canvas "JusPrin v2", boards orca-import-02 to 05; JusPrin 1's "works the
 // same way"). It finds the app's folder as the first launch's Printers step

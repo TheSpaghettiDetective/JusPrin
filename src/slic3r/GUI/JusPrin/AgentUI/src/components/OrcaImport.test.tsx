@@ -222,13 +222,13 @@ describe('the Import from OrcaSlicer window', () => {
 
   it('says how to try again in the details, with Done as the only other button', async () => {
     render(<OrcaImport actions={actions()} state={state({ screen: 'imported', result: [
-      { kind: 'printer', name: 'Old', renamedTo: '', imported: false, reason: 'JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…' },
+      { kind: 'printer', name: 'Old', renamedTo: '', imported: false, reason: 'JusPrin couldn’t read this file. To try again, choose Printer › Import printers from OrcaSlicer…' },
     ] })} />);
     expect(screen.queryByRole('list', { name: 'Imported' })).toBeNull();
     expect(screen.getByText('1 printer wasn’t imported. It stays in OrcaSlicer.')).toBeInTheDocument();
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Show details', 'Done']);
     await userEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    expect(screen.getByText('Old').closest('li')).toHaveTextContent('JusPrin couldn’t read this file. To try again, choose File › Import › Import from OrcaSlicer…');
+    expect(screen.getByText('Old').closest('li')).toHaveTextContent('JusPrin couldn’t read this file. To try again, choose Printer › Import printers from OrcaSlicer…');
   });
 
   it('names JusPrin 1 wherever it says OrcaSlicer, when it imports from JusPrin 1', () => {

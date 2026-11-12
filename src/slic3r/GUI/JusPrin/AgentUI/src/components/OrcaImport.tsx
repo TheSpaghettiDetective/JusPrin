@@ -1,4 +1,4 @@
-// File › Import › Import from OrcaSlicer… and Import from JusPrin 1…: the
+// Printer › Import printers from OrcaSlicer… and Import printers from JusPrin 1…: the
 // printers the app's folder has, the ones JusPrin already has marked and
 // skipped, the new filaments and settings, what it can't import and why, and
 // once imported, what became of each (canvas "JusPrin v2", boards

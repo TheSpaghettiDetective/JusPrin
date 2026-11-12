@@ -1,5 +1,5 @@
-// The Agent page in its import mode (?panel=orca-import): the window File ›
-// Import › Import from OrcaSlicer… or Import from JusPrin 1… opens. It speaks
+// The Agent page in its import mode (?panel=orca-import): the window Printer ›
+// Import printers from OrcaSlicer… or Import printers from JusPrin 1… opens. It speaks
 // the same bridge as Preferences; each button is a shell_action the window
 // carries out (Home/OrcaImportWindow.cpp).
 

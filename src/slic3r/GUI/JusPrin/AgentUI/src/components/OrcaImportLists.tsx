@@ -1,7 +1,7 @@
 // The printer list and the result lines an import from OrcaSlicer or from
 // JusPrin 1 shows: on the first launch's Printers step (Home page, canvas
-// boards 07, 17, 19 and 20) and in File › Import › Import from OrcaSlicer…
-// and Import from JusPrin 1… (this page, boards orca-import-02 to 04). Both pages draw this one markup, with its own stylesheet, so the
+// boards 07, 17, 19 and 20) and in Printer › Import printers from OrcaSlicer…
+// and Import printers from JusPrin 1… (this page, boards orca-import-02 to 04). Both pages draw this one markup, with its own stylesheet, so the
 // two cannot drift apart.
 
 import { useId, useState } from 'react';

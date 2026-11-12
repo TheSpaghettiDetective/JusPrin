@@ -890,7 +890,7 @@ export interface FilamentSessionPayload {
   copyName?: string; // the copy a change to a stock filament is saved as
 }
 
-// File › Import › Import from OrcaSlicer…'s window (canvas boards
+// Printer › Import printers from OrcaSlicer…'s window (canvas boards
 // orca-import-02 to 05): an OrcaSlicer folder's printers, with the ones
 // JusPrin has marked, and once imported, what became of each preset.
 export interface OrcaImportPayload {
