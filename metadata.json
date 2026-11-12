@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76PDZMNNAWH1DPQTJ5ACXB7",
+  "strategy": "manual-commit",
+  "branch": "claude/guide-squashed",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "AGENTS.md",
+    "docs/guide/README.md",
+    "docs/guide/print-settings.md",
+    "scripts/check_guide.py",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/guide.test.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/guide.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills.test.ts",
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/guide_questions.json",
+    "tests/project_prompt/run_guide_tests.py",
+    "tests/shell/guide_checks.json",
+    "tests/shell/run_guide_checks.py",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 458,
+    "cache_creation_tokens": 995933,
+    "cache_read_tokens": 87680855,
+    "output_tokens": 253870,
+    "api_call_count": 230
+  }
+}
