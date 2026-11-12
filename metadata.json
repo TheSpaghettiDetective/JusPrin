@@ -3,7 +3,7 @@
   "checkpoint_id": "01M78S3ZH0KFPYC5EMGGQSCWKZ",
   "strategy": "manual-commit",
   "branch": "claude/windows-installer-polish",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/Brand/brand_logo.py",
     "src/slic3r/GUI/JusPrin/Packaging/InstallCleanup/CMakeLists.txt",
@@ -19,13 +19,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 1484,
-    "cache_creation_tokens": 3689252,
-    "cache_read_tokens": 165894888,
-    "output_tokens": 338478,
-    "api_call_count": 743
+    "input_tokens": 1534,
+    "cache_creation_tokens": 3725380,
+    "cache_read_tokens": 169337859,
+    "output_tokens": 352736,
+    "api_call_count": 768
   }
 }
