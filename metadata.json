@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76Q6AE1EEDCHKYWS03KXR1M",
+  "strategy": "manual-commit",
+  "branch": "claude/guide-on-dev",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/guide/plates-and-objects.md",
+    "docs/guide/slicing-and-printing.md",
+    "docs/guide/the-app.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-plates-and-objects/SKILL.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-slicing-and-printing/SKILL.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-the-app/SKILL.md",
+    "tests/project_prompt/guide_questions.json",
+    "tests/shell/guide_checks.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 25107,
+    "cache_read_tokens": 9343987,
+    "output_tokens": 12765,
+    "api_call_count": 15,
+    "subagent_tokens": {
+      "input_tokens": 274,
+      "cache_creation_tokens": 644672,
+      "cache_read_tokens": 16590940,
+      "output_tokens": 64390,
+      "api_call_count": 137
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M76Q6AE1EEDCHKYWS03KXR1M",
+  "session_id": "95390e7d-2a7d-4904-89ef-3b773eebf825",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-12T01:50:40.694709Z",
+  "branch": "claude/guide-on-dev",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "docs/guide/plates-and-objects.md",
+    "docs/guide/slicing-and-printing.md",
+    "docs/guide/the-app.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-plates-and-objects/SKILL.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-slicing-and-printing/SKILL.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/skills/guide-the-app/SKILL.md",
+    "tests/project_prompt/guide_questions.json",
+    "tests/shell/guide_checks.json"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-2",
+  "turn_id": "e7317101480f",
+  "checkpoint_transcript_start": 2756,
+  "transcript_lines_at_start": 2756,
+  "compact_transcript_start": 374,
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 25107,
+    "cache_read_tokens": 9343987,
+    "output_tokens": 12765,
+    "api_call_count": 15,
+    "subagent_tokens": {
+      "input_tokens": 274,
+      "cache_creation_tokens": 644672,
+      "cache_read_tokens": 16590940,
+      "output_tokens": 64390,
+      "api_call_count": 137
+    }
+  },
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-12T01:50:40.308316Z",
+    "agent_lines": 14,
+    "agent_removed": 15,
+    "human_added": 3005,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 3020,
+    "total_lines_changed": 3242,
+    "agent_percentage": 0.8945095619987662,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 15,
+      "agent_lines_removed": 15,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 385,
+      "user_lines_removed": 0,
+      "agent_lines_added": 15,
+      "agent_lines_removed": 15,
+      "user_added_per_file": {
+        ".claude/skills/entire-search/SKILL.md": 22,
+        ".claude/skills/figma-agent-design/SKILL.md": 132,
+        ".claude/skills/figma-agent-design/agents/openai.yaml": 4,
+        ".claude/skills/figma-agent-design/references/design-system-governance.md": 103,
+        ".claude/skills/figma-agent-design/references/prompt-and-review.md": 124
+      }
+    }
+  ]
+}
