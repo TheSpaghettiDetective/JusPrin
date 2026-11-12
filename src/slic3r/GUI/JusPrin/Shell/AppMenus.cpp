@@ -464,6 +464,7 @@ void AppMenus::build_help(wxMenu* menu)
                                                           stock_item(menu, _L("Benchmark 3D Scene")),
                                                           stock_item(menu, _L("Show Tip of the Day"))});
     std::vector<wxMenuItem*> items;
+    items.push_back(command(menu, _L("JusPrin guide…"), {[this] { m_shell.open_guide(); }}));
     items.push_back(command(menu, _L("Ask AI…"), {[this] {
         if (home())
             m_frame.select_tab(TAB_ID_PREPARE);

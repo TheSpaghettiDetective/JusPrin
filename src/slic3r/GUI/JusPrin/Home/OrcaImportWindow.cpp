@@ -10,7 +10,6 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
-#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 
 #include <nlohmann/json.hpp>
@@ -53,12 +52,8 @@ OrcaImportWindow::OrcaImportWindow(MainFrame& frame, const ShellTheme& theme, Wo
     SetSizer(new wxBoxSizer(wxVERTICAL));
     look(std::nullopt);
 
-    // Its own document, never the project's: the window holds no chat.
-    Agent::ProjectPersistence::Config storage;
-    storage.in_memory = true;
-    m_persistence     = std::make_unique<Agent::ProjectPersistence>(workspace, std::move(storage));
-    m_view = new AgentWebView(this, theme, workspace, *m_persistence, Agent::load_agent_runtime(wxGetApp().app_config).availability,
-                              {}, {}, AgentPageMode::OrcaImport);
+    m_view = new AgentWebView(this, theme, workspace, Agent::load_agent_runtime(wxGetApp().app_config).availability, {}, {},
+                              AgentPageMode::OrcaImport);
     m_view->SetName(GetTitle());
     GetSizer()->Add(m_view, 1, wxEXPAND);
 
@@ -73,18 +68,9 @@ OrcaImportWindow::OrcaImportWindow(MainFrame& frame, const ShellTheme& theme, Wo
     CentreOnParent();
 }
 
-OrcaImportWindow::~OrcaImportWindow()
-{
-    // The host inside the view holds this window's document by reference,
-    // and wx would destroy the view only after the document is gone.
-    if (m_view != nullptr) {
-        m_view->host().set_session_state_provider({});
-        m_view->host().set_page_message_handler({});
-        delete m_view;
-        m_view = nullptr;
-    }
-    m_persistence.reset();
-}
+// The page's handlers call into this window, so the view goes while the
+// window is still whole rather than with wx's children after it.
+OrcaImportWindow::~OrcaImportWindow() { delete m_view; }
 
 bool OrcaImportWindow::imported() const
 {

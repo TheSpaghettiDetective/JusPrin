@@ -1,0 +1,201 @@
+{
+  "print-settings": [
+    {
+      "id": "see-all",
+      "question": "Where can I see all the settings this print is going to use?",
+      "answer": "to open All settings, which is on the setup summary card at the top of the AI panel"
+    },
+    {
+      "id": "layer-height-myself",
+      "question": "I want to change the layer height myself, not have you do it. Where do I do that?",
+      "answer": "that they can change it by hand in classic view, and that classic view is reached with \"Switch to classic view\" in the View menu or in the \"…\" menu of the header"
+    },
+    {
+      "id": "printer-settings",
+      "question": "Where do I edit my printer's settings, like the start G-code?",
+      "answer": "to choose \"Printer settings…\", found by clicking the printer's name in the header of the project or in the Printer menu"
+    },
+    {
+      "id": "filament-settings",
+      "question": "Where do I change the filament's own settings, like its nozzle temperature?",
+      "answer": "to choose \"Filament settings…\", found by clicking the filament in the header of the project or in the Printer menu"
+    },
+    {
+      "id": "undo-change",
+      "question": "If you change some settings and I don't like the result, how do I get back to how it was?",
+      "answer": "to use \"Revert to here\" beside the change in the chat, or Version history"
+    },
+    {
+      "id": "plate-settings",
+      "question": "How do I set a different bed type for plate 2 only, by hand?",
+      "answer": "to choose \"Plate settings…\" from the plate's own menu in the Plates tab (its \"⋯\" menu or a right-click)"
+    },
+    {
+      "id": "object-settings",
+      "question": "If an object has its own settings, where do I see them, and how do I take one off?",
+      "answer": "to open All settings, pick the object under \"Showing\", and click \"Use project value\" on the setting"
+    },
+    {
+      "id": "classic-back",
+      "question": "If I switch to classic view, how do I get back to this screen?",
+      "answer": "to click \"Back to JusPrin\" on the bar at the top, or to choose \"Switch to JusPrin view\" in the View menu"
+    }
+  ],
+  "projects-and-files": [
+    {
+      "id": "save",
+      "question": "Do I need to save my project, or does it save itself?",
+      "answer": "that the app saves the project by itself, and that Save in the File menu (Cmd/Ctrl+S) saves now and keeps that version in Version history"
+    },
+    {
+      "id": "older-version",
+      "question": "I messed up my model. How do I go back to how it was an hour ago?",
+      "answer": "to open Version history (in the File menu or the \"…\" menu of the header) and click Restore beside the version they want"
+    },
+    {
+      "id": "export-3mf",
+      "question": "How do I get my project out as a 3MF file to send to a friend?",
+      "answer": "to choose Export project 3MF… in the \"…\" menu of the header, or Export then Project 3MF… in the File menu"
+    },
+    {
+      "id": "find-project",
+      "question": "Where are the projects I worked on last week?",
+      "answer": "that Home lists every project under Projects, most recent first, or that Open recent in the File menu lists recent ones"
+    },
+    {
+      "id": "add-second-model",
+      "question": "How do I add a second STL to the project I already have open?",
+      "answer": "to drop the file on the 3D view of the open project, or to use Add model under the plates list; Open… would make a new project instead"
+    }
+  ],
+  "plates-and-objects": [
+    {
+      "id": "copies",
+      "question": "How do I set this part to print six copies myself?",
+      "answer": "to use Set number of instances… in the object's menu in the Plates tab (its \"⋯\" button or a right-click)"
+    },
+    {
+      "id": "arrange",
+      "question": "My parts are overlapping on the plate. How do I spread them out myself?",
+      "answer": "to choose Arrange in the plate's menu in the Plates tab"
+    },
+    {
+      "id": "rotate-exact",
+      "question": "How do I rotate the model exactly 90 degrees by hand?",
+      "answer": "to select the object, open Rotate from the row of buttons on the 3D view (or press R), type 90 and press Return"
+    },
+    {
+      "id": "cut",
+      "question": "How do I cut my model in half?",
+      "answer": "to select the object and press C in the 3D view"
+    },
+    {
+      "id": "paint-supports",
+      "question": "How do I paint where supports should go?",
+      "answer": "to select the object and press L in the 3D view to open support painting"
+    }
+  ],
+  "printers-and-filament": [
+    {
+      "id": "change-color",
+      "question": "How do I change the filament colour for this print?",
+      "answer": "to click the filament in the header of the project and pick a colour under COLOUR (or Other colour… for any colour)"
+    },
+    {
+      "id": "second-filament",
+      "question": "I want to print this in two colours. How do I add a second filament?",
+      "answer": "to click the filament in the header and choose Add another filament to this print, then use Change filament in an object's menu to say which object uses it"
+    },
+    {
+      "id": "plate-type",
+      "question": "Where do I tell it I'm using a textured PEI plate?",
+      "answer": "to click the printer in the header of the project and choose the plate type under Plate"
+    },
+    {
+      "id": "rename-printer",
+      "question": "How do I rename my printer?",
+      "answer": "to open the printer card's menu on Home (Printer actions) and choose Rename"
+    },
+    {
+      "id": "add-printer",
+      "question": "How do I add another printer?",
+      "answer": "to click + Add printer on Home or choose Add a printer… in the Printer menu, which opens the Add a printer chat"
+    }
+  ],
+  "slicing-and-printing": [
+    {
+      "id": "export-gcode",
+      "question": "How do I save the G-code to a file instead of sending it to the printer?",
+      "answer": "to choose Export G-code… in the menu beside the Print button, or Export then Export G-code… in the File menu"
+    },
+    {
+      "id": "check-print",
+      "question": "Is there a way to look over the sliced print before I start it?",
+      "answer": "to open Check Print from the menu beside the Print button, or Check print… in the Print menu"
+    },
+    {
+      "id": "ignore-warning",
+      "question": "When a print issue warning shows on the 3D view and I've decided it doesn't matter, how do I stop it from being counted?",
+      "answer": "to click Ignore this warning in the issue's bubble, and that Stop ignoring brings it back"
+    },
+    {
+      "id": "print-history",
+      "question": "Where can I find a G-code I printed before and print it again?",
+      "answer": "to open Print history (on Home, or in the Project tab) and click Print again on the entry"
+    }
+  ],
+  "ai-chats-and-account": [
+    {
+      "id": "new-chat",
+      "question": "How do I start a fresh chat with you about this project?",
+      "answer": "to click New chat, the + at the top of the AI panel"
+    },
+    {
+      "id": "own-key",
+      "question": "Can I use my own OpenAI API key instead of credits?",
+      "answer": "yes: in Preferences open BYOAI, click Add key beside OpenAI under Your own API key, paste it and click Check key"
+    },
+    {
+      "id": "change-model",
+      "question": "How do I switch this chat to a different model?",
+      "answer": "that a chat keeps the model it started with, so they start a new chat and pick the model beside the message box before sending"
+    },
+    {
+      "id": "connect-claude-code",
+      "question": "I use Claude Code. Can I connect it to the app?",
+      "answer": "to open Preferences, BYOAI, and click Connect… beside Claude Code under Connect an AI tool you already use"
+    },
+    {
+      "id": "credits-left",
+      "question": "How do I see how many credits I have left?",
+      "answer": "to click the ring beside the model picker (Credits left), or to look under Account in Preferences"
+    }
+  ],
+  "the-app": [
+    {
+      "id": "dark-mode",
+      "question": "How do I switch the app to dark mode?",
+      "answer": "to open Preferences, Appearance, and choose Dark under Theme"
+    },
+    {
+      "id": "language",
+      "question": "Can I change the app's language to German?",
+      "answer": "to open Preferences, Appearance, pick German under Language, and restart (Restart now)"
+    },
+    {
+      "id": "mouse-pan",
+      "question": "How do I make the right mouse button pan the view?",
+      "answer": "to open Preferences, 3D view, and set Right-drag to Pan under Mouse buttons"
+    },
+    {
+      "id": "update",
+      "question": "How do I update the app to the newest version?",
+      "answer": "to open Preferences, Updates, click Check now and then Download, which opens the release page to install from"
+    },
+    {
+      "id": "report-bug",
+      "question": "I found a bug. How do I report it?",
+      "answer": "to choose Report a problem… in the Help menu, which opens a GitHub issue in the browser"
+    }
+  ]
+}

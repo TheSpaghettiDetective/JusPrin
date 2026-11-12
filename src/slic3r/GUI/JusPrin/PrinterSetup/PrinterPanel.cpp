@@ -11,6 +11,8 @@
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
+#include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectStateDocument.hpp"
 #include "slic3r/GUI/JusPrin/Printers/PrinterNames.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellController.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -21,7 +23,9 @@
 #include <wx/sizer.h>
 #include <wx/utils.h>
 
+#include <memory>
 #include <optional>
+#include <utility>
 
 namespace Slic3r::GUI::JusPrin::PrinterSetup {
 
@@ -33,11 +37,6 @@ constexpr int kPumpIntervalMs = 33;
 // prompt the page meant to send.
 constexpr std::size_t kFilamentInstructionsLimit = 64 * 1024;
 constexpr int kPumpTimerId    = wxID_HIGHEST + 1803;
-
-// How often a torn-down web view that could not be destroyed yet is looked at
-// again.
-constexpr int kReleaseRetryMs = 50;
-constexpr int kReleaseTimerId = wxID_HIGHEST + 1804;
 
 } // namespace
 
@@ -57,31 +56,23 @@ PrinterPanel::PrinterPanel(wxWindow*              parent,
     // conversation-host side private.
     , m_conversation(new PrinterConversation(*m_backend, static_cast<IConversationHost&>(*this)))
     , m_pump(this, kPumpTimerId)
-    , m_release_timer(this, kReleaseTimerId)
 {
     SetSizer(new wxBoxSizer(wxVERTICAL));
     Bind(wxEVT_TIMER, &PrinterPanel::on_pump, this, kPumpTimerId);
-    Bind(wxEVT_TIMER, &PrinterPanel::on_release_retired, this, kReleaseTimerId);
 }
 
 PrinterPanel::~PrinterPanel()
 {
     m_pump.Stop();
-    m_release_timer.Stop();
 }
 
 void PrinterPanel::build_runtime()
 {
-    // Its own document, never the project's: task help is gone when the
-    // panel closes.
-    Agent::ProjectPersistence::Config storage;
-    storage.in_memory = true;
-    m_persistence     = std::make_unique<Agent::ProjectPersistence>(m_workspace, std::move(storage));
-
-    // Its own agent service too: one turn may be in flight per service, and
-    // the docked panel's belongs to the project's conversation.
+    // Its own document, never the project's, and its own agent service: one
+    // turn may be in flight per service, and the docked panel's belongs to
+    // the project's conversation.
     Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
-    m_web_view = std::make_unique<AgentWebView>(this, m_theme, m_workspace, *m_persistence, runtime.availability,
+    m_web_view = std::make_unique<AgentWebView>(this, m_theme, m_workspace, runtime.availability,
                                                 std::move(runtime.service), runtime.setup,
                                                 m_task == Task::Printer ? AgentPageMode::PrinterPanel : AgentPageMode::Conversation);
     m_web_view->enable_chat_model_choice(wxGetApp().app_config);
@@ -170,41 +161,19 @@ void PrinterPanel::tear_down_runtime()
         return;
     GetSizer()->Detach(m_web_view.get());
 
-    // On macOS a new web view installs its script message handler from a
-    // CallAfter (WebView::CreateWebView), and wx waits for WebKit's reply to
-    // that install inside a nested event loop, with the app's
-    // is_adding_script_handler() flag set until it returns. A view destroyed
-    // during that wait is called back by WebKit after it is gone, and the app
-    // crashes. So while any view is mid-install, this runtime is hidden, cut
-    // off from the session, and destroyed once the install is over -- the same
-    // wait GUI_App::run_wizard makes.
-    if (wxGetApp().is_adding_script_handler()) {
-        m_web_view->Hide();
-        Agent::AgentHost& host = m_web_view->host();
-        host.set_session_state_provider({});
-        host.set_page_message_handler({});
-        host.set_session_tool_executor({});
-        host.set_session_skill({});
-        m_retired.push_back({std::move(m_persistence), std::move(m_web_view)});
-        m_release_timer.StartOnce(kReleaseRetryMs);
-        return;
-    }
-
-    // Deleted here rather than handed to wx: the host inside it holds this
-    // session's document by reference, and that document goes next. Both
+    // Hidden and cut off from the session, then destroyed now or, while a
+    // web view is installing its script handler, once it is done (see
+    // WebViewRelease). Destroyed by this panel rather than handed to wx: both
     // callers are outside the view's own event handling -- open() comes from
     // the shell, close() from a CallAfter -- which is what makes this safe.
-    m_web_view.reset();
-    m_persistence.reset();
-}
-
-void PrinterPanel::on_release_retired(wxTimerEvent&)
-{
-    if (wxGetApp().is_adding_script_handler()) {
-        m_release_timer.StartOnce(kReleaseRetryMs);
-        return;
-    }
-    m_retired.clear();
+    m_web_view->Hide();
+    Agent::AgentHost& host = m_web_view->host();
+    host.set_session_state_provider({});
+    host.set_page_message_handler({});
+    host.set_session_tool_executor({});
+    host.set_session_skill({});
+    m_retired.push_back(std::move(m_web_view));
+    m_release.request();
 }
 
 void PrinterPanel::open(ConversationMode mode, const std::string& printer_name)
@@ -419,7 +388,7 @@ void PrinterPanel::on_pump(wxTimerEvent&)
 
 nlohmann::json PrinterPanel::chat_record() const
 {
-    const Agent::ProjectStateDocument& document = m_persistence->document();
+    const Agent::ProjectStateDocument& document = m_web_view->host().persistence().document();
     nlohmann::json record = connection_chat_record(document.messages(document.active_conversation_id()), m_web_view->host().tools().activities());
     record["app"] = Updates::version_label();
     return record;

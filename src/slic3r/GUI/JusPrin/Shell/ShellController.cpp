@@ -20,6 +20,7 @@
 #include "slic3r/GUI/JusPrin/Home/HomeWebView.hpp"
 #include "slic3r/GUI/JusPrin/Preferences/PreferencesWindow.hpp"
 #include "slic3r/GUI/JusPrin/Home/OrcaImportWindow.hpp"
+#include "slic3r/GUI/JusPrin/Shell/GuideWindow.hpp"
 #include "slic3r/GUI/JusPrin/Brand/BrandPalette.hpp"
 #include "slic3r/GUI/JusPrin/Canvas/EmptyPlateHint.hpp"
 #include "slic3r/GUI/JusPrin/Startup/Startup.hpp"
@@ -974,6 +975,7 @@ void ShellController::on_frame_destroy(wxWindowDestroyEvent& event)
         // Same order as uninstall(): the pane and status row first, since
         // their destructors talk to persistence and the workspace, then
         // those two. The remaining children die with the frame.
+        close_guide();
         if (m_left_pane != nullptr) {
             m_left_pane->Destroy();
             m_left_pane = nullptr;
@@ -1456,6 +1458,23 @@ void ShellController::open_import(const Home::ImportApp& app)
         m_home->refresh();
 }
 
+void ShellController::open_guide()
+{
+    if (!m_installed)
+        return;
+    // A window that has closed and waits for idle to go has no page left.
+    if (m_guide == nullptr || m_guide->IsBeingDeleted())
+        m_guide = new GuideWindow(m_frame, *m_theme, *m_workspace);
+    m_guide->bring_forward();
+}
+
+void ShellController::close_guide()
+{
+    // Now, not on idle as Destroy would: the page's host reads the
+    // workspace, which goes next.
+    delete m_guide.get();
+}
+
 void ShellController::open_preferences(const std::string& section, PreferencesClosed closed)
 {
     if (!m_installed || m_preferences_open)
@@ -1626,6 +1645,7 @@ void ShellController::uninstall()
     if (m_main_sizer->GetItem(m_tabpanel) == nullptr)
         m_main_sizer->Add(m_tabpanel, 1, wxEXPAND | wxTOP, 0);
 
+    close_guide();
     if (m_left_pane != nullptr) {
         m_left_pane->Destroy();
         m_left_pane = nullptr;
@@ -1704,6 +1724,8 @@ void ShellController::apply_current_appearance()
         m_home->apply_appearance(dark);
     if (m_printer_panel != nullptr)
         m_printer_panel->apply_appearance(dark);
+    if (m_guide != nullptr)
+        m_guide->apply_appearance(dark);
     if (m_agent_resize_handle != nullptr)
         m_agent_resize_handle->Refresh();
     if (m_left_resize_handle != nullptr)
@@ -2092,14 +2114,11 @@ ShellController* installed_shell()
 
 void detach_shell()
 {
-    // On macOS a new web view installs its script message handler from a
-    // CallAfter (WebView::CreateWebView), and wx waits for WebKit's reply to
-    // that install inside a nested event loop, with the app's
-    // is_adding_script_handler() flag set until it returns. A switch chosen
-    // just after the shell came back can run inside that wait, and the
-    // uninstall would free the shell's web views under the install. The
-    // switch waits for the install to end instead, as GUI_App::run_wizard
-    // and PrinterPanel do.
+    // A switch chosen just after the shell came back can run while a web view
+    // is installing its script handler, and the uninstall would free the
+    // shell's web views under the install (see Agent/WebViewRelease.hpp). The
+    // switch waits for the install to end instead. Not WebViewRelease itself:
+    // the uninstall destroys whatever would own one.
     if (shell_slot() != nullptr && wxGetApp().is_adding_script_handler()) {
         auto* retry = new wxTimer();
         retry->Bind(wxEVT_TIMER, [retry](wxTimerEvent&) {

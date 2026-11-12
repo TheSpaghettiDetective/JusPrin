@@ -25,6 +25,8 @@
 // page's user agent names Safari: PayPal opens no window for a page whose
 // user agent names no browser.
 
+#include "slic3r/GUI/JusPrin/Agent/WebViewRelease.hpp"
+
 #include <wx/dialog.h>
 #include <wx/timer.h>
 
@@ -91,7 +93,7 @@ private:
     wxStaticText*         m_status_detail{nullptr};
     Button*               m_retry{nullptr};
     wxTimer               m_load_deadline{this};
-    wxTimer               m_release_timer{this};
+    WebViewRelease        m_release{[this] { release(); }};
     State                 m_state{State::Loading};
     std::string           m_page;
     std::string           m_from;

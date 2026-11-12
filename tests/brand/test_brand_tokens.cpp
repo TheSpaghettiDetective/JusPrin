@@ -787,6 +787,17 @@ TEST_CASE("the Import from OrcaSlicer window keeps the canvas's sizes", "[brand]
                              "component.orcaImport");
 }
 
+// Help › JusPrin guide…'s window (canvas "JusPrin v2", page "JusPrin guide
+// window"): the boards' window, its list of pages and searches beside a
+// column a guide picture fits at the size it has on screen.
+TEST_CASE("the JusPrin guide window keeps the canvas's sizes", "[brand]")
+{
+    require_exact_table<int>(load_tokens().at("component").at("guide"),
+                             {{"width", 960}, {"height", 680}, {"navWidth", 240}, {"navRowHeight", 32}, {"sectionRowHeight", 28},
+                              {"contentWidth", 656}, {"lineGap", 2}},
+                             "component.guide");
+}
+
 // The startup splash (canvas "JusPrin v2", page "Splash & About", boards
 // splash-about-01 to 03, agreed 2026-11-08): a square window the size of the
 // stacked lockup artwork, whose drawing ends at y 331, and the version line.

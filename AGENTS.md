@@ -20,6 +20,14 @@ This checkout holds two codebases: upstream OrcaSlicer (the `upstream` remote, S
 - `jusprin-v2-poc` holds the experiments described below.
 - Take each OrcaSlicer release into `jusprin-dev` as `agent-docs/jusprin/fork-stewardship.md` rule 10 describes.
 
+## Releasing
+
+`.github/workflows/jusprin_release.yml` builds a release into a draft on GitHub; its top comment says how to start it. It refuses the commit until it has all of these:
+
+- The version, in `src/slic3r/GUI/JusPrin/Updates/Version.hpp`, above every released JusPrin version.
+- The release notes, in `src/slic3r/GUI/JusPrin/Packaging/release-notes/<version>.md`.
+- The guide, `docs/guide/`, checked for that version. Run `scripts/check_guide.py --ask-ai` on a built copy of the commit, fix every page it reports, and commit the pages with their pictures, skills and `docs/guide/checked-version.txt`, as `docs/guide/README.md` describes under "Before a release". That file names the version the check last passed for, not the commit. Ticking "Release without the guide check" on the workflow's Run workflow form skips this, and the draft's title then says so. A release started by pushing a `jusprin-release/` branch has no form, so it always needs the file.
+
 ## Error handling discipline
 
 - Do not catch an error merely because it can be caught. Catch only when the code can recover, translate the error at an abstraction boundary, or add context that is essential for diagnosis. Logging alone is not recovery.

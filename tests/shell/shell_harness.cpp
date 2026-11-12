@@ -245,9 +245,12 @@
 //   --tool-strip-capture <output-directory>
 //              clicks the Prepare canvas's tool strip with real pointer
 //              events: toggles Move and Scale, follows the Rotate shortcut,
-//              duplicates and undoes, opens More (Windows), orbits and
-//              narrows the window; asserts the open tool, selection and
-//              instance count at each step, and writes tool-strip-*.png
+//              duplicates and undoes, opens More (Windows), opens and closes
+//              Cut and support painting with their keys, orbits and narrows
+//              the window; asserts the open tool, selection and instance
+//              count at each step, and writes tool-strip-*.png (the window,
+//              from the screen) and tool-strip-*-canvas.png (the 3D view's
+//              own pixels)
 //   --home-live
 //              saves and connects the in-process fake Bambu printer, then
 //              drives it Online, Printing and Offline while Home stays on
@@ -324,6 +327,12 @@
 //              view: HTML whose scripts would close the window through the
 //              app's bridge is measured and shown, runs none of them, and
 //              leaves the bridge working
+//   --preferences-capture <output-directory>
+//              opens Preferences with the shortcut's command and clicks each
+//              section in its list, as a person does: prints each section's
+//              text (HARNESS SETUP PREFERENCES), checks the words the app
+//              guide quotes, and writes preferences-<section>.png from the
+//              page itself
 //   --server-sheet [capture-dir]
 //              needs JUSPRIN_SERVER_URL and JUSPRIN_TEST_ACCOUNT_TOKEN, a
 //              throwaway account's on a test server, which it deletes: Get more
@@ -502,6 +511,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace fs = boost::filesystem;
@@ -1435,6 +1445,7 @@ struct HarnessState
         StartupRequests,
         PrintHistory,
         AccountBox,
+        PreferencesCapture,
         ServerSheet,
         ServerSheetPopup,
         PrinterChatSheet
@@ -1918,6 +1929,10 @@ public:
             }
             if (m_state->mode == HarnessState::Mode::AccountBox) {
                 verify_account_box();
+                return;
+            }
+            if (m_state->mode == HarnessState::Mode::PreferencesCapture) {
+                verify_preferences_capture();
                 return;
             }
             if (m_state->mode == HarnessState::Mode::ServerSheet) {
@@ -2799,6 +2814,30 @@ private:
             wxMilliSleep(50);
         }
         blit_screen(m_frame->GetScreenRect(), "window-" + name);
+#ifdef __APPLE__
+        // The open menu as its own views draw it, which needs no Screen
+        // Recording grant: menu-<name>.png.
+        if (HeaderMenu* menu = shown_header_menu(m_frame)) {
+            const std::string file = (m_state->capture_dir / ("menu-" + name + ".png")).string();
+            const bool ok = snapshot_native_window(menu->GetHandle(), file.c_str());
+            check(ok, "captured_menu-" + name);
+            if (ok)
+                std::cout << "HARNESS ARTIFACT menu-" << name << " " << file << std::endl;
+        }
+#endif
+    }
+
+    // The menu on screen, wherever it hangs: a menu is a child of the
+    // control that opened it.
+    static HeaderMenu* shown_header_menu(wxWindow* root)
+    {
+        for (wxWindow* child : root->GetChildren()) {
+            if (auto* menu = dynamic_cast<HeaderMenu*>(child); menu != nullptr && menu->IsShown())
+                return menu;
+            if (HeaderMenu* inner = shown_header_menu(child))
+                return inner;
+        }
+        return nullptr;
     }
 
     void save_pane(const std::string& name, const wxBitmap& bitmap)
@@ -4039,6 +4078,11 @@ private:
                 wxYield();
                 check(visible_header_menu() == menu, "printer_menu_stays_open_for_capture");
                 blit_screen(m_frame->GetScreenRect(), "printer-menu-other-printers");
+#ifdef __APPLE__
+                // The menu as its own views draw it, which needs no Screen Recording grant.
+                const std::string drawn = (m_state->capture_dir / "menu-printer.png").string();
+                check(snapshot_native_window(menu->GetHandle(), drawn.c_str()), "captured_menu-printer");
+#endif
             }
             if (other != nullptr) {
                 click_row(menu, other);
@@ -8628,7 +8672,8 @@ private:
                                         _L("Filament settings…"), _L("Ask AI about filament settings…"), "---", _L("Calibrate…")},
               "app_menus_printer_menu");
         const std::vector<wxString> help = menu_labels(menus->help_menu());
-        check(help.size() > 3 && help[0] == _L("Ask AI…") && help[1] == _L("Report a problem…") && help[2] == "---" &&
+        check(help.size() > 4 && help[0] == _L("JusPrin guide…") && help[1] == _L("Ask AI…") && help[2] == _L("Report a problem…") &&
+                  help[3] == "---" &&
                   labelled(menus->help_menu(), _L("Setup Wizard")) == nullptr &&
                   labelled(menus->help_menu(), _L("Show Tip of the Day")) == nullptr &&
                   !has_label_starting(menus->help_menu(), _L("Keyboard Shortcuts")) &&
@@ -8687,6 +8732,22 @@ private:
         check(enabled(menus->printer_menu(), _L("Add a printer…")) && enabled(menus->printer_menu(), _L("Printer settings…")),
               "app_menus_printer_works_from_home");
         check(enabled(menus->help_menu(), _L("Ask AI…")), "app_menus_ask_ai_works_from_home");
+        check(enabled(menus->help_menu(), _L("JusPrin guide…")), "app_menus_guide_works_from_home");
+        // Help › JusPrin guide… twice: one window, brought to the front.
+        const auto guides = [] {
+            std::vector<wxWindow*> found;
+            for (wxWindow* window : wxTopLevelWindows)
+                if (window->GetName() == "JusPrin guide" && window->IsShown() && !window->IsBeingDeleted())
+                    found.push_back(window);
+            return found;
+        };
+        installed_shell()->open_guide();
+        installed_shell()->open_guide();
+        const std::vector<wxWindow*> open_guides = guides();
+        check(open_guides.size() == 1, "app_menus_guide_opens_one_window");
+        for (wxWindow* window : open_guides)
+            window->Close();
+        check(guides().empty(), "app_menus_guide_window_closes");
 #ifdef __APPLE__
         check(menus->view_menu()->FindItemByPosition(2)->GetItemLabelText() == _L("Show AI panel"),
               "app_menus_mac_panel_label_says_what_it_does");
@@ -8949,6 +9010,17 @@ private:
         check(menu && wxWindow::FindWindowByName(ui_name("Check Print"),menu) &&
               wxWindow::FindWindowByName(ui_name("Print all plates…"),menu) &&
               wxWindow::FindWindowByName(ui_name("Export G-code…"),menu),"header_menu_has_contextual_actions");
+#ifdef __APPLE__
+        // For the app guide: the sliced header and its open menu as their own
+        // views draw them, which needs no Screen Recording grant.
+        if (const char* artifact_dir = std::getenv("JUSPRIN_ARTIFACT_DIR"); artifact_dir != nullptr && menu != nullptr) {
+            fs::create_directories(artifact_dir);
+            check(snapshot_native_window(menu->GetHandle(), (fs::path(artifact_dir) / "print-actions-menu.png").string().c_str()),
+                  "captured_print-actions-menu");
+            check(snapshot_native_window(row->GetHandle(), (fs::path(artifact_dir) / "window-sliced.png").string().c_str()),
+                  "captured_window-sliced");
+        }
+#endif
         auto* arrow = wxWindow::FindWindowByName("Print actions",row);
         check(menu && menu->GetScreenRect().GetRight() == arrow->GetScreenRect().GetRight(),"header_menu_right_edge_matches_split_button");
         // The trigger must read as held down (and show an up chevron) for as
@@ -10444,7 +10516,7 @@ private:
         const std::string process = short_preset(wxGetApp().preset_bundle->prints.get_edited_preset().name);
         const std::string filament = short_preset(wxGetApp().preset_bundle->filaments.get_edited_preset().name);
         // No purpose and no plan: the facts follow the eyebrow directly.
-        check(card.find("opened=Setup summary | " + process + " \xC2\xB7 " + filament) == 0,
+        check(card.find("opened=Setup summary | " + process + " with " + filament + ". | All settings | ") == 0,
               "setup_card_without_purpose_or_plan_is_facts_only");
         check(persistence().document().setup_intent(persistence().document().active_conversation_id()).empty(),
               "opened_project_records_no_purpose");
@@ -10486,7 +10558,7 @@ private:
         DynamicPrintConfig printer;
         printer.set_deserialize_strict("retraction_length", "1.2");
         wxGetApp().get_tab(Preset::TYPE_PRINTER)->load_config(printer);
-        await_setup_text("card", "[data-testid=\"current-setup\"]", "/changed/.test(scope.innerText)",
+        await_setup_text("card", "[data-testid=\"current-setup\"]", "/differ/.test(scope.innerText)",
                          [self = shared_from_this()] { self->capture_setup_differences_card(); });
     }
 
@@ -11909,6 +11981,43 @@ private:
         prepare_canvas().render();
         const bool dark = m_state->dark_appearance.value_or(false);
         write_screen_capture(m_frame->GetScreenRect(), "tool-strip-" + name + (dark ? "-dark" : "-light"));
+        // The 3D view alone, from its own pixels, which a session that cannot
+        // record the screen still gets.
+        check(write_canvas_pixels("tool-strip-" + name + "-canvas"), "captured_tool-strip-" + name + "-canvas");
+    }
+
+    // The canvas's own pixels, read back from the frame it just drew, to
+    // <name>.png in the capture folder. A screen blit photographs the desktop
+    // and comes back blank when the session cannot record the screen; this
+    // needs neither.
+    bool write_canvas_pixels(const std::string& name)
+    {
+        prepare_canvas().render();
+        const Size size = prepare_canvas().get_canvas_size();
+        const int  w = size.get_width(), h = size.get_height();
+        std::vector<unsigned char> pixels(std::size_t(w) * h * 4);
+        // Put back what the read changes: the app's own picking reads the back buffer.
+        GLint read_buffer = GL_BACK, alignment = 4;
+        glGetIntegerv(GL_READ_BUFFER, &read_buffer);
+        glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadBuffer(GL_FRONT);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+        glReadBuffer(GLenum(read_buffer));
+        glPixelStorei(GL_PACK_ALIGNMENT, alignment);
+        wxImage image(w, h);
+        unsigned char* rgb = image.GetData();
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                const unsigned char* from = &pixels[(std::size_t(h - 1 - y) * w + x) * 4];
+                unsigned char*       to   = &rgb[(std::size_t(y) * w + x) * 3];
+                to[0] = from[0]; to[1] = from[1]; to[2] = from[2];
+            }
+        fs::create_directories(m_state->capture_dir);
+        const std::string file = (m_state->capture_dir / (name + ".png")).string();
+        const bool ok = image.SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
+        std::cout << "HARNESS ARTIFACT " << name << " " << w << "x" << h << std::endl;
+        return ok;
     }
 
     size_t first_object_instances() { return m_plater->model().objects.front()->instances.size(); }
@@ -11954,11 +12063,7 @@ private:
     // the open tool every frame instead of remembering its own clicks.
     void tool_strip_shortcut()
     {
-        wxGLCanvas* target = prepare_canvas().get_wxglcanvas();
-        wxKeyEvent key(wxEVT_CHAR);
-        key.SetEventObject(target);
-        key.m_keyCode = 'r';
-        target->GetEventHandler()->ProcessEvent(key);
+        press_canvas_char('r');
         wait_until_settled("tool_strip_shortcut_settled", [self = shared_from_this()] {
             self->check(self->open_tool() == GLGizmosManager::Rotate, "r_key_opens_rotate");
             self->check_tool_panel_anchored(StripTool::Rotate, "rotate");
@@ -12185,10 +12290,61 @@ private:
         timer->Start(100);
         press_tool_strip(StripTool::More);
         wait_until([dismissed] { return *dismissed; }, "tool_strip_more_menu_dismissed",
-                   [self = shared_from_this()] { self->tool_strip_orbit(); });
+                   [self = shared_from_this()] { self->tool_strip_keys(); });
 #else
-        tool_strip_orbit();
+        tool_strip_keys();
 #endif
+    }
+
+    // Cutting and painting have no button in the strip; their keys open them
+    // on the selected object, and the same key closes them again.
+    void tool_strip_keys()
+    {
+        struct Key { char key; GLGizmosManager::EType tool; const char* name; };
+        static const Key keys[] = {{'c', GLGizmosManager::Cut, "cut"},
+                                   {'l', GLGizmosManager::FdmSupports, "support_painting"},
+                                   {'p', GLGizmosManager::Seam, "seam_painting"},
+                                   {'h', GLGizmosManager::FuzzySkin, "fuzzy_skin_painting"},
+                                   {'f', GLGizmosManager::Flatten, "place_on_face"}};
+        tool_strip_key(keys, std::size(keys), 0);
+    }
+
+    template <typename Key>
+    void tool_strip_key(const Key* keys, std::size_t count, std::size_t at)
+    {
+        if (at == count) {
+            tool_strip_orbit();
+            return;
+        }
+        const Key& key = keys[at];
+        press_canvas_char(key.key);
+        wait_until_settled(std::string("tool_strip_key_") + key.name + "_settled", [self = shared_from_this(), keys, count, at] {
+            const Key& key = keys[at];
+            self->check(self->open_tool() == key.tool, std::string(1, key.key) + "_key_opens_" + key.name);
+            self->capture_tool_strip(key.name);
+            self->press_canvas_char(key.key);
+            self->wait_until_settled(std::string("tool_strip_key_") + key.name + "_closed", [self, keys, count, at] {
+                self->check(self->open_tool() == GLGizmosManager::Undefined,
+                            std::string(1, keys[at].key) + "_key_again_closes_" + keys[at].name);
+                self->tool_strip_key(keys, count, at + 1);
+            });
+        });
+    }
+
+    // A letter pressed as a keyboard sends it: key down, the character, key
+    // up. The 3D view opens its tools from the key down, through the
+    // shortcut table, so a character alone opens nothing.
+    void press_canvas_char(char code)
+    {
+        wxGLCanvas* target = prepare_canvas().get_wxglcanvas();
+        const int   upper  = std::toupper(static_cast<unsigned char>(code));
+        for (const auto& [type, key] : {std::pair{wxEVT_KEY_DOWN, upper}, std::pair{wxEVT_CHAR, int(code)}, std::pair{wxEVT_KEY_UP, upper}}) {
+            wxKeyEvent event(type);
+            event.SetEventObject(target);
+            event.m_keyCode = key;
+            event.m_uniChar = key;
+            target->GetEventHandler()->ProcessEvent(event);
+        }
     }
 
     void tool_strip_orbit()
@@ -12225,6 +12381,7 @@ private:
 #include "dialog_routing_scenario.inc"
 #include "project_prompt_scenario.inc"
 #include "account_box_scenario.inc"
+#include "preferences_capture_scenario.inc"
 #include "server_sheet_scenario.inc"
 
     void write_screen_capture(const wxRect& rect, const std::string& name)
@@ -13864,6 +14021,51 @@ private:
             menus->file_menu()->SendEvent(save_item->GetId());
             check(read(source.string()) == original && autosave->state() == Workspace::ProjectAutosave::State::Saved,
                   "file_save_menu_leaves_the_opened_3mf_alone");
+
+            // File > Import offers the printers of the other two apps.
+            wxMenuItem* import_item = labelled(menus->file_menu(), _L("Import"));
+            wxMenu*     imports     = import_item != nullptr ? import_item->GetSubMenu() : nullptr;
+            check(imports != nullptr && labelled(imports, _L("Import from OrcaSlicer") + dots) != nullptr &&
+                      labelled(imports, _L("Import from JusPrin 1") + dots) != nullptr,
+                  "app_menus_import_from_other_apps");
+
+            // File > New project: an empty project, the one left behind saved.
+            const std::string before_new = id();
+            menus->file_menu()->UpdateUI(m_frame->GetEventHandler());
+            wxMenuItem* new_item = labelled(menus->file_menu(), _L("New project"));
+            check(new_item != nullptr && new_item->IsEnabled(), "file_new_project_enabled");
+            if (new_item != nullptr)
+                menus->file_menu()->SendEvent(new_item->GetId());
+            check(id() != before_new && objects() == 0, "file_new_project_starts_an_empty_project");
+
+            // File > Open recent, filled as the File menu opens: it lists the
+            // project just left, and choosing it opens it again. The rows are
+            // the saved projects in the order autosave lists them; projects
+            // saved within the same second may come in either order.
+            wxMenuEvent opening(wxEVT_MENU_OPEN, 0, menus->file_menu());
+            menus->file_menu()->ProcessEvent(opening);
+            wxMenuItem* recent_item = labelled(menus->file_menu(), _L("Open recent"));
+            wxMenu*     recent      = recent_item != nullptr ? recent_item->GetSubMenu() : nullptr;
+            std::optional<std::size_t> row;
+            if (const auto saved = autosave->projects())
+                for (std::size_t at = 0; at < saved->size() && !row; ++at)
+                    if ((*saved)[at].id == before_new)
+                        row = at;
+            check(recent != nullptr && recent_item->IsEnabled() && row && *row < recent->GetMenuItemCount(),
+                  "file_open_recent_lists_saved_projects");
+            if (recent != nullptr && row && *row < recent->GetMenuItemCount())
+                recent->SendEvent(recent->FindItemByPosition(*row)->GetId());
+            check(id() == before_new && objects() == 2, "file_open_recent_reopens_the_project_left");
+
+            // Export project 3MF… writes what its save dialog names through
+            // export_copy: a 3MF of the model and settings, without the chats.
+            const fs::path copy = fs::temp_directory_path() / fs::unique_path("jusprin-export-%%%%.3mf");
+            check(autosave->export_copy(std::filesystem::path(copy.string())), "file_export_project_3mf_writes_the_file");
+            const std::string exported = fs::exists(copy) ? read(copy.string()) : std::string();
+            check(exported.rfind("PK", 0) == 0 && exported.find("3D/3dmodel.model") != std::string::npos &&
+                      exported.find("current-state.json") == std::string::npos && exported.find("JusPrin/state.json") == std::string::npos,
+                  "file_export_project_3mf_holds_the_model_not_the_chats");
+            fs::remove(copy);
         }
 
         // The same .3mf dropped on Home twice: the second time it is known.
@@ -15985,6 +16187,14 @@ int main(int argc, char** argv)
             state->mode = HarnessState::Mode::StartupRequests;
         else if (argument == "--account-box")
             state->mode = HarnessState::Mode::AccountBox;
+        else if (argument == "--preferences-capture") {
+            if (++index == argc) {
+                std::cerr << "--preferences-capture requires an output directory\n";
+                return 2;
+            }
+            state->mode        = HarnessState::Mode::PreferencesCapture;
+            state->capture_dir = fs::absolute(argv[index]);
+        }
         else if (argument == "--server-sheet") {
             state->mode = HarnessState::Mode::ServerSheet;
             // Optionally a folder for pictures of the sheet and the confirmation.

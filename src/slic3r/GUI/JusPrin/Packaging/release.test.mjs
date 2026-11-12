@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { checkRelease, compareVersions, parseVersion, readVersion, tagVersion } from './release.mjs';
+import { checkRelease, compareVersions, guideCheckProblem, parseVersion, readVersion, tagVersion } from './release.mjs';
 
 const v = (text) => parseVersion(text);
 const release = (tag_name, extra = {}) => ({ id: 1, tag_name, draft: false, prerelease: false, ...extra });
@@ -84,4 +84,25 @@ test('a version below a published one is refused', () => {
 test('two drafts for one tag are refused', () => {
     const releases = [release('jusprin/v2.0.0', { id: 1, draft: true }), release('jusprin/v2.0.0', { id: 2, draft: true })];
     assert.throws(() => checkRelease(v('2.0.0'), releases), /two drafts/);
+});
+
+// docs/guide/checked-version.txt, which scripts/check_guide.py writes when a
+// full run passes.
+test('the guide checked for this version lets the release go on', () => {
+    assert.equal(guideCheckProblem(v('2.0.0'), '2.0.0\n'), '');
+});
+
+test('the guide checked for another version stops the release', () => {
+    assert.match(guideCheckProblem(v('2.1.0'), '2.0.0\n'), /checked for JusPrin 2\.0\.0, not 2\.1\.0/);
+    assert.match(guideCheckProblem(v('2.0.0'), '2.0.0-beta1\n'), /not 2\.0\.0/);
+});
+
+test('a guide never checked stops the release', () => {
+    assert.match(guideCheckProblem(v('2.0.0'), null), /never been checked/);
+    assert.match(guideCheckProblem(v('2.0.0'), ''), /never been checked/);
+});
+
+test('the refusal says what to run', () => {
+    assert.match(guideCheckProblem(v('2.0.0'), null), /scripts\/check_guide\.py --ask-ai/);
+    assert.match(guideCheckProblem(v('2.0.0'), null), /docs\/guide\/README\.md/);
 });

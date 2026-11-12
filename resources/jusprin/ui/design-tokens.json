@@ -568,6 +568,15 @@
       "width": 560,
       "height": 520
     },
+    "guide": {
+      "width": 960,
+      "height": 680,
+      "navWidth": 240,
+      "navRowHeight": 32,
+      "sectionRowHeight": 28,
+      "contentWidth": 656,
+      "lineGap": 2
+    },
     "splash": {
       "size": 480,
       "versionTop": 355,

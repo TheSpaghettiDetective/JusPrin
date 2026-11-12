@@ -14,6 +14,10 @@ name: JusPrin release
 #   (Packaging/release.mjs), and if
 #   Packaging/release-notes/<version>.md, the notes the draft starts with and
 #   that the app shows under "What's new", is missing.
+# - It also stops if the guide was not checked for this version
+#   (docs/guide/checked-version.txt, written by scripts/check_guide.py
+#   --ask-ai; see docs/guide/README.md), unless "Release without the guide
+#   check" is ticked. Then the draft's title says the guide was not checked.
 # - Running it again for the same version replaces the draft's files.
 # - Files: Windows x64 installer and portable zip, macOS universal disk image,
 #   Linux x64 AppImage, and SHA256SUMS.txt.
@@ -32,6 +36,10 @@ on:
     inputs:
       sign_macos:
         description: 'Sign and notarise the macOS app with the Apple secrets'
+        type: boolean
+        default: false
+      skip_guide_check:
+        description: 'Release without the guide check'
         type: boolean
         default: false
   push:
@@ -55,6 +63,7 @@ jobs:
       tag: ${{ steps.check.outputs.tag }}
       prerelease: ${{ steps.check.outputs.prerelease }}
       draft_id: ${{ steps.check.outputs.draft_id }}
+      guide_checked: ${{ steps.guide.outputs.checked }}
     steps:
       - name: Only the release publisher
         env:
@@ -67,7 +76,9 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          sparse-checkout: src/slic3r/GUI/JusPrin
+          sparse-checkout: |
+            src/slic3r/GUI/JusPrin
+            docs/guide
 
       - uses: actions/setup-node@v4
         with:
@@ -97,6 +108,23 @@ jobs:
             echo "::warning::$notes is still the placeholder. Replace it before publishing the draft."
           fi
 
+      - name: Require the guide check
+        id: guide
+        env:
+          SKIP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_guide_check || false }}
+        run: |
+          problem=$(node src/slic3r/GUI/JusPrin/Packaging/release.mjs guide src/slic3r/GUI/JusPrin/Updates/Version.hpp \
+            docs/guide/checked-version.txt)
+          if [ -z "$problem" ]; then
+            echo "checked=true" >> "$GITHUB_OUTPUT"
+          elif [ "$SKIP" = "true" ]; then
+            echo "::warning::\"Release without the guide check\" is ticked, so the release goes on. $problem"
+            echo "checked=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::$problem Or tick \"Release without the guide check\" on the Run workflow form."
+            exit 1
+          fi
+
   build:
     name: Build
     needs: prepare
@@ -120,6 +148,7 @@ jobs:
       DRAFT_ID: ${{ needs.prepare.outputs.draft_id }}
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
       SIGNED_MACOS: ${{ github.event_name == 'workflow_dispatch' && inputs.sign_macos || false }}
+      GUIDE_CHECKED: ${{ needs.prepare.outputs.guide_checked }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -147,6 +176,9 @@ jobs:
             title="$title (UNSIGNED TEST BUILD: do not publish)"
           else
             title="$title (Windows unsigned)"
+          fi
+          if [ "$GUIDE_CHECKED" != "true" ]; then
+            title="$title (guide not checked)"
           fi
           notes="src/slic3r/GUI/JusPrin/Packaging/release-notes/$VERSION.md"
           prerelease=$([ "$PRERELEASE" = "true" ] && echo --prerelease || echo --prerelease=false)

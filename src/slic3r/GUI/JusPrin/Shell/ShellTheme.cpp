@@ -350,6 +350,9 @@ ShellMetrics parse_metrics(const nlohmann::json& tokens)
     const nlohmann::json& orca_import = component.at("orcaImport");
     m.orca_import.width  = parse_int(orca_import, "component.orcaImport", "width");
     m.orca_import.height = parse_int(orca_import, "component.orcaImport", "height");
+    const nlohmann::json& guide = component.at("guide");
+    m.guide.width  = parse_int(guide, "component.guide", "width");
+    m.guide.height = parse_int(guide, "component.guide", "height");
 
     const nlohmann::json& splash = component.at("splash");
     m.splash.size              = parse_int(splash, "component.splash", "size");

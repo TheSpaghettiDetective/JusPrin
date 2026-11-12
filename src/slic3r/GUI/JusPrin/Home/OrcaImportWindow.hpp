@@ -18,7 +18,6 @@
 #include <wx/dialog.h>
 
 #include <filesystem>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,7 +28,6 @@ class MainFrame;
 namespace Slic3r::GUI::JusPrin {
 class AgentWebView;
 namespace Workspace { class IWorkspace; }
-namespace Agent { class ProjectPersistence; }
 }
 
 namespace Slic3r::GUI::JusPrin::Home {
@@ -60,7 +58,6 @@ private:
     OrcaImportOffer                            m_offer;
     std::optional<std::vector<OrcaImportItem>> m_result;
     std::string                                m_error;
-    std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     AgentWebView*                              m_view{nullptr};
 };
 

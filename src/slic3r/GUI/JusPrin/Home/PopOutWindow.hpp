@@ -6,10 +6,11 @@
 // one closes it when the app's main window goes.
 //
 // The content is one of Orca's own views, and every such view holds a web
-// view, so the window owns the one safe way to destroy it (see release()).
+// view, so the window owns the one safe way to destroy it (WebViewRelease).
+
+#include "slic3r/GUI/JusPrin/Agent/WebViewRelease.hpp"
 
 #include <wx/frame.h>
-#include <wx/timer.h>
 
 namespace Slic3r { namespace GUI { namespace JusPrin { namespace Home {
 
@@ -17,7 +18,7 @@ class PopOutWindow : public wxFrame
 {
 public:
     // Destroys the window, or hides it and destroys it once no web view is
-    // installing its script handler (see release()). The title bar's close
+    // installing its script handler (WebViewRelease). The title bar's close
     // comes here too.
     void close();
     bool closing() const { return m_closing; }
@@ -35,9 +36,9 @@ protected:
 private:
     void release();
 
-    wxWindow* m_content{nullptr};
-    wxTimer   m_release_timer;
-    bool      m_closing{false};
+    wxWindow*      m_content{nullptr};
+    WebViewRelease m_release;
+    bool           m_closing{false};
 };
 
 }}}} // namespace Slic3r::GUI::JusPrin::Home

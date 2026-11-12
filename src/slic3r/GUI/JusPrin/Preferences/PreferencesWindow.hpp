@@ -19,7 +19,6 @@
 #include <wx/dialog.h>
 #include <wx/timer.h>
 
-#include <memory>
 #include <string>
 
 namespace Slic3r::GUI {
@@ -29,7 +28,6 @@ enum class PreferencesTab;
 namespace Slic3r::GUI::JusPrin {
 class AgentWebView;
 namespace Workspace { class IWorkspace; }
-namespace Agent { class ProjectPersistence; }
 }
 
 namespace Slic3r::GUI::JusPrin::Preferences {
@@ -86,7 +84,6 @@ private:
 
     const ShellTheme&                          m_theme;
     OpenRequest                                m_request;
-    std::unique_ptr<Agent::ProjectPersistence> m_persistence;
     AgentWebView*                              m_view{nullptr};
     wxTimer                                    m_pump;
     AfterClose                                 m_after;

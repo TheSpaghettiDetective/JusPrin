@@ -301,33 +301,11 @@
         return last;
     }
 
-    // The canvas's own pixels, read back from the frame it just drew. A screen
-    // blit photographs the desktop and comes back blank when the session
-    // cannot record the screen; this needs neither.
     void capture_issues(const std::string& name)
     {
         if (m_state->capture_dir.empty())
             return;
-        prepare_canvas().render();
-        const Size size = prepare_canvas().get_canvas_size();
-        const int  w = size.get_width(), h = size.get_height();
-        std::vector<unsigned char> pixels(std::size_t(w) * h * 4);
-        glPixelStorei(GL_PACK_ALIGNMENT, 1);
-        glReadBuffer(GL_FRONT);
-        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-        wxImage image(w, h);
-        unsigned char* rgb = image.GetData();
-        for (int y = 0; y < h; ++y)
-            for (int x = 0; x < w; ++x) {
-                const unsigned char* from = &pixels[(std::size_t(h - 1 - y) * w + x) * 4];
-                unsigned char*       to   = &rgb[(std::size_t(y) * w + x) * 3];
-                to[0] = from[0]; to[1] = from[1]; to[2] = from[2];
-            }
-        fs::create_directories(m_state->capture_dir);
-        const std::string file = (m_state->capture_dir / ("issues-" + name + ".png")).string();
-        const bool ok = image.SaveFile(wxString::FromUTF8(file), wxBITMAP_TYPE_PNG);
-        check(ok, "captured_issues_" + name);
-        std::cout << "HARNESS ARTIFACT issues-" << name << " " << w << "x" << h << std::endl;
+        check(write_canvas_pixels("issues-" + name), "captured_issues_" + name);
     }
 
     static void write_box(std::ostream& out, const Vec3d& min, const Vec3d& max)

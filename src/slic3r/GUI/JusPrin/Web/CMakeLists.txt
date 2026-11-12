@@ -49,7 +49,9 @@ function(jusprin_web_bundle name project_dir output)
         VERBATIM)
 endfunction()
 
-jusprin_web_bundle(agent ${CMAKE_CURRENT_SOURCE_DIR}/../AgentUI ${CMAKE_SOURCE_DIR}/resources/jusprin/agent/index.html)
+# Help › JusPrin guide… carries the app guide, its pages and pictures.
+jusprin_web_bundle(agent ${CMAKE_CURRENT_SOURCE_DIR}/../AgentUI ${CMAKE_SOURCE_DIR}/resources/jusprin/agent/index.html
+                   ${CMAKE_SOURCE_DIR}/docs/guide)
 # Home's first launch draws the Agent page's add-printer form.
 jusprin_web_bundle(home  ${CMAKE_CURRENT_SOURCE_DIR}/../HomeUI  ${CMAKE_SOURCE_DIR}/resources/jusprin/home/index.html
                    ${CMAKE_CURRENT_SOURCE_DIR}/../AgentUI/src)

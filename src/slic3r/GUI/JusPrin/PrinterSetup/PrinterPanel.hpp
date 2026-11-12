@@ -8,6 +8,8 @@
 
 #include "PrinterConversation.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
+#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
+#include "slic3r/GUI/JusPrin/Agent/WebViewRelease.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 
 #include <wx/panel.h>
@@ -75,7 +77,7 @@ public:
     nlohmann::json session_json() const { return m_conversation->state_json(); }
     // For the shell harness: the open session's host, and the thread it keeps.
     Agent::AgentHost*                host();
-    const Agent::ProjectPersistence* persistence() const { return m_persistence.get(); }
+    const Agent::ProjectPersistence* persistence() const { return m_web_view ? &m_web_view->host().persistence() : nullptr; }
     // The page itself, so the harness can tap what the person would.
     AgentWebView* web_view() const { return m_web_view.get(); }
     // Whether the page has written the model's instructions for this session.
@@ -101,7 +103,6 @@ private:
     void build_runtime();
     void tear_down_runtime();
     void on_pump(wxTimerEvent& event);
-    void on_release_retired(wxTimerEvent& event);
     bool handle_printer_page_message(const std::string& type, const nlohmann::json& payload);
     bool handle_filament_page_message(const std::string& type, const nlohmann::json& payload);
     // What the page asks of the window: Preferences (its offer when there is
@@ -112,14 +113,6 @@ private:
     nlohmann::json                  filament_session_json() const;
     void close_to_printer_settings();
     void close_to_filament_settings();
-
-    // A torn-down runtime whose web view cannot be destroyed yet; see
-    // tear_down_runtime. The view goes first: its host holds the document.
-    struct RetiredRuntime
-    {
-        std::unique_ptr<Agent::ProjectPersistence> persistence;
-        std::unique_ptr<AgentWebView>              web_view;
-    };
 
     const ShellTheme&      m_theme;
     bool                   m_dark{false};
@@ -140,14 +133,16 @@ private:
 
     std::unique_ptr<IPrinterBackend>          m_backend;
     std::unique_ptr<PrinterConversation>      m_conversation;
-    std::unique_ptr<Agent::ProjectPersistence> m_persistence;
+    // With the session's own document in it, in memory: task help is gone
+    // when the panel closes.
     std::unique_ptr<AgentWebView>             m_web_view;
     // How the session's settings calls settle, for the conversation to follow
     // a printer saved as a copy. Dropped before the runtime it listens to.
     Agent::ToolActivitySubscription           m_settled;
-    std::vector<RetiredRuntime>               m_retired;
+    // Torn-down views waiting to be destroyed; see tear_down_runtime.
+    std::vector<std::unique_ptr<AgentWebView>> m_retired;
+    WebViewRelease                            m_release{[this] { m_retired.clear(); }};
     wxTimer                                   m_pump;
-    wxTimer                                   m_release_timer;
 };
 
 } // namespace Slic3r::GUI::JusPrin::PrinterSetup

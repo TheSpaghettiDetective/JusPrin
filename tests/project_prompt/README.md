@@ -702,6 +702,38 @@ On both backends a search the model ran shows in the transcript the judge
 reads as a `web search: <query> -> <pages>` line, before the reply that uses
 it.
 
+## The app guide's questions (`run_guide_tests.py`)
+
+The pages of `docs/guide` are also skills the model reads (`guide-<area>`,
+built by `AgentUI/src/guide.ts`). `run_guide_tests.py` measures whether the
+model answers a how-to question from them. It is not one of the cases above
+and has no baseline: run it when a page, its skill's description or the
+prompt's wording about skills changes.
+
+```bash
+tests/project_prompt/run_guide_tests.py --backend claude-cli --judge claude-cli
+tests/project_prompt/run_guide_tests.py --area print-settings --no-guide --backend claude-cli --judge claude-cli
+```
+
+- `guide_questions.json` holds, per page, the questions and what a right
+  answer tells the person. `guide.test.ts` fails when a page has fewer than
+  three questions, so a new page brings its own.
+- Each question is sent as a chat's first message: the recorded
+  `advice-infill` request with the person's sentence replaced. A `skill_read`
+  of any guide page is answered with its skill as checked in, since a question
+  can fairly be answered from a neighbouring page, and the judge is asked
+  whether the reply tells the person what the question's `answer` says. A run's
+  line says whether the model read the question's own page, another page
+  (named), or none.
+- `--no-guide` takes the guides off the list `skill_read` carries, which is
+  the app before the guide. The gap between the two runs is what the guide
+  does.
+- `--area NAME` keeps one page's questions. Three runs a question unless
+  `--runs` says otherwise; every other option is `run_prompt_tests.py`'s.
+- The expected answers are written from the page, so a pass says the model
+  read the page and relayed it, not that the page is right. The page is
+  checked against the app by its own checks (`docs/guide/README.md`).
+
 ## Judging a prompt or skill change
 
 What the suite is for (Kenneth, 2026-10-19): showing that a change has not

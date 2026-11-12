@@ -1,13 +1,16 @@
 #include "AgentWebView.hpp"
 
 #include "AgentConfiguration.hpp"
+#include "AgentHost.hpp"
 #include "ImageThumbnail.hpp"
+#include "ProjectPersistence.hpp"
 #include "libslic3r/Utils.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/JusPrin/Shell/McpSetupCommand.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellRecipes.hpp"
+#include "slic3r/GUI/JusPrin/Workspace/Workspace.hpp"
 #include "slic3r/GUI/Widgets/Button.hpp"
 #include "slic3r/GUI/Widgets/WebView.hpp"
 
@@ -15,6 +18,8 @@
 #include <boost/log/trivial.hpp>
 
 #include <cstdlib>
+#include <memory>
+#include <utility>
 
 #include <wx/filedlg.h>
 #include <wx/filesys.h>
@@ -54,7 +59,16 @@ wxString agent_page_url(AgentPageMode mode)
         url += "?panel=preferences";
     else if (mode == AgentPageMode::OrcaImport)
         url += "?panel=orca-import";
+    else if (mode == AgentPageMode::Guide)
+        url += "?panel=guide";
     return url;
+}
+
+std::unique_ptr<Agent::ProjectPersistence> in_memory_document(Workspace::IWorkspace& workspace)
+{
+    Agent::ProjectPersistence::Config storage;
+    storage.in_memory = true;
+    return std::make_unique<Agent::ProjectPersistence>(workspace, std::move(storage));
 }
 
 } // namespace
@@ -67,9 +81,33 @@ AgentWebView::AgentWebView(wxWindow*                  parent,
                            Agent::AgentServicePtr      agent,
                            Agent::AgentSetupServicePtr setup,
                            AgentPageMode               mode)
+    : AgentWebView(parent, theme, workspace, &persistence, nullptr, availability, std::move(agent), std::move(setup), mode)
+{}
+
+AgentWebView::AgentWebView(wxWindow*                   parent,
+                           const ShellTheme&           theme,
+                           Workspace::IWorkspace&      workspace,
+                           Agent::AgentAvailability    availability,
+                           Agent::AgentServicePtr      agent,
+                           Agent::AgentSetupServicePtr setup,
+                           AgentPageMode               mode)
+    : AgentWebView(parent, theme, workspace, nullptr, in_memory_document(workspace), availability, std::move(agent), std::move(setup),
+                   mode)
+{}
+
+AgentWebView::AgentWebView(wxWindow*                                  parent,
+                           const ShellTheme&                          theme,
+                           Workspace::IWorkspace&                     workspace,
+                           Agent::ProjectPersistence*                 borrowed,
+                           std::unique_ptr<Agent::ProjectPersistence> own_document,
+                           Agent::AgentAvailability                   availability,
+                           Agent::AgentServicePtr                     agent,
+                           Agent::AgentSetupServicePtr                setup,
+                           AgentPageMode                              mode)
     : wxPanel(parent, wxID_ANY)
     , m_theme(theme)
-    , m_host(std::make_unique<Agent::AgentHost>(workspace, persistence, availability, GUI_App::dark_mode(),
+    , m_own_document(std::move(own_document))
+    , m_host(std::make_unique<Agent::AgentHost>(workspace, borrowed != nullptr ? *borrowed : *m_own_document, availability, GUI_App::dark_mode(),
                                                 std::move(agent), std::move(setup)))
     , m_handshake_timer(this, kHandshakeTimerId)
 {

@@ -55,6 +55,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/Agent/ToolRegistry.hpp
     GUI/JusPrin/Agent/ToolResults.cpp
     GUI/JusPrin/Agent/ToolResults.hpp
+    GUI/JusPrin/Agent/WebViewRelease.cpp
+    GUI/JusPrin/Agent/WebViewRelease.hpp
     GUI/JusPrin/Support/AppFolders.cpp
     GUI/JusPrin/Support/AppFolders.hpp
     GUI/JusPrin/Support/Base64.hpp
@@ -157,6 +159,8 @@ list(APPEND SLIC3R_GUI_SOURCES
     GUI/JusPrin/OrcaHooks.hpp
     GUI/JusPrin/Shell/AboutWindow.cpp
     GUI/JusPrin/Shell/AboutWindow.hpp
+    GUI/JusPrin/Shell/GuideWindow.cpp
+    GUI/JusPrin/Shell/GuideWindow.hpp
     GUI/JusPrin/Shell/AgentPane.cpp
     GUI/JusPrin/Shell/AgentPane.hpp
     GUI/JusPrin/Shell/AppMenus.cpp

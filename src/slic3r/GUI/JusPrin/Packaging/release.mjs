@@ -9,13 +9,18 @@
 //       every published JusPrin version, or its tag already exists. Prints
 //       key=value lines for $GITHUB_OUTPUT: version, tag, prerelease,
 //       draft_id.
+//   node release.mjs guide <Version.hpp> <checked-version.txt>
+//       Prints why the release must wait for the guide check, or nothing
+//       when docs/guide/checked-version.txt, which scripts/check_guide.py
+//       writes when a full run passes, names this version. The workflow
+//       decides what to do with it, since a box on its form can override it.
 //
 // The update check (ReleaseFeed.cpp) reads tags vX.Y.Z and jusprin/vX.Y.Z.
 // New releases are tagged jusprin/vX.Y.Z, as JusPrin 1.4.0 was: the
 // repository still holds OrcaSlicer's own tags v2.0.0 to v2.3.1, and
 // publishing a draft whose tag exists attaches it to that tag's commit.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -99,6 +104,19 @@ export function checkRelease(version, releases, tags = []) {
     return { version: version.text, tag, prerelease: version.prerelease.length > 0, draftId };
 }
 
+// The record says the check passed for this version on some commit, not on
+// the one being released: committing the record makes a new commit.
+export function guideCheckProblem(version, record) {
+    const checked = (record ?? '').trim();
+    const todo = 'Run scripts/check_guide.py --ask-ai on a built copy of this commit and commit what it changes, '
+               + 'as docs/guide/README.md describes under "Before a release".';
+    if (!checked)
+        return `The guide has never been checked: docs/guide/checked-version.txt is missing. ${todo}`;
+    if (checked !== version.text)
+        return `The guide was last checked for JusPrin ${checked}, not ${version.text} (docs/guide/checked-version.txt). ${todo}`;
+    return '';
+}
+
 function main(argv) {
     const [command, headerPath, releasesPath, tagsPath] = argv;
     const version = readVersion(readFileSync(headerPath, 'utf8'));
@@ -116,6 +134,13 @@ function main(argv) {
         console.log(`tag=${result.tag}`);
         console.log(`prerelease=${result.prerelease}`);
         console.log(`draft_id=${result.draftId}`);
+        return;
+    }
+    if (command === 'guide') {
+        const recordPath = argv[2];
+        const problem = guideCheckProblem(version, existsSync(recordPath) ? readFileSync(recordPath, 'utf8') : null);
+        if (problem)
+            console.log(problem);
         return;
     }
     throw new Error(`unknown command "${command}"`);

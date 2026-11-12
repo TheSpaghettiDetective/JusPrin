@@ -4629,3 +4629,226 @@ p.orca-import-error {
 }
 
 .jp-icon-monitor { -webkit-mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); mask-image: url('@resources/jusprin/ui/icons/monitor.svg'); }
+
+/* Help › JusPrin guide…'s window (canvas "JusPrin v2", page "JusPrin guide
+   window"): Search the guide and the pages, or the sections a search found, at
+   the left; the open page at the right, as people read it on GitHub. */
+.app--guide {
+  background: var(--surface-raised);
+}
+
+.guide {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.guide-nav {
+  display: flex;
+  flex: 0 0 var(--guide-nav-width);
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 12px 8px;
+  overflow-y: auto;
+  background: var(--surface-subtle);
+  box-shadow: inset -1px 0 0 0 var(--border-subtle);
+}
+
+.guide-search {
+  flex: 0 0 auto;
+}
+
+.guide-clear {
+  flex: 0 0 auto;
+  width: var(--button-icon-compact-width);
+  height: var(--button-icon-compact-height);
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+}
+
+.guide-clear:hover:enabled {
+  background: var(--surface-raised-hover);
+}
+
+.guide-pages,
+.guide-results,
+.guide-page-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-row-gap);
+}
+
+.guide-page,
+.guide-section,
+.guide-result {
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-small);
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.guide-page {
+  min-height: var(--guide-nav-row-height);
+  padding: 4px 8px;
+  font: var(--font-body);
+}
+
+.guide-section {
+  min-height: var(--guide-section-row-height);
+  padding: 4px 8px 4px 20px;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.guide-result {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--guide-line-gap);
+  padding: 8px;
+}
+
+.guide-page:hover:enabled,
+.guide-section:hover:enabled,
+.guide-result:hover:enabled {
+  border: 0;
+  background: var(--surface-raised-hover);
+}
+
+/* What is open stays marked under the pointer too. */
+.guide-page[aria-current],
+.guide-section[aria-current],
+.guide-result[aria-current],
+.guide-page[aria-current]:hover:enabled,
+.guide-section[aria-current]:hover:enabled,
+.guide-result[aria-current]:hover:enabled {
+  background: var(--surface-selected);
+}
+
+.guide-page[aria-current],
+.guide-section[aria-current] {
+  font: var(--font-body-bold);
+  color: var(--text-primary);
+}
+
+.guide-section[aria-current] {
+  font: var(--font-body-small-bold);
+}
+
+.guide-result-heading {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.guide-result-page {
+  font: var(--font-label);
+  color: var(--text-tertiary);
+}
+
+.guide-result-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.guide-result-text mark {
+  border-radius: var(--radius-small);
+  background: var(--surface-selected);
+  color: var(--text-primary);
+}
+
+.guide-count {
+  margin: 0;
+  padding: 0 8px 4px;
+  font: var(--font-label);
+  color: var(--text-secondary);
+}
+
+.guide-nothing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.guide-nothing p {
+  margin: 0;
+  font: var(--font-body-small);
+  color: var(--text-secondary);
+}
+
+.guide-nothing .guide-nothing-title {
+  font: var(--font-body-small-bold);
+  color: var(--text-primary);
+}
+
+.guide-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px 32px 32px;
+}
+
+.guide-article {
+  max-width: var(--guide-content-width);
+  font: var(--font-body);
+  color: var(--text-primary);
+}
+
+.guide-article h1 {
+  margin: 0 0 8px;
+  font: var(--font-page-title);
+}
+
+.guide-article h2 {
+  margin: 32px 0 8px;
+  /* A section picked at the left lands with the page's own top margin above it. */
+  scroll-margin-top: 24px;
+  font: var(--font-section);
+}
+
+.guide-article p,
+.guide-article ul,
+.guide-article ol {
+  margin: 0 0 12px;
+}
+
+.guide-article ul,
+.guide-article ol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 20px;
+}
+
+.guide-article strong {
+  font: var(--font-body-bold);
+}
+
+/* A picture keeps the size it has on screen, and the column narrows a wider one. */
+.guide-picture {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 4px 0 4px;
+  border-radius: var(--radius-medium);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/* A link inside a sentence reads as part of it. */
+.guide-article button.link.guide-link {
+  display: inline;
+  height: auto;
+  padding: 0;
+  font: var(--font-body-bold);
+  color: var(--action-primary);
+  vertical-align: baseline;
+}

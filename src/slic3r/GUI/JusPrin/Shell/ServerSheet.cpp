@@ -39,9 +39,6 @@ namespace {
 // How long the link and the page together may take before the sheet says the
 // page could not be loaded; WebKit's own limit is over a minute.
 constexpr int kLoadDeadlineMs   = 20000;
-// How long to wait before trying again to destroy a closed sheet whose web
-// view was installing its script handler (see release()).
-constexpr int kReleaseRetryMs   = 50;
 constexpr int kHeaderHeightDip  = 48;
 // A pop-up's size when the page asks for none.
 constexpr int kPopupWidthDip    = 480;
@@ -176,7 +173,8 @@ void ServerSheet::open(wxWindow* parent, const std::string& page, const std::str
     // The opener reads the account again: a purchase may have gone through.
     if (closed)
         closed();
-    sheet->release();
+    if (!sheet->m_release.request())
+        sheet->Hide();
 }
 
 ServerSheet* ServerSheet::current() { return g_sheet != nullptr && !g_sheet->m_closing ? g_sheet : nullptr; }
@@ -250,7 +248,6 @@ ServerSheet::ServerSheet(wxWindow* parent, const ShellTheme& theme)
             event.Skip();
     });
     Bind(wxEVT_TIMER, [this](wxTimerEvent&) { if (!m_closing) set_state(State::Failed); }, m_load_deadline.GetId());
-    Bind(wxEVT_TIMER, [this](wxTimerEvent&) { release(); }, m_release_timer.GetId());
 
     // As wide as the boards draw it, and never taller than the screen it is on.
     wxSize size = FromDIP(wxSize(760, 760));
@@ -450,17 +447,10 @@ void ServerSheet::close()
         EndModal(wxID_CANCEL);
 }
 
-// On macOS a new web view installs its script message handler from a
-// CallAfter (WebView::CreateWebView), and a view destroyed while that install
-// waits is called back after it is gone; see PopOutWindow::release. The body,
-// and the web view in it, is deleted at a moment no install is running.
+// The body, and the web view in it, goes first and synchronously; see
+// WebViewRelease.
 void ServerSheet::release()
 {
-    if (wxGetApp().is_adding_script_handler()) {
-        Hide();
-        m_release_timer.StartOnce(kReleaseRetryMs);
-        return;
-    }
     if (m_body != nullptr) {
         m_body->Destroy();
         m_body = nullptr;

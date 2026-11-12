@@ -24,6 +24,7 @@
 #include <wx/event.h>
 #include <wx/string.h>
 #include <wx/timer.h>
+#include <wx/weakref.h>
 
 class wxSizer;
 class wxBoxSizer;
@@ -42,6 +43,7 @@ class AgentPane;
 class AppMenus;
 class ClassicViewReturn;
 class GcodeHistoryRecorder;
+class GuideWindow;
 class LeftPane;
 class ShellTheme;
 class StatusRow;
@@ -194,6 +196,9 @@ public:
     // (Home/OrcaImportWindow.hpp); each returns once its window is closed.
     void open_orca_import();
     void open_jusprin1_import();
+    // Help › JusPrin guide… (Shell/GuideWindow.hpp): opens the guide's
+    // window, or brings the open one to the front.
+    void open_guide();
 
     // Orca's own printer wizard ("set it up myself") runs from a CallAfter,
     // decoupled from the add-printer request that opened it, so nothing else
@@ -320,6 +325,10 @@ private:
     // What the person last asked for, as opposed to what Home imposes.
     bool m_agent_pane_user_collapsed{false};
     bool m_preferences_open{false};
+    // Help › JusPrin guide…'s window while it is open. Not modal, so it
+    // goes when the shell does, before the workspace its page reads.
+    wxWeakRef<GuideWindow> m_guide;
+    void close_guide();
     bool m_preferences_requested{false};
     bool m_task_open{false};
     wxString m_task_origin_tab;

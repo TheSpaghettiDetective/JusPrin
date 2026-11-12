@@ -408,7 +408,8 @@ describe('App', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].payload).toEqual({ skills });
     expect((sent[0].payload as { skills: { trigger: string }[] }).skills.map((skill) => skill.trigger))
-      .toEqual(['calibration_started', 'connect_bambu', 'connect_print_host', 'file_loaded',
+      // The guide's seven pages have no trigger: the model reads each by its description alone.
+      .toEqual(['calibration_started', 'connect_bambu', 'connect_print_host', 'file_loaded', ...Array(7).fill(undefined),
         'print_issues', 'setup_changed', 'slice_failed']);
     // The calibration skill is also read on demand, by the description skill_read lists it by.
     const calibration = (sent[0].payload as { skills: { name: string; description?: string }[] }).skills

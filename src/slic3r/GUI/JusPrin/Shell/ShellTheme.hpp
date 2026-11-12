@@ -169,6 +169,9 @@ struct PreferencesMetrics { int width{0}; int height{0}; };
 // File › Import › Import from OrcaSlicer…'s window.
 struct OrcaImportMetrics { int width{0}; int height{0}; };
 
+// Help › JusPrin guide…'s window; its page reads the rest of the group.
+struct GuideMetrics { int width{0}; int height{0}; };
+
 // The startup splash: a square window, the version line's top, and the box
 // the name animation plays in, over the lockup's name.
 struct SplashMetrics
@@ -271,6 +274,7 @@ struct ShellMetrics
     PrinterCardMetrics  printer_card;
     PreferencesMetrics  preferences;
     OrcaImportMetrics   orca_import;
+    GuideMetrics        guide;
     SplashMetrics       splash;
     AboutMetrics        about;
 };

@@ -1,0 +1,270 @@
+{
+  "print-settings": [
+    {
+      "covers": ["See the settings a print will use", "Settings for one object"],
+      "args": ["--setup-differences-capture", "{dir}"],
+      "checks": ["setup_differences_card_rendered", "setup_card_counts_the_changed_settings_with_the_object_override",
+                 "setup_differences_page_rendered", "object_view_lists_the_object_wall_loops",
+                 "use_project_value_clears_the_object_setting", "remove_deletes_the_blocker",
+                 "captured_setup-differences-object-after"],
+      "pictures": {
+        "setup-summary.png": {"from": "setup-differences-card.png", "crop": [0, 0, 858, 340]},
+        "all-settings.png": {"from": "setup-differences-page.png", "crop": [0, 0, 858, 1240]},
+        "object-settings.png": {"from": "setup-differences-object.png", "crop": [0, 0, 858, 1440]}
+      }
+    },
+    {
+      "covers": ["Take a settings change back"],
+      "args": ["--figma-timeline-capture", "{dir}"],
+      "pictures": {"revert-to-here.png": {"from": "figma-timeline-revert-open.png", "crop": [0, 1290, 858, 1960]}}
+    },
+    {
+      "covers": ["Change printer or filament settings"],
+      "args": ["--printer-menu-capture", "{dir}"]
+    },
+    {
+      "covers": ["Settings for one plate"],
+      "args": ["--left-pane-capture", "{dir}"],
+      "pictures": {"plates-tab.png": {"from": "left-pane-plate-menu.png", "crop": [0, 60, 200, 330], "atScreenSize": true}}
+    },
+    {
+      "covers": ["Change a print setting", "Classic view: every setting on screen"],
+      "args": ["--classic-switch-capture", "{dir}"]
+    }
+  ],
+  "projects-and-files": [
+    {
+      "covers": ["Start a project or open a file", "Saving", "Export the project as a 3MF file"],
+      "args": ["--file-opening"],
+      "checks": ["file_opening_os_open_makes_new_project", "file_opening_home_open_makes_new_project",
+                 "file_opening_home_drop_makes_new_project", "file_opening_canvas_drop_adds",
+                 "file_opening_3mf_canvas_drop_opens_project", "app_menus_file_menu",
+                 "app_menus_export_is_project_3mf_and_gcode", "file_save_shortcut_saves_a_version",
+                 "file_save_menu_leaves_the_opened_3mf_alone", "file_new_project_starts_an_empty_project",
+                 "file_open_recent_lists_saved_projects", "file_open_recent_reopens_the_project_left",
+                 "file_export_project_3mf_writes_the_file", "file_export_project_3mf_holds_the_model_not_the_chats"]
+    },
+    {
+      "covers": ["Saving"],
+      "args": ["--blank-project-saves"],
+      "checks": ["model_is_saved", "model_project_has_a_card", "emptied_project_keeps_its_card"]
+    },
+    {
+      "covers": ["Open a file you opened before"],
+      "args": ["--reopen-prompt", "{dir}"],
+      "checks": ["reopen_prompt_earlier-project-changed_drawn", "reopen_prompt_earlier-project-changed_cancelled"],
+      "pictures": {"reopen-question.png": "reopen-earlier-project-changed.png"}
+    },
+    {
+      "covers": ["Go back to an earlier version"],
+      "args": ["--external-project-history-capture", "{dir}"],
+      "checks": ["history_older_timestamp_visible", "history_timestamp_click_does_not_restore", "history_restore_cancel_keeps_model",
+                 "history_restore_confirm_reloads_older_model"]
+    },
+    {
+      "covers": ["Go back to an earlier version", "The Project tab"],
+      "args": ["--left-pane-capture", "{dir}"],
+      "checks": ["left_pane_project_tab_opens", "left_pane_root_offers_version_history_export_and_edit", "captured_left-pane-project",
+                 "left_pane_version_history_opens", "captured_left-pane-versions",
+                 "left_pane_reading_version_history_does_not_save"],
+      "pictures": {"project-tab.png": {"from": "left-pane-project.png", "crop": [0, 60, 200, 430], "atScreenSize": true}}
+    },
+    {
+      "covers": ["Your projects on Home"],
+      "args": ["--calibration-capture", "{dir}"],
+      "checks": ["captured_3-home-card-menu", "captured_4-dialog-from-home-cancelled"],
+      "pictures": {"home-projects.png": {"from": "3-home-card-menu.png", "crop": [0, 0, 1760, 820]}}
+    }
+  ],
+  "plates-and-objects": [
+    {
+      "covers": ["The Plates tab", "A plate's menu", "An object's menu", "Add a model or a plate"],
+      "args": ["--left-pane-capture", "{dir}"],
+      "checks": ["left_pane_lists_two_plates_with_the_active_one_open", "left_pane_folded_plate_summarises_its_object",
+                 "left_pane_click_activates_the_plate", "left_pane_reflects_canvas_selection",
+                 "left_pane_plate_menu_lists_the_plate_actions", "left_pane_first_plate_has_no_move_to_front",
+                 "left_pane_lock_reaches_orca", "left_pane_object_menu_lists_the_object_actions",
+                 "left_pane_printable_switch_reaches_orca", "left_pane_shows_a_disabled_object_as_not_printing",
+                 "left_pane_settings_only_mark_opens_summary", "left_pane_add_plate_adds_a_plate",
+                 "captured_left-pane-two-plates", "captured_menu-object-menu"],
+      "pictures": {
+        "plates-tab.png": {"from": "left-pane-two-plates.png", "crop": [0, 60, 200, 335], "atScreenSize": true},
+        "object-menu.png": "menu-object-menu.png"
+      }
+    },
+    {
+      "covers": ["The Plates tab"],
+      "args": ["--left-pane-sliced-capture", "{dir}"],
+      "checks": ["sliced_pane_reads_real_plate_states"]
+    },
+    {
+      "covers": ["Add a model or a plate"],
+      "args": ["--file-opening"],
+      "checks": ["file_opening_add_model_button_above_add_plate", "file_opening_canvas_drop_adds"]
+    },
+    {
+      "covers": ["Move, rotate and scale an object", "More: mirror, text and other tools"],
+      "args": ["--tool-strip-capture", "{dir}"],
+      "checks": ["tool_strip_opens_move", "tool_strip_second_click_closes_move", "r_key_opens_rotate",
+                 "typed_relative_rotation_turns_by_what_was_typed", "typed_absolute_rotation_sets_the_angle",
+                 "reset_returns_the_rotation_to_where_the_tool_opened", "tool_strip_switches_rotate_to_scale",
+                 "duplicate_adds_exactly_one_instance", "one_undo_removes_the_duplicate", "c_key_opens_cut",
+                 "c_key_again_closes_cut", "l_key_opens_support_painting", "l_key_again_closes_support_painting",
+                 "p_key_opens_seam_painting", "h_key_opens_fuzzy_skin_painting", "f_key_opens_place_on_face",
+                 "captured_tool-strip-rotated-canvas"],
+      "pictures": {"rotate-tool.png": {"from": "tool-strip-rotated-canvas.png", "crop": [0, 0, 1240, 1060]}}
+    }
+  ],
+  "printers-and-filament": [
+    {
+      "covers": ["The printer and filament in a project", "Choose the filament and its colour", "The Printer menu"],
+      "args": [],
+      "env": {"JUSPRIN_ARTIFACT_DIR": "{dir}"},
+      "checks": ["chip_renders_light", "nozzle_row_is_read_only", "plate_substep_keeps_the_menu_open_after_a_click",
+                 "the_project_is_on_the_picked_filament", "a_colour_click_sets_the_slot_colour",
+                 "adding_a_slot_adds_one", "filament_menu_drawn", "app_menus_printer_menu"],
+      "pictures": {"header-chip.png": {"from": "light.png", "atScreenSize": true}, "filament-menu.png": "filament-menu.png"}
+    },
+    {
+      "covers": ["The printer and filament in a project"],
+      "args": ["--printer-menu-capture", "{dir}"],
+      "checks": ["printer_menu_switches_the_projects_printer", "printer_menu_switch_refreshes_the_chip",
+                 "file_printer_is_marked_from_the_file", "captured_menu-printer"],
+      "pictures": {"printer-menu.png": "menu-printer.png"}
+    },
+    {
+      "covers": ["Add a printer"],
+      "args": ["--printer-setup"],
+      "checks": ["panel_opens_from_add_printer", "form_saves_the_printer_under_its_own_name",
+                 "form_starts_the_printer_on_the_chosen_plate"]
+    },
+    {
+      "covers": ["Add a printer", "Connect a printer"],
+      "args": ["--task-chat"],
+      "checks": ["home_add_opens_task_chat", "home_connect_opens_task_chat"]
+    },
+    {
+      "covers": ["Bring printers from another slicer"],
+      "args": ["--file-opening"],
+      "checks": ["app_menus_import_from_other_apps"]
+    },
+    {
+      "covers": ["Rename or remove a printer", "Calibrate a printer or a filament"],
+      "args": ["--calibration-capture", "{dir}"],
+      "checks": ["calibration_filament_menu_has_the_row", "calibration_printer_menu_has_the_row",
+                 "calibration_home_dialog_names_the_printer_and_no_filament",
+                 "calibration_popup_names_the_filament_and_printer", "calibration_project_asks_which_test",
+                 "captured_3-home-card-menu", "captured_6-dialog-from-printer-started"],
+      "pictures": {
+        "printer-card-menu.png": "3-home-card-menu.png",
+        "calibrate-question.png": {"from": "6-dialog-from-printer-started.png", "crop": [69, 96, 789, 620]}
+      }
+    }
+  ],
+  "slicing-and-printing": [
+    {
+      "covers": ["Slice and print", "Save the G-code to a file instead of sending it"],
+      "args": [],
+      "env": {"JUSPRIN_ARTIFACT_DIR": "{dir}"},
+      "checks": ["header_enters_slicing", "cancel_returns_to_slice", "slice_offers_print", "slice_completion_updates_rendered_button",
+                 "other_unsliced_plate_offers_slice", "header_menu_has_contextual_actions", "app_menus_print_menu",
+                 "captured_window-sliced", "captured_print-actions-menu"],
+      "pictures": {"print-button.png": {"from": "window-sliced.png", "crop": [0, 0, 1510, 112]}}
+    },
+    {
+      "covers": ["Check the print before printing"],
+      "args": ["--check-print-capture", "{dir}"],
+      "checks": ["cp_a_finding_moves_the_camera", "cp_a_finding_moves_the_layer_slider", "cp_a_legend_is_drawn_when_switched_on",
+                 "cp_c_escape_from_the_report_closes_the_window",
+                 "cp_stale_window_closes_itself_when_the_slice_goes_stale"],
+      "pictures": {"check-print.png": "check-print-nothing-to-flag.png"}
+    },
+    {
+      "covers": ["Print issues on the 3D view"],
+      "args": ["--print-issues-capture", "{dir}"],
+      "checks": ["the_close_button_closes_the_bubble", "escape_closes_the_bubble", "ask_closes_the_bubble_once_the_chat_has_it",
+                 "ignoring_closes_the_bubble", "stop_ignoring_counts_the_warning_again"],
+      "pictures": {"print-issue.png": "issues-02-warning-bubble.png"}
+    },
+    {
+      "covers": ["Save the G-code to a file instead of sending it", "Print history"],
+      "args": ["--print-history", "{dir}"],
+      "checks": ["print_history_export_written", "print_history_back_returns_to_the_project", "print_history_export_from_kept_copy",
+                 "print_history_open_in_chat_marks_the_marker", "print_history_print_again_is_the_same_gcode",
+                 "print_history_pane_row_pressed", "print_history_home_card_drawn"],
+      "pictures": {"print-history.png": {"from": "print-history-from-project.png", "crop": [0, 0, 2400, 820]}}
+    }
+  ],
+  "ai-chats-and-account": [
+    {
+      "covers": ["The AI panel and its chats", "Open an earlier chat"],
+      "args": ["--chat-restoration-capture", "{dir}"],
+      "checks": ["chat_restore_history_viewed", "chat_restore_browsing_preserves_live_settings", "chat_restore_confirmed_transition",
+                 "chat_restore_quick_settings_restored"],
+      "pictures": {"earlier-chat.png": "chat-history-quick-with-strong-project.png"}
+    },
+    {
+      "covers": ["The AI panel and its chats"],
+      "args": ["--reply-choices-capture", "{dir}"],
+      "checks": ["reply_choices_tap_sends_the_chip_as_the_persons_message", "reply_choices_gone_once_answered"]
+    },
+    {
+      "covers": ["Choose the model and how hard it thinks", "Attach a picture or a file", "Credits"],
+      "args": ["--task-chat-configured"],
+      "checks": ["printer_chat_shows_the_model_picker"]
+    },
+    {
+      "covers": ["Set up AI"],
+      "args": ["--live-agent-unavailable"],
+      "checks": ["not_set_up_dock_is_one_live_offer", "not_set_up_thread_has_one_live_setup_bar", "offer_action_opens_preferences_on_account"]
+    },
+    {
+      "covers": ["Sign in to a JusPrin account"],
+      "args": ["--fresh-example"],
+      "checks": ["email_sign_in_wrong_code_stays_on_the_step", "email_sign_in_shows_the_account"]
+    },
+    {
+      "covers": ["Sign in to a JusPrin account", "Use your own API key", "Connect an AI tool you already use"],
+      "args": ["--preferences-capture", "{dir}"],
+      "checks": ["preferences_account_shows_its_settings", "preferences_agent_shows_its_settings", "captured_preferences-account",
+                 "captured_preferences-agent"],
+      "pictures": {"account.png": "preferences-account.png", "byoai.png": "preferences-agent.png"}
+    }
+  ],
+  "the-app": [
+    {
+      "covers": ["Open Preferences", "Language, theme and units", "Mouse and touchpad in the 3D view", "Updates", "Report a problem or get help"],
+      "args": ["--preferences-capture", "{dir}"],
+      "checks": ["preferences_lists_its_sections", "preferences_appearance_shows_its_settings", "preferences_view3d_shows_its_settings",
+                 "preferences_projects_shows_its_settings", "preferences_updates_shows_its_settings",
+                 "preferences_capture_went_through_every_section", "guide_window_lists_every_page_in_order",
+                 "captured_guide-window"],
+      "pictures": {
+        "appearance.png": "preferences-appearance.png",
+        "3d-view.png": "preferences-view3d.png",
+        "updates.png": "preferences-updates.png",
+        "guide-window.png": "guide-window.png"
+      }
+    },
+    {
+      "covers": ["Open Preferences"],
+      "args": ["--print-history"],
+      "checks": ["print_history_ctrl_comma_opens_jusprins_preferences"]
+    },
+    {
+      "covers": ["Show and hide the panels", "Report a problem or get help"],
+      "args": [],
+      "checks": ["app_menus_view_menu", "app_menus_mac_panel_label_says_what_it_does", "agent_pane_user_collapses_on_prepare",
+                 "agent_pane_user_expands_on_prepare", "app_menus_help_menu"]
+    },
+    {
+      "covers": ["Classic view"],
+      "args": ["--classic-switch"]
+    },
+    {
+      "covers": ["Updates"],
+      "args": ["--printer-chat-sheet"],
+      "checks": ["printer_chat_get_new_version_opens_preferences", "printer_chat_get_new_version_opens_updates"]
+    }
+  ]
+}

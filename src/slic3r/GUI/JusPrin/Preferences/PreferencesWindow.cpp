@@ -18,7 +18,6 @@
 #include "slic3r/GUI/JusPrin/Agent/AgentConfiguration.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentProtocol.hpp"
 #include "slic3r/GUI/JusPrin/Agent/AgentWebView.hpp"
-#include "slic3r/GUI/JusPrin/Agent/ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Agent/ProviderProfile.hpp"
 #include "slic3r/GUI/JusPrin/Shell/AgentPane.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ServerSheet.hpp"
@@ -158,16 +157,10 @@ PreferencesWindow::PreferencesWindow(wxWindow*               parent,
     SetClientSize(FromDIP(wxSize(theme.metrics().preferences.width, theme.metrics().preferences.height)));
     SetSizer(new wxBoxSizer(wxVERTICAL));
 
-    // Its own document, never the project's: the window holds no chat.
-    Agent::ProjectPersistence::Config storage;
-    storage.in_memory = true;
-    m_persistence     = std::make_unique<Agent::ProjectPersistence>(workspace, std::move(storage));
-
     // The setup service Agent setup uses, so a key checked here is stored
     // where setup stores it. No agent: nothing here is a chat.
     Agent::AgentRuntime runtime = Agent::load_agent_runtime(wxGetApp().app_config);
-    m_view = new AgentWebView(this, theme, workspace, *m_persistence, runtime.availability, {}, runtime.setup,
-                              AgentPageMode::Preferences);
+    m_view = new AgentWebView(this, theme, workspace, runtime.availability, {}, runtime.setup, AgentPageMode::Preferences);
     m_view->SetName(_L("Preferences"));
     // For Account's credits and usage, read fresh each time the window opens.
     m_view->enable_chat_model_choice(wxGetApp().app_config);
@@ -191,15 +184,9 @@ PreferencesWindow::~PreferencesWindow()
 {
     Updates::update_check().unsubscribe(m_update_listener);
     m_pump.Stop();
-    // The host inside the view holds this window's document by reference,
-    // and wx would destroy the view only after the document is gone.
-    if (m_view != nullptr) {
-        m_view->host().set_session_state_provider({});
-        m_view->host().set_page_message_handler({});
-        delete m_view;
-        m_view = nullptr;
-    }
-    m_persistence.reset();
+    // The page's handlers call into this window, so the view goes while the
+    // window is still whole rather than with wx's children after it.
+    delete m_view;
 }
 
 json PreferencesWindow::state() const

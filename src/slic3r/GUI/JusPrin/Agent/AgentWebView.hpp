@@ -7,6 +7,7 @@
 // contrast, is a page-rendered product state — the two failures are different.
 
 #include "AgentHost.hpp"
+#include "ProjectPersistence.hpp"
 #include "slic3r/GUI/JusPrin/Shell/ShellTheme.hpp"
 
 #include <wx/panel.h>
@@ -35,7 +36,9 @@ namespace Slic3r::GUI::JusPrin {
 //   OrcaImport     File › Import › Import from OrcaSlicer… or from JusPrin 1…:
 //                  the printers that app's folder has that JusPrin doesn't,
 //                  and the result.
-enum class AgentPageMode { Conversation, PrinterPanel, Preferences, OrcaImport };
+//   Guide          Help › JusPrin guide…: the app guide, which the page
+//                  carries; it asks the app only to open a link.
+enum class AgentPageMode { Conversation, PrinterPanel, Preferences, OrcaImport, Guide };
 
 class AgentWebView : public wxPanel
 {
@@ -48,6 +51,16 @@ public:
                  Agent::AgentServicePtr            agent = {},
                  Agent::AgentSetupServicePtr       setup = {},
                  AgentPageMode                     mode = AgentPageMode::Conversation);
+    // A view with a document of its own, in memory, never the project's:
+    // for the windows that hold no chat, and for chats that go when their
+    // window closes. host().persistence() reads it.
+    AgentWebView(wxWindow*                   parent,
+                 const ShellTheme&           theme,
+                 Workspace::IWorkspace&      workspace,
+                 Agent::AgentAvailability    availability,
+                 Agent::AgentServicePtr      agent,
+                 Agent::AgentSetupServicePtr setup,
+                 AgentPageMode               mode);
     ~AgentWebView() override;
 
     void apply_appearance(bool dark);
@@ -68,6 +81,16 @@ public:
     bool                 bridge_error_shown() const { return m_error_panel != nullptr && m_error_panel->IsShown(); }
 
 private:
+    AgentWebView(wxWindow*                                  parent,
+                 const ShellTheme&                          theme,
+                 Workspace::IWorkspace&                     workspace,
+                 Agent::ProjectPersistence*                 borrowed,
+                 std::unique_ptr<Agent::ProjectPersistence> own_document,
+                 Agent::AgentAvailability                   availability,
+                 Agent::AgentServicePtr                     agent,
+                 Agent::AgentSetupServicePtr                setup,
+                 AgentPageMode                              mode);
+
     void on_script_message(wxWebViewEvent& event);
     void on_load_error(wxWebViewEvent& event);
     void on_handshake_deadline(wxTimerEvent& event);
@@ -76,6 +99,9 @@ private:
     wxString diagnostics_text(const wxString& reason) const;
 
     const ShellTheme&                 m_theme;
+    // Before the host, which holds the document by reference: built first,
+    // destroyed last.
+    std::unique_ptr<Agent::ProjectPersistence> m_own_document;
     std::unique_ptr<Agent::AgentHost> m_host;
     wxWebView*                        m_webview{nullptr};
 
