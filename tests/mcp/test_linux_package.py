@@ -110,6 +110,25 @@ class LinuxPackageTests(unittest.TestCase):
         self.assertEqual(value["args"], [str(self.package / "bin/orca-slicer"), *arguments])
         self.assertEqual(value["locale"], "C")
 
+    def test_ordinary_launch_names_the_system_certificate_bundle(self):
+        # Without SSL_CERT_FILE the app's startup asks about certificates on every launch.
+        stub = self.root / "gui_fixture.py"
+        stub.write_text("import os\nprint(os.environ.get('SSL_CERT_FILE', ''))\n")
+        environment_wrapper = self.package / "libexec/orca-slicer-env"
+        environment_wrapper.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " " +
+                                       shlex.quote(str(stub)) + "\n")
+        environment_wrapper.chmod(0o755)
+        environment = {key: value for key, value in self.environment.items() if key != "SSL_CERT_FILE"}
+
+        def launched_with(extra):
+            return subprocess.run([str(self.launcher)], capture_output=True, text=True,
+                                  env=dict(environment, XDG_SESSION_TYPE="x11", **extra),
+                                  timeout=5, check=True).stdout.strip()
+
+        named = launched_with({})
+        self.assertTrue(named and Path(named).is_file(), f"no CA bundle named: {named!r}")
+        self.assertEqual(launched_with({"SSL_CERT_FILE": "/the/user's/bundle.pem"}), "/the/user's/bundle.pem")
+
     def test_missing_helper_fails_packaging(self):
         (self.build / "jusprin-mcp").unlink()
         result = self.run_package_hook()
