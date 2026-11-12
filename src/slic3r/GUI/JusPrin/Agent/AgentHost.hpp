@@ -456,6 +456,7 @@ private:
     void remember_chat_titles();
     nlohmann::json usage_chat_titles() const;
     bool person_started(const ConversationMessage& assistant) const;
+    bool person_talked_before(const std::string& conversation_id, const std::string& in_reply_to) const;
     ChatModelChoice app_turn_model(const ChatModelChoice& chat) const;
     // What a chat that has no model of its own is on.
     ChatModelChoice new_chat_model() const;
@@ -465,7 +466,7 @@ private:
     std::string return_message_to_composer(const std::string& conversation_id, const std::string& message_id);
     // Puts m_agent on the chat's choice before a turn; false when that
     // provider has no key (the turn then fails with a reason).
-    bool use_chat_model(const std::string& conversation_id, bool by_person);
+    bool use_chat_model(const std::string& conversation_id, const ConversationMessage& assistant, bool by_person);
     // Checks and stores one file's contents on a staged record, then records
     // it and tells the page. Shared by files the page read and files the
     // native picker chose, so both are judged by the same rules.

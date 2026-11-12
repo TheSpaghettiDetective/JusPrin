@@ -2925,20 +2925,12 @@ void AgentHost::begin_stream(ConversationMessage assistant, const std::string& c
                   json{{"messageId", assistant.id}, {"inReplyTo", assistant.in_reply_to}, {"attempt", assistant.attempt}}.dump());
 
     const bool by_person = person_started(assistant);
-    if (!use_chat_model(conversation_id, by_person))
+    if (!use_chat_model(conversation_id, assistant, by_person))
         return;
-    // A chat that has talked keeps the wire format its record is in: a model
-    // in another format cannot read it. The chat's choice may have changed
-    // under it, and a provider whose key is gone leaves it on the default. An
-    // account's aliases are the exception: the app's own turns run on Expert in
-    // whatever chat, so its chats can hold both formats (RecordConversion).
-    std::optional<ChatRecord> record  = m_persistence.document().chat_record(conversation_id);
-    const ProviderProfile*    profile = m_agent_choice ? profile_for(m_agent_choice->provider) : nullptr;
-    if (record && profile && !profile->account_sign_in && record->format != wire_format(profile->family)) {
-        fail_stream(AgentError{"chat_format_fixed",
-                               "This chat's history is kept in a form that model can't read. Start a new chat to use it.", false});
-        return;
-    }
+    // A chat's record may hold replies in either wire format: each reply says
+    // its own, and the codec converts what the model does not read
+    // (RecordConversion).
+    std::optional<ChatRecord> record = m_persistence.document().chat_record(conversation_id);
     AgentRequest request = make_agent_request(assistant, conversation_id, record ? std::move(*record) : ChatRecord{});
     request.app_started  = !by_person;
     if (m_agent_choice)
@@ -3699,6 +3691,17 @@ bool AgentHost::person_started(const ConversationMessage& assistant) const
     return !source || source->role != MessageRole::Note;
 }
 
+// Whether the person sent a message before the one this turn answers, as the
+// page counts them for greying the model pickers: a message the gateway
+// returned to the composer does not count.
+bool AgentHost::person_talked_before(const std::string& conversation_id, const std::string& in_reply_to) const
+{
+    const std::vector<ConversationMessage> messages = m_persistence.document().messages(conversation_id);
+    return std::any_of(messages.begin(), messages.end(), [&](const ConversationMessage& message) {
+        return message.role == MessageRole::User && !message.returned && message.id != in_reply_to;
+    });
+}
+
 // The app's own turns read the plate picture, so they run on the account's
 // Expert alias whatever the chat's model is or will be.
 ChatModelChoice AgentHost::app_turn_model(const ChatModelChoice& chat) const
@@ -3862,10 +3865,30 @@ json AgentHost::usage_chat_titles() const
     return found;
 }
 
-bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_person)
+bool AgentHost::use_chat_model(const std::string& conversation_id, const ConversationMessage& assistant, bool by_person)
 {
     if (!m_model_source)
         return true;
+    ProjectStateDocument& document = m_persistence.document();
+    // A chat the person has talked in stays on its provider: when its key is
+    // gone, or its account signed out of, the turn fails rather than carry on
+    // with another. Before the person's first message the picker shows the
+    // default, and the chat takes it.
+    if (const std::optional<ChatModelChoice> kept = document.chat_model(conversation_id); kept) {
+        const std::vector<std::string> configured = m_model_source->configured_providers();
+        if (std::find(configured.begin(), configured.end(), kept->provider) == configured.end() &&
+            person_talked_before(conversation_id, assistant.in_reply_to)) {
+            const ProviderProfile* profile = profile_for(kept->provider);
+            const std::string      name    = profile ? profile->display_name : kept->provider;
+            fail_stream(AgentError{"chat_provider_removed",
+                                   profile && profile->account_sign_in ?
+                                       "This chat ran on your " + name + " account. Sign in again to continue it, or start a new chat." :
+                                       "This chat ran on " + name + ", and no " + name +
+                                           " API key is set up now. Add the key in the AI settings to continue it, or start a new chat.",
+                                   false});
+            return false;
+        }
+    }
     ChatModelChoice choice = chat_model_choice(conversation_id);
     if (const ProviderProfile* profile = profile_for(choice.provider); profile != nullptr && profile->account_sign_in) {
         if (!by_person)
@@ -3878,13 +3901,13 @@ bool AgentHost::use_chat_model(const std::string& conversation_id, bool by_perso
                                    "JusPrin hasn't loaded the AI models for your account yet. Try again in a moment.", true});
             return false;
         }
-        // The person's first message fixes the chat to its model and the format
-        // that is served in. A turn the app started fixes nothing.
-        ProjectStateDocument& document = m_persistence.document();
-        if (by_person && document.chat_model(conversation_id) != choice) {
-            document.set_chat_model(conversation_id, choice);
-            m_persistence.commit();
-        }
+    }
+    // The person's first message fixes the chat to its model and, on the
+    // account, the format that is served in. A turn the app started fixes
+    // nothing.
+    if (by_person && document.chat_model(conversation_id) != choice) {
+        document.set_chat_model(conversation_id, choice);
+        m_persistence.commit();
     }
     if (m_agent_choice && *m_agent_choice == choice)
         return true;

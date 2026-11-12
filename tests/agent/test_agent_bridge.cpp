@@ -1095,7 +1095,7 @@ public:
         if (!title) {
             std::vector<RecordItem> sent = JusPrinTest::kept_person_side(request);
             sent.push_back(JusPrinTest::kept_reply(reply));
-            JusPrinTest::keep(request, std::move(sent));
+            request.on_recorded(format, std::move(sent));
         }
         events.push_back(AgentEvent::delta(reply));
         events.push_back(AgentEvent::completed());
@@ -1115,6 +1115,8 @@ public:
         return event;
     }
 
+    // The wire format its replies are kept in, as its model is served in.
+    std::string               format{"responses"};
     std::vector<AgentRequest> requests;
     std::deque<AgentEvent>    events;
     bool                      active{false};
@@ -2106,6 +2108,8 @@ struct FakeModelSource final : IChatModelSource
         built.push_back(choice);
         if (recording) {
             auto agent = std::make_unique<RecordingAgent>();
+            agent->format = !choice.format.empty() ? choice.format :
+                            choice.provider == "anthropic" ? "anthropic" : "responses";
             built_recording.push_back(agent.get());
             return agent;
         }
@@ -2372,12 +2376,17 @@ TEST_CASE("a chat's model choice decides the agent each turn runs on", "[agent][
     CHECK((*h.last_of_type("state"))["payload"]["chatModel"]["provider"] == "openai");
 }
 
-// What a chat has sent is kept in the wire format it was sent in, and every
-// later request sends it again as it is. A model in another format cannot
-// read it, so a chat that has talked fails its turn on one, whether the
-// person picked it or a removed key left the chat on the default; a new chat
-// can take any model.
-TEST_CASE("a chat that has talked refuses a model in another wire format", "[agent][models][record]")
+namespace {
+const AgentRequest& last_reply(const FakeModelSource& source);
+} // namespace
+
+// What a chat has sent is kept as each reply came, and every later request
+// sends it again. A model in another wire format reads the replies converted,
+// so a chat goes on whichever model its turn is on. The composer greys the
+// pickers once the person has talked, so only a page that asks switches a
+// chat; a chat whose provider is gone fails its turn rather than carry on
+// with the default.
+TEST_CASE("a chat's history reaches a model in either wire format", "[agent][models][record]")
 {
     Harness h;
     auto source       = std::make_shared<FakeModelSource>();
@@ -2385,40 +2394,47 @@ TEST_CASE("a chat that has talked refuses a model in another wire format", "[age
     h.host.set_chat_model_source(source);
     h.handshake();
     const std::string chat = h.persistence.document().active_conversation_id();
-    // Before the chat has sent anything, any model goes.
-    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
     h.deliver("set_chat_model", json{{"provider", "openai"}, {"model", "gpt-5.4"}, {"effort", ""}});
-    CHECK(h.last_of_type("bridge_error") == nullptr);
     h.send_user_message("first", "c-1");
     h.pump_all();
     REQUIRE(h.persistence.document().chat_record(chat));
     REQUIRE(h.persistence.document().chat_record(chat)->format == "responses");
-
-    // Another model in the same format, or another thinking level, goes.
-    h.deliver("set_chat_model", json{{"provider", "openai"}, {"model", "gpt-5.5"}, {"effort", "high"}});
-    CHECK(h.last_of_type("bridge_error") == nullptr);
-    CHECK(h.persistence.document().chat_model(chat) == ChatModelChoice{"openai", "gpt-5.5", "high"});
-
     const std::size_t kept = h.persistence.document().chat_record(chat)->items.size();
-    const auto refused = [&] {
-        h.send_user_message("second", "c-2");
-        const json* failed = h.last_of_type("assistant_failed");
-        REQUIRE(failed != nullptr);
-        CHECK((*failed)["payload"]["error"]["code"] == "chat_format_fixed");
-        CHECK_FALSE(h.host.stream_active());
-        // Nothing went to the other format.
-        CHECK(h.persistence.document().chat_record(chat)->items.size() == kept);
-    };
-    SECTION("Anthropic reads another format: the turn says so")
+
+    SECTION("a model in the other format, and back again")
     {
         h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
-        refused();
+        h.send_user_message("second", "c-2");
+        h.pump_all();
+        CHECK(h.of_type("assistant_failed").empty());
+        CHECK(source->built.back().provider == "anthropic");
+        // The request carried the chat's whole record.
+        CHECK(last_reply(*source).record.items.size() == kept);
+        const ChatRecord both = *h.persistence.document().chat_record(chat);
+        CHECK(both.format == "responses");
+        CHECK(both.items.back().output_format == "anthropic");
+
+        h.deliver("set_chat_model", json{{"provider", "openai"}, {"model", "gpt-5.4"}, {"effort", ""}});
+        h.send_user_message("third", "c-3");
+        h.pump_all();
+        CHECK(h.of_type("assistant_failed").empty());
+        CHECK(source->built.back().provider == "openai");
+        CHECK(last_reply(*source).record.items.size() == both.items.size());
     }
-    SECTION("a provider whose key is gone leaves the chat on a default it cannot use")
+    SECTION("a provider whose key is gone fails the chat's turn")
     {
         source->providers = {"anthropic"};
         source->fallback  = "anthropic";
-        refused();
+        const std::size_t built = source->built.size();
+        h.send_user_message("second", "c-2");
+        const json* failed = h.last_of_type("assistant_failed");
+        REQUIRE(failed != nullptr);
+        CHECK((*failed)["payload"]["error"]["code"] == "chat_provider_removed");
+        CHECK((*failed)["payload"]["error"]["message"] ==
+              "This chat ran on OpenAI, and no OpenAI API key is set up now. Add the key in the AI settings to continue it, or start a new chat.");
+        CHECK_FALSE(h.host.stream_active());
+        CHECK(source->built.size() == built);
+        CHECK(h.persistence.document().chat_record(chat)->items.size() == kept);
     }
     SECTION("a new chat takes any model")
     {
@@ -2428,6 +2444,39 @@ TEST_CASE("a chat that has talked refuses a model in another wire format", "[age
         CHECK(h.last_of_type("assistant_failed") == nullptr);
         CHECK(source->built.back().provider == "anthropic");
     }
+}
+
+// Opening a file starts a turn of the app's own on the chat's model, but the
+// chat's picker stays open until the person sends a message. A model in
+// another format then reads the app's reply converted, and the person's first
+// message fixes the chat to that model.
+TEST_CASE("the app's own reply leaves a chat free to take a model in another wire format", "[agent][models][record]")
+{
+    // The default model's agent, on OpenAI's format.
+    Harness h{AgentServicePtr(std::make_unique<RecordingAgent>())};
+    auto source       = std::make_shared<FakeModelSource>();
+    source->recording = true;
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    const std::string chat = h.persistence.document().active_conversation_id();
+
+    h.host.on_file_loaded(prusa_open());
+    h.pump_all();
+    REQUIRE(h.persistence.document().chat_record(chat));
+    REQUIRE(h.persistence.document().chat_record(chat)->format == "responses");
+    CHECK_FALSE(h.persistence.document().chat_model(chat));
+
+    h.deliver("set_chat_model", json{{"provider", "anthropic"}, {"model", "claude-sonnet-5-5"}, {"effort", ""}});
+    h.send_user_message("do a quick print", "c-1");
+    h.pump_all();
+    CHECK(h.of_type("assistant_failed").empty());
+    CHECK(source->built.back().provider == "anthropic");
+    CHECK(h.persistence.document().chat_model(chat) == ChatModelChoice{"anthropic", "claude-sonnet-5-5", "", ""});
+
+    h.send_user_message("and now?", "c-2");
+    h.pump_all();
+    CHECK(h.of_type("assistant_failed").empty());
+    CHECK(source->built.back().provider == "anthropic");
 }
 
 namespace {
@@ -2513,6 +2562,29 @@ TEST_CASE("a turn the app started runs on Expert and does not fix the chat's mod
         CHECK(h.last_of_type("assistant_failed") == nullptr);
         CHECK(source->built.back().model == "slicer-basic");
     }
+}
+
+TEST_CASE("a chat on the account fails its turn once the account is signed out of", "[agent][models][account]")
+{
+    Harness h;
+    auto source       = account_source();
+    source->providers = {"jusprin", "openai"};
+    h.host.set_chat_model_source(source);
+    h.handshake();
+    source->asked["jusprin"](true, account_aliases(), false, {});
+    h.send_user_message("Set it up", "c-1");
+    h.pump_all();
+    CHECK(h.of_type("assistant_failed").empty());
+
+    // Signed out, with a key of the person's own still set up.
+    source->providers = {"openai"};
+    source->fallback  = "openai";
+    h.send_user_message("And now?", "c-2");
+    const json* failed = h.last_of_type("assistant_failed");
+    REQUIRE(failed != nullptr);
+    CHECK((*failed)["payload"]["error"]["code"] == "chat_provider_removed");
+    CHECK((*failed)["payload"]["error"]["message"] ==
+          "This chat ran on your JusPrin account. Sign in again to continue it, or start a new chat.");
 }
 
 TEST_CASE("a new chat on the account is on Expert in the first month and on Standard after it", "[agent][models][account]")

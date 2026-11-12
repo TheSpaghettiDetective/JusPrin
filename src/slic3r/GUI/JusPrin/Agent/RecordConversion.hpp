@@ -1,8 +1,9 @@
 #pragma once
 
-// A chat on a JusPrin account can hold turns in both wire formats: the turns
-// the app starts run on the Expert alias whatever the chat's model is, and the
-// two aliases may be served in different formats. A record item keeps the
+// A chat can hold turns in both wire formats: on a JusPrin account the turns
+// the app starts run on the Expert alias, which may be served in another
+// format than the chat's model, and on any provider the app's reply to an
+// opened file runs before the person picks the chat's model. A record item keeps the
 // provider's own output, so a codec reading another format's turn converts it
 // here. The same input always gives the same bytes, so a later request repeats
 // an earlier one's and the provider's cache still hits.
