@@ -15,6 +15,7 @@ import { afterPaint } from '@shared/afterPaint';
 import { SIGNUP_AFTER, SIGNUP_OFFER, SIGNUP_SCALE, signedInCredits } from '../../../AgentUI/src/credits';
 import { OrcaImportResultLines, OrcaPrinterList } from '../../../AgentUI/src/components/OrcaImportLists';
 import clip from '@resources/jusprin/welcome/welcome-clip.mp4';
+import clipWebm from '@resources/jusprin/welcome/welcome-clip.webm';
 import { SignInDoor as SharedSignInDoor, SignInActions } from '../../../AgentUI/src/components/SignInDoor';
 import { CheckGlyph, FolderGlyph } from './Glyphs';
 import { Lockup } from './Lockup';
@@ -127,7 +128,12 @@ function Welcome({ onboarding, appearance, onAction }: Props) {
       <Lockup appearance={appearance} className="onboarding-lockup" />
       <div className="onboarding-welcome">
         <figure className="onboarding-clip">
-          <video src={clip} autoPlay loop muted playsInline aria-label="AI fixing a print that came out stringy" />
+          {/* WebM first: Linux's web view plays it with the codecs every distro ships, but
+              H.264 only once the user installs extra ones. */}
+          <video autoPlay loop muted playsInline aria-label="AI fixing a print that came out stringy">
+            <source src={clipWebm} type="video/webm" />
+            <source src={clip} type="video/mp4" />
+          </video>
           <details className="onboarding-credits">
             <summary>Photo credits</summary>
             <p>
