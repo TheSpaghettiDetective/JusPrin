@@ -16606,13 +16606,17 @@ int main(int argc, char** argv)
             return 2;
         }
     }
-    if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured ||
+    // The default run's mock Agent stands in for a provider the person has
+    // a key for: the app keeps a chat the person has talked in on that
+    // provider, and fails its next turn when no key for it is stored.
+    const bool mock_has_key = state->mode == HarnessState::Mode::Shell;
+    if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured || mock_has_key ||
         state->mode == HarnessState::Mode::PrintIssues || state->mode == HarnessState::Mode::PrinterSetup) {
         // The unavailable setup check exercises a connection failure. The
-        // configured task-chat capture never sends a turn, but also uses the
-        // closed port so its placeholder key cannot reach a provider; so do
-        // the print-issue and printer-setup runs, which store one as a key
-        // checked in Preferences would be.
+        // configured task-chat capture and the default run never reach a
+        // provider, but also use the closed port so their placeholder key
+        // cannot; so do the print-issue and printer-setup runs, which store
+        // one as a key checked in Preferences would be.
         wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
     }
 
@@ -16670,16 +16674,18 @@ int main(int argc, char** argv)
 #endif
         if (state->mode == HarnessState::Mode::LiveAgent || state->mode == HarnessState::Mode::PlanJourney ||
             state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
-            state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured) {
-            // The base config has the Agent off, like a fresh install. Only
-            // the configured task-chat visual run adds a placeholder key.
+            state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured || mock_has_key) {
+            // The base config has the Agent off, like a fresh install. The
+            // configured task-chat visual run and the default run add a
+            // placeholder key.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
                                       state->mode == HarnessState::Mode::PlanJourney ||
                                       state->mode == HarnessState::Mode::ManualLiveAgent ||
-                                      state->mode == HarnessState::Mode::PrinterLive || state->task_chat_configured;
+                                      state->mode == HarnessState::Mode::PrinterLive || state->task_chat_configured ||
+                                      mock_has_key;
             const std::string consent = live_enabled ? "true" : "false";
-            const std::string placeholder = state->task_chat_configured ?
+            const std::string placeholder = state->task_chat_configured || mock_has_key ?
                 ",\n    \"openai_api_key\": \"visual-test-placeholder\"" : "";
             const std::string to = "\"jusprin_agent\": {\n    \"cloud_consent\": " + consent +
                                    ",\n    \"enabled\": true,\n    \"model\": \"gpt-5.4-mini\"" + placeholder +
