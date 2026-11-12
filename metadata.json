@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M78EKK2SWG6GSR97V1EFDYFX",
+  "strategy": "manual-commit",
+  "branch": "claude/chat-drop-attaches",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "agent-docs/jusprin/architecture.md",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/App.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/PrinterPanelApp.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/bridge/dropGuard.ts",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.test.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/components/Composer.tsx",
+    "src/slic3r/GUI/JusPrin/AgentUI/src/visual/authoring.visual-cases.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 270,
+    "cache_creation_tokens": 259671,
+    "cache_read_tokens": 28094993,
+    "output_tokens": 81456,
+    "api_call_count": 135
+  }
+}
