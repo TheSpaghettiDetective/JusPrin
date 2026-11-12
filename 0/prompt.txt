@@ -1,0 +1,30 @@
+Task (from the session that started this one):
+Background (from the session that started this one):
+Kenneth reported this while testing the released JusPrin 2.0.0 on macOS: he dragged a photo of a stringy two-colour 3DBenchy onto the chat panel and the panel was replaced by the photo alone, with the chat gone. A separate session is fixing an unrelated chat bug in `AgentHost.cpp` (a chat refusing a model in another wire format after the app's file-open reply), so avoid editing `begin_stream` and the format-check code in `src/slic3r/GUI/JusPrin/Agent/AgentHost.cpp` and the test "the app's own reply leaves a chat free to take a model in another wire format" in `tests/agent/test_agent_bridge.cpp`.
+
+Task:
+In the JusPrin app (macOS, the released 2.0.0 build at /Applications/JusPrin.app, and the dev build in `build/arm64`), dragging a picture file from Finder onto the AI chat panel on the right side of the window does not attach it to the message. Instead the whole chat panel disappears and the picture is shown by itself, filling the panel (the embedded web view navigates to the image file). Expected: dropping a picture (and any other file the composer's attach button accepts) onto the chat panel attaches it to the message being written, the same as picking it with the composer's attach button, and the panel never navigates away.
+
+Where to look: the chat panel is a wxWebView (`src/slic3r/GUI/JusPrin/Agent/AgentWebView.cpp`) showing the React page in `src/slic3r/GUI/JusPrin/AgentUI/src` (composer in `components/Composer.tsx`; attachments go through the `pick_attachment` bridge message and the native file picker). Find out whether the page handles `dragover`/`drop` at all, and whether the native side lets WebKit navigate on a dropped file (wxWebView navigating event, or WKWebView's default drop behaviour). Reproduce it in a dev build with an isolated `--datadir` before fixing (see the project's AGENTS.md: bug fix policy, building on a shared machine with `-j4`, and `agent-docs/jusprin/README.md`). Also check Windows and Linux behaviour of the same code path by reading, since the fix must be cross-platform. Done = a drop attaches the file, the panel never navigates to a dropped file, a test or documented verification covers it, and the change is on a new branch from `jusprin-dev`.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_6f8f9f68-d842-4d09-b3e4-f862f94f8fe5
+
+---
+
+launch the app for me to test
+
+---
+
+You need to do more testing If not, why did you ask me to quit?
+
+---
+
+launch the app for me to test
+
+---
+
+it's not fixed. check for yourself
+
+---
+
+upsteam orcaslicer probably has already had similar drag & drop function on webview. you can just check how it's done there and do the same
