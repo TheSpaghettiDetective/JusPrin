@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.10.5",
+  "checkpoint_id": "01M79PXT5W21D61NDGSETE2ZNV",
+  "session_id": "4774b16e-35e9-494a-856e-bd25e66b7da7",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-13T05:43:51.89913Z",
+  "branch": "claude/recorder-slice-points",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/project_prompt/README.md",
+    "tests/project_prompt/requests.json",
+    "tests/project_prompt/run_prompt_tests.py",
+    "tests/project_prompt/test_steps.py",
+    "tests/shell/project_prompt_scenario.inc",
+    "tests/shell/shell_harness.cpp"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "08ebf483f7af",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 208,
+    "cache_creation_tokens": 222270,
+    "cache_read_tokens": 20781442,
+    "output_tokens": 71494,
+    "api_call_count": 104
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-11-13T05:43:51.803835Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 14176,
+    "human_modified": 119776,
+    "human_removed": 0,
+    "total_committed": 14176,
+    "total_lines_changed": 133952,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
