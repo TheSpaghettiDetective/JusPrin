@@ -1783,9 +1783,13 @@ std::string plain_number(double value)
 
 void AgentHost::tell_reopened_test()
 {
-    const std::string     opened_from = std::exchange(m_opened_from, {});
-    ProjectStateDocument& document    = m_persistence.document();
-    const auto            test        = document.calibration();
+    ProjectStateDocument& document = m_persistence.document();
+    std::string           opened_from;
+    if (!m_opened_from_project.empty() && m_opened_from_project == document.project_id()) {
+        m_opened_from_project.clear();
+        opened_from = std::exchange(m_opened_from, {});
+    }
+    const auto test = document.calibration();
     if (!test || !test->contains("test"))
         return;
     // Only the tower and line tests keep their steps in the print alone; the

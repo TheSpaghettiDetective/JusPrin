@@ -396,9 +396,16 @@
             if (result == sent.rend())
                 return std::nullopt;
             const std::string output = result->at("output");
-            const bool succeeded = json::parse(output).value("state", "") == "succeeded";
-            check(succeeded, name + "_answer_" + tool + "_succeeded");
-            return succeeded ? std::optional<std::string>(output) : std::nullopt;
+            const json parsed = json::parse(output);
+            // A slice report, or a read of the slicing section, made while
+            // this point's own slice runs is answered "busy"
+            // (refuse_slice_poll): that is the app's answer at this point, and
+            // the one the model gets.
+            const bool busy_slicing = (tool == "workspace_inspect" || tool == "slice_report") && parsed.value("state", "") == "failed" &&
+                                      parsed.contains("error") && parsed.at("error").value("code", "") == "busy";
+            const bool answered = parsed.value("state", "") == "succeeded" || busy_slicing;
+            check(answered, name + "_answer_" + tool + "_succeeded");
+            return answered ? std::optional<std::string>(output) : std::nullopt;
         };
         std::map<std::string, std::vector<std::string>> scope_keys;
         bool ok = true;

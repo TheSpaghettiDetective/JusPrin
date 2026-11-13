@@ -65,7 +65,7 @@ public:
     // The caller restores the existing managed identity when the load ends.
     void during_managed_restore(const std::function<void()>& operation);
     // An OrcaSlicer calibration generator starts its own new project; run
-    // here, the project boundary it makes continues this project instead: the
+    // here, every project boundary it makes continues this project instead: the
     // document (identity, chats, setup) is kept, nothing is told it was
     // replaced, and version history goes on in the same store. Armed for the
     // operation only, and a boundary still parked when it returns is settled

@@ -69,7 +69,7 @@ public:
     void set_autosave(Workspace::ProjectAutosave* autosave);
     // Told before Home opens one of its projects, for the line a reopened
     // calibration test starts with.
-    void set_project_opening(std::function<void()> opening) { m_project_opening = std::move(opening); }
+    void set_project_opening(std::function<void(const std::string& project_id)> opening) { m_project_opening = std::move(opening); }
     // Stands in for Open…'s file dialog, for the integration harness: what it
     // returns is what the person chose, nothing for Cancel. Unset, the dialog.
     void set_file_chooser(std::function<wxArrayString()> choose) { m_choose_files = std::move(choose); }
@@ -186,7 +186,7 @@ private:
     Workspace::ProjectAutosave*                       m_autosave{nullptr};
     OpenConversation                                   m_open_conversation;
     StartCalibration                                   m_start_calibration;
-    std::function<void()>                              m_project_opening;
+    std::function<void(const std::string&)>            m_project_opening;
     std::function<wxArrayString()>                     m_choose_files;
     std::function<std::string(const std::string&)>     m_choose_export;
     std::function<std::string()>                       m_choose_report_photo;

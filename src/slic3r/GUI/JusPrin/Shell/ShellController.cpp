@@ -734,7 +734,8 @@ void ShellController::install(MainFrame& frame, Notebook& tabpanel, wxSizer& mai
                 [this] { return m_persistence->document().allocate_action_id(); }});
         m_home->backend().set_conversation_opener(
             [this](const std::string& printer_name, bool connect) { open_printer_conversation(printer_name, connect); });
-        m_home->backend().set_project_opening([this] { m_agent_pane->web_view().host().set_project_opened_from("Home"); });
+        m_home->backend().set_project_opening(
+            [this](const std::string& project_id) { m_agent_pane->web_view().host().set_project_opened_from(project_id, "Home"); });
         // The card names its printer and no filament; the assistant sets the
         // printer up before making the test.
         m_home->backend().set_calibration_starter(

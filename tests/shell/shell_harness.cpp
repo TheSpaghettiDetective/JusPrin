@@ -1232,9 +1232,11 @@ public:
             return true;
         } else if (request.user_text == kPhotoText) {
             m_reading = true;
+            // A Bambu filament holds one nozzle temperature for each nozzle
+            // type (Standard and High Flow), and the tool takes every value.
             const nlohmann::json arguments{{"scope", "filament"},
                                            {"target", {{"preset", request.workspace.setup.filament_preset}}},
-                                           {"changes", {{"nozzle_temperature", "215"}}},
+                                           {"changes", {{"nozzle_temperature", "215,215"}}},
                                            {"persistAs", kSavedPreset}};
             m_events.push_back(Agent::AgentEvent::tool_call({"call-r1", Agent::ToolRequest{"settings_preview_patch", arguments.dump()}, true}));
             return true;
@@ -3072,7 +3074,7 @@ private:
         // Windows), shown as the card's tooltip.
         std::error_code same_folder_error;
         check(home_entry != home_projects.end() && home_entry->name == "restart-source" &&
-                  home_entry->status_text == "Saved" &&
+                  home_entry->status_text == "Draft" &&
                   std::filesystem::equivalent(std::filesystem::u8path(home_entry->path),
                                               std::filesystem::path(data_dir()) / "jusprin" / "projects" / document.project_id(),
                                               same_folder_error),
@@ -11066,7 +11068,7 @@ private:
     }
 
     // Board 8: the test is an ordinary project on Home, told apart by its
-    // name; its card reads "Saved" like every other.
+    // name; its card reads "Draft" like every other project not yet printed.
     void calibration_on_home()
     {
         m_frame->select_tab(TAB_ID_HOME);
@@ -11074,7 +11076,7 @@ private:
             const auto projects = installed_shell()->home_view()->backend().recent_projects().projects;
             const auto test     = std::find_if(projects.begin(), projects.end(),
                                                [](const auto& project) { return project.name == CalibrationAgent::kTestProject; });
-            self->check(test != projects.end() && test->status_text == "Saved", "calibration_test_is_an_ordinary_project_on_home");
+            self->check(test != projects.end() && test->status_text == "Draft", "calibration_test_is_an_ordinary_project_on_home");
             for (int settle = 0; settle < 20; ++settle) {
                 wxYield();
                 wxMilliSleep(50);
@@ -11181,7 +11183,12 @@ private:
                                     "First layer speed | First layer"})
             check(page.find(caption) != std::string::npos, std::string("setup_page_groups_under_") + caption);
         check(page.find("Bed temperature | Bed temperature") != std::string::npos, "setup_page_groups_a_filament_setting");
-        check(page.find("Retraction | Retraction Length | ") != std::string::npos, "setup_page_groups_a_printer_setting");
+        // A printer setting is headed by its page and group, and its group's
+        // run of rows ends at the next heading.
+        const auto retraction = page.find("Extruder \xC2\xB7 Retraction | ");
+        const std::string retraction_rows =
+            retraction == std::string::npos ? std::string() : page.substr(retraction, page.find(" \xC2\xB7 ", retraction + 12) - retraction);
+        check(retraction_rows.find("| Retraction Length | 1.2 mm") != std::string::npos, "setup_page_groups_a_printer_setting");
         check(page.find("1.2 mm") != std::string::npos, "setup_page_shows_a_printer_setting_with_its_unit");
         // The thread's own record of the same edits reads the same way.
         check(page.find("outer_only") == std::string::npos, "setup_page_shows_no_config_token");
@@ -11382,7 +11389,8 @@ private:
             host.pump_tools();
         const Agent::ToolActivity* done = host.tools().find(action);
         if (done->state != Agent::ToolState::Succeeded)
-            std::cout << "HARNESS SETUP tool " << tool << " ended " << int(done->state) << " " << done->result_json << std::endl;
+            std::cout << "HARNESS SETUP tool " << tool << " ended " << Agent::tool_state_name(done->state) << " "
+                      << (done->error ? done->error->code + ": " + done->error->message : done->result_json) << std::endl;
         check(done->state == Agent::ToolState::Succeeded, name);
     }
 
@@ -11395,9 +11403,11 @@ private:
                              {"headline", "Wide brim and a slow first layer for adhesion"}},
             "setup_differences_agent_records_the_purpose_and_plan");
         const auto snapshot = installed_workspace_snapshot();
+        // First layer speed holds one value for each nozzle type (Standard
+        // and High Flow), and the tool takes every value.
         run("settings_apply_patch",
             {{"scope", "process"},
-             {"changes", {{"brim_type", "outer_only"}, {"brim_width", "8"}, {"initial_layer_speed", "25"}}},
+             {"changes", {{"brim_type", "outer_only"}, {"brim_width", "8"}, {"initial_layer_speed", "25,25"}}},
              {"expectedSessionId", std::to_string(snapshot.session.value())},
              {"expectedRevision", snapshot.revision}},
             "setup_differences_agent_applies_the_patch");
@@ -16606,16 +16616,20 @@ int main(int argc, char** argv)
             return 2;
         }
     }
-    // The default run's mock Agent stands in for a provider the person has
-    // a key for: the app keeps a chat the person has talked in on that
-    // provider, and fails its next turn when no key for it is stored.
-    const bool mock_has_key = state->mode == HarnessState::Mode::Shell;
+    // A mock Agent that answers more than one message in a chat stands in
+    // for a provider the person has a key for: the app keeps a chat the
+    // person has talked in on that provider, and fails its next turn when no
+    // key for it is stored.
+    const bool mock_has_key = state->mode == HarnessState::Mode::Shell ||
+                              state->mode == HarnessState::Mode::ProjectPromptRequests ||
+                              state->mode == HarnessState::Mode::ReplyChoicesCapture ||
+                              state->mode == HarnessState::Mode::CalibrationCapture;
     if (state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured || mock_has_key ||
         state->mode == HarnessState::Mode::PrintIssues || state->mode == HarnessState::Mode::PrinterSetup) {
         // The unavailable setup check exercises a connection failure. The
-        // configured task-chat capture and the default run never reach a
-        // provider, but also use the closed port so their placeholder key
-        // cannot; so do the print-issue and printer-setup runs, which store
+        // configured task-chat capture and the runs with a keyed mock never
+        // reach a provider, but also use the closed port so their placeholder
+        // key cannot; so do the print-issue and printer-setup runs, which store
         // one as a key checked in Preferences would be.
         wxSetEnv("JUSPRIN_OPENAI_ENDPOINT", "http://127.0.0.1:1/v1/responses");
     }
@@ -16676,8 +16690,8 @@ int main(int argc, char** argv)
             state->mode == HarnessState::Mode::ManualLiveAgent || state->mode == HarnessState::Mode::PrinterLive ||
             state->mode == HarnessState::Mode::LiveAgentUnavailable || state->task_chat_configured || mock_has_key) {
             // The base config has the Agent off, like a fresh install. The
-            // configured task-chat visual run and the default run add a
-            // placeholder key.
+            // configured task-chat visual run and the runs with a keyed mock
+            // add a placeholder key.
             const std::string from = "\"jusprin_agent\": {\n    \"enabled\": false\n  }";
             const bool live_enabled = state->mode == HarnessState::Mode::LiveAgent ||
                                       state->mode == HarnessState::Mode::PlanJourney ||

@@ -1398,7 +1398,7 @@ void OrcaHomeBackend::open_project(const std::string& project_id)
     if (project_id.empty() || m_autosave == nullptr)
         return;
     if (m_project_opening)
-        m_project_opening();
+        m_project_opening(project_id);
     if (!m_autosave->open_managed_project(project_id)) {
         show_open_failure(&m_frame, *m_autosave);
         return;

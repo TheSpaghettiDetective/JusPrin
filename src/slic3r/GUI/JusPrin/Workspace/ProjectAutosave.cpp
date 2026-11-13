@@ -6,6 +6,7 @@
 #include "slic3r/GUI/JusPrin/Support/Base64.hpp"
 #include "StoredFormat.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
+#include "libslic3r/Model.hpp"
 #include "libslic3r/GCode/Thumbnails.hpp"
 #include "libslic3r/miniz_extension.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
@@ -372,11 +373,14 @@ std::string ProjectAutosave::observed_input() const
     append_text(out, m_plater.get_project_filename(".3mf").ToUTF8().data());
     const Model& model = m_plater.model();
     out << model.id().id << ';' << model.objects.size() << ';';
-    if (model.model_info) {
-        append_text(out, model.model_info->cover_file);
-        append_text(out, model.model_info->description);
-        append_text(out, model.model_info->model_name);
-    }
+    // The record's contents, not whether it exists: OrcaSlicer's project
+    // info panel makes an empty one whenever it refreshes, which holds
+    // nothing new to save.
+    const ModelInfo no_info;
+    const ModelInfo& info = model.model_info ? *model.model_info : no_info;
+    append_text(out, info.cover_file);
+    append_text(out, info.description);
+    append_text(out, info.model_name);
     for (const auto& [plate_index, codes] : model.plates_custom_gcodes) {
         out << plate_index << ',' << int(codes.mode) << ',' << codes.gcodes.size() << ';';
         for (const auto& code : codes.gcodes) {

@@ -109,9 +109,13 @@ public:
     // Stamped on every request this host makes.
     // A session with tools of its own saves its own presets; in the project
     // chat the person saves one, from the card the Agent's preview proposes.
-    // The surface the person opens the next project from, for the line a
-    // reopened calibration test starts with.
-    void set_project_opened_from(std::string surface) { m_opened_from = std::move(surface); }
+    // The surface the person opens a project from, for the line a reopened
+    // calibration test starts with.
+    void set_project_opened_from(std::string project_id, std::string surface)
+    {
+        m_opened_from_project = std::move(project_id);
+        m_opened_from         = std::move(surface);
+    }
     // The calibration project just opened (by the app after the popup, or by
     // calibration_generate from the person's own project): it is marked as
     // one, its chat is named for it and opens with the handover line, and,
@@ -690,8 +694,11 @@ private:
     // A project's document came in; the next tick checks whether it is a
     // calibration test that lost its steps.
     bool                            m_check_reopened_test{false};
-    // Where the person opened the next project from ("Home"), said by the
-    // surface that opens it; used once.
+    // Where the person opened a project from ("Home"), said by the surface
+    // that opens it, and that project's id. An open replaces the document
+    // more than once on its way, so only the opened project's own document
+    // uses it, once.
+    std::string                     m_opened_from_project;
     std::string                     m_opened_from;
     // Runs the chat's slice_start began that have ended, by that call's
     // action id, told on a timer tick once the turn that started them has

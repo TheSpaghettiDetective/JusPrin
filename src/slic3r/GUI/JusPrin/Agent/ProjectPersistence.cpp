@@ -275,7 +275,10 @@ void ProjectPersistence::adopt_current_project(bool in_place_reset)
     m_attached_aux_dir = m_workspace.auxiliary_data_dir();
     m_attached         = true;
     // A calibration generator's own new project: the same project goes on.
-    if (std::exchange(m_continuing_project, false)) {
+    // The generator can move the project folder more than once (JusPrin's
+    // calibration project, then OrcaSlicer's own), so every boundary while
+    // it runs continues the project; continuing_project() disarms it.
+    if (m_continuing_project) {
         m_dirty = true;
         flush();
         return;

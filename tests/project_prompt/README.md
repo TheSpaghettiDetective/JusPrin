@@ -137,8 +137,15 @@ The recorded answers, kept beside each request, are the reads the script's
 
 They are real results the recorder got by calling those reads at that point
 in the same turn; each case's point is replayed from the start for its own
-recording, so those calls reach no other case's history. Recording all 22
-points takes under three minutes. To keep `requests.json` small (about
+recording, so those calls reach no other case's history. Recording all 34
+points took 9 to 13 minutes on an M-series Mac in 2026-11. At the three
+points recorded while the turn's own slice runs (`after-slice`,
+`print-hook-after-slice`, `print-hook-plan-slice`), a slice report or a read
+of the slicing section is answered "busy" until that slice ends, and the
+recorder keeps that answer; if the slice ends partway through the reads, the
+app starts the turn that tells its outcome and the recorder loses the rest,
+so how far those points get depends on the machine's speed. To keep
+`requests.json` small (about
 6 MB), the recorder keeps each distinct setting item once, file-wide
 (`settingItems`), and each point's workspace block once when a result
 repeats it exactly (`sharedWorkspace`); the runner and the schema test put
