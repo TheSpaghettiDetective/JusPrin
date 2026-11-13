@@ -1,0 +1,21 @@
+Background (from the session that started this one):
+JusPrin is a fork of OrcaSlicer (C++/wxWidgets). The shell harness drives the real app with a mock AI model; the prompt recorder records, at each scripted point of a project chat, the app's real answers to a fixed list of reads so an offline eval runner can replay them. On 2026-11-12 commit 5e173c5e15 fixed every other harness mode; the recorder's three slice-time points are what is left. Build rules for this shared Mac are in AGENTS.md (check `uptime` and `pgrep -fl ninja`, build with -j4 or less, one build per build directory). The recorder takes 9 to 13 minutes per run.
+
+Task:
+The shell harness's prompt recorder (`--project-prompt-requests tests/project_prompt/script.json <out.json>`, code in `tests/shell/project_prompt_scenario.inc`, run by `JusPrinShellHarness` from target `shell_integration_harness`) fails 3 checks in a row of runs on jusprin-dev at 5e173c5e15: `after-slice_answer_slice_report_has_its_result`, `print-hook-after-slice_answer_printer_list_has_its_result`, `print-hook-plan-slice_answer_printer_list_has_its_result`. At those three points the turn's own slice is still running. `ToolExecutionCoordinator::refuse_slice_poll` answers a `slice_report`, or a `workspace_inspect` asking for the slicing section, with "busy" until that slice ends, and the recorder now keeps that answer. But if the slice ends partway through the point's reads, the app starts the turn that tells the slice's outcome, the next request no longer carries the call's result, and the recorder fails. How far those points get depends on machine speed and load.
+
+Task: make those three points record the same answers every run. First find out whether the harness can keep the slice from ending until the point's reads are done (or another way to make the timing fixed), and which answers those points should hold given what the app really tells the model in that turn ("busy"). If the right answer is a product or eval-data decision, stop and ask Kenneth in full before changing it. Then re-record `tests/project_prompt/requests.json`: the committed one predates the OrcaSlicer 2.5.0 merge (object ids and the settings list differ at every point, about 7 more recorded answers per point), and `tests/project_prompt/README.md` keeps a log of every re-recording, so add an entry saying what changed. Do not run the live eval suite against a paid model without asking Kenneth first.
+
+Done looks like: two back-to-back recorder runs pass with 0 failures and produce the same `requests.json` apart from ids and timestamps; the runner's schema test still passes; README updated; one commit on its own branch, not pushed.
+
+Shared notes folder for this group of sessions (outside the repo; read siblings' notes there, leave hand-over notes or large findings there instead of pasting them into messages): /Users/kenneth/Library/Application Support/Claude/side-session-notes/local_6f8f9f68-d842-4d09-b3e4-f862f94f8fe5
+
+---
+
+<task-notification>
+<task-id>b9ansgce7</task-id>
+<tool-use-id>toolu_017UXpzkMknFUoCpM8L7pYFq</tool-use-id>
+<output-file>/private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/4774b16e-35e9-494a-856e-bd25e66b7da7/tasks/b9ansgce7.output</output-file>
+<status>completed</status>
+<summary>Background command "while kill -0 93712 2&gt;/dev/null; do sleep 30; done; tail -5 /private/tmp/claude/claude-502/-Users-kenneth-Projects-JusPrin--claude-worktrees-hungry-murdock-3137cd/4774b16e-35e9-494a-856e-bd25e66b7da7/scratchpad/build.log | cut -c1-300" completed (exit code 0)</summary>
+</task-notification>
