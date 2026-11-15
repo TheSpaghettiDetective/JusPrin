@@ -3,7 +3,7 @@
   "checkpoint_id": "01M7EY4MJ7EXADMAHG6CSZXYSZ",
   "strategy": "manual-commit",
   "branch": "claude/localize-fork",
-  "checkpoints_count": 1,
+  "checkpoints_count": 6,
   "files_touched": [
     "src/slic3r/GUI/JusPrin/HomeUI/tsconfig.json"
   ],
@@ -14,13 +14,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 70,
-    "cache_creation_tokens": 196332,
-    "cache_read_tokens": 6164358,
-    "output_tokens": 32124,
-    "api_call_count": 35
+    "input_tokens": 168,
+    "cache_creation_tokens": 487178,
+    "cache_read_tokens": 14019445,
+    "output_tokens": 53937,
+    "api_call_count": 84,
+    "subagent_tokens": {
+      "input_tokens": 1936,
+      "cache_creation_tokens": 4043888,
+      "cache_read_tokens": 144575523,
+      "output_tokens": 1393351,
+      "api_call_count": 968
+    }
   }
 }
